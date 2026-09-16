@@ -1,0 +1,85 @@
+name: Issue format
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  issue-format:
+    name: issue-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { validateIssue } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/validate-issue.mjs`
+            );
+
+            const issue = context.payload.issue;
+            const labels = issue.labels.map((label) => label.name);
+            const problems = validateIssue({ body: issue.body ?? "", labels });
+
+            const marker = "<!-- issue-format-bot -->";
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+            });
+            const botComment = comments.find((comment) => comment.body.includes(marker));
+
+            if (problems.length > 0) {
+              const body = [
+                marker,
+                "This issue does not follow the required template yet:",
+                "",
+                ...problems.map((problem) => `- ${problem}`),
+              ].join("\n");
+
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body,
+                });
+              }
+
+              if (!labels.includes("invalid-format")) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ["invalid-format"],
+                });
+              }
+            } else {
+              if (botComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                });
+              }
+              if (labels.includes("invalid-format")) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: "invalid-format",
+                });
+              }
+            }

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "type: feature",
+    "color": "1d76db",
+    "description": "A deliverable vertical slice of user-visible functionality."
+  },
+  {
+    "name": "type: bug",
+    "color": "d73a4a",
+    "description": "Something behaves differently from what it should."
+  },
+  {
+    "name": "type: spike",
+    "color": "5319e7",
+    "description": "A technical question to answer before building; its answer is recorded in the issue."
+  },
+  {
+    "name": "type: technical",
+    "color": "fbca04",
+    "description": "Work with no user-visible change, such as CI, dependencies, or a refactor."
+  },
+  {
+    "name": "invalid-format",
+    "color": "e4e669",
+    "description": "This issue does not follow the required template yet."
+  }
+]

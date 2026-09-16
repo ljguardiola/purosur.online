@@ -1,0 +1,61 @@
+name: PR contract
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  pr-contract:
+    name: pr-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { validatePr, parseClosesReferences, isDependabotAuthor } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/validate-pr.mjs`
+            );
+
+            const pr = context.payload.pull_request;
+            const body = pr.body ?? "";
+            const references = parseClosesReferences(body);
+            const author = {
+              login: pr.user?.login ?? null,
+              type: pr.user?.type ?? null,
+            };
+
+            let issue = null;
+            if (!isDependabotAuthor(author) && references.length === 1) {
+              try {
+                const { data } = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: references[0],
+                });
+                issue = {
+                  number: data.number,
+                  state: data.state,
+                  labels: data.labels.map((label) => (typeof label === "string" ? label : label.name)),
+                  subIssuesTotal: data.sub_issues_summary?.total ?? 0,
+                };
+              } catch (error) {
+                issue = null;
+              }
+            }
+
+            const problems = validatePr({ title: pr.title, body, issue, author });
+
+            if (problems.length > 0) {
+              core.setFailed(
+                ["This PR does not satisfy the repository contract:", "", ...problems.map((problem) => `- ${problem}`)].join(
+                  "\n",
+                ),
+              );
+            }

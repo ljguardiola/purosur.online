@@ -1,0 +1,22 @@
+{
+  "name": "purosur-pos",
+  "private": true,
+  "packageManager": "pnpm@11.27.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "verify": "tsc --noEmit && biome ci . && vitest run && node --test .github/scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.13",
+    "@types/node": "^24.13.4",
+    "typescript": "6.0.3",
+    "vitest": "^5.0.0"
+  }
+}

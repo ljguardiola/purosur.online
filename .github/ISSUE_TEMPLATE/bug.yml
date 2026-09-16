@@ -1,0 +1,35 @@
+name: Bug
+description: Something behaves differently from what it should.
+labels:
+  - "type: bug"
+body:
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: where-it-happens
+    attributes:
+      label: Where it happens (register or cloud, and version)
+    validations:
+      required: true
+  - type: textarea
+    id: impact-on-the-store
+    attributes:
+      label: Impact on the store
+    validations:
+      required: true

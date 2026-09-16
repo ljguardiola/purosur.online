@@ -1,0 +1,33 @@
+name: Feature
+description: A deliverable vertical slice of user-visible functionality.
+labels:
+  - "type: feature"
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome does this feature deliver, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: business-rules
+    attributes:
+      label: Business rules
+      description: Constraints and rules the implementation must respect.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria (Given / When / Then)
+      description: One or more Given / When / Then scenarios.
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What this issue explicitly does not cover.
+    validations:
+      required: true

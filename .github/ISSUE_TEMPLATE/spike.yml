@@ -1,0 +1,30 @@
+name: Spike
+description: A technical question to answer before building. Closing it records the answer; no code merges from a spike.
+labels:
+  - "type: spike"
+body:
+  - type: textarea
+    id: question-to-answer
+    attributes:
+      label: Question to answer
+    validations:
+      required: true
+  - type: textarea
+    id: how-it-will-be-decided
+    attributes:
+      label: How it will be decided
+    validations:
+      required: true
+  - type: textarea
+    id: time-box
+    attributes:
+      label: Time box
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result
+      description: Fill this in when closing the spike, with the answer found.
+    validations:
+      required: false

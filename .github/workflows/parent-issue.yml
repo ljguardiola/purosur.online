@@ -1,0 +1,153 @@
+name: Parent issue
+
+on:
+  issues:
+    types: [closed, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  parent-issue:
+    name: parent-issue
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const {
+              parseParentNumber,
+              decideOwnConsistency,
+              decideParentOnChildClosed,
+              decideParentOnChildReopened,
+            } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/parent-issue.mjs`
+            );
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // GITHUB_TOKEN never returns `parent_issue_url` from the REST
+            // "get an issue" endpoint (confirmed live: a personal token gets
+            // it, GITHUB_TOKEN does not), so the parent is read via GraphQL
+            // instead, which returns it correctly for both.
+            async function getParent(issueNumber) {
+              const result = await github.graphql(
+                `query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      parent { number }
+                    }
+                  }
+                }`,
+                { owner, repo, number: issueNumber },
+              );
+              return parseParentNumber(result.repository.issue.parent);
+            }
+
+            async function getIssue(issueNumber) {
+              const { data } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+              return {
+                number: data.number,
+                state: data.state,
+                subIssuesTotal: data.sub_issues_summary?.total ?? 0,
+                parentNumber: await getParent(issueNumber),
+              };
+            }
+
+            async function getSubIssues(issueNumber) {
+              const { data } = await github.request(
+                "GET /repos/{owner}/{repo}/issues/{issue_number}/sub_issues",
+                { owner, repo, issue_number: issueNumber },
+              );
+              return data.map((subIssue) => ({
+                number: subIssue.number,
+                state: subIssue.state,
+                state_reason: subIssue.state_reason,
+              }));
+            }
+
+            async function closeAsCompleted(issueNumber) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                state: "closed",
+                state_reason: "completed",
+              });
+            }
+
+            async function reopen(issueNumber) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                state: "open",
+              });
+            }
+
+            async function comment(issueNumber, body) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body,
+              });
+            }
+
+            // Events raised by GITHUB_TOKEN (our own close/reopen calls
+            // below) do not trigger a new workflow run, so the rule is
+            // applied up the parent chain here, in the same run.
+
+            if (context.payload.action === "closed") {
+              let current = await getIssue(context.payload.issue.number);
+
+              while (true) {
+                const subIssues =
+                  current.subIssuesTotal > 0 ? await getSubIssues(current.number) : [];
+                const ownDecision = decideOwnConsistency({ subIssues });
+                if (ownDecision) {
+                  await reopen(current.number);
+                  await comment(current.number, ownDecision.comment);
+                  break;
+                }
+
+                if (current.parentNumber === null) {
+                  break;
+                }
+
+                const parent = await getIssue(current.parentNumber);
+                const parentSubIssues = await getSubIssues(parent.number);
+                const parentDecision = decideParentOnChildClosed({ parent, parentSubIssues });
+                if (!parentDecision) {
+                  break;
+                }
+
+                await closeAsCompleted(parentDecision.issue);
+                current = await getIssue(parentDecision.issue);
+              }
+            } else if (context.payload.action === "reopened") {
+              let current = await getIssue(context.payload.issue.number);
+
+              while (true) {
+                if (current.parentNumber === null) {
+                  break;
+                }
+
+                const parent = await getIssue(current.parentNumber);
+                const parentDecision = decideParentOnChildReopened({ parent });
+                if (!parentDecision) {
+                  break;
+                }
+
+                await reopen(parentDecision.issue);
+                current = await getIssue(parentDecision.issue);
+              }
+            }

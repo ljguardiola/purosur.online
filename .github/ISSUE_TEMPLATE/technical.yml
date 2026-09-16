@@ -1,0 +1,17 @@
+name: Technical
+description: Work with no user-visible change, such as CI, dependencies, or a refactor.
+labels:
+  - "type: technical"
+body:
+  - type: textarea
+    id: what-and-why
+    attributes:
+      label: What and why
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of done
+    validations:
+      required: true

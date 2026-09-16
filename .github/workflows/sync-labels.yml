@@ -1,0 +1,50 @@
+name: Sync labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-labels:
+    name: sync-labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require("node:fs");
+            const { planLabelSync } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/sync-labels.mjs`
+            );
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const desired = JSON.parse(
+              fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/.github/labels.json`, "utf8"),
+            );
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner,
+              repo,
+            });
+
+            const { toCreate, toUpdate } = planLabelSync(existing, desired);
+
+            for (const label of toCreate) {
+              await github.rest.issues.createLabel({ owner, repo, ...label });
+              core.info(`Created label "${label.name}".`);
+            }
+
+            for (const label of toUpdate) {
+              await github.rest.issues.updateLabel({ owner, repo, name: label.name, ...label });
+              core.info(`Updated label "${label.name}".`);
+            }
+
+            if (toCreate.length === 0 && toUpdate.length === 0) {
+              core.info("Labels already match .github/labels.json; nothing to do.");
+            }
