@@ -6,6 +6,16 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # TypeScript 7 ships no JavaScript API, and dependency-cruiser supports
+      # typescript >=2.0.0 <7.0.0: under 7 it cruises zero modules and exits 0,
+      # so the architecture gate would pass without checking anything.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # These types must match the Node major the project runs, pinned in
+      # .node-version.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
