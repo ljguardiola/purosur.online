@@ -38,7 +38,9 @@ A feature too large for one pull request stays as a parent feature issue holding
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
-- Everything in this repository — code, comments, tests, commit messages, issues, and pull requests — is written in English.
+- Code, comments, tests, commit messages, issues, and pull requests are written in English.
+- User-facing text is written in Spanish and lives only in message catalogs, structured for internationalization even though there is a single language. Code references catalog keys and never contains user-facing text as a literal.
+- Help and manuals live inside the application they serve: the register's help ships with the register and works offline; the backoffice's help lives in the backoffice.
 - Code and tests explain themselves. Names, structure and test cases carry the meaning; a reader should not need a companion document to follow them.
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says.
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
