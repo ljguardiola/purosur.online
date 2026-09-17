@@ -33,26 +33,35 @@ test("validateIssue accepts a complete feature issue", () => {
   assert.deepEqual(problems, []);
 });
 
-test("validateIssue reports every missing section", () => {
+test("validateIssue reports every missing required section", () => {
   const problems = validateIssue({ body: "### Goal\nSomething.", labels: ["type: feature"] });
-  assert.equal(problems.length, 3);
+  assert.equal(problems.length, 2);
   assert.ok(problems.some((p) => p.includes("Business rules")));
   assert.ok(problems.some((p) => p.includes("Acceptance criteria (Given / When / Then)")));
-  assert.ok(problems.some((p) => p.includes("Out of scope")));
 });
 
-test("validateIssue reports a present but empty section", () => {
+test("validateIssue accepts a feature issue without an Out of scope section", () => {
+  const body = featureBody.replace("\n### Out of scope\nCoupon codes.", "");
+  assert.deepEqual(validateIssue({ body, labels: ["type: feature"] }), []);
+});
+
+test("validateIssue accepts a feature issue with an empty Out of scope section", () => {
   const body = featureBody.replace("Coupon codes.", "_No response_");
-  const problems = validateIssue({ body, labels: ["type: feature"] });
-  assert.equal(problems.length, 1);
-  assert.ok(problems[0].includes("Out of scope"));
+  assert.deepEqual(validateIssue({ body, labels: ["type: feature"] }), []);
 });
 
-test("validateIssue reports a section left blank (not GitHub's placeholder)", () => {
-  const body = featureBody.replace("Coupon codes.", "");
+test("validateIssue reports a present but empty required section", () => {
+  const body = featureBody.replace("Discount cannot exceed 20%.", "_No response_");
   const problems = validateIssue({ body, labels: ["type: feature"] });
   assert.equal(problems.length, 1);
-  assert.ok(problems[0].includes("Out of scope"));
+  assert.ok(problems[0].includes("Business rules"));
+});
+
+test("validateIssue reports a required section left blank (not GitHub's placeholder)", () => {
+  const body = featureBody.replace("Discount cannot exceed 20%.", "");
+  const problems = validateIssue({ body, labels: ["type: feature"] });
+  assert.equal(problems.length, 1);
+  assert.ok(problems[0].includes("Business rules"));
 });
 
 test("validateIssue requires a recognized type label", () => {
@@ -79,7 +88,7 @@ test("validateIssue allows an empty Result section for a spike", () => {
   assert.deepEqual(problems, []);
 });
 
-test("validateIssue still requires the Result section to exist for a spike", () => {
+test("validateIssue accepts a spike without a Result section", () => {
   const body = [
     "### Question to answer",
     "Can we use SQLite WAL mode safely?",
@@ -90,9 +99,7 @@ test("validateIssue still requires the Result section to exist for a spike", () 
     "### Time box",
     "Two days.",
   ].join("\n");
-  const problems = validateIssue({ body, labels: ["type: spike"] });
-  assert.equal(problems.length, 1);
-  assert.ok(problems[0].includes("Result"));
+  assert.deepEqual(validateIssue({ body, labels: ["type: spike"] }), []);
 });
 
 test("validateIssue validates a bug issue's sections", () => {
