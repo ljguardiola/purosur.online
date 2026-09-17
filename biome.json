@@ -25,5 +25,34 @@
       "quoteStyle": "double",
       "trailingCommas": "all"
     }
-  }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@purosur/domain": {
+                    "message": "packages/ui must not depend on packages/domain."
+                  },
+                  "@purosur/contracts": {
+                    "message": "packages/ui must not depend on packages/contracts."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
