@@ -28,6 +28,6 @@ body:
     id: out-of-scope
     attributes:
       label: Out of scope
-      description: What this issue explicitly does not cover.
+      description: Fill this in only when something non-obvious is excluded.
     validations:
-      required: true
+      required: false
