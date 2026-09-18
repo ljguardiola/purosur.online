@@ -62,6 +62,20 @@ describe("parseColorTokens", () => {
     });
   });
 
+  it("reads an 8-digit hex color token that carries an alpha channel", () => {
+    const css = `
+      @theme {
+        --color-surface-white: #ffffff;
+        --color-ink-shadow: #1a1a1a1f;
+      }
+    `;
+
+    expect(parseColorTokens(css)).toEqual({
+      "surface-white": "#ffffff",
+      "ink-shadow": "#1a1a1a1f",
+    });
+  });
+
   it("ignores an @theme mention inside a CSS comment", () => {
     const css = [
       "/* @theme { --color-surface-white: #000000; } */",
