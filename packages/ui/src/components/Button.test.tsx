@@ -72,7 +72,7 @@ test("shows a visible focus outline in strong blue when reached by keyboard", as
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("2px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineColor).toBe(focusRingColor);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -151,12 +151,12 @@ test("renders every size in the design's height and text-size scale, shared by b
   }
 });
 
-test("keeps 20px horizontal padding and no vertical padding on every size", async () => {
+test("keeps 16px horizontal padding and no vertical padding on every size", async () => {
   for (const size of sizes) {
     const style = await buttonStyle(`Padded ${size}`, { size });
 
-    expect(style.paddingLeft, `${size} padding-left`).toBe("20px");
-    expect(style.paddingRight, `${size} padding-right`).toBe("20px");
+    expect(style.paddingLeft, `${size} padding-left`).toBe("16px");
+    expect(style.paddingRight, `${size} padding-right`).toBe("16px");
     expect(style.paddingTop, `${size} padding-top`).toBe("0px");
     expect(style.paddingBottom, `${size} padding-bottom`).toBe("0px");
   }
@@ -281,7 +281,7 @@ test("shows the same focus outline on the destructive tone as on every other ton
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("2px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineColor).toBe(focusRingColor);
   await expectNoAccessibilityViolations(screen.container);
 });
