@@ -75,6 +75,8 @@ const decorativeTones = [
   "status-warning-accent",
   "status-warning-message-bg",
   "ink-shadow",
+  "ink-backdrop",
+  "ink-panel-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {

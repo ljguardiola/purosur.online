@@ -14,6 +14,20 @@ export function tokenRgb(name: string): string {
   );
 }
 
+// Reads a "--color-<name>" token's computed color the way the browser itself renders it, instead
+// of parsing its hex text: an 8-digit alpha token (e.g. a backdrop or shadow tint) compiles to an
+// "rgba(...)" string whose alpha channel is rounded by the browser, which hexToRgb/tokenRgb above
+// can't reproduce byte-for-byte since they only parse opaque 6-digit hex. A probe element run
+// through the same browser round-trip as the component under test avoids that mismatch entirely.
+export function tokenBackgroundColor(name: string): string {
+  const probe = document.createElement("div");
+  probe.style.backgroundColor = `var(--color-${name})`;
+  document.body.appendChild(probe);
+  const value = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return value;
+}
+
 // Converts a "rgb(r, g, b)" computed style value back to "#rrggbb" for contrastRatio().
 export function rgbToHex(rgb: string): string {
   const channels = rgb.match(/\d+/g);
