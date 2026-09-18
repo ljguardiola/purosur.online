@@ -95,7 +95,7 @@ test("shows the same 3px strong-blue focus outline as every other button", async
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("2px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(button).outlineColor).toBe(focusRingColor);
   await expectNoAccessibilityViolations(screen.container);
 });

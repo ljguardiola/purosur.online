@@ -25,7 +25,7 @@ const className =
   "border border-line bg-surface-white text-brand-blue-strong " +
   "transition-[background-color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-brand-blue-strong " +
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
   "data-[hovered]:bg-surface-bone data-[hovered]:border-blue-soft " +
   "data-[disabled]:opacity-[0.45]";
 

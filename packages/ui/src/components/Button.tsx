@@ -30,11 +30,11 @@ export type ButtonProps = ButtonCommonProps &
   ({ variant?: "primary"; tone?: ButtonTone } | { variant: "secondary"; tone?: undefined });
 
 const baseClassName =
-  "inline-flex items-center justify-center px-5 font-sans font-bold " +
+  "inline-flex items-center justify-center px-4 font-sans font-bold " +
   // Excludes outline-color from the transition so the focus ring appears instantly, not mid-fade.
   "transition-[background-color,color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-brand-blue-strong " +
+  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
   "data-[disabled]:opacity-[0.45]";
 
 const sizeClassName: Record<ButtonSize, string> = {
