@@ -50,6 +50,8 @@ test("renders the pill's fixed shape regardless of tone", async () => {
   expect(style.gap).toBe("8px");
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every tone's background, dot and text colors", async () => {
@@ -79,6 +81,8 @@ test("renders an 8px dot when not busy", async () => {
   expect(rect.width).toBeLessThan(9);
   expect(rect.height).toBeGreaterThan(7);
   expect(rect.height).toBeLessThan(9);
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("replaces the dot with a 14px spinner in the tone's dot color while busy", async () => {
@@ -119,6 +123,8 @@ test("stops the spinner from moving when the system asks for reduced motion", as
       .firstElementChild as HTMLElement;
 
     await expect.poll(() => getComputedStyle(spinner).animationName).toBe("none");
+
+    await expectNoAccessibilityViolations(screen.container);
   } finally {
     await session.send("Emulation.setEmulatedMedia", { features: [] });
   }
