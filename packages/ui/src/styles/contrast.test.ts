@@ -42,6 +42,7 @@ const backgrounds: Record<string, string> = {
 // color can't be added without someone deciding which bucket it belongs to.
 const textTones: Record<string, number> = {
   ink: AA_TEXT_CONTRAST,
+  "ink-secondary": AAA_TEXT_CONTRAST,
   "brand-blue-ui": AA_TEXT_CONTRAST,
   "brand-green-ui": AA_TEXT_CONTRAST,
   "brand-earth-ui": AA_TEXT_CONTRAST,
@@ -64,7 +65,9 @@ const decorativeTones = [
   "line",
   "blue-soft",
   "brand-blue",
+  "brand-blue-message-bg",
   "brand-green",
+  "brand-green-message-bg",
   "brand-earth",
   "status-error-accent",
   "status-error-message-bg",
@@ -109,4 +112,31 @@ describe("design tokens contrast", () => {
   });
 
   itReachesContrastAgainstEverySurface(textTones);
+});
+
+// The status indicator paints each tone's text on that tone's own message background, a pairing
+// none of the shared white/bone/sand surfaces above cover.
+const statusIndicatorTonePairs: Record<string, { text: string; background: string }> = {
+  success: { text: "brand-green-strong", background: "brand-green-message-bg" },
+  warning: { text: "status-warning-strong", background: "status-warning-message-bg" },
+  error: { text: "status-error-strong", background: "status-error-message-bg" },
+  info: { text: "brand-blue-strong", background: "brand-blue-message-bg" },
+  neutral: { text: "ink-secondary", background: "surface-sand" },
+};
+
+describe("status indicator tone contrast", () => {
+  for (const [tone, { text, background }] of Object.entries(statusIndicatorTonePairs)) {
+    it(`${tone} text reaches ${AAA_TEXT_CONTRAST}:1 against its own background`, () => {
+      const textHex = colors[text];
+      const backgroundHex = colors[background];
+
+      expect(textHex, `${text} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(backgroundHex, `${background} is missing from the stylesheet`).toMatch(
+        /^#[0-9a-f]{6}$/i,
+      );
+      expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+        AAA_TEXT_CONTRAST,
+      );
+    });
+  }
 });
