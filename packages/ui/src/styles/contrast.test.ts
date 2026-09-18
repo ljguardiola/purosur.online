@@ -56,8 +56,9 @@ const textTones: Record<string, number> = {
 };
 
 // Surfaces (the backgrounds themselves, not foreground text/icon color), borders (line,
-// blue-soft, see tokens.css), and the plain/accent/message-background shades that are only ever
-// used as small decorative fills, never as text or icon color.
+// blue-soft, see tokens.css), the plain/accent/message-background shades that are only ever
+// used as small decorative fills, never as text or icon color, and the alpha shadow tint (never
+// text, and outside contrastRatio()'s opaque 6-digit-hex contract).
 const decorativeTones = [
   "surface-sand",
   "surface-bone",
@@ -73,6 +74,7 @@ const decorativeTones = [
   "status-error-message-bg",
   "status-warning-accent",
   "status-warning-message-bg",
+  "ink-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -114,9 +116,10 @@ describe("design tokens contrast", () => {
   itReachesContrastAgainstEverySurface(textTones);
 });
 
-// The status indicator paints each tone's text on that tone's own message background, a pairing
-// none of the shared white/bone/sand surfaces above cover.
-const statusIndicatorTonePairs: Record<string, { text: string; background: string }> = {
+// Shared by the status indicator and the notice family: each paints a tone's text (and, for the
+// notices, its icon) on that same tone's own message background, a pairing none of the shared
+// white/bone/sand surfaces above cover. Reused here instead of duplicated per component.
+const toneOnMessageBackgroundPairs: Record<string, { text: string; background: string }> = {
   success: { text: "brand-green-strong", background: "brand-green-message-bg" },
   warning: { text: "status-warning-strong", background: "status-warning-message-bg" },
   error: { text: "status-error-strong", background: "status-error-message-bg" },
@@ -124,8 +127,8 @@ const statusIndicatorTonePairs: Record<string, { text: string; background: strin
   neutral: { text: "ink-secondary", background: "surface-sand" },
 };
 
-describe("status indicator tone contrast", () => {
-  for (const [tone, { text, background }] of Object.entries(statusIndicatorTonePairs)) {
+describe("tone text on its own message background contrast", () => {
+  for (const [tone, { text, background }] of Object.entries(toneOnMessageBackgroundPairs)) {
     it(`${tone} text reaches ${AAA_TEXT_CONTRAST}:1 against its own background`, () => {
       const textHex = colors[text];
       const backgroundHex = colors[background];

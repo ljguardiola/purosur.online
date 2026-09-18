@@ -58,6 +58,10 @@
   --color-status-warning-message-bg: #fcecd9;
   --color-status-warning-ui: #955b00;
   --color-status-warning-strong: #753d00;
+
+  /* Ink at 12% opacity, for the floating notification's drop shadow. An 8-digit hex so the
+     alpha channel is part of the token itself instead of a separate opacity utility. */
+  --color-ink-shadow: #1a1a1a1f;
 }
 
 @layer base {

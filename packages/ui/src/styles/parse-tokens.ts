@@ -4,7 +4,11 @@ export function parseColorTokens(css: string): Record<string, string> {
   const tokens: Record<string, string> = {};
 
   for (const themeBlock of extractThemeBlocks(css)) {
-    for (const match of themeBlock.matchAll(/--color-([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+    // The 2 trailing hex digits are optional, so an 8-digit color that carries its own alpha
+    // channel (e.g. a shadow tint) is read the same way as an opaque 6-digit one.
+    for (const match of themeBlock.matchAll(
+      /--color-([a-z0-9-]+):\s*(#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?)\s*;/g,
+    )) {
       const [, name, hex] = match;
       if (name && hex) {
         tokens[name] = hex;
