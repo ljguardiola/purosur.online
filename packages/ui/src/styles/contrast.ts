@@ -10,6 +10,10 @@ export const AA_TEXT_CONTRAST = 4.5;
 // WCAG 2.x AAA minimum for normal-size text (https://www.w3.org/TR/WCAG21/#contrast-enhanced).
 export const AAA_TEXT_CONTRAST = 7;
 
+// WCAG 2.x minimum for non-text elements such as component borders
+// (https://www.w3.org/TR/WCAG21/#non-text-contrast).
+export const NON_TEXT_CONTRAST = 3;
+
 const HEX_COLOR_PATTERN = /^#?[0-9a-fA-F]{6}$/;
 
 // Throws instead of silently parsing to rgb(0, 0, 0), which a missing or malformed token
