@@ -21,5 +21,11 @@ export type {
 export { Modal } from "./components/Modal";
 export type { NotificationCardProps, NotificationTone } from "./components/NotificationCard";
 export { NotificationCard } from "./components/NotificationCard";
+export type {
+  OptionCardGroupProps,
+  OptionCardIcon,
+  OptionCardOption,
+} from "./components/OptionCardGroup";
+export { OptionCardGroup } from "./components/OptionCardGroup";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
 export { StatusIndicator } from "./components/StatusIndicator";
