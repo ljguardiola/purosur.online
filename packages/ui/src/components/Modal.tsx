@@ -100,7 +100,7 @@ export function Modal(props: ModalProps) {
       onOpenChange={onOpenChange}
       isDismissable={false}
       isKeyboardDismissDisabled={!props.closable}
-      className="fixed inset-0 flex items-center justify-center bg-ink-backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-backdrop"
     >
       <AriaModal
         className={[

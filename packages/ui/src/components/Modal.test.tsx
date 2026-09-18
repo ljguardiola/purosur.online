@@ -96,6 +96,28 @@ test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("stays above page content that has its own stacking order", async () => {
+  const fixedBar = document.createElement("div");
+  fixedBar.style.cssText = "position: fixed; inset: 0; z-index: 10; background: white;";
+  document.body.appendChild(fixedBar);
+
+  try {
+    await render(<Modal {...baseProps()} />);
+    const dialog = page.getByRole("dialog").element() as HTMLElement;
+    const rect = dialog.getBoundingClientRect();
+    // An open modal makes everything outside it inert, and hit testing skips inert elements, so
+    // the bar is made hittable again to find out what is actually painted on top.
+    fixedBar.inert = false;
+    fixedBar.removeAttribute("aria-hidden");
+    const topmost = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 8);
+
+    expect(dialog.contains(topmost)).toBe(true);
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    fixedBar.remove();
+  }
+});
+
 const tones: {
   tone: ModalProps["tone"];
   boxBg: string;
