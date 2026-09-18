@@ -233,7 +233,7 @@ test("omits the what-to-do and time lines when the caller does not supply them",
     <NotificationCard tone="success" icon={<Info />} title="Title" detail="Detail" />,
   );
 
-  expect(screen.container.textContent).toBe("TitleDetailTitle Detail");
+  await expect.poll(() => screen.container.textContent).toBe("TitleDetailTitle Detail");
   await expectNoAccessibilityViolations(screen.container);
 });
 

@@ -20,8 +20,8 @@ test("renders the caller's title, detail and icon", async () => {
     <InlineNotice tone="info" icon={<Info />} title="Draft saved" detail="Nothing to sync yet" />,
   );
 
-  await expect.element(screen.getByText("Draft saved")).toBeVisible();
-  await expect.element(screen.getByText("Nothing to sync yet")).toBeVisible();
+  await expect.element(screen.getByText("Draft saved", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Nothing to sync yet", { exact: true })).toBeVisible();
   expect(screen.container.querySelector("svg")).not.toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -77,8 +77,8 @@ test("renders every tone's background, text and icon colors", async () => {
     );
     const container = screen.container.firstElementChild as HTMLElement;
     const icon = container.querySelector("svg") as SVGSVGElement;
-    const title = screen.getByText(`Title ${tone}`).element() as HTMLElement;
-    const detail = screen.getByText(`Detail ${tone}`).element() as HTMLElement;
+    const title = screen.getByText(`Title ${tone}`, { exact: true }).element() as HTMLElement;
+    const detail = screen.getByText(`Detail ${tone}`, { exact: true }).element() as HTMLElement;
 
     expect(getComputedStyle(container).backgroundColor, `${tone} background`).toBe(
       tokenRgb(expected.background),
@@ -125,7 +125,7 @@ test("renders the design's fixed layout regardless of tone", async () => {
   expect(style.paddingRight).toBe("16px");
 
   const icon = container.querySelector("svg") as SVGSVGElement;
-  const title = screen.getByText("Title").element() as HTMLElement;
+  const title = screen.getByText("Title", { exact: true }).element() as HTMLElement;
   const textStack = title.parentElement as HTMLElement;
 
   const iconRect = icon.getBoundingClientRect();
@@ -144,8 +144,8 @@ test("stacks the title and detail 4px apart, in a 16px bold title and a 14px det
   const screen = await render(
     <InlineNotice tone="warning" icon={<Info />} title="Title" detail="Detail" />,
   );
-  const title = screen.getByText("Title").element() as HTMLElement;
-  const detail = screen.getByText("Detail").element() as HTMLElement;
+  const title = screen.getByText("Title", { exact: true }).element() as HTMLElement;
+  const detail = screen.getByText("Detail", { exact: true }).element() as HTMLElement;
   const titleStyle = getComputedStyle(title);
   const detailStyle = getComputedStyle(detail);
 
