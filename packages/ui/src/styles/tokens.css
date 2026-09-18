@@ -39,6 +39,12 @@
   --color-surface-white: #ffffff;
   --color-ink: #1a1a1a;
 
+  /* Border-only colors: the icon button's own border and its hover border. Decorative, not the
+     information that identifies the control (that's the glyph and the focus ring), so they are
+     deliberately soft and sit outside the text-contrast suite in contrast.test.ts. */
+  --color-line: #d9d3c4;
+  --color-blue-soft: #c9d7e0;
+
   --color-status-error-accent: #ea6a64;
   --color-status-error-message-bg: #ffe6e3;
   --color-status-error-ui: #b83c3b;

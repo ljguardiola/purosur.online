@@ -1,40 +1,38 @@
-import { expect, test, vi } from "vitest";
+import axe from "axe-core";
+import { Check, X } from "lucide-react";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { AA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "../styles/contrast";
+import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { Button } from "./Button";
+import { rgbToHex, tokenRgb } from "../test/token-colors";
+import { Button, type ButtonIcon, type ButtonProps, type ButtonSize } from "./Button";
 
-// Converts a "#rrggbb" token value to the "rgb(r, g, b)" form a browser reports from getComputedStyle.
-function hexTokenToRgb(hex: string): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgb(${r}, ${g}, ${b})`;
-}
+const sizes: ButtonSize[] = ["small", "medium", "large", "sale"];
 
-// Converts a "rgb(r, g, b)" computed style value back to "#rrggbb" for contrastRatio().
-function rgbToHex(rgb: string): string {
-  const channels = rgb.match(/\d+/g);
-  if (channels?.length !== 3) {
-    throw new Error(`Not an opaque rgb() color: ${rgb}`);
-  }
-  return `#${channels.map((channel) => Number(channel).toString(16).padStart(2, "0")).join("")}`;
-}
+// The helper supplies the text itself, so its props leave out `children`. The Omit distributes
+// over ButtonProps' variant union: a plain Omit on a union collapses it and would stop checking
+// that a secondary button can't take a destructive tone.
+type ButtonPropsWithoutText = ButtonProps extends infer P
+  ? P extends unknown
+    ? Omit<P, "children">
+    : never
+  : never;
 
-// Reads a "--color-<name>" custom property from the compiled stylesheet, so expectations are
-// derived from the same token source design.pen and tokens.css agree on, never hardcoded.
-function tokenRgb(name: string): string {
-  return hexTokenToRgb(
-    getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim(),
-  );
-}
-
-// Renders a Button with the given label and props, returning its computed style.
 async function buttonStyle(
   label: string,
-  props: Partial<Omit<Parameters<typeof Button>[0], "children">> = {},
+  props: ButtonPropsWithoutText = {},
 ): Promise<CSSStyleDeclaration> {
   const screen = await render(<Button {...props}>{label}</Button>);
   return getComputedStyle(screen.getByRole("button", { name: label }).element() as HTMLElement);
+}
+
+// Returns the bounding rect of a plain text child node, so a gap can be measured against an
+// adjacent icon without relying on a wrapping element that doesn't exist in the rendered markup.
+function textNodeRect(node: ChildNode): DOMRect {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getBoundingClientRect();
 }
 
 test("renders the text provided by the caller", async () => {
@@ -123,12 +121,69 @@ test("renders the secondary variant with a transparent background, earth-toned b
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("sizes the primary and secondary variants to the design's fixed heights", async () => {
-  const primary = await buttonStyle("Primary");
-  const secondary = await buttonStyle("Secondary", { variant: "secondary" });
+test("defaults to the medium size when none is given", async () => {
+  const primary = await buttonStyle("Default primary");
+  const secondary = await buttonStyle("Default secondary", { variant: "secondary" });
 
-  expect(primary.height).toBe("72px");
-  expect(secondary.height).toBe("40px");
+  expect(primary.height).toBe("48px");
+  expect(primary.fontSize).toBe("16px");
+  expect(secondary.height).toBe("48px");
+  expect(secondary.fontSize).toBe("16px");
+});
+
+test("renders every size in the design's height and text-size scale, shared by both variants", async () => {
+  const expectations: Record<ButtonSize, { height: string; fontSize: string }> = {
+    small: { height: "40px", fontSize: "16px" },
+    medium: { height: "48px", fontSize: "16px" },
+    large: { height: "56px", fontSize: "18px" },
+    sale: { height: "72px", fontSize: "24px" },
+  };
+
+  for (const size of sizes) {
+    const { height, fontSize } = expectations[size];
+    const primary = await buttonStyle(`Primary ${size}`, { size });
+    const secondary = await buttonStyle(`Secondary ${size}`, { variant: "secondary", size });
+
+    expect(primary.height, `primary ${size} height`).toBe(height);
+    expect(primary.fontSize, `primary ${size} font size`).toBe(fontSize);
+    expect(secondary.height, `secondary ${size} height`).toBe(height);
+    expect(secondary.fontSize, `secondary ${size} font size`).toBe(fontSize);
+  }
+});
+
+test("keeps 20px horizontal padding and no vertical padding on every size", async () => {
+  for (const size of sizes) {
+    const style = await buttonStyle(`Padded ${size}`, { size });
+
+    expect(style.paddingLeft, `${size} padding-left`).toBe("20px");
+    expect(style.paddingRight, `${size} padding-right`).toBe("20px");
+    expect(style.paddingTop, `${size} padding-top`).toBe("0px");
+    expect(style.paddingBottom, `${size} padding-bottom`).toBe("0px");
+  }
+});
+
+test("centers its content regardless of size", async () => {
+  const style = await buttonStyle("Centered");
+
+  expect(style.display).toBe("inline-flex");
+  expect(style.alignItems).toBe("center");
+  expect(style.justifyContent).toBe("center");
+});
+
+test("has no minimum width, so a short label renders narrower than a long one", async () => {
+  const short = await buttonStyle("Ok");
+  const long = await buttonStyle("Complete the sale and print the receipt");
+
+  expect(Number.parseFloat(short.width)).toBeLessThan(Number.parseFloat(long.width));
+});
+
+test("keeps the secondary variant's border from changing its height in any size", async () => {
+  for (const size of sizes) {
+    const primary = await buttonStyle(`Primary height ${size}`, { size });
+    const secondary = await buttonStyle(`Secondary height ${size}`, { variant: "secondary", size });
+
+    expect(secondary.height, `${size} height with border`).toBe(primary.height);
+  }
 });
 
 test("gives the primary and secondary variants their own corner radius", async () => {
@@ -150,9 +205,11 @@ test("renders bold text on both variants", async () => {
 test("dims a disabled button to the design's 45% opacity, on both variants", async () => {
   const primary = await buttonStyle("Primary", { isDisabled: true });
   const secondary = await buttonStyle("Secondary", { variant: "secondary", isDisabled: true });
+  const primaryWithIcon = await buttonStyle("Primary icon", { icon: <Check />, isDisabled: true });
 
   expect(primary.opacity).toBe("0.45");
   expect(secondary.opacity).toBe("0.45");
+  expect(primaryWithIcon.opacity).toBe("0.45");
 });
 
 test("keeps the primary variant's base text readable against its background", async () => {
@@ -189,4 +246,174 @@ test("keeps the secondary variant's hover text readable against its background",
   const hovered = getComputedStyle(button);
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+});
+
+test("renders the destructive tone of the primary button with an error background and white text", async () => {
+  const screen = await render(<Button tone="destructive">Void sale</Button>);
+  const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
+
+  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("surface-white"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("turns the destructive tone's hover background to error-strong, keeping white text readable", async () => {
+  const screen = await render(<Button tone="destructive">Void sale</Button>);
+  const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
+
+  await userEvent.hover(button);
+  await expect
+    .poll(() => getComputedStyle(button).backgroundColor)
+    .toBe(tokenRgb("status-error-strong"));
+
+  const hovered = getComputedStyle(button);
+  expect(hovered.color).toBe(tokenRgb("surface-white"));
+  const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the same focus outline on the destructive tone as on every other tone", async () => {
+  const screen = await render(<Button tone="destructive">Void sale</Button>);
+  const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
+  const focusRingColor = tokenRgb("brand-blue-strong");
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("2px");
+  await expect.poll(() => getComputedStyle(button).outlineColor).toBe(focusRingColor);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("places the primary variant's 24px icon after the text with its 12px gap", async () => {
+  const screen = await render(<Button icon={<Check />}>Save</Button>);
+  const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
+  const icon = button.querySelector("svg");
+  const iconWrapper = button.lastChild as HTMLElement;
+
+  expect(icon).not.toBeNull();
+  expect(button.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+  expect(button.firstChild?.textContent).toBe("Save");
+  expect(iconWrapper.contains(icon)).toBe(true);
+
+  const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
+  expect(iconRect.width).toBeGreaterThan(23);
+  expect(iconRect.width).toBeLessThan(25);
+  expect(iconRect.height).toBeGreaterThan(23);
+  expect(iconRect.height).toBeLessThan(25);
+  // The icon has no fill of its own, so it renders in the button's own (white) text color.
+  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("surface-white"));
+
+  const textRect = textNodeRect(button.firstChild as ChildNode);
+  const gap = iconRect.left - textRect.right;
+  expect(gap).toBeGreaterThan(11);
+  expect(gap).toBeLessThan(13);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("places the secondary variant's 18px icon before the text with its 8px gap", async () => {
+  const screen = await render(
+    <Button variant="secondary" icon={<X />}>
+      Cancel
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel" }).element() as HTMLElement;
+  const icon = button.querySelector("svg");
+  const iconWrapper = button.firstChild as HTMLElement;
+
+  expect(icon).not.toBeNull();
+  expect(iconWrapper.contains(icon)).toBe(true);
+  expect(button.lastChild?.nodeType).toBe(Node.TEXT_NODE);
+  expect(button.lastChild?.textContent).toBe("Cancel");
+
+  const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
+  expect(iconRect.width).toBeGreaterThan(17);
+  expect(iconRect.width).toBeLessThan(19);
+  expect(iconRect.height).toBeGreaterThan(17);
+  expect(iconRect.height).toBeLessThan(19);
+  // The icon has no fill of its own, so it renders in the button's own (ink) text color.
+  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("ink"));
+
+  const textRect = textNodeRect(button.lastChild as ChildNode);
+  const gap = textRect.left - iconRect.right;
+  expect(gap).toBeGreaterThan(7);
+  expect(gap).toBeLessThan(9);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders a plain svg icon (no size prop of its own) at 24px in the primary variant and 18px in the secondary", async () => {
+  const plainIcon = (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
+
+  const primary = await render(<Button icon={plainIcon}>Save</Button>);
+  const primaryRect = (
+    primary.getByRole("button", { name: "Save" }).element().querySelector("svg") as SVGSVGElement
+  ).getBoundingClientRect();
+  expect(primaryRect.width).toBeGreaterThan(23);
+  expect(primaryRect.width).toBeLessThan(25);
+
+  const secondary = await render(
+    <Button variant="secondary" icon={plainIcon}>
+      Cancel
+    </Button>,
+  );
+  const secondaryRect = (
+    secondary
+      .getByRole("button", { name: "Cancel" })
+      .element()
+      .querySelector("svg") as SVGSVGElement
+  ).getBoundingClientRect();
+  expect(secondaryRect.width).toBeGreaterThan(17);
+  expect(secondaryRect.width).toBeLessThan(19);
+});
+
+test("keeps the icon size fixed per variant across every button size", async () => {
+  for (const size of sizes) {
+    const primary = await render(
+      <Button icon={<Check />} size={size}>{`Primary icon ${size}`}</Button>,
+    );
+    const primaryIcon = primary
+      .getByRole("button", { name: `Primary icon ${size}` })
+      .element()
+      .querySelector("svg") as SVGSVGElement;
+    const primaryRect = primaryIcon.getBoundingClientRect();
+    expect(primaryRect.width, `primary ${size} icon width`).toBeGreaterThan(23);
+    expect(primaryRect.width, `primary ${size} icon width`).toBeLessThan(25);
+
+    const secondary = await render(
+      <Button variant="secondary" icon={<X />} size={size}>{`Secondary icon ${size}`}</Button>,
+    );
+    const secondaryIcon = secondary
+      .getByRole("button", { name: `Secondary icon ${size}` })
+      .element()
+      .querySelector("svg") as SVGSVGElement;
+    const secondaryRect = secondaryIcon.getBoundingClientRect();
+    expect(secondaryRect.width, `secondary ${size} icon width`).toBeGreaterThan(17);
+    expect(secondaryRect.width, `secondary ${size} icon width`).toBeLessThan(19);
+  }
+});
+
+test("does not accept a button without text, since it would have no accessible name", () => {
+  expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<ButtonProps>();
+});
+
+test("does not accept a destructive tone on the secondary variant", () => {
+  expectTypeOf<{
+    variant: "secondary";
+    tone: "destructive";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("an empty label from a variable leaves the button nameless, and the accessibility check catches it", async () => {
+  const label: string = "";
+  const screen = await render(<Button>{label}</Button>);
+
+  const results = await axe.run(screen.container);
+  expect(results.violations.map((violation) => violation.id)).toEqual(["button-name"]);
 });
