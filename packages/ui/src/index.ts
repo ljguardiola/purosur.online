@@ -12,6 +12,13 @@ export type { IconButtonProps } from "./components/IconButton";
 export { IconButton } from "./components/IconButton";
 export type { InlineNoticeProps, NoticeTone } from "./components/InlineNotice";
 export { InlineNotice } from "./components/InlineNotice";
+export type {
+  ModalContextTone,
+  ModalProps,
+  ModalTone,
+  ModalWidth,
+} from "./components/Modal";
+export { Modal } from "./components/Modal";
 export type { NotificationCardProps, NotificationTone } from "./components/NotificationCard";
 export { NotificationCard } from "./components/NotificationCard";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";

@@ -62,6 +62,11 @@
   /* Ink at 12% opacity, for the floating notification's drop shadow. An 8-digit hex so the
      alpha channel is part of the token itself instead of a separate opacity utility. */
   --color-ink-shadow: #1a1a1a1f;
+
+  /* Ink at 50% opacity, for the modal's backdrop covering the screen behind it. */
+  --color-ink-backdrop: #1a1a1a80;
+  /* Ink at 30% opacity, for the modal panel's own drop shadow. */
+  --color-ink-panel-shadow: #1a1a1a4d;
 }
 
 @layer base {
