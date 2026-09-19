@@ -14,12 +14,14 @@ export type OptionCardOption<V extends string = string> = {
 // `options` is a non-empty tuple and `value`/`onChange` are pinned to V (inferred from `options`
 // at the call site), so a caller can neither pass an empty group nor a chosen value that isn't
 // one of its own options: there is no representable "nothing chosen" or "chosen something else"
-// state.
+// state. `value`/`onChange` wrap V in NoInfer so a call site's own `value` can never contribute a
+// candidate to V's inference (only `options` can); without it, an out-of-domain `value` at a real
+// call site would silently widen V to include it instead of failing to compile.
 export type OptionCardGroupProps<V extends string> = {
   label: string;
   options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
-  value: V;
-  onChange: (value: V) => void;
+  value: NoInfer<V>;
+  onChange: (value: NoInfer<V>) => void;
 };
 
 // See Button.tsx's iconWrapperClassName: the icon's size is imposed by this wrapper's own CSS,

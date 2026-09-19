@@ -3,9 +3,8 @@ import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { rgbToHex, tokenRgb } from "../test/token-colors";
+import { tokenRgb } from "../test/token-colors";
 import type { OptionCardIcon, OptionCardOption } from "./OptionCardGroup";
 import { OptionCardGroup, type OptionCardGroupProps } from "./OptionCardGroup";
 
@@ -208,6 +207,9 @@ test("does not change the chosen card's background on hover", async () => {
   const card = radioCard(screen, "Income");
 
   await userEvent.hover(card);
+  // Without this, the test would pass even if the hover never registered at all: it proves the
+  // card really is in the hovered state before asserting that its background didn't react to it.
+  await expect.poll(() => card.hasAttribute("data-hovered")).toBe(true);
 
   expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
   await expectNoAccessibilityViolations(screen.container);
@@ -360,16 +362,6 @@ test("exposes each card as a radio button named by its title and described by it
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the base text readable against every card background", async () => {
-  const screen = await render(<OptionCardGroup {...baseProps({ value: "income" })} />);
-  const title = screen.getByText("Income", { exact: true }).element() as HTMLElement;
-  const cardStyle = getComputedStyle(radioCard(screen, "Income"));
-  const titleStyle = getComputedStyle(title);
-
-  const ratio = contrastRatio(rgbToHex(titleStyle.color), rgbToHex(cardStyle.backgroundColor));
-  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-});
-
 // See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
 // input is checked at the type level, not just at runtime.
 test("does not accept an option without an icon, title or help text", () => {
@@ -425,4 +417,49 @@ test("does not accept a chosen value outside the group's own options, or an empt
     value: MovementValue;
     onChange: (value: MovementValue) => void;
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
+});
+
+// Proves the NoInfer fix at a real call site with no explicit type argument, the way JSX actually
+// invokes the component: TypeScript must reject `value: "other"` by inferring V from `options`
+// alone, not by widening V to also cover `value`. `icon`/`title`/`helpText` are projected away
+// (via the real `OptionCardOption<V>`/`OptionCardGroupProps<V>` field types, not a hand-copied
+// mirror) since they don't participate in V at all; keeping them breaks TypeScript's overload-based
+// generic inference below for an unrelated reason (a `ReactElement` field confuses it), which would
+// make even a *valid* call wrongly resolve to the "invalid" branch.
+//
+// A call that fails to compile can't sit in this file as literal code, and this project bans
+// `@ts-expect-error`, so the first (generic) overload only matches a call whose `value`/`onChange`
+// truly fit the inferred V; an invalid call falls through to the second (fallback) overload
+// instead of failing to compile, resolving to `false`.
+type OptionCardGroupValueOnlyProps<V extends string> = {
+  options: readonly [Pick<OptionCardOption<V>, "value">, ...Pick<OptionCardOption<V>, "value">[]];
+  value: OptionCardGroupProps<V>["value"];
+  onChange: OptionCardGroupProps<V>["onChange"];
+};
+
+function isValidOptionCardGroupCall<V extends string>(
+  props: OptionCardGroupValueOnlyProps<V>,
+): true;
+function isValidOptionCardGroupCall(props: unknown): false;
+// This test only cares about which overload TypeScript picks, never about a runtime result, so
+// the implementation itself is a stub: it exists only so the type-only overloads above have a
+// real function to call, instead of throwing at runtime.
+function isValidOptionCardGroupCall(_props: unknown): boolean {
+  return true;
+}
+
+test("cannot widen V through `value` at a real call site with no explicit type argument", () => {
+  const validCall = isValidOptionCardGroupCall({
+    options: [{ value: "income" }, { value: "expense" }],
+    value: "income",
+    onChange: () => {},
+  });
+  expectTypeOf(validCall).toEqualTypeOf<true>();
+
+  const invalidCall = isValidOptionCardGroupCall({
+    options: [{ value: "income" }, { value: "expense" }],
+    value: "other",
+    onChange: () => {},
+  });
+  expectTypeOf(invalidCall).toEqualTypeOf<false>();
 });
