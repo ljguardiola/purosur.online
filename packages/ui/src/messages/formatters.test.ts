@@ -9,11 +9,10 @@ describe("createFormatters", () => {
     expect(plural(2, { other: "artículos", one: "artículo" })).toBe("artículos");
   });
 
-  it("falls back to the other form when the locale has no dedicated form", () => {
+  it("falls back to the other form when the selected form isn't given", () => {
     const { plural } = createFormatters("es-AR");
 
-    // Spanish's plural rules have no "zero" form, so this always falls back to "other".
-    expect(plural(0, { other: "artículos" })).toBe("artículos");
+    expect(plural(1, { other: "artículos" })).toBe("artículos");
   });
 
   it("formats a number using the locale's conventions", () => {

@@ -24,17 +24,20 @@ export type HelpCatalog<
   articles: Articles;
 };
 
-// `Articles`' own constraint refers to `keyof Articles`, so a `category`, `related`, or
-// `articleLink.article` that isn't one of this same call's ids fails to compile.
+// A record whose every article's `category`, `related`, and `articleLink.article` point at a real
+// id of the given `Categories`/`Articles`. `NoInfer` on both keeps `Articles` from widening its
+// own id union while it's being checked against itself.
+export type HelpArticles<
+  Categories extends CategoryRecord,
+  Articles extends Record<string, HelpArticle<string, string>>,
+> = Record<
+  string,
+  HelpArticle<NoInfer<Extract<keyof Categories, string>>, NoInfer<Extract<keyof Articles, string>>>
+>;
+
 export function defineHelp<
   const Categories extends CategoryRecord,
-  const Articles extends Record<
-    string,
-    HelpArticle<
-      NoInfer<Extract<keyof Categories, string>>,
-      NoInfer<Extract<keyof Articles, string>>
-    >
-  >,
+  const Articles extends HelpArticles<Categories, Articles>,
 >(_locale: Locale, content: HelpCatalog<Categories, Articles>): HelpCatalog<Categories, Articles> {
   return content;
 }

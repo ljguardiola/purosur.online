@@ -1,5 +1,5 @@
 import { describe, expectTypeOf, it } from "vitest";
-import { defineHelp, type HelpBlock } from "./help";
+import { defineHelp, type HelpArticle, type HelpArticles, type HelpBlock } from "./help";
 
 const help = defineHelp("es-AR", {
   categories: {
@@ -25,29 +25,59 @@ const help = defineHelp("es-AR", {
 });
 
 type ArticleId = keyof typeof help.articles;
-type CategoryId = keyof typeof help.categories;
 
-describe("defineHelp's reference safety", () => {
-  it("types an article's category as one of the catalog's own category ids", () => {
-    expectTypeOf<typeof help.articles.intro.category>().toExtend<CategoryId>();
-    expectTypeOf<"nonexistent-category">().not.toExtend<CategoryId>();
+// Fixed stand-ins for `defineHelp`'s two inferred type parameters, so the assertions below check
+// `HelpArticles` itself — the constraint `defineHelp` actually uses — rather than a union that
+// would stay valid even if that constraint stopped being enforced.
+type FixtureCategories = typeof help.categories;
+type FixtureArticleIds = Record<ArticleId, HelpArticle<string, string>>;
+type FixtureArticles = HelpArticles<FixtureCategories, FixtureArticleIds>;
+
+describe("HelpArticles", () => {
+  it("accepts an article whose category, related entries, and articleLink all point at real ids", () => {
+    type Valid = {
+      intro: {
+        category: "getting_started";
+        title: string;
+        body: readonly [{ kind: "articleLink"; article: "billing_basics" }];
+        related: readonly ["billing_basics"];
+      };
+    };
+
+    expectTypeOf<Valid>().toExtend<FixtureArticles>();
   });
 
-  it("types a related list's entries as the catalog's own article ids", () => {
-    type RelatedEntry = NonNullable<(typeof help.articles.intro)["related"]>[number];
+  it("rejects an article whose category isn't one of the given categories", () => {
+    type UnknownCategory = {
+      intro: { category: "not-a-real-category"; title: string; body: readonly [] };
+    };
 
-    expectTypeOf<RelatedEntry>().toExtend<ArticleId>();
-    expectTypeOf<"ghost-article">().not.toExtend<ArticleId>();
+    expectTypeOf<UnknownCategory>().not.toExtend<FixtureArticles>();
   });
 
-  it("types an articleLink block's article as the catalog's own article ids", () => {
-    type ArticleLinkBlock = Extract<
-      (typeof help.articles.intro)["body"][number],
-      { kind: "articleLink" }
-    >;
+  it("rejects an article whose related list names an id that doesn't exist", () => {
+    type UnknownRelated = {
+      intro: {
+        category: "getting_started";
+        title: string;
+        body: readonly [];
+        related: readonly ["ghost-article"];
+      };
+    };
 
-    expectTypeOf<ArticleLinkBlock["article"]>().toExtend<ArticleId>();
-    expectTypeOf<"ghost-article">().not.toExtend<ArticleId>();
+    expectTypeOf<UnknownRelated>().not.toExtend<FixtureArticles>();
+  });
+
+  it("rejects an articleLink block that names an id that doesn't exist", () => {
+    type UnknownArticleLink = {
+      intro: {
+        category: "getting_started";
+        title: string;
+        body: readonly [{ kind: "articleLink"; article: "ghost-article" }];
+      };
+    };
+
+    expectTypeOf<UnknownArticleLink>().not.toExtend<FixtureArticles>();
   });
 });
 

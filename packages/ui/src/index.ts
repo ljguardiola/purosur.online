@@ -41,5 +41,11 @@ export { StatusIndicator } from "./components/StatusIndicator";
 export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
-export type { CategoryRecord, HelpArticle, HelpBlock, HelpCatalog } from "./messages/help";
+export type {
+  CategoryRecord,
+  HelpArticle,
+  HelpArticles,
+  HelpBlock,
+  HelpCatalog,
+} from "./messages/help";
 export { defineHelp } from "./messages/help";

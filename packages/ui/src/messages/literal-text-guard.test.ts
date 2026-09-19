@@ -24,6 +24,9 @@ function lintSample(fileName: string, content: string): Diagnostic[] {
     encoding: "utf-8",
   });
 
+  expect(result.error, `biome failed to spawn: ${result.error}`).toBeUndefined();
+  expect(result.stdout, `biome printed no JSON on stdout; stderr:\n${result.stderr}`).not.toBe("");
+
   return (JSON.parse(result.stdout) as { diagnostics: Diagnostic[] }).diagnostics;
 }
 
