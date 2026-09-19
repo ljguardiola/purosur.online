@@ -37,6 +37,7 @@ test("renders closed at 44px with an 8px radius, a 2px line border and 12px padd
   expect(style.borderColor).toBe(tokenRgb("line"));
   expect(style.paddingLeft).toBe("12px");
   expect(style.paddingRight).toBe("12px");
+  expect(style.columnGap).toBe("8px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -106,6 +107,10 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   expect(style.boxShadow).toContain("8px");
   expect(style.boxShadow).toContain("24px");
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-menu-shadow"));
+
+  const triggerRect = trigger.element().getBoundingClientRect();
+  expect(rect.top - triggerRect.bottom).toBeGreaterThan(3);
+  expect(rect.top - triggerRect.bottom).toBeLessThan(5);
 
   await expectNoAccessibilityViolations(document.body);
 });

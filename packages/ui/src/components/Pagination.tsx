@@ -7,6 +7,11 @@ export type PaginationProps = {
   onPageChange: (page: number) => void;
   previousLabel: string;
   nextLabel: string;
+  // Names the pagination's own navigation landmark.
+  label: string;
+  // Builds each page button's accessible name from its number, so the caller's own words (and
+  // locale) name it, never a bare digit hardcoded here.
+  pageLabel: (page: number) => string;
 };
 
 const ELLIPSIS = "…";
@@ -69,8 +74,12 @@ const pageButtonClassName =
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
 const currentPageClassName = "bg-brand-blue-ui font-bold text-surface-white";
+// An inset shadow instead of a real border: a real border on only one of these two class strings
+// would make that button's own box 2px wider than the other's, shifting every button's width as
+// the current page moves.
 const otherPageClassName =
-  "border border-line bg-surface-white font-normal text-ink data-[hovered]:bg-surface-bone";
+  "shadow-[inset_0_0_0_1px_var(--color-line)] bg-surface-white font-normal text-ink " +
+  "data-[hovered]:bg-surface-bone";
 
 // NaN and Infinity would otherwise reach Math.min/Math.max and the window math below as
 // themselves (NaN propagates, Infinity never clamps), and a fractional value would render a
@@ -91,14 +100,8 @@ function resolvePage(page: number, pageCount: number): number {
   return Math.min(Math.max(Math.trunc(page), 1), pageCount);
 }
 
-// The Previous/Next buttons' own disabled state already keeps a person from reaching these in
-// the first place, but that's a second, separate derivation of the same boundary. Clamping here
-// too means the handler itself can never report a page outside 1..pageCount even if that disabled
-// condition were ever wrong or bypassed. Kept module-private like every other helper in this
-// file (resolvePage/resolvePageCount included) and proven only through the component itself,
-// the same way theirs are: "disables Previous on the first page and Next on the last page" and
-// "moves to the previous and next page" together cover every reachable state the component can
-// be in, boundary and non-boundary alike.
+// Clamped independently of the buttons' own isDisabled check, so the handler itself can never
+// report a page outside 1..pageCount.
 function previousPage(currentPage: number): number {
   return Math.max(1, currentPage - 1);
 }
@@ -113,6 +116,8 @@ export function Pagination({
   onPageChange,
   previousLabel,
   nextLabel,
+  label,
+  pageLabel,
 }: PaginationProps) {
   const resolvedPageCount = resolvePageCount(pageCount);
   if (resolvedPageCount <= 1) {
@@ -122,7 +127,7 @@ export function Pagination({
   const currentPage = resolvePage(page, resolvedPageCount);
 
   return (
-    <div className="flex items-center gap-2">
+    <nav aria-label={label} className="flex items-center gap-2">
       <AriaButton
         isDisabled={currentPage <= 1}
         onPress={() => onPageChange(previousPage(currentPage))}
@@ -134,9 +139,12 @@ export function Pagination({
         {pagePlaces(currentPage, resolvedPageCount).map((place) => (
           <li key={place.key}>
             {place.kind === "ellipsis" ? (
-              <span className="px-1 text-sm text-ink-secondary">{ELLIPSIS}</span>
+              <span aria-hidden="true" className="px-1 text-sm text-ink-secondary">
+                {ELLIPSIS}
+              </span>
             ) : (
               <AriaButton
+                aria-label={pageLabel(place.page)}
                 {...(place.page === currentPage ? { "aria-current": "page" as const } : {})}
                 onPress={() => {
                   if (place.page !== currentPage) {
@@ -161,6 +169,6 @@ export function Pagination({
       >
         {nextLabel}
       </AriaButton>
-    </div>
+    </nav>
   );
 }

@@ -11,6 +11,10 @@ function baseProps(overrides: Partial<PaginationProps> = {}): PaginationProps {
     onPageChange: () => {},
     previousLabel: "Anterior",
     nextLabel: "Siguiente",
+    label: "Paginación",
+    // The identity, matching every existing `name: "N"` lookup below; a caller free to choose
+    // something richer is proven separately.
+    pageLabel: (page) => String(page),
     ...overrides,
   };
 }
@@ -49,8 +53,8 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
   const style = getComputedStyle(page);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.borderWidth).toBe("1px");
-  expect(style.borderColor).toBe(tokenRgb("line"));
+  expect(style.borderWidth).toBe("0px");
+  expect(style.boxShadow).toContain(`${tokenRgb("line")} 0px 0px 0px 1px inset`);
   expect(style.fontSize).toBe("14px");
   expect(style.color).toBe(tokenRgb("ink"));
   expect(style.fontWeight).toBe("400");
@@ -67,6 +71,16 @@ test("marks the current page blue UI with bold white text", async () => {
   expect(style.color).toBe(tokenRgb("surface-white"));
   expect(style.fontWeight).toBe("700");
   expect(current.getAttribute("aria-current")).toBe("page");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps every page button the same width, current or not", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
+  const current = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const other = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+
+  expect(current.getBoundingClientRect().width).toBeCloseTo(other.getBoundingClientRect().width, 0);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -104,6 +118,7 @@ test("keeps 5 fixed places across every page of a long list", async () => {
     const numbers = screen.container.querySelectorAll("li");
 
     expect(numbers).toHaveLength(5);
+    await expectNoAccessibilityViolations(screen.container);
     await screen.unmount();
   }
 });
@@ -121,11 +136,13 @@ test("switches from the start window to the end window between pages 3 and 4 of 
   const startWindow = await render(<Pagination {...baseProps({ page: 3, pageCount: 6 })} />);
   const startNumbers = startWindow.container.querySelectorAll("li");
   expect(Array.from(startNumbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "…", "6"]);
+  await expectNoAccessibilityViolations(startWindow.container);
   await startWindow.unmount();
 
   const endWindow = await render(<Pagination {...baseProps({ page: 4, pageCount: 6 })} />);
   const endNumbers = endWindow.container.querySelectorAll("li");
   expect(Array.from(endNumbers).map((el) => el.textContent)).toEqual(["1", "…", "4", "5", "6"]);
+  await expectNoAccessibilityViolations(endWindow.container);
 });
 
 test("covers the start, middle and end windows across pages 3, 4 and 5 of 7", async () => {
@@ -133,18 +150,21 @@ test("covers the start, middle and end windows across pages 3, 4 and 5 of 7", as
   expect(
     Array.from(startWindow.container.querySelectorAll("li")).map((el) => el.textContent),
   ).toEqual(["1", "2", "3", "…", "7"]);
+  await expectNoAccessibilityViolations(startWindow.container);
   await startWindow.unmount();
 
   const middleWindow = await render(<Pagination {...baseProps({ page: 4, pageCount: 7 })} />);
   expect(
     Array.from(middleWindow.container.querySelectorAll("li")).map((el) => el.textContent),
   ).toEqual(["1", "…", "4", "…", "7"]);
+  await expectNoAccessibilityViolations(middleWindow.container);
   await middleWindow.unmount();
 
   const endWindow = await render(<Pagination {...baseProps({ page: 5, pageCount: 7 })} />);
   expect(
     Array.from(endWindow.container.querySelectorAll("li")).map((el) => el.textContent),
   ).toEqual(["1", "…", "5", "6", "7"]);
+  await expectNoAccessibilityViolations(endWindow.container);
 });
 
 test("treats a page below 1 as page 1", async () => {
@@ -246,11 +266,13 @@ test("disables Previous on the first page and Next on the last page", async () =
   const firstPage = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
   await expect.element(firstPage.getByRole("button", { name: "Anterior" })).toBeDisabled();
   await expect.element(firstPage.getByRole("button", { name: "Siguiente" })).toBeEnabled();
+  await expectNoAccessibilityViolations(firstPage.container);
   await firstPage.unmount();
 
   const lastPage = await render(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
   await expect.element(lastPage.getByRole("button", { name: "Siguiente" })).toBeDisabled();
   await expect.element(lastPage.getByRole("button", { name: "Anterior" })).toBeEnabled();
+  await expectNoAccessibilityViolations(lastPage.container);
 });
 
 test("gives the caller the chosen page when a page button is pressed", async () => {
@@ -262,6 +284,7 @@ test("gives the caller the chosen page when a page button is pressed", async () 
   await screen.getByRole("button", { name: "4", exact: true }).click();
 
   expect(onPageChange).toHaveBeenCalledWith(4);
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does nothing when the current page's own button is pressed, but stays focusable", async () => {
@@ -276,6 +299,7 @@ test("does nothing when the current page's own button is pressed, but stays focu
   expect(onPageChange).not.toHaveBeenCalled();
   await expect.element(current).toBeEnabled();
   expect(current.element().getAttribute("aria-current")).toBe("page");
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("moves to the previous and next page", async () => {
@@ -289,30 +313,87 @@ test("moves to the previous and next page", async () => {
 
   await screen.getByRole("button", { name: "Siguiente" }).click();
   expect(onPageChange).toHaveBeenLastCalledWith(4);
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
-test("does not accept a pagination without its page, page count, change handler or button labels", () => {
+test("names its own navigation landmark from the caller's label", async () => {
+  const screen = await render(
+    <Pagination {...baseProps({ page: 1, pageCount: 5, label: "Páginas de resultados" })} />,
+  );
+
+  await expect
+    .element(screen.getByRole("navigation", { name: "Páginas de resultados" }))
+    .toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("names each page button from the caller's own pageLabel, not a bare digit", async () => {
+  const screen = await render(
+    <Pagination {...baseProps({ page: 1, pageCount: 5, pageLabel: (page) => `Página ${page}` })} />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Página 3" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("hides the ellipsis from assistive technology", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 10, pageCount: 24 })} />);
+  const ellipsis = screen.container.querySelector("li span") as HTMLElement;
+
+  expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept a pagination missing its page, page count, change handler, button labels, nav label or page label", () => {
   expectTypeOf<{
     pageCount: number;
     onPageChange: (page: number) => void;
     previousLabel: string;
     nextLabel: string;
+    label: string;
+    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     onPageChange: (page: number) => void;
     previousLabel: string;
     nextLabel: string;
+    label: string;
+    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     pageCount: number;
     previousLabel: string;
     nextLabel: string;
+    label: string;
+    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     pageCount: number;
     onPageChange: (page: number) => void;
+    label: string;
+    pageLabel: (page: number) => string;
+  }>().not.toExtend<PaginationProps>();
+  expectTypeOf<{
+    page: number;
+    pageCount: number;
+    onPageChange: (page: number) => void;
+    previousLabel: string;
+    nextLabel: string;
+    pageLabel: (page: number) => string;
+  }>().not.toExtend<PaginationProps>();
+  expectTypeOf<{
+    page: number;
+    pageCount: number;
+    onPageChange: (page: number) => void;
+    previousLabel: string;
+    nextLabel: string;
+    label: string;
   }>().not.toExtend<PaginationProps>();
 });
