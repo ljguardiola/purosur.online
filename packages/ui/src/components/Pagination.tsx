@@ -83,27 +83,29 @@ export function Pagination({
     return null;
   }
 
+  const currentPage = Math.min(Math.max(page, 1), pageCount);
+
   return (
     <div className="flex items-center gap-2">
       <AriaButton
-        isDisabled={page <= 1}
-        onPress={() => onPageChange(page - 1)}
+        isDisabled={currentPage <= 1}
+        onPress={() => onPageChange(currentPage - 1)}
         className={navButtonClassName}
       >
         {previousLabel}
       </AriaButton>
       <ul className="flex items-center gap-2">
-        {pagePlaces(page, pageCount).map((place) => (
+        {pagePlaces(currentPage, pageCount).map((place) => (
           <li key={place.key}>
             {place.kind === "ellipsis" ? (
               <span className="px-1 text-sm text-ink-secondary">{ELLIPSIS}</span>
             ) : (
               <AriaButton
-                {...(place.page === page ? { "aria-current": "page" as const } : {})}
+                {...(place.page === currentPage ? { "aria-current": "page" as const } : {})}
                 onPress={() => onPageChange(place.page)}
                 className={[
                   pageButtonClassName,
-                  place.page === page ? currentPageClassName : otherPageClassName,
+                  place.page === currentPage ? currentPageClassName : otherPageClassName,
                 ].join(" ")}
               >
                 {place.page}
@@ -113,8 +115,8 @@ export function Pagination({
         ))}
       </ul>
       <AriaButton
-        isDisabled={page >= pageCount}
-        onPress={() => onPageChange(page + 1)}
+        isDisabled={currentPage >= pageCount}
+        onPress={() => onPageChange(currentPage + 1)}
         className={navButtonClassName}
       >
         {nextLabel}

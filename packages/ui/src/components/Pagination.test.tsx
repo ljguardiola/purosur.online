@@ -108,6 +108,79 @@ test("keeps 5 fixed places across every page of a long list", async () => {
   }
 });
 
+test("shows every number with no ellipsis when there are exactly 5 pages", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
+  const numbers = screen.container.querySelectorAll("li");
+
+  expect(Array.from(numbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "4", "5"]);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("switches from the start window to the end window between pages 3 and 4 of 6", async () => {
+  const startWindow = await render(<Pagination {...baseProps({ page: 3, pageCount: 6 })} />);
+  const startNumbers = startWindow.container.querySelectorAll("li");
+  expect(Array.from(startNumbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "…", "6"]);
+  await startWindow.unmount();
+
+  const endWindow = await render(<Pagination {...baseProps({ page: 4, pageCount: 6 })} />);
+  const endNumbers = endWindow.container.querySelectorAll("li");
+  expect(Array.from(endNumbers).map((el) => el.textContent)).toEqual(["1", "…", "4", "5", "6"]);
+});
+
+test("covers the start, middle and end windows across pages 3, 4 and 5 of 7", async () => {
+  const startWindow = await render(<Pagination {...baseProps({ page: 3, pageCount: 7 })} />);
+  expect(
+    Array.from(startWindow.container.querySelectorAll("li")).map((el) => el.textContent),
+  ).toEqual(["1", "2", "3", "…", "7"]);
+  await startWindow.unmount();
+
+  const middleWindow = await render(<Pagination {...baseProps({ page: 4, pageCount: 7 })} />);
+  expect(
+    Array.from(middleWindow.container.querySelectorAll("li")).map((el) => el.textContent),
+  ).toEqual(["1", "…", "4", "…", "7"]);
+  await middleWindow.unmount();
+
+  const endWindow = await render(<Pagination {...baseProps({ page: 5, pageCount: 7 })} />);
+  expect(
+    Array.from(endWindow.container.querySelectorAll("li")).map((el) => el.textContent),
+  ).toEqual(["1", "…", "5", "6", "7"]);
+});
+
+test("treats a page below 1 as page 1", async () => {
+  const onPageChange = vi.fn();
+  const screen = await render(
+    <Pagination {...baseProps({ page: 0, pageCount: 5, onPageChange })} />,
+  );
+  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeEnabled();
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+  expect(onPageChange).toHaveBeenCalledWith(2);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("treats a page above the count as the last page", async () => {
+  const onPageChange = vi.fn();
+  const screen = await render(
+    <Pagination {...baseProps({ page: 6, pageCount: 5, onPageChange })} />,
+  );
+  const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeEnabled();
+
+  await screen.getByRole("button", { name: "Anterior" }).click();
+  expect(onPageChange).toHaveBeenCalledWith(4);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("disables Previous on the first page and Next on the last page", async () => {
   const firstPage = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
   await expect.element(firstPage.getByRole("button", { name: "Anterior" })).toBeDisabled();
