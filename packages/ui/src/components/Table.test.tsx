@@ -1,9 +1,10 @@
-import { PackageSearch } from "lucide-react";
+import { PackageSearch, Pencil, Trash2 } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
+import { IconButton } from "./IconButton";
 import {
   Table,
   TableCellText,
@@ -35,6 +36,28 @@ const emptyRows: TableRow<Product>[] = [];
 // Spread alongside a `columns` prop of its own at each call site, so every render keeps its own
 // columns literal instead of losing it through a shared helper's fixed return type.
 const commonProps = { "aria-label": "Products", rows };
+
+// getComputedStyle's own box-shadow always reports every Tailwind shadow/ring layer, including
+// the unused ones (transparent, zero-sized), so a border painted with an inset shadow has to be
+// found among several layers rather than compared as one whole string. Splits on a top-level
+// comma only (not one nested inside an rgb()/rgba() color).
+function shadowLayers(boxShadow: string): string[] {
+  const layers: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of boxShadow) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "," && depth === 0) {
+      layers.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  layers.push(current.trim());
+  return layers;
+}
 
 test("renders a white container with an 8px radius and a 1px line border", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
@@ -129,8 +152,8 @@ test("renders every row's cells with 16px edge padding and a 12px gap lined up w
   expect(lastStyle.paddingRight).toBe("16px");
   expect(firstStyle.paddingRight).toBe("6px");
   expect(lastStyle.paddingLeft).toBe("6px");
-  expect(rowStyle.boxShadow).toContain(tokenRgb("line"));
-  expect(rowStyle.boxShadow).toContain("-1px");
+  const layers = shadowLayers(rowStyle.boxShadow);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -165,6 +188,31 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
     .parentElement as HTMLElement;
   const rect = row.getBoundingClientRect();
 
+  expect(rect.height).toBeGreaterThan(63);
+  expect(rect.height).toBeLessThan(65);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("grows a row to fit a taller cell, like one holding a form control, beyond the 56px floor", async () => {
+  const tallColumns = [
+    {
+      key: "name",
+      title: "Producto",
+      render: () => <div style={{ height: "48px" }}>Control</div>,
+    },
+  ] as const;
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={tallColumns}
+      rows={[{ id: "1", item: { id: "1", name: "Coffee", stock: "12" } }]}
+    />,
+  );
+  const row = screen.getByText("Control").element().closest("tr") as HTMLElement;
+  const rect = row.getBoundingClientRect();
+
+  // 48px control plus the cell's own 8px top and bottom padding, past the 56px (h-14) floor.
   expect(rect.height).toBeGreaterThan(63);
   expect(rect.height).toBeLessThan(65);
 
@@ -256,6 +304,28 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("breaks a long unbreakable token inside its own cell instead of overrunning the next column", async () => {
+  const barcode = "1234567890123456789012345678901234567890";
+  const screen = await render(
+    <div style={{ width: "320px" }}>
+      <Table
+        {...commonProps}
+        columns={columns}
+        rows={[{ id: "1", item: { id: "1", name: barcode, stock: "1" } }]}
+      />
+    </div>,
+  );
+  const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
+  const cell = cellText.closest("td") as HTMLElement;
+
+  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  expect(cellText.getBoundingClientRect().width).toBeLessThanOrEqual(
+    cell.getBoundingClientRect().width,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("right-aligns a numeric column in the header and the rows, with tabular digits", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
@@ -280,8 +350,9 @@ test("renders the selected row state with a blue message background and a 4px bl
   const style = getComputedStyle(row);
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  expect(style.boxShadow).toContain(tokenRgb("brand-blue-ui"));
-  expect(style.boxShadow).toContain("4px");
+  const layers = shadowLayers(style.boxShadow);
+  expect(layers[layers.length - 2]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -333,7 +404,7 @@ test("renders every cell of a muted row in secondary text, with its background u
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders one action button in a 60px wide, unnamed-title actions column named for assistive technology", async () => {
+test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title actions column named for assistive technology", async () => {
   const actionColumns = [
     { key: "name", title: "Producto", render: (p: Product) => p.name },
     {
@@ -341,16 +412,23 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
       kind: "actions",
       srLabel: "Actions",
       count: 1,
-      render: () => <button type="button">Edit</button>,
+      render: () => <IconButton aria-label="Edit" icon={<Pencil />} />,
     },
   ] as const;
   const screen = await render(<Table {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(header.textContent).toBe("Actions");
-  expect(getComputedStyle(header).width).toBe("60px");
+  // 60px design content width + 6px inner padding (not first) + 16px edge padding (last).
+  expect(getComputedStyle(header).width).toBe("82px");
   const edit = screen.getByRole("button", { name: "Edit" }).nth(0);
   await expect.element(edit).toBeVisible();
+  const editRect = edit.element().getBoundingClientRect();
+
+  expect(editRect.width).toBeGreaterThan(37);
+  expect(editRect.width).toBeLessThan(39);
+  expect(editRect.height).toBeGreaterThan(37);
+  expect(editRect.height).toBeLessThan(39);
 
   const row = edit.element().closest("tr") as HTMLElement;
   const rowHeight = row.getBoundingClientRect().height;
@@ -360,7 +438,7 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("widens the actions column to 104px for two action buttons", async () => {
+test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligned, in a 126px actions column", async () => {
   const actionColumns = [
     { key: "name", title: "Producto", render: (p: Product) => p.name },
     {
@@ -370,8 +448,8 @@ test("widens the actions column to 104px for two action buttons", async () => {
       count: 2,
       render: () => (
         <>
-          <button type="button">Edit</button>
-          <button type="button">Delete</button>
+          <IconButton aria-label="Edit" icon={<Pencil />} />
+          <IconButton aria-label="Delete" icon={<Trash2 />} />
         </>
       ),
     },
@@ -379,17 +457,24 @@ test("widens the actions column to 104px for two action buttons", async () => {
   const screen = await render(<Table {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
-  expect(getComputedStyle(header).width).toBe("104px");
+  // 104px design content width + 6px inner padding (not first) + 16px edge padding (last).
+  expect(getComputedStyle(header).width).toBe("126px");
 
-  const firstEdit = screen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
-  const row = firstEdit.closest("tr") as HTMLElement;
-  const [edit, del] = row.querySelectorAll("button");
-  const editRect = (edit as HTMLElement).getBoundingClientRect();
-  const delRect = (del as HTMLElement).getBoundingClientRect();
+  const edit = screen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
+  const del = screen.getByRole("button", { name: "Delete" }).nth(0).element() as HTMLElement;
+  const editRect = edit.getBoundingClientRect();
+  const delRect = del.getBoundingClientRect();
 
+  expect(editRect.width).toBeGreaterThan(37);
+  expect(editRect.width).toBeLessThan(39);
+  expect(delRect.width).toBeGreaterThan(37);
+  expect(delRect.width).toBeLessThan(39);
   expect(delRect.top).toBeCloseTo(editRect.top, 0);
   expect(delRect.left).toBeGreaterThan(editRect.left);
+  expect(delRect.left - editRect.right).toBeGreaterThan(7);
+  expect(delRect.left - editRect.right).toBeLessThan(9);
 
+  const row = edit.closest("tr") as HTMLElement;
   const rowHeight = row.getBoundingClientRect().height;
   expect(rowHeight).toBeGreaterThan(55);
   expect(rowHeight).toBeLessThan(57);
@@ -525,7 +610,7 @@ test("asks the caller to sort by a column using its own first direction, on clic
 
 test("asks the caller to sort by a column using its own first direction, from the keyboard", async () => {
   const onSortChange = vi.fn();
-  await render(
+  const screen = await render(
     <Table
       {...commonProps}
       columns={sortableColumns}
@@ -539,6 +624,7 @@ test("asks the caller to sort by a column using its own first direction, from th
   await userEvent.keyboard("{Enter}");
 
   expect(onSortChange).toHaveBeenCalledWith({ column: "stock", direction: "descending" });
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("asks for the opposite direction when activating the column already sorted", async () => {
@@ -555,6 +641,7 @@ test("asks for the opposite direction when activating the column already sorted"
   await screen.getByRole("columnheader", { name: "Producto" }).click();
 
   expect(onSortChange).toHaveBeenCalledWith({ column: "name", direction: "descending" });
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a sortable column without its own first direction", () => {
@@ -644,6 +731,25 @@ test("renders the placeholder rows immediately, hidden from assistive technology
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders each placeholder bar at its own declared width, cycling per column", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
+  const cells = firstRow.querySelectorAll("td");
+  const nameBar = cells[0]?.querySelector(".bg-surface-sand") as HTMLElement;
+  const stockBar = cells[1]?.querySelector(".bg-surface-sand") as HTMLElement;
+
+  const nameTrackWidth = nameBar.parentElement?.getBoundingClientRect().width ?? 0;
+  const stockTrackWidth = stockBar.parentElement?.getBoundingClientRect().width ?? 0;
+
+  // The first two entries of PLACEHOLDER_WIDTHS_PERCENT: 72% for column 0, 48% for column 1.
+  expect(nameBar.getBoundingClientRect().width / nameTrackWidth).toBeCloseTo(0.72, 1);
+  expect(stockBar.getBoundingClientRect().width / stockTrackWidth).toBeCloseTo(0.48, 1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // loading="initial" means the caller doesn't have a confirmed first result yet, so any rows it
 // still passes alongside that (e.g. stale defaults, or leftovers from a previous, now-invalidated
 // render) are exactly what the placeholders exist to hide: showing them would flash content the
@@ -682,6 +788,8 @@ test("reveals the placeholder rows exactly at 300ms, proven with the Web Animati
 
   animation.currentTime = 300;
   expect(getComputedStyle(placeholderRow).opacity).toBe("1");
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("removes the placeholder rows once loading leaves initial", async () => {
@@ -706,6 +814,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   const bar = table.previousElementSibling as HTMLElement;
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
+  expect(bar.getBoundingClientRect().height).toBe(3);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -840,6 +949,42 @@ test("renders a plain, message-less empty table when there are no rows and no em
   await expect.element(screen.getByRole("table")).toBeVisible();
   expect(screen.container.querySelectorAll("tbody tr")).toHaveLength(0);
   await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders the caller's footer below the table", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} footer={<p>1-2 of 2</p>} />,
+  );
+
+  await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("holds back the footer during the first load, alongside the placeholders", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      loading="initial"
+      footer={<p>1-2 of 2</p>}
+    />,
+  );
+
+  expect(screen.getByText("1-2 of 2").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps showing the footer while updating", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} loading="updating" footer={<p>1-2 of 2</p>} />,
+  );
+
+  await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });

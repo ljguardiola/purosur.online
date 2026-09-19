@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button as AriaButton } from "react-aria-components";
+import type { ButtonIcon } from "./Button";
 
 export type TableColumnAlign = "start" | "end";
 export type TableRowState = "selected" | "warning" | "error" | "muted";
@@ -93,7 +94,7 @@ export type TableRow<T> = {
 export type TableEmptyStateTone = "blank" | "filtered";
 
 export type TableEmptyStateProps = {
-  icon: ReactElement<{ className?: string }>;
+  icon: ButtonIcon;
   title: string;
   detail: string;
   tone: TableEmptyStateTone;
@@ -110,6 +111,9 @@ type TableCommonProps<T> = {
   rows: readonly TableRow<T>[];
   loading?: TableLoadingState;
   empty?: TableEmptyStateProps;
+  // Where a caller renders its own row count and Pagination, below the table. Held back during
+  // the first load, alongside the placeholder rows it would otherwise sit under.
+  footer?: ReactNode;
 };
 
 // A sortable column's header button is useless without a handler wired to it (see
@@ -142,38 +146,43 @@ const PLACEHOLDER_ROW_IDS = [
 // Cycled per column so every placeholder bar gets a varied width without shifting on re-render.
 const PLACEHOLDER_WIDTHS_PERCENT = [72, 48, 64, 56, 80, 40];
 
-// table/thead/tbody/tr/th/td keep their native CSS display (table/table-header-group/
-// table-row-group/table-row/table-cell): every engine's implicit ARIA role mapping for these
-// tags is only guaranteed while their display stays table-shaped, and overriding it (e.g. to
-// flex, so a column's width doesn't just auto-grow to fit its widest cell) risks silently losing
-// table semantics in engines this package's own Chromium-only tests can't catch. table-fixed
-// (table-layout: fixed) solves the original width problem instead, with display untouched: a
-// column's width comes only from its header cell and never grows to fit a row's content. Column/
-// row spacing (12px between cells, 16px at the row's own left/right edge, 8px above/below body
-// cell content) moves from <tr> (which CSS never applies padding or gap to) onto each cell
-// instead; vertical centering moves from the row's own flex items-center onto each cell's own
-// align-middle.
-const columnWidthClassName: Record<1 | 2, string> = {
-  1: "w-[3.75rem]",
-  2: "w-[6.5rem]",
-};
-
+// table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
+// table-shaped drops these tags' implicit ARIA roles in some engines.
 function alignClassName(align: TableColumnAlign | undefined): string {
   return align === "end" ? "text-right" : "text-left";
 }
 
-// Only the header row's own cell widths are read by table-fixed layout, so body/placeholder
-// cells don't need a width class of their own; they simply inherit whatever column width the
-// header already established.
-function headerColumnWidthClassName<T>(column: TableColumn<T>): string {
-  return column.kind === "actions" ? columnWidthClassName[column.count] : "";
-}
+// The actions column's own content width: 60px for one 38px IconButton, 104px for two with an
+// 8px gap between them.
+const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2, number> = {
+  1: 60,
+  2: 104,
+};
+
+const CELL_EDGE_PADDING_PX = 16;
+const CELL_INNER_PADDING_PX = 6;
 
 // The 12px gap between cells is each cell's own 6px of padding meeting its neighbor's; the first
 // and last cell in a row additionally own the row's 16px left/right edge padding, since <tr>
 // itself can't carry padding under table layout.
 function cellHorizontalPaddingClassName(isFirst: boolean, isLast: boolean): string {
   return [isFirst ? "pl-4" : "pl-1.5", isLast ? "pr-4" : "pr-1.5"].join(" ");
+}
+
+// table-fixed reads a column's width only from its header cell, and that cell's own horizontal
+// padding shares the same border-box as the declared width, so the actions column's width has to
+// add that padding on top of its own content width or its buttons get squeezed to fit.
+function headerColumnWidthStyle<T>(
+  column: TableColumn<T>,
+  isFirst: boolean,
+  isLast: boolean,
+): { width: string } | undefined {
+  if (column.kind !== "actions") {
+    return undefined;
+  }
+  const leftPadding = isFirst ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
+  const rightPadding = isLast ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
+  return { width: `${ACTIONS_CONTENT_WIDTH_PX[column.count] + leftPadding + rightPadding}px` };
 }
 
 // A muted row's ink-secondary applies to every cell at once: a cell's own content should leave
@@ -366,16 +375,14 @@ function TableCell<T>({
   return (
     <td
       className={[
-        "h-14 align-middle py-2",
+        "h-14 break-words align-middle py-2",
         cellHorizontalPaddingClassName(isFirst, isLast),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
       ].join(" ")}
     >
       <div
-        // An actions cell and a text cell never share a layout: appending one's classes onto
-        // the other's base left the flex-direction/justify/gap pairs to whichever Tailwind
-        // happened to emit last, so each gets its own complete, exclusive class string instead.
+        // Two fully separate class strings: an actions and a text cell never share a layout.
         className={
           isActions
             ? "flex flex-row items-center justify-end gap-2"
@@ -392,11 +399,8 @@ function TableCell<T>({
 }
 
 // TableProps<T, C>'s sort/onSortChange requirement is a conditional type over the still-generic
-// C, so it can't be pattern-matched inside a single generic body (C isn't resolved to a concrete
-// tuple yet at that point). The exported overload keeps the precise, per-call-site contract;
-// this second, unexported signature is what the body below actually implements against, with
-// sort/onSortChange simply optional (whichever the chosen overload required has already been
-// enforced at the caller's own call site by TableProps<T, C> itself).
+// C, which TypeScript can't pattern-match inside this function's own body, hence the second,
+// looser signature actually implemented below.
 export function Table<T, const C extends readonly [TableColumn<T>, ...TableColumn<T>[]]>(
   props: TableProps<T, C>,
 ): ReactElement;
@@ -408,6 +412,7 @@ export function Table<T>({
   onSortChange,
   loading = false,
   empty,
+  footer,
 }: TableCommonProps<T> & {
   columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
   sort?: TableSort;
@@ -418,82 +423,87 @@ export function Table<T>({
   const showingPlaceholders = displayMode === "placeholders";
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-line bg-surface-white">
-      {loading === "updating" && (
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
-        >
-          <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
-        </div>
-      )}
-      {showEmptyState && empty ? (
-        <TableEmptyState {...empty} />
-      ) : (
-        <table
-          aria-label={ariaLabel}
-          aria-busy={loading ? true : undefined}
-          className="w-full table-fixed"
-        >
-          <thead>
-            <tr className="h-11 bg-surface-bone">
-              {columns.map((column, index) => {
-                const isActions = column.kind === "actions";
-                const isSortable = !isActions && column.sortable === true;
-                const isSorted = isSortable && sort?.column === column.key;
-                const isFirst = index === 0;
-                const isLast = index === columns.length - 1;
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
-                    className={[
-                      "align-middle",
-                      headerColumnWidthClassName(column),
-                      cellHorizontalPaddingClassName(isFirst, isLast),
-                      "text-xs font-bold uppercase",
-                      alignClassName(isActions ? "start" : column.align),
-                    ].join(" ")}
-                  >
-                    {isActions ? (
-                      <span className="sr-only">{column.srLabel}</span>
-                    ) : column.sortable === true ? (
-                      <SortableColumnHeader
-                        column={column}
-                        sort={sort}
-                        onSortChange={onSortChange}
-                      />
-                    ) : (
-                      <span className="text-ink-secondary">{column.title}</span>
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody aria-hidden={showingPlaceholders ? true : undefined}>
-            {showingPlaceholders
-              ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
-              : rows.map(({ id, item, state }) => (
-                  <tr
-                    key={id}
-                    className={[rowBoxShadowClassName(state), rowStateClassName(state)].join(" ")}
-                  >
-                    {columns.map((column, index) => (
-                      <TableCell
-                        key={column.key}
-                        column={column}
-                        item={item}
-                        isFirst={index === 0}
-                        isLast={index === columns.length - 1}
-                      />
-                    ))}
-                  </tr>
-                ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <>
+      <div className="relative overflow-hidden rounded-lg border border-line bg-surface-white">
+        {loading === "updating" && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
+          >
+            <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
+          </div>
+        )}
+        {showEmptyState && empty ? (
+          <section aria-label={ariaLabel} aria-busy={loading ? true : undefined}>
+            <TableEmptyState {...empty} />
+          </section>
+        ) : (
+          <table
+            aria-label={ariaLabel}
+            aria-busy={loading ? true : undefined}
+            className="w-full table-fixed"
+          >
+            <thead>
+              <tr className="h-11 bg-surface-bone">
+                {columns.map((column, index) => {
+                  const isActions = column.kind === "actions";
+                  const isSortable = !isActions && column.sortable === true;
+                  const isSorted = isSortable && sort?.column === column.key;
+                  const isFirst = index === 0;
+                  const isLast = index === columns.length - 1;
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
+                      style={headerColumnWidthStyle(column, isFirst, isLast)}
+                      className={[
+                        "align-middle",
+                        cellHorizontalPaddingClassName(isFirst, isLast),
+                        "text-xs font-bold uppercase",
+                        alignClassName(isActions ? "start" : column.align),
+                      ].join(" ")}
+                    >
+                      {isActions ? (
+                        <span className="sr-only">{column.srLabel}</span>
+                      ) : column.sortable === true ? (
+                        <SortableColumnHeader
+                          column={column}
+                          sort={sort}
+                          onSortChange={onSortChange}
+                        />
+                      ) : (
+                        <span className="text-ink-secondary">{column.title}</span>
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody aria-hidden={showingPlaceholders ? true : undefined}>
+              {showingPlaceholders
+                ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
+                : rows.map(({ id, item, state }) => (
+                    <tr
+                      key={id}
+                      className={[rowBoxShadowClassName(state), rowStateClassName(state)].join(" ")}
+                    >
+                      {columns.map((column, index) => (
+                        <TableCell
+                          key={column.key}
+                          column={column}
+                          item={item}
+                          isFirst={index === 0}
+                          isLast={index === columns.length - 1}
+                        />
+                      ))}
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {!showingPlaceholders && footer}
+    </>
   );
 }
