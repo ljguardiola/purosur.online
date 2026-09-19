@@ -93,10 +93,6 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
 
-  // Leaves the real pointer away from where the next test's box will render: every test in this
-  // file renders its checkbox at the same page position, so a hover left unresolved here would
-  // otherwise carry over and falsely hover the next test's fresh box.
-  await userEvent.unhover(label);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -139,8 +135,6 @@ test("turns a checked box's background blue strong on hover, keeping the white c
     .toBe(tokenRgb("brand-blue-strong"));
   expect(box.querySelector("svg")).not.toBeNull();
 
-  // See the unchecked-hover test above: leaves the pointer away from the next test's box.
-  await userEvent.unhover(label);
   await expectNoAccessibilityViolations(screen.container);
 });
 
