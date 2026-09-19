@@ -110,6 +110,53 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("keeps the menu at the 200px floor when the trigger is narrower than that", async () => {
+  const narrowOptions: [ListFilterOption<"a" | "b">, ListFilterOption<"a" | "b">] = [
+    { value: "a", label: "A" },
+    { value: "b", label: "B" },
+  ];
+  const screen = await render(
+    <ListFilter label="X" options={narrowOptions} value="a" onChange={() => {}} />,
+  );
+  const trigger = screen.getByRole("button", { name: /X/ });
+
+  const triggerWidth = trigger.element().getBoundingClientRect().width;
+  expect(triggerWidth).toBeLessThan(200);
+
+  await trigger.click();
+  const menu = screen.getByRole("listbox").element().parentElement as HTMLElement;
+
+  expect(menu.getBoundingClientRect().width).toBeCloseTo(200, 0);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("matches the menu to a trigger wider than 200px", async () => {
+  const wideOptions: [ListFilterOption<"a" | "b">, ListFilterOption<"a" | "b">] = [
+    { value: "a", label: "A very long chosen option value" },
+    { value: "b", label: "Another very long chosen option value" },
+  ];
+  const screen = await render(
+    <ListFilter
+      label="A rather long filter label"
+      options={wideOptions}
+      value="a"
+      onChange={() => {}}
+    />,
+  );
+  const trigger = screen.getByRole("button", { name: /A rather long filter label/ });
+
+  const triggerWidth = trigger.element().getBoundingClientRect().width;
+  expect(triggerWidth).toBeGreaterThan(200);
+
+  await trigger.click();
+  const menu = screen.getByRole("listbox").element().parentElement as HTMLElement;
+
+  expect(menu.getBoundingClientRect().width).toBeCloseTo(triggerWidth, 0);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("renders each option at 40px with a 6px radius and 14px semibold ink", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   await screen.getByRole("button", { name: /Estado/ }).click();
