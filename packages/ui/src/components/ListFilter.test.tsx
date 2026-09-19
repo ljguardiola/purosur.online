@@ -206,6 +206,27 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("opens from the keyboard, moves between options with arrows, picks one with Enter, and returns focus to the trigger", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<ListFilter {...baseProps({ onChange })} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ });
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(trigger.element());
+
+  await userEvent.keyboard("{ArrowDown}");
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  await userEvent.keyboard("{ArrowDown}");
+  await userEvent.keyboard("{Enter}");
+
+  expect(onChange).toHaveBeenCalledWith("open");
+  await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+  await expect.poll(() => document.activeElement).toBe(trigger.element());
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("closes on Escape without changing anything", async () => {
   const onChange = vi.fn();
   const screen = await render(<ListFilter {...baseProps({ onChange })} />);
