@@ -1,4 +1,5 @@
 import { PackageSearch } from "lucide-react";
+import { act } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -320,6 +321,7 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   const icon = header.querySelector("svg") as SVGSVGElement;
 
   expect(icon).not.toBeNull();
+  expect(icon.classList.contains("lucide-chevrons-up-down")).toBe(true);
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(11);
   expect(iconRect.width).toBeLessThan(13);
@@ -356,6 +358,7 @@ test("shows the ascending sort with an up chevron, title and icon in ink, expose
   const icon = header.querySelector("svg") as SVGSVGElement;
 
   expect(header.getAttribute("aria-sort")).toBe("ascending");
+  expect(icon.classList.contains("lucide-chevron-up")).toBe(true);
   expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink"));
 
@@ -372,8 +375,10 @@ test("shows the descending sort with a down chevron, title and icon in ink, expo
     />,
   );
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+  const icon = header.querySelector("svg") as SVGSVGElement;
 
   expect(header.getAttribute("aria-sort")).toBe("descending");
+  expect(icon.classList.contains("lucide-chevron-down")).toBe(true);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -425,33 +430,83 @@ test("does not accept a sortable column without its own first direction", () => 
   }>().not.toExtend<TableColumn<Product>>();
 });
 
-test("shows no placeholder rows before 300ms of a first load, but marks the table busy", async () => {
-  const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
-  const table = screen.getByRole("table").element() as HTMLElement;
+// vi.useFakeTimers() hangs vitest-browser-react's own render/rerender in this real-browser
+// project (their internal waiting also runs on real timers) and corrupts axe-core across later
+// tests, so only the table's own 300ms call is intercepted by its exact delay; every other
+// setTimeout call (the test harness's own) keeps running on the real clock. The captured
+// callback is invoked manually (inside act, since it fires outside any React-managed event) to
+// stand in for the delay elapsing.
+function interceptDelay(delayMs: number) {
+  const realSetTimeout = window.setTimeout;
+  let callback: (() => void) | undefined;
+  const spy = vi.spyOn(window, "setTimeout").mockImplementation(((
+    fn: () => void,
+    ms?: number,
+    ...args: unknown[]
+  ) => {
+    if (ms === delayMs) {
+      callback = fn;
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }
+    return realSetTimeout(fn, ms, ...args);
+  }) as typeof window.setTimeout);
+  return {
+    fire: () => act(() => callback?.()),
+    restore: () => spy.mockRestore(),
+  };
+}
 
-  expect(table.getAttribute("aria-busy")).toBe("true");
-  expect(screen.container.querySelectorAll("td")).toHaveLength(0);
+test("shows no placeholder rows before the delay elapses, but marks the table busy", async () => {
+  const delay = interceptDelay(300);
+  try {
+    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
+    const table = screen.getByRole("table").element() as HTMLElement;
 
-  await expectNoAccessibilityViolations(screen.container);
+    expect(table.getAttribute("aria-busy")).toBe("true");
+    expect(screen.container.querySelectorAll("td")).toHaveLength(0);
+
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    delay.restore();
+  }
 });
 
-test("shows 5 placeholder rows, hidden from assistive technology, once a first load passes 300ms", async () => {
-  const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
+test("shows 5 placeholder rows, hidden from assistive technology, once the delay elapses", async () => {
+  const delay = interceptDelay(300);
+  try {
+    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
 
-  await expect
-    .poll(() => screen.container.querySelectorAll('tbody[aria-hidden="true"] tr').length, {
-      timeout: 1000,
-    })
-    .toBe(5);
+    delay.fire();
 
-  const placeholderRow = screen.container.querySelector(
-    'tbody[aria-hidden="true"] tr',
-  ) as HTMLElement;
-  expect(placeholderRow.getBoundingClientRect().height).toBeGreaterThan(55);
-  expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
+    const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
+    expect(placeholderRows).toHaveLength(5);
 
-  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
+    const placeholderRow = placeholderRows[0] as HTMLElement;
+    expect(placeholderRow.getBoundingClientRect().height).toBeGreaterThan(55);
+    expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
+
+    await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    delay.restore();
+  }
+});
+
+test("never shows placeholder rows when loading ends before the delay elapses", async () => {
+  const delay = interceptDelay(300);
+  try {
+    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
+    await screen.rerender(<Table {...baseProps({ loading: false })} />);
+
+    delay.fire();
+
+    expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
+    await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    delay.restore();
+  }
 });
 
 test("keeps the current rows and shows a top loading bar while updating", async () => {
