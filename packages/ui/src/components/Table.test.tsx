@@ -1,6 +1,6 @@
 import { PackageSearch } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
@@ -154,6 +154,25 @@ test("renders a cell's detail line at 14px in secondary text, even in a muted ro
 
   expect(getComputedStyle(detail).fontSize).toBe("14px");
   expect(getComputedStyle(detail).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders a falsy-but-present detail, like 0, as a real detail line rather than a stray value", async () => {
+  const screen = await render(<TableCellText detail={0}>Coffee</TableCellText>);
+  const detail = screen.getByText("0", { exact: true }).element() as HTMLElement;
+
+  expect(detail.tagName).toBe("SPAN");
+  expect(getComputedStyle(detail).fontSize).toBe("14px");
+  expect(getComputedStyle(detail).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders no detail line when no detail is given", async () => {
+  const screen = await render(<TableCellText>Coffee</TableCellText>);
+
+  expect(screen.container.querySelectorAll("span")).toHaveLength(1);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -594,6 +613,35 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("slides the updating bar's segment left to right in a loop", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+  const segment = screen.container.querySelector('[class*="bg-brand-blue-ui"]') as HTMLElement;
+
+  const style = getComputedStyle(segment);
+  expect(style.animationName).not.toBe("none");
+  expect(style.animationIterationCount).toBe("infinite");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the updating bar's segment still when the system asks for reduced motion", async () => {
+  const session = cdp();
+  await session.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
+
+  try {
+    const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+    const segment = screen.container.querySelector('[class*="bg-brand-blue-ui"]') as HTMLElement;
+
+    await expect.poll(() => getComputedStyle(segment).animationName).toBe("none");
+
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    await session.send("Emulation.setEmulatedMedia", { features: [] });
+  }
 });
 
 test("renders the empty state in place of the header and rows, in blue strong when there is nothing yet", async () => {

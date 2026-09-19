@@ -285,12 +285,16 @@ export type TableCellTextProps = {
 
 // The 24px/20px line heights and 4px gap are fixed so a row with a detail line always lands
 // exactly at 64px (min-h-14 plus the row's own 8px vertical padding), the same way a single line
-// lands at 56px.
+// lands at 56px. Only a missing detail (undefined or null) omits the line: a falsy-but-real
+// value like 0 or an empty string is content the caller chose to show, and `detail && ...` would
+// print a stray, unwrapped "0" for it instead (0 is itself falsy).
 export function TableCellText({ children, detail }: TableCellTextProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-base leading-[24px]">{children}</span>
-      {detail && <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>}
+      {detail !== undefined && detail !== null && (
+        <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>
+      )}
     </div>
   );
 }
@@ -353,7 +357,7 @@ export function Table<T>({
           aria-hidden="true"
           className="absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
         >
-          <div className="h-full w-1/3 bg-brand-blue-ui" />
+          <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
         </div>
       )}
       {showEmptyState ? (
