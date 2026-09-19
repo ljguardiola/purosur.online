@@ -71,6 +71,19 @@
   --color-ink-panel-shadow: #1a1a1a4d;
   /* Ink at 16% opacity, for the list filter's open menu drop shadow. */
   --color-ink-menu-shadow: #1a1a1a29;
+
+  /* Keeps the table's placeholder rows invisible for 300ms, then reveals them in one step, with
+     no timer: the delay and the fill mode live entirely in this animation. */
+  --animate-table-placeholder-reveal: table-placeholder-reveal 0s 300ms both;
+}
+
+@keyframes table-placeholder-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @layer base {

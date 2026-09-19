@@ -1,12 +1,11 @@
 import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 export type TableColumnAlign = "start" | "end";
 export type TableRowState = "selected" | "warning" | "error" | "muted";
 export type TableSortDirection = "ascending" | "descending";
-export type TableSort = { column: string; direction: TableSortDirection };
+export type TableSort<K extends string = string> = { column: K; direction: TableSortDirection };
 
 type TableColumnCommon<T> = {
   key: string;
@@ -41,9 +40,20 @@ type TableActionsColumn<T> = {
 
 export type TableColumn<T> = TableDataColumn<T> | TableActionsColumn<T>;
 
-// A column that can never be TableSortableDataColumn, so a table restricted to this type can't
-// smuggle in a sortable column without also widening its own columns type.
-export type TableNonSortableColumn<T> = TableUnsortableDataColumn<T> | TableActionsColumn<T>;
+// The literal key of every sortable column in a specific columns tuple C, and never when none of
+// C's columns are sortable. A C inferred from a plain, widely annotated TableColumn<T>[] (no
+// literal info retained) resolves this to plain string, since any of its columns could be the
+// sortable one.
+export type TableSortableColumnKey<T, C extends readonly TableColumn<T>[]> = Extract<
+  C[number],
+  { sortable: true }
+>["key"];
+
+type TableHasSortableColumn<T, C extends readonly TableColumn<T>[]> = [
+  TableSortableColumnKey<T, C>,
+] extends [never]
+  ? false
+  : true;
 
 export type TableRow<T> = {
   id: string;
@@ -75,23 +85,25 @@ type TableCommonProps<T> = {
 };
 
 // A sortable column's header button is useless without a handler wired to it (see
-// SortableColumnHeader below), so a table that admits a sortable column requires both; a table
-// that can never admit one takes neither.
-type TableSortableProps<T> = TableCommonProps<T> & {
-  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
-  sort: TableSort;
-  onSortChange: (sort: TableSort) => void;
-};
+// SortableColumnHeader below): a columns tuple that includes one requires both sort and
+// onSortChange, typed to exactly that tuple's own sortable keys; a tuple that includes none
+// forbids both.
+type TableSortProps<T, C extends readonly TableColumn<T>[]> =
+  TableHasSortableColumn<T, C> extends true
+    ? {
+        sort: TableSort<TableSortableColumnKey<T, C>>;
+        onSortChange: (sort: TableSort<TableSortableColumnKey<T, C>>) => void;
+      }
+    : { sort?: never; onSortChange?: never };
 
-type TableUnsortableProps<T> = TableCommonProps<T> & {
-  columns: readonly [TableNonSortableColumn<T>, ...TableNonSortableColumn<T>[]];
-  sort?: undefined;
-  onSortChange?: undefined;
-};
+export type TableProps<
+  T,
+  C extends readonly [TableColumn<T>, ...TableColumn<T>[]] = readonly [
+    TableColumn<T>,
+    ...TableColumn<T>[],
+  ],
+> = TableCommonProps<T> & { columns: C } & TableSortProps<T, C>;
 
-export type TableProps<T> = TableSortableProps<T> | TableUnsortableProps<T>;
-
-const PLACEHOLDER_DELAY_MS = 300;
 const PLACEHOLDER_ROW_IDS = [
   "placeholder-1",
   "placeholder-2",
@@ -226,10 +238,17 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
 
 // Mirrors a real row's own column widths so the placeholder bars line up under the real header.
 // It carries no aria-hidden of its own; the tbody that holds every placeholder row is hidden as
-// a whole instead (see Table below).
+// a whole instead (see Table below). It renders as soon as loading starts and stays invisible
+// (opacity 0) for the reveal animation's own 300ms delay, defined in tokens.css; there is no
+// timer or effect involved, so nothing here needs to wait or clean anything up.
 function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
   return (
-    <tr className="flex h-14 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--color-line)]">
+    <tr
+      className={[
+        "flex h-14 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--color-line)]",
+        "animate-table-placeholder-reveal",
+      ].join(" ")}
+    >
       {columns.map((column, index) => {
         const isActions = column.kind === "actions";
         const align = isActions ? "start" : column.align;
@@ -302,6 +321,15 @@ function TableCell<T>({ column, item }: { column: TableColumn<T>; item: T }) {
   );
 }
 
+// TableProps<T, C>'s sort/onSortChange requirement is a conditional type over the still-generic
+// C, so it can't be pattern-matched inside a single generic body (C isn't resolved to a concrete
+// tuple yet at that point). The exported overload keeps the precise, per-call-site contract;
+// this second, unexported signature is what the body below actually implements against, with
+// sort/onSortChange simply optional (whichever the chosen overload required has already been
+// enforced at the caller's own call site by TableProps<T, C> itself).
+export function Table<T, const C extends readonly [TableColumn<T>, ...TableColumn<T>[]]>(
+  props: TableProps<T, C>,
+): ReactElement;
 export function Table<T>({
   "aria-label": ariaLabel,
   columns,
@@ -310,20 +338,13 @@ export function Table<T>({
   onSortChange,
   loading = false,
   empty,
-}: TableProps<T>) {
-  const [showPlaceholders, setShowPlaceholders] = useState(false);
-
-  useEffect(() => {
-    if (loading !== "initial") {
-      setShowPlaceholders(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowPlaceholders(true), PLACEHOLDER_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [loading]);
-
+}: TableCommonProps<T> & {
+  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
+  sort?: TableSort;
+  onSortChange?: (sort: TableSort) => void;
+}): ReactElement {
   const showEmptyState = !loading && rows.length === 0 && empty !== undefined;
-  const showingPlaceholders = loading === "initial" && showPlaceholders;
+  const showingPlaceholders = loading === "initial";
 
   return (
     <div className="relative overflow-hidden rounded-lg border border-line bg-surface-white">
@@ -377,9 +398,8 @@ export function Table<T>({
             </tr>
           </thead>
           <tbody className="block" aria-hidden={showingPlaceholders ? true : undefined}>
-            {loading === "initial"
-              ? showPlaceholders &&
-                PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
+            {showingPlaceholders
+              ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
               : rows.map(({ id, item, state }) => (
                   <tr
                     key={id}

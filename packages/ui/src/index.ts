@@ -62,11 +62,11 @@ export type {
   TableEmptyStateProps,
   TableEmptyStateTone,
   TableLoadingState,
-  TableNonSortableColumn,
   TableProps,
   TableRow,
   TableRowState,
   TableSort,
+  TableSortableColumnKey,
   TableSortDirection,
 } from "./components/Table";
 export { Table, TableCellText } from "./components/Table";

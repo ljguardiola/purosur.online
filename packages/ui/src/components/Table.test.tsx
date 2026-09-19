@@ -1,5 +1,4 @@
 import { PackageSearch } from "lucide-react";
-import { act } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -9,39 +8,36 @@ import {
   Table,
   TableCellText,
   type TableColumn,
-  type TableNonSortableColumn,
   type TableProps,
   type TableRow,
   type TableSort,
+  type TableSortableColumnKey,
 } from "./Table";
 
 type Product = { id: string; name: string; sku?: string; stock: string };
 
-const columns: readonly [TableNonSortableColumn<Product>, ...TableNonSortableColumn<Product>[]] = [
-  { key: "name", title: "Producto", render: (p) => p.name },
-  { key: "stock", title: "Stock", align: "end", render: (p) => p.stock },
-];
+// `as const` so each column's own "key" (and, further down, "sortable") stays a literal instead
+// of widening to string/boolean: that literal is what Table's own columns type parameter reads.
+const columns = [
+  { key: "name", title: "Producto", render: (p: Product) => p.name },
+  { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+] as const;
 
 const rows: TableRow<Product>[] = [
   { id: "1", item: { id: "1", name: "Coffee", stock: "12" } },
   { id: "2", item: { id: "2", name: "Tea", stock: "8" } },
 ];
 
-// A table without any sortable column, distinguished from a sortable one by its columns' own
-// type (see TableNonSortableColumn), never by which props happen to be passed.
-type UnsortableTableProps = Extract<TableProps<Product>, { sort?: undefined }>;
+// An inline [] doesn't carry Product the way `rows` above does, and loses it for the whole
+// call's own type inference; a typed constant keeps it.
+const emptyRows: TableRow<Product>[] = [];
 
-function baseProps(overrides: Partial<UnsortableTableProps> = {}): TableProps<Product> {
-  return {
-    "aria-label": "Products",
-    columns,
-    rows,
-    ...overrides,
-  };
-}
+// Spread alongside a `columns` prop of its own at each call site, so every render keeps its own
+// columns literal instead of losing it through a shared helper's fixed return type.
+const commonProps = { "aria-label": "Products", rows };
 
 test("renders a white container with an 8px radius and a 1px line border", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
   const style = getComputedStyle(container);
 
@@ -55,7 +51,7 @@ test("renders a white container with an 8px radius and a 1px line border", async
 });
 
 test("renders a 44px header row on a bone background with 16px padding and a 12px column gap", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const headerRow = screen.getByRole("columnheader", { name: "Producto" }).element()
     .parentElement as HTMLElement;
   const style = getComputedStyle(headerRow);
@@ -72,7 +68,7 @@ test("renders a 44px header row on a bone background with 16px padding and a 12p
 });
 
 test("renders 12px bold capital column titles", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const title = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const style = getComputedStyle(title);
 
@@ -84,7 +80,7 @@ test("renders 12px bold capital column titles", async () => {
 });
 
 test("renders every row's cells with 16px padding and a 12px gap lined up with the header", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const cell = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const style = getComputedStyle(cell);
 
@@ -98,7 +94,7 @@ test("renders every row's cells with 16px padding and a 12px gap lined up with t
 });
 
 test("renders a 56px row when every cell holds a single line", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const rect = row.getBoundingClientRect();
 
@@ -109,22 +105,18 @@ test("renders a 56px row when every cell holds a single line", async () => {
 });
 
 test("grows a row to 64px when a cell renders a detail line under its main text", async () => {
-  const twoLineColumns: readonly [
-    TableNonSortableColumn<Product>,
-    ...TableNonSortableColumn<Product>[],
-  ] = [
+  const twoLineColumns = [
     {
       key: "name",
       title: "Producto",
-      render: (p) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
+      render: (p: Product) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
     },
-  ];
+  ] as const;
   const screen = await render(
     <Table
-      {...baseProps({
-        columns: twoLineColumns,
-        rows: [{ id: "1", item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" } }],
-      })}
+      {...commonProps}
+      columns={twoLineColumns}
+      rows={[{ id: "1", item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" } }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee SKU-001" }).element()
@@ -138,28 +130,24 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
 });
 
 test("renders a cell's detail line at 14px in secondary text, even in a muted row", async () => {
-  const twoLineColumns: readonly [
-    TableNonSortableColumn<Product>,
-    ...TableNonSortableColumn<Product>[],
-  ] = [
+  const twoLineColumns = [
     {
       key: "name",
       title: "Producto",
-      render: (p) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
+      render: (p: Product) => <TableCellText detail={p.sku}>{p.name}</TableCellText>,
     },
-  ];
+  ] as const;
   const screen = await render(
     <Table
-      {...baseProps({
-        columns: twoLineColumns,
-        rows: [
-          {
-            id: "1",
-            item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" },
-            state: "muted",
-          },
-        ],
-      })}
+      {...commonProps}
+      columns={twoLineColumns}
+      rows={[
+        {
+          id: "1",
+          item: { id: "1", name: "Coffee", sku: "SKU-001", stock: "12" },
+          state: "muted",
+        },
+      ]}
     />,
   );
   const detail = screen.getByText("SKU-001", { exact: true }).element() as HTMLElement;
@@ -176,9 +164,9 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
   const screen = await render(
     <div style={{ width: "320px" }}>
       <Table
-        {...baseProps({
-          rows: [{ id: "1", item: { id: "1", name: longText, stock: "1" } }],
-        })}
+        {...commonProps}
+        columns={columns}
+        rows={[{ id: "1", item: { id: "1", name: longText, stock: "1" } }]}
       />
     </div>,
   );
@@ -193,7 +181,7 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
 });
 
 test("right-aligns a numeric column in the header and the rows, with tabular digits", async () => {
-  const screen = await render(<Table {...baseProps()} />);
+  const screen = await render(<Table {...commonProps} columns={columns} />);
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const cell = screen.getByRole("cell", { name: "12" }).element() as HTMLElement;
 
@@ -207,7 +195,9 @@ test("right-aligns a numeric column in the header and the rows, with tabular dig
 test("renders the selected row state with a blue message background and a 4px blue left edge", async () => {
   const screen = await render(
     <Table
-      {...baseProps({ rows: [{ id: "1", item: rows[0]?.item as Product, state: "selected" }] })}
+      {...commonProps}
+      columns={columns}
+      rows={[{ id: "1", item: rows[0]?.item as Product, state: "selected" }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -223,7 +213,9 @@ test("renders the selected row state with a blue message background and a 4px bl
 test("renders the warning row state with a warning message background", async () => {
   const screen = await render(
     <Table
-      {...baseProps({ rows: [{ id: "1", item: rows[0]?.item as Product, state: "warning" }] })}
+      {...commonProps}
+      columns={columns}
+      rows={[{ id: "1", item: rows[0]?.item as Product, state: "warning" }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -236,7 +228,9 @@ test("renders the warning row state with a warning message background", async ()
 test("renders the error row state with an error message background", async () => {
   const screen = await render(
     <Table
-      {...baseProps({ rows: [{ id: "1", item: rows[0]?.item as Product, state: "error" }] })}
+      {...commonProps}
+      columns={columns}
+      rows={[{ id: "1", item: rows[0]?.item as Product, state: "error" }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -249,7 +243,9 @@ test("renders the error row state with an error message background", async () =>
 test("renders every cell of a muted row in secondary text, with its background unchanged", async () => {
   const screen = await render(
     <Table
-      {...baseProps({ rows: [{ id: "1", item: rows[0]?.item as Product, state: "muted" }] })}
+      {...commonProps}
+      columns={columns}
+      rows={[{ id: "1", item: rows[0]?.item as Product, state: "muted" }]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -262,11 +258,8 @@ test("renders every cell of a muted row in secondary text, with its background u
 });
 
 test("renders one action button in a 60px wide, unnamed-title actions column named for assistive technology", async () => {
-  const actionColumns: readonly [
-    TableNonSortableColumn<Product>,
-    ...TableNonSortableColumn<Product>[],
-  ] = [
-    { key: "name", title: "Producto", render: (p) => p.name },
+  const actionColumns = [
+    { key: "name", title: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
@@ -274,8 +267,8 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
       count: 1,
       render: () => <button type="button">Edit</button>,
     },
-  ];
-  const screen = await render(<Table {...baseProps({ columns: actionColumns })} />);
+  ] as const;
+  const screen = await render(<Table {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(header.textContent).toBe("Actions");
@@ -286,11 +279,8 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
 });
 
 test("widens the actions column to 104px for two action buttons", async () => {
-  const actionColumns: readonly [
-    TableNonSortableColumn<Product>,
-    ...TableNonSortableColumn<Product>[],
-  ] = [
-    { key: "name", title: "Producto", render: (p) => p.name },
+  const actionColumns = [
+    { key: "name", title: "Producto", render: (p: Product) => p.name },
     {
       key: "actions",
       kind: "actions",
@@ -303,8 +293,8 @@ test("widens the actions column to 104px for two action buttons", async () => {
         </>
       ),
     },
-  ];
-  const screen = await render(<Table {...baseProps({ columns: actionColumns })} />);
+  ] as const;
+  const screen = await render(<Table {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(getComputedStyle(header).width).toBe("104px");
@@ -321,13 +311,13 @@ test("does not accept a column without a title, or an actions column without its
   >();
 });
 
-const sortableColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+const sortableColumns = [
   {
     key: "name",
     title: "Producto",
     sortable: true,
     defaultDirection: "ascending",
-    render: (p) => p.name,
+    render: (p: Product) => p.name,
   },
   {
     key: "stock",
@@ -335,27 +325,19 @@ const sortableColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]
     align: "end",
     sortable: true,
     defaultDirection: "descending",
-    render: (p) => p.stock,
+    render: (p: Product) => p.stock,
   },
-];
-
-// A table with a sortable column, so sort and onSortChange are required (see TableProps): a
-// sort naming a column outside this set leaves every column here unsorted by default.
-type SortableTableProps = Extract<TableProps<Product>, { sort: TableSort }>;
-
-function sortableBaseProps(overrides: Partial<SortableTableProps> = {}): TableProps<Product> {
-  return {
-    "aria-label": "Products",
-    columns: sortableColumns,
-    rows,
-    sort: { column: "unsorted", direction: "ascending" },
-    onSortChange: () => {},
-    ...overrides,
-  };
-}
+] as const;
 
 test("renders an unsorted sortable column with a 12px chevrons-up-down icon, both in secondary text", async () => {
-  const screen = await render(<Table {...sortableBaseProps()} />);
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
 
@@ -371,7 +353,14 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
 });
 
 test("sits the sort chevron 4px after the column title", async () => {
-  const screen = await render(<Table {...sortableBaseProps()} />);
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
@@ -385,7 +374,12 @@ test("sits the sort chevron 4px after the column title", async () => {
 
 test("shows the ascending sort with an up chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table {...sortableBaseProps({ sort: { column: "name", direction: "ascending" } })} />,
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "name", direction: "ascending" }}
+      onSortChange={() => {}}
+    />,
   );
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
@@ -401,7 +395,12 @@ test("shows the ascending sort with an up chevron, title and icon in ink, expose
 
 test("shows the descending sort with a down chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table {...sortableBaseProps({ sort: { column: "stock", direction: "descending" } })} />,
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
   );
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
@@ -414,7 +413,14 @@ test("shows the descending sort with a down chevron, title and icon in ink, expo
 
 test("asks the caller to sort by a column using its own first direction, on click", async () => {
   const onSortChange = vi.fn();
-  const screen = await render(<Table {...sortableBaseProps({ onSortChange })} />);
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={onSortChange}
+    />,
+  );
 
   await screen.getByRole("columnheader", { name: "Producto" }).click();
 
@@ -424,7 +430,14 @@ test("asks the caller to sort by a column using its own first direction, on clic
 
 test("asks the caller to sort by a column using its own first direction, from the keyboard", async () => {
   const onSortChange = vi.fn();
-  await render(<Table {...sortableBaseProps({ onSortChange })} />);
+  await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "name", direction: "ascending" }}
+      onSortChange={onSortChange}
+    />,
+  );
 
   await userEvent.tab();
   await userEvent.tab();
@@ -437,10 +450,10 @@ test("asks for the opposite direction when activating the column already sorted"
   const onSortChange = vi.fn();
   const screen = await render(
     <Table
-      {...sortableBaseProps({
-        sort: { column: "name", direction: "ascending" },
-        onSortChange,
-      })}
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "name", direction: "ascending" }}
+      onSortChange={onSortChange}
     />,
   );
 
@@ -461,152 +474,116 @@ test("does not accept a sortable column without its own first direction", () => 
 test("does not accept a sortable column without sort and onSortChange", () => {
   expectTypeOf<{
     "aria-label": string;
-    columns: readonly [
-      {
-        key: string;
-        title: string;
-        sortable: true;
-        defaultDirection: "ascending";
-        render: (item: Product) => string;
-      },
-    ];
+    columns: typeof sortableColumns;
     rows: TableRow<Product>[];
-  }>().not.toExtend<TableProps<Product>>();
+  }>().not.toExtend<TableProps<Product, typeof sortableColumns>>();
 });
 
-test("does not accept sort without onSortChange, or onSortChange without sort", () => {
+test("does not accept sort or onSortChange when no column is sortable", () => {
   expectTypeOf<{
     "aria-label": string;
-    columns: typeof sortableColumns;
+    columns: typeof columns;
     rows: TableRow<Product>[];
     sort: TableSort;
-  }>().not.toExtend<TableProps<Product>>();
+  }>().not.toExtend<TableProps<Product, typeof columns>>();
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof columns;
+    rows: TableRow<Product>[];
+    onSortChange: (sort: TableSort) => void;
+  }>().not.toExtend<TableProps<Product, typeof columns>>();
+});
+
+test("does not accept sorting by a non-sortable or unknown column key", () => {
   expectTypeOf<{
     "aria-label": string;
     columns: typeof sortableColumns;
     rows: TableRow<Product>[];
+    sort: { column: "unknown-key"; direction: "ascending" };
     onSortChange: (sort: TableSort) => void;
-  }>().not.toExtend<TableProps<Product>>();
+  }>().not.toExtend<TableProps<Product, typeof sortableColumns>>();
 });
 
-// vi.useFakeTimers() hangs vitest-browser-react's own render/rerender in this real-browser
-// project (their internal waiting also runs on real timers) and corrupts axe-core across later
-// tests, so only the table's own 300ms call is intercepted by its exact delay; every other
-// setTimeout/clearTimeout call (the test harness's own) keeps running on the real clock. The
-// captured callback is invoked manually (inside act, since it fires outside any React-managed
-// event) to stand in for the delay elapsing. The fake id is a negative number so it can never
-// collide with a real browser timer id (always positive), letting clearTimeout calls for
-// unrelated real timers pass through untouched.
-function interceptDelay(delayMs: number) {
-  const realSetTimeout = window.setTimeout;
-  const realClearTimeout = window.clearTimeout;
-  const FAKE_ID = -1;
-  let callback: (() => void) | undefined;
-  let cleared = false;
-  const setTimeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation(((
-    fn: () => void,
-    ms?: number,
-    ...args: unknown[]
-  ) => {
-    if (ms === delayMs) {
-      callback = fn;
-      cleared = false;
-      return FAKE_ID as unknown as ReturnType<typeof setTimeout>;
-    }
-    return realSetTimeout(fn, ms, ...args);
-  }) as typeof window.setTimeout);
-  const clearTimeoutSpy = vi.spyOn(window, "clearTimeout").mockImplementation(((
-    id?: Parameters<typeof clearTimeout>[0],
-  ) => {
-    if (id === FAKE_ID) {
-      cleared = true;
-      return;
-    }
-    return realClearTimeout(id);
-  }) as typeof window.clearTimeout);
-  return {
-    fire: () => act(() => callback?.()),
-    wasCleared: () => cleared,
-    restore: () => {
-      setTimeoutSpy.mockRestore();
-      clearTimeoutSpy.mockRestore();
-    },
-  };
-}
-
-test("shows no placeholder rows before the delay elapses, but marks the table busy", async () => {
-  const delay = interceptDelay(300);
-  try {
-    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
-    const table = screen.getByRole("table").element() as HTMLElement;
-
-    expect(table.getAttribute("aria-busy")).toBe("true");
-    expect(screen.container.querySelectorAll("td")).toHaveLength(0);
-
-    await expectNoAccessibilityViolations(screen.container);
-  } finally {
-    delay.restore();
-  }
+test("types onSortChange's column as exactly the union of the sortable columns' own keys", () => {
+  expectTypeOf<TableSortableColumnKey<Product, typeof sortableColumns>>().toEqualTypeOf<
+    "name" | "stock"
+  >();
 });
 
-test("shows 5 placeholder rows, hidden from assistive technology, once the delay elapses", async () => {
-  const delay = interceptDelay(300);
-  try {
-    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
+// A columns array with an explicit, wide TableColumn<Product> annotation instead of a literal
+// one (see `columns` above, declared with `as const`): the array's own type retains no info
+// about which of its columns, if any, are sortable.
+const wideColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = columns;
 
-    delay.fire();
-
-    const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
-    expect(placeholderRows).toHaveLength(5);
-
-    const placeholderRow = placeholderRows[0] as HTMLElement;
-    expect(placeholderRow.getBoundingClientRect().height).toBeGreaterThan(55);
-    expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
-
-    await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
-  } finally {
-    delay.restore();
-  }
+test("falls to the safe side for a widely annotated columns array: a required handler and string keys", () => {
+  expectTypeOf<TableSortableColumnKey<Product, typeof wideColumns>>().toEqualTypeOf<string>();
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof wideColumns;
+    rows: TableRow<Product>[];
+  }>().not.toExtend<TableProps<Product, typeof wideColumns>>();
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof wideColumns;
+    rows: TableRow<Product>[];
+    sort: { column: string; direction: "ascending" };
+    onSortChange: (sort: TableSort) => void;
+  }>().toExtend<TableProps<Product, typeof wideColumns>>();
 });
 
-test("clears the pending timer when loading leaves initial before the delay elapses", async () => {
-  const delay = interceptDelay(300);
-  try {
-    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
-    await screen.rerender(<Table {...baseProps({ loading: false })} />);
+test("renders the placeholder rows immediately, hidden from assistive technology, with loading initial", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  const table = screen.getByRole("table").element() as HTMLElement;
 
-    expect(delay.wasCleared()).toBe(true);
+  expect(table.getAttribute("aria-busy")).toBe("true");
+  const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
+  expect(placeholderRows).toHaveLength(5);
 
-    delay.fire();
+  const placeholderRow = placeholderRows[0] as HTMLElement;
+  expect(placeholderRow.getBoundingClientRect().height).toBeGreaterThan(55);
+  expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
 
-    expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
-    await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
-
-    await expectNoAccessibilityViolations(screen.container);
-  } finally {
-    delay.restore();
-  }
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
 });
 
-test("clears the pending timer when the table unmounts before the delay elapses", async () => {
-  const delay = interceptDelay(300);
-  try {
-    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
-    await screen.unmount();
+test("reveals the placeholder rows exactly at 300ms, proven with the Web Animations API", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  const placeholderRow = screen.container.querySelector(
+    'tbody[aria-hidden="true"] tr',
+  ) as HTMLElement;
 
-    expect(delay.wasCleared()).toBe(true);
-
-    delay.fire();
-
-    expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
-  } finally {
-    delay.restore();
+  const [animation] = placeholderRow.getAnimations();
+  if (!animation) {
+    throw new Error("Expected the placeholder row to have a running CSS animation.");
   }
+  animation.pause();
+
+  animation.currentTime = 299;
+  expect(getComputedStyle(placeholderRow).opacity).toBe("0");
+
+  animation.currentTime = 300;
+  expect(getComputedStyle(placeholderRow).opacity).toBe("1");
+});
+
+test("removes the placeholder rows once loading leaves initial", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  await screen.rerender(<Table {...commonProps} columns={columns} loading={false} />);
+
+  expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
+  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the current rows and shows a top loading bar while updating", async () => {
-  const screen = await render(<Table {...baseProps({ loading: "updating" })} />);
+  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
@@ -622,15 +599,15 @@ test("keeps the current rows and shows a top loading bar while updating", async 
 test("renders the empty state in place of the header and rows, in blue strong when there is nothing yet", async () => {
   const screen = await render(
     <Table
-      {...baseProps({
-        rows: [],
-        empty: {
-          icon: <PackageSearch />,
-          title: "No products yet",
-          detail: "Add your first product to see it here.",
-          tone: "blank",
-        },
-      })}
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      empty={{
+        icon: <PackageSearch />,
+        title: "No products yet",
+        detail: "Add your first product to see it here.",
+        tone: "blank",
+      }}
     />,
   );
 
@@ -645,16 +622,16 @@ test("renders the empty state in place of the header and rows, in blue strong wh
 test("renders the empty state in secondary text when nothing matches the filters, with the caller's actions", async () => {
   const screen = await render(
     <Table
-      {...baseProps({
-        rows: [],
-        empty: {
-          icon: <PackageSearch />,
-          title: "No matches",
-          detail: "Try a different filter.",
-          tone: "filtered",
-          actions: <button type="button">Clear filters</button>,
-        },
-      })}
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      empty={{
+        icon: <PackageSearch />,
+        title: "No matches",
+        detail: "Try a different filter.",
+        tone: "filtered",
+        actions: <button type="button">Clear filters</button>,
+      }}
     />,
   );
 
