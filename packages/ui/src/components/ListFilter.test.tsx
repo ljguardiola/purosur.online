@@ -234,6 +234,19 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("closes the menu and does not call onChange when the already-chosen option is picked again", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<ListFilter {...baseProps({ value: "open", onChange })} />);
+  await screen.getByRole("button", { name: /Estado/ }).click();
+
+  await screen.getByRole("option", { name: "Abiertas" }).click();
+
+  expect(onChange).not.toHaveBeenCalled();
+  await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("opens from the keyboard, moves between options with arrows, picks one with Enter, and returns focus to the trigger", async () => {
   const onChange = vi.fn();
   const screen = await render(<ListFilter {...baseProps({ onChange })} />);

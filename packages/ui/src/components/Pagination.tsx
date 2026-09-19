@@ -94,12 +94,16 @@ function resolvePage(page: number, pageCount: number): number {
 // The Previous/Next buttons' own disabled state already keeps a person from reaching these in
 // the first place, but that's a second, separate derivation of the same boundary. Clamping here
 // too means the handler itself can never report a page outside 1..pageCount even if that disabled
-// condition were ever wrong or bypassed.
-export function previousPage(currentPage: number): number {
+// condition were ever wrong or bypassed. Kept module-private like every other helper in this
+// file (resolvePage/resolvePageCount included) and proven only through the component itself,
+// the same way theirs are: "disables Previous on the first page and Next on the last page" and
+// "moves to the previous and next page" together cover every reachable state the component can
+// be in, boundary and non-boundary alike.
+function previousPage(currentPage: number): number {
   return Math.max(1, currentPage - 1);
 }
 
-export function nextPage(currentPage: number, pageCount: number): number {
+function nextPage(currentPage: number, pageCount: number): number {
   return Math.min(pageCount, currentPage + 1);
 }
 

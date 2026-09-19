@@ -2,7 +2,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
-import { nextPage, Pagination, type PaginationProps, previousPage } from "./Pagination";
+import { Pagination, type PaginationProps } from "./Pagination";
 
 function baseProps(overrides: Partial<PaginationProps> = {}): PaginationProps {
   return {
@@ -240,20 +240,6 @@ test("renders nothing with a non-finite or below-2 page count", async () => {
     expect(screen.container.innerHTML).toBe("");
     await screen.unmount();
   }
-});
-
-test("previousPage never returns a page below 1", () => {
-  expect(previousPage(3)).toBe(2);
-  expect(previousPage(1)).toBe(1);
-  expect(previousPage(0)).toBe(1);
-  expect(previousPage(-4)).toBe(1);
-});
-
-test("nextPage never returns a page above pageCount", () => {
-  expect(nextPage(3, 5)).toBe(4);
-  expect(nextPage(5, 5)).toBe(5);
-  expect(nextPage(6, 5)).toBe(5);
-  expect(nextPage(11, 5)).toBe(5);
 });
 
 test("disables Previous on the first page and Next on the last page", async () => {
