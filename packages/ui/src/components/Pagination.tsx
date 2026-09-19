@@ -75,11 +75,16 @@ const otherPageClassName =
 // NaN and Infinity would otherwise reach Math.min/Math.max and the window math below as
 // themselves (NaN propagates, Infinity never clamps), and a fractional value would render a
 // half number or an off-by-one window, so both props are resolved to a safe integer first.
+// +Infinity is the one non-finite page that still means something ("go to the end"), so it
+// resolves to the last page instead of falling back to page 1 like every other non-finite value.
 function resolvePageCount(pageCount: number): number {
   return Number.isFinite(pageCount) ? Math.trunc(pageCount) : 0;
 }
 
 function resolvePage(page: number, pageCount: number): number {
+  if (page === Number.POSITIVE_INFINITY) {
+    return pageCount;
+  }
   if (!Number.isFinite(page)) {
     return 1;
   }
@@ -117,7 +122,11 @@ export function Pagination({
             ) : (
               <AriaButton
                 {...(place.page === currentPage ? { "aria-current": "page" as const } : {})}
-                onPress={() => onPageChange(place.page)}
+                onPress={() => {
+                  if (place.page !== currentPage) {
+                    onPageChange(place.page);
+                  }
+                }}
                 className={[
                   pageButtonClassName,
                   place.page === currentPage ? currentPageClassName : otherPageClassName,

@@ -191,9 +191,21 @@ test("treats a NaN page as page 1", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("treats an infinite page as page 1", async () => {
+test("treats a positive infinite page as the last page", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: Number.POSITIVE_INFINITY, pageCount: 5 })} />,
+  );
+  const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("treats a negative infinite page as page 1", async () => {
+  const screen = await render(
+    <Pagination {...baseProps({ page: Number.NEGATIVE_INFINITY, pageCount: 5 })} />,
   );
   const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
 
@@ -250,6 +262,20 @@ test("gives the caller the chosen page when a page button is pressed", async () 
   await screen.getByRole("button", { name: "4", exact: true }).click();
 
   expect(onPageChange).toHaveBeenCalledWith(4);
+});
+
+test("does nothing when the current page's own button is pressed, but stays focusable", async () => {
+  const onPageChange = vi.fn();
+  const screen = await render(
+    <Pagination {...baseProps({ page: 3, pageCount: 5, onPageChange })} />,
+  );
+  const current = screen.getByRole("button", { name: "3", exact: true });
+
+  await current.click();
+
+  expect(onPageChange).not.toHaveBeenCalled();
+  await expect.element(current).toBeEnabled();
+  expect(current.element().getAttribute("aria-current")).toBe("page");
 });
 
 test("moves to the previous and next page", async () => {
