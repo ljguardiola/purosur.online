@@ -6,6 +6,8 @@ export type {
   ButtonVariant,
 } from "./components/Button";
 export { Button } from "./components/Button";
+export type { CheckboxProps } from "./components/Checkbox";
+export { Checkbox } from "./components/Checkbox";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
@@ -27,5 +29,12 @@ export type {
   OptionCardOption,
 } from "./components/OptionCardGroup";
 export { OptionCardGroup } from "./components/OptionCardGroup";
+export type {
+  SegmentedControlIcon,
+  SegmentedControlOption,
+  SegmentedControlProps,
+  SegmentedControlSize,
+} from "./components/SegmentedControl";
+export { SegmentedControl } from "./components/SegmentedControl";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
 export { StatusIndicator } from "./components/StatusIndicator";

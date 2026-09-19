@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AA_TEXT_CONTRAST, AAA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "./contrast";
+import {
+  AA_TEXT_CONTRAST,
+  AAA_TEXT_CONTRAST,
+  contrastRatio,
+  hexToRgb,
+  NON_TEXT_CONTRAST,
+} from "./contrast";
 import { parseColorTokens } from "./parse-tokens";
 
 describe("contrastRatio", () => {
@@ -160,6 +166,23 @@ describe("option card help text on its chosen background contrast", () => {
     expect(backgroundHex).toMatch(/^#[0-9a-f]{6}$/i);
     expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
       AAA_TEXT_CONTRAST,
+    );
+  });
+});
+
+// The unchecked checkbox's border is decorative (drawn with ink-secondary, already classified
+// above), but it's also the only thing that marks the control's own boundary, so it additionally
+// needs the WCAG non-text contrast minimum against the two surfaces it can sit on.
+describe("checkbox unchecked border contrast", () => {
+  it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
+    const borderHex = colors["ink-secondary"];
+
+    expect(borderHex, "ink-secondary is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(borderHex as string, backgrounds.white as string)).toBeGreaterThanOrEqual(
+      NON_TEXT_CONTRAST,
+    );
+    expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
+      NON_TEXT_CONTRAST,
     );
   });
 });
