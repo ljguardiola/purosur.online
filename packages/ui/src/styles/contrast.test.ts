@@ -84,6 +84,7 @@ const decorativeTones = [
   "ink-backdrop",
   "ink-panel-shadow",
   "brand-blue-ui-shadow",
+  "ink-menu-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -233,4 +234,57 @@ describe("text field border contrast", () => {
       );
     });
   }
+});
+
+// A table row's background changes with its state while its text keeps ink and ink-secondary,
+// a pairing none of the suites above cover.
+const rowStateBackgroundNames = [
+  "brand-blue-message-bg",
+  "status-warning-message-bg",
+  "status-error-message-bg",
+] as const;
+
+// Mirrors the two tones textTones already assigns above (ink at AA, ink-secondary at AAA):
+// re-declared here instead of indexed off textTones, whose Record<string, number> type can't
+// prove a literal key is present under this project's strict indexed-access checking.
+const rowStateTextThresholds = {
+  ink: AA_TEXT_CONTRAST,
+  "ink-secondary": AAA_TEXT_CONTRAST,
+} as const;
+
+describe("table row state background contrast", () => {
+  for (const tone of ["ink", "ink-secondary"] as const) {
+    for (const backgroundName of rowStateBackgroundNames) {
+      it(`${tone} reaches ${rowStateTextThresholds[tone]}:1 against ${backgroundName}`, () => {
+        const textHex = colors[tone];
+        const backgroundHex = colors[backgroundName];
+
+        expect(textHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(backgroundHex, `${backgroundName} is missing from the stylesheet`).toMatch(
+          /^#[0-9a-f]{6}$/i,
+        );
+        expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+          rowStateTextThresholds[tone],
+        );
+      });
+    }
+  }
+});
+
+// The pagination's current page is the only place in the package where the header/row/pagination
+// area paints text on a strong brand background instead of a message background or a plain
+// surface, so it needs its own pairing check.
+describe("pagination current page background contrast", () => {
+  it(`surface-white reaches ${AA_TEXT_CONTRAST}:1 against brand-blue-ui`, () => {
+    const textHex = colors["surface-white"];
+    const backgroundHex = colors["brand-blue-ui"];
+
+    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex, "brand-blue-ui is missing from the stylesheet").toMatch(
+      /^#[0-9a-f]{6}$/i,
+    );
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AA_TEXT_CONTRAST,
+    );
+  });
 });

@@ -69,6 +69,8 @@
   --color-ink-backdrop: #1a1a1a80;
   /* Ink at 30% opacity, for the modal panel's own drop shadow. */
   --color-ink-panel-shadow: #1a1a1a4d;
+  /* Ink at 16% opacity, for the list filter's open menu drop shadow. */
+  --color-ink-menu-shadow: #1a1a1a29;
 }
 
 @layer base {
