@@ -42,6 +42,10 @@ function segmentOption(screen: Screen, label: string): HTMLElement {
   return segmentInput(screen, label).closest("label") as HTMLElement;
 }
 
+function segmentContainer(screen: Screen, groupLabel: string): HTMLElement {
+  return screen.getByRole("radiogroup", { name: groupLabel }).element() as HTMLElement;
+}
+
 // An option renders two copies of its label stacked in the same grid cell (see
 // SegmentedControl.tsx's ReservedWidthLabel), so a plain text query resolves to both. Style and
 // interaction assertions go through this helper instead, which picks the one copy that isn't
@@ -104,13 +108,19 @@ test("gives every option a 6px radius and 16px horizontal padding, with a 16px l
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders the large size at 56px tall with an 18px icon and an 8px icon-to-label gap", async () => {
+test("renders the large size with a 56px container whose options fill its inner height, and an 18px icon with an 8px icon-to-label gap", async () => {
   const screen = await render(<SegmentedControl {...baseProps({ size: "large" })} />);
+  const container = segmentContainer(screen, "Entry mode");
   const option = segmentOption(screen, "Discount");
   const icon = option.querySelector("svg") as SVGSVGElement;
 
-  expect(getComputedStyle(option).height).toBe("56px");
+  expect(getComputedStyle(container).height).toBe("56px");
   expect(getComputedStyle(option).columnGap).toBe("8px");
+
+  // The container's border-box height (56px) includes its own 1px border and 4px padding on
+  // each side, so an option filling the inner height stretches to 56 - 2*1 - 2*4 = 46px.
+  const optionRect = option.getBoundingClientRect();
+  expect(optionRect.height).toBeCloseTo(46, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(17);
@@ -119,13 +129,18 @@ test("renders the large size at 56px tall with an 18px icon and an 8px icon-to-l
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders the medium size at 48px tall with a 16px icon and a 6px icon-to-label gap", async () => {
+test("renders the medium size with a 48px container whose options fill its inner height, and a 16px icon with a 6px icon-to-label gap", async () => {
   const screen = await render(<SegmentedControl {...baseProps({ size: "medium" })} />);
+  const container = segmentContainer(screen, "Entry mode");
   const option = segmentOption(screen, "Discount");
   const icon = option.querySelector("svg") as SVGSVGElement;
 
-  expect(getComputedStyle(option).height).toBe("48px");
+  expect(getComputedStyle(container).height).toBe("48px");
   expect(getComputedStyle(option).columnGap).toBe("6px");
+
+  // See the large-size test above: 48 - 2*1 border - 2*4 padding = 38px.
+  const optionRect = option.getBoundingClientRect();
+  expect(optionRect.height).toBeCloseTo(38, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(15);
@@ -136,9 +151,9 @@ test("renders the medium size at 48px tall with a 16px icon and a 6px icon-to-la
 
 test("defaults to the medium size when none is given", async () => {
   const screen = await render(<SegmentedControl {...baseProps()} />);
-  const option = segmentOption(screen, "Discount");
+  const container = segmentContainer(screen, "Entry mode");
 
-  expect(getComputedStyle(option).height).toBe("48px");
+  expect(getComputedStyle(container).height).toBe("48px");
   await expectNoAccessibilityViolations(screen.container);
 });
 

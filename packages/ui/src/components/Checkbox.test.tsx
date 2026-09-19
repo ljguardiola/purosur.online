@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -39,7 +40,7 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
   // element would make `getByText` resolve to the label (its only element with that text), not to
   // the content itself.
   const screen = await render(
-    <Checkbox>
+    <Checkbox isSelected={false} onChange={() => {}}>
       <span>Return this line</span>
     </Checkbox>,
   );
@@ -63,7 +64,11 @@ test("renders the caller's content 12px from a 22px, 4px-radius box, vertically 
 });
 
 test("colors an unchecked box white with a 2px ink-secondary border and no check", async () => {
-  const screen = await render(<Checkbox isSelected={false}>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected={false} onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const box = checkboxBox(screen, "Return this line");
   const style = getComputedStyle(box);
 
@@ -76,7 +81,11 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
 });
 
 test("turns an unchecked box's background bone on hover, keeping its border", async () => {
-  const screen = await render(<Checkbox isSelected={false}>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected={false} onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const label = checkboxLabel(screen, "Return this line");
   const box = checkboxBox(screen, "Return this line");
 
@@ -84,11 +93,19 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
 
+  // Leaves the real pointer away from where the next test's box will render: every test in this
+  // file renders its checkbox at the same page position, so a hover left unresolved here would
+  // otherwise carry over and falsely hover the next test's fresh box.
+  await userEvent.unhover(label);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors a checked box blue UI with a 16px white check and no border", async () => {
-  const screen = await render(<Checkbox isSelected>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const box = checkboxBox(screen, "Return this line");
   const style = getComputedStyle(box);
   const check = box.querySelector("svg") as SVGSVGElement;
@@ -108,7 +125,11 @@ test("colors a checked box blue UI with a 16px white check and no border", async
 });
 
 test("turns a checked box's background blue strong on hover, keeping the white check", async () => {
-  const screen = await render(<Checkbox isSelected>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const label = checkboxLabel(screen, "Return this line");
   const box = checkboxBox(screen, "Return this line");
 
@@ -118,15 +139,25 @@ test("turns a checked box's background blue strong on hover, keeping the white c
     .toBe(tokenRgb("brand-blue-strong"));
   expect(box.querySelector("svg")).not.toBeNull();
 
+  // See the unchecked-hover test above: leaves the pointer away from the next test's box.
+  await userEvent.unhover(label);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the box's size stable between the unchecked and checked states", async () => {
-  const uncheckedScreen = await render(<Checkbox isSelected={false}>Return this line</Checkbox>);
+  const uncheckedScreen = await render(
+    <Checkbox isSelected={false} onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const uncheckedRect = checkboxBox(uncheckedScreen, "Return this line").getBoundingClientRect();
   await uncheckedScreen.unmount();
 
-  const checkedScreen = await render(<Checkbox isSelected>Return this line</Checkbox>);
+  const checkedScreen = await render(
+    <Checkbox isSelected onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const checkedRect = checkboxBox(checkedScreen, "Return this line").getBoundingClientRect();
 
   expect(checkedRect.width).toBeCloseTo(uncheckedRect.width, 0);
@@ -164,7 +195,11 @@ test("toggles with Space when focused", async () => {
 });
 
 test("exposes the checkbox to assistive technology named by its content, with its checked state", async () => {
-  const screen = await render(<Checkbox isSelected>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const checkbox = screen.getByRole("checkbox", { name: "Return this line" });
 
   await expect.element(checkbox).toBeChecked();
@@ -172,7 +207,11 @@ test("exposes the checkbox to assistive technology named by its content, with it
 });
 
 test("shows the package's focus ring around the box when focused", async () => {
-  const screen = await render(<Checkbox>Return this line</Checkbox>);
+  const screen = await render(
+    <Checkbox isSelected={false} onChange={() => {}}>
+      Return this line
+    </Checkbox>,
+  );
   const box = checkboxBox(screen, "Return this line");
 
   await userEvent.tab();
@@ -184,8 +223,47 @@ test("shows the package's focus ring around the box when focused", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("lets its content fill the remaining width of a wide container", async () => {
+  const screen = await render(
+    <div style={{ width: "400px" }}>
+      <Checkbox isSelected={false} onChange={() => {}}>
+        <span>Return this line</span>
+      </Checkbox>
+    </div>,
+  );
+  const label = checkboxLabel(screen, "Return this line");
+  // The label's last child is the wrapper this component puts around the caller's content (see
+  // Checkbox.tsx), not the caller's own <span>: it's the element the design expects to stretch.
+  const contentWrapper = label.lastElementChild as HTMLElement;
+
+  const labelRect = label.getBoundingClientRect();
+  const wrapperRect = contentWrapper.getBoundingClientRect();
+
+  expect(labelRect.width).toBeCloseTo(400, 0);
+  expect(wrapperRect.right).toBeCloseTo(labelRect.right, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
 // input is checked at the type level, not just at runtime.
 test("does not accept a checkbox without content", () => {
-  expectTypeOf<{ isSelected?: boolean }>().not.toExtend<CheckboxProps>();
+  expectTypeOf<{
+    isSelected: boolean;
+    onChange: (isSelected: boolean) => void;
+  }>().not.toExtend<CheckboxProps>();
+});
+
+test("does not accept a checkbox without isSelected or onChange", () => {
+  expectTypeOf<{
+    onChange: (isSelected: boolean) => void;
+    children: ReactNode;
+  }>().not.toExtend<CheckboxProps>();
+  expectTypeOf<{ isSelected: boolean; children: ReactNode }>().not.toExtend<CheckboxProps>();
+});
+
+// The design has no indeterminate (or invalid, disabled, uncontrolled...) state, so unlike React
+// Aria's own CheckboxProps, this component's props don't carry `isIndeterminate` at all.
+test("does not accept isIndeterminate, since the design has no indeterminate state", () => {
+  expectTypeOf<CheckboxProps>().not.toHaveProperty("isIndeterminate");
 });

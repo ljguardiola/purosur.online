@@ -1,17 +1,22 @@
 import { Check } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  Checkbox as AriaCheckbox,
-  type CheckboxProps as AriaCheckboxProps,
-} from "react-aria-components";
+import { Checkbox as AriaCheckbox } from "react-aria-components";
 
-// Required, so leaving out the content doesn't compile: without it, clicking the checkbox would
-// have nothing to toggle it and assistive technology would have nothing to name it by.
-export type CheckboxProps = Omit<AriaCheckboxProps, "className" | "children"> & {
+// Controlled and minimal, unlike React Aria's own CheckboxProps: the design has no indeterminate,
+// invalid, disabled or uncontrolled state, so none of those are part of this type, and a caller
+// must always supply both `isSelected` and `onChange`. `children` stays required, so leaving out
+// the content doesn't compile: without it, clicking the checkbox would have nothing to toggle it
+// and assistive technology would have nothing to name it by.
+export type CheckboxProps = {
+  isSelected: boolean;
+  onChange: (isSelected: boolean) => void;
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
-const labelClassName = "group inline-flex cursor-pointer items-center gap-3 outline-none";
+// `flex` (block-level), not `inline-flex`: the label fills the width its container gives it, so
+// the content wrapper below (`flex-1`) has room to grow into — e.g. a row of texts with an amount
+// pinned to the far right, rather than always hugging the content's own intrinsic width.
+const labelClassName = "group flex cursor-pointer items-center gap-3 outline-none";
 
 // A real border going from unchecked to checked would either add width (a wider border) or leave
 // a visible gap (a border that just changes color while the design also drops it entirely), so
@@ -30,17 +35,13 @@ const boxClassName =
 
 const checkIconClassName = "size-4 text-surface-white";
 
-export function Checkbox({ children, ...props }: CheckboxProps) {
+export function Checkbox({ isSelected, onChange, children }: CheckboxProps) {
   return (
-    <AriaCheckbox {...props} className={labelClassName}>
-      {({ isSelected }) => (
-        <>
-          <span aria-hidden="true" className={boxClassName}>
-            {isSelected && <Check className={checkIconClassName} />}
-          </span>
-          {children}
-        </>
-      )}
+    <AriaCheckbox isSelected={isSelected} onChange={onChange} className={labelClassName}>
+      <span aria-hidden="true" className={boxClassName}>
+        {isSelected && <Check className={checkIconClassName} />}
+      </span>
+      <span className="min-w-0 flex-1">{children}</span>
     </AriaCheckbox>
   );
 }

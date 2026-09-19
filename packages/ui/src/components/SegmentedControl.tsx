@@ -22,12 +22,20 @@ export type SegmentedControlProps<V extends string> = {
   size?: SegmentedControlSize;
 };
 
+// `items-stretch` (rather than the sibling components' `items-center`) is deliberate: the
+// container's own height carries the design's 56/48px sizes, border and padding included, and
+// each option is meant to fill that inner height rather than being centered at its own height.
 const containerClassName =
-  "inline-flex flex-row items-center gap-1 rounded-lg border border-line p-1";
+  "inline-flex flex-row items-stretch gap-1 rounded-lg border border-line p-1";
+
+const containerSizeClassName: Record<SegmentedControlSize, string> = {
+  large: "h-14",
+  medium: "h-12",
+};
 
 const sizeClassName: Record<SegmentedControlSize, string> = {
-  large: "h-14 gap-2",
-  medium: "h-12 gap-1.5",
+  large: "gap-2",
+  medium: "gap-1.5",
 };
 
 const iconWrapperClassName: Record<SegmentedControlSize, string> = {
@@ -109,7 +117,7 @@ export function SegmentedControl<V extends string>({
       // calls this with a value it read off one of our own Radio elements, whose `value` is
       // always one of `options`' own V values, so this cast can't observe a value outside V.
       onChange={(nextValue) => onChange(nextValue as V)}
-      className={containerClassName}
+      className={`${containerClassName} ${containerSizeClassName[size]}`}
     >
       {options.map((option) => (
         <SegmentedOption key={option.value} {...option} size={size} />
