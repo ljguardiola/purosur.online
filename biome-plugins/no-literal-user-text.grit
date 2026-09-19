@@ -1,0 +1,11 @@
+language js
+
+// `JsStringLiteralExpression()` additionally covers a literal in an expression container, `label={"x"}`.
+JsxAttribute(name=$name, initializer=$value) where {
+  $name <: r"^(?:aria-label|aria-description|title|alt|placeholder|label|[a-zA-Z]+Label)$",
+  $value <: contains or {
+    JsxString(),
+    JsStringLiteralExpression()
+  },
+  register_diagnostic(span=$value, message="User-facing text must come from the message catalog.")
+}

@@ -53,6 +53,17 @@
           }
         }
       }
+    },
+    {
+      "includes": ["packages/ui/src/**", "apps/*/src/**", "!**/*.test.ts", "!**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noJsxLiterals": "error"
+          }
+        }
+      },
+      "plugins": ["biome-plugins/no-literal-user-text.grit"]
     }
   ]
 }
