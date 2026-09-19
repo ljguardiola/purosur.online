@@ -627,7 +627,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(table.getAttribute("aria-busy")).toBe("true");
 
-  const bar = screen.container.querySelector('[class*="bg-brand-blue-message-bg"]') as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
 
@@ -636,7 +636,9 @@ test("keeps the current rows and shows a top loading bar while updating", async 
 
 test("slides the updating bar's segment left to right in a loop", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
-  const segment = screen.container.querySelector('[class*="bg-brand-blue-ui"]') as HTMLElement;
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
+  const segment = bar.firstElementChild as HTMLElement;
 
   const style = getComputedStyle(segment);
   expect(style.animationName).not.toBe("none");
@@ -653,7 +655,9 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
 
   try {
     const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
-    const segment = screen.container.querySelector('[class*="bg-brand-blue-ui"]') as HTMLElement;
+    const table = screen.getByRole("table").element() as HTMLElement;
+    const bar = table.previousElementSibling as HTMLElement;
+    const segment = bar.firstElementChild as HTMLElement;
 
     await expect.poll(() => getComputedStyle(segment).animationName).toBe("none");
 
@@ -705,6 +709,61 @@ test("renders the empty state in secondary text when nothing matches the filters
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      loading="initial"
+      empty={{
+        icon: <PackageSearch />,
+        title: "No products yet",
+        detail: "Add your first product to see it here.",
+        tone: "blank",
+      }}
+    />,
+  );
+
+  expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(5);
+  expect(screen.getByText("No products yet").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps showing the current (empty) rows under the loading bar while updating, not the empty state", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      loading="updating"
+      empty={{
+        icon: <PackageSearch />,
+        title: "No products yet",
+        detail: "Add your first product to see it here.",
+        tone: "blank",
+      }}
+    />,
+  );
+
+  await expect.element(screen.getByRole("table")).toBeVisible();
+  expect(screen.container.querySelectorAll("tbody tr")).toHaveLength(0);
+  expect(screen.getByText("No products yet").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders a plain, message-less empty table when there are no rows and no empty prop", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} rows={emptyRows} />);
+
+  await expect.element(screen.getByRole("table")).toBeVisible();
+  expect(screen.container.querySelectorAll("tbody tr")).toHaveLength(0);
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });

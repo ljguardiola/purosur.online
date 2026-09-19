@@ -55,6 +55,33 @@ type TableHasSortableColumn<T, C extends readonly TableColumn<T>[]> = [
   ? false
   : true;
 
+// The one thing a caller can show in place of the header and rows, resolved from loading and
+// rows/empty together instead of two separate booleans, so the three states stay mutually
+// exclusive by construction. Precedence, in order:
+// - "initial" always wins: we don't yet know whether the eventual result is empty, so showing
+//   the empty state here (even if the caller passed one) would claim something we can't know yet.
+// - "updating" always keeps showing the current rows, however many there are (including zero),
+//   under the top loading bar: that's the whole difference from "initial", which discards
+//   everything for placeholders instead of keeping what was already on screen.
+// - Only the steady, non-loading state can ever show the empty state, and only when there are
+//   zero rows and the caller opted into one by passing `empty`; zero rows with no `empty` prop
+//   renders a plain, message-less empty table body instead.
+type TableDisplayMode = "placeholders" | "empty" | "rows";
+
+function tableDisplayMode(
+  loading: TableLoadingState,
+  rowCount: number,
+  hasEmptyState: boolean,
+): TableDisplayMode {
+  if (loading === "initial") {
+    return "placeholders";
+  }
+  if (loading === "updating") {
+    return "rows";
+  }
+  return rowCount === 0 && hasEmptyState ? "empty" : "rows";
+}
+
 export type TableRow<T> = {
   id: string;
   item: T;
@@ -353,8 +380,9 @@ export function Table<T>({
   sort?: TableSort;
   onSortChange?: (sort: TableSort) => void;
 }): ReactElement {
-  const showEmptyState = !loading && rows.length === 0 && empty !== undefined;
-  const showingPlaceholders = loading === "initial";
+  const displayMode = tableDisplayMode(loading, rows.length, empty !== undefined);
+  const showEmptyState = displayMode === "empty";
+  const showingPlaceholders = displayMode === "placeholders";
 
   return (
     <div className="relative overflow-hidden rounded-lg border border-line bg-surface-white">
@@ -366,7 +394,7 @@ export function Table<T>({
           <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
         </div>
       )}
-      {showEmptyState ? (
+      {showEmptyState && empty ? (
         <TableEmptyState {...empty} />
       ) : (
         <table
