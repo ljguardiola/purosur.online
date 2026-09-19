@@ -91,6 +91,18 @@ function resolvePage(page: number, pageCount: number): number {
   return Math.min(Math.max(Math.trunc(page), 1), pageCount);
 }
 
+// The Previous/Next buttons' own disabled state already keeps a person from reaching these in
+// the first place, but that's a second, separate derivation of the same boundary. Clamping here
+// too means the handler itself can never report a page outside 1..pageCount even if that disabled
+// condition were ever wrong or bypassed.
+export function previousPage(currentPage: number): number {
+  return Math.max(1, currentPage - 1);
+}
+
+export function nextPage(currentPage: number, pageCount: number): number {
+  return Math.min(pageCount, currentPage + 1);
+}
+
 export function Pagination({
   page,
   pageCount,
@@ -109,7 +121,7 @@ export function Pagination({
     <div className="flex items-center gap-2">
       <AriaButton
         isDisabled={currentPage <= 1}
-        onPress={() => onPageChange(currentPage - 1)}
+        onPress={() => onPageChange(previousPage(currentPage))}
         className={navButtonClassName}
       >
         {previousLabel}
@@ -140,7 +152,7 @@ export function Pagination({
       </ul>
       <AriaButton
         isDisabled={currentPage >= resolvedPageCount}
-        onPress={() => onPageChange(currentPage + 1)}
+        onPress={() => onPageChange(nextPage(currentPage, resolvedPageCount))}
         className={navButtonClassName}
       >
         {nextLabel}
