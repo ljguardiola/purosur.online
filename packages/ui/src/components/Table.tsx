@@ -100,8 +100,9 @@ export type TableEmptyStateProps = {
   actions?: ReactNode;
 };
 
-// "initial" placeholder rows wait out PLACEHOLDER_DELAY_MS first, so a fast load never flashes
-// them; "updating" keeps the current rows and runs a thin bar over the header instead.
+// "initial" placeholder rows render right away but stay invisible for a 300ms CSS reveal delay
+// (see SkeletonRow below), so a fast load never flashes them; "updating" keeps the current rows
+// and runs a thin bar over the header instead.
 export type TableLoadingState = false | "initial" | "updating";
 
 type TableCommonProps<T> = {
@@ -141,10 +142,17 @@ const PLACEHOLDER_ROW_IDS = [
 // Cycled per column so every placeholder bar gets a varied width without shifting on re-render.
 const PLACEHOLDER_WIDTHS_PERCENT = [72, 48, 64, 56, 80, 40];
 
-// A flex row per <tr>, not CSS table layout: an auto table layout grows a column past its
-// declared width to fit its widest cell (e.g. a row's own action buttons), which would break a
-// fixed-width actions column. The table/tr/th/td tags stay for their implicit roles, which
-// Chromium exposes regardless of CSS display.
+// table/thead/tbody/tr/th/td keep their native CSS display (table/table-header-group/
+// table-row-group/table-row/table-cell): every engine's implicit ARIA role mapping for these
+// tags is only guaranteed while their display stays table-shaped, and overriding it (e.g. to
+// flex, so a column's width doesn't just auto-grow to fit its widest cell) risks silently losing
+// table semantics in engines this package's own Chromium-only tests can't catch. table-fixed
+// (table-layout: fixed) solves the original width problem instead, with display untouched: a
+// column's width comes only from its header cell and never grows to fit a row's content. Column/
+// row spacing (12px between cells, 16px at the row's own left/right edge, 8px above/below body
+// cell content) moves from <tr> (which CSS never applies padding or gap to) onto each cell
+// instead; vertical centering moves from the row's own flex items-center onto each cell's own
+// align-middle.
 const columnWidthClassName: Record<1 | 2, string> = {
   1: "w-[3.75rem]",
   2: "w-[6.5rem]",
@@ -154,10 +162,18 @@ function alignClassName(align: TableColumnAlign | undefined): string {
   return align === "end" ? "text-right" : "text-left";
 }
 
-function columnSizeClassName<T>(column: TableColumn<T>): string {
-  return column.kind === "actions"
-    ? `${columnWidthClassName[column.count]} shrink-0`
-    : "min-w-0 flex-1";
+// Only the header row's own cell widths are read by table-fixed layout, so body/placeholder
+// cells don't need a width class of their own; they simply inherit whatever column width the
+// header already established.
+function headerColumnWidthClassName<T>(column: TableColumn<T>): string {
+  return column.kind === "actions" ? columnWidthClassName[column.count] : "";
+}
+
+// The 12px gap between cells is each cell's own 6px of padding meeting its neighbor's; the first
+// and last cell in a row additionally own the row's 16px left/right edge padding, since <tr>
+// itself can't carry padding under table layout.
+function cellHorizontalPaddingClassName(isFirst: boolean, isLast: boolean): string {
+  return [isFirst ? "pl-4" : "pl-1.5", isLast ? "pr-4" : "pr-1.5"].join(" ");
 }
 
 // A muted row's ink-secondary applies to every cell at once: a cell's own content should leave
@@ -177,9 +193,10 @@ function rowStateClassName(state: TableRowState | undefined): string {
   }
 }
 
-// A real border adds its own width to a row whose height is otherwise content-driven (min-h-14),
-// pushing a two-line row 1px past its exact 64px target; an inset shadow doesn't. The selected
-// row's own left-edge accent is combined into the same box-shadow, since only one applies.
+// A real border adds its own width to a row whose height is otherwise content-driven (h-14 on
+// each cell acts as a floor, not a ceiling), pushing a two-line row 1px past its exact 64px
+// target; an inset shadow doesn't. The selected row's own left-edge accent is combined into the
+// same box-shadow, since only one applies.
 function rowBoxShadowClassName(state: TableRowState | undefined): string {
   return state === "selected"
     ? "shadow-[inset_0_-1px_0_0_var(--color-line),inset_4px_0_0_0_var(--color-brand-blue-ui)]"
@@ -272,7 +289,7 @@ function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
   return (
     <tr
       className={[
-        "flex h-14 items-center gap-3 px-4 shadow-[inset_0_-1px_0_0_var(--color-line)]",
+        "h-14 shadow-[inset_0_-1px_0_0_var(--color-line)]",
         "animate-table-placeholder-reveal",
       ].join(" ")}
     >
@@ -280,11 +297,17 @@ function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
         const isActions = column.kind === "actions";
         const align = isActions ? "start" : column.align;
         const widthPercent = PLACEHOLDER_WIDTHS_PERCENT[index % PLACEHOLDER_WIDTHS_PERCENT.length];
+        const isFirst = index === 0;
+        const isLast = index === columns.length - 1;
 
         return (
           <td
             key={column.key}
-            className={[columnSizeClassName(column), alignClassName(align)].join(" ")}
+            className={[
+              "align-middle",
+              cellHorizontalPaddingClassName(isFirst, isLast),
+              alignClassName(align),
+            ].join(" ")}
           >
             {isActions ? (
               <div className="ml-auto size-[2.375rem] rounded-lg bg-surface-sand" />
@@ -311,7 +334,7 @@ export type TableCellTextProps = {
 };
 
 // The 24px/20px line heights and 4px gap are fixed so a row with a detail line always lands
-// exactly at 64px (min-h-14 plus the row's own 8px vertical padding), the same way a single line
+// exactly at 64px (the cell's own h-14 floor plus its 8px vertical padding), the same way a single line
 // lands at 56px. Only a missing detail (undefined or null) omits the line: a falsy-but-real
 // value like 0 or an empty string is content the caller chose to show, and `detail && ...` would
 // print a stray, unwrapped "0" for it instead (0 is itself falsy).
@@ -326,15 +349,25 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
   );
 }
 
-function TableCell<T>({ column, item }: { column: TableColumn<T>; item: T }) {
+function TableCell<T>({
+  column,
+  item,
+  isFirst,
+  isLast,
+}: {
+  column: TableColumn<T>;
+  item: T;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
   const isActions = column.kind === "actions";
   const align = isActions ? "start" : column.align;
 
   return (
     <td
       className={[
-        "min-w-0 px-0",
-        columnSizeClassName(column),
+        "h-14 align-middle py-2",
+        cellHorizontalPaddingClassName(isFirst, isLast),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
       ].join(" ")}
@@ -400,21 +433,25 @@ export function Table<T>({
         <table
           aria-label={ariaLabel}
           aria-busy={loading ? true : undefined}
-          className="block w-full"
+          className="w-full table-fixed"
         >
-          <thead className="block">
-            <tr className="flex h-11 items-center gap-3 bg-surface-bone px-4">
-              {columns.map((column) => {
+          <thead>
+            <tr className="h-11 bg-surface-bone">
+              {columns.map((column, index) => {
                 const isActions = column.kind === "actions";
                 const isSortable = !isActions && column.sortable === true;
                 const isSorted = isSortable && sort?.column === column.key;
+                const isFirst = index === 0;
+                const isLast = index === columns.length - 1;
                 return (
                   <th
                     key={column.key}
                     scope="col"
                     aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
                     className={[
-                      columnSizeClassName(column),
+                      "align-middle",
+                      headerColumnWidthClassName(column),
+                      cellHorizontalPaddingClassName(isFirst, isLast),
                       "text-xs font-bold uppercase",
                       alignClassName(isActions ? "start" : column.align),
                     ].join(" ")}
@@ -435,20 +472,22 @@ export function Table<T>({
               })}
             </tr>
           </thead>
-          <tbody className="block" aria-hidden={showingPlaceholders ? true : undefined}>
+          <tbody aria-hidden={showingPlaceholders ? true : undefined}>
             {showingPlaceholders
               ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
               : rows.map(({ id, item, state }) => (
                   <tr
                     key={id}
-                    className={[
-                      "flex min-h-14 items-center gap-3 px-4 py-2",
-                      rowBoxShadowClassName(state),
-                      rowStateClassName(state),
-                    ].join(" ")}
+                    className={[rowBoxShadowClassName(state), rowStateClassName(state)].join(" ")}
                   >
-                    {columns.map((column) => (
-                      <TableCell key={column.key} column={column} item={item} />
+                    {columns.map((column, index) => (
+                      <TableCell
+                        key={column.key}
+                        column={column}
+                        item={item}
+                        isFirst={index === 0}
+                        isLast={index === columns.length - 1}
+                      />
                     ))}
                   </tr>
                 ))}

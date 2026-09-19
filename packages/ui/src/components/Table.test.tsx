@@ -50,19 +50,56 @@ test("renders a white container with an 8px radius and a 1px line border", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders a 44px header row on a bone background with 16px padding and a 12px column gap", async () => {
+test("builds the table from real table/thead/tbody/tr/th/td tags instead of styled divs, so every table role comes from the tag itself in every engine", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
-  const headerRow = screen.getByRole("columnheader", { name: "Producto" }).element()
-    .parentElement as HTMLElement;
-  const style = getComputedStyle(headerRow);
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const thead = table.querySelector("thead") as HTMLElement;
+  const tbody = table.querySelector("tbody") as HTMLElement;
+  const headerRow = thead.querySelector("tr") as HTMLElement;
+  const headerCell = thead.querySelector("th") as HTMLElement;
+  const bodyRow = tbody.querySelector("tr") as HTMLElement;
+  const bodyCell = tbody.querySelector("td") as HTMLElement;
+
+  expect(table.tagName).toBe("TABLE");
+  expect(thead.tagName).toBe("THEAD");
+  expect(tbody.tagName).toBe("TBODY");
+  expect(headerRow.tagName).toBe("TR");
+  expect(headerCell.tagName).toBe("TH");
+  expect(bodyRow.tagName).toBe("TR");
+  expect(bodyCell.tagName).toBe("TD");
+  // None of these override the CSS display their own tag already implies (no "flex"/"block" on
+  // any of them), which is what keeps their implicit ARIA role intact in every engine.
+  expect(getComputedStyle(table).display).toBe("table");
+  expect(getComputedStyle(thead).display).toBe("table-header-group");
+  expect(getComputedStyle(tbody).display).toBe("table-row-group");
+  expect(getComputedStyle(headerRow).display).toBe("table-row");
+  expect(getComputedStyle(headerCell).display).toBe("table-cell");
+  expect(getComputedStyle(bodyRow).display).toBe("table-row");
+  expect(getComputedStyle(bodyCell).display).toBe("table-cell");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders a 44px header row on a bone background with 16px edge padding and a 12px gap between columns", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const firstCell = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
+  const lastCell = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+  const headerRow = firstCell.parentElement as HTMLElement;
+  const rowStyle = getComputedStyle(headerRow);
   const rect = headerRow.getBoundingClientRect();
+  const firstStyle = getComputedStyle(firstCell);
+  const lastStyle = getComputedStyle(lastCell);
 
   expect(rect.height).toBeGreaterThan(43);
   expect(rect.height).toBeLessThan(45);
-  expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(style.paddingLeft).toBe("16px");
-  expect(style.paddingRight).toBe("16px");
-  expect(style.columnGap).toBe("12px");
+  expect(rowStyle.backgroundColor).toBe(tokenRgb("surface-bone"));
+  // The row's own left/right edge: the first column's own left padding, the last column's own
+  // right padding.
+  expect(firstStyle.paddingLeft).toBe("16px");
+  expect(lastStyle.paddingRight).toBe("16px");
+  // The 12px gap between the two columns: each side of that shared boundary owns half of it.
+  expect(firstStyle.paddingRight).toBe("6px");
+  expect(lastStyle.paddingLeft).toBe("6px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -79,16 +116,21 @@ test("renders 12px bold capital column titles", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders every row's cells with 16px padding and a 12px gap lined up with the header", async () => {
+test("renders every row's cells with 16px edge padding and a 12px gap lined up with the header, over a 1px line bottom border", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
-  const cell = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
-  const style = getComputedStyle(cell);
+  const firstCell = screen.getByRole("cell", { name: "Coffee" }).element() as HTMLElement;
+  const lastCell = screen.getByRole("cell", { name: "12" }).element() as HTMLElement;
+  const row = firstCell.parentElement as HTMLElement;
+  const firstStyle = getComputedStyle(firstCell);
+  const lastStyle = getComputedStyle(lastCell);
+  const rowStyle = getComputedStyle(row);
 
-  expect(style.paddingLeft).toBe("16px");
-  expect(style.paddingRight).toBe("16px");
-  expect(style.columnGap).toBe("12px");
-  expect(style.boxShadow).toContain(tokenRgb("line"));
-  expect(style.boxShadow).toContain("-1px");
+  expect(firstStyle.paddingLeft).toBe("16px");
+  expect(lastStyle.paddingRight).toBe("16px");
+  expect(firstStyle.paddingRight).toBe("6px");
+  expect(lastStyle.paddingLeft).toBe("6px");
+  expect(rowStyle.boxShadow).toContain(tokenRgb("line"));
+  expect(rowStyle.boxShadow).toContain("-1px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -165,6 +207,21 @@ test("renders a falsy-but-present detail, like 0, as a real detail line rather t
   expect(detail.tagName).toBe("SPAN");
   expect(getComputedStyle(detail).fontSize).toBe("14px");
   expect(getComputedStyle(detail).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("stacks its own text and detail line with a 4px gap and their own 24px/20px line heights", async () => {
+  const screen = await render(<TableCellText detail="SKU-001">Coffee</TableCellText>);
+  const container = screen.getByText("Coffee").element().parentElement as HTMLElement;
+  const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+  const detail = screen.getByText("SKU-001", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(container).display).toBe("flex");
+  expect(getComputedStyle(container).flexDirection).toBe("column");
+  expect(getComputedStyle(container).rowGap).toBe("4px");
+  expect(getComputedStyle(text).lineHeight).toBe("24px");
+  expect(getComputedStyle(detail).lineHeight).toBe("20px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -584,6 +641,25 @@ test("renders the placeholder rows immediately, hidden from assistive technology
   expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
 
   await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// loading="initial" means the caller doesn't have a confirmed first result yet, so any rows it
+// still passes alongside that (e.g. stale defaults, or leftovers from a previous, now-invalidated
+// render) are exactly what the placeholders exist to hide: showing them would flash content the
+// caller itself doesn't trust yet. Preventing this in the type system would mean coupling `rows`
+// to `loading`'s value (forcing `rows` to an empty tuple only when `loading === "initial"`), a
+// constraint no other TableCommonProps field carries and one "updating" explicitly rejects (it
+// keeps rows on purpose), so this is proven as an explicit behavior instead.
+test("discards any rows the caller still passes while loading is initial, in favor of the placeholders", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={rows} loading="initial" />,
+  );
+
+  expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(5);
+  expect(screen.getByText("Coffee").query()).toBeNull();
+  expect(screen.getByText("Tea").query()).toBeNull();
+
   await expectNoAccessibilityViolations(screen.container);
 });
 
