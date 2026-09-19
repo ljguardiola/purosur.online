@@ -175,6 +175,34 @@ test("renders each option at 40px with a 6px radius and 14px semibold ink", asyn
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("highlights a hovered option with a bone background", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  await screen.getByRole("button", { name: /Estado/ }).click();
+  const option = screen.getByRole("option", { name: "Abiertas" });
+
+  await userEvent.hover(option.element());
+  await expect
+    .poll(() => getComputedStyle(option.element()).backgroundColor)
+    .toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("highlights a keyboard-focused option with a bone background", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+
+  await userEvent.tab();
+  await userEvent.keyboard("{ArrowDown}");
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  const focused = screen.getByRole("option", { name: "Todos" });
+  await expect
+    .poll(() => getComputedStyle(focused.element()).backgroundColor)
+    .toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("shows a 16px blue strong check on the chosen option only", async () => {
   const screen = await render(<ListFilter {...baseProps({ value: "open" })} />);
   await screen.getByRole("button", { name: /Estado/ }).click();
