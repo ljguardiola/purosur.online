@@ -1,5 +1,3 @@
-// The only supported locale today. Kept as a closed union (not `string`) so a second locale
-// can only be added by widening this type deliberately, and no caller can pass an unsupported one.
 export type Locale = "es-AR";
 
 export type PluralForms = { other: string } & Partial<Record<Intl.LDMLPluralRule, string>>;

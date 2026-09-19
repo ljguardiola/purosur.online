@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -8,24 +9,18 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const repoRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 const biomeBinary = path.join(repoRoot, "node_modules/.bin/biome");
 
-// Biome's own overrides for the literal-text guard match on the file's path (see biome.json),
-// so the samples have to live under a real app's `src/`, not a scratch directory outside it.
-// `--stdin-file-path` is not used here: this Biome build (2.5.13) prints no rule diagnostics for
-// `lint`/`check` over stdin — the default reporter only ever says "the contents aren't fixed" or
-// nothing at all, for every input, fixable or not, and `--reporter=json` is silently ignored in
-// that mode too. Real files under `--reporter=json` report every diagnostic's rule category
-// reliably, so the guard is exercised that way instead.
-const fixturesDir = path.join(repoRoot, "apps/pos/src/__literal-text-guard-fixtures__");
+// Biome's own overrides for the literal-text guard match on the file's path (see biome.json), so
+// the samples need a real `apps/*/src` path, just copied into a throwaway root instead of the repo.
+const tmpRoot = mkdtempSync(path.join(tmpdir(), "literal-text-guard-"));
+const sampleDir = path.join(tmpRoot, "apps/pos/src");
 
 type Diagnostic = { category: string; message: string };
 
 function lintSample(fileName: string, content: string): Diagnostic[] {
-  const filePath = path.join(fixturesDir, fileName);
-  writeFileSync(filePath, content);
+  writeFileSync(path.join(sampleDir, fileName), content);
 
-  const relativePath = path.relative(repoRoot, filePath);
-  const result = spawnSync(biomeBinary, ["lint", "--reporter=json", relativePath], {
-    cwd: repoRoot,
+  const result = spawnSync(biomeBinary, ["lint", "--reporter=json", `apps/pos/src/${fileName}`], {
+    cwd: tmpRoot,
     encoding: "utf-8",
   });
 
@@ -40,12 +35,17 @@ function guardCategories(diagnostics: Diagnostic[]): Diagnostic[] {
 }
 
 beforeAll(() => {
-  rmSync(fixturesDir, { recursive: true, force: true });
-  mkdirSync(fixturesDir, { recursive: true });
+  const config = JSON.parse(readFileSync(path.join(repoRoot, "biome.json"), "utf-8"));
+  config.vcs.enabled = false;
+  writeFileSync(path.join(tmpRoot, "biome.json"), JSON.stringify(config, null, 2));
+  cpSync(path.join(repoRoot, "biome-plugins"), path.join(tmpRoot, "biome-plugins"), {
+    recursive: true,
+  });
+  mkdirSync(sampleDir, { recursive: true });
 });
 
 afterAll(() => {
-  rmSync(fixturesDir, { recursive: true, force: true });
+  rmSync(tmpRoot, { recursive: true, force: true });
 });
 
 describe("the literal user-facing text guard", () => {

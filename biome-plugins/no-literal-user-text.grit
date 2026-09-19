@@ -1,7 +1,6 @@
 language js
 
-// `JsxString()` matches a bare `label="x"`; `JsStringLiteralExpression()` additionally matches a
-// literal placed inside the attribute's expression container, `label={"x"}`.
+// `JsStringLiteralExpression()` additionally covers a literal in an expression container, `label={"x"}`.
 JsxAttribute(name=$name, initializer=$value) where {
   $name <: r"^(?:aria-label|aria-description|title|alt|placeholder|label|[a-zA-Z]+Label)$",
   $value <: contains or {
