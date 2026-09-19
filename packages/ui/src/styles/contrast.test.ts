@@ -145,3 +145,21 @@ describe("tone text on its own message background contrast", () => {
     });
   }
 });
+
+// The option card's own three backgrounds: white and bone are already covered by the text-tone
+// suite above (ink and ink-secondary reach their threshold against every surface), and its chosen
+// background is the same as the "info" pair above (brand-blue-strong on brand-blue-message-bg).
+// The one combination neither of those cover is the help text's ink-secondary on that same chosen
+// background, since it's the only tone painted on brand-blue-message-bg that isn't brand-blue-strong.
+describe("option card help text on its chosen background contrast", () => {
+  it(`ink-secondary reaches ${AAA_TEXT_CONTRAST}:1 against brand-blue-message-bg`, () => {
+    const textHex = colors["ink-secondary"];
+    const backgroundHex = colors["brand-blue-message-bg"];
+
+    expect(textHex).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AAA_TEXT_CONTRAST,
+    );
+  });
+});
