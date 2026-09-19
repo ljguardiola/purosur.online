@@ -6,6 +6,7 @@ import {
   Popover as AriaPopover,
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
+  type Key,
 } from "react-aria-components";
 
 export type ListFilterOption<V extends string = string> = {
@@ -36,6 +37,16 @@ const optionClassName =
   "flex h-10 cursor-default items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone";
 
+// react-aria-components' onSelectionChange reports a plain Key (string | number), since it
+// doesn't know this select only ever holds V's own option values; this narrows it back without
+// a cast, by checking it against the group's own options.
+function isOptionValue<V extends string>(
+  key: Key,
+  options: readonly ListFilterOption<V>[],
+): key is V {
+  return typeof key === "string" && options.some((option) => option.value === key);
+}
+
 export function ListFilter<V extends string>({
   label,
   options,
@@ -46,7 +57,11 @@ export function ListFilter<V extends string>({
     <AriaSelect
       aria-label={label}
       selectedKey={value}
-      onSelectionChange={(key) => onChange(key as V)}
+      onSelectionChange={(key) => {
+        if (key !== null && isOptionValue(key, options)) {
+          onChange(key);
+        }
+      }}
     >
       {({ isOpen }) => (
         <>

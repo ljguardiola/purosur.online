@@ -62,6 +62,7 @@ test("shows a 16px down chevron in secondary text when closed", async () => {
   const icon = trigger.querySelector("svg") as SVGSVGElement;
   const rect = icon.getBoundingClientRect();
 
+  expect(icon.classList.contains("lucide-chevron-down")).toBe(true);
   expect(rect.width).toBeGreaterThan(15);
   expect(rect.width).toBeLessThan(17);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
@@ -79,6 +80,9 @@ test("turns the border blue UI and the chevron up when opened", async () => {
     .poll(() => getComputedStyle(trigger.element()).borderColor)
     .toBe(tokenRgb("brand-blue-ui"));
   await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  const icon = trigger.element().querySelector("svg") as SVGSVGElement;
+  expect(icon.classList.contains("lucide-chevron-up")).toBe(true);
 
   await expectNoAccessibilityViolations(document.body);
 });
