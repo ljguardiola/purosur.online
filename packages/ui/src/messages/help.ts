@@ -25,15 +25,11 @@ export type HelpCatalog<
 };
 
 // A record whose every article's `category`, `related`, and `articleLink.article` point at a real
-// id of the given `Categories`/`Articles`. `NoInfer` on both keeps `Articles` from widening its
-// own id union while it's being checked against itself.
+// id of the given `Categories`/`Articles`.
 export type HelpArticles<
   Categories extends CategoryRecord,
   Articles extends Record<string, HelpArticle<string, string>>,
-> = Record<
-  string,
-  HelpArticle<NoInfer<Extract<keyof Categories, string>>, NoInfer<Extract<keyof Articles, string>>>
->;
+> = Record<string, HelpArticle<Extract<keyof Categories, string>, Extract<keyof Articles, string>>>;
 
 export function defineHelp<
   const Categories extends CategoryRecord,
