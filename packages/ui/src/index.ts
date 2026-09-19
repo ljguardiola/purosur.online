@@ -62,6 +62,7 @@ export type {
   TableEmptyStateProps,
   TableEmptyStateTone,
   TableLoadingState,
+  TableNonSortableColumn,
   TableProps,
   TableRow,
   TableRowState,

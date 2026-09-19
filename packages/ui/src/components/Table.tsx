@@ -41,6 +41,10 @@ type TableActionsColumn<T> = {
 
 export type TableColumn<T> = TableDataColumn<T> | TableActionsColumn<T>;
 
+// A column that can never be TableSortableDataColumn, so a table restricted to this type can't
+// smuggle in a sortable column without also widening its own columns type.
+export type TableNonSortableColumn<T> = TableUnsortableDataColumn<T> | TableActionsColumn<T>;
+
 export type TableRow<T> = {
   id: string;
   item: T;
@@ -63,15 +67,29 @@ export type TableEmptyStateProps = {
 // them; "updating" keeps the current rows and runs a thin bar over the header instead.
 export type TableLoadingState = false | "initial" | "updating";
 
-export type TableProps<T> = {
+type TableCommonProps<T> = {
   "aria-label": string;
-  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
   rows: readonly TableRow<T>[];
-  sort?: TableSort;
-  onSortChange?: (sort: TableSort) => void;
   loading?: TableLoadingState;
   empty?: TableEmptyStateProps;
 };
+
+// A sortable column's header button is useless without a handler wired to it (see
+// SortableColumnHeader below), so a table that admits a sortable column requires both; a table
+// that can never admit one takes neither.
+type TableSortableProps<T> = TableCommonProps<T> & {
+  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
+  sort: TableSort;
+  onSortChange: (sort: TableSort) => void;
+};
+
+type TableUnsortableProps<T> = TableCommonProps<T> & {
+  columns: readonly [TableNonSortableColumn<T>, ...TableNonSortableColumn<T>[]];
+  sort?: undefined;
+  onSortChange?: undefined;
+};
+
+export type TableProps<T> = TableSortableProps<T> | TableUnsortableProps<T>;
 
 const PLACEHOLDER_DELAY_MS = 300;
 const PLACEHOLDER_ROW_IDS = [

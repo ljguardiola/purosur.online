@@ -5,11 +5,19 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
-import { Table, TableCellText, type TableColumn, type TableProps, type TableRow } from "./Table";
+import {
+  Table,
+  TableCellText,
+  type TableColumn,
+  type TableNonSortableColumn,
+  type TableProps,
+  type TableRow,
+  type TableSort,
+} from "./Table";
 
 type Product = { id: string; name: string; sku?: string; stock: string };
 
-const columns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+const columns: readonly [TableNonSortableColumn<Product>, ...TableNonSortableColumn<Product>[]] = [
   { key: "name", title: "Producto", render: (p) => p.name },
   { key: "stock", title: "Stock", align: "end", render: (p) => p.stock },
 ];
@@ -19,7 +27,11 @@ const rows: TableRow<Product>[] = [
   { id: "2", item: { id: "2", name: "Tea", stock: "8" } },
 ];
 
-function baseProps(overrides: Partial<TableProps<Product>> = {}): TableProps<Product> {
+// A table without any sortable column, distinguished from a sortable one by its columns' own
+// type (see TableNonSortableColumn), never by which props happen to be passed.
+type UnsortableTableProps = Extract<TableProps<Product>, { sort?: undefined }>;
+
+function baseProps(overrides: Partial<UnsortableTableProps> = {}): TableProps<Product> {
   return {
     "aria-label": "Products",
     columns,
@@ -97,7 +109,10 @@ test("renders a 56px row when every cell holds a single line", async () => {
 });
 
 test("grows a row to 64px when a cell renders a detail line under its main text", async () => {
-  const twoLineColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+  const twoLineColumns: readonly [
+    TableNonSortableColumn<Product>,
+    ...TableNonSortableColumn<Product>[],
+  ] = [
     {
       key: "name",
       title: "Producto",
@@ -123,7 +138,10 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
 });
 
 test("renders a cell's detail line at 14px in secondary text, even in a muted row", async () => {
-  const twoLineColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+  const twoLineColumns: readonly [
+    TableNonSortableColumn<Product>,
+    ...TableNonSortableColumn<Product>[],
+  ] = [
     {
       key: "name",
       title: "Producto",
@@ -244,7 +262,10 @@ test("renders every cell of a muted row in secondary text, with its background u
 });
 
 test("renders one action button in a 60px wide, unnamed-title actions column named for assistive technology", async () => {
-  const actionColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+  const actionColumns: readonly [
+    TableNonSortableColumn<Product>,
+    ...TableNonSortableColumn<Product>[],
+  ] = [
     { key: "name", title: "Producto", render: (p) => p.name },
     {
       key: "actions",
@@ -265,7 +286,10 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
 });
 
 test("widens the actions column to 104px for two action buttons", async () => {
-  const actionColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = [
+  const actionColumns: readonly [
+    TableNonSortableColumn<Product>,
+    ...TableNonSortableColumn<Product>[],
+  ] = [
     { key: "name", title: "Producto", render: (p) => p.name },
     {
       key: "actions",
@@ -315,8 +339,23 @@ const sortableColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]
   },
 ];
 
+// A table with a sortable column, so sort and onSortChange are required (see TableProps): a
+// sort naming a column outside this set leaves every column here unsorted by default.
+type SortableTableProps = Extract<TableProps<Product>, { sort: TableSort }>;
+
+function sortableBaseProps(overrides: Partial<SortableTableProps> = {}): TableProps<Product> {
+  return {
+    "aria-label": "Products",
+    columns: sortableColumns,
+    rows,
+    sort: { column: "unsorted", direction: "ascending" },
+    onSortChange: () => {},
+    ...overrides,
+  };
+}
+
 test("renders an unsorted sortable column with a 12px chevrons-up-down icon, both in secondary text", async () => {
-  const screen = await render(<Table {...baseProps({ columns: sortableColumns })} />);
+  const screen = await render(<Table {...sortableBaseProps()} />);
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
 
@@ -332,7 +371,7 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
 });
 
 test("sits the sort chevron 4px after the column title", async () => {
-  const screen = await render(<Table {...baseProps({ columns: sortableColumns })} />);
+  const screen = await render(<Table {...sortableBaseProps()} />);
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
@@ -346,12 +385,7 @@ test("sits the sort chevron 4px after the column title", async () => {
 
 test("shows the ascending sort with an up chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table
-      {...baseProps({
-        columns: sortableColumns,
-        sort: { column: "name", direction: "ascending" },
-      })}
-    />,
+    <Table {...sortableBaseProps({ sort: { column: "name", direction: "ascending" } })} />,
   );
   const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
@@ -367,12 +401,7 @@ test("shows the ascending sort with an up chevron, title and icon in ink, expose
 
 test("shows the descending sort with a down chevron, title and icon in ink, exposed as aria-sort", async () => {
   const screen = await render(
-    <Table
-      {...baseProps({
-        columns: sortableColumns,
-        sort: { column: "stock", direction: "descending" },
-      })}
-    />,
+    <Table {...sortableBaseProps({ sort: { column: "stock", direction: "descending" } })} />,
   );
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
@@ -385,7 +414,7 @@ test("shows the descending sort with a down chevron, title and icon in ink, expo
 
 test("asks the caller to sort by a column using its own first direction, on click", async () => {
   const onSortChange = vi.fn();
-  const screen = await render(<Table {...baseProps({ columns: sortableColumns, onSortChange })} />);
+  const screen = await render(<Table {...sortableBaseProps({ onSortChange })} />);
 
   await screen.getByRole("columnheader", { name: "Producto" }).click();
 
@@ -395,7 +424,7 @@ test("asks the caller to sort by a column using its own first direction, on clic
 
 test("asks the caller to sort by a column using its own first direction, from the keyboard", async () => {
   const onSortChange = vi.fn();
-  await render(<Table {...baseProps({ columns: sortableColumns, onSortChange })} />);
+  await render(<Table {...sortableBaseProps({ onSortChange })} />);
 
   await userEvent.tab();
   await userEvent.tab();
@@ -408,8 +437,7 @@ test("asks for the opposite direction when activating the column already sorted"
   const onSortChange = vi.fn();
   const screen = await render(
     <Table
-      {...baseProps({
-        columns: sortableColumns,
+      {...sortableBaseProps({
         sort: { column: "name", direction: "ascending" },
         onSortChange,
       })}
@@ -428,6 +456,37 @@ test("does not accept a sortable column without its own first direction", () => 
     sortable: true;
     render: (item: Product) => string;
   }>().not.toExtend<TableColumn<Product>>();
+});
+
+test("does not accept a sortable column without sort and onSortChange", () => {
+  expectTypeOf<{
+    "aria-label": string;
+    columns: readonly [
+      {
+        key: string;
+        title: string;
+        sortable: true;
+        defaultDirection: "ascending";
+        render: (item: Product) => string;
+      },
+    ];
+    rows: TableRow<Product>[];
+  }>().not.toExtend<TableProps<Product>>();
+});
+
+test("does not accept sort without onSortChange, or onSortChange without sort", () => {
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof sortableColumns;
+    rows: TableRow<Product>[];
+    sort: TableSort;
+  }>().not.toExtend<TableProps<Product>>();
+  expectTypeOf<{
+    "aria-label": string;
+    columns: typeof sortableColumns;
+    rows: TableRow<Product>[];
+    onSortChange: (sort: TableSort) => void;
+  }>().not.toExtend<TableProps<Product>>();
 });
 
 // vi.useFakeTimers() hangs vitest-browser-react's own render/rerender in this real-browser
