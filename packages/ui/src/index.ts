@@ -15,6 +15,8 @@ export type { IconButtonProps } from "./components/IconButton";
 export { IconButton } from "./components/IconButton";
 export type { InlineNoticeProps, NoticeTone } from "./components/InlineNotice";
 export { InlineNotice } from "./components/InlineNotice";
+export type { ListFilterOption, ListFilterProps } from "./components/ListFilter";
+export { ListFilter } from "./components/ListFilter";
 export type {
   ModalContextTone,
   ModalProps,
@@ -30,6 +32,8 @@ export type {
   OptionCardOption,
 } from "./components/OptionCardGroup";
 export { OptionCardGroup } from "./components/OptionCardGroup";
+export type { PaginationProps } from "./components/Pagination";
+export { Pagination } from "./components/Pagination";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
 export { RadioGroup } from "./components/RadioGroup";
 export type {
@@ -51,6 +55,20 @@ export type { SummaryRowProps } from "./components/SummaryRow";
 export { SummaryRow } from "./components/SummaryRow";
 export type { SummaryRowGroupProps } from "./components/SummaryRowGroup";
 export { SummaryRowGroup } from "./components/SummaryRowGroup";
+export type {
+  TableCellTextProps,
+  TableColumn,
+  TableColumnAlign,
+  TableEmptyStateProps,
+  TableEmptyStateTone,
+  TableLoadingState,
+  TableProps,
+  TableRow,
+  TableRowState,
+  TableSort,
+  TableSortDirection,
+} from "./components/Table";
+export { Table, TableCellText } from "./components/Table";
 export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";
