@@ -433,26 +433,45 @@ test("does not accept a sortable column without its own first direction", () => 
 // vi.useFakeTimers() hangs vitest-browser-react's own render/rerender in this real-browser
 // project (their internal waiting also runs on real timers) and corrupts axe-core across later
 // tests, so only the table's own 300ms call is intercepted by its exact delay; every other
-// setTimeout call (the test harness's own) keeps running on the real clock. The captured
-// callback is invoked manually (inside act, since it fires outside any React-managed event) to
-// stand in for the delay elapsing.
+// setTimeout/clearTimeout call (the test harness's own) keeps running on the real clock. The
+// captured callback is invoked manually (inside act, since it fires outside any React-managed
+// event) to stand in for the delay elapsing. The fake id is a negative number so it can never
+// collide with a real browser timer id (always positive), letting clearTimeout calls for
+// unrelated real timers pass through untouched.
 function interceptDelay(delayMs: number) {
   const realSetTimeout = window.setTimeout;
+  const realClearTimeout = window.clearTimeout;
+  const FAKE_ID = -1;
   let callback: (() => void) | undefined;
-  const spy = vi.spyOn(window, "setTimeout").mockImplementation(((
+  let cleared = false;
+  const setTimeoutSpy = vi.spyOn(window, "setTimeout").mockImplementation(((
     fn: () => void,
     ms?: number,
     ...args: unknown[]
   ) => {
     if (ms === delayMs) {
       callback = fn;
-      return 0 as unknown as ReturnType<typeof setTimeout>;
+      cleared = false;
+      return FAKE_ID as unknown as ReturnType<typeof setTimeout>;
     }
     return realSetTimeout(fn, ms, ...args);
   }) as typeof window.setTimeout);
+  const clearTimeoutSpy = vi.spyOn(window, "clearTimeout").mockImplementation(((
+    id?: Parameters<typeof clearTimeout>[0],
+  ) => {
+    if (id === FAKE_ID) {
+      cleared = true;
+      return;
+    }
+    return realClearTimeout(id);
+  }) as typeof window.clearTimeout);
   return {
     fire: () => act(() => callback?.()),
-    restore: () => spy.mockRestore(),
+    wasCleared: () => cleared,
+    restore: () => {
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
+    },
   };
 }
 
@@ -492,11 +511,13 @@ test("shows 5 placeholder rows, hidden from assistive technology, once the delay
   }
 });
 
-test("never shows placeholder rows when loading ends before the delay elapses", async () => {
+test("clears the pending timer when loading leaves initial before the delay elapses", async () => {
   const delay = interceptDelay(300);
   try {
     const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
     await screen.rerender(<Table {...baseProps({ loading: false })} />);
+
+    expect(delay.wasCleared()).toBe(true);
 
     delay.fire();
 
@@ -504,6 +525,22 @@ test("never shows placeholder rows when loading ends before the delay elapses", 
     await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    delay.restore();
+  }
+});
+
+test("clears the pending timer when the table unmounts before the delay elapses", async () => {
+  const delay = interceptDelay(300);
+  try {
+    const screen = await render(<Table {...baseProps({ rows: [], loading: "initial" })} />);
+    await screen.unmount();
+
+    expect(delay.wasCleared()).toBe(true);
+
+    delay.fire();
+
+    expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
   } finally {
     delay.restore();
   }
