@@ -46,7 +46,7 @@ const backgrounds: Record<string, string> = {
 // tone (checked against its own contrast threshold below) or a decorative one (checked at all,
 // just not for text contrast). A token in neither list fails the classification test, so a new
 // color can't be added without someone deciding which bucket it belongs to.
-const textTones: Record<string, number> = {
+const textTones = {
   ink: AA_TEXT_CONTRAST,
   "ink-secondary": AAA_TEXT_CONTRAST,
   "brand-blue-ui": AA_TEXT_CONTRAST,
@@ -59,7 +59,7 @@ const textTones: Record<string, number> = {
   "brand-earth-strong": AAA_TEXT_CONTRAST,
   "status-error-strong": AAA_TEXT_CONTRAST,
   "status-warning-strong": AAA_TEXT_CONTRAST,
-};
+} satisfies Record<string, number>;
 
 // Surfaces (the backgrounds themselves, not foreground text/icon color), borders (line,
 // blue-soft, see tokens.css), the plain/accent/message-background shades that are only ever
@@ -244,18 +244,10 @@ const rowStateBackgroundNames = [
   "status-error-message-bg",
 ] as const;
 
-// Mirrors the two tones textTones already assigns above (ink at AA, ink-secondary at AAA):
-// re-declared here instead of indexed off textTones, whose Record<string, number> type can't
-// prove a literal key is present under this project's strict indexed-access checking.
-const rowStateTextThresholds = {
-  ink: AA_TEXT_CONTRAST,
-  "ink-secondary": AAA_TEXT_CONTRAST,
-} as const;
-
 describe("table row state background contrast", () => {
   for (const tone of ["ink", "ink-secondary"] as const) {
     for (const backgroundName of rowStateBackgroundNames) {
-      it(`${tone} reaches ${rowStateTextThresholds[tone]}:1 against ${backgroundName}`, () => {
+      it(`${tone} reaches ${textTones[tone]}:1 against ${backgroundName}`, () => {
         const textHex = colors[tone];
         const backgroundHex = colors[backgroundName];
 
@@ -264,7 +256,7 @@ describe("table row state background contrast", () => {
           /^#[0-9a-f]{6}$/i,
         );
         expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
-          rowStateTextThresholds[tone],
+          textTones[tone],
         );
       });
     }

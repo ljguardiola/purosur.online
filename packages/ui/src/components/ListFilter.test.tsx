@@ -300,3 +300,43 @@ test("does not accept an empty options list", () => {
     onChange: (value: Status) => void;
   }>().not.toExtend<ListFilterProps<Status>>();
 });
+
+// Proves the NoInfer fix at a real call site with no explicit type argument, the way JSX actually
+// invokes the component: TypeScript must reject `value: "other"` by inferring V from `options`
+// alone, not by widening V to also cover `value`. `label` is dropped since it doesn't participate
+// in V at all.
+//
+// A call that fails to compile can't sit in this file as literal code, and this project bans
+// `@ts-expect-error`, so the first (generic) overload only matches a call whose `value`/`onChange`
+// truly fit the inferred V; an invalid call falls through to the second (fallback) overload
+// instead of failing to compile, resolving to `false`.
+type ListFilterValueOnlyProps<V extends string> = {
+  options: readonly [Pick<ListFilterOption<V>, "value">, ...Pick<ListFilterOption<V>, "value">[]];
+  value: ListFilterProps<V>["value"];
+  onChange: ListFilterProps<V>["onChange"];
+};
+
+function isValidListFilterCall<V extends string>(props: ListFilterValueOnlyProps<V>): true;
+function isValidListFilterCall(props: unknown): false;
+// This test only cares about which overload TypeScript picks, never about a runtime result, so
+// the implementation itself is a stub: it exists only so the type-only overloads above have a
+// real function to call, instead of throwing at runtime.
+function isValidListFilterCall(_props: unknown): boolean {
+  return true;
+}
+
+test("cannot widen V through `value` at a real call site with no explicit type argument", () => {
+  const validCall = isValidListFilterCall({
+    options: [{ value: "all" }, { value: "open" }],
+    value: "all",
+    onChange: () => {},
+  });
+  expectTypeOf(validCall).toEqualTypeOf<true>();
+
+  const invalidCall = isValidListFilterCall({
+    options: [{ value: "all" }, { value: "open" }],
+    value: "other",
+    onChange: () => {},
+  });
+  expectTypeOf(invalidCall).toEqualTypeOf<false>();
+});
