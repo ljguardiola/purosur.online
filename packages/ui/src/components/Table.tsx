@@ -313,11 +313,17 @@ function TableCell<T>({ column, item }: { column: TableColumn<T>; item: T }) {
       ].join(" ")}
     >
       <div
-        className={[
-          "flex flex-col justify-center gap-0.5",
-          align === "end" ? "items-end" : "items-start",
-          isActions ? "flex-row items-center justify-end gap-2" : "",
-        ].join(" ")}
+        // An actions cell and a text cell never share a layout: appending one's classes onto
+        // the other's base left the flex-direction/justify/gap pairs to whichever Tailwind
+        // happened to emit last, so each gets its own complete, exclusive class string instead.
+        className={
+          isActions
+            ? "flex flex-row items-center justify-end gap-2"
+            : [
+                "flex flex-col justify-center gap-0.5",
+                align === "end" ? "items-end" : "items-start",
+              ].join(" ")
+        }
       >
         {column.render(item)}
       </div>

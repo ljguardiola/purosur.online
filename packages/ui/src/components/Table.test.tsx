@@ -292,7 +292,13 @@ test("renders one action button in a 60px wide, unnamed-title actions column nam
 
   expect(header.textContent).toBe("Actions");
   expect(getComputedStyle(header).width).toBe("60px");
-  await expect.element(screen.getByRole("button", { name: "Edit" }).nth(0)).toBeVisible();
+  const edit = screen.getByRole("button", { name: "Edit" }).nth(0);
+  await expect.element(edit).toBeVisible();
+
+  const row = edit.element().closest("tr") as HTMLElement;
+  const rowHeight = row.getBoundingClientRect().height;
+  expect(rowHeight).toBeGreaterThan(55);
+  expect(rowHeight).toBeLessThan(57);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -317,6 +323,19 @@ test("widens the actions column to 104px for two action buttons", async () => {
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(getComputedStyle(header).width).toBe("104px");
+
+  const firstEdit = screen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
+  const row = firstEdit.closest("tr") as HTMLElement;
+  const [edit, del] = row.querySelectorAll("button");
+  const editRect = (edit as HTMLElement).getBoundingClientRect();
+  const delRect = (del as HTMLElement).getBoundingClientRect();
+
+  expect(delRect.top).toBeCloseTo(editRect.top, 0);
+  expect(delRect.left).toBeGreaterThan(editRect.left);
+
+  const rowHeight = row.getBoundingClientRect().height;
+  expect(rowHeight).toBeGreaterThan(55);
+  expect(rowHeight).toBeLessThan(57);
 
   await expectNoAccessibilityViolations(screen.container);
 });
