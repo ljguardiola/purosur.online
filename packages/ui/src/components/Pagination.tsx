@@ -72,6 +72,20 @@ const currentPageClassName = "bg-brand-blue-ui font-bold text-surface-white";
 const otherPageClassName =
   "border border-line bg-surface-white font-normal text-ink data-[hovered]:bg-surface-bone";
 
+// NaN and Infinity would otherwise reach Math.min/Math.max and the window math below as
+// themselves (NaN propagates, Infinity never clamps), and a fractional value would render a
+// half number or an off-by-one window, so both props are resolved to a safe integer first.
+function resolvePageCount(pageCount: number): number {
+  return Number.isFinite(pageCount) ? Math.trunc(pageCount) : 0;
+}
+
+function resolvePage(page: number, pageCount: number): number {
+  if (!Number.isFinite(page)) {
+    return 1;
+  }
+  return Math.min(Math.max(Math.trunc(page), 1), pageCount);
+}
+
 export function Pagination({
   page,
   pageCount,
@@ -79,11 +93,12 @@ export function Pagination({
   previousLabel,
   nextLabel,
 }: PaginationProps) {
-  if (pageCount <= 1) {
+  const resolvedPageCount = resolvePageCount(pageCount);
+  if (resolvedPageCount <= 1) {
     return null;
   }
 
-  const currentPage = Math.min(Math.max(page, 1), pageCount);
+  const currentPage = resolvePage(page, resolvedPageCount);
 
   return (
     <div className="flex items-center gap-2">
@@ -95,7 +110,7 @@ export function Pagination({
         {previousLabel}
       </AriaButton>
       <ul className="flex items-center gap-2">
-        {pagePlaces(currentPage, pageCount).map((place) => (
+        {pagePlaces(currentPage, resolvedPageCount).map((place) => (
           <li key={place.key}>
             {place.kind === "ellipsis" ? (
               <span className="px-1 text-sm text-ink-secondary">{ELLIPSIS}</span>
@@ -115,7 +130,7 @@ export function Pagination({
         ))}
       </ul>
       <AriaButton
-        isDisabled={currentPage >= pageCount}
+        isDisabled={currentPage >= resolvedPageCount}
         onPress={() => onPageChange(currentPage + 1)}
         className={navButtonClassName}
       >

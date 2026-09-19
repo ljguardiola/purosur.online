@@ -181,6 +181,55 @@ test("treats a page above the count as the last page", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("treats a NaN page as page 1", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: Number.NaN, pageCount: 5 })} />);
+  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("treats an infinite page as page 1", async () => {
+  const screen = await render(
+    <Pagination {...baseProps({ page: Number.POSITIVE_INFINITY, pageCount: 5 })} />,
+  );
+  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("truncates a fractional page instead of rounding it", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 2.5, pageCount: 5 })} />);
+  const current = screen.getByRole("button", { name: "2", exact: true }).element() as HTMLElement;
+
+  expect(current.getAttribute("aria-current")).toBe("page");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("truncates a fractional page count instead of rounding it", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5.9 })} />);
+  const numbers = screen.container.querySelectorAll("li");
+
+  expect(Array.from(numbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "4", "5"]);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders nothing with a non-finite or below-2 page count", async () => {
+  for (const pageCount of [Number.NaN, Number.POSITIVE_INFINITY, 1.9]) {
+    const screen = await render(<Pagination {...baseProps({ page: 1, pageCount })} />);
+
+    expect(screen.container.innerHTML).toBe("");
+    await screen.unmount();
+  }
+});
+
 test("disables Previous on the first page and Next on the last page", async () => {
   const firstPage = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
   await expect.element(firstPage.getByRole("button", { name: "Anterior" })).toBeDisabled();
