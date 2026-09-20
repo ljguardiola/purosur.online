@@ -31,8 +31,12 @@ const frameClassName: Record<SearchFieldVariant, string> = {
   backoffice: "h-11 gap-2 px-3",
 };
 
+// The field is a type="search" input, so Chromium paints its own clear button inside it as soon
+// as it holds a value, and Tailwind's preflight resets ::-webkit-search-decoration only. Neither
+// variant draws a clear affordance, so that button is taken out of the input altogether.
 const inputBaseClassName =
-  "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none placeholder:text-ink-secondary";
+  "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none " +
+  "placeholder:text-ink-secondary [&::-webkit-search-cancel-button]:hidden";
 
 const valueClassName: Record<SearchFieldVariant, string> = {
   register: "text-xl font-normal text-ink",

@@ -241,6 +241,37 @@ test("keeps every character of a fast barcode-scanner keystroke sequence, in ord
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// Neither variant draws a clear button, but the field is a type="search" input, and Chromium
+// paints its own ::-webkit-search-cancel-button inside one holding a value — Tailwind's preflight
+// resets ::-webkit-search-decoration only. getComputedStyle reports the input's own box for that
+// pseudo-element whether or not it is painted, so the only way to tell is to click where it sits:
+// the browser's button clears the field, while a click on the text itself only moves the caret.
+for (const variant of ["register", "backoffice"] as const) {
+  test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
+    const screen = await render(
+      <SearchFieldHarness
+        variant={variant}
+        placeholder="Scan or type the product name"
+        icon={<Search />}
+      />,
+    );
+    const input = fieldInput(screen, "Scan or type the product name");
+    const barcode = "7791234567890";
+
+    await userEvent.click(input);
+    await userEvent.keyboard(barcode);
+
+    const rect = input.getBoundingClientRect();
+    const centerY = Math.round(rect.height / 2);
+    for (let inset = 2; inset <= 24; inset += 2) {
+      await userEvent.click(input, { position: { x: Math.round(rect.width) - inset, y: centerY } });
+      expect(input.value, `after a click ${inset}px from the right edge`).toBe(barcode);
+    }
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
+
 test("is announced as a search field and named by its placeholder when no label is supplied", async () => {
   const screen = await render(
     <SearchFieldHarness
