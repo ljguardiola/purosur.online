@@ -2,15 +2,17 @@ import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
-import { SummaryRow } from "./SummaryRow";
+import type { SummaryRowProps } from "./SummaryRow";
 import { SummaryRowGroup, type SummaryRowGroupProps } from "./SummaryRowGroup";
 
 test("stacks rows 8px apart, with a 1px line above and below the group and 16px vertical padding", async () => {
   const screen = await render(
-    <SummaryRowGroup>
-      <SummaryRow label="Items" value="3" />
-      <SummaryRow label="Subtotal" value="$120.00" />
-    </SummaryRowGroup>,
+    <SummaryRowGroup
+      rows={[
+        { label: "Items", value: "3" },
+        { label: "Subtotal", value: "$120.00" },
+      ]}
+    />,
   );
   const group = screen.container.firstElementChild as HTMLElement;
   const style = getComputedStyle(group);
@@ -38,11 +40,13 @@ test("stacks rows 8px apart, with a 1px line above and below the group and 16px 
 
 test("draws no divider on the rows themselves, only one line above and below the whole group", async () => {
   const screen = await render(
-    <SummaryRowGroup>
-      <SummaryRow label="Items" value="3" />
-      <SummaryRow label="Subtotal" value="$120.00" />
-      <SummaryRow label="Total" value="$130.00" strong />
-    </SummaryRowGroup>,
+    <SummaryRowGroup
+      rows={[
+        { label: "Items", value: "3" },
+        { label: "Subtotal", value: "$120.00" },
+        { label: "Total", value: "$130.00", strong: true },
+      ]}
+    />,
   );
   const group = screen.container.firstElementChild as HTMLElement;
 
@@ -58,11 +62,13 @@ test("draws no divider on the rows themselves, only one line above and below the
 
 test("renders every row it is given, in order", async () => {
   const screen = await render(
-    <SummaryRowGroup>
-      <SummaryRow label="Items" value="3" />
-      <SummaryRow label="Subtotal" value="$120.00" />
-      <SummaryRow label="Total" value="$130.00" strong />
-    </SummaryRowGroup>,
+    <SummaryRowGroup
+      rows={[
+        { label: "Items", value: "3" },
+        { label: "Subtotal", value: "$120.00" },
+        { label: "Total", value: "$130.00", strong: true },
+      ]}
+    />,
   );
 
   await expect.element(screen.getByText("Items", { exact: true })).toBeVisible();
@@ -76,19 +82,17 @@ test("renders every row it is given, in order", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders nothing at all when it has no rows to frame", async () => {
-  const emptyListScreen = await render(<SummaryRowGroup>{[]}</SummaryRowGroup>);
-  expect(emptyListScreen.container.firstElementChild).toBeNull();
-  await expectNoAccessibilityViolations(emptyListScreen.container);
-
-  const emptyTextScreen = await render(<SummaryRowGroup>{""}</SummaryRowGroup>);
-  expect(emptyTextScreen.container.firstElementChild).toBeNull();
-  await expectNoAccessibilityViolations(emptyTextScreen.container);
-});
-
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
-  expectTypeOf<{ children: undefined }>().not.toExtend<SummaryRowGroupProps>();
-  expectTypeOf<{ children: null }>().not.toExtend<SummaryRowGroupProps>();
-  expectTypeOf<{ children: boolean }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();
+});
+
+// A group with nothing to frame would draw two rules around empty space, so it is ruled out where
+// the caller writes it instead of where the component paints: an empty list fails to compile, and
+// so does the plain array a `rows.map(...)` call site produces, which TypeScript cannot prove
+// holds at least one row.
+test("does not accept an empty rows list, or one TypeScript cannot prove is non-empty", () => {
+  expectTypeOf<{ rows: [] }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ rows: SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ rows: readonly SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
 });
