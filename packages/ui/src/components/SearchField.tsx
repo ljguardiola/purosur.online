@@ -1,11 +1,9 @@
-import type { ReactElement } from "react";
 import { Input as AriaInput, SearchField as AriaSearchField } from "react-aria-components";
+import type { ButtonIcon } from "./Button";
 
 export type SearchFieldVariant = "register" | "backoffice";
 
-// See Button.tsx's own ButtonIcon: the wrapper imposes the icon's size with CSS instead of
-// cloning a `size` prop onto it, so `size` is left out of what a caller's icon can declare.
-export type SearchFieldIcon = ReactElement<{ className?: string }>;
+export type SearchFieldIcon = ButtonIcon;
 
 export type SearchFieldProps = {
   variant: SearchFieldVariant;
@@ -19,13 +17,10 @@ export type SearchFieldProps = {
   disabled?: boolean;
 };
 
-// No visible label sits above the box in either variant, so the wrapper only needs to carry the
-// disabled dimming — unlike TextField.tsx's own wrapper, which also stacks a label above it.
 const wrapperClassName = "data-[disabled]:opacity-[0.45]";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-// Height, horizontal padding and gap per variant, in the exact px the design specifies.
 const frameClassName: Record<SearchFieldVariant, string> = {
   register: "h-16 gap-4 px-2",
   backoffice: "h-11 gap-2 px-3",
@@ -43,8 +38,6 @@ const valueClassName: Record<SearchFieldVariant, string> = {
   backoffice: "text-sm font-normal text-ink",
 };
 
-// The register variant wraps its icon in a 48px chip filled with the brand-blue message
-// background; the backoffice variant renders a bare icon with no chip behind it.
 const chipClassName =
   "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-brand-blue-message-bg";
 
