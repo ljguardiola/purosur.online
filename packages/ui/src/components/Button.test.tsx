@@ -961,8 +961,8 @@ test("leaves a content-sized sibling at its own width, even one whose label coul
   const [sibling] = widthsInRow(screen.container.firstElementChild as Element);
 
   // A stretched button that asked the row for more than it has would take the difference out of
-  // this sibling, down to its longest word, breaking the label across two lines inside a button
-  // whose height cannot grow to hold them.
+  // this sibling, narrowing it toward its longest word and breaking the label across two lines the
+  // design never draws it on.
   expect(sibling).toBeCloseTo(ownWidth as number, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -978,8 +978,9 @@ test("keeps every label in the row on a single line", async () => {
     ...(screen.container.firstElementChild as Element).children,
   ] as HTMLElement[];
 
-  // A button's height cannot grow to hold a second line, so a wrapped label is clipped rather
-  // than accommodated: every label in the row has to stay on the one line its button has room for.
+  // The design draws every one of these labels on one line, and a button's height is fixed, so a
+  // label that wrapped would either fill the button edge to edge or spill past it — nothing hides
+  // it, since the button clips nothing.
   expect(lineCount((sibling as HTMLElement).firstChild as ChildNode), "sibling").toBe(1);
   expect(lineCount((stretched as HTMLElement).firstChild as ChildNode), "stretched").toBe(1);
   await expectNoAccessibilityViolations(screen.container);
