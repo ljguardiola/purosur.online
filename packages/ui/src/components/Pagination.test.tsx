@@ -1,4 +1,4 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -709,6 +709,52 @@ test("never redirects focus when a boundary is reached while focus sits on an el
   );
 
   expect(document.activeElement).toBe(unrelatedField);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// A real async caller: pressing Next first lands an unrelated re-render (a loading flag flips,
+// the page itself doesn't move yet), and only a tick later, in a *separate* commit, does the page
+// actually land. The intent has to survive that intervening render to still catch the disabling
+// when it finally happens.
+function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">) {
+  const [page, setPage] = useState(4);
+  const [pendingPage, setPendingPage] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingPage === null) {
+      return;
+    }
+    const id = setTimeout(() => {
+      setPage(pendingPage);
+      setPendingPage(null);
+    }, 0);
+    return () => clearTimeout(id);
+  }, [pendingPage]);
+  return (
+    <Pagination
+      {...props}
+      page={page}
+      pageCount={5}
+      onPageChange={(next) => setPendingPage(next)}
+    />
+  );
+}
+
+test("moves focus to the last page's button once Next disables, even when the page lands in a later, separate commit", async () => {
+  const screen = await render(
+    <AsyncPagination
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(lastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
 
   await expectNoAccessibilityViolations(screen.container);
 });
