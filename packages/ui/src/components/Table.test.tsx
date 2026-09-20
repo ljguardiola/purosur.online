@@ -666,6 +666,45 @@ test("asks for the opposite direction when activating the column already sorted"
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// A widely annotated columns array (see wideColumns below) is the one way `sort.column` can name
+// a key absent from `columns` without a cast: TableSortableColumnKey falls back to plain string
+// for it, so nothing on the caller's side catches a sort left over from columns the caller since
+// removed. The contract: none of the current columns shows as sorted (no column can claim a sort
+// aimed at some other, absent one), every sortable header's aria-sort stays "none", and clicking
+// a header still sorts by that header's own first direction, unaffected by the stale sort.
+const wideSortableColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] =
+  sortableColumns;
+
+test("shows nothing sorted when sort.column names a column absent from the current columns", async () => {
+  const onSortChange = vi.fn();
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={wideSortableColumns}
+      sort={{ column: "removed-column", direction: "ascending" }}
+      onSortChange={onSortChange}
+    />,
+  );
+  const nameHeader = screen
+    .getByRole("columnheader", { name: "Producto" })
+    .element() as HTMLElement;
+  const stockHeader = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+
+  expect(nameHeader.getAttribute("aria-sort")).toBe("none");
+  expect(stockHeader.getAttribute("aria-sort")).toBe("none");
+  const nameTitle = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
+  const stockTitle = screen.getByText("Stock", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(nameTitle).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(stockTitle).color).toBe(tokenRgb("ink-secondary"));
+  const nameIcon = nameHeader.querySelector("svg") as SVGSVGElement;
+  expect(nameIcon.classList.contains("lucide-chevrons-up-down")).toBe(true);
+
+  await screen.getByRole("columnheader", { name: "Producto" }).click();
+  expect(onSortChange).toHaveBeenCalledWith({ column: "name", direction: "ascending" });
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a sortable column without its own first direction", () => {
   expectTypeOf<{
     key: string;

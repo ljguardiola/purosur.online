@@ -239,7 +239,13 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("falls back to nothing selected when its value points to an option a narrowed options list no longer has", async () => {
+// react-aria's own Select already treats a selectedKey with no matching option as no selection:
+// verified directly (an explicit null-when-missing fallback produced byte-identical DOM output
+// to passing the stale value straight through), so the component relies on that library
+// behavior instead of re-deriving it. Pinned here, not the exact placeholder wording (react-aria's
+// own default, locale-dependent), but its stable, load-bearing facts: the stale label disappears,
+// react-aria's own data-placeholder marker takes its place, and the trigger keeps a real name.
+test("shows react-aria's own placeholder, not a stale label, when its value points to an option a narrowed options list no longer has", async () => {
   const narrowedOptions: [ListFilterOption<Status>, ListFilterOption<Status>] = [
     { value: "all", label: "Todos" },
     { value: "open", label: "Abiertas" },
@@ -253,6 +259,11 @@ test("falls back to nothing selected when its value points to an option a narrow
   );
 
   expect(trigger.getByText("Cerradas", { exact: true }).query()).toBeNull();
+  const placeholder = trigger.element().querySelector("[data-placeholder]");
+  expect(placeholder).not.toBeNull();
+  expect(placeholder?.getAttribute("data-placeholder")).toBe("true");
+  expect(trigger.element().getAttribute("aria-label")).toBe("Estado");
+
   await expectNoAccessibilityViolations(screen.container);
 });
 

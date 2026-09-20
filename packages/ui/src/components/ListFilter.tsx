@@ -53,15 +53,10 @@ export function ListFilter<V extends string>({
   value,
   onChange,
 }: ListFilterProps<V>) {
-  // NoInfer<V> only rejects a *static* mismatch; it can't catch `options` narrowing at runtime
-  // (e.g. a search box filtering them) out from under a `value` that's still the same type V.
-  // Falls back to null, react-aria's own "nothing selected", instead of a key no option owns.
-  const selectedKey = options.some((option) => option.value === value) ? value : null;
-
   return (
     <AriaSelect
       aria-label={label}
-      selectedKey={selectedKey}
+      selectedKey={value}
       onSelectionChange={(key) => {
         if (key !== null && isOptionValue(key, options)) {
           onChange(key);
