@@ -13,6 +13,7 @@ import {
   type TableRow,
   type TableSort,
   type TableSortableColumnKey,
+  type TableSortDirection,
 } from "./Table";
 
 type Product = { id: string; name: string; sku?: string; stock: string };
@@ -220,6 +221,10 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
+  // min-w-0 alone only lets the span's own box shrink to fit; without break-words on the <th> too,
+  // the box stays in bounds while its unbroken text paints past it, so both are checked here — the
+  // same way the plain header test above proves it, not just that the span's box happens to fit.
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -334,6 +339,27 @@ test("keeps the selected row's own left accent on the last row, with no bottom d
 
   expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
   expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The placeholder rows sit in the exact same container, against the exact same 1px border, as the
+// real rows above — the last one needs the same exception for the same reason, or the table's
+// bottom edge reads as a thicker band during the first load and visibly thins once real rows land.
+test("skips its own bottom divider on the last placeholder row too, while loading is initial", async () => {
+  const screen = await render(
+    <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+  );
+  const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
+  const lastPlaceholderRow = placeholderRows[placeholderRows.length - 1] as HTMLElement;
+  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+
+  const rowRect = lastPlaceholderRow.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
+  const layers = shadowLayers(getComputedStyle(lastPlaceholderRow).boxShadow);
+  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -738,14 +764,28 @@ test("keeps focus on the action button when its own label changes with the item'
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Two actions can resolve to the very same label without anything breaking: since neither is ever
-// keyed by that label, there is nothing for them to collide over. Both keep their own identity and
-// their own, independently reported press handler.
-test("keeps two actions that resolve to the same label fully independent", async () => {
+// A label collision only actually matters once something ELSE, unrelated to the second action,
+// forces React to reconsider the list — here, the first action's own label changing. Keyed by that
+// shared label, React's reconciler would reuse whichever DOM node it last associated with "Edit"
+// for the new first slot, dragging the second action's own focus and identity along with it; keyed
+// by nothing (a fixed JSX position per slot, see TableActionButton in Table.tsx), the first
+// action's update can never touch the second slot's own node at all.
+test("keeps the second action's own identity untouched when an update makes the first action's label collide with it", async () => {
   type Item = { id: string };
   const onEdit = vi.fn();
   const onEditAgain = vi.fn();
-  const sameLabelColumns = [
+  const columnsBeforeCollision = [
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (_item: Item) => ({ icon: <Pencil />, "aria-label": "Modify", onPress: onEdit }),
+        (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
+      ],
+    },
+  ] as const;
+  const columnsWithCollision = [
     {
       key: "actions",
       kind: "actions",
@@ -756,23 +796,30 @@ test("keeps two actions that resolve to the same label fully independent", async
       ],
     },
   ] as const;
+
   const screen = await render(
     <Table
       aria-label="Products"
-      columns={sameLabelColumns}
+      columns={columnsBeforeCollision}
       rows={[{ id: "1", item: { id: "1" } }]}
     />,
   );
-  const buttons = screen.getByRole("button", { name: "Edit" }).elements() as HTMLElement[];
-  expect(buttons).toHaveLength(2);
+  const editAgainButton = screen.getByRole("button", { name: "Edit" }).element() as HTMLElement;
+  editAgainButton.focus();
+  expect(document.activeElement).toBe(editAgainButton);
 
-  buttons[0]?.click();
-  expect(onEdit).toHaveBeenCalledOnce();
-  expect(onEditAgain).not.toHaveBeenCalled();
+  await screen.rerender(
+    <Table
+      aria-label="Products"
+      columns={columnsWithCollision}
+      rows={[{ id: "1", item: { id: "1" } }]}
+    />,
+  );
 
-  buttons[1]?.click();
+  expect(document.activeElement).toBe(editAgainButton);
+  editAgainButton.click();
   expect(onEditAgain).toHaveBeenCalledOnce();
-  expect(onEdit).toHaveBeenCalledOnce();
+  expect(onEdit).not.toHaveBeenCalled();
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -846,43 +893,51 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   await expectNoAccessibilityViolations(screen.container);
 });
 
-type MinimalItem = { id: string; name: string };
+// A `sortable` value typed `boolean` instead of the literal `true` (one built from a variable, not
+// written as `true` in place) used to satisfy this union anyway, in both shapes below — alone, or
+// alongside a genuinely-literal sortable column, where the loophole was worse: sort/onSortChange
+// became required (satisfied by the real column), so nothing stopped a caller's own value here from
+// rendering interactively too, calling that handler with a key it was never typed to receive.
+// TableUnsortableDataColumn's own `defaultDirection?: never` (see Table.tsx) closes both: the only
+// way left to write a sortable column is the literal `sortable: true` that already forces the
+// handler to be typed for it, so there is no runtime case left for a boundary to guard.
+test("does not accept a non-literal boolean sortable value, alone or beside a genuinely sortable column", () => {
+  type MinimalItem = { id: string; name: string };
+  expectTypeOf<{
+    key: string;
+    title: string;
+    sortable: boolean;
+    defaultDirection: TableSortDirection;
+    render: (item: MinimalItem) => string;
+  }>().not.toExtend<TableColumn<MinimalItem>>();
 
-const minimalItemRows: TableRow<MinimalItem>[] = [{ id: "1", item: { id: "1", name: "Coffee" } }];
-// Typed `boolean`, not the literal `true`: TypeScript widens this past both branches of the
-// sortable/unsortable union, so a column built with it can compile without sort/onSortChange ever
-// being required, and column.sortable === true at runtime with nothing to call it with.
-const nonLiteralSortable: boolean = true;
+  expectTypeOf<{
+    key: string;
+    title: string;
+    sortable: true;
+    defaultDirection: TableSortDirection;
+    render: (item: MinimalItem) => string;
+  }>().toExtend<TableColumn<MinimalItem>>();
 
-// A plain component, not a value built inline inside the test itself: the widening above only
-// shows up in a component function the way a real caller in apps/*/src would actually write one —
-// a JSX expression checked directly inside a vitest test() callback keeps requiring both props.
-function ColumnWithNonLiteralSortable() {
-  return (
-    <Table
-      aria-label="Products"
-      rows={minimalItemRows}
-      columns={[
-        {
-          key: "name",
-          title: "Producto",
-          sortable: nonLiteralSortable,
-          defaultDirection: "ascending",
-          render: (item: MinimalItem) => item.name,
-        },
-      ]}
-    />
-  );
-}
-
-test("keeps a sortable header non-interactive when the caller never passed onSortChange, even if sortable itself typechecks", async () => {
-  const screen = await render(<ColumnWithNonLiteralSortable />);
-  const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
-
-  expect(header.querySelector("button")).toBeNull();
-  expect(header.getAttribute("aria-sort")).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
+  // The mixed tuple specifically: one genuinely sortable column beside one that only claims to be.
+  expectTypeOf<
+    [
+      {
+        key: "name";
+        title: string;
+        sortable: true;
+        defaultDirection: TableSortDirection;
+        render: (item: MinimalItem) => string;
+      },
+      {
+        key: "other";
+        title: string;
+        sortable: boolean;
+        defaultDirection: TableSortDirection;
+        render: (item: MinimalItem) => string;
+      },
+    ]
+  >().not.toExtend<readonly [TableColumn<MinimalItem>, ...TableColumn<MinimalItem>[]]>();
 });
 
 test("makes the sortable header's own button reach every edge of the header cell, padding included", async () => {

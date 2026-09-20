@@ -26,6 +26,13 @@ type TableSortableDataColumn<T> = TableColumnCommon<T> & {
 
 type TableUnsortableDataColumn<T> = TableColumnCommon<T> & {
   sortable?: false;
+  // Forbidding defaultDirection here (rather than leaving it simply absent) is what actually
+  // closes a real TypeScript loophole: without it, a `sortable` value typed `boolean` instead of
+  // the literal `true` — one built from a variable, not a literal — can satisfy this union anyway,
+  // since a wide, non-literal discriminant is checked leniently against a union with no other
+  // property to disqualify it. A required-but-forbidden property on the other branch does
+  // disqualify it, because `defaultDirection` can never be assignable to `never`.
+  defaultDirection?: never;
 };
 
 type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn<T>;
@@ -256,7 +263,7 @@ function SortableColumnHeader<T>({
 }: {
   column: TableSortableDataColumn<T>;
   sort: TableSort | undefined;
-  onSortChange: ((sort: TableSort) => void) | undefined;
+  onSortChange: (sort: TableSort) => void;
   isFirst: boolean;
   isLast: boolean;
 }) {
@@ -271,9 +278,6 @@ function SortableColumnHeader<T>({
         : ChevronsUpDown;
 
   function handlePress() {
-    if (!onSortChange) {
-      return;
-    }
     onSortChange({
       column: column.key,
       direction: isSorted ? oppositeDirection(sort.direction) : column.defaultDirection,
@@ -324,11 +328,18 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
 // a whole instead (see Table below). It renders as soon as loading starts and stays invisible
 // (opacity 0) for the reveal animation's own 300ms delay, defined in tokens.css; there is no
 // timer or effect involved, so nothing here needs to wait or clean anything up.
-function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
+function SkeletonRow<T>({
+  columns,
+  isLast,
+}: {
+  columns: readonly TableColumn<T>[];
+  isLast: boolean;
+}) {
   return (
     <tr
       className={[
-        "h-14 shadow-[inset_0_-1px_0_0_var(--color-line)]",
+        "h-14",
+        rowBoxShadowClassName(undefined, isLast),
         "animate-table-placeholder-reveal",
       ].join(" ")}
     >
@@ -558,7 +569,13 @@ export function Table<T>({
             </thead>
             <tbody aria-hidden={showingPlaceholders ? true : undefined}>
               {showingPlaceholders
-                ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
+                ? PLACEHOLDER_ROW_IDS.map((id, index) => (
+                    <SkeletonRow
+                      key={id}
+                      columns={columns}
+                      isLast={index === PLACEHOLDER_ROW_IDS.length - 1}
+                    />
+                  ))
                 : rows.map(({ id, item, state }, rowIndex) => (
                     <tr
                       key={id}
