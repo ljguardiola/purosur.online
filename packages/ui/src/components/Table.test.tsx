@@ -532,6 +532,28 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("makes the sortable header's own button reach every edge of the header cell, padding included", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  const headerRect = header.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+
+  expect(buttonRect.left).toBeCloseTo(headerRect.left, 0);
+  expect(buttonRect.right).toBeCloseTo(headerRect.right, 0);
+  expect(buttonRect.top).toBeCloseTo(headerRect.top, 0);
+  expect(buttonRect.bottom).toBeCloseTo(headerRect.bottom, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("sits the sort chevron 4px after the column title", async () => {
   const screen = await render(
     <Table
@@ -750,6 +772,59 @@ test("renders each placeholder bar at its own declared width, cycling per column
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders one placeholder square, right-aligned, for a one-button actions column", async () => {
+  const actionColumns = [
+    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "actions", kind: "actions", srLabel: "Actions", count: 1, render: () => null },
+  ] as const;
+  const screen = await render(
+    <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,
+  );
+  const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
+  const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
+  const squares = actionsCell.querySelectorAll(".bg-surface-sand");
+
+  expect(squares).toHaveLength(1);
+  const squareRect = (squares[0] as HTMLElement).getBoundingClientRect();
+  expect(squareRect.width).toBeCloseTo(38, 0);
+  expect(squareRect.height).toBeCloseTo(38, 0);
+  const cellPaddingRight = Number.parseFloat(getComputedStyle(actionsCell).paddingRight);
+  expect(squareRect.right).toBeCloseTo(
+    actionsCell.getBoundingClientRect().right - cellPaddingRight,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders two placeholder squares with an 8px gap, right-aligned, for a two-button actions column", async () => {
+  const actionColumns = [
+    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    { key: "actions", kind: "actions", srLabel: "Actions", count: 2, render: () => null },
+  ] as const;
+  const screen = await render(
+    <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,
+  );
+  const firstRow = screen.container.querySelector('tbody[aria-hidden="true"] tr') as HTMLElement;
+  const actionsCell = firstRow.querySelectorAll("td")[1] as HTMLElement;
+  const squares = actionsCell.querySelectorAll(".bg-surface-sand");
+
+  expect(squares).toHaveLength(2);
+  const [first, second] = Array.from(squares).map((el) =>
+    (el as HTMLElement).getBoundingClientRect(),
+  );
+  expect(first?.width).toBeCloseTo(38, 0);
+  expect(second?.width).toBeCloseTo(38, 0);
+  expect((second?.left ?? 0) - (first?.right ?? 0)).toBeCloseTo(8, 0);
+  const cellPaddingRight = Number.parseFloat(getComputedStyle(actionsCell).paddingRight);
+  expect(second?.right).toBeCloseTo(
+    actionsCell.getBoundingClientRect().right - cellPaddingRight,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // loading="initial" means the caller doesn't have a confirmed first result yet, so any rows it
 // still passes alongside that (e.g. stale defaults, or leftovers from a previous, now-invalidated
 // render) are exactly what the placeholders exist to hide: showing them would flash content the
@@ -828,6 +903,31 @@ test("slides the updating bar's segment left to right in a loop", async () => {
   const style = getComputedStyle(segment);
   expect(style.animationName).not.toBe("none");
   expect(style.animationIterationCount).toBe("infinite");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("slides the updating bar's segment exactly from off the left edge to off the right edge, with no dead time", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
+  const segment = bar.firstElementChild as HTMLElement;
+
+  const [animation] = segment.getAnimations();
+  if (!animation) {
+    throw new Error("Expected the updating bar's segment to have a running CSS animation.");
+  }
+  animation.pause();
+  const barRect = bar.getBoundingClientRect();
+  const duration = Number((animation.effect as KeyframeEffect).getTiming().duration);
+
+  animation.currentTime = 0;
+  expect(segment.getBoundingClientRect().right).toBeCloseTo(barRect.left, 0);
+
+  // 1ms short of the duration itself: at the exact duration, an infinite iteration count
+  // resolves to the *next* iteration's start (back at the left edge), not this one's end.
+  animation.currentTime = duration - 1;
+  expect(segment.getBoundingClientRect().left).toBeCloseTo(barRect.right, 0);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -985,6 +1085,31 @@ test("keeps showing the footer while updating", async () => {
   );
 
   await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// design.pen's own "Backoffice / Productos · Sin resultados" screen keeps its table footer's
+// count text ("0 de 215 productos") visible next to the empty state, with no pagination in it
+// (nothing to paginate through zero results).
+test("keeps showing the footer alongside the empty state", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      footer={<p>0 of 215 products</p>}
+      empty={{
+        icon: <PackageSearch />,
+        title: "No matches",
+        detail: "Try a different filter.",
+        tone: "filtered",
+      }}
+    />,
+  );
+
+  await expect.element(screen.getByText("No matches")).toBeVisible();
+  await expect.element(screen.getByText("0 of 215 products")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });

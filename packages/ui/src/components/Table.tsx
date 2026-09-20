@@ -218,9 +218,11 @@ function oppositeDirection(direction: TableSortDirection): TableSortDirection {
 
 const sortIconClassName = "size-3 shrink-0";
 
-// Fills its whole header cell so the entire header area activates sorting, not just the text.
+// Fills its whole header cell (the cell's own horizontal padding lives inside the button, not
+// the <th>, so the button's own box reaches every edge of the cell) so the entire header area
+// activates sorting, not just the text.
 const headerButtonClassName =
-  "flex w-full items-center gap-1 outline-none " +
+  "flex h-full w-full items-center gap-1 outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
@@ -228,10 +230,14 @@ function SortableColumnHeader<T>({
   column,
   sort,
   onSortChange,
+  isFirst,
+  isLast,
 }: {
   column: TableSortableDataColumn<T>;
   sort: TableSort | undefined;
   onSortChange: ((sort: TableSort) => void) | undefined;
+  isFirst: boolean;
+  isLast: boolean;
 }) {
   const isSorted = sort?.column === column.key;
   const direction = isSorted ? sort.direction : undefined;
@@ -258,6 +264,7 @@ function SortableColumnHeader<T>({
       onPress={handlePress}
       className={[
         headerButtonClassName,
+        cellHorizontalPaddingClassName(isFirst, isLast),
         column.align === "end" ? "justify-end" : "justify-start",
       ].join(" ")}
     >
@@ -319,7 +326,12 @@ function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
             ].join(" ")}
           >
             {isActions ? (
-              <div className="ml-auto size-[2.375rem] rounded-lg bg-surface-sand" />
+              <div className="flex flex-row items-center justify-end gap-2">
+                <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                {column.count === 2 && (
+                  <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
+                )}
+              </div>
             ) : (
               <div
                 className={["flex", align === "end" ? "justify-end" : "justify-start"].join(" ")}
@@ -434,7 +446,7 @@ export function Table<T>({
           </div>
         )}
         {showEmptyState && empty ? (
-          <section aria-label={ariaLabel} aria-busy={loading ? true : undefined}>
+          <section aria-label={ariaLabel}>
             <TableEmptyState {...empty} />
           </section>
         ) : (
@@ -458,8 +470,12 @@ export function Table<T>({
                       aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
                       style={headerColumnWidthStyle(column, isFirst, isLast)}
                       className={[
-                        "align-middle",
-                        cellHorizontalPaddingClassName(isFirst, isLast),
+                        // The explicit height (not just the <tr>'s) gives the sortable header
+                        // button's own h-full something definite to resolve 100% against.
+                        "h-11 align-middle",
+                        // A sortable header's own hit area needs to reach the cell's full box, so
+                        // its padding lives on the button instead (see SortableColumnHeader).
+                        isSortable ? "" : cellHorizontalPaddingClassName(isFirst, isLast),
                         "text-xs font-bold uppercase",
                         alignClassName(isActions ? "start" : column.align),
                       ].join(" ")}
@@ -471,6 +487,8 @@ export function Table<T>({
                           column={column}
                           sort={sort}
                           onSortChange={onSortChange}
+                          isFirst={isFirst}
+                          isLast={isLast}
                         />
                       ) : (
                         <span className="text-ink-secondary">{column.title}</span>
