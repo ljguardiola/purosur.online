@@ -26,10 +26,12 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
   // Takes the width its row has free: the whole row when it is alone in it, what a content-sized
-  // button beside it leaves, or an equal share of it beside another button asked for the same —
-  // equal inside their borders, so a bordered one measures those 2px wider. The row has to know
-  // its own width for there to be anything free to take, and a vertical stack already gives a
-  // button its full width, so neither of those cases is what this is for.
+  // button beside it leaves, or an equal share beside another button asked for the same — equal
+  // once each has taken the room its own padding and border need, so a bordered one measures
+  // those 2px wider. None of it reaches below the width a button's own label needs: a row too
+  // narrow for its buttons squeezes every one of them and then spills, asked for or not. A row
+  // only as wide as what it holds has nothing free to give, and a vertical stack hands a button
+  // its full width already, so neither of those needs this.
   fullWidth?: boolean;
 };
 
@@ -44,9 +46,10 @@ export type ButtonProps = ButtonCommonProps &
     | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
   );
 
-// A stretched button starts from no width of its own and grows into what its row has left over,
-// rather than asking for the whole row and letting the row take the excess back: the row takes
-// part of that back out of the button beside it, squeezing its label onto a second line.
+// A stretched button asks for no width beyond what its own padding and border need, and grows
+// into what the row has left over. Asking for the whole row instead and letting the row take the
+// excess back is what the earlier version did, and the row took part of that back out of the
+// button beside it, squeezing its label onto a second line.
 const widthClassName = { content: "inline-flex", full: "flex grow basis-0" } as const;
 
 const baseClassName =
@@ -57,15 +60,23 @@ const baseClassName =
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
   "data-[disabled]:opacity-[0.45]";
 
-// Each size states its height three times: as the height the button has, and as a floor and a
-// ceiling it cannot pass. A stretched button grows along whichever direction its container runs
-// and takes its base size from that growth rather than from its height, so in a vertical stack it
-// would otherwise come out as tall as the stack, or as short as the line of text inside it.
 const sizeClassName: Record<ButtonSize, string> = {
-  small: "h-[2.5rem] min-h-[2.5rem] max-h-[2.5rem] text-base",
-  medium: "h-[3rem] min-h-[3rem] max-h-[3rem] text-base",
-  large: "h-[3.5rem] min-h-[3.5rem] max-h-[3.5rem] text-lg",
-  sale: "h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem] text-2xl",
+  small: "h-[2.5rem] text-base",
+  medium: "h-[3rem] text-base",
+  large: "h-[3.5rem] text-lg",
+  sale: "h-[4.5rem] text-2xl",
+};
+
+// A stretched button takes its size from how far it grows rather than from its height, and it
+// grows along whichever direction its container runs: in a vertical stack it would come out as
+// tall as the stack, or as short as the line of text inside it. A floor and a ceiling hold it at
+// its height instead. Only a stretched button needs them, so an unstretched one is left with the
+// height above and the ordinary freedom to be squeezed by a container too small for it.
+const stretchedHeightClassName: Record<ButtonSize, string> = {
+  small: "min-h-[2.5rem] max-h-[2.5rem]",
+  medium: "min-h-[3rem] max-h-[3rem]",
+  large: "min-h-[3.5rem] max-h-[3.5rem]",
+  sale: "min-h-[4.5rem] max-h-[4.5rem]",
 };
 
 // The medium the other variants default to is never drawn for the text variant, so it defaults
@@ -109,10 +120,12 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
+  const resolvedSize = size ?? defaultSize[variant];
   const className = [
     widthClassName[fullWidth ? "full" : "content"],
     baseClassName,
-    sizeClassName[size ?? defaultSize[variant]],
+    sizeClassName[resolvedSize],
+    fullWidth ? stretchedHeightClassName[resolvedSize] : "",
     variantClassName[variant],
     variant === "primary" ? primaryToneClassName[tone] : "",
   ]
