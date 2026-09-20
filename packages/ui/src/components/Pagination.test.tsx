@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
@@ -313,6 +314,60 @@ test("moves to the previous and next page", async () => {
 
   await screen.getByRole("button", { name: "Siguiente" }).click();
   expect(onPageChange).toHaveBeenLastCalledWith(4);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Mirrors how a real caller wires this controlled component (page/onPageChange round-tripped
+// through the caller's own state), which is what actually exercises the re-render that disables
+// Previous/Next: a plain onPageChange spy never re-renders, so it could never observe the
+// disabled-button-loses-focus problem in the first place.
+function ControlledPagination({
+  initialPage,
+  ...props
+}: Omit<PaginationProps, "page" | "onPageChange"> & { initialPage: number }) {
+  const [page, setPage] = useState(initialPage);
+  return <Pagination {...props} page={page} onPageChange={setPage} />;
+}
+
+test("moves focus to the last page's button when Next disables itself", async () => {
+  const screen = await render(
+    <ControlledPagination
+      initialPage={4}
+      pageCount={5}
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(lastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("moves focus to page 1's button when Previous disables itself", async () => {
+  const screen = await render(
+    <ControlledPagination
+      initialPage={2}
+      pageCount={5}
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+
+  await screen.getByRole("button", { name: "Anterior" }).click();
+
+  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(firstPageButton);
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
 
   await expectNoAccessibilityViolations(screen.container);
 });

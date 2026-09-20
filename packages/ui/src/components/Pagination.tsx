@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 export type PaginationProps = {
@@ -120,17 +121,35 @@ export function Pagination({
   pageLabel,
 }: PaginationProps) {
   const resolvedPageCount = resolvePageCount(pageCount);
+  const pageButtonRefs = useRef(new Map<number, HTMLButtonElement>());
+
   if (resolvedPageCount <= 1) {
     return null;
   }
 
   const currentPage = resolvePage(page, resolvedPageCount);
 
+  // Pressing Previous/Next onto the very page that disables it (page 1, or the last page) would
+  // otherwise leave a disabled button holding focus, and a disabled element can't hold it: the
+  // browser drops focus to the document body, and a keyboard user loses their place. That target
+  // page's own button is already on screen before the press (pagePlaces always keeps page 1 and
+  // the last page in the fixed 5 places), so focus moves there in the same handler, before the
+  // re-render that disables the nav button even happens.
+  function focusPageButton(target: number) {
+    pageButtonRefs.current.get(target)?.focus();
+  }
+
   return (
     <nav aria-label={label} className="flex items-center gap-2">
       <AriaButton
         isDisabled={currentPage <= 1}
-        onPress={() => onPageChange(previousPage(currentPage))}
+        onPress={() => {
+          const target = previousPage(currentPage);
+          onPageChange(target);
+          if (target === 1) {
+            focusPageButton(1);
+          }
+        }}
         className={navButtonClassName}
       >
         {previousLabel}
@@ -144,6 +163,13 @@ export function Pagination({
               </span>
             ) : (
               <AriaButton
+                ref={(element) => {
+                  if (element) {
+                    pageButtonRefs.current.set(place.page, element);
+                  } else {
+                    pageButtonRefs.current.delete(place.page);
+                  }
+                }}
                 aria-label={pageLabel(place.page)}
                 {...(place.page === currentPage ? { "aria-current": "page" as const } : {})}
                 onPress={() => {
@@ -164,7 +190,13 @@ export function Pagination({
       </ul>
       <AriaButton
         isDisabled={currentPage >= resolvedPageCount}
-        onPress={() => onPageChange(nextPage(currentPage, resolvedPageCount))}
+        onPress={() => {
+          const target = nextPage(currentPage, resolvedPageCount);
+          onPageChange(target);
+          if (target === resolvedPageCount) {
+            focusPageButton(resolvedPageCount);
+          }
+        }}
         className={navButtonClassName}
       >
         {nextLabel}
