@@ -135,6 +135,28 @@ test("keeps a long value inside the row, growing it instead of overflowing", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps the label's word on its own line, clear of the value, under a long value", async () => {
+  const longValue = "A very long value that does not fit on a single line inside this narrow row";
+  const screen = await render(
+    <div style={{ width: "200px" }}>
+      <SummaryRow label="Payment" value={longValue} />
+    </div>,
+  );
+  const label = screen.getByText("Payment", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText(longValue, { exact: true }).element() as HTMLElement;
+  const labelLines = document.createRange();
+  labelLines.selectNodeContents(label);
+  const labelLineRects = Array.from(labelLines.getClientRects());
+  const valueLeft = value.getBoundingClientRect().left;
+
+  expect(labelLineRects).toHaveLength(1);
+  for (const lineRect of labelLineRects) {
+    expect(lineRect.right).toBeLessThanOrEqual(valueLeft);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("flushes every line of a wrapped value against the row's right edge", async () => {
   const longValue = "A very long value that does not fit on a single line inside this narrow row";
   const screen = await render(
