@@ -80,6 +80,26 @@ test("renders every option's 20px circle 12px from its label, vertically centere
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("stacks options vertically, 12px apart", async () => {
+  const screen = await render(<RadioGroup {...baseProps()} />);
+
+  const cashRect = radioLabel(screen, "Cash").getBoundingClientRect();
+  const cardRect = radioLabel(screen, "Card").getBoundingClientRect();
+  const transferRect = radioLabel(screen, "Transfer").getBoundingClientRect();
+
+  expect(cardRect.left).toBeCloseTo(cashRect.left, 0);
+  expect(transferRect.left).toBeCloseTo(cashRect.left, 0);
+
+  const firstGap = cardRect.top - cashRect.bottom;
+  const secondGap = transferRect.top - cardRect.bottom;
+  expect(firstGap).toBeGreaterThan(11);
+  expect(firstGap).toBeLessThan(13);
+  expect(secondGap).toBeGreaterThan(11);
+  expect(secondGap).toBeLessThan(13);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("colors an unchecked circle white with a 2px ink-secondary border", async () => {
   const screen = await render(<RadioGroup {...baseProps({ value: "card" })} />);
   const circle = radioCircle(screen, "Cash");
@@ -120,24 +140,31 @@ test("keeps the circle's size stable between the unchecked and checked states", 
   await expectNoAccessibilityViolations(checkedScreen.container);
 });
 
-test("turns a hovered circle's background bone, whether checked or unchecked", async () => {
+test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondary boundary", async () => {
   const screen = await render(<RadioGroup {...baseProps({ value: "cash" })} />);
   const uncheckedLabel = radioLabel(screen, "Card");
   const uncheckedCircle = radioCircle(screen, "Card");
-  const checkedLabel = radioLabel(screen, "Cash");
-  const checkedCircle = radioCircle(screen, "Cash");
 
   await userEvent.hover(uncheckedLabel);
   await expect
     .poll(() => getComputedStyle(uncheckedCircle).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-  expect(getComputedStyle(uncheckedCircle).boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(uncheckedCircle).boxShadow).toContain(
+    insetBoundary("ink-secondary", "2px"),
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("darkens a hovered checked circle's ring to brand-blue-strong", async () => {
+  const screen = await render(<RadioGroup {...baseProps({ value: "cash" })} />);
+  const checkedLabel = radioLabel(screen, "Cash");
+  const checkedCircle = radioCircle(screen, "Cash");
 
   await userEvent.hover(checkedLabel);
   await expect
-    .poll(() => getComputedStyle(checkedCircle).backgroundColor)
-    .toBe(tokenRgb("surface-bone"));
-  expect(getComputedStyle(checkedCircle).boxShadow).toContain(tokenRgb("brand-blue-ui"));
+    .poll(() => getComputedStyle(checkedCircle).boxShadow)
+    .toContain(insetBoundary("brand-blue-strong", "6px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -313,17 +340,13 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<RadioGroupProps<PaymentMethod>>();
 });
 
-// See OptionCardGroup.test.tsx's own isValidOptionCardGroupCall for the full rationale: this
-// proves the NoInfer fix at a real call site with no explicit type argument, the way JSX
-// actually invokes the component, since TypeScript must reject `value: "other"` by inferring V
-// from `options` alone rather than by widening V to also cover `value`.
-type RadioGroupValueOnlyProps<V extends string> = {
-  options: readonly [Pick<RadioOption<V>, "value">, ...Pick<RadioOption<V>, "value">[]];
-  value: RadioGroupProps<V>["value"];
-  onChange: RadioGroupProps<V>["onChange"];
-};
-
-function isValidRadioGroupCall<V extends string>(props: RadioGroupValueOnlyProps<V>): true;
+// This proves the NoInfer fix at a real call site with no explicit type argument, the way JSX
+// actually invokes the component, against the exported RadioGroupProps itself: TypeScript must
+// reject `value: "other"` by inferring V from `options` alone rather than by widening V to also
+// cover `value`. Unlike OptionCardGroup's OptionCardOption, RadioOption carries no element-typed
+// field (just `value` and `label`), so nothing here breaks overload inference and no mirror type
+// projecting `options` down to `Pick<RadioOption<V>, "value">` is needed.
+function isValidRadioGroupCall<V extends string>(props: RadioGroupProps<V>): true;
 function isValidRadioGroupCall(props: unknown): false;
 function isValidRadioGroupCall(_props: unknown): boolean {
   return true;
@@ -331,14 +354,22 @@ function isValidRadioGroupCall(_props: unknown): boolean {
 
 test("cannot widen V through `value` at a real call site with no explicit type argument", () => {
   const validCall = isValidRadioGroupCall({
-    options: [{ value: "cash" }, { value: "card" }],
+    label: "Payment method",
+    options: [
+      { value: "cash", label: "Cash" },
+      { value: "card", label: "Card" },
+    ],
     value: "cash",
     onChange: () => {},
   });
   expectTypeOf(validCall).toEqualTypeOf<true>();
 
   const invalidCall = isValidRadioGroupCall({
-    options: [{ value: "cash" }, { value: "card" }],
+    label: "Payment method",
+    options: [
+      { value: "cash", label: "Cash" },
+      { value: "card", label: "Card" },
+    ],
     value: "other",
     onChange: () => {},
   });

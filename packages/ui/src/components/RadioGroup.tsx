@@ -23,17 +23,22 @@ const radioLabelClassName =
   "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
 
 // Unlike Checkbox's box, the circle's fill stays white in both states (see the design table in
-// the issue: unchecked and checked both read "white"), so — unlike Checkbox, whose checked box
-// swaps to a flat blue fill and so darkens further on hover — hovering the circle always turns
-// it bone, whether or not it's checked; only the ring drawn under it (border vs. blue UI ring)
-// tells the two states apart. Both the border and the ring are drawn with an inset box-shadow
-// instead of a real border, for the same reason as Checkbox.tsx's boxClassName: it never
-// participates in layout, so growing from a 2px border to a 6px ring never resizes the circle.
+// the issue: unchecked and checked both read "white"), so an unchecked circle's own brand element
+// is that white-to-bone fill, and hovering it darkens the fill exactly like Checkbox's unchecked
+// box. A checked circle's brand element is instead the ring drawn under it, so — mirroring
+// Checkbox's checked box (blue UI to blue strong) and Toggle's track (green UI to green strong) —
+// hovering a checked circle darkens that ring from blue UI to blue strong. Both the border and
+// the ring are drawn with an inset box-shadow instead of a real border, for the same reason as
+// Checkbox.tsx's boxClassName: it never participates in layout, so growing from a 2px border to a
+// 6px ring never resizes the circle.
 const circleClassName =
   "size-5 shrink-0 rounded-full outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +
+  // Two attribute selectors outrank the single-attribute selected rule above regardless of
+  // stylesheet order, guaranteeing the checked ring's hover color wins over its resting one.
+  "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-strong)] " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
   "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
 
