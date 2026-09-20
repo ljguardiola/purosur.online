@@ -216,27 +216,66 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// A barcode scanner acts as a keyboard sending keystrokes as fast as it can, with no pauses
-// between characters the way a person typing would leave. This exercises the field's own
-// controlled-value round trip (onChange -> caller state -> value prop back down) the same way
-// TextField.test.tsx's own harnesses do: an uncontrolled input, or one that debounces/batches its
-// onChange, would drop or reorder characters under this fast a sequence, which is exactly the
-// failure mode a barcode scanner would trigger in production.
-test("keeps every character of a fast barcode-scanner keystroke sequence, in order", async () => {
-  const screen = await render(
-    <SearchFieldHarness
-      variant="register"
-      placeholder="Scan or type the product name"
-      icon={<Search />}
-    />,
+// The register's own use of the field: a scan fills it, and once the product is on the sale the
+// register empties it for the next one. Rendering the caller's state beside the field, and
+// driving the value from there after mount, is what tells a controlled field from an uncontrolled
+// one — the input's own value alone reads the same either way, since the DOM keeps it by itself.
+function ScanHarness() {
+  const [value, setValue] = useState("");
+  return (
+    <>
+      <SearchField
+        variant="register"
+        value={value}
+        onChange={setValue}
+        placeholder="Scan or type the product name"
+        icon={<Search />}
+      />
+      <p data-testid="caller-value">{value}</p>
+      <button type="button" onClick={() => setValue("")}>
+        Add to the sale
+      </button>
+    </>
   );
+}
+
+function callerValue(screen: Screen): string {
+  return screen.getByTestId("caller-value").element().textContent ?? "";
+}
+
+// A barcode scanner acts as a keyboard sending keystrokes as fast as it can, with no pauses
+// between characters the way a person typing would leave.
+test("hands a fast barcode-scanner keystroke sequence to its caller whole, and renders the value that caller sends back down", async () => {
+  const screen = await render(<ScanHarness />);
   const input = fieldInput(screen, "Scan or type the product name");
   const barcode = "7791234567890";
 
   await userEvent.click(input);
   await userEvent.keyboard(barcode);
 
+  expect(callerValue(screen)).toBe(barcode);
   expect(input.value).toBe(barcode);
+
+  await userEvent.click(screen.getByRole("button", { name: "Add to the sale" }).element());
+
+  expect(callerValue(screen)).toBe("");
+  expect(input.value).toBe("");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("clears the field and its caller's state when Escape is pressed", async () => {
+  const screen = await render(<ScanHarness />);
+  const input = fieldInput(screen, "Scan or type the product name");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("7791234567890");
+  expect(callerValue(screen)).toBe("7791234567890");
+
+  await userEvent.keyboard("{Escape}");
+
+  expect(input.value).toBe("");
+  expect(callerValue(screen)).toBe("");
 
   await expectNoAccessibilityViolations(screen.container);
 });
