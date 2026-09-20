@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { boundaryColorHex, rgbToHex, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
+import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
 import { SearchField, type SearchFieldProps } from "./SearchField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -119,8 +119,7 @@ for (const variant of ["register", "backoffice"] as const) {
     const style = getComputedStyle(box);
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-    expect(style.boxShadow).toContain("2px");
+    expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -137,9 +136,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.hover(box);
     await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-    const style = getComputedStyle(box);
-    expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-    expect(style.boxShadow).toContain("2px");
+    expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -204,8 +201,7 @@ for (const variant of ["register", "backoffice"] as const) {
     // The box itself still renders the field's ordinary resting look underneath that dimming —
     // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
-    expect(getComputedStyle(box).boxShadow).toContain("2px");
+    expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
     expect(input.disabled).toBe(true);
 
     await userEvent.tab();
@@ -379,8 +375,10 @@ test("clears the non-text 3:1 contrast minimum between the box's own painted bou
   );
   const box = fieldBox(screen, "Scan or type the product name");
 
+  const restingFill = getComputedStyle(box).backgroundColor;
+  expect(restingFill).toBe(tokenRgb("surface-white"));
   const restingBoundaryHex = boundaryColorHex(box);
-  const restingFillHex = rgbToHex(tokenBackgroundColor("surface-white"));
+  const restingFillHex = rgbToHex(restingFill);
   expect(contrastRatio(restingBoundaryHex, restingFillHex)).toBeGreaterThanOrEqual(
     NON_TEXT_CONTRAST,
   );
@@ -389,7 +387,7 @@ test("clears the non-text 3:1 contrast minimum between the box's own painted bou
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
 
   const hoveredBoundaryHex = boundaryColorHex(box);
-  const hoveredFillHex = rgbToHex(tokenBackgroundColor("surface-bone"));
+  const hoveredFillHex = rgbToHex(getComputedStyle(box).backgroundColor);
   expect(contrastRatio(hoveredBoundaryHex, hoveredFillHex)).toBeGreaterThanOrEqual(
     NON_TEXT_CONTRAST,
   );
