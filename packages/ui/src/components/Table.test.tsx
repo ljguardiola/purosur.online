@@ -674,6 +674,31 @@ test("asks for the opposite direction when activating the column already sorted"
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The header asks for a sort; it never decides one. It renders sorted/unsorted from the `sort`
+// prop alone and holds nothing of its own, so a caller whose handler does nothing leaves the
+// header exactly as it was, never flipping to a sorted look the actual data was never put through.
+test("keeps showing the column as unsorted when the caller's onSortChange does nothing", async () => {
+  const onSortChange = vi.fn();
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={onSortChange}
+    />,
+  );
+  const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
+  const icon = header.querySelector("svg") as SVGSVGElement;
+
+  await screen.getByRole("columnheader", { name: "Producto" }).click();
+
+  expect(onSortChange).toHaveBeenCalledWith({ column: "name", direction: "ascending" });
+  expect(header.getAttribute("aria-sort")).toBe("none");
+  expect(icon.classList.contains("lucide-chevrons-up-down")).toBe(true);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // A widely annotated columns array (see wideColumns below) is the one way `sort.column` can name
 // a key absent from `columns` without a cast: TableSortableColumnKey falls back to plain string
 // for it, so nothing on the caller's side catches a sort left over from columns the caller since
@@ -976,6 +1001,56 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
   expect(bar.getBoundingClientRect().height).toBe(3);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The bar's own geometry puts its 3px band exactly over the top 3px of the header row (proven
+// separately below), which is where a sortable header's own button starts too (that button fills
+// its whole cell, edge to edge). Being merely visual, `aria-hidden`, is not enough on its own: an
+// absolutely positioned sibling still receives pointer events by default, so without this it would
+// physically catch a click landing in that exact 3px band before it ever reaches the button.
+test("does not intercept a click landing on the header underneath the loading bar's own band", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+      loading="updating"
+    />,
+  );
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  const barRect = bar.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+
+  const x = buttonRect.left + 10;
+  const y = (barRect.top + barRect.bottom) / 2;
+
+  expect(document.elementFromPoint(x, y)).toBe(button);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the header's own title text below the loading bar's 3px band", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+      loading="updating"
+    />,
+  );
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
+  const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
+
+  expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    bar.getBoundingClientRect().bottom,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });

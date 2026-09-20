@@ -440,7 +440,9 @@ export function Table<T>({
         {loading === "updating" && (
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
+            // Purely visual, on top of the header's own top edge: without this, it would also
+            // physically catch pointer events there before they reach the header underneath.
+            className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[3px] overflow-hidden bg-brand-blue-message-bg"
           >
             <div className="h-full w-1/3 animate-table-loading-bar bg-brand-blue-ui motion-reduce:animate-none" />
           </div>

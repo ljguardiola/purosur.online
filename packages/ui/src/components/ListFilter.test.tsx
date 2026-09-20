@@ -291,6 +291,24 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
+// selectedKey makes this a fully controlled select: it asks for "open" but shows whatever value
+// prop the caller actually gives back, never the option that was merely clicked. A caller whose
+// onChange does nothing leaves value at "all", so the trigger must keep reading "Todos".
+test("keeps showing the old value when the caller's onChange does nothing", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<ListFilter {...baseProps({ onChange })} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ });
+  await trigger.click();
+
+  await screen.getByRole("option", { name: "Abiertas" }).click();
+
+  expect(onChange).toHaveBeenCalledWith("open");
+  await expect.element(trigger.getByText("Todos", { exact: true })).toBeVisible();
+  expect(trigger.getByText("Abiertas", { exact: true }).query()).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 // react-aria's own Select already treats a selectedKey with no matching option as no selection:
 // verified directly (an explicit null-when-missing fallback produced byte-identical DOM output
 // to passing the stale value straight through), so the component relies on that library
