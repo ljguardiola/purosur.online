@@ -82,6 +82,31 @@ test("renders every row it is given, in order", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders a row it is given as strong or as a saving, not in the plain form", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      rows={[
+        { label: "Discount", value: "-$10.00", saving: true },
+        { label: "Total", value: "$130.00", strong: true },
+      ]}
+    />,
+  );
+  const savingValue = screen.getByText("-$10.00", { exact: true }).element() as HTMLElement;
+  const strongLabel = screen.getByText("Total", { exact: true }).element() as HTMLElement;
+  const strongValue = screen.getByText("$130.00", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(savingValue).color).toBe(tokenRgb("brand-green-ui"));
+
+  expect(getComputedStyle(strongLabel).fontSize).toBe("18px");
+  expect(getComputedStyle(strongLabel).fontWeight).toBe("700");
+  expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("ink"));
+  expect(getComputedStyle(strongValue).fontSize).toBe("18px");
+  expect(getComputedStyle(strongValue).fontWeight).toBe("700");
+  expect(getComputedStyle(strongValue).color).toBe(tokenRgb("ink"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();
