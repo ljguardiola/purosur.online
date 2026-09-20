@@ -451,6 +451,12 @@ export function Table<T>({
           </div>
         )}
         {showEmptyState && empty ? (
+          // Swaps out whatever was focused inside the table (a sortable header, a row action):
+          // the browser's own removal-triggered blur to document.body is left as is, on purpose.
+          // Only the caller knows what actually caused this switch (a filter it owns, a search
+          // box, a deleted row) and whether there's a sensible place to send focus instead (its
+          // own `actions`, or back to the control that triggered the change) — guessing here
+          // would mean picking one cause's right answer for every other cause.
           <section aria-label={ariaLabel}>
             <TableEmptyState {...empty} />
           </section>

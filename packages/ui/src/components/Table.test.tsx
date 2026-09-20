@@ -1234,6 +1234,48 @@ test("renders the empty state in secondary text when nothing matches the filters
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The table can't know what caused the switch to empty (a filter outside it, a search box, a
+// deleted row) or whether there's a sensible place inside its own empty state to send focus —
+// only the caller, which owns whatever triggered the change, has that context. Landing on
+// document.body is the same safe, standard fallback the browser itself produces whenever a
+// focused element is removed, not a broken or stuck state, and a caller that wants better (e.g.
+// sending focus to its own "Clear filters" action) already has everything it needs to do that
+// from the outside: nothing here needs to guess on its behalf.
+test("drops focus to document.body, cleanly, when a focused header disappears into the empty state", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const header = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  header.focus();
+  expect(document.activeElement).toBe(header);
+
+  await screen.rerender(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+      rows={emptyRows}
+      empty={{
+        icon: <PackageSearch />,
+        title: "No matches",
+        detail: "Try a different filter.",
+        tone: "filtered",
+      }}
+    />,
+  );
+
+  expect(screen.container.querySelector("table")).toBeNull();
+  expect(document.activeElement).toBe(document.body);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {
   const screen = await render(
     <Table

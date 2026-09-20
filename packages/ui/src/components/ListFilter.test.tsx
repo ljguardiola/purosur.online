@@ -364,6 +364,38 @@ test("names the trigger for assistive technology with both its label and its cur
 // guarantee from react-aria itself: each Select instance prefixes them with its own generated id.
 // Two filters sharing the exact same option values, rendered together, prove both hold in the
 // real DOM: every id is actually unique, and each trigger's name still resolves to its own value.
+// Duplicate values have no sensible interpretation the types could forbid (nothing stops two
+// independent array entries from sharing a `value`, for any V), so this is a runtime question:
+// react-aria's own collection is keyed by `id` (this component's `option.value`), the same Map
+// semantics as any JS object or Map literal — the last entry with a given key is the only one
+// that exists. Pinned here rather than guarded against, since it's exactly the unsurprising
+// "last write wins" a caller already gets from writing `{ ...a, ...b }` with duplicate keys.
+test("keeps only the last option with a given value, everywhere, when a caller passes duplicates", async () => {
+  const dupOptions: [
+    ListFilterOption<"a" | "b">,
+    ListFilterOption<"a" | "b">,
+    ListFilterOption<"a" | "b">,
+  ] = [
+    { value: "b", label: "Otro" },
+    { value: "a", label: "Primero" },
+    { value: "a", label: "Segundo" },
+  ];
+  const onChange = vi.fn();
+  const screen = await render(
+    <ListFilter label="X" options={dupOptions} value="b" onChange={onChange} />,
+  );
+  const trigger = screen.getByRole("button", { name: /X/ });
+
+  await trigger.click();
+  const optionEls = screen.getByRole("option").elements();
+  expect(optionEls.map((el) => el.textContent)).toEqual(["Otro", "Segundo"]);
+
+  await screen.getByRole("option", { name: "Segundo" }).click();
+  expect(onChange).toHaveBeenCalledWith("a");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("keeps every generated id unique with two filters sharing the same option values rendered together", async () => {
   const screen = await render(
     <>
