@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -177,8 +177,12 @@ test("treats a page below 1 as page 1", async () => {
   const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeEnabled();
+  expect(
+    screen.getByRole("button", { name: "Anterior" }).element().getAttribute("aria-disabled"),
+  ).toBe("true");
+  expect(
+    screen.getByRole("button", { name: "Siguiente" }).element().getAttribute("aria-disabled"),
+  ).toBeNull();
 
   await screen.getByRole("button", { name: "Siguiente" }).click();
   expect(onPageChange).toHaveBeenCalledWith(2);
@@ -194,8 +198,12 @@ test("treats a page above the count as the last page", async () => {
   const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeEnabled();
+  expect(
+    screen.getByRole("button", { name: "Siguiente" }).element().getAttribute("aria-disabled"),
+  ).toBe("true");
+  expect(
+    screen.getByRole("button", { name: "Anterior" }).element().getAttribute("aria-disabled"),
+  ).toBeNull();
 
   await screen.getByRole("button", { name: "Anterior" }).click();
   expect(onPageChange).toHaveBeenCalledWith(4);
@@ -208,7 +216,9 @@ test("treats a NaN page as page 1", async () => {
   const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Anterior" }).element().getAttribute("aria-disabled"),
+  ).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -220,7 +230,9 @@ test("treats a positive infinite page as the last page", async () => {
   const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Siguiente" }).element().getAttribute("aria-disabled"),
+  ).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -232,7 +244,9 @@ test("treats a negative infinite page as page 1", async () => {
   const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Anterior" }).element().getAttribute("aria-disabled"),
+  ).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -264,17 +278,79 @@ test("renders nothing with a non-finite or below-2 page count", async () => {
   }
 });
 
-test("disables Previous on the first page and Next on the last page", async () => {
-  const firstPage = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
-  await expect.element(firstPage.getByRole("button", { name: "Anterior" })).toBeDisabled();
-  await expect.element(firstPage.getByRole("button", { name: "Siguiente" })).toBeEnabled();
-  await expectNoAccessibilityViolations(firstPage.container);
-  await firstPage.unmount();
+test("keeps Previous focusable, tab-reachable, dimmed and marked unavailable at page 1", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+  const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
 
-  const lastPage = await render(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
-  await expect.element(lastPage.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-  await expect.element(lastPage.getByRole("button", { name: "Anterior" })).toBeEnabled();
-  await expectNoAccessibilityViolations(lastPage.container);
+  expect(previous.hasAttribute("disabled")).toBe(false);
+  expect(previous.getAttribute("aria-disabled")).toBe("true");
+  expect(getComputedStyle(previous).opacity).toBe("0.45");
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(previous);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps Next focusable, tab-reachable, dimmed and marked unavailable on the last page", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
+  const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
+
+  expect(next.hasAttribute("disabled")).toBe(false);
+  expect(next.getAttribute("aria-disabled")).toBe("true");
+  expect(getComputedStyle(next).opacity).toBe("0.45");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// aria-disabled, not the native attribute, is what marks these unavailable, so Playwright's own
+// locator actionability check (which treats aria-disabled as "not enabled") refuses to drive a
+// click through it — exactly the assistive-technology-only signal this is supposed to be, not a
+// real interaction barrier. A real click still reaches the button, so it's dispatched directly.
+test("does nothing when Previous is activated at page 1, by click, Enter or Space", async () => {
+  const onPageChange = vi.fn();
+  const screen = await render(
+    <Pagination {...baseProps({ page: 1, pageCount: 5, onPageChange })} />,
+  );
+  const previousEl = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
+
+  previousEl.focus();
+  previousEl.click();
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(previousEl);
+
+  await userEvent.keyboard("{Enter}");
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(previousEl);
+
+  await userEvent.keyboard(" ");
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(previousEl);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does nothing when Next is activated on the last page, by click, Enter or Space", async () => {
+  const onPageChange = vi.fn();
+  const screen = await render(
+    <Pagination {...baseProps({ page: 5, pageCount: 5, onPageChange })} />,
+  );
+  const nextEl = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
+
+  nextEl.focus();
+  nextEl.click();
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(nextEl);
+
+  await userEvent.keyboard("{Enter}");
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(nextEl);
+
+  await userEvent.keyboard(" ");
+  expect(onPageChange).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(nextEl);
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("gives the caller the chosen page when a page button is pressed", async () => {
@@ -348,8 +424,9 @@ test("activates a page button with Enter, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "3", exact: true }).element();
 
-  // Previous is disabled on page 1 (not in tab order), so the first tab already lands on page 1's
-  // own button: page1, page2, page3.
+  // Previous is unavailable but still tabbable on page 1, so it's the first stop: Previous, page1,
+  // page2, page3.
+  await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
@@ -370,8 +447,9 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "4", exact: true }).element();
 
-  // Previous is disabled on page 1 (not in tab order), so the first tab already lands on page 1's
-  // own button: page1, page2, page3, page4.
+  // Previous is unavailable but still tabbable on page 1, so it's the first stop: Previous, page1,
+  // page2, page3, page4.
+  await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
@@ -387,9 +465,10 @@ test("activates a page button with Space, calling onPageChange and leaving focus
 });
 
 // Mirrors how a real caller wires this controlled component (page/onPageChange round-tripped
-// through the caller's own state), which is what actually exercises the re-render that disables
-// Previous/Next: a plain onPageChange spy never re-renders, so it could never observe the
-// disabled-button-loses-focus problem in the first place.
+// through the caller's own state): the case that used to drop focus to document.body, six review
+// rounds running, because the button that had just been pressed became disabled and unfocusable.
+// Neither nav button is ever disabled now, so there is nothing left to redirect: pressing Next
+// onto the last page just leaves focus exactly where it already was.
 function ControlledPagination({
   initialPage,
   ...props
@@ -398,7 +477,7 @@ function ControlledPagination({
   return <Pagination {...props} page={page} onPageChange={setPage} />;
 }
 
-test("moves focus to the last page's button when Next disables itself", async () => {
+test("leaves focus on Next, never reaching document.body, when pressing it lands on the last page", async () => {
   const screen = await render(
     <ControlledPagination
       initialPage={4}
@@ -409,17 +488,21 @@ test("moves focus to the last page's button when Next disables itself", async ()
       pageLabel={(page) => String(page)}
     />,
   );
+  const next = screen.getByRole("button", { name: "Siguiente" });
+  const nextEl = next.element() as HTMLElement;
 
-  await screen.getByRole("button", { name: "Siguiente" }).click();
+  await next.click();
 
   const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+  await expect.poll(() => lastPageButton.getAttribute("aria-current")).toBe("page");
+  expect(nextEl.getAttribute("aria-disabled")).toBe("true");
+  expect(document.activeElement).toBe(nextEl);
+  expect(document.activeElement).not.toBe(document.body);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("moves focus to page 1's button when Previous disables itself", async () => {
+test("leaves focus on Previous, never reaching document.body, when pressing it lands on page 1", async () => {
   const screen = await render(
     <ControlledPagination
       initialPage={2}
@@ -430,293 +513,24 @@ test("moves focus to page 1's button when Previous disables itself", async () =>
       pageLabel={(page) => String(page)}
     />,
   );
+  const previous = screen.getByRole("button", { name: "Anterior" });
+  const previousEl = previous.element() as HTMLElement;
 
-  await screen.getByRole("button", { name: "Anterior" }).click();
-
-  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(firstPageButton);
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("moves focus to the last page's button when Next is activated with Enter from the keyboard, once it disables", async () => {
-  const screen = await render(
-    <ControlledPagination
-      initialPage={4}
-      pageCount={5}
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
-  const nextButton = screen
-    .getByRole("button", { name: "Siguiente" })
-    .element() as HTMLButtonElement;
-  nextButton.focus();
-  expect(document.activeElement).toBe(nextButton);
-
-  await userEvent.keyboard("{Enter}");
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("moves focus to page 1's button when Previous is activated with Space from the keyboard, once it disables", async () => {
-  const screen = await render(
-    <ControlledPagination
-      initialPage={2}
-      pageCount={5}
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
-  const previousButton = screen
-    .getByRole("button", {
-      name: "Anterior",
-    })
-    .element() as HTMLButtonElement;
-  previousButton.focus();
-  expect(document.activeElement).toBe(previousButton);
-
-  await userEvent.keyboard(" ");
+  await previous.click();
 
   const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(firstPageButton);
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+  await expect.poll(() => firstPageButton.getAttribute("aria-current")).toBe("page");
+  expect(previousEl.getAttribute("aria-disabled")).toBe("true");
+  expect(document.activeElement).toBe(previousEl);
+  expect(document.activeElement).not.toBe(document.body);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The component only knows the page it asked for, not the page it will actually get: a caller
-// that ignores onPageChange (as this plain, non-controlled render does) never re-renders it, so
-// currentPage stays exactly where it was. Nothing should jump to a page button that doesn't match
-// what's actually on screen, and Next never actually becomes disabled, so focus simply stays put.
-test("keeps focus on Next and does not jump to the last page's button when the caller ignores the change", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-  const nextButton = screen.getByRole("button", { name: "Siguiente" }).element();
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  expect(document.activeElement).toBe(nextButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).not.toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("keeps focus on Previous and does not jump to page 1's button when the caller ignores the change", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 2, pageCount: 5 })} />);
-  const previousButton = screen.getByRole("button", { name: "Anterior" }).element();
-
-  await screen.getByRole("button", { name: "Anterior" }).click();
-
-  expect(document.activeElement).toBe(previousButton);
-  await expect.element(screen.getByRole("button", { name: "Anterior" })).not.toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// A caller can go a long time between a boundary press and any resulting re-render (or never
-// re-render at all): the person is free to move focus anywhere on the page in that window. A
-// later, unrelated prop change that happens to land the component on the very boundary that press
-// asked for must never grab focus back from wherever the person actually put it since.
-test("does not steal focus back from wherever the person moved it, when an unrelated later prop change happens to land on the boundary Next asked for", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-  await screen.getByRole("button", { name: "1", exact: true }).click();
-  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
-  expect(document.activeElement).toBe(firstPageButton);
-
-  // Unrelated to the Next press above: the caller shrinks pageCount on its own, which happens to
-  // land currentPage exactly on the boundary Next asked for (page 4 becomes the last of 4 pages),
-  // long after that press and with nothing to do with it.
-  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 4 })} />);
-
-  expect(document.activeElement).toBe(firstPageButton);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// The intent that survives a stale press only records that *a* boundary press happened, not
-// which one: focus was moved to Previous directly (never pressed), and the boundary that actually
-// disables in this render is Previous's own (page 1), unrelated to the earlier, still-unconsumed
-// Next press. The redirect must follow the disabling that is actually happening, not the specific
-// button that happened to set the intent.
-test("redirects focus to page 1's own button when Previous disables, even though the last recorded press was toward Next", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-  const previousButton = screen
-    .getByRole("button", {
-      name: "Anterior",
-    })
-    .element() as HTMLButtonElement;
-  previousButton.focus();
-  expect(document.activeElement).toBe(previousButton);
-
-  await screen.rerender(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
-
-  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
-  expect(document.activeElement).toBe(firstPageButton);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// Isolates the mechanism's one load-bearing browser assumption from its own redirect logic: focus
-// a nav button directly (never through a press, so no intent is ever recorded), then disable that
-// exact button through a prop change alone. Nothing in this component redirects anything here
-// (pending stays false throughout), so document.body afterward can only be the browser's own,
-// unprompted reaction to disabling the element that held focus.
-test("proves the browser itself drops focus to document.body when a focused nav button becomes disabled by a prop change alone", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-  const nextButton = screen
-    .getByRole("button", { name: "Siguiente" })
-    .element() as HTMLButtonElement;
-  nextButton.focus();
-  expect(document.activeElement).toBe(nextButton);
-
-  await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
-
-  expect(document.activeElement).toBe(document.body);
-});
-
-// The positive counterpart to the two staleness tests above: pageCount can genuinely change in
-// the very same update the press itself triggers (e.g. the caller's onPageChange also refreshes a
-// filtered total), landing the redirect on a boundary that only exists because of that combined
-// change. The mechanism has to still catch this, not just correctly ignore the unrelated cases.
-function PaginationThatAlsoShrinksOnNext(
-  props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">,
-) {
-  const [page, setPage] = useState(4);
-  const [pageCount, setPageCount] = useState(5);
-  return (
-    <Pagination
-      {...props}
-      page={page}
-      pageCount={pageCount}
-      onPageChange={(next) => {
-        setPage(next);
-        setPageCount(4);
-      }}
-    />
-  );
-}
-
-test("still redirects focus when pageCount shrinks in the very same update the press triggers", async () => {
-  const screen = await render(
-    <PaginationThatAlsoShrinksOnNext
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  const newLastPageButton = screen.getByRole("button", { name: "4", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(newLastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// Two presses landing in the same React batch: a genuine double-press, both calls to the DOM
-// .click() method fired back to back with no await between them (that method doesn't itself move
-// focus the way a real user click does, so Next is focused explicitly first, the way tabbing to
-// it would leave it) — both onPress handlers read the same still-stale currentPage and both ask
-// for page 5, before React ever gets a chance to re-render in response to the first one.
-test("stays correct when Next is pressed twice before any render lands between the two presses", async () => {
-  const screen = await render(
-    <ControlledPagination
-      initialPage={4}
-      pageCount={5}
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
-  const nextButton = screen
-    .getByRole("button", { name: "Siguiente" })
-    .element() as HTMLButtonElement;
-  nextButton.focus();
-
-  nextButton.click();
-  nextButton.click();
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("still redirects focus correctly when rendered inside React StrictMode", async () => {
-  const screen = await render(
-    <StrictMode>
-      <ControlledPagination
-        initialPage={4}
-        pageCount={5}
-        previousLabel="Anterior"
-        nextLabel="Siguiente"
-        label="Paginación"
-        pageLabel={(page) => String(page)}
-      />
-    </StrictMode>,
-  );
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// If the boundary is only reached later, indirectly (a rerender, not the disabling button's own
-// click), and the browser hasn't dropped focus to document.body — because whatever holds it right
-// now is a genuinely unrelated element outside Pagination entirely, never disabled by this update
-// at all — the mechanism must still do nothing rather than guess.
-test("never redirects focus when a boundary is reached while focus sits on an element outside Pagination entirely", async () => {
-  const screen = await render(
-    <>
-      <input aria-label="Unrelated field" />
-      <Pagination {...baseProps({ page: 4, pageCount: 5 })} />
-    </>,
-  );
-  const unrelatedField = screen
-    .getByRole("textbox", { name: "Unrelated field" })
-    .element() as HTMLInputElement;
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-  unrelatedField.focus();
-  expect(document.activeElement).toBe(unrelatedField);
-
-  await screen.rerender(
-    <>
-      <input aria-label="Unrelated field" />
-      <Pagination {...baseProps({ page: 5, pageCount: 5 })} />
-    </>,
-  );
-
-  expect(document.activeElement).toBe(unrelatedField);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// A real async caller: pressing Next first lands an unrelated re-render (a loading flag flips,
-// the page itself doesn't move yet), and only a tick later, in a *separate* commit, does the page
-// actually land. The intent has to survive that intervening render to still catch the disabling
-// when it finally happens.
+// The exact case that started all this: a real async caller, where pressing Next first lands an
+// unrelated re-render (a loading flag flips, the page itself doesn't move yet) and only a tick
+// later, in a separate commit, does the page actually land. There is no intent to lose track of
+// anymore — Next simply never becomes unfocusable, so focus has nowhere to go but stay.
 function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">) {
   const [page, setPage] = useState(4);
   const [pendingPage, setPendingPage] = useState<number | null>(null);
@@ -740,7 +554,7 @@ function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "on
   );
 }
 
-test("moves focus to the last page's button once Next disables, even when the page lands in a later, separate commit", async () => {
+test("leaves focus on Next, never reaching document.body, even when the page lands in a later, separate commit", async () => {
   const screen = await render(
     <AsyncPagination
       previousLabel="Anterior"
@@ -749,167 +563,19 @@ test("moves focus to the last page's button once Next disables, even when the pa
       pageLabel={(page) => String(page)}
     />,
   );
+  const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
 
   await screen.getByRole("button", { name: "Siguiente" }).click();
+  expect(document.activeElement).toBe(next);
 
   const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+  await expect.poll(() => lastPageButton.getAttribute("aria-current")).toBe("page");
+
+  expect(next.getAttribute("aria-disabled")).toBe("true");
+  expect(document.activeElement).toBe(next);
+  expect(document.activeElement).not.toBe(document.body);
 
   await expectNoAccessibilityViolations(screen.container);
-});
-
-// document.body can hold focus for reasons that have nothing to do with a nav button disabling:
-// the caller moved focus away programmatically, an unrelated element was removed, a click landed
-// on the page background. An intervening render caught in that state, before the real boundary is
-// ever reached, must not discard the armed intent — it has to keep waiting for the change that
-// actually matters, the same way it already does while focus still sits on the nav button itself.
-test("stays armed through an unrelated body-focus that doesn't yet match the boundary, and still redirects once the real change lands", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-  const nextButton = screen
-    .getByRole("button", { name: "Siguiente" })
-    .element() as HTMLButtonElement;
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-  nextButton.blur();
-  expect(document.activeElement).toBe(document.body);
-
-  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otro" })} />);
-  expect(document.activeElement).toBe(document.body);
-
-  await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5, label: "Otro" })} />);
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  expect(document.activeElement).toBe(lastPageButton);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// The intent has to survive an update that changes nothing relevant (a loading flag, an unrelated
-// label), but it only ever gets one real chance: the first time page/pageCount actually differ
-// from what they were at press time, that's treated as the press's own outcome, matched or not.
-// A later, unrelated change that happens to land on a boundary — after several other updates that
-// didn't — must never inherit a long-expired press's redirect.
-test("does not fire later, after an unrelated page change already resolved the press's one chance", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  // Several intervening renders that change nothing relevant: still waiting, correctly.
-  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otro" })} />);
-  await screen.rerender(
-    <Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otra vez" })} />,
-  );
-
-  // An unrelated page change, nothing to do with the press, that doesn't reach a boundary: this
-  // is the press's one chance, taken now even though it doesn't match.
-  await screen.rerender(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
-
-  // Much later, a real boundary is reached — but the press that could have redirected to it
-  // already resolved, unmatched, back when page first changed.
-  await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  expect(document.activeElement).not.toBe(lastPageButton);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// An armed intent has nowhere left to redirect to once its own component is gone: unmounting
-// while a press is still pending must be a clean no-op, not a stranded reference or a thrown
-// error reaching into a removed tree.
-test("removes cleanly, with no error, when unmounted while an intent is still armed", async () => {
-  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
-  const nextButton = screen
-    .getByRole("button", { name: "Siguiente" })
-    .element() as HTMLButtonElement;
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-  expect(document.activeElement).toBe(nextButton);
-
-  await screen.unmount();
-
-  expect(screen.container.innerHTML).toBe("");
-  expect(document.activeElement).toBe(document.body);
-});
-
-// Collapsing to a single page renders nothing (see resolvedPageCount <= 1 above) without the
-// component itself unmounting: the same instance, the same refs, can render again later if
-// pageCount grows back. An intent armed right before that collapse has nowhere left to redirect
-// to, same as a real unmount — the buttons it could have focused are gone from this exact commit,
-// pageButtonRefs is emptied by their own ref cleanup before this effect ever runs, and the
-// browser's own removal-triggered blur to document.body is again the entire, correct outcome.
-function PaginationThatCollapsesOnNext(
-  props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">,
-) {
-  const [page, setPage] = useState(1);
-  const [pageCount, setPageCount] = useState(2);
-  return (
-    <Pagination
-      {...props}
-      page={page}
-      pageCount={pageCount}
-      onPageChange={(next) => {
-        setPage(next);
-        setPageCount(1);
-      }}
-    />
-  );
-}
-
-test("does nothing unsafe when pressing Next collapses the page count to one while the intent is still armed", async () => {
-  const screen = await render(
-    <PaginationThatCollapsesOnNext
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  expect(screen.container.innerHTML).toBe("");
-  expect(document.activeElement).toBe(document.body);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// The redirect only ever compares against document.activeElement, never against any particular
-// ancestor: an ancestor's own tabindex (a focus-trap wrapper, a modal, a scroll region) plays no
-// part in the browser's native disable-triggered blur, which always targets document.body
-// regardless of what else on the page happens to be programmatically focusable.
-test("still redirects correctly wrapped in an ancestor with its own tabindex", async () => {
-  const screen = await render(
-    <div tabIndex={-1}>
-      <ControlledPagination
-        initialPage={4}
-        pageCount={5}
-        previousLabel="Anterior"
-        nextLabel="Siguiente"
-        label="Paginación"
-        pageLabel={(page) => String(page)}
-      />
-    </div>,
-  );
-
-  await screen.getByRole("button", { name: "Siguiente" }).click();
-
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
-  await expect.poll(() => document.activeElement).toBe(lastPageButton);
-  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-// The one browser fact the whole mechanism leans on: with nothing focused yet, before any
-// interaction at all, document.activeElement already reads as document.body — never null, never
-// undefined, never some other implicit default. A document that "never had focus" is already
-// covered by the exact same check the redirect uses.
-test("proves document.activeElement already reads as document.body before any interaction", async () => {
-  await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
-
-  expect(document.activeElement).toBe(document.body);
 });
 
 test("names its own navigation landmark from the caller's label", async () => {
