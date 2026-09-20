@@ -357,6 +357,54 @@ test("names the trigger for assistive technology with both its label and its cur
     .toBeVisible();
 });
 
+// labelId/valueId come from useId(), which React guarantees unique per component instance (and
+// distinct from any hand-authored id, via its reserved ":" characters) — never a literal like
+// "all" that could repeat across two filters or collide with a caller's own markup. The options'
+// own ids (react-aria's internal collection keys, built from the raw option value) get the same
+// guarantee from react-aria itself: each Select instance prefixes them with its own generated id.
+// Two filters sharing the exact same option values, rendered together, prove both hold in the
+// real DOM: every id is actually unique, and each trigger's name still resolves to its own value.
+test("keeps every generated id unique with two filters sharing the same option values rendered together", async () => {
+  const screen = await render(
+    <>
+      <ListFilter {...baseProps({ label: "Primero", value: "open" })} />
+      <ListFilter {...baseProps({ label: "Segundo", value: "closed" })} />
+    </>,
+  );
+
+  await expect
+    .element(screen.getByRole("button", { name: "Primero Abiertas", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Segundo Cerradas", exact: true }))
+    .toBeVisible();
+
+  // Both trigger's own label/value spans stay in the DOM at once; each filter's options only
+  // exist while its own menu is open, so each set is captured separately, one menu at a time.
+  const triggerIds = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
+
+  await screen.getByRole("button", { name: "Primero Abiertas", exact: true }).click();
+  const firstOptionIds = screen
+    .getByRole("option")
+    .elements()
+    .map((el) => (el as HTMLElement).id);
+  await userEvent.keyboard("{Escape}");
+
+  await screen.getByRole("button", { name: "Segundo Cerradas", exact: true }).click();
+  const secondOptionIds = screen
+    .getByRole("option")
+    .elements()
+    .map((el) => (el as HTMLElement).id);
+  await userEvent.keyboard("{Escape}");
+
+  const allIds = [...triggerIds, ...firstOptionIds, ...secondOptionIds];
+  expect(allIds.length).toBeGreaterThan(0);
+  expect(allIds.every((id) => id.length > 0)).toBe(true);
+  expect(new Set(allIds).size).toBe(allIds.length);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("closes the menu and does not call onChange when the already-chosen option is picked again", async () => {
   const onChange = vi.fn();
   const screen = await render(<ListFilter {...baseProps({ value: "open", onChange })} />);

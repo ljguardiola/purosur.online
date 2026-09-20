@@ -158,18 +158,27 @@ export function Pagination({
     const active = document.activeElement;
     const onANavButton = active === previousButtonRef.current || active === nextButtonRef.current;
     if (active !== document.body && !onANavButton) {
+      // Focus sits on neither: a deliberate move elsewhere, by any means. Moot for good.
       pendingBoundaryFocusRef.current = false;
       return;
     }
-    if (active !== document.body) {
-      return;
-    }
-    pendingBoundaryFocusRef.current = false;
-    if (currentPage <= 1) {
+    // document.body can hold focus for reasons that have nothing to do with a nav button
+    // disabling (moved away programmatically, an unrelated element removed, a background click),
+    // so it's only treated as the real signal once it also matches a boundary; otherwise this is
+    // just another intervening render, and the intent stays armed exactly as it does while focus
+    // still sits on the nav button itself.
+    if (active === document.body && currentPage <= 1) {
+      pendingBoundaryFocusRef.current = false;
       pageButtonRefs.current.get(1)?.focus();
-    } else if (currentPage >= resolvedPageCount) {
+    } else if (active === document.body && currentPage >= resolvedPageCount) {
+      pendingBoundaryFocusRef.current = false;
       pageButtonRefs.current.get(resolvedPageCount)?.focus();
     }
+    // An armed intent left pending across an unmount needs no cleanup of its own: React nulls out
+    // previousButtonRef/nextButtonRef/pageButtonRefs as their elements unmount, this effect never
+    // runs again for an unmounted component, and there is no longer a button here to redirect
+    // focus to even if it did — the browser's own removal-triggered blur to document.body is the
+    // entire, correct outcome.
   });
 
   if (resolvedPageCount <= 1) {

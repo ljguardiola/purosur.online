@@ -759,6 +759,50 @@ test("moves focus to the last page's button once Next disables, even when the pa
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// document.body can hold focus for reasons that have nothing to do with a nav button disabling:
+// the caller moved focus away programmatically, an unrelated element was removed, a click landed
+// on the page background. An intervening render caught in that state, before the real boundary is
+// ever reached, must not discard the armed intent — it has to keep waiting for the change that
+// actually matters, the same way it already does while focus still sits on the nav button itself.
+test("stays armed through an unrelated body-focus that doesn't yet match the boundary, and still redirects once the real change lands", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
+  const nextButton = screen
+    .getByRole("button", { name: "Siguiente" })
+    .element() as HTMLButtonElement;
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+  nextButton.blur();
+  expect(document.activeElement).toBe(document.body);
+
+  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otro" })} />);
+  expect(document.activeElement).toBe(document.body);
+
+  await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5, label: "Otro" })} />);
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  expect(document.activeElement).toBe(lastPageButton);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// An armed intent has nowhere left to redirect to once its own component is gone: unmounting
+// while a press is still pending must be a clean no-op, not a stranded reference or a thrown
+// error reaching into a removed tree.
+test("removes cleanly, with no error, when unmounted while an intent is still armed", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
+  const nextButton = screen
+    .getByRole("button", { name: "Siguiente" })
+    .element() as HTMLButtonElement;
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+  expect(document.activeElement).toBe(nextButton);
+
+  await screen.unmount();
+
+  expect(screen.container.innerHTML).toBe("");
+  expect(document.activeElement).toBe(document.body);
+});
+
 test("names its own navigation landmark from the caller's label", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: 1, pageCount: 5, label: "Páginas de resultados" })} />,
