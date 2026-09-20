@@ -25,11 +25,9 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // content, so an empty string or an icon passed as children still compiles; icon-only actions
   // belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
-  // The design stretches a button across the row it sits in: alone it takes the whole row, beside
-  // a button of its own width it takes what that one leaves, and beside another stretched one they
-  // split the row evenly. All three follow from the button asking for its container's full width
-  // and the row shrinking it back to what is free, so there is one option rather than three.
-  // A vertical stack already gives a button its full width, so this is not needed there.
+  // Takes the width its row has free: the whole row when it is alone in it, what a content-sized
+  // button beside it leaves, or half of it beside another button asked for the same. A vertical
+  // stack already gives a button its full width, so this is not what that case needs.
   fullWidth?: boolean;
 };
 
@@ -44,9 +42,10 @@ export type ButtonProps = ButtonCommonProps &
     | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
   );
 
-// Block-level when stretched, inline when not: `w-full` needs a box that owns a line of its own,
-// and `justify-center` keeps the label and icon together in the middle of whatever width results.
-const widthClassName = { content: "inline-flex", full: "flex w-full" } as const;
+// A stretched button starts from no width of its own and grows into what its row has left over,
+// rather than asking for the whole row and letting the row take the excess back: the row takes
+// part of that back out of the button beside it, squeezing its label onto a second line.
+const widthClassName = { content: "inline-flex", full: "flex grow basis-0" } as const;
 
 const baseClassName =
   "items-center justify-center px-4 font-sans " +
@@ -56,11 +55,14 @@ const baseClassName =
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
   "data-[disabled]:opacity-[0.45]";
 
+// Each size states its height twice, once as the height the button has and once as one it cannot
+// pass. A stretched button grows along whichever direction its container runs, and the ceiling is
+// what keeps a vertical one from turning a 48px button into one as tall as the stack.
 const sizeClassName: Record<ButtonSize, string> = {
-  small: "h-[2.5rem] text-base",
-  medium: "h-[3rem] text-base",
-  large: "h-[3.5rem] text-lg",
-  sale: "h-[4.5rem] text-2xl",
+  small: "h-[2.5rem] max-h-[2.5rem] text-base",
+  medium: "h-[3rem] max-h-[3rem] text-base",
+  large: "h-[3.5rem] max-h-[3.5rem] text-lg",
+  sale: "h-[4.5rem] max-h-[4.5rem] text-2xl",
 };
 
 // The medium the other variants default to is never drawn for the text variant, so it defaults

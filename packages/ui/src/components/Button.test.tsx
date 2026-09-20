@@ -690,6 +690,19 @@ function renderedWidth(screen: Awaited<ReturnType<typeof render>>, name: string)
     .width;
 }
 
+// A row keeps its buttons by position, so measuring them through the row itself compares the very
+// elements laid out together, and stays unambiguous when two of them carry the same label.
+function widthsInRow(row: Element): number[] {
+  return [...row.children].map((button) => button.getBoundingClientRect().width);
+}
+
+// One rect per line box the text is laid out on, so a label pushed onto a second line counts 2.
+function lineCount(node: ChildNode): number {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return range.getClientRects().length;
+}
+
 test("takes the whole row when it is the only button in it", async () => {
   const screen = await render(
     <div style={rowStyle}>
@@ -702,15 +715,25 @@ test("takes the whole row when it is the only button in it", async () => {
 });
 
 test("takes the width a content-sized sibling leaves it in a row", async () => {
+  const lonely = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">Back</Button>
+    </div>,
+  );
+  const [ownWidth] = widthsInRow(lonely.container.firstElementChild as Element);
+
   const screen = await render(
     <div style={rowStyle}>
       <Button variant="secondary">Back</Button>
       <Button fullWidth>Confirm</Button>
     </div>,
   );
-  const sibling = renderedWidth(screen, "Back");
+  const [sibling, stretched] = widthsInRow(screen.container.firstElementChild as Element);
 
-  expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500 - sibling - 12, 0);
+  // Measured against the width that button has on its own, so a regression that stretched both of
+  // them — and still filled the row exactly — fails here instead of passing on the arithmetic.
+  expect(sibling).toBeCloseTo(ownWidth as number, 0);
+  expect(stretched).toBeCloseTo(500 - (sibling as number) - 12, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -738,15 +761,16 @@ test("shares the row with a stretched button of another variant, neither sized b
       <Button fullWidth>Yes, charge the whole sale to this account</Button>
     </div>,
   );
-  const bordered = renderedWidth(screen, "No");
-  const borderless = renderedWidth(screen, "Yes, charge the whole sale to this account");
+  const [bordered, borderless] = widthsInRow(screen.container.firstElementChild as Element);
+  const borderedButton = screen.getByRole("button", { name: "No" }).element() as HTMLElement;
+  const style = getComputedStyle(borderedButton);
+  const border =
+    Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth);
 
-  expect(bordered + borderless + 12).toBeCloseTo(500, 0);
-  // Not an even split to the pixel, and the labels are not why: a row divides what it has to take
-  // back in proportion to each button's width inside its own border, so the secondary's border
-  // leaves it a hair wider. Both stay within a pixel or two of half the row.
-  expect(bordered).toBeGreaterThan(borderless);
-  expect(bordered - borderless).toBeLessThan(2);
+  expect((bordered as number) + (borderless as number) + 12).toBeCloseTo(500, 0);
+  // They grow from nothing into equal halves of what the row has free, so what each ends up
+  // measuring differs by exactly the border one of them draws and the other does not.
+  expect((bordered as number) - (borderless as number)).toBeCloseTo(border, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -763,13 +787,10 @@ test("leaves the rest of the row to its siblings when it is not asked to stretch
 });
 
 test("is available on every variant", () => {
-  expectTypeOf<{ fullWidth: true }>().toExtend<ButtonPropsWithoutText>();
-  expectTypeOf<{ variant: "secondary"; fullWidth: true }>().toExtend<ButtonPropsWithoutText>();
-  expectTypeOf<{
-    variant: "text";
-    tone: "destructive";
-    fullWidth: true;
-  }>().toExtend<ButtonPropsWithoutText>();
+  // Asserted from the union's side: every branch of it has to carry the option. Asserting it the
+  // other way round, from a literal that names a variant and the option, proves nothing — a
+  // property the branch never declared is simply ignored when the two are compared.
+  expectTypeOf<ButtonPropsWithoutText>().toExtend<{ fullWidth?: boolean | undefined }>();
 });
 
 const stackStyle = {
@@ -842,5 +863,66 @@ test("grows across a vertical stack but never along it", async () => {
   // The stack is 400px tall and holds this button alone: a button that grew along it would take
   // the whole height instead of the 48px its size gives it.
   expect(rect.height).toBeCloseTo(48, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("leaves a content-sized sibling at its own width, even one whose label could wrap", async () => {
+  const label = "Salir sin completar";
+  const alone = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">{label}</Button>
+    </div>,
+  );
+  const [ownWidth] = widthsInRow(alone.container.firstElementChild as Element);
+
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">{label}</Button>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const [sibling] = widthsInRow(screen.container.firstElementChild as Element);
+
+  // A stretched button that asked the row for more than it has would take the difference out of
+  // this sibling, down to its longest word, breaking the label across two lines inside a button
+  // whose height cannot grow to hold them.
+  expect(sibling).toBeCloseTo(ownWidth as number, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps every label in the row on a single line", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">Salir sin completar</Button>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const sibling = screen
+    .getByRole("button", { name: "Salir sin completar" })
+    .element() as HTMLElement;
+
+  // A button's height cannot grow to hold a second line, so a wrapped label is clipped rather
+  // than accommodated: the label has to stay on the one line the button has room for.
+  expect(lineCount(sibling.firstChild as ChildNode)).toBe(1);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("paints its hover background across the whole width it was given", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="text" tone="destructive" fullWidth>
+        Cancel sale
+      </Button>
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await userEvent.hover(button);
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  // The bone surface is the button's own box, so stretching it stretches the surface: the radius
+  // that rounds it still does so at the row's edges, not at the label's.
+  expect(button.getBoundingClientRect().width).toBeCloseTo(500, 0);
+  expect(getComputedStyle(button).borderRadius).toBe("6px");
   await expectNoAccessibilityViolations(screen.container);
 });
