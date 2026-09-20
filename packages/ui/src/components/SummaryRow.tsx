@@ -7,7 +7,7 @@ export type SummaryRowProps = {
 
 type SummaryRowForm = "regular" | "strong";
 
-const rowClassName = "flex items-baseline justify-between gap-4";
+const rowClassName = "flex items-baseline gap-4";
 
 // `min-w-0` lets the label give up room a wide value needs, and `break-words` keeps the text it
 // still has to paint inside the box that is left, instead of over the value.

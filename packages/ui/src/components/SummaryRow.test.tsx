@@ -14,7 +14,6 @@ test("renders the label on the left and the value on the right, both 16px, label
   expect(row.firstElementChild).toBe(label);
   expect(row.lastElementChild).toBe(value);
   expect(getComputedStyle(row).display).toBe("flex");
-  expect(getComputedStyle(row).justifyContent).toBe("space-between");
 
   const rowRect = row.getBoundingClientRect();
   const labelRect = label.getBoundingClientRect();
