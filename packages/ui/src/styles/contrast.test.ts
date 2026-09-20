@@ -174,7 +174,9 @@ describe("option card help text on its chosen background contrast", () => {
 // ink-secondary is decorative (already classified above), but it's also what marks the resting
 // boundary of every control that draws one with it, so it additionally needs the WCAG non-text
 // contrast minimum against the two surfaces those controls can sit on. The text field's box is
-// one of those controls; the border tones its other states swap in are covered separately below.
+// one of those controls, and the block below re-covers this same ink-secondary/white/bone pairing
+// as its own resting-and-hovered case, alongside the focused and invalid tones only it covers —
+// the two blocks overlap on ink-secondary rather than dividing the field's tones cleanly.
 describe("checkbox box, radio circle, text field box, toggle track and toggle off-state knob boundary contrast", () => {
   it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
     const borderHex = colors["ink-secondary"];

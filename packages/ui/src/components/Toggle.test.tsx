@@ -3,7 +3,7 @@ import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { insetBoundary, tokenRgb } from "../test/token-colors";
+import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
 import { Toggle, type ToggleProps } from "./Toggle";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -27,23 +27,6 @@ function toggleTrack(screen: Screen, name: string): HTMLElement {
 
 function toggleKnob(screen: Screen, name: string): HTMLElement {
   return toggleTrack(screen, name).children[0] as HTMLElement;
-}
-
-// Tailwind composes `shadow-none` into its own shadow layers set to fully transparent rather
-// than into the literal "none", so "this element draws no boundary of its own" is not a string
-// comparison: it is that every layer the browser does report paints nothing. Returning the
-// layers that do paint, instead of a boolean, puts the offending one in the failure message.
-function paintedBoxShadowLayers(element: HTMLElement): string[] {
-  const boxShadow = getComputedStyle(element).boxShadow;
-  if (boxShadow === "none") {
-    return [];
-  }
-  // A layer is "<color> <x> <y> <blur> <spread>[ inset]" and the browser serializes color first,
-  // so splitting on the commas that separate layers means skipping the ones inside rgb()/rgba().
-  return boxShadow
-    .split(/,(?![^(]*\))/)
-    .map((layer) => layer.trim())
-    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
 }
 
 function Harness() {
@@ -150,12 +133,13 @@ test("colors an on track green UI with no border and a plain white knob at the f
   const knobRect = knob.getBoundingClientRect();
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-green-ui"));
-  expect(getComputedStyle(track).boxShadow).not.toContain(tokenRgb("ink-secondary"));
+  // Not merely "no ink-secondary": the on track and its knob draw no boundary at all, in any
+  // color, so a boundary repainted in some other token would still fail this.
+  expect(paintedBoxShadowLayers(track)).toEqual([]);
 
   // On, the knob is already legible against the green track, so it drops its own border the way
   // the track drops the one it carries when off.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
-  // Not merely "no ink-secondary": the on knob draws no boundary at all, in any color.
   expect(paintedBoxShadowLayers(knob)).toEqual([]);
 
   // "Far end" for an on toggle is the right edge: the knob sits flush against the track's own
@@ -207,8 +191,8 @@ test("keeps the track's and the knob's size stable between the off and on states
   expect(onTrackRect.height).toBeCloseTo(offTrackRect.height, 0);
 
   // The knob too: only the off state is measured against the design's 22px above, so without
-  // this the on knob's box is free to differ — which is exactly what swapping its boundary for
-  // one that participates in layout would do.
+  // this the on knob's rendered size is free to drift from the off one, whatever mechanism the
+  // two states each use to draw (or drop) the knob's own boundary.
   expect(onKnobRect.width).toBeCloseTo(offKnobRect.width, 0);
   expect(onKnobRect.height).toBeCloseTo(offKnobRect.height, 0);
 
