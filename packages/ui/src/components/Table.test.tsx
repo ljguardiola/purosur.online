@@ -655,12 +655,17 @@ test("renders no detail line when no detail is given", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// Both booleans, not just false: `typeof detail !== "boolean"` treats them alike, but a narrower
+// `detail !== false` (the common item.sku !== undefined && item.sku pattern read the other way
+// round) would let true alone through and render a stray empty detail line.
 test("renders no detail line for a boolean detail, like the common item.sku !== undefined && item.sku pattern", async () => {
-  const screen = await render(<TableCellText detail={false}>Coffee</TableCellText>);
+  const falseScreen = await render(<TableCellText detail={false}>Coffee</TableCellText>);
+  expect(falseScreen.container.querySelectorAll("span")).toHaveLength(1);
+  await expectNoAccessibilityViolations(falseScreen.container);
 
-  expect(screen.container.querySelectorAll("span")).toHaveLength(1);
-
-  await expectNoAccessibilityViolations(screen.container);
+  const trueScreen = await render(<TableCellText detail={true}>Coffee</TableCellText>);
+  expect(trueScreen.container.querySelectorAll("span")).toHaveLength(1);
+  await expectNoAccessibilityViolations(trueScreen.container);
 });
 
 test("lays out a cell whose render returns several elements with the same 4px gap TableCellText uses", async () => {
@@ -1873,6 +1878,60 @@ test("does not intercept a click landing on the header underneath the loading ba
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// relative z-20 is scoped to data-[focus-visible]: (see headerButtonClassName) specifically so
+// that only focus, never hover on its own, escalates the header above the bar - a merely hovered,
+// unfocused header has to stay unpositioned, in the same normal in-flow layer the bar's own
+// positive z-10 always paints above, or its own sand hover fill would cover the bar's band instead
+// of sitting under it. setup-browser.ts parks the pointer off-screen after every test, so nothing
+// before this test leaves a stray hover behind.
+test("keeps a hovered, unfocused header's own hover fill under the updating bar", async () => {
+  interface DispatchableCdpSession {
+    send(
+      method: "Input.dispatchMouseEvent",
+      params: { type: "mouseMoved"; x: number; y: number },
+    ): Promise<unknown>;
+  }
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+      loading="updating"
+    />,
+  );
+  await settleScroll();
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const bar = table.previousElementSibling as HTMLElement;
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  const buttonRect = button.getBoundingClientRect();
+  const barRect = bar.getBoundingClientRect();
+  const x = buttonRect.left + buttonRect.width / 2;
+
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x,
+    y: buttonRect.top + buttonRect.height / 2,
+  });
+  await settleScroll();
+
+  expect(button.getAttribute("data-hovered")).toBe("true");
+  expect(button.getAttribute("data-focus-visible")).toBeNull();
+
+  // The bar's own segment sweeps its band on a loop, so either of the bar's own two blues here -
+  // never the hover's own sand - proves the bar still wins while merely hovered, unfocused.
+  const barColors = [
+    rgbTuple(tokenRgb("brand-blue-message-bg")),
+    rgbTuple(tokenRgb("brand-blue-ui")),
+  ];
+  const pixel = await pixelAt(x, barRect.top + 1);
+
+  expect(barColors).toContainEqual(pixel.slice(0, 3));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("keeps the header's own title text below the loading bar's 3px band", async () => {
   const screen = await render(
     <Table
@@ -1916,9 +1975,10 @@ test("keeps the focused header's own inset ring visible on every edge, even unde
   const midX = rect.left + rect.width / 2;
   const midY = rect.top + rect.height / 2;
 
-  // The bar (z-10, absolute, painted after the table in DOM order) used to cover exactly the
-  // ring's own top edge, since neither the button nor its table ancestors are positioned by
-  // default — leaving the ring's top band in the same unstacked paint layer the bar sits above.
+  // The bar (rendered before the table, but positioned with a positive z-10) used to cover
+  // exactly the ring's own top edge, since its positive z-index lifts it into a layer painted
+  // above all normal in-flow content regardless of DOM order, and the button stayed unpositioned
+  // (so in that same in-flow layer, under the bar) outside focus-visible.
   const top = await pixelAt(midX, rect.top + 1);
   const left = await pixelAt(rect.left + 1, midY);
   const right = await pixelAt(rect.right - 1, midY);
@@ -1928,6 +1988,47 @@ test("keeps the focused header's own inset ring visible on every edge, even unde
   expect(left.slice(0, 3)).toEqual(ringColor);
   expect(right.slice(0, 3)).toEqual(ringColor);
   expect(bottom.slice(0, 3)).toEqual(ringColor);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("contains the focused header's own z-20 inside the table, instead of letting it escape past a caller's own positioned sibling", async () => {
+  const toolbarColor: [number, number, number] = [255, 0, 255];
+  const screen = await render(
+    <div style={{ position: "relative", marginTop: "40px", marginLeft: "40px", width: "300px" }}>
+      {/* Stands in for a caller's own sticky toolbar sitting between the bar's z-10 and the
+          header's own z-20 (see headerButtonClassName's own comment in Table.tsx): unrelated page
+          chrome the focused header must never paint over, no matter its own z-20. */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 15,
+          background: `rgb(${toolbarColor.join(", ")})`,
+        }}
+      />
+      <Table
+        {...commonProps}
+        columns={sortableColumns}
+        sort={{ column: "stock", direction: "descending" }}
+        onSortChange={() => {}}
+      />
+    </div>,
+  );
+  await settleScroll();
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  await userEvent.tab();
+  await settleScroll();
+
+  const rect = button.getBoundingClientRect();
+
+  // The ring itself is only a 3px inset band (outline-offset: -3px, see headerButtonClassName),
+  // not the button's whole interior, which stays transparent outside hover - probing anywhere
+  // past that band would read the toolbar through the button regardless of which one's z-index
+  // actually wins, telling nothing about containment. This point sits inside the ring's own band.
+  const ring = await pixelAt(rect.left + 1.5, rect.top + 1.5);
+
+  expect(ring.slice(0, 3)).toEqual(toolbarColor);
 
   await expectNoAccessibilityViolations(screen.container);
 });

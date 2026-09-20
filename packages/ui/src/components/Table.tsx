@@ -241,10 +241,11 @@ const sortIconClassName = "size-3 shrink-0";
 // focus ring is inset (a negative outline-offset draws it inside the button's box, see the
 // container's own comment below), since this button's box is flush with the container's rounded,
 // clipped edge and an outward ring there would need room past it. relative + z-20 only while
-// focus-visible: the updating bar (z-10, absolute, painted after the table in DOM order) would
-// otherwise cover the ring's own top edge, since neither the button nor any of its table ancestors
-// are positioned by default, leaving the button's outline in the same unstacked paint layer as the
-// bar sits above. Scoped to focus-visible so the header's stacking is otherwise untouched.
+// focus-visible: the updating bar (rendered before the table, but positioned with a positive
+// z-index of 10, which paints it in its own layer above all normal in-flow content regardless of
+// DOM order) would otherwise cover the ring's own top edge, since the button stays unpositioned
+// (and so in that same normal in-flow layer, under the bar) outside focus-visible. Scoped to
+// focus-visible so the header's stacking is otherwise untouched.
 const headerButtonClassName =
   "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
   "data-[focus-visible]:relative data-[focus-visible]:z-20 " +
@@ -496,8 +497,14 @@ export function Table<T>({
       {/* overflow-clip-margin doesn't exist in WebKit (it parses to nothing there, same as its
           own 0px initial value everywhere else), so nothing here depends on it: the sortable
           header's own focus ring is inset (see headerButtonClassName above) instead of reaching
-          past this edge, so every corner clips flush with no margin needed in any engine. */}
-      <div className="relative overflow-clip rounded-lg border border-line bg-surface-white">
+          past this edge, so every corner clips flush with no margin needed in any engine.
+          isolate: without its own stacking context, this container's z-index:auto doesn't contain
+          the focused header's own z-20 (see headerButtonClassName) or the updating bar's z-10 —
+          both would resolve against the page's own root stacking context instead, letting a
+          focused header (or the bar) paint over unrelated page chrome, like a caller's own sticky
+          toolbar sitting at a z-index between the two. isolate keeps that comparison local to this
+          table, the only place either z-index is meant to mean anything. */}
+      <div className="relative isolate overflow-clip rounded-lg border border-line bg-surface-white">
         {loading === "updating" && (
           <div
             aria-hidden="true"
@@ -546,8 +553,11 @@ export function Table<T>({
                       aria-sort={isSortable ? (isSorted ? sort?.direction : "none") : undefined}
                       style={headerColumnWidthStyle(column, isFirst, isLast)}
                       className={[
-                        // The explicit height (not just the <tr>'s) gives the sortable header
-                        // button's own h-full something definite to resolve 100% against.
+                        // A table cell's own explicit height acts as a floor, not a cap (the row
+                        // still grows past it for a wrapped title, see the header button's own
+                        // wrapped-title test), so this only sets the single-line row's own height
+                        // to 44px - the button's own h-full then always has an actual, resolved
+                        // cell height to track, 44px or grown, instead of nothing at all.
                         "h-11 break-words align-middle",
                         // A sortable header's own hit area needs to reach the cell's full box, so
                         // its padding lives on the button instead (see SortableColumnHeader).
