@@ -36,8 +36,10 @@ const circleClassName =
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +
-  // Two attribute selectors outrank the single-attribute selected rule above regardless of
-  // stylesheet order, guaranteeing the checked ring's hover color wins over its resting one.
+  // Two attribute selectors outrank the single-attribute hover and selected rules above
+  // regardless of stylesheet order: the checked circle's fill stays white on hover (only its
+  // ring darkens), and its ring wins over the resting blue UI one.
+  "group-data-[hovered]:group-data-[selected]:bg-surface-white " +
   "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-strong)] " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
   "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";

@@ -156,7 +156,7 @@ test("turns a hovered unchecked circle's fill bone, keeping its 2px ink-secondar
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("darkens a hovered checked circle's ring to brand-blue-strong", async () => {
+test("darkens a hovered checked circle's ring while keeping its white fill", async () => {
   const screen = await render(<RadioGroup {...baseProps({ value: "cash" })} />);
   const checkedLabel = radioLabel(screen, "Cash");
   const checkedCircle = radioCircle(screen, "Cash");
@@ -165,6 +165,7 @@ test("darkens a hovered checked circle's ring to brand-blue-strong", async () =>
   await expect
     .poll(() => getComputedStyle(checkedCircle).boxShadow)
     .toContain(insetBoundary("brand-blue-strong", "6px"));
+  expect(getComputedStyle(checkedCircle).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -345,7 +346,11 @@ test("does not accept a chosen value outside the group's own options, or an empt
 // reject `value: "other"` by inferring V from `options` alone rather than by widening V to also
 // cover `value`. Unlike OptionCardGroup's OptionCardOption, RadioOption carries no element-typed
 // field (just `value` and `label`), so nothing here breaks overload inference and no mirror type
-// projecting `options` down to `Pick<RadioOption<V>, "value">` is needed.
+// projecting `options` down to `Pick<RadioOption<V>, "value">` is needed. The "invalid" call still
+// has to compile — this file bans `@ts-expect-error` — so an object that fails the first
+// overload's `RadioGroupProps<V>` constraint just falls through to the second, `unknown` overload
+// and resolves to `false` instead of refusing to typecheck; that `false` is what the assertion
+// below actually proves.
 function isValidRadioGroupCall<V extends string>(props: RadioGroupProps<V>): true;
 function isValidRadioGroupCall(props: unknown): false;
 function isValidRadioGroupCall(_props: unknown): boolean {

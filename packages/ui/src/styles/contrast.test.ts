@@ -172,11 +172,9 @@ describe("option card help text on its chosen background contrast", () => {
 });
 
 // ink-secondary is decorative (already classified above), but it's also what marks the resting
-// boundary of every control that draws one with it, so it additionally needs the WCAG non-text
-// contrast minimum against the two surfaces those controls can sit on. The text field's box is
-// one of those controls, and the block below re-covers this same ink-secondary/white/bone pairing
-// as its own resting-and-hovered case, alongside the focused and invalid tones only it covers —
-// the two blocks overlap on ink-secondary rather than dividing the field's tones cleanly.
+// boundary of every control that draws one with it — including the text field's own box, whose
+// focused and invalid borders are checked separately below — so it additionally needs the WCAG
+// non-text contrast minimum against the two surfaces those controls can sit on.
 describe("checkbox box, radio circle, text field box, toggle track and toggle off-state knob boundary contrast", () => {
   it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
     const borderHex = colors["ink-secondary"];
@@ -207,18 +205,15 @@ describe("brand-blue-ui-shadow token", () => {
   });
 });
 
-// The text field's own border is its resting and hovered boundary marker (there is no icon or
-// glyph standing in for it, unlike the checkbox above), and its focused and invalid borders
-// additionally carry their own state, so every one of them needs the WCAG non-text contrast
-// minimum against both surfaces the field can sit on (white, and bone for a hovered or read-only
-// field). The field reuses the checkbox's own ink-secondary border for resting, hovered and
-// read-only (only its fill changes between them) instead of the softer, decorative
-// "line"/"blue-soft" tokens, which fall short of this minimum (line measures ~1.49:1 on white,
-// blue-soft ~1.47:1) and stay reserved for dividers and container edges, never a control's own
-// boundary.
+// The text field's own resting, hovered and read-only border reuses the shared ink-secondary
+// boundary already checked above (only its fill changes between them), instead of the softer,
+// decorative "line"/"blue-soft" tokens, which fall short of this minimum (line measures ~1.49:1
+// on white, blue-soft ~1.47:1) and stay reserved for dividers and container edges, never a
+// control's own boundary. Its focused and invalid borders are unique to the field, so those are
+// the two checked here, against both surfaces the field can sit on (white, and bone for a
+// hovered or read-only field).
 describe("text field border contrast", () => {
   const borders: Record<string, string> = {
-    "resting and hovered (ink-secondary)": "ink-secondary",
     "focused (brand-blue-strong)": "brand-blue-strong",
     "invalid (status-error-ui)": "status-error-ui",
   };

@@ -25,9 +25,8 @@ const toggleLabelClassName =
 // rather than an arbitrarily large value that happens to render the same pill shape.
 //
 // Off and on swap both the fill and the border the same way Checkbox's own box does between its
-// unchecked and checked states (see Checkbox.tsx's boxClassName), so — unlike RadioGroup.tsx's
-// circle, whose fill stays constant across states — hovering follows Checkbox's rule instead:
-// off darkens to bone, on darkens to the next-stronger green.
+// unchecked and checked states (see Checkbox.tsx's boxClassName), so hovering follows Checkbox's
+// rule too: off darkens to bone, on darkens to the next-stronger green.
 const trackClassName =
   "inline-flex h-7 w-12 shrink-0 items-center justify-start rounded-[14px] p-1 outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
