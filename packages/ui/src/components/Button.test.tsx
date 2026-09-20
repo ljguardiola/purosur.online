@@ -417,3 +417,121 @@ test("an empty label from a variable leaves the button nameless, and the accessi
   const results = await axe.run(screen.container);
   expect(results.violations.map((violation) => violation.id)).toEqual(["button-name"]);
 });
+
+test("renders the text-only destructive form with no background and no border", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await expect.element(screen.getByRole("button", { name: "Cancel sale" })).toBeVisible();
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(button).borderTopWidth).toBe("0px");
+  expect(getComputedStyle(button).borderBottomWidth).toBe("0px");
+  expect(getComputedStyle(button).borderLeftWidth).toBe("0px");
+  expect(getComputedStyle(button).borderRightWidth).toBe("0px");
+  expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("sizes the text-only destructive form at 40px with a 16px semibold label by default", async () => {
+  const style = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+
+  expect(style.height).toBe("40px");
+  expect(style.fontSize).toBe("16px");
+  expect(style.fontWeight).toBe("600");
+  expect(style.paddingLeft).toBe("16px");
+  expect(style.paddingRight).toBe("16px");
+  expect(style.paddingTop).toBe("0px");
+  expect(style.paddingBottom).toBe("0px");
+});
+
+test("sizes the text-only destructive form at 56px with an 18px label at its larger drawn size", async () => {
+  const style = await buttonStyle("Cancel", {
+    variant: "text",
+    tone: "destructive",
+    size: "large",
+  });
+
+  expect(style.height).toBe("56px");
+  expect(style.fontSize).toBe("18px");
+  expect(style.fontWeight).toBe("600");
+});
+
+test("carries its own 18px x icon before the label, with an 8px gap, on both drawn sizes", async () => {
+  for (const size of ["small", "large"] as const) {
+    const screen = await render(
+      <Button variant="text" tone="destructive" size={size}>
+        {`Cancel sale ${size}`}
+      </Button>,
+    );
+    const button = screen
+      .getByRole("button", { name: `Cancel sale ${size}` })
+      .element() as HTMLElement;
+    const icon = button.querySelector("svg");
+    const iconWrapper = button.firstChild as HTMLElement;
+
+    expect(icon, `${size} icon`).not.toBeNull();
+    expect(iconWrapper.contains(icon), `${size} icon wrapper`).toBe(true);
+    expect(button.lastChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
+    expect(button.lastChild?.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
+
+    const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
+    expect(iconRect.width, `${size} icon width`).toBeGreaterThan(17);
+    expect(iconRect.width, `${size} icon width`).toBeLessThan(19);
+    expect(iconRect.height, `${size} icon height`).toBeGreaterThan(17);
+    expect(iconRect.height, `${size} icon height`).toBeLessThan(19);
+    expect(getComputedStyle(icon as SVGSVGElement).color, `${size} icon color`).toBe(
+      tokenRgb("status-error-ui"),
+    );
+
+    const textRect = textNodeRect(button.lastChild as ChildNode);
+    const gap = textRect.left - iconRect.right;
+    expect(gap, `${size} gap`).toBeGreaterThan(7);
+    expect(gap, `${size} gap`).toBeLessThan(9);
+
+    await expectNoAccessibilityViolations(screen.container);
+  }
+});
+
+test("accepts the text-only destructive form at both drawn sizes", () => {
+  expectTypeOf<{ variant: "text"; tone: "destructive" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "small";
+  }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "large";
+  }>().toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept the text variant in any tone but destructive, the only one drawn", () => {
+  expectTypeOf<{ variant: "text" }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "text"; tone: "default" }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept a caller's icon on the text variant, which carries its own", () => {
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    icon: ButtonIcon;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept the text variant at a size the design never draws it", () => {
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "medium";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "sale";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});

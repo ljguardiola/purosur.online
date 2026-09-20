@@ -2,6 +2,7 @@ export type {
   ButtonIcon,
   ButtonProps,
   ButtonSize,
+  ButtonTextSize,
   ButtonTone,
   ButtonVariant,
 } from "./components/Button";
