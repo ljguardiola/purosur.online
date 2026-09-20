@@ -41,6 +41,8 @@ export type {
 export { SegmentedControl } from "./components/SegmentedControl";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
 export { StatusIndicator } from "./components/StatusIndicator";
+export type { SummaryRowProps } from "./components/SummaryRow";
+export { SummaryRow } from "./components/SummaryRow";
 export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";
