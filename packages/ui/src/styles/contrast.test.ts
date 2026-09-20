@@ -212,7 +212,9 @@ describe("brand-blue-ui-shadow token", () => {
 // rendered element, in RadioGroup.test.tsx and Toggle.test.tsx — instead of the softer,
 // decorative "line"/"blue-soft" tokens, which fall short of the WCAG 3:1 non-text contrast
 // minimum (line measures ~1.49:1 on white, blue-soft ~1.47:1) and stay reserved for dividers and
-// container edges, never a control's own boundary. Its focused and invalid borders are unique to
+// container edges rather than a control's own boundary, except where a glyph and the focus ring
+// identify the control, as the icon button's own border does. Its focused and invalid borders are
+// unique to
 // the field, so those are the two checked here, against both surfaces the field can sit on
 // (white, and bone for a hovered or read-only field).
 describe("text field border contrast", () => {

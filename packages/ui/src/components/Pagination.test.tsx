@@ -95,6 +95,21 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("hovers a non-current page button to a bone background", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+  const page = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const restBackground = getComputedStyle(page).backgroundColor;
+  expect(restBackground).toBe(tokenRgb("surface-white"));
+
+  const rect = page.getBoundingClientRect();
+  await hoverAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+  expect(page.getAttribute("data-hovered")).toBe("true");
+  expect(getComputedStyle(page).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("marks the current page blue UI with bold white text", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
   const current = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;

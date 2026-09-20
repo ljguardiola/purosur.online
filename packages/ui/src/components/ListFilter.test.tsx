@@ -239,10 +239,78 @@ test("scrolls a long options list inside the popover instead of painting it past
   expect(menu.scrollHeight).toBeGreaterThan(menu.clientHeight);
 
   // The real clip proof: a point just past the popover's own bottom edge, where an unclipped
-  // option would otherwise still paint, must not resolve to any option.
+  // option would otherwise still paint, must not resolve to any option. Guarded against a null
+  // hit test (an out-of-viewport probe would otherwise pass vacuously, the same escape hatch the
+  // corner test guards against) and against landing on an option's own inner span or icon rather
+  // than the option itself (whose own role lives on the <li>, not on any of its children).
   const menuRect = menu.getBoundingClientRect();
   const probe = document.elementFromPoint(menuRect.left + 10, menuRect.bottom + 5);
-  expect(probe?.getAttribute("role")).not.toBe("option");
+  expect(probe, "expected a real hit-test result, not an out-of-viewport null").not.toBeNull();
+  expect((probe as Element).closest('[role="option"]')).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("scrolls the popover to keep a keyboard-focused option below the fold visible", async () => {
+  const manyOptions = Array.from({ length: 40 }, (_, i) => ({
+    value: `opt${i}`,
+    label: `Option ${i}`,
+  })) as [ListFilterOption<string>, ...ListFilterOption<string>[]];
+  const screen = await render(
+    <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
+  );
+  await userEvent.tab();
+  await userEvent.keyboard("{ArrowDown}");
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  for (let i = 0; i < 20; i++) {
+    await userEvent.keyboard("{ArrowDown}");
+  }
+
+  // The element focus itself lands on (the <li role="option">, via data-focused) is not the same
+  // element that scrolls (the popover, its ancestor) - proving the option actually stays inside
+  // the popover's own visible box is what shows that mismatch didn't break scroll-into-view.
+  const focused = document.querySelector('[role="option"][data-focused]') as HTMLElement;
+  expect(focused.textContent).toBe("Option 20");
+  const menu = screen.getByRole("listbox").element().parentElement as HTMLElement;
+  const menuRect = menu.getBoundingClientRect();
+  const optionRect = focused.getBoundingClientRect();
+
+  expect(menu.scrollTop).toBeGreaterThan(0);
+  expect(optionRect.top).toBeGreaterThanOrEqual(menuRect.top);
+  expect(optionRect.bottom).toBeLessThanOrEqual(menuRect.bottom);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("truncates a long option label instead of wrapping it over its own 40px row and the next option", async () => {
+  const options: [ListFilterOption<string>, ListFilterOption<string>] = [
+    { value: "a", label: "Esperando confirmación de aprobación del pago del pedido" },
+    { value: "b", label: "Otro" },
+  ];
+  const screen = await render(
+    <ListFilter label="Estado" options={options} value="b" onChange={() => {}} />,
+  );
+  await screen.getByRole("button", { name: /Estado/ }).click();
+
+  const longLabel = "Esperando confirmación de aprobación del pago del pedido";
+  const option = screen.getByRole("option", { name: longLabel }).element() as HTMLElement;
+
+  // scrollHeight === clientHeight is only meaningful once the label can't just wrap and overflow
+  // the fixed row invisibly (overflow: visible would keep both equal at 40 either way) - ellipsis
+  // truncation single-lines the text instead, which this and the style checks below both prove.
+  expect(option.scrollHeight).toBe(option.clientHeight);
+  const span = option.querySelector("span") as HTMLElement;
+  const spanStyle = getComputedStyle(span);
+  expect(spanStyle.textOverflow).toBe("ellipsis");
+  expect(spanStyle.whiteSpace).toBe("nowrap");
+  expect(spanStyle.overflow).toBe("hidden");
+
+  // Painted proof: nothing from this option's own text reaches into the next option's row.
+  const nextOption = screen.getByRole("option", { name: "Otro" }).element() as HTMLElement;
+  expect(option.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    nextOption.getBoundingClientRect().top,
+  );
 
   await expectNoAccessibilityViolations(document.body);
 });

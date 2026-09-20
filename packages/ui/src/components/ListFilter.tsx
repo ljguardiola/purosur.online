@@ -105,7 +105,10 @@ export function ListFilter<V extends string>({
                 >
                   {({ isSelected }) => (
                     <>
-                      <span>{option.label}</span>
+                      {/* min-w-0: this flex item's default min-width is its own unwrapped
+                          content width, which would keep truncate from ever actually shrinking
+                          it below the option's own fixed 40px-tall row. */}
+                      <span className="min-w-0 truncate">{option.label}</span>
                       {isSelected && (
                         <Check
                           aria-hidden="true"
