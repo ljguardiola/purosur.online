@@ -171,6 +171,24 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
+// surface-white already reaches AAA against every surface it sits on top of via the text-tone
+// suite above, but the tooltip paints it the other way around, as text on top of ink, which none
+// of those pairs cover (ink itself is only ever checked as text on the three light surfaces, not
+// as a background). surface-white stays in decorativeTones above rather than moving to textTones,
+// since here it's ink that is the background and surface-white the text sitting on it.
+describe("tooltip text on ink background contrast", () => {
+  it(`surface-white reaches ${AAA_TEXT_CONTRAST}:1 against ink`, () => {
+    const textHex = colors["surface-white"];
+    const backgroundHex = colors.ink;
+
+    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex, "ink is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AAA_TEXT_CONTRAST,
+    );
+  });
+});
+
 describe("brand-blue-ui-shadow token", () => {
   it("parses to brand-blue-ui at 20% alpha", () => {
     const shadowHex = colors["brand-blue-ui-shadow"];
