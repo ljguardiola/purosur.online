@@ -71,6 +71,21 @@ test("shows a 16px down chevron in secondary text when closed", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(trigger).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(trigger).outlineOffset).toBe("3px");
+  await expect
+    .poll(() => getComputedStyle(trigger).outlineColor)
+    .toBe(tokenRgb("brand-blue-strong"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("turns the border blue UI and the chevron up when opened", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Estado/ });
