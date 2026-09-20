@@ -76,12 +76,14 @@ for (const variantCase of variantCases) {
     const rect = box.getBoundingClientRect();
 
     expect(rect.height).toBeCloseTo(variantCase.height, 0);
+    expect(boxStyle.borderRadius).toBe("8px");
     expect(Math.round(Number.parseFloat(boxStyle.paddingLeft))).toBe(variantCase.paddingX);
     expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(variantCase.paddingX);
     expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(variantCase.gap);
     expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(variantCase.valueFontSize);
     expect(inputStyle.color).toBe(tokenRgb("ink"));
     expect(input.placeholder).toBe("Scan or type the product name");
+    expect(getComputedStyle(input, "::placeholder").color).toBe(tokenRgb("ink-secondary"));
 
     const leading = box.firstElementChild as HTMLElement;
     const leadingRect = leading.getBoundingClientRect();
