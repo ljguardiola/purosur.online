@@ -348,15 +348,19 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
 test("lets a read-only field be focused and shows it, but is never typed into or hovered", async () => {
   const onChange = vi.fn();
   const screen = await render(
-    <TextField
-      kind="plain-text"
-      label="Motivo"
-      value="Cierre parcial"
-      onChange={onChange}
-      readOnly
-    />,
+    <>
+      <TextField
+        kind="plain-text"
+        label="Motivo"
+        value="Cierre parcial"
+        onChange={onChange}
+        readOnly
+      />
+      <TextField kind="plain-text" label="Detalle" value="" onChange={() => {}} />
+    </>,
   );
   const box = fieldBox(screen, "Motivo");
+  const editableBox = fieldBox(screen, "Detalle");
   const input = fieldInput(screen, "Motivo");
   const restingShadow = getComputedStyle(box).boxShadow;
   const restingBackground = getComputedStyle(box).backgroundColor;
@@ -371,6 +375,13 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   await userEvent.hover(box);
   expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
   expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
+
+  // The ordinary field beside it does turn bone under the same pointer, so the assertion above
+  // means "read-only ignores hover", not "the hover never reached the page".
+  await userEvent.hover(editableBox);
+  await expect
+    .poll(() => getComputedStyle(editableBox).backgroundColor)
+    .toBe(tokenRgb("surface-bone"));
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
@@ -476,15 +487,19 @@ test("lets read-only win the box treatment over invalid, while still announcing 
 
 test("lets disabled win the box treatment over read-only when both apply", async () => {
   const screen = await render(
-    <TextField
-      kind="plain-text"
-      label="Motivo"
-      value="Cierre parcial"
-      onChange={() => {}}
-      disabled
-      readOnly
-    />,
+    <>
+      <TextField
+        kind="plain-text"
+        label="Motivo"
+        value="Cierre parcial"
+        onChange={() => {}}
+        disabled
+        readOnly
+      />
+      <button type="button">Siguiente control</button>
+    </>,
   );
+  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
   const wrapper = fieldWrapper(screen, "Motivo");
   const box = fieldBox(screen, "Motivo");
   const input = fieldInput(screen, "Motivo");
@@ -498,6 +513,9 @@ test("lets disabled win the box treatment over read-only when both apply", async
   expect(input.readOnly).toBe(true);
 
   await userEvent.tab();
+  // Landing on the sibling button proves Tab actually traversed the page, instead of the
+  // assertion below passing by coincidence because Tab moved focus nowhere at all.
+  expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
 
   await expectNoAccessibilityViolations(screen.container);
