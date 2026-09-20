@@ -188,6 +188,22 @@ describe("checkbox unchecked border contrast", () => {
   });
 });
 
+describe("brand-blue-ui-shadow token", () => {
+  it("parses to brand-blue-ui at 20% alpha", () => {
+    const shadowHex = colors["brand-blue-ui-shadow"];
+    const uiHex = colors["brand-blue-ui"];
+
+    expect(shadowHex, "brand-blue-ui-shadow is missing from the stylesheet").toMatch(
+      /^#[0-9a-f]{8}$/i,
+    );
+    expect(uiHex, "brand-blue-ui is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect((shadowHex as string).slice(0, 7).toLowerCase()).toBe((uiHex as string).toLowerCase());
+
+    const alpha = Number.parseInt((shadowHex as string).slice(7, 9), 16) / 255;
+    expect(alpha).toBeCloseTo(0.2, 2);
+  });
+});
+
 // The text field's own border is its resting and hovered boundary marker (there is no icon or
 // glyph standing in for it, unlike the checkbox above), and its focused and invalid borders
 // additionally carry their own state, so every one of them needs the WCAG non-text contrast

@@ -109,6 +109,7 @@ function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolea
   if (invalid) {
     return (
       "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
+      "hover:not-focus-within:bg-surface-bone " +
       "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
     );
   }

@@ -37,9 +37,15 @@ interface DispatchableCdpSession {
 // it, and the next Tab starts from the top of the page like the first one in a fresh session.
 afterEach(async () => {
   const session = cdp() as unknown as DispatchableCdpSession;
-  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
-  const root = document.documentElement;
-  root.tabIndex = -1;
-  root.focus();
-  root.removeAttribute("tabindex");
+  try {
+    await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
+  } finally {
+    // Runs even if the CDP call above rejected, so a broken Tab starting point never survives
+    // into the next test regardless of whether the pointer reset itself succeeded; `finally`
+    // still lets that rejection propagate afterward instead of hiding it.
+    const root = document.documentElement;
+    root.tabIndex = -1;
+    root.focus();
+    root.removeAttribute("tabindex");
+  }
 });

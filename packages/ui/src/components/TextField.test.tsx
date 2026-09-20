@@ -280,6 +280,28 @@ test("shows the focused border instead of the invalid one once an invalid field 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("turns the invalid box bone on hover, keeping its error border", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value=""
+      onChange={() => {}}
+      invalid
+      errorMessage="Escribí un motivo."
+    />,
+  );
+  const box = fieldBox(screen, "Motivo");
+
+  await userEvent.hover(box);
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+  const style = getComputedStyle(box);
+  expect(style.boxShadow).toContain(tokenRgb("status-error-ui"));
+  expect(style.boxShadow).toContain("2px");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
@@ -296,11 +318,15 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
 test("dims the whole field to 45% opacity and blocks focus when disabled", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} disabled />,
+    <>
+      <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} disabled />
+      <button type="button">Siguiente control</button>
+    </>,
   );
   const wrapper = fieldWrapper(screen, "Motivo");
   const box = fieldBox(screen, "Motivo");
   const input = fieldInput(screen, "Motivo");
+  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
 
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
   // The box itself still renders the field's ordinary resting look underneath that dimming —
@@ -311,6 +337,9 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
+  // Landing on the sibling button proves Tab actually traversed the page instead of the
+  // assertion below passing by coincidence because Tab moved focus nowhere at all.
+  expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
 
   await expectNoAccessibilityViolations(screen.container);
@@ -350,6 +379,9 @@ test("lets a read-only field be focused but never typed into, with no hover or f
   // The harness's own value never changes regardless of whether the keystroke was accepted, so
   // asserting the DOM value stayed put wouldn't prove anything a broken read-only couldn't also
   // produce by coincidence. Read-only means the caller is never told about the attempt at all.
+  // Re-checked right here, not just after the earlier click, so the keystroke below is proven to
+  // have actually reached a focused input instead of landing nowhere.
+  expect(document.activeElement).toBe(input);
   await userEvent.keyboard("x");
   expect(onChange).not.toHaveBeenCalled();
 
@@ -387,6 +419,27 @@ test("lets disabled win the box treatment over invalid, while still announcing i
   // it despite being correctly hidden away, not miscolored.
   const errorMessageElement = screen.getByText("Escribí un motivo.").element();
   expect(errorMessageElement.getAttribute("aria-disabled")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("marks the helper text as disabled too when the field itself is disabled", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value=""
+      onChange={() => {}}
+      helperText="No hay caja abierta."
+      disabled
+    />,
+  );
+  const input = fieldInput(screen, "Motivo");
+
+  expect(describedText(input)).toContain("No hay caja abierta.");
+  // Same exemption as the disabled+invalid error text above, for the ordinary helper line.
+  const helperElement = screen.getByText("No hay caja abierta.").element();
+  expect(helperElement.getAttribute("aria-disabled")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
 });
