@@ -4,19 +4,12 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AAA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
+import type { DispatchableCdpSession } from "../test/setup-browser";
 import { rgbToHex, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
 import { Tooltip, type TooltipProps } from "./Tooltip";
 
 type Screen = Awaited<ReturnType<typeof render>>;
-
-// See setup-browser.ts's own DispatchableCdpSession: the one CDP call this file needs.
-interface DispatchableCdpSession {
-  send(
-    method: "Input.dispatchMouseEvent",
-    params: { type: "mouseMoved"; x: number; y: number },
-  ): Promise<unknown>;
-}
 
 // This package targets desktop POS displays; the default browser-mode viewport is phone-sized,
 // which would leave no room below a normally-placed trigger and mask the flip test's premise
@@ -45,14 +38,37 @@ function tooltipElement(screen: Screen): HTMLElement {
 // landmark ancestor (see Modal.test.tsx's own clean run), on the reasoning that such content is
 // deliberately portaled outside the page's landmark structure rather than left drifting in it. A
 // tooltip is portaled the same way for the same reason, and is tied to its element correctly
-// through aria-describedby rather than DOM position, but axe's own exemption list doesn't cover
-// role="tooltip" — so every check in this file disables only this one rule, not accessibility
-// checking generally.
-const axeOptions = { rules: { region: { enabled: false } } };
+// through aria-describedby rather than DOM position, but axe's shipped exemption list doesn't
+// cover role="tooltip". That list is the rule's own regionMatcher option, so every check in this
+// file adds the tooltip's role to it and leaves the rule itself running: anything else adrift
+// outside a landmark still fails. Replacing the option replaces the whole list, hence the three
+// shipped selectors repeated alongside the new one.
+const axeOptions = {
+  checks: {
+    region: {
+      options: { regionMatcher: "dialog, [role=dialog], [role=alertdialog], svg, [role=tooltip]" },
+    },
+  },
+};
 
 // react-stately's tooltip cooldown is 500ms; this clears it with room to spare on a loaded
 // machine without making the delay test meaningfully slower.
 const COOLDOWN_BUFFER_MS = 500;
+
+// Everything the browser puts in the sequential tab order, plus the elements that take focus on
+// a click without being tabbable: a tooltip must hold none of them, since it closes the moment
+// its element loses focus and focus moved into it would land in a box that is about to vanish.
+const FOCUSABLE_SELECTOR =
+  "a[href], area[href], button, input, select, textarea, details, summary, iframe, object, " +
+  'embed, audio[controls], video[controls], [contenteditable=""], [contenteditable="true"], ' +
+  "[tabindex]";
+
+// A trigger rendered where a test's own markup lands by default sits at the very top of the
+// viewport, where nothing fits above it: react-aria then flips to "bottom" whatever placement it
+// was asked for, so an assertion on the default placement would hold even with the placement gone.
+// Every test about where the tooltip lands by default renders its trigger halfway down the 900px
+// viewport instead, with room for the box on either side of it, so "below" is a real choice.
+const centeredInViewport = { position: "fixed", top: "50%", left: 16 } as const;
 
 test("renders nothing until hovered, focused, or otherwise activated", async () => {
   const screen = await render(
@@ -67,9 +83,11 @@ test("renders nothing until hovered, focused, or otherwise activated", async () 
 
 test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA contrast, and the ink-shadow drop shadow below its element by default", async () => {
   const screen = await render(
-    <Tooltip description="Voided at checkout by the manager on duty">
-      <Button>Void reason</Button>
-    </Tooltip>,
+    <div style={centeredInViewport}>
+      <Tooltip description="Voided at checkout by the manager on duty">
+        <Button>Void reason</Button>
+      </Tooltip>
+    </div>,
   );
   const trigger = screen.getByRole("button", { name: "Void reason" }).element();
 
@@ -103,11 +121,13 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("points a 10px ink diamond above the tooltip toward its element", async () => {
+test("points a 10px ink diamond at its element, with the diamond's tip 8px clear of it", async () => {
   const screen = await render(
-    <Tooltip description="Voided at checkout by the manager on duty">
-      <Button>Void reason</Button>
-    </Tooltip>,
+    <div style={centeredInViewport}>
+      <Tooltip description="Voided at checkout by the manager on duty">
+        <Button>Void reason</Button>
+      </Tooltip>
+    </div>,
   );
   const trigger = screen.getByRole("button", { name: "Void reason" }).element();
 
@@ -123,12 +143,26 @@ test("points a 10px ink diamond above the tooltip toward its element", async () 
   // Tailwind v4's rotate-* utilities set the native CSS `rotate` property rather than composing
   // a `transform: rotate(...)` matrix, so that's the property that actually paints the tilt.
   expect(getComputedStyle(arrowSquare).rotate).toBe("45deg");
+  // The component computes how far the diamond sticks out past the box from this same size, but
+  // Tailwind's compiler only sees the literal in the class, so nothing but this pair of checks
+  // and the gap measured below keeps the drawn square and that computation on the same number.
+  expect(getComputedStyle(arrowSquare).width).toBe("10px");
+  expect(getComputedStyle(arrowSquare).height).toBe("10px");
 
   // getBoundingClientRect on OverlayArrow's own wrapper would report its unrotated layout box
   // (10x10): a CSS rotation repaints where a box's pixels land without enlarging any ancestor's
   // layout size, so only the rotated square's own rect reflects what's actually on screen.
   const arrowRect = arrowSquare.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
+  const triggerRect = trigger.getBoundingClientRect();
+
+  // The diamond, not the box behind it, is the nearest thing to the element the user can see, so
+  // the 8px of air the tooltip is meant to leave is measured from the diamond's tip; measured
+  // against the box instead, the diamond ends up painted over the very element it points at. The
+  // half-pixel tolerance is react-aria's: it rounds the box it positions to whole pixels, while
+  // the diamond's overhang past that box is an irrational multiple of its side.
+  expect(arrowRect.top).toBeGreaterThan(triggerRect.bottom);
+  expect(arrowRect.top - triggerRect.bottom).toBeCloseTo(8, 0);
 
   // "Above, pointing at its element" for the default below-the-trigger placement: the square
   // rotates around its own center, which sits exactly on the tooltip's top edge, so the diamond's
@@ -189,6 +223,7 @@ test("appears on hover and disappears once the pointer leaves its element", asyn
 
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   await userEvent.unhover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
@@ -211,6 +246,7 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
     screen.getByRole("button", { name: "Void reason" }).element(),
   );
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   await userEvent.tab();
   expect(document.activeElement).toBe(
@@ -230,6 +266,7 @@ test("disappears when Escape is pressed while its element is focused", async () 
 
   await userEvent.tab();
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   await userEvent.keyboard("{Escape}");
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
@@ -241,7 +278,7 @@ test("disappears when Escape is pressed while its element is focused", async () 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("never lets Tab reach the tooltip itself, even while it is open", async () => {
+test("holds nothing focusable while it is open, so Tab moves past its element to the next control", async () => {
   const screen = await render(
     <>
       <Button>Before</Button>
@@ -260,15 +297,16 @@ test("never lets Tab reach the tooltip itself, even while it is open", async () 
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
 
+  // Asked of the tooltip while it is open, which is the only moment it can be asked at all: the
+  // tooltip closes the instant its element loses focus, and a node already detached from the
+  // document can neither hold focus nor be tabbed into, so the same questions asked afterwards
+  // answer themselves no matter what the tooltip contains.
+  expect(tooltip.querySelectorAll(FOCUSABLE_SELECTOR)).toHaveLength(0);
+  expect(tooltip.matches(FOCUSABLE_SELECTOR)).toBe(false);
+  await expectNoAccessibilityViolations(document.body, axeOptions);
+
   await userEvent.tab();
   expect(document.activeElement).toBe(screen.getByRole("button", { name: "After" }).element());
-
-  // One more Tab exhausts every other focusable element on the page; if the tooltip had picked
-  // up a tab stop of its own, this is where focus would land on it instead of leaving the page.
-  await userEvent.tab();
-  expect(document.activeElement).not.toBe(tooltip);
-  expect(tooltip.contains(document.activeElement)).toBe(false);
-  expect(tooltip.tabIndex).toBe(-1);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
@@ -337,9 +375,10 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   const elapsedMs = performance.now() - hoveredAt;
 
   // Measured on this suite: 333ms at the chosen 300ms, 31ms with the delay dropped to 0, and past
-  // 1500ms on react-aria's default. These bounds sit clear of all three.
-  expect(elapsedMs).toBeGreaterThan(150);
-  expect(elapsedMs).toBeLessThan(900);
+  // 1500ms on react-aria's default. The bounds are drawn close enough around the chosen delay to
+  // also exclude 600ms, so a value merely near the right order of magnitude does not pass either.
+  expect(elapsedMs).toBeGreaterThan(200);
+  expect(elapsedMs).toBeLessThan(500);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
