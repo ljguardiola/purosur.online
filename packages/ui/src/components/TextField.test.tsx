@@ -345,7 +345,7 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("lets a read-only field be focused but never typed into, with no hover or focus change", async () => {
+test("lets a read-only field be focused and shows it, but is never typed into or hovered", async () => {
   const onChange = vi.fn();
   const screen = await render(
     <TextField
@@ -374,7 +374,10 @@ test("lets a read-only field be focused but never typed into, with no hover or f
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
-  expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
+  // The field can't be edited, but it is still in the tab order and the browser's own focus ring
+  // is suppressed, so it has to show the package's focused border like any other reachable field.
+  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+  expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
 
   // The harness's own value never changes regardless of whether the keystroke was accepted, so
   // asserting the DOM value stayed put wouldn't prove anything a broken read-only couldn't also

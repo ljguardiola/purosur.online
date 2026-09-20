@@ -95,16 +95,21 @@ const errorClassName = "text-sm font-normal text-status-error-ui";
 // "blue-soft" tokens fall short of (see contrast.test.ts's "text field border contrast"). Those
 // two tokens stay reserved for dividers and container edges, never this field's own boundary.
 // Only the fill tells resting from hovered apart, following the package's own white-hovers-to-bone
-// rule (see Checkbox.tsx and OptionCardGroup.tsx). Disabled and read-only are otherwise static:
-// neither reacts to hover or focus, matching the design's own "no hover or focus change" note for
-// a read-only field. `hover:not-focus-within:` keeps the hovered fill from ever showing once the
-// field is focused, regardless of stylesheet order.
+// rule (see Checkbox.tsx and OptionCardGroup.tsx). A read-only field doesn't react to hover — its
+// value can't be edited — but it is still in the tab order, and the box and input both suppress
+// the browser's own focus ring, so it draws the package's focused border like any other reachable
+// field: a keyboard user would otherwise lose track of where they are mid-form. A disabled field
+// can't be reached at all, so it needs neither. `hover:not-focus-within:` keeps the hovered fill
+// from ever showing once the field is focused, regardless of stylesheet order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
     return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
   }
   if (readOnly) {
-    return "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
+    return (
+      "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
+      "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+    );
   }
   if (invalid) {
     return (
