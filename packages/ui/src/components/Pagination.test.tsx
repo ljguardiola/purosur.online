@@ -339,11 +339,14 @@ test("names each page button from the caller's own pageLabel, not a bare digit",
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("hides the ellipsis from assistive technology", async () => {
+test("hides every ellipsis from assistive technology", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 10, pageCount: 24 })} />);
-  const ellipsis = screen.container.querySelector("li span") as HTMLElement;
+  const ellipses = screen.getByText("…", { exact: true }).elements() as HTMLElement[];
 
-  expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+  expect(ellipses).toHaveLength(2);
+  for (const ellipsis of ellipses) {
+    expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });

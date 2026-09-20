@@ -239,6 +239,23 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("falls back to nothing selected when its value points to an option a narrowed options list no longer has", async () => {
+  const narrowedOptions: [ListFilterOption<Status>, ListFilterOption<Status>] = [
+    { value: "all", label: "Todos" },
+    { value: "open", label: "Abiertas" },
+  ];
+  const screen = await render(<ListFilter {...baseProps({ value: "closed" })} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ });
+  await expect.element(trigger.getByText("Cerradas", { exact: true })).toBeVisible();
+
+  await screen.rerender(
+    <ListFilter {...baseProps({ options: narrowedOptions, value: "closed" })} />,
+  );
+
+  expect(trigger.getByText("Cerradas", { exact: true }).query()).toBeNull();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("closes the menu and does not call onChange when the already-chosen option is picked again", async () => {
   const onChange = vi.fn();
   const screen = await render(<ListFilter {...baseProps({ value: "open", onChange })} />);
