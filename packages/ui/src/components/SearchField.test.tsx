@@ -1,3 +1,4 @@
+import axe from "axe-core";
 import { Search } from "lucide-react";
 import { useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
@@ -339,6 +340,16 @@ test("is named by the label instead of the placeholder when one is supplied", as
   expect(screen.getByRole("searchbox", { name: "Filter by name or SKU" }).query()).toBeNull();
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("an empty placeholder from a variable, with no label, leaves the field nameless, and the accessibility check catches it", async () => {
+  const placeholder: string = "";
+  const screen = await render(
+    <SearchFieldHarness variant="register" placeholder={placeholder} icon={<Search />} />,
+  );
+
+  const results = await axe.run(screen.container);
+  expect(results.violations.map((violation) => violation.id)).toEqual(["label"]);
 });
 
 test("is a single tab stop", async () => {
