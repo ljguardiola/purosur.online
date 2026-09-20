@@ -330,16 +330,16 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
 // timer or effect involved, so nothing here needs to wait or clean anything up.
 function SkeletonRow<T>({
   columns,
-  isLast,
+  isLastRow,
 }: {
   columns: readonly TableColumn<T>[];
-  isLast: boolean;
+  isLastRow: boolean;
 }) {
   return (
     <tr
       className={[
         "h-14",
-        rowBoxShadowClassName(undefined, isLast),
+        rowBoxShadowClassName(undefined, isLastRow),
         "animate-table-placeholder-reveal",
       ].join(" ")}
     >
@@ -523,10 +523,10 @@ export function Table<T>({
               <tr className="h-11 bg-surface-bone">
                 {columns.map((column, index) => {
                   const isActions = column.kind === "actions";
-                  // A non-literal `sortable` value (typed `boolean` instead of the literal
-                  // `true`) can slip past TableSortProps's own sort/onSortChange requirement, so
-                  // this also checks onSortChange itself is there before treating the header as
-                  // interactive — otherwise it would render a live-looking button no press reaches.
+                  // The exported overload requires onSortChange whenever a column is genuinely
+                  // sortable, but the looser implementation signature below can't express that
+                  // conditional and keeps it optional regardless — checking it here is what
+                  // narrows it down to the non-optional prop SortableColumnHeader actually takes.
                   const isSortable =
                     !isActions && column.sortable === true && onSortChange !== undefined;
                   const isSorted = isSortable && sort?.column === column.key;
@@ -573,7 +573,7 @@ export function Table<T>({
                     <SkeletonRow
                       key={id}
                       columns={columns}
-                      isLast={index === PLACEHOLDER_ROW_IDS.length - 1}
+                      isLastRow={index === PLACEHOLDER_ROW_IDS.length - 1}
                     />
                   ))
                 : rows.map(({ id, item, state }, rowIndex) => (

@@ -190,6 +190,11 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
+  // overflow-wrap: break-word and the span's own box staying in bounds both hold true even if
+  // white-space: nowrap kept the text itself from ever actually breaking (it would just paint
+  // past the span instead) — scrollWidth over clientWidth is what actually proves it wrapped:
+  // unwrapped text overflows its own box horizontally, wrapped text doesn't.
+  expect(titleSpan.scrollWidth).toBeLessThanOrEqual(titleSpan.clientWidth);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -228,6 +233,7 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
+  expect(titleSpan.scrollWidth).toBeLessThanOrEqual(titleSpan.clientWidth);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -352,14 +358,19 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   );
   const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
   const lastPlaceholderRow = placeholderRows[placeholderRows.length - 1] as HTMLElement;
+  const otherPlaceholderRow = placeholderRows[0] as HTMLElement;
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
 
   const rowRect = lastPlaceholderRow.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
 
   expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
-  const layers = shadowLayers(getComputedStyle(lastPlaceholderRow).boxShadow);
-  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
+  const lastLayers = shadowLayers(getComputedStyle(lastPlaceholderRow).boxShadow);
+  expect(lastLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
+  // Proves the exception is specific to the last row, not the divider having dropped off every
+  // placeholder row: an earlier one still carries it.
+  const otherLayers = shadowLayers(getComputedStyle(otherPlaceholderRow).boxShadow);
+  expect(otherLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(true);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -815,6 +826,11 @@ test("keeps the second action's own identity untouched when an update makes the 
       rows={[{ id: "1", item: { id: "1" } }]}
     />,
   );
+
+  // Focus and press routing alone would still pass if the collision made one of the two actions
+  // disappear entirely — both have to still be there, not just the one under test.
+  const editButtons = screen.getByRole("button", { name: "Edit" }).elements() as HTMLElement[];
+  expect(editButtons).toHaveLength(2);
 
   expect(document.activeElement).toBe(editAgainButton);
   editAgainButton.click();
