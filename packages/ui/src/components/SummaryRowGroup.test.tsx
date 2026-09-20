@@ -76,6 +76,16 @@ test("renders every row it is given, in order", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders nothing at all when it has no rows to frame", async () => {
+  const emptyListScreen = await render(<SummaryRowGroup>{[]}</SummaryRowGroup>);
+  expect(emptyListScreen.container.firstElementChild).toBeNull();
+  await expectNoAccessibilityViolations(emptyListScreen.container);
+
+  const emptyTextScreen = await render(<SummaryRowGroup>{""}</SummaryRowGroup>);
+  expect(emptyTextScreen.container.firstElementChild).toBeNull();
+  await expectNoAccessibilityViolations(emptyTextScreen.container);
+});
+
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ children: undefined }>().not.toExtend<SummaryRowGroupProps>();
