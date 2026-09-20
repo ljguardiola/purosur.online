@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
@@ -22,18 +22,18 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// Reads the exact box-shadow a Tailwind shadow utility resolves to in this browser (Tailwind's
-// v4 shadow utilities always compose every shadow layer, most defaulting to a transparent
-// placeholder), so a test can assert full equality against it instead of a substring, which
-// would also match a value with the right widths and the wrong color, or vice versa.
-function shadowValue(className: string): string {
-  const probe = document.createElement("div");
-  probe.className = className;
-  document.body.appendChild(probe);
-  const value = getComputedStyle(probe).boxShadow;
-  probe.remove();
-  return value;
-}
+// The literal box-shadow string Chromium renders for the focused state (3px blue-strong inset
+// plus the 4px focus shadow), pinned to the design's own hex values (brand-blue-strong #334f60,
+// brand-blue-ui-shadow #4f6c7e33 = blue UI at 20% opacity) rather than read back from the
+// component's own class list or from tokens.css: if either of those drifted to a wrong color or
+// a wrong pixel value, this fixture would stop matching instead of moving together with it.
+// Tailwind v4's shadow utilities always compose five box-shadow layers even when only one or two
+// of them carry a real shadow, hence the four transparent placeholder layers ahead of the real
+// ones (confirmed once against the actual rendered value, not re-derived from Tailwind's classes).
+const FOCUSED_SHADOW =
+  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+  "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
 
 function describedText(input: HTMLInputElement): string {
   const describedBy = input.getAttribute("aria-describedby");
@@ -252,13 +252,10 @@ test("turns the box bone on hover, keeping the same 2px ink-secondary border", a
 test("shows a 3px blue-strong border and the focus shadow when focused, as one field in two states", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
-  const expectedShadow = shadowValue(
-    "shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]",
-  );
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(expectedShadow);
+  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -275,14 +272,10 @@ test("shows the focused border instead of the invalid one once an invalid field 
     />,
   );
   const box = fieldBox(screen, "Motivo");
-  const expectedShadow = shadowValue(
-    "shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]",
-  );
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(expectedShadow);
-  expect(getComputedStyle(box).boxShadow).not.toContain(tokenRgb("status-error-ui"));
+  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -324,12 +317,13 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
 });
 
 test("lets a read-only field be focused but never typed into, with no hover or focus change", async () => {
+  const onChange = vi.fn();
   const screen = await render(
     <TextField
       kind="plain-text"
       label="Motivo"
       value="Cierre parcial"
-      onChange={() => {}}
+      onChange={onChange}
       readOnly
     />,
   );
@@ -353,8 +347,102 @@ test("lets a read-only field be focused but never typed into, with no hover or f
   expect(document.activeElement).toBe(input);
   expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
 
+  // The harness's own value never changes regardless of whether the keystroke was accepted, so
+  // asserting the DOM value stayed put wouldn't prove anything a broken read-only couldn't also
+  // produce by coincidence. Read-only means the caller is never told about the attempt at all.
   await userEvent.keyboard("x");
-  expect(input.value).toBe("Cierre parcial");
+  expect(onChange).not.toHaveBeenCalled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lets disabled win the box treatment over invalid, while still announcing invalid with its message", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value=""
+      onChange={() => {}}
+      disabled
+      invalid
+      errorMessage="Escribí un motivo."
+    />,
+  );
+  const wrapper = fieldWrapper(screen, "Motivo");
+  const box = fieldBox(screen, "Motivo");
+  const input = fieldInput(screen, "Motivo");
+  const style = getComputedStyle(box);
+
+  // Disabled's own white-fill look wins the box, not invalid's error-ui border.
+  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(wrapper).opacity).toBe("0.45");
+
+  // Assistive technology still hears it as invalid, named by its message, regardless of the box.
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(describedText(input)).toContain("Escribí un motivo.");
+  // Marks the message itself exempt from WCAG's contrast minimum, the way an inactive
+  // component's text already is: dimmed by the field's own 45% opacity, it would otherwise fail
+  // it despite being correctly hidden away, not miscolored.
+  const errorMessageElement = screen.getByText("Escribí un motivo.").element();
+  expect(errorMessageElement.getAttribute("aria-disabled")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lets read-only win the box treatment over invalid, while still announcing invalid with its message", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value="Cierre parcial"
+      onChange={() => {}}
+      readOnly
+      invalid
+      errorMessage="Escribí un motivo."
+    />,
+  );
+  const box = fieldBox(screen, "Motivo");
+  const input = fieldInput(screen, "Motivo");
+  const style = getComputedStyle(box);
+
+  // Read-only's own bone-fill look wins the box, not invalid's error-ui border.
+  expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(describedText(input)).toContain("Escribí un motivo.");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lets disabled win the box treatment over read-only when both apply", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value="Cierre parcial"
+      onChange={() => {}}
+      disabled
+      readOnly
+    />,
+  );
+  const wrapper = fieldWrapper(screen, "Motivo");
+  const box = fieldBox(screen, "Motivo");
+  const input = fieldInput(screen, "Motivo");
+  const style = getComputedStyle(box);
+
+  // Disabled's white fill wins the box over read-only's bone fill.
+  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(wrapper).opacity).toBe("0.45");
+  expect(input.disabled).toBe(true);
+  expect(input.readOnly).toBe(true);
+
+  await userEvent.tab();
+  expect(document.activeElement).not.toBe(input);
 
   await expectNoAccessibilityViolations(screen.container);
 });

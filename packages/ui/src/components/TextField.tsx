@@ -136,6 +136,18 @@ export function TextField(props: TextFieldProps) {
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
   const suffix = kind === "weight" || kind === "quantity" ? props.suffix : undefined;
 
+  // The native `disabled` attribute already lands on the input itself, but the error or helper
+  // text beside it doesn't inherit that from a sibling, so assistive tooling has no way to tell
+  // it's part of a disabled field. WCAG's contrast minimum explicitly doesn't apply to an
+  // inactive component's own text (1.4.3/1.4.11), and axe-core's own color-contrast check only
+  // honors that exemption for a node whose OWN `aria-disabled` (or an ancestor's) says so — a
+  // bare opacity dip on the wrapper doesn't qualify, which is what an invalid+disabled field's
+  // status-error-ui text would otherwise fail against. react-aria-components' TextField root
+  // only forwards a fixed allowlist of DOM props (see its own filterDOMProps), which excludes
+  // `aria-disabled`, so it's set directly on the text elements that actually need the exemption
+  // instead.
+  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
+
   return (
     <AriaTextField
       value={value}
@@ -165,12 +177,12 @@ export function TextField(props: TextFieldProps) {
         )}
       </div>
       {invalid ? (
-        <AriaText slot="errorMessage" className={errorClassName}>
+        <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
           {errorMessage}
         </AriaText>
       ) : (
         helperText !== undefined && (
-          <AriaText slot="description" className={helperClassName}>
+          <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
             {helperText}
           </AriaText>
         )

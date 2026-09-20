@@ -29,7 +29,17 @@ interface DispatchableCdpSession {
 // element targeting and actionability checks entirely, exactly like a real mouse moving over an
 // empty desktop: it always succeeds, and the browser's own hit-testing correctly finds nothing at
 // that position, clearing whatever was hovered before.
+// Focus outlives a test the same way the pointer does, and worse: once a test's own DOM is
+// unmounted, the element it left focused is gone but the browser keeps it as the sequential
+// focus navigation starting point, so the next test's `userEvent.tab()` resumes from a hole in
+// a document that no longer exists and reaches nothing at all. Blurring doesn't move that
+// starting point — only focusing something still in the document does, so the root element takes
+// it, and the next Tab starts from the top of the page like the first one in a fresh session.
 afterEach(async () => {
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
+  const root = document.documentElement;
+  root.tabIndex = -1;
+  root.focus();
+  root.removeAttribute("tabindex");
 });
