@@ -61,26 +61,26 @@ function AmountHarness({ initial = "" }: { initial?: string }) {
   return (
     <TextField
       kind="amount"
-      label="Importe"
+      label="Amount"
       value={value}
       onChange={setValue}
       prefix="$"
-      helperText="Hay $ 61.900,00 en la caja antes de este retiro."
+      helperText="There is $ 61.900,00 in the register before this withdrawal."
     />
   );
 }
 
 function PlainTextHarness({ initial = "" }: { initial?: string }) {
   const [value, setValue] = useState(initial);
-  return <TextField kind="plain-text" label="Motivo" value={value} onChange={setValue} />;
+  return <TextField kind="plain-text" label="Reason" value={value} onChange={setValue} />;
 }
 
 test("renders the label 6px above an 8px-radius box", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} />,
+    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} />,
   );
-  const label = screen.getByText("Motivo").element() as HTMLElement;
-  const box = fieldBox(screen, "Motivo");
+  const label = screen.getByText("Reason").element() as HTMLElement;
+  const box = fieldBox(screen, "Reason");
 
   const gap = box.getBoundingClientRect().top - label.getBoundingClientRect().bottom;
   expect(gap).toBeGreaterThan(5);
@@ -106,7 +106,7 @@ type KindCase = {
 const kindCases: KindCase[] = [
   {
     kind: "amount",
-    label: "Importe",
+    label: "Amount",
     height: 72,
     paddingX: 16,
     gap: 8,
@@ -116,7 +116,7 @@ const kindCases: KindCase[] = [
   },
   {
     kind: "counted-cash",
-    label: "Efectivo contado",
+    label: "Counted cash",
     height: 80,
     paddingX: 24,
     gap: 12,
@@ -126,7 +126,7 @@ const kindCases: KindCase[] = [
   },
   {
     kind: "price",
-    label: "Precio de venta por kilo",
+    label: "Sale price per kilo",
     height: 72,
     paddingX: 16,
     gap: 8,
@@ -136,7 +136,7 @@ const kindCases: KindCase[] = [
   },
   {
     kind: "weight",
-    label: "Peso en kilos",
+    label: "Weight in kilos",
     height: 64,
     paddingX: 16,
     gap: 8,
@@ -146,7 +146,7 @@ const kindCases: KindCase[] = [
   },
   {
     kind: "quantity",
-    label: "Cantidad contada",
+    label: "Counted quantity",
     height: 72,
     paddingX: 16,
     gap: 8,
@@ -156,7 +156,7 @@ const kindCases: KindCase[] = [
   },
   {
     kind: "plain-text",
-    label: "Motivo",
+    label: "Reason",
     height: 52,
     paddingX: 16,
     gap: null,
@@ -222,21 +222,21 @@ for (const kindCase of kindCases) {
 
 test("keeps the same box appearance whether the value is empty or filled", async () => {
   const emptyScreen = await render(renderKind(kindCases[0] as KindCase, ""));
-  const emptyBox = fieldBox(emptyScreen, "Importe");
+  const emptyBox = fieldBox(emptyScreen, "Amount");
   const emptyShadow = getComputedStyle(emptyBox).boxShadow;
   await emptyScreen.unmount();
 
   const filledScreen = await render(renderKind(kindCases[0] as KindCase, "60000"));
-  const filledBox = fieldBox(filledScreen, "Importe");
+  const filledBox = fieldBox(filledScreen, "Amount");
   expect(getComputedStyle(filledBox).boxShadow).toBe(emptyShadow);
-  expect(fieldInput(filledScreen, "Importe").value).toBe("60000");
+  expect(fieldInput(filledScreen, "Amount").value).toBe("60000");
 
   await expectNoAccessibilityViolations(filledScreen.container);
 });
 
 test("shows a white box with a 2px ink-secondary border at rest", async () => {
   const screen = await render(<PlainTextHarness />);
-  const box = fieldBox(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
@@ -248,7 +248,7 @@ test("shows a white box with a 2px ink-secondary border at rest", async () => {
 
 test("turns the box bone on hover, keeping the same 2px ink-secondary border", async () => {
   const screen = await render(<PlainTextHarness />);
-  const box = fieldBox(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
@@ -261,7 +261,7 @@ test("turns the box bone on hover, keeping the same 2px ink-secondary border", a
 
 test("shows a 3px blue-strong border and the focus shadow when focused, as one field in two states", async () => {
   const screen = await render(<PlainTextHarness />);
-  const box = fieldBox(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
 
   await userEvent.tab();
 
@@ -274,14 +274,14 @@ test("shows the focused border instead of the invalid one once an invalid field 
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
+      label="Reason"
       value=""
       onChange={() => {}}
       invalid
-      errorMessage="Escribí un motivo."
+      errorMessage="Enter a reason."
     />,
   );
-  const box = fieldBox(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
 
   await userEvent.tab();
 
@@ -294,14 +294,14 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
+      label="Reason"
       value=""
       onChange={() => {}}
       invalid
-      errorMessage="Escribí un motivo."
+      errorMessage="Enter a reason."
     />,
   );
-  const box = fieldBox(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
@@ -314,8 +314,8 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
 
 test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
   const screen = await render(<PlainTextHarness />);
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
 
   await userEvent.click(input);
   await userEvent.hover(box);
@@ -329,14 +329,14 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 test("dims the whole field to 45% opacity and blocks focus when disabled", async () => {
   const screen = await render(
     <>
-      <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} disabled />
-      <button type="button">Siguiente control</button>
+      <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} disabled />
+      <button type="button">Next control</button>
     </>,
   );
-  const wrapper = fieldWrapper(screen, "Motivo");
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
-  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
+  const wrapper = fieldWrapper(screen, "Reason");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
   // The box itself still renders the field's ordinary resting look underneath that dimming —
@@ -361,17 +361,17 @@ test("lets a read-only field be focused and shows it, but is never typed into or
     <>
       <TextField
         kind="plain-text"
-        label="Motivo"
-        value="Cierre parcial"
+        label="Reason"
+        value="Partial close"
         onChange={onChange}
         readOnly
       />
-      <TextField kind="plain-text" label="Detalle" value="" onChange={() => {}} />
+      <TextField kind="plain-text" label="Detail" value="" onChange={() => {}} />
     </>,
   );
-  const box = fieldBox(screen, "Motivo");
-  const editableBox = fieldBox(screen, "Detalle");
-  const input = fieldInput(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
+  const editableBox = fieldBox(screen, "Detail");
+  const input = fieldInput(screen, "Reason");
   const restingShadow = getComputedStyle(box).boxShadow;
   const restingBackground = getComputedStyle(box).backgroundColor;
 
@@ -418,17 +418,17 @@ test("lets disabled win the box treatment over invalid, while still announcing i
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
+      label="Reason"
       value=""
       onChange={() => {}}
       disabled
       invalid
-      errorMessage="Escribí un motivo."
+      errorMessage="Enter a reason."
     />,
   );
-  const wrapper = fieldWrapper(screen, "Motivo");
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
+  const wrapper = fieldWrapper(screen, "Reason");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
   // Disabled's own white-fill look wins the box, not invalid's error-ui border.
@@ -439,11 +439,11 @@ test("lets disabled win the box treatment over invalid, while still announcing i
 
   // Assistive technology still hears it as invalid, named by its message, regardless of the box.
   expect(input.getAttribute("aria-invalid")).toBe("true");
-  expect(describedText(input)).toContain("Escribí un motivo.");
+  expect(describedText(input)).toContain("Enter a reason.");
   // Marks the message itself exempt from WCAG's contrast minimum, the way an inactive
   // component's text already is: dimmed by the field's own 45% opacity, it would otherwise fail
   // it despite being correctly hidden away, not miscolored.
-  const errorMessageElement = screen.getByText("Escribí un motivo.").element();
+  const errorMessageElement = screen.getByText("Enter a reason.").element();
   expect(errorMessageElement.getAttribute("aria-disabled")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -453,18 +453,18 @@ test("marks the helper text as disabled too when the field itself is disabled", 
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
+      label="Reason"
       value=""
       onChange={() => {}}
-      helperText="No hay caja abierta."
+      helperText="No register is open."
       disabled
     />,
   );
-  const input = fieldInput(screen, "Motivo");
+  const input = fieldInput(screen, "Reason");
 
-  expect(describedText(input)).toContain("No hay caja abierta.");
+  expect(describedText(input)).toContain("No register is open.");
   // Same exemption as the disabled+invalid error text above, for the ordinary helper line.
-  const helperElement = screen.getByText("No hay caja abierta.").element();
+  const helperElement = screen.getByText("No register is open.").element();
   expect(helperElement.getAttribute("aria-disabled")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -474,16 +474,16 @@ test("lets read-only win the box treatment over invalid, while still announcing 
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
-      value="Cierre parcial"
+      label="Reason"
+      value="Partial close"
       onChange={() => {}}
       readOnly
       invalid
-      errorMessage="Escribí un motivo."
+      errorMessage="Enter a reason."
     />,
   );
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
   // Read-only's own bone-fill look wins the box, not invalid's error-ui border.
@@ -492,7 +492,7 @@ test("lets read-only win the box treatment over invalid, while still announcing 
   expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
 
   expect(input.getAttribute("aria-invalid")).toBe("true");
-  expect(describedText(input)).toContain("Escribí un motivo.");
+  expect(describedText(input)).toContain("Enter a reason.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -502,19 +502,19 @@ test("lets disabled win the box treatment over read-only when both apply", async
     <>
       <TextField
         kind="plain-text"
-        label="Motivo"
-        value="Cierre parcial"
+        label="Reason"
+        value="Partial close"
         onChange={() => {}}
         disabled
         readOnly
       />
-      <button type="button">Siguiente control</button>
+      <button type="button">Next control</button>
     </>,
   );
-  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
-  const wrapper = fieldWrapper(screen, "Motivo");
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
+  const wrapper = fieldWrapper(screen, "Reason");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
   // Disabled's white fill wins the box over read-only's bone fill.
@@ -537,30 +537,30 @@ test("describes an invalid money field with both its unit and its message", asyn
   const screen = await render(
     <TextField
       kind="amount"
-      label="Importe"
+      label="Amount"
       value=""
       onChange={() => {}}
       prefix="$"
       invalid
-      errorMessage="Escribí un importe."
+      errorMessage="Enter an amount."
     />,
   );
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
   const described = describedText(input);
 
   expect(described).toContain("$");
-  expect(described).toContain("Escribí un importe.");
+  expect(described).toContain("Enter an amount.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks a required field with an asterisk and exposes it as required", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} required />,
+    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} required />,
   );
-  const label = screen.getByText("Motivo").element() as HTMLElement;
+  const label = screen.getByText("Reason").element() as HTMLElement;
   // The generated asterisk folds into the input's own accessible name (the browser reads ::after
-  // content as part of accname computation), so the plain "Motivo" query used elsewhere in this
+  // content as part of accname computation), so the plain "Reason" query used elsewhere in this
   // file wouldn't match here; there is only one textbox in this render.
   const input = screen.getByRole("textbox").element() as HTMLInputElement;
 
@@ -574,44 +574,46 @@ test("replaces the helper line with the field's message and exposes it as invali
   const screen = await render(
     <TextField
       kind="plain-text"
-      label="Motivo"
+      label="Reason"
       value=""
       onChange={() => {}}
-      helperText="No debería verse."
+      helperText="Should not be visible."
       invalid
-      errorMessage="Escribí un motivo."
+      errorMessage="Enter a reason."
     />,
   );
-  const box = fieldBox(screen, "Motivo");
-  const input = fieldInput(screen, "Motivo");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
   const style = getComputedStyle(box);
 
   expect(style.boxShadow).toContain(tokenRgb("status-error-ui"));
   expect(style.boxShadow).toContain("2px");
   expect(input.getAttribute("aria-invalid")).toBe("true");
-  expect(screen.getByText("Escribí un motivo.").element()).toBeTruthy();
-  expect(screen.getByText("No debería verse.").query()).toBeNull();
+  expect(screen.getByText("Enter a reason.").element()).toBeTruthy();
+  expect(screen.getByText("Should not be visible.").query()).toBeNull();
   expect(input.getAttribute("aria-describedby")).toBeTruthy();
-  expect(describedText(input)).toContain("Escribí un motivo.");
+  expect(describedText(input)).toContain("Enter a reason.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wires the helper text as the input's own description for assistive technology", async () => {
   const screen = await render(<AmountHarness />);
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
 
   expect(input.getAttribute("aria-describedby")).toBeTruthy();
-  expect(describedText(input)).toContain("Hay $ 61.900,00 en la caja antes de este retiro.");
+  expect(describedText(input)).toContain(
+    "There is $ 61.900,00 in the register before this withdrawal.",
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wires the money prefix into the input's own description for assistive technology", async () => {
   const screen = await render(
-    <TextField kind="amount" label="Importe" value="" onChange={() => {}} prefix="$" />,
+    <TextField kind="amount" label="Amount" value="" onChange={() => {}} prefix="$" />,
   );
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
   const prefixElement = screen.getByText("$").element();
 
   expect(describedText(input)).toContain("$");
@@ -624,9 +626,9 @@ test("wires the money prefix into the input's own description for assistive tech
 
 test("wires the kg suffix into the input's own description for assistive technology", async () => {
   const screen = await render(
-    <TextField kind="weight" label="Peso en kilos" value="" onChange={() => {}} suffix="kg" />,
+    <TextField kind="weight" label="Weight in kilos" value="" onChange={() => {}} suffix="kg" />,
   );
-  const input = fieldInput(screen, "Peso en kilos");
+  const input = fieldInput(screen, "Weight in kilos");
   const suffixElement = screen.getByText("kg").element();
 
   expect(describedText(input)).toContain("kg");
@@ -639,18 +641,18 @@ test("keeps the affix in the description alongside the helper text, each named o
   const screen = await render(
     <TextField
       kind="weight"
-      label="Peso en kilos"
+      label="Weight in kilos"
       value=""
       onChange={() => {}}
       suffix="kg"
-      helperText="Pesá con la balanza vacía."
+      helperText="Weigh with the scale empty."
     />,
   );
-  const input = fieldInput(screen, "Peso en kilos");
+  const input = fieldInput(screen, "Weight in kilos");
   const described = describedText(input);
 
   expect(described).toContain("kg");
-  expect(described).toContain("Pesá con la balanza vacía.");
+  expect(described).toContain("Weigh with the scale empty.");
   // Each description source is referenced by exactly one id: the composed aria-describedby
   // has no id listed twice, so nothing in it gets announced more than once.
   const describedBy = input.getAttribute("aria-describedby") as string;
@@ -668,42 +670,42 @@ test("follows the field's description as it moves from helper text to an error a
         {invalid ? (
           <TextField
             kind="plain-text"
-            label="Motivo"
+            label="Reason"
             value=""
             onChange={() => {}}
-            helperText="Opcional."
+            helperText="Optional."
             invalid
-            errorMessage="Escribí un motivo."
+            errorMessage="Enter a reason."
           />
         ) : (
           <TextField
             kind="plain-text"
-            label="Motivo"
+            label="Reason"
             value=""
             onChange={() => {}}
-            helperText="Opcional."
+            helperText="Optional."
           />
         )}
         <button type="button" onClick={() => setInvalid((current) => !current)}>
-          Alternar
+          Toggle
         </button>
       </>
     );
   }
 
   const screen = await render(<ValidityHarness />);
-  const input = fieldInput(screen, "Motivo");
-  const toggle = screen.getByRole("button", { name: "Alternar" }).element() as HTMLButtonElement;
+  const input = fieldInput(screen, "Reason");
+  const toggle = screen.getByRole("button", { name: "Toggle" }).element() as HTMLButtonElement;
 
-  expect(describedText(input)).toContain("Opcional.");
-
-  await userEvent.click(toggle);
-  await expect.poll(() => describedText(input)).toContain("Escribí un motivo.");
-  expect(describedText(input)).not.toContain("Opcional.");
+  expect(describedText(input)).toContain("Optional.");
 
   await userEvent.click(toggle);
-  await expect.poll(() => describedText(input)).toContain("Opcional.");
-  expect(describedText(input)).not.toContain("Escribí un motivo.");
+  await expect.poll(() => describedText(input)).toContain("Enter a reason.");
+  expect(describedText(input)).not.toContain("Optional.");
+
+  await userEvent.click(toggle);
+  await expect.poll(() => describedText(input)).toContain("Optional.");
+  expect(describedText(input)).not.toContain("Enter a reason.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -712,15 +714,15 @@ test("reports exactly what was typed with the keyboard, unformatted", async () =
   const screen = await render(<PlainTextHarness />);
 
   await userEvent.tab();
-  await userEvent.keyboard("Cierre parcial del turno");
+  await userEvent.keyboard("Partial close of the shift");
 
-  expect(fieldInput(screen, "Motivo").value).toBe("Cierre parcial del turno");
+  expect(fieldInput(screen, "Reason").value).toBe("Partial close of the shift");
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("reports exactly what was typed after clicking into the field with the mouse", async () => {
   const screen = await render(<AmountHarness />);
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
 
   await userEvent.click(input);
   await userEvent.keyboard("1.234,56");
@@ -731,7 +733,7 @@ test("reports exactly what was typed after clicking into the field with the mous
 
 test("clears a typed value with the keyboard", async () => {
   const screen = await render(<AmountHarness initial="60.000,00" />);
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
 
   await userEvent.click(input);
   await userEvent.keyboard("{Control>}a{/Control}{Backspace}");
@@ -742,7 +744,7 @@ test("clears a typed value with the keyboard", async () => {
 
 test("clears a typed value with the mouse", async () => {
   const screen = await render(<AmountHarness initial="60.000,00" />);
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
 
   await userEvent.clear(input);
 
@@ -752,7 +754,7 @@ test("clears a typed value with the mouse", async () => {
 
 test("keeps the amount value right-aligned against its prefix as it grows", async () => {
   const screen = await render(<AmountHarness />);
-  const input = fieldInput(screen, "Importe");
+  const input = fieldInput(screen, "Amount");
 
   await userEvent.click(input);
   await userEvent.keyboard("60000");
