@@ -98,7 +98,14 @@ export function ListFilter<V extends string>({
               " ",
             )}
           >
-            <span id={labelId} className="text-sm text-ink-secondary">
+            {/* shrink-0 + whitespace-nowrap: a flex item's own default min-width: auto only
+                stops it shrinking below its longest word, not its whole text — once the trigger
+                itself can shrink (max-w-full, see triggerClassName's own comment), this label
+                would otherwise be squeezed down to that one word and wrap the rest inside the
+                trigger's own fixed 44px height instead. Unlike the value, which is meant to
+                shrink and ellipsize (its own truncate above), this short, fixed label stays
+                fully legible and lets the value give up the room instead. */}
+            <span id={labelId} className="shrink-0 whitespace-nowrap text-sm text-ink-secondary">
               {label}
             </span>
             <AriaSelectValue id={valueId} className="truncate text-base font-bold text-ink" />

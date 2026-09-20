@@ -230,12 +230,49 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
       <ListFilter label="Estado" options={options} value="a" onChange={() => {}} />
     </div>,
   );
-  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+  const triggerLocator = screen.getByRole("button", { name: /Estado/ });
+  const trigger = triggerLocator.element() as HTMLElement;
+  const value = triggerLocator
+    .getByText(options[0].label, { exact: true })
+    .element() as HTMLElement;
 
   expect(trigger.getBoundingClientRect().width).toBeCloseTo(200, 0);
-  // Not just capped in width: proves the chosen value truncated to fit instead of wrapping
-  // inside the trigger's own fixed 44px height.
-  expect(trigger.scrollHeight).toBe(trigger.clientHeight);
+  // Not just capped in width: proves the chosen value truncated to fit on one line instead of
+  // wrapping. trigger.scrollHeight === trigger.clientHeight alone can't tell a single line from
+  // exactly two: at this trigger's own 40px content box (44px h-11 minus its own 2px+2px
+  // border-2), two 20px lines fill it exactly, with nothing left over to register as overflow.
+  // Comparing the value's own rendered height against a single line height (its own line-height)
+  // catches that case too, not just a third line spilling past the box.
+  const valueLineHeight = Number.parseFloat(getComputedStyle(value).lineHeight);
+  expect(value.getBoundingClientRect().height).toBeLessThanOrEqual(valueLineHeight + 1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The label span has no shrink protection of its own (unlike the value's truncate and the
+// chevron's shrink-0 above): once the trigger itself can shrink (max-w-full, see its own
+// comment), a flex item's default min-width: auto lets it shrink all the way down to its own
+// longest word before it has to wrap the rest, exactly the failure this proves against.
+test("keeps a multi-word label on one line instead of wrapping it inside a shrunk trigger", async () => {
+  const screen = await render(
+    <div style={{ width: "90px", display: "flex" }}>
+      <ListFilter
+        label="Forma de pago del pedido"
+        options={options}
+        value="all"
+        onChange={() => {}}
+      />
+    </div>,
+  );
+  const triggerLocator = screen.getByRole("button", { name: /Forma de pago del pedido/ });
+  const label = triggerLocator
+    .getByText("Forma de pago del pedido", { exact: true })
+    .element() as HTMLElement;
+
+  // Same reasoning as the value's own check above: a height comparison against the label's own
+  // single line-height catches any wrap, not just one long enough to spill past the trigger box.
+  const labelLineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
+  expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(labelLineHeight + 1);
 
   await expectNoAccessibilityViolations(screen.container);
 });
