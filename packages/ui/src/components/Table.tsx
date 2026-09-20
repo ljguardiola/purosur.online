@@ -227,10 +227,8 @@ function rowStateClassName(state: TableRowState | undefined): string {
 // right against the container's own 1px border, the same "line" color drawn immediately outside
 // it, the two would otherwise read as one 2px band instead of the 1px every other row gets.
 //
-// Every branch below is its own complete, literal class string — Tailwind's scanner only ever
-// generates CSS for class names it can find written out somewhere in the source, never for one
-// assembled at runtime (joining pieces into `shadow-[a,b]` dynamically produced a class the
-// scanner had never seen, and getComputedStyle's own box-shadow silently came back "none").
+// Every branch below is its own complete, literal class string, since Tailwind's scanner only
+// generates CSS for class names it finds written out in source, never one assembled at runtime.
 function rowBoxShadowClassName(state: TableRowState | undefined, isLast: boolean): string {
   if (isLast) {
     return state === "selected" ? "shadow-[inset_4px_0_0_0_var(--color-brand-blue-ui)]" : "";
@@ -248,9 +246,10 @@ const sortIconClassName = "size-3 shrink-0";
 
 // Fills its whole header cell (the cell's own horizontal padding lives inside the button, not
 // the <th>, so the button's own box reaches every edge of the cell) so the entire header area
-// activates sorting, not just the text.
+// activates sorting, not just the text. Hovers to surface-sand, not the package's usual
+// surface-bone, since this button already sits on the header row's own bone background.
 const headerButtonClassName =
-  "flex h-full w-full items-center gap-1 outline-none " +
+  "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
@@ -442,10 +441,9 @@ function TableCell<T>({
         className={
           isActions
             ? "flex flex-row items-center justify-end gap-2"
-            : [
-                "flex flex-col justify-center gap-0.5",
-                align === "end" ? "items-end" : "items-start",
-              ].join(" ")
+            : ["flex flex-col justify-center", align === "end" ? "items-end" : "items-start"].join(
+                " ",
+              )
         }
       >
         {isActions ? (
@@ -454,16 +452,15 @@ function TableCell<T>({
             {column.actions[1] && <TableActionButton action={column.actions[1]} item={item} />}
           </>
         ) : (
-          // min-w-0 max-w-full: this flex item's cross size is its own content width
-          // (items-start/items-end above opt it out of the container's stretch, on purpose, so a
-          // short value like a status chip doesn't balloon to the full column), and a flex item's
-          // default min-width is that same unwrapped content width — which, for a run with no
-          // natural break point (a barcode, a SKU with no spaces), stays the *unbroken* width even
-          // under overflow-wrap: break-word, since intrinsic sizing doesn't count that property's
-          // break points. min-w-0 alone only removes that floor; without max-w-full the item's
-          // cross size still resolves to its own unclamped preferred (unbroken) width, so both are
-          // needed to actually cap it at the column's own available width and let it wrap inside.
-          <div className="min-w-0 max-w-full">{column.render(item)}</div>
+          // flex flex-col gap-0.5: lays out whatever column.render(item) returns (a single value,
+          // or several elements from a fragment) with the same gap either way, since the outer div
+          // above always has exactly this one child now and can't apply a gap of its own between
+          // them. max-w-full: the outer div's items-start/items-end opts this flex item out of its
+          // stretch (so a short value doesn't balloon to the full column width), which leaves its
+          // cross size as its own unclamped preferred width — wider than the column for an
+          // unbreakable run. This caps it at the column's own available width so it wraps inside
+          // instead of overflowing.
+          <div className="flex flex-col gap-0.5 max-w-full">{column.render(item)}</div>
         )}
       </div>
     </td>

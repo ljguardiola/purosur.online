@@ -60,19 +60,26 @@ function shadowLayers(boxShadow: string): string[] {
   return layers;
 }
 
-// scrollWidth/clientWidth only measure a box's own layout size, which stays "wrapped" even when
-// the box is inline (scrollWidth and clientWidth both come back 0 for a plain <span>, making
-// scrollWidth <= clientWidth trivially true) or when the box's own size is capped by its parent
-// regardless of what its content actually painted (a block-level flex item can end up narrower
-// than its unbroken text, which then just paints straight through the box's own right edge). A
-// Range over the element's actual text paints one client rect per wrapped line — its rightmost
-// edge is where the browser really put ink, independent of what the containing box measured.
+// Measures where the element's text actually painted (its rightmost line-box edge), independent
+// of the containing box's own layout size. Throws instead of returning Math.max's own -Infinity
+// for zero rects (an element that paints no text, e.g. display: none): -Infinity <= anything is
+// true, which would make every assertion built on this pass regardless of what it measured.
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
   range.selectNodeContents(element);
   const rects = Array.from(range.getClientRects());
+  if (rects.length === 0) {
+    throw new Error("paintedTextRight: element painted no text (no client rects)");
+  }
   return Math.max(...rects.map((rect) => rect.right));
 }
+
+test("paintedTextRight throws for an element that paints no text, instead of silently passing", async () => {
+  const screen = await render(<span style={{ display: "none" }}>hidden</span>);
+  const hidden = screen.container.querySelector("span") as HTMLElement;
+
+  expect(() => paintedTextRight(hidden)).toThrow();
+});
 
 // A row's own divider and selected accent are inset box-shadow layers declared on the <tr>
 // itself, but <td> cells fully tile a row with no gaps between them, so a hit test
@@ -143,13 +150,11 @@ test("actually paints the selected row's left accent and the row divider, not ju
   expect([cr, cg, cb]).not.toEqual([dr, dg, db]);
 });
 
-// overflow-clip-margin only widens how far *overflowing* content (like the sortable header's own
+// overflow-clip-margin only widens how far overflowing content (like the sortable header's own
 // focus ring) can paint before the clip catches it; the header row's and last row's own
-// backgrounds never overflow their box in the first place, so they have nothing to gain from that
-// margin and nothing to lose from the rounding. Proven at all four corners: a point 1px inside
-// each one still lies outside an 8px radius curve, so it must not belong to the container's own
-// painted content — checked with the container pushed away from the viewport edge, so there's
-// real page behind it to show through if the corner weren't actually rounded.
+// backgrounds never overflow their own box, so the margin doesn't affect them. Each probe sits
+// 1px inside a curve smaller than the 8px radius, so it must lie outside the container's own
+// painted content.
 test("keeps every corner rounded, with overflow-clip-margin unrelated to it", async () => {
   const screen = await render(
     // An explicit width well inside the browser's own viewport, on top of the existing top/left
@@ -611,6 +616,31 @@ test("renders no detail line when no detail is given", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("lays out a cell whose render returns several elements with the same 2px gap TableCellText uses", async () => {
+  const fragmentColumns = [
+    {
+      key: "name",
+      title: "Producto",
+      render: () => (
+        <>
+          <span className="block">Line A</span>
+          <span className="block">Line B</span>
+        </>
+      ),
+    },
+  ] as const;
+  const screen = await render(
+    <Table {...commonProps} columns={fragmentColumns} rows={[rows[0] as TableRow<Product>]} />,
+  );
+  const lineA = screen.getByText("Line A").element() as HTMLElement;
+  const lineB = screen.getByText("Line B").element() as HTMLElement;
+
+  const gap = lineB.getBoundingClientRect().top - lineA.getBoundingClientRect().bottom;
+  expect(gap).toBeCloseTo(2, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("wraps long cell text onto a second line instead of cutting it with an ellipsis", async () => {
   const longText =
     "A very long product name that does not fit on a single line of this narrow column";
@@ -648,12 +678,32 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const cell = cellText.closest("td") as HTMLElement;
 
   expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
-  // cellText's own box is a column flex item whose cross size is its own content width (see
-  // Table.tsx's TableCell): a block-level box laid out that way can end up narrower than the
-  // token's unbroken width and just have the text paint straight through its right edge, so
-  // comparing the two boxes alone would pass even when nothing actually wrapped. Only the token's
-  // real painted extent proves it broke inside the cell instead of overrunning it.
+  // Compares the token's real painted extent, not cellText's own box (which can end up narrower
+  // than the token — see paintedTextRight above), against the cell's own boundary.
   expect(paintedTextRight(cellText)).toBeLessThanOrEqual(cell.getBoundingClientRect().right);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("breaks a long unbreakable token inside an align:end cell instead of overrunning the previous column", async () => {
+  const barcode = "1234567890123456789012345678901234567890";
+  const screen = await render(
+    <div style={{ width: "320px" }}>
+      <Table
+        {...commonProps}
+        columns={columns}
+        rows={[{ id: "1", item: { id: "1", name: "x", stock: barcode } }]}
+      />
+    </div>,
+  );
+  const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
+  const cell = cellText.closest("td") as HTMLElement;
+
+  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  const range = document.createRange();
+  range.selectNodeContents(cellText);
+  const minLeft = Math.min(...Array.from(range.getClientRects()).map((rect) => rect.left));
+  expect(minLeft).toBeGreaterThanOrEqual(cell.getBoundingClientRect().left);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -662,10 +712,40 @@ test("right-aligns a numeric column in the header and the rows, with tabular dig
   const screen = await render(<Table {...commonProps} columns={columns} />);
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const cell = screen.getByRole("cell", { name: "12" }).element() as HTMLElement;
+  const cellText = screen.getByText("12", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(header).textAlign).toBe("right");
   expect(getComputedStyle(cell).textAlign).toBe("right");
   expect(getComputedStyle(cell).fontVariantNumeric).toContain("tabular-nums");
+  // text-align alone doesn't govern the value's own box position inside the cell's flex column
+  // (that's items-end/items-start — see TableCell in Table.tsx), so the painted position is what
+  // actually proves it sits at the cell's right edge rather than its left.
+  expect(cellText.getBoundingClientRect().right).toBeCloseTo(
+    cell.getBoundingClientRect().right - 16,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("right-aligns a sortable end-aligned header's own title and icon, not just its text-align", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+  const icon = header.querySelector("svg") as SVGSVGElement;
+
+  // The button fills its whole header cell (see the "reach every edge" test below), so its own
+  // box position says nothing about alignment; the icon it lays out via justify-end is what does.
+  expect(icon.getBoundingClientRect().right).toBeCloseTo(
+    header.getBoundingClientRect().right - 16,
+    0,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -764,6 +844,12 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(header.textContent).toBe("Actions");
+  // Named for assistive technology, but not painted: the label's own box collapses to 1x1px
+  // (sr-only), so removing that class would leave "Actions" rendering as visible header text.
+  const srOnlyLabel = header.querySelector("span") as HTMLElement;
+  const srOnlyRect = srOnlyLabel.getBoundingClientRect();
+  expect(srOnlyRect.width).toBeLessThanOrEqual(1);
+  expect(srOnlyRect.height).toBeLessThanOrEqual(1);
   // 60px design content width + 6px inner padding (not first) + 16px edge padding (last).
   expect(getComputedStyle(header).width).toBe("82px");
   const edit = screen.getByRole("button", { name: "Edit" }).nth(0);
@@ -946,6 +1032,13 @@ test("does not accept a column without a title, or an actions column without its
   expectTypeOf<{ key: string; kind: "actions"; srLabel: string }>().not.toExtend<
     TableColumn<Product>
   >();
+  // srLabel itself, not just `actions`, is required: an actions column that has `actions` but no
+  // srLabel would leave assistive technology with no name for that column at all.
+  expectTypeOf<{
+    key: string;
+    kind: "actions";
+    actions: readonly [TableAction<Product>];
+  }>().not.toExtend<TableColumn<Product>>();
 });
 
 // The actions column's width comes from the same `actions` array that renders every IconButton
@@ -1005,14 +1098,8 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A `sortable` value typed `boolean` instead of the literal `true` (one built from a variable, not
-// written as `true` in place) used to satisfy this union anyway, in both shapes below — alone, or
-// alongside a genuinely-literal sortable column, where the loophole was worse: sort/onSortChange
-// became required (satisfied by the real column), so nothing stopped a caller's own value here from
-// rendering interactively too, calling that handler with a key it was never typed to receive.
-// TableUnsortableDataColumn's own `defaultDirection?: never` (see Table.tsx) closes both: the only
-// way left to write a sortable column is the literal `sortable: true` that already forces the
-// handler to be typed for it, so there is no runtime case left for a boundary to guard.
+// A `sortable` value typed `boolean` (not the literal `true`) must not satisfy TableColumn, alone
+// or beside a genuinely sortable column in the same tuple.
 test("does not accept a non-literal boolean sortable value, alone or beside a genuinely sortable column", () => {
   type MinimalItem = { id: string; name: string };
   expectTypeOf<{
@@ -1050,6 +1137,32 @@ test("does not accept a non-literal boolean sortable value, alone or beside a ge
       },
     ]
   >().not.toExtend<readonly [TableColumn<MinimalItem>, ...TableColumn<MinimalItem>[]]>();
+});
+
+// Table's own type parameter for its columns tuple is `const C`, which is what recovers literal
+// key/sortable inference from an inline array here, without the caller writing `as const`.
+test("infers literal column keys from an inline columns array, without `as const`", () => {
+  type MinimalItem = { id: string; value: string };
+  const element = (
+    <Table
+      aria-label="Items"
+      rows={[] as TableRow<MinimalItem>[]}
+      columns={[
+        {
+          key: "value",
+          title: "Value",
+          sortable: true,
+          defaultDirection: "ascending",
+          render: (item: MinimalItem) => item.value,
+        },
+      ]}
+      sort={{ column: "value", direction: "ascending" }}
+      onSortChange={(sort) => {
+        expectTypeOf(sort.column).toEqualTypeOf<"value">();
+      }}
+    />
+  );
+  expectTypeOf(element).not.toBeNever();
 });
 
 test("makes the sortable header's own button reach every edge of the header cell, padding included", async () => {
@@ -1092,6 +1205,41 @@ test("shows a visible focus outline in strong blue when a sortable header is rea
   await expect
     .poll(() => getComputedStyle(button).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("hovers a sortable header to surface-sand, since it sits on the header row's own bone background", async () => {
+  interface DispatchableCdpSession {
+    send(
+      method: "Input.dispatchMouseEvent",
+      params: { type: "mouseMoved"; x: number; y: number },
+    ): Promise<unknown>;
+  }
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  const headerRow = button.closest("tr") as HTMLElement;
+  const rect = button.getBoundingClientRect();
+
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(headerRow).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  });
+
+  expect(button.getAttribute("data-hovered")).toBe("true");
+  expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-sand"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1880,9 +2028,8 @@ test("keeps showing the footer while updating", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// design.pen's own "Backoffice / Productos · Sin resultados" screen keeps its table footer's
-// count text ("0 de 215 productos") visible next to the empty state, with no pagination in it
-// (nothing to paginate through zero results).
+// A caller's own row-count text stays visible next to the empty state, even with nothing left to
+// paginate through zero results.
 test("keeps showing the footer alongside the empty state", async () => {
   const screen = await render(
     <Table
@@ -1905,14 +2052,20 @@ test("keeps showing the footer alongside the empty state", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// TableProps<Product> (no second type argument) resolves its columns tuple to the general
+// TableColumn<Product> shape, which TableHasSortableColumn always reads as "could be sortable" —
+// so it requires sort/onSortChange regardless of the object under test, and an object missing one
+// of the three fields below would fail to extend for that reason alone even if the field under
+// test were present. Naming the same non-sortable `columns` used everywhere else in this file
+// keeps sort/onSortChange optional, so each assertion fails only for its own missing field.
 test("does not accept a table without an accessible name, its columns or its rows", () => {
   expectTypeOf<{ columns: typeof columns; rows: TableRow<Product>[] }>().not.toExtend<
-    TableProps<Product>
+    TableProps<Product, typeof columns>
   >();
   expectTypeOf<{ "aria-label": string; rows: TableRow<Product>[] }>().not.toExtend<
-    TableProps<Product>
+    TableProps<Product, typeof columns>
   >();
   expectTypeOf<{ "aria-label": string; columns: typeof columns }>().not.toExtend<
-    TableProps<Product>
+    TableProps<Product, typeof columns>
   >();
 });
