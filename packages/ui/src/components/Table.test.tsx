@@ -205,6 +205,17 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
     ["bottomRight", rect.right - 1.5, rect.bottom - 1.5, rowWhite],
   ] as const) {
     const [r, g, b] = await pixelAt(x, y);
+    // Positive control: every negative assertion in this test would also pass if pixelAt sampled
+    // an unrelated point entirely (a coordinate bug, not a rounding one) — this pins the probe to
+    // the green backdrop it's actually meant to be reading, not just "not bone/white".
+    expect(
+      g,
+      `${name} wasn't green-dominant — the probe isn't reading the backdrop`,
+    ).toBeGreaterThan(r);
+    expect(
+      g,
+      `${name} wasn't green-dominant — the probe isn't reading the backdrop`,
+    ).toBeGreaterThan(b);
     expect([r, g, b], `${name} matched its adjacent row's own fill color exactly`).not.toEqual(
       adjacentFill,
     );
@@ -222,9 +233,9 @@ test("renders a white container with an 8px radius and a 1px line border", async
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("1px");
   expect(style.borderColor).toBe(tokenRgb("line"));
-  // "clip" instead of "hidden": same clipping and no-scroll behavior, but it's the one that
-  // honors overflow-clip-margin below, giving the sortable header's own focus ring (which reaches
-  // this same edge) room to paint instead of being cut off by the rounded corner.
+  // "clip" instead of "hidden": both clip visually with no scrollbar, but "hidden" still leaves
+  // this a programmatically scrollable container (element.scrollTo() would work); "clip" doesn't,
+  // which is what an unscrollable rounded card actually wants.
   expect(style.overflow).toBe("clip");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -638,6 +649,14 @@ test("stacks its own text and detail line with a 4px gap and their own 24px/20px
 
 test("renders no detail line when no detail is given", async () => {
   const screen = await render(<TableCellText>Coffee</TableCellText>);
+
+  expect(screen.container.querySelectorAll("span")).toHaveLength(1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders no detail line for a boolean detail, like the common item.sku !== undefined && item.sku pattern", async () => {
+  const screen = await render(<TableCellText detail={false}>Coffee</TableCellText>);
 
   expect(screen.container.querySelectorAll("span")).toHaveLength(1);
 
@@ -1223,6 +1242,49 @@ test("makes the sortable header's own button reach every edge of the header cell
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// h-11 (the <th>'s own floor) is only ever true for a single-line title; a wrapped one grows the
+// cell past it, and h-full is what's supposed to keep the button matching that grown height. A
+// hardcoded h-11 on the button instead would leave a strip of the header unclickable, unhovered
+// and unringed — and would still pass every other test in this file, since none of them wrap.
+test("keeps the sortable header's own button matching a wrapped title's grown header box, not just the 44px floor", async () => {
+  const wrappedColumns = [
+    {
+      key: "name",
+      title: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
+      sortable: true,
+      defaultDirection: "ascending",
+      render: (p: Product) => p.name,
+    },
+    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+  ] as const;
+  const screen = await render(
+    <div style={{ width: "320px" }}>
+      <Table
+        {...commonProps}
+        columns={wrappedColumns}
+        sort={{ column: "name", direction: "ascending" }}
+        onSortChange={() => {}}
+      />
+    </div>,
+  );
+  const header = screen
+    .getByRole("columnheader", { name: /Superlongunbreakable/ })
+    .element() as HTMLElement;
+  const button = screen
+    .getByRole("button", { name: /Superlongunbreakable/ })
+    .element() as HTMLElement;
+  const headerRect = header.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+
+  // Proves the title actually wrapped (grew past the 44px floor) before checking the button kept
+  // up with it - otherwise this would just repeat the single-line test above.
+  expect(headerRect.height).toBeGreaterThan(44);
+  expect(buttonRect.top).toBeCloseTo(headerRect.top, 0);
+  expect(buttonRect.bottom).toBeCloseTo(headerRect.bottom, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("shows a visible focus outline in strong blue when a sortable header is reached by keyboard", async () => {
   const screen = await render(
     <Table
@@ -1302,13 +1364,20 @@ test("paints the sortable header's own focus ring inside the container, never pa
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
   const container = (screen.getByRole("table").element() as HTMLElement)
     .parentElement as HTMLElement;
-  const rect = container.getBoundingClientRect();
-  const buttonRect = button.getBoundingClientRect();
-  const y = buttonRect.top + buttonRect.height / 2;
 
+  const scrollYBeforeFocus = window.scrollY;
   await userEvent.tab();
   expect(button.getAttribute("data-focus-visible")).toBe("true");
   expect(getComputedStyle(button).outlineOffset).toBe("-3px");
+  // Focus can scroll the page to bring the newly-focused element into view — the exact side
+  // effect settleScroll exists to get ahead of — so the rects below are read only after this
+  // second settle, not the one before userEvent.tab() moved focus.
+  await settleScroll();
+  expect(window.scrollY).toBe(scrollYBeforeFocus);
+
+  const rect = container.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const y = buttonRect.top + buttonRect.height / 2;
 
   const insideRingBand = await pixelAt(rect.left + 1.5, y);
   expect(insideRingBand.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
@@ -1825,6 +1894,44 @@ test("keeps the header's own title text below the loading bar's 3px band", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps the focused header's own inset ring visible on every edge, even under the updating bar", async () => {
+  const screen = await render(
+    <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px", background: "white" }}>
+      <Table
+        {...commonProps}
+        columns={sortableColumns}
+        sort={{ column: "stock", direction: "descending" }}
+        onSortChange={() => {}}
+        loading="updating"
+      />
+    </div>,
+  );
+  await settleScroll();
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  await userEvent.tab();
+  await settleScroll();
+
+  const rect = button.getBoundingClientRect();
+  const ringColor = rgbTuple(tokenRgb("brand-blue-strong"));
+  const midX = rect.left + rect.width / 2;
+  const midY = rect.top + rect.height / 2;
+
+  // The bar (z-10, absolute, painted after the table in DOM order) used to cover exactly the
+  // ring's own top edge, since neither the button nor its table ancestors are positioned by
+  // default — leaving the ring's top band in the same unstacked paint layer the bar sits above.
+  const top = await pixelAt(midX, rect.top + 1);
+  const left = await pixelAt(rect.left + 1, midY);
+  const right = await pixelAt(rect.right - 1, midY);
+  const bottom = await pixelAt(midX, rect.bottom - 1);
+
+  expect(top.slice(0, 3)).toEqual(ringColor);
+  expect(left.slice(0, 3)).toEqual(ringColor);
+  expect(right.slice(0, 3)).toEqual(ringColor);
+  expect(bottom.slice(0, 3)).toEqual(ringColor);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("slides the updating bar's segment left to right in a loop", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
@@ -1908,6 +2015,9 @@ test("renders the empty state in place of the header and rows, in blue strong wh
   await expect.element(screen.getByText("No products yet")).toBeVisible();
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
+  // Decorative, like every other caller-supplied icon in the package: the title and detail text
+  // already say what the empty state means, so the icon has nothing of its own to announce.
+  expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
   expect(screen.container.querySelector("table")).toBeNull();
   const section = screen.container.querySelector("section") as HTMLElement;
   expect(section.hasAttribute("aria-busy")).toBe(false);

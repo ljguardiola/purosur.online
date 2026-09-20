@@ -240,9 +240,14 @@ const sortIconClassName = "size-3 shrink-0";
 // surface-bone, since this button already sits on the header row's own bone background. Its own
 // focus ring is inset (a negative outline-offset draws it inside the button's box, see the
 // container's own comment below), since this button's box is flush with the container's rounded,
-// clipped edge and an outward ring there would need room past it.
+// clipped edge and an outward ring there would need room past it. relative + z-20 only while
+// focus-visible: the updating bar (z-10, absolute, painted after the table in DOM order) would
+// otherwise cover the ring's own top edge, since neither the button nor any of its table ancestors
+// are positioned by default, leaving the button's outline in the same unstacked paint layer as the
+// bar sits above. Scoped to focus-visible so the header's stacking is otherwise untouched.
 const headerButtonClassName =
   "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
+  "data-[focus-visible]:relative data-[focus-visible]:z-20 " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-[-3px] data-[focus-visible]:outline-brand-blue-strong";
 
@@ -299,6 +304,7 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
   return (
     <div className="flex flex-col items-center gap-3 p-8 text-center">
       <span
+        aria-hidden="true"
         className={[
           "flex size-[5.5rem] shrink-0 items-center justify-center rounded-full bg-surface-bone",
           iconColorClassName,
@@ -382,16 +388,18 @@ export type TableCellTextProps = {
 
 // The 24px/20px line heights and 4px gap are fixed so a row with a detail line always lands
 // exactly at 64px (the cell's own h-14 floor plus its 8px vertical padding), the same way a single line
-// lands at 56px. Only a missing detail (undefined or null) omits the line: a falsy-but-real
-// value like 0 or an empty string is content the caller chose to show, and `detail && ...` would
-// print a stray, unwrapped "0" for it instead (0 is itself falsy).
+// lands at 56px. A falsy-but-real value like 0 or an empty string is content the caller chose to
+// show (`detail && ...` would print a stray, unwrapped "0" for it instead, since 0 is itself
+// falsy), so only undefined, null and boolean count as "no detail": true and false have no
+// content of their own to show, the same way React itself renders a boolean child as nothing —
+// the common `detail={item.sku !== undefined && item.sku}` pattern passes exactly `false` when
+// there's no sku, and without this it would grow the row for an empty, invisible second line.
 export function TableCellText({ children, detail }: TableCellTextProps) {
+  const hasDetail = detail !== undefined && detail !== null && typeof detail !== "boolean";
   return (
     <div className="flex flex-col gap-1">
       <span className="text-base leading-[24px]">{children}</span>
-      {detail !== undefined && detail !== null && (
-        <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>
-      )}
+      {hasDetail && <span className="text-sm leading-[20px] text-ink-secondary">{detail}</span>}
     </div>
   );
 }
