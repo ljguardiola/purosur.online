@@ -55,9 +55,9 @@ test("renders every row it is given, in order", async () => {
     </SummaryRowGroup>,
   );
 
-  await expect.element(screen.getByText("Items")).toBeVisible();
-  await expect.element(screen.getByText("Subtotal")).toBeVisible();
-  await expect.element(screen.getByText("Total")).toBeVisible();
+  await expect.element(screen.getByText("Items", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Subtotal", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Total", { exact: true })).toBeVisible();
 
   const group = screen.container.firstElementChild as HTMLElement;
   expect(group.children[0]?.textContent).toBe("Items3");

@@ -8,8 +8,8 @@ test("renders the label on the left and the value on the right, both 16px, label
   const screen = await render(<SummaryRow label="Subtotal" value="$120.00" />);
 
   const row = screen.container.firstElementChild as HTMLElement;
-  const label = screen.getByText("Subtotal").element() as HTMLElement;
-  const value = screen.getByText("$120.00").element() as HTMLElement;
+  const label = screen.getByText("Subtotal", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText("$120.00", { exact: true }).element() as HTMLElement;
 
   expect(row.firstElementChild).toBe(label);
   expect(row.lastElementChild).toBe(value);
@@ -40,8 +40,8 @@ test("renders no border of its own, leaving the divider to the group that holds 
 
 test("renders a strong row's label and value at 18px bold, in ink", async () => {
   const screen = await render(<SummaryRow label="Total" value="$150.00" strong />);
-  const label = screen.getByText("Total").element() as HTMLElement;
-  const value = screen.getByText("$150.00").element() as HTMLElement;
+  const label = screen.getByText("Total", { exact: true }).element() as HTMLElement;
+  const value = screen.getByText("$150.00", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(label).fontSize).toBe("18px");
   expect(getComputedStyle(label).fontWeight).toBe("700");
@@ -56,7 +56,7 @@ test("renders a strong row's label and value at 18px bold, in ink", async () => 
 
 test("renders the value in green UI for a saving, in both the regular and the strong form", async () => {
   const regularScreen = await render(<SummaryRow label="Discount" value="-$10.00" saving />);
-  const regularValue = regularScreen.getByText("-$10.00").element() as HTMLElement;
+  const regularValue = regularScreen.getByText("-$10.00", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(regularValue).color).toBe(tokenRgb("brand-green-ui"));
   expect(getComputedStyle(regularValue).fontSize).toBe("16px");
   expect(getComputedStyle(regularValue).fontWeight).toBe("600");
@@ -65,7 +65,7 @@ test("renders the value in green UI for a saving, in both the regular and the st
   const strongScreen = await render(
     <SummaryRow label="Total savings" value="-$25.00" strong saving />,
   );
-  const strongValue = strongScreen.getByText("-$25.00").element() as HTMLElement;
+  const strongValue = strongScreen.getByText("-$25.00", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(strongValue).color).toBe(tokenRgb("brand-green-ui"));
   expect(getComputedStyle(strongValue).fontSize).toBe("18px");
   expect(getComputedStyle(strongValue).fontWeight).toBe("700");
@@ -74,7 +74,7 @@ test("renders the value in green UI for a saving, in both the regular and the st
 
 test("keeps the label in its own color when only the value is a saving", async () => {
   const screen = await render(<SummaryRow label="Discount" value="-$10.00" saving />);
-  const label = screen.getByText("Discount").element() as HTMLElement;
+  const label = screen.getByText("Discount", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink-secondary"));
 
@@ -89,7 +89,7 @@ test("grows with a long label instead of keeping a fixed height", async () => {
       <SummaryRow label={longLabel} value="$1.00" />
     </div>,
   );
-  const label = screen.getByText(longLabel).element() as HTMLElement;
+  const label = screen.getByText(longLabel, { exact: true }).element() as HTMLElement;
   const lineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
 
   expect(label.getBoundingClientRect().height).toBeGreaterThan(lineHeight * 1.5);
