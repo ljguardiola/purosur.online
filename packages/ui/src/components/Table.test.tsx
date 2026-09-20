@@ -348,11 +348,13 @@ test("renders the selected row state with a blue message background and a 4px bl
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const style = getComputedStyle(row);
+  const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
   const layers = shadowLayers(style.boxShadow);
   expect(layers[layers.length - 2]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
   expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -366,8 +368,10 @@ test("renders the warning row state with a warning message background", async ()
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
+  const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-warning-message-bg"));
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -381,8 +385,10 @@ test("renders the error row state with an error message background", async () =>
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
+  const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-error-message-bg"));
+  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -396,10 +402,12 @@ test("renders every cell of a muted row in secondary text, with its background u
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
-  const cellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+  const firstCellText = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
+  const secondCellText = screen.getByText("12", { exact: true }).element() as HTMLElement;
 
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(firstCellText).color).toBe(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(secondCellText).color).toBe(tokenRgb("ink-secondary"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -906,6 +914,45 @@ test("reveals the placeholder rows exactly at 300ms, proven with the Web Animati
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// Unlike the loading bar's segment (a continuous slide, silenced under reduced motion), this
+// reveal is a one-time, zero-duration opacity flip after a delay: it carries no motion to
+// silence, and the rows still have to become visible, so it keeps running unchanged.
+test("still reveals the placeholder rows at 300ms when the system asks for reduced motion", async () => {
+  const session = cdp();
+  await session.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
+
+  try {
+    const screen = await render(
+      <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
+    );
+    const placeholderRow = screen.container.querySelector(
+      'tbody[aria-hidden="true"] tr',
+    ) as HTMLElement;
+
+    const [animation] = placeholderRow.getAnimations();
+    if (!animation) {
+      throw new Error("Expected the placeholder row to have a running CSS animation.");
+    }
+    animation.pause();
+
+    animation.currentTime = 299;
+    expect(getComputedStyle(placeholderRow).opacity).toBe("0");
+
+    animation.currentTime = 300;
+    expect(getComputedStyle(placeholderRow).opacity).toBe("1");
+
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    await session.send("Emulation.setEmulatedMedia", { features: [] });
+  }
+
+  await expect
+    .poll(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    .toBe(false);
+});
+
 test("removes the placeholder rows once loading leaves initial", async () => {
   const screen = await render(
     <Table {...commonProps} columns={columns} rows={emptyRows} loading="initial" />,
@@ -989,6 +1036,13 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
   } finally {
     await session.send("Emulation.setEmulatedMedia", { features: [] });
   }
+
+  // This file's tests share one browser tab (and CDP session), so a reduced-motion override left
+  // in place here would silently carry into whatever test runs next. Proves the revert above
+  // actually took effect, instead of trusting the CDP call's success alone.
+  await expect
+    .poll(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    .toBe(false);
 });
 
 test("renders the empty state in place of the header and rows, in blue strong when there is nothing yet", async () => {

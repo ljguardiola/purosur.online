@@ -1,5 +1,5 @@
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
@@ -123,11 +123,48 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   expect(style.boxShadow).toContain("24px");
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-menu-shadow"));
 
+  // react-aria is free to flip the menu to the trigger's opposite side when there isn't room on
+  // its preferred side (proven below with a trigger placed too low for that to fit), so the gap
+  // is checked against whichever side it actually rendered on, read from its own data-placement,
+  // never assumed to be "below" just because there happens to be room for it in this render.
+  const placement = menu.getAttribute("data-placement");
+  expect(placement).toBe("bottom");
   const triggerRect = trigger.element().getBoundingClientRect();
-  expect(rect.top - triggerRect.bottom).toBeGreaterThan(3);
-  expect(rect.top - triggerRect.bottom).toBeLessThan(5);
+  const gap = placement === "top" ? triggerRect.top - rect.bottom : rect.top - triggerRect.bottom;
+  expect(gap).toBeGreaterThan(3);
+  expect(gap).toBeLessThan(5);
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("flips the menu above the trigger, with the same 4px gap, when there is no room below it", async () => {
+  const originalWidth = window.innerWidth;
+  const originalHeight = window.innerHeight;
+  await page.viewport(320, 400);
+
+  try {
+    const screen = await render(
+      <div style={{ marginTop: "340px" }}>
+        <ListFilter {...baseProps()} />
+      </div>,
+    );
+    const trigger = screen.getByRole("button", { name: /Estado/ });
+
+    await trigger.click();
+
+    const listbox = screen.getByRole("listbox").element() as HTMLElement;
+    const menu = listbox.parentElement as HTMLElement;
+    const rect = menu.getBoundingClientRect();
+    const triggerRect = trigger.element().getBoundingClientRect();
+
+    expect(menu.getAttribute("data-placement")).toBe("top");
+    expect(triggerRect.top - rect.bottom).toBeGreaterThan(3);
+    expect(triggerRect.top - rect.bottom).toBeLessThan(5);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(originalWidth, originalHeight);
+  }
 });
 
 test("keeps the menu at the 200px floor when the trigger is narrower than that", async () => {
