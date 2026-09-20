@@ -116,6 +116,40 @@ test("keeps a long value inside the row, growing it instead of overflowing", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps an unbreakable value inside the row, narrowing the label past its longest word", async () => {
+  const unbreakableValue = "$1.234.567.890,00";
+  const screen = await render(
+    <div style={{ width: "200px" }}>
+      <SummaryRow label="Cash payment received" value={unbreakableValue} />
+    </div>,
+  );
+  const value = screen.getByText(unbreakableValue, { exact: true }).element() as HTMLElement;
+  const row = value.parentElement as HTMLElement;
+
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+    row.getBoundingClientRect().right,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the value inside the row when the label is a single unbreakable word", async () => {
+  const unbreakableLabel = "Subtotalofeverythingscannedsofarinthissale";
+  const screen = await render(
+    <div style={{ width: "200px" }}>
+      <SummaryRow label={unbreakableLabel} value="$1.00" />
+    </div>,
+  );
+  const value = screen.getByText("$1.00", { exact: true }).element() as HTMLElement;
+  const row = value.parentElement as HTMLElement;
+
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+    row.getBoundingClientRect().right,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a summary row without a label or a value", () => {
   expectTypeOf<{ value: string }>().not.toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string }>().not.toExtend<SummaryRowProps>();
