@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useId } from "react";
 import {
   Input as AriaInput,
   Label as AriaLabel,
@@ -142,6 +143,20 @@ export function TextField(props: TextFieldProps) {
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
   const suffix = kind === "weight" || kind === "quantity" ? props.suffix : undefined;
 
+  // The prefix and suffix are visual-only (`aria-hidden`) so a screen reader doesn't hit them a
+  // second time as stray text while moving through the field, but a sighted user reads the unit
+  // right there in the box, so a screen reader user needs it too — as part of the field's own
+  // description, the same place its helper text and error message already land. react-aria's own
+  // useField composes `aria-describedby` from the description slot, the error-message slot and
+  // whatever `aria-describedby` the caller passes to TextField itself, in that order, so handing
+  // it this id here reaches the input without the caller ever repeating the unit in the label.
+  const affixId = useId();
+  // Left out entirely rather than set to `undefined` for a plain-text field: AriaTextField's own
+  // `aria-describedby` prop type doesn't accept `undefined` under this project's
+  // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
+  const affixDescribedByProps =
+    prefix !== undefined || suffix !== undefined ? { "aria-describedby": affixId } : {};
+
   // The native `disabled` attribute already lands on the input itself, but the error or helper
   // text beside it doesn't inherit that from a sibling, so assistive tooling has no way to tell
   // it's part of a disabled field. WCAG's contrast minimum explicitly doesn't apply to an
@@ -162,6 +177,7 @@ export function TextField(props: TextFieldProps) {
       isReadOnly={readOnly}
       isRequired={required}
       isInvalid={invalid}
+      {...affixDescribedByProps}
       className={wrapperClassName}
     >
       <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
@@ -171,13 +187,13 @@ export function TextField(props: TextFieldProps) {
         className={`${boxBaseClassName} ${frameClassName[kind]} ${boxStateClassName(disabled, readOnly, invalid)}`}
       >
         {prefix !== undefined && (
-          <span aria-hidden="true" className={moneyPrefixClassName}>
+          <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
             {prefix}
           </span>
         )}
         <AriaInput className={`${inputBaseClassName} ${valueClassName[kind]}`} />
         {suffix !== undefined && (
-          <span aria-hidden="true" className={unitSuffixClassName}>
+          <span aria-hidden="true" id={affixId} className={unitSuffixClassName}>
             {suffix}
           </span>
         )}

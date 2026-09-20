@@ -556,6 +556,107 @@ test("wires the helper text as the input's own description for assistive technol
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("wires the money prefix into the input's own description for assistive technology", async () => {
+  const screen = await render(
+    <TextField kind="amount" label="Importe" value="" onChange={() => {}} prefix="$" />,
+  );
+  const input = fieldInput(screen, "Importe");
+  const prefixElement = screen.getByText("$").element();
+
+  expect(describedText(input)).toContain("$");
+  // Still hidden from the page's own reading order — reachable only through the description,
+  // never encountered a second time as a stray node while navigating the field.
+  expect(prefixElement.getAttribute("aria-hidden")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("wires the kg suffix into the input's own description for assistive technology", async () => {
+  const screen = await render(
+    <TextField kind="weight" label="Peso en kilos" value="" onChange={() => {}} suffix="kg" />,
+  );
+  const input = fieldInput(screen, "Peso en kilos");
+  const suffixElement = screen.getByText("kg").element();
+
+  expect(describedText(input)).toContain("kg");
+  expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the affix in the description alongside the helper text, each named once", async () => {
+  const screen = await render(
+    <TextField
+      kind="weight"
+      label="Peso en kilos"
+      value=""
+      onChange={() => {}}
+      suffix="kg"
+      helperText="Pesá con la balanza vacía."
+    />,
+  );
+  const input = fieldInput(screen, "Peso en kilos");
+  const described = describedText(input);
+
+  expect(described).toContain("kg");
+  expect(described).toContain("Pesá con la balanza vacía.");
+  // Each description source is referenced by exactly one id: the composed aria-describedby
+  // has no id listed twice, so nothing in it gets announced more than once.
+  const describedBy = input.getAttribute("aria-describedby") as string;
+  const ids = describedBy.split(" ");
+  expect(ids).toHaveLength(new Set(ids).size);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("follows the field's description as it moves from helper text to an error and back", async () => {
+  function ValidityHarness() {
+    const [invalid, setInvalid] = useState(false);
+    return (
+      <>
+        {invalid ? (
+          <TextField
+            kind="plain-text"
+            label="Motivo"
+            value=""
+            onChange={() => {}}
+            helperText="Opcional."
+            invalid
+            errorMessage="Escribí un motivo."
+          />
+        ) : (
+          <TextField
+            kind="plain-text"
+            label="Motivo"
+            value=""
+            onChange={() => {}}
+            helperText="Opcional."
+          />
+        )}
+        <button type="button" onClick={() => setInvalid((current) => !current)}>
+          Alternar
+        </button>
+      </>
+    );
+  }
+
+  const screen = await render(<ValidityHarness />);
+  const input = fieldInput(screen, "Motivo");
+  const toggle = screen.getByRole("button", { name: "Alternar" }).element() as HTMLButtonElement;
+
+  expect(describedText(input)).toContain("Opcional.");
+
+  await userEvent.click(toggle);
+  await expect.poll(() => describedText(input)).toContain("Escribí un motivo.");
+  expect(describedText(input)).not.toContain("Opcional.");
+
+  await userEvent.click(toggle);
+  await expect.poll(() => describedText(input)).toContain("Opcional.");
+  expect(describedText(input)).not.toContain("Escribí un motivo.");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("reports exactly what was typed with the keyboard, unformatted", async () => {
   const screen = await render(<PlainTextHarness />);
 
