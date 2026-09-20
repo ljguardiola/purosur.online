@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 
 export type SummaryRowGroupProps = {
-  children: ReactNode;
+  // Required, so a group with nothing to hold doesn't compile: the two lines it draws only frame
+  // the rows, they are never a standalone rule.
+  children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
 // The 1px line above and below the group is the only divider a summary row ever gets: no

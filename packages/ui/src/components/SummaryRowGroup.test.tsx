@@ -68,4 +68,7 @@ test("renders every row it is given, in order", async () => {
 
 test("does not accept a group without rows to hold", () => {
   expectTypeOf<Record<string, never>>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ children: undefined }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ children: null }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{ children: boolean }>().not.toExtend<SummaryRowGroupProps>();
 });
