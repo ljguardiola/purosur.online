@@ -59,6 +59,37 @@ function shadowLayers(boxShadow: string): string[] {
   return layers;
 }
 
+// overflow-clip-margin only widens how far *overflowing* content (like the sortable header's own
+// focus ring) can paint before the clip catches it; the header row's and last row's own
+// backgrounds never overflow their box in the first place, so they have nothing to gain from that
+// margin and nothing to lose from the rounding. Proven at all four corners: a point 1px inside
+// each one still lies outside an 8px radius curve, so it must not belong to the container's own
+// painted content — checked with the container pushed away from the viewport edge, so there's
+// real page behind it to show through if the corner weren't actually rounded.
+test("keeps every corner rounded, with overflow-clip-margin unrelated to it", async () => {
+  const screen = await render(
+    <div style={{ marginTop: "40px", marginLeft: "40px" }}>
+      <Table {...commonProps} columns={columns} />
+    </div>,
+  );
+  const table = screen.getByRole("table").element() as HTMLElement;
+  const container = table.parentElement as HTMLElement;
+  const rect = container.getBoundingClientRect();
+
+  const corners = [
+    document.elementFromPoint(rect.left + 1, rect.top + 1),
+    document.elementFromPoint(rect.right - 1, rect.top + 1),
+    document.elementFromPoint(rect.left + 1, rect.bottom - 1),
+    document.elementFromPoint(rect.right - 1, rect.bottom - 1),
+  ];
+
+  for (const corner of corners) {
+    expect(corner === null || !container.contains(corner)).toBe(true);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("renders a white container with an 8px radius and a 1px line border", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
   const container = screen.getByRole("table").element().parentElement as HTMLElement;
@@ -139,6 +170,63 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("wraps a long, unbreakable plain header title instead of overrunning the next column", async () => {
+  const longColumns = [
+    {
+      key: "name",
+      title: "Superlongunbreakabletitlethatwouldnotwraponitsown",
+      render: (p: Product) => p.name,
+    },
+    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+  ] as const;
+  const screen = await render(<Table {...commonProps} columns={longColumns} />);
+  const firstHeader = screen
+    .getByRole("columnheader", { name: "Superlongunbreakabletitlethatwouldnotwraponitsown" })
+    .element() as HTMLElement;
+  const titleSpan = firstHeader.querySelector("span") as HTMLElement;
+
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
+  expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
+    firstHeader.getBoundingClientRect().right,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The header button is a flex container, whose items default to a min-width of their own
+// unwrapped content — without overriding that, the title span would keep its full intrinsic
+// width and overrun the next column regardless of the <th>'s own break-words.
+test("wraps a long, unbreakable sortable header title instead of overrunning the next column", async () => {
+  const longColumns = [
+    {
+      key: "name",
+      title: "Superlongunbreakabletitlethatwouldnotwraponitsown",
+      sortable: true,
+      defaultDirection: "ascending",
+      render: (p: Product) => p.name,
+    },
+    { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
+  ] as const;
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={longColumns}
+      sort={{ column: "name", direction: "ascending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const firstHeader = screen
+    .getByRole("columnheader", { name: "Superlongunbreakabletitlethatwouldnotwraponitsown" })
+    .element() as HTMLElement;
+  const titleSpan = firstHeader.querySelector("span") as HTMLElement;
+
+  expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
+    firstHeader.getBoundingClientRect().right,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("renders 12px bold capital column titles", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
   const title = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
@@ -208,6 +296,44 @@ test("shows both columns as sorted when they share a key that matches the curren
     "ascending",
     "ascending",
   ]);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The last row's own bottom edge sits directly against the container's own 1px "line" border,
+// with nothing between them: if the row painted its own bottom divider there too, the two would
+// merge into one 2px band instead of the 1px every other row's divider actually is. Measured, not
+// just asserted: the row's own box shadow carries no bottom-divider layer, so there is nothing
+// left for it to paint in that 1px gap the container's own border already owns.
+test("skips its own bottom divider on the last row, since the container's own border already closes it", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const lastCell = screen.getByRole("cell", { name: "8" }).element() as HTMLElement;
+  const lastRow = lastCell.parentElement as HTMLElement;
+  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+
+  const rowRect = lastRow.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
+  const layers = shadowLayers(getComputedStyle(lastRow).boxShadow);
+  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the selected row's own left accent on the last row, with no bottom divider layer", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={[{ id: "1", item: rows[0]?.item as Product, state: "selected" }]}
+    />,
+  );
+  const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
+  const layers = shadowLayers(getComputedStyle(row).boxShadow);
+
+  expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
+  expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -412,11 +538,17 @@ test("right-aligns a numeric column in the header and the rows, with tabular dig
 });
 
 test("renders the selected row state with a blue message background and a 4px blue left edge", async () => {
+  // Two rows, selected first: keeps this row's own bottom divider in the mix (it isn't the last
+  // row here), so both shadow layers are exercised together the way a real selected-but-not-last
+  // row actually renders.
   const screen = await render(
     <Table
       {...commonProps}
       columns={columns}
-      rows={[{ id: "1", item: rows[0]?.item as Product, state: "selected" }]}
+      rows={[
+        { id: "1", item: rows[0]?.item as Product, state: "selected" },
+        { id: "2", item: rows[1]?.item as Product },
+      ]}
     />,
   );
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
@@ -559,6 +691,92 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The action's own label can depend on the item's state ("Activar" turning into "Desactivar"),
+// and a caller could independently give two actions the same label — neither should be what React
+// tracks an action button's identity by. Keying on the label (or on anything derived from it)
+// would remount the button whenever it changes, dropping whatever focus was on it; keying on
+// nothing at all (a fixed JSX position instead of a `.map()` over `actions`, see TableActionButton
+// in Table.tsx) keeps the same DOM node the whole time, so the label simply updates on it.
+test("keeps focus on the action button when its own label changes with the item's state", async () => {
+  type ToggleItem = { id: string; active: boolean };
+  const toggleColumns = [
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (item: ToggleItem) => ({
+          icon: <Pencil />,
+          "aria-label": item.active ? "Desactivar" : "Activar",
+          onPress: () => {},
+        }),
+      ],
+    },
+  ] as const;
+  const screen = await render(
+    <Table
+      aria-label="Products"
+      columns={toggleColumns}
+      rows={[{ id: "1", item: { id: "1", active: false } }]}
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Activar" }).element() as HTMLElement;
+  button.focus();
+  expect(document.activeElement).toBe(button);
+
+  await screen.rerender(
+    <Table
+      aria-label="Products"
+      columns={toggleColumns}
+      rows={[{ id: "1", item: { id: "1", active: true } }]}
+    />,
+  );
+
+  expect(document.activeElement).toBe(button);
+  expect(button.getAttribute("aria-label")).toBe("Desactivar");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Two actions can resolve to the very same label without anything breaking: since neither is ever
+// keyed by that label, there is nothing for them to collide over. Both keep their own identity and
+// their own, independently reported press handler.
+test("keeps two actions that resolve to the same label fully independent", async () => {
+  type Item = { id: string };
+  const onEdit = vi.fn();
+  const onEditAgain = vi.fn();
+  const sameLabelColumns = [
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (_item: Item) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: onEdit }),
+        (_item: Item) => ({ icon: <Trash2 />, "aria-label": "Edit", onPress: onEditAgain }),
+      ],
+    },
+  ] as const;
+  const screen = await render(
+    <Table
+      aria-label="Products"
+      columns={sameLabelColumns}
+      rows={[{ id: "1", item: { id: "1" } }]}
+    />,
+  );
+  const buttons = screen.getByRole("button", { name: "Edit" }).elements() as HTMLElement[];
+  expect(buttons).toHaveLength(2);
+
+  buttons[0]?.click();
+  expect(onEdit).toHaveBeenCalledOnce();
+  expect(onEditAgain).not.toHaveBeenCalled();
+
+  buttons[1]?.click();
+  expect(onEditAgain).toHaveBeenCalledOnce();
+  expect(onEdit).toHaveBeenCalledOnce();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a column without a title, or an actions column without its own fields", () => {
   expectTypeOf<{ key: string; render: (item: Product) => string }>().not.toExtend<
     TableColumn<Product>
@@ -628,6 +846,45 @@ test("renders an unsorted sortable column with a 12px chevrons-up-down icon, bot
   await expectNoAccessibilityViolations(screen.container);
 });
 
+type MinimalItem = { id: string; name: string };
+
+const minimalItemRows: TableRow<MinimalItem>[] = [{ id: "1", item: { id: "1", name: "Coffee" } }];
+// Typed `boolean`, not the literal `true`: TypeScript widens this past both branches of the
+// sortable/unsortable union, so a column built with it can compile without sort/onSortChange ever
+// being required, and column.sortable === true at runtime with nothing to call it with.
+const nonLiteralSortable: boolean = true;
+
+// A plain component, not a value built inline inside the test itself: the widening above only
+// shows up in a component function the way a real caller in apps/*/src would actually write one —
+// a JSX expression checked directly inside a vitest test() callback keeps requiring both props.
+function ColumnWithNonLiteralSortable() {
+  return (
+    <Table
+      aria-label="Products"
+      rows={minimalItemRows}
+      columns={[
+        {
+          key: "name",
+          title: "Producto",
+          sortable: nonLiteralSortable,
+          defaultDirection: "ascending",
+          render: (item: MinimalItem) => item.name,
+        },
+      ]}
+    />
+  );
+}
+
+test("keeps a sortable header non-interactive when the caller never passed onSortChange, even if sortable itself typechecks", async () => {
+  const screen = await render(<ColumnWithNonLiteralSortable />);
+  const header = screen.getByRole("columnheader", { name: "Producto" }).element() as HTMLElement;
+
+  expect(header.querySelector("button")).toBeNull();
+  expect(header.getAttribute("aria-sort")).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("makes the sortable header's own button reach every edge of the header cell, padding included", async () => {
   const screen = await render(
     <Table
@@ -675,8 +932,8 @@ test("shows a visible focus outline in strong blue when a sortable header is rea
 // The button reaches every edge of its header cell (see the test above proving that), which is
 // itself flush against the container's own rounded, clipped edge: without extra room, that ring
 // would be cut off exactly where it matters most. overflow-clip-margin (only honored by "clip",
-// not "hidden" — confirmed by hand against a screenshot) gives it that room without moving
-// anything, so the clip boundary sits at least as far out as the ring's own reach.
+// not "hidden") gives it that room without moving anything, so the clip boundary sits at least as
+// far out as the ring's own reach.
 test("gives the sortable header's own focus ring room so the container's rounded clip never cuts it off", async () => {
   const screen = await render(
     <Table

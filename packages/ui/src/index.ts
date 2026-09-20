@@ -56,6 +56,7 @@ export { SummaryRow } from "./components/SummaryRow";
 export type { SummaryRowGroupProps } from "./components/SummaryRowGroup";
 export { SummaryRowGroup } from "./components/SummaryRowGroup";
 export type {
+  TableAction,
   TableCellTextProps,
   TableColumn,
   TableColumnAlign,

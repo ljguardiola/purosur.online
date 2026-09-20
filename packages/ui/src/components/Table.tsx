@@ -157,8 +157,6 @@ const PLACEHOLDER_ROW_IDS = [
 // Cycled per column so every placeholder bar gets a varied width without shifting on re-render.
 const PLACEHOLDER_WIDTHS_PERCENT = [72, 48, 64, 56, 80, 40];
 
-// table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
-// table-shaped drops these tags' implicit ARIA roles in some engines.
 function alignClassName(align: TableColumnAlign | undefined): string {
   return align === "end" ? "text-right" : "text-left";
 }
@@ -218,8 +216,18 @@ function rowStateClassName(state: TableRowState | undefined): string {
 // A real border adds its own width to a row whose height is otherwise content-driven (h-14 on
 // each cell acts as a floor, not a ceiling), pushing a two-line row 1px past its exact 64px
 // target; an inset shadow doesn't. The selected row's own left-edge accent is combined into the
-// same box-shadow, since only one applies.
-function rowBoxShadowClassName(state: TableRowState | undefined): string {
+// same box-shadow, since only one applies. The last row skips its own bottom divider: sitting
+// right against the container's own 1px border, the same "line" color drawn immediately outside
+// it, the two would otherwise read as one 2px band instead of the 1px every other row gets.
+//
+// Every branch below is its own complete, literal class string — Tailwind's scanner only ever
+// generates CSS for class names it can find written out somewhere in the source, never for one
+// assembled at runtime (joining pieces into `shadow-[a,b]` dynamically produced a class the
+// scanner had never seen, and getComputedStyle's own box-shadow silently came back "none").
+function rowBoxShadowClassName(state: TableRowState | undefined, isLast: boolean): string {
+  if (isLast) {
+    return state === "selected" ? "shadow-[inset_4px_0_0_0_var(--color-brand-blue-ui)]" : "";
+  }
   return state === "selected"
     ? "shadow-[inset_0_-1px_0_0_var(--color-line),inset_4px_0_0_0_var(--color-brand-blue-ui)]"
     : "shadow-[inset_0_-1px_0_0_var(--color-line)]";
@@ -281,7 +289,9 @@ function SortableColumnHeader<T>({
         column.align === "end" ? "justify-end" : "justify-start",
       ].join(" ")}
     >
-      <span className={colorClassName}>{column.title}</span>
+      {/* min-w-0: a flex item's default min-width is its own unwrapped content width, which
+          would keep a long title from ever actually using the <th>'s own break-words. */}
+      <span className={["min-w-0", colorClassName].join(" ")}>{column.title}</span>
       <Icon aria-hidden="true" className={[sortIconClassName, colorClassName].join(" ")} />
     </AriaButton>
   );
@@ -383,6 +393,16 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
   );
 }
 
+// One fixed slot in the actions column: keyed by nothing at all, since it's never in a `.map()`
+// over `column.actions` (see TableCell below) — its position in the JSX is what React tracks, and
+// that position is stable regardless of what the action currently reports for icon/aria-label, so
+// a label that changes with the item's own state (or two actions that happen to share one)
+// updates this same button in place instead of unmounting and remounting a new one.
+function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: T }) {
+  const { icon, "aria-label": ariaLabel, onPress } = action(item);
+  return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;
+}
+
 function TableCell<T>({
   column,
   item,
@@ -417,14 +437,14 @@ function TableCell<T>({
               ].join(" ")
         }
       >
-        {isActions
-          ? column.actions.map((action) => {
-              const { icon, "aria-label": ariaLabel, onPress } = action(item);
-              return (
-                <IconButton key={ariaLabel} icon={icon} aria-label={ariaLabel} onPress={onPress} />
-              );
-            })
-          : column.render(item)}
+        {isActions ? (
+          <>
+            <TableActionButton action={column.actions[0]} item={item} />
+            {column.actions[1] && <TableActionButton action={column.actions[1]} item={item} />}
+          </>
+        ) : (
+          column.render(item)
+        )}
       </div>
     </td>
   );
@@ -481,6 +501,8 @@ export function Table<T>({
             <TableEmptyState {...empty} />
           </section>
         ) : (
+          // table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
+          // table-shaped drops these tags' implicit ARIA roles in some engines.
           <table
             aria-label={ariaLabel}
             aria-busy={loading ? true : undefined}
@@ -490,7 +512,12 @@ export function Table<T>({
               <tr className="h-11 bg-surface-bone">
                 {columns.map((column, index) => {
                   const isActions = column.kind === "actions";
-                  const isSortable = !isActions && column.sortable === true;
+                  // A non-literal `sortable` value (typed `boolean` instead of the literal
+                  // `true`) can slip past TableSortProps's own sort/onSortChange requirement, so
+                  // this also checks onSortChange itself is there before treating the header as
+                  // interactive — otherwise it would render a live-looking button no press reaches.
+                  const isSortable =
+                    !isActions && column.sortable === true && onSortChange !== undefined;
                   const isSorted = isSortable && sort?.column === column.key;
                   const isFirst = index === 0;
                   const isLast = index === columns.length - 1;
@@ -503,7 +530,7 @@ export function Table<T>({
                       className={[
                         // The explicit height (not just the <tr>'s) gives the sortable header
                         // button's own h-full something definite to resolve 100% against.
-                        "h-11 align-middle",
+                        "h-11 break-words align-middle",
                         // A sortable header's own hit area needs to reach the cell's full box, so
                         // its padding lives on the button instead (see SortableColumnHeader).
                         isSortable ? "" : cellHorizontalPaddingClassName(isFirst, isLast),
@@ -513,7 +540,7 @@ export function Table<T>({
                     >
                       {isActions ? (
                         <span className="sr-only">{column.srLabel}</span>
-                      ) : column.sortable === true ? (
+                      ) : isSortable ? (
                         <SortableColumnHeader
                           column={column}
                           sort={sort}
@@ -532,10 +559,13 @@ export function Table<T>({
             <tbody aria-hidden={showingPlaceholders ? true : undefined}>
               {showingPlaceholders
                 ? PLACEHOLDER_ROW_IDS.map((id) => <SkeletonRow key={id} columns={columns} />)
-                : rows.map(({ id, item, state }) => (
+                : rows.map(({ id, item, state }, rowIndex) => (
                     <tr
                       key={id}
-                      className={[rowBoxShadowClassName(state), rowStateClassName(state)].join(" ")}
+                      className={[
+                        rowBoxShadowClassName(state, rowIndex === rows.length - 1),
+                        rowStateClassName(state),
+                      ].join(" ")}
                     >
                       {columns.map((column, index) => (
                         <TableCell
