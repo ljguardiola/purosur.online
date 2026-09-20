@@ -535,3 +535,119 @@ test("does not accept the text variant at a size the design never draws it", () 
     size: "sale";
   }>().not.toExtend<ButtonPropsWithoutText>();
 });
+
+test("turns the text-only destructive form's background bone on hover, keeping its error-UI label", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+  await userEvent.hover(button);
+  // See the primary hover test above: wait for the exact designed token, not just any opaque color.
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  const hovered = getComputedStyle(button);
+  expect(hovered.color).toBe(tokenRgb("status-error-ui"));
+  const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the text-only destructive form's label and icon readable on the surfaces it sits on", async () => {
+  // The button paints no background of its own at rest, so the surface behind it is what its
+  // label and icon have to stand out against: the two this form is drawn on.
+  for (const surface of ["surface-white", "surface-bone"] as const) {
+    const screen = await render(
+      <div style={{ backgroundColor: tokenRgb(surface) }}>
+        <Button variant="text" tone="destructive">
+          {`Cancel sale on ${surface}`}
+        </Button>
+      </div>,
+    );
+    const button = screen
+      .getByRole("button", { name: `Cancel sale on ${surface}` })
+      .element() as HTMLElement;
+    const icon = button.querySelector("svg") as SVGSVGElement;
+    const behind = getComputedStyle(button.parentElement as HTMLElement).backgroundColor;
+
+    expect(behind, `${surface} behind the button`).toBe(tokenRgb(surface));
+    expect(getComputedStyle(button).backgroundColor, `${surface} button background`).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+
+    const labelRatio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
+    const iconRatio = contrastRatio(rgbToHex(getComputedStyle(icon).color), rgbToHex(behind));
+    expect(labelRatio, `${surface} label contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+    expect(iconRatio, `${surface} icon contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+
+    await expectNoAccessibilityViolations(screen.container);
+  }
+});
+
+test("shows the shared focus outline on the text-only destructive form", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
+  await expect
+    .poll(() => getComputedStyle(button).outlineColor)
+    .toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("activates the text-only destructive form by keyboard and by pointer", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button variant="text" tone="destructive" onPress={onPress}>
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+  expect(onPress).toHaveBeenCalledTimes(1);
+
+  await userEvent.keyboard(" ");
+  expect(onPress).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(button);
+  expect(onPress).toHaveBeenCalledTimes(3);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("dims a disabled text-only destructive form and keeps it out of reach", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button variant="text" tone="destructive" onPress={onPress} isDisabled>
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" });
+  const element = button.element() as HTMLElement;
+
+  await expect.element(button).toBeDisabled();
+  expect(getComputedStyle(element).opacity).toBe("0.45");
+  expect(getComputedStyle(element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+  await userEvent.tab();
+  expect(document.activeElement).not.toBe(element);
+
+  await button.click({ force: true });
+  expect(onPress).not.toHaveBeenCalled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
