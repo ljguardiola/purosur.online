@@ -280,3 +280,41 @@ describe("pagination current page background contrast", () => {
     );
   });
 });
+
+// Previous/Next stay in the tab order and readable at their own boundary (page 1, last page)
+// instead of disappearing or going native-disabled, dimmed by fading the whole button — text
+// included — with CSS opacity. That composites the label's ink at the declared alpha onto
+// whatever sits behind the button (white, or bone under the table's own footer), never onto the
+// button's own equally-faded background, so the pairing below mirrors that compositing rather
+// than comparing two opaque tokens directly. Reads the alpha straight from Pagination.tsx instead
+// of hardcoding it a second time, so this check can't drift out of sync with the component.
+describe("pagination dimmed nav button text contrast", () => {
+  const paginationPath = fileURLToPath(new URL("../components/Pagination.tsx", import.meta.url));
+  const paginationSource = readFileSync(paginationPath, "utf-8");
+  const opacityMatch = paginationSource.match(/aria-disabled:opacity-\[([\d.]+)\]/);
+
+  it("declares aria-disabled:opacity-[<alpha>] on the nav buttons", () => {
+    expect(
+      opacityMatch,
+      "no aria-disabled:opacity-[...] utility found on the nav buttons",
+    ).not.toBeNull();
+  });
+
+  const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0");
+
+  for (const backgroundName of ["white", "bone"] as const) {
+    it(`ink at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
+      const ink = hexToRgb(colors.ink as string);
+      const background = hexToRgb(backgrounds[backgroundName] as string);
+      const channel = (fg: number, bg: number) =>
+        Math.round(fg * alpha + bg * (1 - alpha))
+          .toString(16)
+          .padStart(2, "0");
+      const compositedHex = `#${channel(ink.r, background.r)}${channel(ink.g, background.g)}${channel(ink.b, background.b)}`;
+
+      expect(
+        contrastRatio(compositedHex, backgrounds[backgroundName] as string),
+      ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+    });
+  }
+});

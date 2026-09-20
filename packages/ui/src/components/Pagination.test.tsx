@@ -2,9 +2,24 @@ import { useEffect, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { AA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { rgbToHex, tokenRgb } from "../test/token-colors";
 import { Pagination, type PaginationProps } from "./Pagination";
+
+// The dimmed nav buttons paint their label at full opacity internally, then composite that whole
+// button (label included) at aria-disabled:opacity's alpha onto whatever sits behind it (the
+// page), not onto the button's own equally-faded background — so the label's real contrast has to
+// be computed against the page surface, not read off getComputedStyle(button).color directly.
+function compositeHex(foregroundHex: string, backgroundHex: string, alpha: number): string {
+  const foreground = hexToRgb(foregroundHex);
+  const background = hexToRgb(backgroundHex);
+  const channel = (fg: number, bg: number) =>
+    Math.round(fg * alpha + bg * (1 - alpha))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${channel(foreground.r, background.r)}${channel(foreground.g, background.g)}${channel(foreground.b, background.b)}`;
+}
 
 function baseProps(overrides: Partial<PaginationProps> = {}): PaginationProps {
   return {
@@ -284,7 +299,7 @@ test("keeps Previous focusable, tab-reachable, dimmed and marked unavailable at 
 
   expect(previous.hasAttribute("disabled")).toBe(false);
   expect(previous.getAttribute("aria-disabled")).toBe("true");
-  expect(getComputedStyle(previous).opacity).toBe("0.45");
+  expect(getComputedStyle(previous).opacity).toBe("0.65");
 
   await userEvent.tab();
   expect(document.activeElement).toBe(previous);
@@ -298,7 +313,24 @@ test("keeps Next focusable, tab-reachable, dimmed and marked unavailable on the 
 
   expect(next.hasAttribute("disabled")).toBe(false);
   expect(next.getAttribute("aria-disabled")).toBe("true");
-  expect(getComputedStyle(next).opacity).toBe("0.45");
+  expect(getComputedStyle(next).opacity).toBe("0.65");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the dimmed nav label's real composited contrast at or above 4.5:1, on white and on bone", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+  const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
+  const style = getComputedStyle(previous);
+  const alpha = Number.parseFloat(style.opacity);
+  const labelHex = rgbToHex(style.color);
+
+  for (const surface of ["surface-white", "surface-bone"] as const) {
+    const surfaceHex = rgbToHex(tokenRgb(surface));
+    const compositedHex = compositeHex(labelHex, surfaceHex, alpha);
+
+    expect(contrastRatio(compositedHex, surfaceHex)).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });

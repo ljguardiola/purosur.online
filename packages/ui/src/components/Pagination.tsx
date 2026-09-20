@@ -64,12 +64,16 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
 // Previous/Next are never natively disabled, so they stay focusable and in the tab order at their
 // own boundary: aria-disabled marks them unavailable for assistive technology instead, the dimmed
 // look follows that same attribute, and activating one there is a no-op in the press handler.
+// The dimmed opacity has a floor of ~0.605: below that, compositing the label's own ink text over
+// either surface the button can sit on (white, or bone under the table's own footer) drops under
+// the WCAG AA 4.5:1 minimum for text — 0.45 measured ~2.9:1 on white. 0.65 clears both surfaces
+// with margin (~5.4:1 on white, ~5.2:1 on bone) while still reading as visibly unavailable.
 const navButtonClassName =
   "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3 " +
   "text-sm text-ink outline-none data-[hovered]:bg-surface-bone " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
-  "aria-disabled:opacity-[0.45]";
+  "aria-disabled:opacity-[0.65]";
 
 const pageButtonClassName =
   "flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm outline-none " +
