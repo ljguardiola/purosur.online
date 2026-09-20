@@ -200,24 +200,27 @@ test("keeps the same box appearance whether the value is empty or filled", async
   await expectNoAccessibilityViolations(filledScreen.container);
 });
 
-test("shows a 2px line border at rest", async () => {
+test("shows a white box with a 2px ink-secondary border at rest", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
   const style = getComputedStyle(box);
 
-  expect(style.boxShadow).toContain(tokenRgb("line"));
+  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
   expect(style.boxShadow).toContain("2px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a 2px blue-soft border on hover", async () => {
+test("turns the box bone on hover, keeping the same 2px ink-secondary border", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
 
   await userEvent.hover(box);
-  await expect.poll(() => getComputedStyle(box).boxShadow).toContain(tokenRgb("blue-soft"));
-  expect(getComputedStyle(box).boxShadow).toContain("2px");
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+  const style = getComputedStyle(box);
+  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(style.boxShadow).toContain("2px");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -237,7 +240,7 @@ test("shows a 3px blue-strong border and the focus shadow when focused, as one f
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the focused border instead of the hovered one when both apply at once", async () => {
+test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
   const input = fieldInput(screen, "Motivo");
@@ -246,7 +249,7 @@ test("keeps the focused border instead of the hovered one when both apply at onc
   await userEvent.hover(box);
 
   await expect.poll(() => getComputedStyle(box).boxShadow).toContain(tokenRgb("brand-blue-strong"));
-  expect(getComputedStyle(box).boxShadow).not.toContain(tokenRgb("blue-soft"));
+  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -283,6 +286,10 @@ test("lets a read-only field be focused but never typed into, with no hover or f
 
   expect(input.readOnly).toBe(true);
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+  // Read-only reuses the same ink-secondary border as resting/hovered, not the softer "line"
+  // token: it still marks a control's own boundary and needs the same 3:1 minimum.
+  expect(restingShadow).toContain(tokenRgb("ink-secondary"));
+  expect(restingShadow).toContain("2px");
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);

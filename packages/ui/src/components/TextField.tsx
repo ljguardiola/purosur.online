@@ -88,15 +88,23 @@ const errorClassName = "text-sm font-normal text-status-error-ui";
 // The box's own border and shadow per interaction state. A real border going from 2px to 3px on
 // focus would resize the box, so every state is drawn with an inset box-shadow instead (see
 // Checkbox.tsx's own boxClassName for the same technique) — it never participates in layout.
-// Disabled and read-only are static: neither reacts to hover or focus, matching the design's own
-// "no hover or focus change" note for a read-only field. `hover:not-focus-within:` keeps the
-// hovered look from ever showing once the field is focused, regardless of stylesheet order.
+//
+// Resting, hovered and read-only all share the same 2px ink-secondary border — the same choice
+// Checkbox.tsx already makes for its own unchecked box, and for the same reason: a control's own
+// boundary needs the WCAG 3:1 non-text contrast minimum, which the softer, decorative "line" and
+// "blue-soft" tokens fall short of (see contrast.test.ts's "text field border contrast"). Those
+// two tokens stay reserved for dividers and container edges, never this field's own boundary.
+// Only the fill tells resting from hovered apart, following the package's own white-hovers-to-bone
+// rule (see Checkbox.tsx and OptionCardGroup.tsx). Disabled and read-only are otherwise static:
+// neither reacts to hover or focus, matching the design's own "no hover or focus change" note for
+// a read-only field. `hover:not-focus-within:` keeps the hovered fill from ever showing once the
+// field is focused, regardless of stylesheet order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
   }
   if (readOnly) {
-    return "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-line)]";
+    return "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
   }
   if (invalid) {
     return (
@@ -105,8 +113,8 @@ function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolea
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
-    "hover:not-focus-within:shadow-[inset_0_0_0_2px_var(--color-blue-soft)] " +
+    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
+    "hover:not-focus-within:bg-surface-bone " +
     "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
   );
 }
