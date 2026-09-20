@@ -697,7 +697,12 @@ function widthsInRow(row: Element): number[] {
 }
 
 // One rect per line box the text is laid out on, so a label pushed onto a second line counts 2.
+// Handed anything but the label's own text node it would count that node's boxes instead and read
+// 1 whatever the label does, so it refuses rather than answering about the wrong thing.
 function lineCount(node: ChildNode): number {
+  if (node.nodeType !== Node.TEXT_NODE) {
+    throw new Error(`lineCount needs the label's text node, got nodeType ${node.nodeType}`);
+  }
   const range = document.createRange();
   range.selectNodeContents(node);
   return range.getClientRects().length;
@@ -737,7 +742,7 @@ test("takes the width a content-sized sibling leaves it in a row", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("splits the row evenly with another stretched button of its variant, whatever their labels", async () => {
+test("splits the row evenly with another stretched button of its variant, labels of either length", async () => {
   const screen = await render(
     <div style={rowStyle}>
       <Button fullWidth>No</Button>
@@ -781,7 +786,7 @@ test("shares the row with a stretched button of another variant, neither sized b
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("leaves the rest of the row to its siblings when it is not asked to stretch", async () => {
+test("leaves the row unfilled when no button in it was asked to stretch", async () => {
   const screen = await render(
     <div style={rowStyle}>
       <Button variant="secondary">Back</Button>
@@ -937,6 +942,8 @@ test("keeps its icon and label together in the middle of the width it is given",
   // Centered in the row, not pushed against the 16px padding at either end.
   expect(beforeIcon).toBeGreaterThan(16);
   expect(beforeIcon).toBeCloseTo(afterLabel, 0);
+  // And still together: the extra width goes outside the pair, not between the two of them.
+  expect(labelRect.left - iconRect.right).toBeCloseTo(8, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -948,23 +955,6 @@ test("takes the width of a vertical stack without being asked to stretch", async
   );
 
   expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500, 0);
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("grows across a vertical stack but never along it", async () => {
-  const screen = await render(
-    <div style={stackStyle}>
-      <Button fullWidth>Confirm</Button>
-    </div>,
-  );
-  const rect = (
-    screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement
-  ).getBoundingClientRect();
-
-  expect(rect.width).toBeCloseTo(500, 0);
-  // The stack is 400px tall and holds this button alone: a button that grew along it would take
-  // the whole height instead of the 48px its size gives it.
-  expect(rect.height).toBeCloseTo(48, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -1002,12 +992,72 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
   const row = screen.container.firstElementChild as Element;
   const [sibling, stretched] = widthsInRow(row);
 
-  // The boundary of what stretching can promise: once a row is narrower than its buttons need, it
-  // takes width from all of them, and none of them goes below what its own label needs, so they
-  // spill past the row instead. Asking to stretch neither causes that nor escapes it.
-  expect(sibling as number).toBeLessThan(177);
+  const roomy = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">Salir sin completar</Button>
+      <Button fullWidth>Confirmar la venta</Button>
+    </div>,
+  );
+  const [siblingWithRoom] = widthsInRow(roomy.container.firstElementChild as Element);
+
+  // The boundary of what stretching can promise. Once a row is narrower than its buttons, it takes
+  // width from all of them: the one that never asked to stretch is narrower here than the same
+  // button in a row with room, and both end up past the longest word their labels contain, so the
+  // row spills. Asking to stretch neither causes that nor escapes it.
+  expect(sibling as number).toBeLessThan(siblingWithRoom as number);
+  expect(stretched as number).toBeGreaterThan(0);
   expect((sibling as number) + (stretched as number) + 12).toBeGreaterThan(200);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("is squeezed by a container shorter than it only when it was not asked to stretch", async () => {
+  const shortStack = {
+    width: "500px",
+    height: "20px",
+    display: "flex",
+    flexDirection: "column",
+  } as const;
+  const plain = await render(
+    <div style={shortStack}>
+      <Button>Confirm</Button>
+    </div>,
+  );
+  const stretched = await render(
+    <div style={shortStack}>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const [plainButton] = [...(plain.container.firstElementChild as Element).children];
+  const [stretchedButton] = [...(stretched.container.firstElementChild as Element).children];
+  const plainHeight = (plainButton as HTMLElement).getBoundingClientRect().height;
+  const stretchedHeight = (stretchedButton as HTMLElement).getBoundingClientRect().height;
+
+  // Holding a height against the container is what a stretched button needs and what an ordinary
+  // one is better off without, so the two are held apart rather than both pinned.
+  expect(plainHeight).toBeLessThan(48);
+  expect(stretchedHeight).toBeCloseTo(48, 0);
+  await expectNoAccessibilityViolations(plain.container);
+});
+
+test("is as wide as its content in a container that lays nothing out in a row", async () => {
+  const blockStyle = { width: "500px" } as const;
+  const plain = await render(
+    <div style={blockStyle}>
+      <Button>Confirm</Button>
+    </div>,
+  );
+  const stretched = await render(
+    <div style={blockStyle}>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const [plainWidth] = widthsInRow(plain.container.firstElementChild as Element);
+  const [stretchedWidth] = widthsInRow(stretched.container.firstElementChild as Element);
+
+  // There is no row here to have anything left over, so asking for its width changes nothing.
+  expect(stretchedWidth).toBeCloseTo(plainWidth as number, 0);
+  expect(stretchedWidth as number).toBeLessThan(500);
+  await expectNoAccessibilityViolations(stretched.container);
 });
 
 test("keeps every label in the row on a single line", async () => {

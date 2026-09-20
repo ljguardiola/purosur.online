@@ -28,10 +28,11 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // Takes the width its row has free: the whole row when it is alone in it, what a content-sized
   // button beside it leaves, or an equal share beside another button asked for the same — equal
   // once each has taken the room its own padding and border need, so a bordered one measures
-  // those 2px wider. None of it reaches below the width a button's own label needs: a row too
-  // narrow for its buttons squeezes every one of them and then spills, asked for or not. A row
-  // only as wide as what it holds has nothing free to give, and a vertical stack hands a button
-  // its full width already, so neither of those needs this.
+  // those 2px wider. A row too narrow for its buttons takes width from every one of them, asked
+  // for or not, down to the longest word each label contains — past the width that keeps a label
+  // on one line — and then spills. A row only as wide as what it holds has nothing free to give,
+  // a container that is not a row leaves a button its own width, and a vertical stack hands it
+  // the full width already, so none of those is what this is for.
   fullWidth?: boolean;
 };
 
