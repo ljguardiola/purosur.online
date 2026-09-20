@@ -357,10 +357,10 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
 
   // react-stately keeps the tooltip warm-up flag in a module-level variable shared by every
   // tooltip on the page, and while it is set a hover opens instantly instead of waiting out the
-  // delay. Any earlier test in this file leaves it set, so measuring a hover straight away reads
-  // ~50ms no matter what the delay is. Opening and closing one tooltip first, then outwaiting the
-  // 500ms cooldown that the close schedules, is what puts that flag back down so the delay under
-  // test is the one that actually runs.
+  // delay. An earlier test that opened a tooltip can leave it set, so a hover measured straight
+  // away would read the instant open rather than the delay. Opening and closing one tooltip first,
+  // then outwaiting the 500ms cooldown that the close schedules, is what puts that flag back down
+  // so the delay under test is the one that actually runs.
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await userEvent.unhover(trigger);
