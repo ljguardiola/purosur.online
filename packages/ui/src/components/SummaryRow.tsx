@@ -1,8 +1,8 @@
 export type SummaryRowProps = {
   label: string;
   value: string;
-  // A total is drawn in the strong form: both texts raised from 16px semibold to 18px bold, in
-  // ink instead of secondary text.
+  // A total is drawn in the strong form: both label and value move to 18px bold, in ink instead
+  // of secondary text.
   strong?: boolean;
   // Independent of the strong form: a saving colors only the value in green UI, never the label.
   saving?: boolean;

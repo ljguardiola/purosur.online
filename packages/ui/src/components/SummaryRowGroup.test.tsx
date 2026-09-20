@@ -5,7 +5,7 @@ import { tokenRgb } from "../test/token-colors";
 import { SummaryRow } from "./SummaryRow";
 import { SummaryRowGroup, type SummaryRowGroupProps } from "./SummaryRowGroup";
 
-test("draws a 1px line above and below the group, with 16px vertical padding", async () => {
+test("stacks rows 8px apart, with a 1px line above and below the group and 16px vertical padding", async () => {
   const screen = await render(
     <SummaryRowGroup>
       <SummaryRow label="Items" value="3" />
@@ -15,6 +15,7 @@ test("draws a 1px line above and below the group, with 16px vertical padding", a
   const group = screen.container.firstElementChild as HTMLElement;
   const style = getComputedStyle(group);
 
+  expect(style.rowGap).toBe("8px");
   expect(style.borderTopWidth).toBe("1px");
   expect(style.borderBottomWidth).toBe("1px");
   expect(style.borderTopColor).toBe(tokenRgb("line"));
