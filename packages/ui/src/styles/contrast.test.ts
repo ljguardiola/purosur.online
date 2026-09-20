@@ -188,6 +188,21 @@ describe("checkbox unchecked border contrast", () => {
   });
 });
 
+// The radio's unchecked border and the toggle's off-state track border are both drawn with
+// ink-secondary (already classified above, and already proven against bone via the checkbox's
+// own equivalent border), so each additionally needs the WCAG non-text contrast minimum against
+// white, the other surface either control sits on.
+describe("radio unchecked border and toggle off-state border contrast", () => {
+  it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white`, () => {
+    const borderHex = colors["ink-secondary"];
+
+    expect(borderHex, "ink-secondary is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(borderHex as string, backgrounds.white as string)).toBeGreaterThanOrEqual(
+      NON_TEXT_CONTRAST,
+    );
+  });
+});
+
 describe("brand-blue-ui-shadow token", () => {
   it("parses to brand-blue-ui at 20% alpha", () => {
     const shadowHex = colors["brand-blue-ui-shadow"];
