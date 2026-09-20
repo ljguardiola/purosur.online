@@ -83,6 +83,7 @@ const decorativeTones = [
   "ink-shadow",
   "ink-backdrop",
   "ink-panel-shadow",
+  "brand-blue-ui-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -185,4 +186,51 @@ describe("checkbox unchecked border contrast", () => {
       NON_TEXT_CONTRAST,
     );
   });
+});
+
+describe("brand-blue-ui-shadow token", () => {
+  it("parses to brand-blue-ui at 20% alpha", () => {
+    const shadowHex = colors["brand-blue-ui-shadow"];
+    const uiHex = colors["brand-blue-ui"];
+
+    expect(shadowHex, "brand-blue-ui-shadow is missing from the stylesheet").toMatch(
+      /^#[0-9a-f]{8}$/i,
+    );
+    expect(uiHex, "brand-blue-ui is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect((shadowHex as string).slice(0, 7).toLowerCase()).toBe((uiHex as string).toLowerCase());
+
+    const alpha = Number.parseInt((shadowHex as string).slice(7, 9), 16) / 255;
+    expect(alpha).toBeCloseTo(0.2, 2);
+  });
+});
+
+// The text field's own border is its resting and hovered boundary marker (there is no icon or
+// glyph standing in for it, unlike the checkbox above), and its focused and invalid borders
+// additionally carry their own state, so every one of them needs the WCAG non-text contrast
+// minimum against both surfaces the field can sit on (white, and bone for a hovered or read-only
+// field). The field reuses the checkbox's own ink-secondary border for resting, hovered and
+// read-only (only its fill changes between them) instead of the softer, decorative
+// "line"/"blue-soft" tokens, which fall short of this minimum (line measures ~1.49:1 on white,
+// blue-soft ~1.47:1) and stay reserved for dividers and container edges, never a control's own
+// boundary.
+describe("text field border contrast", () => {
+  const borders: Record<string, string> = {
+    "resting and hovered (ink-secondary)": "ink-secondary",
+    "focused (brand-blue-strong)": "brand-blue-strong",
+    "invalid (status-error-ui)": "status-error-ui",
+  };
+
+  for (const [state, tone] of Object.entries(borders)) {
+    it(`${state} border reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
+      const borderHex = colors[tone];
+
+      expect(borderHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(
+        contrastRatio(borderHex as string, backgrounds.white as string),
+      ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+      expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
+        NON_TEXT_CONTRAST,
+      );
+    });
+  }
 });

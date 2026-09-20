@@ -26,6 +26,8 @@
   --color-brand-blue-message-bg: #e6eef3;
   --color-brand-blue-ui: #4f6c7e;
   --color-brand-blue-strong: #334f60;
+  /* Blue UI at 20% opacity, for the text field's focus shadow. */
+  --color-brand-blue-ui-shadow: #4f6c7e33;
 
   --color-brand-green: #8ca38f;
   --color-brand-green-message-bg: #e9efe9;
