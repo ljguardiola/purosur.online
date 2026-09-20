@@ -127,31 +127,35 @@ export function Pagination({
   // Pressing Previous/Next onto the very page that disables it (page 1, or the last page) would
   // otherwise leave a disabled button holding focus, and a disabled element can't hold it: the
   // browser drops focus to the document body, and a keyboard user loses their place. The press
-  // handlers below only know the page they asked for, not what the caller does with it, so they
-  // record which direction was pressed here instead of focusing anything themselves; this effect
-  // runs after every render and acts on the page the component actually re-rendered with. If the
-  // caller never applies the change, currentPage never reaches the boundary, the nav button never
-  // actually disables, and nothing is moved.
+  // handlers below don't know what the caller does with the page they ask for — applied now,
+  // applied later, or never — so they only record that some boundary-relevant press happened,
+  // never which direction: this effect runs after every render and checks the page the component
+  // actually re-rendered with, against whichever boundary that turns out to be, not the specific
+  // button that was pressed. That distinction matters: focus can move to the *other* nav button
+  // between the press and the disabling (by Tab, not by a press of its own, so it never re-records
+  // intent), and it's that button's own boundary the redirect has to match once it disables, not
+  // the one that was actually pressed. If the caller never applies any change, nothing here ever
+  // becomes disabled, and nothing is moved.
   //
-  // The recorded direction alone isn't enough: the caller is free to apply the change long after
-  // the press (or never), and by the time some later, unrelated render finally moves currentPage
-  // onto that same boundary, the person may have already moved focus anywhere else on the page.
-  // Redirecting it back then would steal it from wherever they actually are. The browser only ever
-  // drops focus to document.body as an immediate, involuntary side effect of disabling the element
-  // that currently holds it — never from a deliberate focus change elsewhere, and never on a
-  // render where nothing here actually became disabled just now — so requiring that as well ties
-  // the redirect to this exact disabling happening in this exact render, not to a stale intent
-  // resolving at some arbitrary later one.
-  const pendingBoundaryFocusRef = useRef<"previous" | "next" | null>(null);
+  // The recorded intent alone isn't enough: the caller is free to apply the change long after the
+  // press (or never), and by the time some later, unrelated render finally moves currentPage onto
+  // a boundary, the person may have already moved focus anywhere else on the page. Redirecting it
+  // back then would steal it from wherever they actually are. The browser only ever drops focus to
+  // document.body as an immediate, involuntary side effect of disabling the element that currently
+  // holds it — never from a deliberate focus change elsewhere, and never on a render where nothing
+  // here actually became disabled just now — so requiring that as well ties the redirect to a real
+  // disabling happening in this exact render, not to a stale intent resolving at some arbitrary
+  // later one.
+  const pendingBoundaryFocusRef = useRef(false);
   useLayoutEffect(() => {
     const pending = pendingBoundaryFocusRef.current;
-    pendingBoundaryFocusRef.current = null;
-    if (pending === null || document.activeElement !== document.body) {
+    pendingBoundaryFocusRef.current = false;
+    if (!pending || document.activeElement !== document.body) {
       return;
     }
-    if (pending === "previous" && currentPage <= 1) {
+    if (currentPage <= 1) {
       pageButtonRefs.current.get(1)?.focus();
-    } else if (pending === "next" && currentPage >= resolvedPageCount) {
+    } else if (currentPage >= resolvedPageCount) {
       pageButtonRefs.current.get(resolvedPageCount)?.focus();
     }
   });
@@ -165,11 +169,8 @@ export function Pagination({
       <AriaButton
         isDisabled={currentPage <= 1}
         onPress={() => {
-          const target = previousPage(currentPage);
-          if (target === 1) {
-            pendingBoundaryFocusRef.current = "previous";
-          }
-          onPageChange(target);
+          pendingBoundaryFocusRef.current = true;
+          onPageChange(previousPage(currentPage));
         }}
         className={navButtonClassName}
       >
@@ -212,11 +213,8 @@ export function Pagination({
       <AriaButton
         isDisabled={currentPage >= resolvedPageCount}
         onPress={() => {
-          const target = nextPage(currentPage, resolvedPageCount);
-          if (target === resolvedPageCount) {
-            pendingBoundaryFocusRef.current = "next";
-          }
-          onPageChange(target);
+          pendingBoundaryFocusRef.current = true;
+          onPageChange(nextPage(currentPage, resolvedPageCount));
         }}
         className={navButtonClassName}
       >
