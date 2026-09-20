@@ -37,9 +37,7 @@ type TableUnsortableDataColumn<T> = TableColumnCommon<T> & {
 
 type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn<T>;
 
-// Builds one row's worth of a single action: the icon and label a caller would otherwise have
-// handed IconButton directly, plus the press handler, already closed over the item that produced
-// them — the same shape IconButton itself takes, minus the parts Table already owns.
+// The same shape IconButtonProps takes, minus the parts Table already owns (size, background).
 export type TableAction<T> = (item: T) => {
   icon: ButtonIcon;
   "aria-label": string;
@@ -76,15 +74,7 @@ type TableHasSortableColumn<T, C extends readonly TableColumn<T>[]> = [
 
 // The one thing a caller can show in place of the header and rows, resolved from loading and
 // rows/empty together instead of two separate booleans, so the three states stay mutually
-// exclusive by construction. Precedence, in order:
-// - "initial" always wins: we don't yet know whether the eventual result is empty, so showing
-//   the empty state here (even if the caller passed one) would claim something we can't know yet.
-// - "updating" always keeps showing the current rows, however many there are (including zero),
-//   under the top loading bar: that's the whole difference from "initial", which discards
-//   everything for placeholders instead of keeping what was already on screen.
-// - Only the steady, non-loading state can ever show the empty state, and only when there are
-//   zero rows and the caller opted into one by passing `empty`; zero rows with no `empty` prop
-//   renders a plain, message-less empty table body instead.
+// exclusive by construction.
 type TableDisplayMode = "placeholders" | "empty" | "rows";
 
 function tableDisplayMode(
@@ -247,11 +237,14 @@ const sortIconClassName = "size-3 shrink-0";
 // Fills its whole header cell (the cell's own horizontal padding lives inside the button, not
 // the <th>, so the button's own box reaches every edge of the cell) so the entire header area
 // activates sorting, not just the text. Hovers to surface-sand, not the package's usual
-// surface-bone, since this button already sits on the header row's own bone background.
+// surface-bone, since this button already sits on the header row's own bone background. Its own
+// focus ring is inset (a negative outline-offset draws it inside the button's box, see the
+// container's own comment below), since this button's box is flush with the container's rounded,
+// clipped edge and an outward ring there would need room past it.
 const headerButtonClassName =
   "flex h-full w-full items-center gap-1 outline-none data-[hovered]:bg-surface-sand " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "data-[focus-visible]:outline-offset-[-3px] data-[focus-visible]:outline-brand-blue-strong";
 
 function SortableColumnHeader<T>({
   column,
@@ -437,7 +430,6 @@ function TableCell<T>({
       ].join(" ")}
     >
       <div
-        // Two fully separate class strings: an actions and a text cell never share a layout.
         className={
           isActions
             ? "flex flex-row items-center justify-end gap-2"
@@ -452,15 +444,15 @@ function TableCell<T>({
             {column.actions[1] && <TableActionButton action={column.actions[1]} item={item} />}
           </>
         ) : (
-          // flex flex-col gap-0.5: lays out whatever column.render(item) returns (a single value,
-          // or several elements from a fragment) with the same gap either way, since the outer div
-          // above always has exactly this one child now and can't apply a gap of its own between
-          // them. max-w-full: the outer div's items-start/items-end opts this flex item out of its
-          // stretch (so a short value doesn't balloon to the full column width), which leaves its
-          // cross size as its own unclamped preferred width — wider than the column for an
-          // unbreakable run. This caps it at the column's own available width so it wraps inside
-          // instead of overflowing.
-          <div className="flex flex-col gap-0.5 max-w-full">{column.render(item)}</div>
+          // flex flex-col gap-1: lays out whatever column.render(item) returns (a single value, or
+          // several elements from a fragment) with the same 4px gap TableCellText's own main/detail
+          // lines use, since the outer div above always has exactly this one child now and can't
+          // apply a gap of its own between them. max-w-full: the outer div's items-start/items-end
+          // opts this flex item out of its stretch (so a short value doesn't balloon to the full
+          // column width), which leaves its cross size as its own unclamped preferred width — wider
+          // than the column for an unbreakable run. This caps it at the column's own available
+          // width so it wraps inside instead of overflowing.
+          <div className="flex flex-col gap-1 max-w-full">{column.render(item)}</div>
         )}
       </div>
     </td>
@@ -493,10 +485,11 @@ export function Table<T>({
 
   return (
     <>
-      {/* "clip" (not "hidden") + overflow-clip-margin: a sortable header's own button reaches
-          this exact edge, so its focus ring needs 6px of room (its own offset + width) past the
-          rounded corner that clips everything else; "hidden" clips flush and ignores the margin. */}
-      <div className="relative overflow-clip rounded-lg border border-line bg-surface-white [overflow-clip-margin:6px]">
+      {/* overflow-clip-margin doesn't exist in WebKit (it parses to nothing there, same as its
+          own 0px initial value everywhere else), so nothing here depends on it: the sortable
+          header's own focus ring is inset (see headerButtonClassName above) instead of reaching
+          past this edge, so every corner clips flush with no margin needed in any engine. */}
+      <div className="relative overflow-clip rounded-lg border border-line bg-surface-white">
         {loading === "updating" && (
           <div
             aria-hidden="true"

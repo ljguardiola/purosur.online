@@ -109,6 +109,16 @@ async function pixelAt(x: number, y: number): Promise<[number, number, number, n
   return [r as number, g as number, b as number, a as number];
 }
 
+// page.screenshot() scrolls the page as a side effect of capturing it (observed: window.scrollY
+// goes from 0 to the rendered content's own offset only once a screenshot has actually been
+// taken), so a rect read before the first screenshot of a test no longer matches the coordinates
+// that screenshot's pixels were captured at. One throwaway screenshot right after render settles
+// that scroll before any geometry is read, so every later pixelAt call - which each take their
+// own screenshot - stays aligned with rects read any time after this.
+async function settleScroll(): Promise<void> {
+  await page.screenshot({ base64: true, save: false });
+}
+
 function rgbTuple(rgb: string): [number, number, number] {
   const channels = rgb.match(/\d+/g);
   if (channels?.length !== 3) {
@@ -128,6 +138,7 @@ test("actually paints the selected row's left accent and the row divider, not ju
       ]}
     />,
   );
+  await settleScroll();
   const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
   const rect = row.getBoundingClientRect();
 
@@ -150,36 +161,53 @@ test("actually paints the selected row's left accent and the row divider, not ju
   expect([cr, cg, cb]).not.toEqual([dr, dg, db]);
 });
 
-// overflow-clip-margin only widens how far overflowing content (like the sortable header's own
-// focus ring) can paint before the clip catches it; the header row's and last row's own
-// backgrounds never overflow their own box, so the margin doesn't affect them. Each probe sits
-// 1px inside a curve smaller than the 8px radius, so it must lie outside the container's own
-// painted content.
-test("keeps every corner rounded, with overflow-clip-margin unrelated to it", async () => {
+// A hit test (document.elementFromPoint) can't see this: Chromium hit-tests a clipped child
+// against its own unexpanded border-box, never the box overflow-clip-margin would paint into, so
+// it stays blind to real overpaint by construction — a corner probe there proves nothing either
+// way. The header row's own bone fill sits directly behind this corner, and measured pixels
+// confirmed overflow-clip-margin genuinely let it bleed a few pixels into the curve (full bone at
+// 1.5px in with a 6px margin, only a faint antialiased tint at the same point with none). The
+// fix removes the margin entirely instead of tuning it: the sortable header's own focus ring is
+// inset now (see headerButtonClassName), so nothing needs room to paint outside this box, and
+// every corner clips flush with no margin to bleed through in the first place.
+test("keeps every corner rounded: no adjacent fill reaches the curve, with a backdrop that matches neither the header's bone nor a row's white", async () => {
   const screen = await render(
-    // An explicit width well inside the browser's own viewport, on top of the existing top/left
-    // margin: document.elementFromPoint returns null for a point outside the visual viewport
-    // (confirmed by probing a table wide enough to force horizontal scroll), and a null result
-    // would otherwise satisfy `corner === null` without ever hit-testing anything — this keeps
-    // all four probes on-screen so a real element is always found.
-    <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px" }}>
+    // Neither the header row's own bone fill nor a row's own white fill, and not the container's
+    // own white background either: without this, a corner showing "white" or "bone" would be
+    // ambiguous between "correctly clipped, backdrop showing through" and "the adjacent square
+    // fill bled into the curve" - green can't be confused with either.
+    <div
+      style={{
+        marginTop: "40px",
+        marginLeft: "40px",
+        width: "300px",
+        background: "rgb(0, 255, 0)",
+      }}
+    >
       <Table {...commonProps} columns={columns} />
     </div>,
   );
+  await settleScroll();
   const table = screen.getByRole("table").element() as HTMLElement;
   const container = table.parentElement as HTMLElement;
   const rect = container.getBoundingClientRect();
+  // The top two corners sit against the header row's own bone fill, the bottom two against the
+  // last row's own white fill (both rows come from commonProps): each corner is checked only
+  // against the color it could actually be confused with, since the antialiased blend at 1.5px
+  // (partly backdrop, partly the container's own 1px border) is expected and not itself a bleed.
+  const headerBone = rgbTuple(tokenRgb("surface-bone"));
+  const rowWhite = rgbTuple(tokenRgb("surface-white"));
 
-  const corners = [
-    document.elementFromPoint(rect.left + 1, rect.top + 1),
-    document.elementFromPoint(rect.right - 1, rect.top + 1),
-    document.elementFromPoint(rect.left + 1, rect.bottom - 1),
-    document.elementFromPoint(rect.right - 1, rect.bottom - 1),
-  ];
-
-  for (const corner of corners) {
-    expect(corner, "expected a real hit-test result, not an out-of-viewport null").not.toBeNull();
-    expect(container.contains(corner)).toBe(false);
+  for (const [name, x, y, adjacentFill] of [
+    ["topLeft", rect.left + 1.5, rect.top + 1.5, headerBone],
+    ["topRight", rect.right - 1.5, rect.top + 1.5, headerBone],
+    ["bottomLeft", rect.left + 1.5, rect.bottom - 1.5, rowWhite],
+    ["bottomRight", rect.right - 1.5, rect.bottom - 1.5, rowWhite],
+  ] as const) {
+    const [r, g, b] = await pixelAt(x, y);
+    expect([r, g, b], `${name} matched its adjacent row's own fill color exactly`).not.toEqual(
+      adjacentFill,
+    );
   }
 
   await expectNoAccessibilityViolations(screen.container);
@@ -616,7 +644,7 @@ test("renders no detail line when no detail is given", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("lays out a cell whose render returns several elements with the same 2px gap TableCellText uses", async () => {
+test("lays out a cell whose render returns several elements with the same 4px gap TableCellText uses", async () => {
   const fragmentColumns = [
     {
       key: "name",
@@ -636,7 +664,7 @@ test("lays out a cell whose render returns several elements with the same 2px ga
   const lineB = screen.getByText("Line B").element() as HTMLElement;
 
   const gap = lineB.getBoundingClientRect().top - lineA.getBoundingClientRect().bottom;
-  expect(gap).toBeCloseTo(2, 0);
+  expect(gap).toBeCloseTo(4, 0);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -679,8 +707,13 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
 
   expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
   // Compares the token's real painted extent, not cellText's own box (which can end up narrower
-  // than the token — see paintedTextRight above), against the cell's own boundary.
-  expect(paintedTextRight(cellText)).toBeLessThanOrEqual(cell.getBoundingClientRect().right);
+  // than the token — see paintedTextRight above), against the cell's own content edge: its border
+  // box minus its own right padding, since a token overrunning into that padding would still pass
+  // a check against the border box alone.
+  const cellPaddingRight = Number.parseFloat(getComputedStyle(cell).paddingRight);
+  expect(paintedTextRight(cellText)).toBeLessThanOrEqual(
+    cell.getBoundingClientRect().right - cellPaddingRight,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -703,7 +736,10 @@ test("breaks a long unbreakable token inside an align:end cell instead of overru
   const range = document.createRange();
   range.selectNodeContents(cellText);
   const minLeft = Math.min(...Array.from(range.getClientRects()).map((rect) => rect.left));
-  expect(minLeft).toBeGreaterThanOrEqual(cell.getBoundingClientRect().left);
+  // Against the cell's own content edge (its border box plus its own left padding), not the
+  // border box alone, so text overrunning into that padding wouldn't still pass.
+  const cellPaddingLeft = Number.parseFloat(getComputedStyle(cell).paddingLeft);
+  expect(minLeft).toBeGreaterThanOrEqual(cell.getBoundingClientRect().left + cellPaddingLeft);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1201,7 +1237,7 @@ test("shows a visible focus outline in strong blue when a sortable header is rea
   await userEvent.tab();
 
   await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("-3px");
   await expect
     .poll(() => getComputedStyle(button).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
@@ -1245,33 +1281,40 @@ test("hovers a sortable header to surface-sand, since it sits on the header row'
 });
 
 // The button reaches every edge of its header cell (see the test above proving that), which is
-// itself flush against the container's own rounded, clipped edge: without extra room, that ring
-// would be cut off exactly where it matters most. overflow-clip-margin (only honored by "clip",
-// not "hidden") gives it that room without moving anything, so the clip boundary sits at least as
-// far out as the ring's own reach.
-test("gives the sortable header's own focus ring room so the container's rounded clip never cuts it off", async () => {
+// itself flush against the container's own rounded, clipped edge — a positive (outward) ring
+// there would need room past that edge, which used to come from overflow-clip-margin. That margin
+// measurably let the header's own square fill bleed into the rounded corner too (see the corner
+// test above), and doesn't exist in WebKit at all, so the ring is inset instead (negative
+// outline-offset): proven here by painting inside the container's own box and never outside it,
+// which needs no margin, in any engine.
+test("paints the sortable header's own focus ring inside the container, never past its edge", async () => {
   const screen = await render(
-    <Table
-      {...commonProps}
-      columns={sortableColumns}
-      sort={{ column: "stock", direction: "descending" }}
-      onSortChange={() => {}}
-    />,
+    <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px", background: "white" }}>
+      <Table
+        {...commonProps}
+        columns={sortableColumns}
+        sort={{ column: "stock", direction: "descending" }}
+        onSortChange={() => {}}
+      />
+    </div>,
   );
+  await settleScroll();
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = (screen.getByRole("table").element() as HTMLElement)
+    .parentElement as HTMLElement;
+  const rect = container.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  const y = buttonRect.top + buttonRect.height / 2;
 
   await userEvent.tab();
+  expect(button.getAttribute("data-focus-visible")).toBe("true");
+  expect(getComputedStyle(button).outlineOffset).toBe("-3px");
 
-  const buttonStyle = getComputedStyle(button);
-  const ringReach =
-    Number.parseFloat(buttonStyle.outlineWidth) + Number.parseFloat(buttonStyle.outlineOffset);
-  const containerStyle = getComputedStyle(container);
+  const insideRingBand = await pixelAt(rect.left + 1.5, y);
+  expect(insideRingBand.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
 
-  expect(containerStyle.overflow).toBe("clip");
-  expect(
-    Number.parseFloat(containerStyle.getPropertyValue("overflow-clip-margin")),
-  ).toBeGreaterThanOrEqual(ringReach);
+  const justOutsideContainer = await pixelAt(rect.left - 1, y);
+  expect(justOutsideContainer.slice(0, 3)).not.toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1891,6 +1934,28 @@ test("renders the empty state in secondary text when nothing matches the filters
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders the real rows, not the empty state, when both rows and an empty prop are given", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      empty={{
+        icon: <PackageSearch />,
+        title: "No products yet",
+        detail: "Add your first product to see it here.",
+        tone: "blank",
+      }}
+    />,
+  );
+
+  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+  expect(screen.getByText("No products yet").query()).toBeNull();
+  expect(screen.container.querySelector("table")).not.toBeNull();
+  expect(screen.container.querySelector("section")).toBeNull();
 
   await expectNoAccessibilityViolations(screen.container);
 });
