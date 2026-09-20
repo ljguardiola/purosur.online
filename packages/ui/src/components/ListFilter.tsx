@@ -1,4 +1,5 @@
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { useId } from "react";
 import {
   Button as AriaButton,
   ListBox as AriaListBox,
@@ -53,6 +54,15 @@ export function ListFilter<V extends string>({
   value,
   onChange,
 }: ListFilterProps<V>) {
+  // AriaSelect's own aria-label below still names the popover and its listbox, but on the
+  // trigger itself aria-labelledby takes precedence over it: pointing that at both the label and
+  // value spans announces the same sentence the visible text already reads ("Estado Todos"),
+  // instead of just the fixed label with no indication of what's currently chosen. It stays in
+  // sync with whatever SelectValue renders on its own, including react-aria's own placeholder for
+  // a stale value.
+  const labelId = useId();
+  const valueId = useId();
+
   return (
     <AriaSelect
       aria-label={label}
@@ -66,12 +76,15 @@ export function ListFilter<V extends string>({
       {({ isOpen }) => (
         <>
           <AriaButton
+            aria-labelledby={`${labelId} ${valueId}`}
             className={[triggerClassName, isOpen ? "border-brand-blue-ui" : "border-line"].join(
               " ",
             )}
           >
-            <span className="text-sm text-ink-secondary">{label}</span>
-            <AriaSelectValue className="text-base font-bold text-ink" />
+            <span id={labelId} className="text-sm text-ink-secondary">
+              {label}
+            </span>
+            <AriaSelectValue id={valueId} className="text-base font-bold text-ink" />
             {isOpen ? (
               <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
             ) : (

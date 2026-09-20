@@ -165,6 +165,12 @@ test("flips the menu above the trigger, with the same 4px gap, when there is no 
   } finally {
     await page.viewport(originalWidth, originalHeight);
   }
+
+  // This file's tests share one browser tab, so a viewport left at 320x400 here would silently
+  // carry into whatever test runs next. Proves the restore above actually took effect, instead of
+  // trusting the call's success alone.
+  await expect.poll(() => window.innerWidth).toBe(originalWidth);
+  await expect.poll(() => window.innerHeight).toBe(originalHeight);
 });
 
 test("keeps the menu at the 200px floor when the trigger is narrower than that", async () => {
@@ -332,9 +338,23 @@ test("shows react-aria's own placeholder, not a stale label, when its value poin
   const placeholder = trigger.element().querySelector("[data-placeholder]");
   expect(placeholder).not.toBeNull();
   expect(placeholder?.getAttribute("data-placeholder")).toBe("true");
-  expect(trigger.element().getAttribute("aria-label")).toBe("Estado");
+  // Not the placeholder's own exact wording (react-aria's default, locale-dependent — see above),
+  // but that the trigger still resolves to a real, non-empty accessible name starting with the
+  // label: aria-labelledby reads the placeholder span's own text live, same as any other value.
+  expect(screen.getByRole("button", { name: /^Estado\s+\S/ }).element()).toBe(trigger.element());
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+// What assistive technology actually announces on this trigger: not just "Estado" (the label
+// alone would leave a screen reader user with no idea which option is currently chosen), but the
+// label and the current value together, the same sentence the visible text already reads.
+test("names the trigger for assistive technology with both its label and its current value", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Estado Todos", exact: true }))
+    .toBeVisible();
 });
 
 test("closes the menu and does not call onChange when the already-chosen option is picked again", async () => {
