@@ -3,9 +3,9 @@ import { Switch as AriaSwitch } from "react-aria-components";
 
 // Controlled and minimal, mirroring Checkbox.tsx's own CheckboxProps: `children` stays required,
 // so leaving out the content doesn't compile, and both `isSelected` and `onChange` are always
-// required rather than left to an uncontrolled default. Unlike Checkbox, the design does draw a
-// disabled treatment for this control (see the issue's own DoD), so `disabled` is part of the
-// type here even though Checkbox has no such prop at all.
+// required rather than left to an uncontrolled default. Unlike Checkbox, this control's DoD asks
+// for a disabled treatment, so `disabled` is part of the type here; the design doesn't draw that
+// state, so the 45% opacity below comes from the package's own convention, not from the design.
 export type ToggleProps = {
   isSelected: boolean;
   onChange: (isSelected: boolean) => void;
@@ -14,7 +14,9 @@ export type ToggleProps = {
 };
 
 const toggleLabelClassName =
-  "group flex cursor-pointer items-center gap-3 outline-none data-[disabled]:opacity-[0.45]";
+  "group flex cursor-pointer items-center gap-3 outline-none " +
+  // A disabled toggle answers no pointer, so it drops the hand cursor that promises it would.
+  "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
 
 // The track is a flex row, not a positioned box with a translated knob: which end the knob sits
 // at is set by pushing the row's own content to its start or its end (justify-start/-end), so
@@ -37,7 +39,14 @@ const trackClassName =
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
   "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";
 
-const knobClassName = "size-[22px] shrink-0 rounded-full bg-surface-white";
+// Off, the knob is white on a white track, so the only thing that makes it visible at all is a
+// boundary of its own: it carries the same 2px border the off track does. On, the green track
+// already sets the white knob apart, so the knob drops that border just as the track drops its
+// own. It's an inset box-shadow for the same reason as the track's and Checkbox.tsx's box's: it
+// never participates in layout, so the knob's size stays identical across both states.
+const knobClassName =
+  "size-[22px] shrink-0 rounded-full bg-surface-white " +
+  "shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] group-data-[selected]:shadow-none";
 
 export function Toggle({ isSelected, onChange, children, disabled = false }: ToggleProps) {
   return (

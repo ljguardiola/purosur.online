@@ -17,10 +17,10 @@ export type RadioGroupProps<V extends string> = {
   disabled?: boolean;
 };
 
-// `flex` (block-level), not `inline-flex`: mirrors Checkbox.tsx's own labelClassName, so a
-// caller's label text can wrap the same way.
 const radioLabelClassName =
-  "group flex cursor-pointer items-center gap-3 outline-none data-[disabled]:opacity-[0.45]";
+  "group flex cursor-pointer items-center gap-3 outline-none " +
+  // A disabled option answers no pointer, so it drops the hand cursor that promises it would.
+  "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
 
 // Unlike Checkbox's box, the circle's fill stays white in both states (see the design table in
 // the issue: unchecked and checked both read "white"), so — unlike Checkbox, whose checked box
@@ -30,7 +30,9 @@ const radioLabelClassName =
 // instead of a real border, for the same reason as Checkbox.tsx's boxClassName: it never
 // participates in layout, so growing from a 2px border to a 6px ring never resizes the circle.
 const circleClassName =
-  "inline-flex size-5 shrink-0 items-center justify-center rounded-full outline-none " +
+  // `block`, not Checkbox's `inline-flex`: that box centers a check icon, while this circle is
+  // empty in both states, so it needs no inner layout — only its own size.
+  "block size-5 shrink-0 rounded-full outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +

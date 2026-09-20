@@ -52,27 +52,38 @@ function radioCircle(screen: Screen, name: string): HTMLElement {
   return radioLabel(screen, name).children[1] as HTMLElement;
 }
 
-function Harness({ initial = "cash" as PaymentMethod }: { initial?: PaymentMethod }) {
-  const [value, setValue] = useState(initial);
+// A browser serializes one box-shadow layer as "<color> <x> <y> <blur> <spread>[ inset]", so
+// matching that whole layer pins the boundary's exact width and the fact that it is painted
+// inside the circle: a wider spread, or the same spread painted outside as a halo, no longer
+// passes. Substring-matching the width alone would accept both.
+function insetBoundary(token: string, width: string): string {
+  return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
+}
+
+function Harness() {
+  const [value, setValue] = useState<PaymentMethod>("cash");
   return <RadioGroup {...baseProps({ value, onChange: setValue })} />;
 }
 
-test("renders each option's 20px circle 12px from its label, vertically centered", async () => {
+test("renders every option's 20px circle 12px from its label, vertically centered", async () => {
   const screen = await render(<RadioGroup {...baseProps()} />);
-  const label = radioLabel(screen, "Cash");
-  const circle = radioCircle(screen, "Cash");
-  const circleRect = circle.getBoundingClientRect();
 
-  expect(circleRect.width).toBeGreaterThan(19);
-  expect(circleRect.width).toBeLessThan(21);
-  expect(circleRect.height).toBeGreaterThan(19);
-  expect(circleRect.height).toBeLessThan(21);
-  expect(getComputedStyle(label).alignItems).toBe("center");
+  for (const option of options) {
+    const label = radioLabel(screen, option.label);
+    const circle = radioCircle(screen, option.label);
+    const circleRect = circle.getBoundingClientRect();
 
-  const text = screen.getByText("Cash").element() as HTMLElement;
-  const gap = text.getBoundingClientRect().left - circleRect.right;
-  expect(gap).toBeGreaterThan(11);
-  expect(gap).toBeLessThan(13);
+    expect(circleRect.width).toBeGreaterThan(19);
+    expect(circleRect.width).toBeLessThan(21);
+    expect(circleRect.height).toBeGreaterThan(19);
+    expect(circleRect.height).toBeLessThan(21);
+    expect(getComputedStyle(label).alignItems).toBe("center");
+
+    const text = screen.getByText(option.label).element() as HTMLElement;
+    const gap = text.getBoundingClientRect().left - circleRect.right;
+    expect(gap).toBeGreaterThan(11);
+    expect(gap).toBeLessThan(13);
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -83,8 +94,7 @@ test("colors an unchecked circle white with a 2px ink-secondary border", async (
   const style = getComputedStyle(circle);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -95,8 +105,9 @@ test("colors a checked circle white with a 6px blue UI ring and no separate dot"
   const style = getComputedStyle(circle);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("brand-blue-ui"));
-  expect(style.boxShadow).toContain("6px");
+  expect(style.boxShadow).toContain(insetBoundary("brand-blue-ui", "6px"));
+  // The 2px border becomes the ring, rather than being layered under it.
+  expect(style.boxShadow).not.toContain(tokenRgb("ink-secondary"));
   expect(circle.querySelector("svg")).toBeNull();
   expect(circle.children.length).toBe(0);
 
@@ -183,16 +194,26 @@ test("is a single tab stop landing on the chosen option", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("moves focus and choice with the arrow keys", async () => {
+test("moves focus and choice with the arrow keys, wrapping past either end", async () => {
   const screen = await render(<Harness />);
+
+  // Each arrow key both moves focus and chooses the option it lands on, so every step asserts
+  // the two together.
+  async function expectArrowLandsOn(key: "{ArrowDown}" | "{ArrowUp}", name: string) {
+    await userEvent.keyboard(key);
+    expect(document.activeElement).toBe(radioInput(screen, name));
+    expect(radioInput(screen, name).checked).toBe(true);
+  }
 
   await userEvent.tab();
   expect(document.activeElement).toBe(radioInput(screen, "Cash"));
 
-  await userEvent.keyboard("{ArrowDown}");
+  await expectArrowLandsOn("{ArrowDown}", "Card");
+  await expectArrowLandsOn("{ArrowDown}", "Transfer");
+  await expectArrowLandsOn("{ArrowDown}", "Cash");
 
-  expect(document.activeElement).toBe(radioInput(screen, "Card"));
-  expect(radioInput(screen, "Card").checked).toBe(true);
+  await expectArrowLandsOn("{ArrowUp}", "Transfer");
+  await expectArrowLandsOn("{ArrowUp}", "Card");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -212,18 +233,24 @@ test("shows the package's focus ring on the focused circle", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("dims the whole group to 45% opacity and blocks focus when disabled", async () => {
+test("dims every option to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {
   const screen = await render(
     <>
       <RadioGroup {...baseProps({ disabled: true })} />
-      <button type="button">Siguiente control</button>
+      <button type="button">Next control</button>
     </>,
   );
-  const label = radioLabel(screen, "Cash");
   const input = radioInput(screen, "Cash");
-  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
-  expect(getComputedStyle(label).opacity).toBe("0.45");
+  // The dimming is drawn per option label, not on the group container, so every option has to
+  // carry it.
+  for (const option of options) {
+    const label = radioLabel(screen, option.label);
+    expect(getComputedStyle(label).opacity).toBe("0.45");
+    // The hand cursor promises a control that responds; a disabled option doesn't.
+    expect(getComputedStyle(label).cursor).toBe("default");
+  }
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();

@@ -171,10 +171,10 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
-// The unchecked checkbox's border is decorative (drawn with ink-secondary, already classified
-// above), but it's also the only thing that marks the control's own boundary, so it additionally
-// needs the WCAG non-text contrast minimum against the two surfaces it can sit on.
-describe("checkbox unchecked border contrast", () => {
+// ink-secondary is decorative (already classified above), but it's also the only thing that
+// marks the resting boundary of every control that draws one with it, so it additionally needs
+// the WCAG non-text contrast minimum against the two surfaces those controls can sit on.
+describe("checkbox box, radio circle, toggle track and toggle off-state knob boundary contrast", () => {
   it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
     const borderHex = colors["ink-secondary"];
 
@@ -183,21 +183,6 @@ describe("checkbox unchecked border contrast", () => {
       NON_TEXT_CONTRAST,
     );
     expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-  });
-});
-
-// The radio's unchecked border and the toggle's off-state track border are both drawn with
-// ink-secondary (already classified above, and already proven against bone via the checkbox's
-// own equivalent border), so each additionally needs the WCAG non-text contrast minimum against
-// white, the other surface either control sits on.
-describe("radio unchecked border and toggle off-state border contrast", () => {
-  it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white`, () => {
-    const borderHex = colors["ink-secondary"];
-
-    expect(borderHex, "ink-secondary is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect(contrastRatio(borderHex as string, backgrounds.white as string)).toBeGreaterThanOrEqual(
       NON_TEXT_CONTRAST,
     );
   });

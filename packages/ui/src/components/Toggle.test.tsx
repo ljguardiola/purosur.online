@@ -29,6 +29,14 @@ function toggleKnob(screen: Screen, name: string): HTMLElement {
   return toggleTrack(screen, name).children[0] as HTMLElement;
 }
 
+// A browser serializes one box-shadow layer as "<color> <x> <y> <blur> <spread>[ inset]", so
+// matching that whole layer pins the boundary's exact width and the fact that it is painted
+// inside the element: a wider spread, or the same spread painted outside as a halo, no longer
+// passes. Substring-matching the width alone would accept both.
+function insetBoundary(token: string, width: string): string {
+  return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
+}
+
 function Harness({ initial = false }: { initial?: boolean }) {
   const [isOn, setIsOn] = useState(initial);
   return (
@@ -78,7 +86,7 @@ test("renders a 22px round knob in a 48x28px, 14px-radius track, with the conten
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("colors an off track white with a 2px ink-secondary border and a white knob at the near end", async () => {
+test("colors an off track and its knob white, each with a 2px ink-secondary border, the knob at the near end", async () => {
   const screen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
       Apply discount
@@ -90,9 +98,12 @@ test("colors an off track white with a 2px ink-secondary border and a white knob
   const knobRect = knob.getBoundingClientRect();
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(track).boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(track).boxShadow).toContain("2px");
+  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  // A white knob on a white track is invisible without a boundary of its own, so off gives the
+  // knob the same 2px border the track carries.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
   // "Near end" for an off toggle is the left edge: the knob sits flush against the track's own
   // 4px padding on the left, with the remaining travel distance open on the right.
@@ -118,7 +129,7 @@ test("turns an off track's background bone on hover, keeping its border", async 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("colors an on track green UI with no border and a white knob at the far end", async () => {
+test("colors an on track green UI with no border and a plain white knob at the far end", async () => {
   const screen = await render(
     <Toggle isSelected onChange={() => {}}>
       Apply discount
@@ -131,7 +142,11 @@ test("colors an on track green UI with no border and a white knob at the far end
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-green-ui"));
   expect(getComputedStyle(track).boxShadow).not.toContain(tokenRgb("ink-secondary"));
+
+  // On, the knob is already legible against the green track, so it drops its own border the way
+  // the track drops the one it carries when off.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(knob).boxShadow).not.toContain(tokenRgb("ink-secondary"));
 
   // "Far end" for an on toggle is the right edge: the knob sits flush against the track's own
   // 4px padding on the right.
@@ -210,6 +225,29 @@ test("toggles with Space when focused", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("is a single tab stop", async () => {
+  const screen = await render(
+    <>
+      <button type="button">Before</button>
+      <Toggle isSelected={false} onChange={() => {}}>
+        Apply discount
+      </Toggle>
+      <button type="button">After</button>
+    </>,
+  );
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Before" }).element());
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(toggleInput(screen, "Apply discount"));
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "After" }).element());
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("exposes the toggle to assistive technology as a switch named by its content, with its on/off state", async () => {
   const offScreen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
@@ -246,20 +284,22 @@ test("shows the package's focus ring around the track when focused", async () =>
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("dims the whole toggle to 45% opacity and blocks focus when disabled", async () => {
+test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks focus when disabled", async () => {
   const screen = await render(
     <>
       <Toggle isSelected={false} onChange={() => {}} disabled>
         Apply discount
       </Toggle>
-      <button type="button">Siguiente control</button>
+      <button type="button">Next control</button>
     </>,
   );
   const label = toggleLabel(screen, "Apply discount");
   const input = toggleInput(screen, "Apply discount");
-  const nextControl = screen.getByRole("button", { name: "Siguiente control" }).element();
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
   expect(getComputedStyle(label).opacity).toBe("0.45");
+  // The hand cursor promises a control that responds; a disabled toggle doesn't.
+  expect(getComputedStyle(label).cursor).toBe("default");
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
