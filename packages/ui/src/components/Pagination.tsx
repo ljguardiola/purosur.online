@@ -132,10 +132,23 @@ export function Pagination({
   // runs after every render and acts on the page the component actually re-rendered with. If the
   // caller never applies the change, currentPage never reaches the boundary, the nav button never
   // actually disables, and nothing is moved.
+  //
+  // The recorded direction alone isn't enough: the caller is free to apply the change long after
+  // the press (or never), and by the time some later, unrelated render finally moves currentPage
+  // onto that same boundary, the person may have already moved focus anywhere else on the page.
+  // Redirecting it back then would steal it from wherever they actually are. The browser only ever
+  // drops focus to document.body as an immediate, involuntary side effect of disabling the element
+  // that currently holds it — never from a deliberate focus change elsewhere, and never on a
+  // render where nothing here actually became disabled just now — so requiring that as well ties
+  // the redirect to this exact disabling happening in this exact render, not to a stale intent
+  // resolving at some arbitrary later one.
   const pendingBoundaryFocusRef = useRef<"previous" | "next" | null>(null);
   useLayoutEffect(() => {
     const pending = pendingBoundaryFocusRef.current;
     pendingBoundaryFocusRef.current = null;
+    if (pending === null || document.activeElement !== document.body) {
+      return;
+    }
     if (pending === "previous" && currentPage <= 1) {
       pageButtonRefs.current.get(1)?.focus();
     } else if (pending === "next" && currentPage >= resolvedPageCount) {

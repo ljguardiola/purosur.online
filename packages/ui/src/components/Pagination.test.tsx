@@ -400,6 +400,28 @@ test("keeps focus on Previous and does not jump to page 1's button when the call
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// A caller can go a long time between a boundary press and any resulting re-render (or never
+// re-render at all): the person is free to move focus anywhere on the page in that window. A
+// later, unrelated prop change that happens to land the component on the very boundary that press
+// asked for must never grab focus back from wherever the person actually put it since.
+test("does not steal focus back from wherever the person moved it, when an unrelated later prop change happens to land on the boundary Next asked for", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+  await screen.getByRole("button", { name: "1", exact: true }).click();
+  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
+  expect(document.activeElement).toBe(firstPageButton);
+
+  // Unrelated to the Next press above: the caller shrinks pageCount on its own, which happens to
+  // land currentPage exactly on the boundary Next asked for (page 4 becomes the last of 4 pages),
+  // long after that press and with nothing to do with it.
+  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 4 })} />);
+
+  expect(document.activeElement).toBe(firstPageButton);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("names its own navigation landmark from the caller's label", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: 1, pageCount: 5, label: "Páginas de resultados" })} />,
