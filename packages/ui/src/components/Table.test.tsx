@@ -1,6 +1,6 @@
 import { PackageSearch, Pencil, Trash2 } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { cdp, userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
@@ -60,6 +60,89 @@ function shadowLayers(boxShadow: string): string[] {
   return layers;
 }
 
+// scrollWidth/clientWidth only measure a box's own layout size, which stays "wrapped" even when
+// the box is inline (scrollWidth and clientWidth both come back 0 for a plain <span>, making
+// scrollWidth <= clientWidth trivially true) or when the box's own size is capped by its parent
+// regardless of what its content actually painted (a block-level flex item can end up narrower
+// than its unbroken text, which then just paints straight through the box's own right edge). A
+// Range over the element's actual text paints one client rect per wrapped line — its rightmost
+// edge is where the browser really put ink, independent of what the containing box measured.
+function paintedTextRight(element: HTMLElement): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const rects = Array.from(range.getClientRects());
+  return Math.max(...rects.map((rect) => rect.right));
+}
+
+// A row's own divider and selected accent are inset box-shadow layers declared on the <tr>
+// itself, but <td> cells fully tile a row with no gaps between them, so a hit test
+// (document.elementFromPoint) at any point inside a row's box always resolves to a <td>, never
+// the <tr> underneath it — it can prove a cell is there, never that the row's own shadow actually
+// painted through that cell's transparent background. Reading the real rendered pixel is the only
+// way to prove that: a full-page screenshot, decoded onto a canvas so its pixels can be read back
+// at the exact CSS-pixel position (scaled by devicePixelRatio) a divider or accent is expected.
+async function pixelAt(x: number, y: number): Promise<[number, number, number, number]> {
+  // save: false is what selects the overload that resolves to a plain base64 string instead of
+  // a { path, base64 } object — there's no file to point a path at when nothing is saved.
+  const base64 = await page.screenshot({ base64: true, save: false });
+  const image = new Image();
+  const loaded = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("failed to decode the page screenshot"));
+  });
+  image.src = `data:image/png;base64,${base64}`;
+  await loaded;
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext("2d") as CanvasRenderingContext2D;
+  context.drawImage(image, 0, 0);
+  const dpr = window.devicePixelRatio || 1;
+  const [r, g, b, a] = context.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
+  return [r as number, g as number, b as number, a as number];
+}
+
+function rgbTuple(rgb: string): [number, number, number] {
+  const channels = rgb.match(/\d+/g);
+  if (channels?.length !== 3) {
+    throw new Error(`Not an opaque rgb() color: ${rgb}`);
+  }
+  return [Number(channels[0]), Number(channels[1]), Number(channels[2])];
+}
+
+test("actually paints the selected row's left accent and the row divider, not just declares them", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={[
+        { id: "1", item: rows[0]?.item as Product, state: "selected" },
+        { id: "2", item: rows[1]?.item as Product },
+      ]}
+    />,
+  );
+  const row = screen.getByRole("cell", { name: "Coffee" }).element().parentElement as HTMLElement;
+  const rect = row.getBoundingClientRect();
+
+  // The 4px blue left accent: sampled 2px in from the row's own left edge, vertically centered
+  // clear of any text glyph.
+  const [ar, ag, ab] = await pixelAt(rect.left + 2, rect.top + 2);
+  expect([ar, ag, ab]).toEqual(rgbTuple(tokenRgb("brand-blue-ui")));
+
+  // The 1px bottom divider: sampled on the row's own bottom edge, away from both the accent
+  // (left edge) and any cell text.
+  const [dr, dg, db] = await pixelAt(rect.left + 80, rect.bottom - 1);
+  expect([dr, dg, db]).toEqual(rgbTuple(tokenRgb("line")));
+
+  // Control: the same row's own message background, away from the accent stripe and the divider
+  // line, must differ from both — proving the two probes above hit their own distinct colors
+  // rather than the row's plain background bleeding through everywhere.
+  const [cr, cg, cb] = await pixelAt(rect.left + 80, rect.top + 2);
+  expect([cr, cg, cb]).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
+  expect([cr, cg, cb]).not.toEqual([ar, ag, ab]);
+  expect([cr, cg, cb]).not.toEqual([dr, dg, db]);
+});
+
 // overflow-clip-margin only widens how far *overflowing* content (like the sortable header's own
 // focus ring) can paint before the clip catches it; the header row's and last row's own
 // backgrounds never overflow their box in the first place, so they have nothing to gain from that
@@ -69,7 +152,12 @@ function shadowLayers(boxShadow: string): string[] {
 // real page behind it to show through if the corner weren't actually rounded.
 test("keeps every corner rounded, with overflow-clip-margin unrelated to it", async () => {
   const screen = await render(
-    <div style={{ marginTop: "40px", marginLeft: "40px" }}>
+    // An explicit width well inside the browser's own viewport, on top of the existing top/left
+    // margin: document.elementFromPoint returns null for a point outside the visual viewport
+    // (confirmed by probing a table wide enough to force horizontal scroll), and a null result
+    // would otherwise satisfy `corner === null` without ever hit-testing anything — this keeps
+    // all four probes on-screen so a real element is always found.
+    <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px" }}>
       <Table {...commonProps} columns={columns} />
     </div>,
   );
@@ -85,7 +173,8 @@ test("keeps every corner rounded, with overflow-clip-margin unrelated to it", as
   ];
 
   for (const corner of corners) {
-    expect(corner === null || !container.contains(corner)).toBe(true);
+    expect(corner, "expected a real hit-test result, not an out-of-viewport null").not.toBeNull();
+    expect(container.contains(corner)).toBe(false);
   }
 
   await expectNoAccessibilityViolations(screen.container);
@@ -192,9 +281,11 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   );
   // overflow-wrap: break-word and the span's own box staying in bounds both hold true even if
   // white-space: nowrap kept the text itself from ever actually breaking (it would just paint
-  // past the span instead) — scrollWidth over clientWidth is what actually proves it wrapped:
-  // unwrapped text overflows its own box horizontally, wrapped text doesn't.
-  expect(titleSpan.scrollWidth).toBeLessThanOrEqual(titleSpan.clientWidth);
+  // past the span instead) — the span's own painted text extent is what actually proves it
+  // wrapped: unwrapped text paints past the header's right edge, wrapped text doesn't.
+  expect(paintedTextRight(titleSpan)).toBeLessThanOrEqual(
+    firstHeader.getBoundingClientRect().right,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -233,7 +324,9 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
-  expect(titleSpan.scrollWidth).toBeLessThanOrEqual(titleSpan.clientWidth);
+  expect(paintedTextRight(titleSpan)).toBeLessThanOrEqual(
+    firstHeader.getBoundingClientRect().right,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -555,9 +648,12 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const cell = cellText.closest("td") as HTMLElement;
 
   expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
-  expect(cellText.getBoundingClientRect().width).toBeLessThanOrEqual(
-    cell.getBoundingClientRect().width,
-  );
+  // cellText's own box is a column flex item whose cross size is its own content width (see
+  // Table.tsx's TableCell): a block-level box laid out that way can end up narrower than the
+  // token's unbroken width and just have the text paint straight through its right edge, so
+  // comparing the two boxes alone would pass even when nothing actually wrapped. Only the token's
+  // real painted extent proves it broke inside the cell instead of overrunning it.
+  expect(paintedTextRight(cellText)).toBeLessThanOrEqual(cell.getBoundingClientRect().right);
 
   await expectNoAccessibilityViolations(screen.container);
 });

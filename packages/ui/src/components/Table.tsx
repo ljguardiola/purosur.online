@@ -454,7 +454,16 @@ function TableCell<T>({
             {column.actions[1] && <TableActionButton action={column.actions[1]} item={item} />}
           </>
         ) : (
-          column.render(item)
+          // min-w-0 max-w-full: this flex item's cross size is its own content width
+          // (items-start/items-end above opt it out of the container's stretch, on purpose, so a
+          // short value like a status chip doesn't balloon to the full column), and a flex item's
+          // default min-width is that same unwrapped content width — which, for a run with no
+          // natural break point (a barcode, a SKU with no spaces), stays the *unbroken* width even
+          // under overflow-wrap: break-word, since intrinsic sizing doesn't count that property's
+          // break points. min-w-0 alone only removes that floor; without max-w-full the item's
+          // cross size still resolves to its own unclamped preferred (unbroken) width, so both are
+          // needed to actually cap it at the column's own available width and let it wrap inside.
+          <div className="min-w-0 max-w-full">{column.render(item)}</div>
         )}
       </div>
     </td>
