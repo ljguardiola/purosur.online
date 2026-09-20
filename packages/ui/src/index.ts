@@ -33,6 +33,12 @@ export { OptionCardGroup } from "./components/OptionCardGroup";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
 export { RadioGroup } from "./components/RadioGroup";
 export type {
+  SearchFieldIcon,
+  SearchFieldProps,
+  SearchFieldVariant,
+} from "./components/SearchField";
+export { SearchField } from "./components/SearchField";
+export type {
   SegmentedControlIcon,
   SegmentedControlOption,
   SegmentedControlProps,
