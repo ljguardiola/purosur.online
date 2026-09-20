@@ -741,14 +741,18 @@ test("splits the row evenly with another stretched button of its variant, whatev
   const screen = await render(
     <div style={rowStyle}>
       <Button fullWidth>No</Button>
-      <Button fullWidth>Yes, charge the whole sale to this account</Button>
+      <Button fullWidth>Charge to the account</Button>
     </div>,
   );
-  const shortLabel = renderedWidth(screen, "No");
-  const longLabel = renderedWidth(screen, "Yes, charge the whole sale to this account");
+  const [shortLabel, longLabel] = widthsInRow(screen.container.firstElementChild as Element);
+  const longer = screen
+    .getByRole("button", { name: "Charge to the account" })
+    .element() as HTMLElement;
 
-  expect(shortLabel).toBeCloseTo(longLabel, 0);
-  expect(shortLabel + longLabel + 12).toBeCloseTo(500, 0);
+  expect(shortLabel).toBeCloseTo(longLabel as number, 0);
+  expect((shortLabel as number) + (longLabel as number) + 12).toBeCloseTo(500, 0);
+  // Labels of different lengths, each still on the one line its button has room for.
+  expect(lineCount(longer.firstChild as ChildNode)).toBe(1);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -793,12 +797,37 @@ test("is available on every variant", () => {
   expectTypeOf<ButtonPropsWithoutText>().toExtend<{ fullWidth?: boolean | undefined }>();
 });
 
+// One stack is given a height far larger than a button's, the other takes whatever height its
+// buttons come to: a stretched button has to come out the same height in both.
 const stackStyle = {
   width: "500px",
   height: "400px",
   display: "flex",
   flexDirection: "column",
 } as const;
+const contentHeightStackStyle = {
+  width: "500px",
+  display: "flex",
+  flexDirection: "column",
+} as const;
+
+test("is the height of its size in a stack that takes its height from its buttons", async () => {
+  const expected: Record<ButtonSize, number> = { small: 40, medium: 48, large: 56, sale: 72 };
+
+  for (const size of sizes) {
+    const screen = await render(
+      <div style={contentHeightStackStyle}>
+        <Button size={size} fullWidth>{`Stretched ${size}`}</Button>
+      </div>,
+    );
+    const stack = screen.container.firstElementChild as HTMLElement;
+    const button = stack.firstElementChild as HTMLElement;
+
+    expect(button.getBoundingClientRect().height, `${size} button`).toBeCloseTo(expected[size], 0);
+    expect(stack.getBoundingClientRect().height, `${size} stack`).toBeCloseTo(expected[size], 0);
+    await expectNoAccessibilityViolations(screen.container);
+  }
+});
 
 test("keeps its height, its padding and its centering when stretched, at every size", async () => {
   for (const size of sizes) {
@@ -894,16 +923,17 @@ test("keeps every label in the row on a single line", async () => {
   const screen = await render(
     <div style={rowStyle}>
       <Button variant="secondary">Salir sin completar</Button>
-      <Button fullWidth>Confirm</Button>
+      <Button fullWidth>Confirmar la venta</Button>
     </div>,
   );
-  const sibling = screen
-    .getByRole("button", { name: "Salir sin completar" })
-    .element() as HTMLElement;
+  const [sibling, stretched] = [
+    ...(screen.container.firstElementChild as Element).children,
+  ] as HTMLElement[];
 
   // A button's height cannot grow to hold a second line, so a wrapped label is clipped rather
-  // than accommodated: the label has to stay on the one line the button has room for.
-  expect(lineCount(sibling.firstChild as ChildNode)).toBe(1);
+  // than accommodated: every label in the row has to stay on the one line its button has room for.
+  expect(lineCount((sibling as HTMLElement).firstChild as ChildNode), "sibling").toBe(1);
+  expect(lineCount((stretched as HTMLElement).firstChild as ChildNode), "stretched").toBe(1);
   await expectNoAccessibilityViolations(screen.container);
 });
 

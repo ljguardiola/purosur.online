@@ -26,8 +26,10 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
   // Takes the width its row has free: the whole row when it is alone in it, what a content-sized
-  // button beside it leaves, or half of it beside another button asked for the same. A vertical
-  // stack already gives a button its full width, so this is not what that case needs.
+  // button beside it leaves, or an equal share of it beside another button asked for the same —
+  // equal inside their borders, so a bordered one measures those 2px wider. The row has to know
+  // its own width for there to be anything free to take, and a vertical stack already gives a
+  // button its full width, so neither of those cases is what this is for.
   fullWidth?: boolean;
 };
 
@@ -55,14 +57,15 @@ const baseClassName =
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong " +
   "data-[disabled]:opacity-[0.45]";
 
-// Each size states its height twice, once as the height the button has and once as one it cannot
-// pass. A stretched button grows along whichever direction its container runs, and the ceiling is
-// what keeps a vertical one from turning a 48px button into one as tall as the stack.
+// Each size states its height three times: as the height the button has, and as a floor and a
+// ceiling it cannot pass. A stretched button grows along whichever direction its container runs
+// and takes its base size from that growth rather than from its height, so in a vertical stack it
+// would otherwise come out as tall as the stack, or as short as the line of text inside it.
 const sizeClassName: Record<ButtonSize, string> = {
-  small: "h-[2.5rem] max-h-[2.5rem] text-base",
-  medium: "h-[3rem] max-h-[3rem] text-base",
-  large: "h-[3.5rem] max-h-[3.5rem] text-lg",
-  sale: "h-[4.5rem] max-h-[4.5rem] text-2xl",
+  small: "h-[2.5rem] min-h-[2.5rem] max-h-[2.5rem] text-base",
+  medium: "h-[3rem] min-h-[3rem] max-h-[3rem] text-base",
+  large: "h-[3.5rem] min-h-[3.5rem] max-h-[3.5rem] text-lg",
+  sale: "h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem] text-2xl",
 };
 
 // The medium the other variants default to is never drawn for the text variant, so it defaults
