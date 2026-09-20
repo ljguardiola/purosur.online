@@ -38,6 +38,8 @@ export type {
 export { SegmentedControl } from "./components/SegmentedControl";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
 export { StatusIndicator } from "./components/StatusIndicator";
+export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
+export { TextField } from "./components/TextField";
 export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
