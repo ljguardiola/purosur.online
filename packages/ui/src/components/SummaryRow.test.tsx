@@ -73,12 +73,21 @@ test("renders the value in green UI for a saving, in both the regular and the st
 });
 
 test("keeps the label in its own color when only the value is a saving", async () => {
-  const screen = await render(<SummaryRow label="Discount" value="-$10.00" saving />);
-  const label = screen.getByText("Discount", { exact: true }).element() as HTMLElement;
+  const regularScreen = await render(<SummaryRow label="Discount" value="-$10.00" saving />);
+  const regularLabel = regularScreen
+    .getByText("Discount", { exact: true })
+    .element() as HTMLElement;
+  expect(getComputedStyle(regularLabel).color).toBe(tokenRgb("ink-secondary"));
+  await expectNoAccessibilityViolations(regularScreen.container);
 
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
+  const strongScreen = await render(
+    <SummaryRow label="Total savings" value="-$25.00" strong saving />,
+  );
+  const strongLabel = strongScreen
+    .getByText("Total savings", { exact: true })
+    .element() as HTMLElement;
+  expect(getComputedStyle(strongLabel).color).toBe(tokenRgb("ink"));
+  await expectNoAccessibilityViolations(strongScreen.container);
 });
 
 test("grows with a long label instead of keeping a fixed height", async () => {
