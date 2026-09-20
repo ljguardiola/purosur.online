@@ -38,7 +38,7 @@ function Harness({ initial = false }: { initial?: boolean }) {
   );
 }
 
-test("renders the caller's content 12px from a 48x28px, 14px-radius track, vertically centered", async () => {
+test("renders a 22px round knob in a 48x28px, 14px-radius track, with the content 12px away", async () => {
   const screen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
       Apply discount
@@ -46,7 +46,9 @@ test("renders the caller's content 12px from a 48x28px, 14px-radius track, verti
   );
   const label = toggleLabel(screen, "Apply discount");
   const track = toggleTrack(screen, "Apply discount");
+  const knob = toggleKnob(screen, "Apply discount");
   const trackRect = track.getBoundingClientRect();
+  const knobRect = knob.getBoundingClientRect();
 
   expect(trackRect.width).toBeGreaterThan(47);
   expect(trackRect.width).toBeLessThan(49);
@@ -54,6 +56,19 @@ test("renders the caller's content 12px from a 48x28px, 14px-radius track, verti
   expect(trackRect.height).toBeLessThan(29);
   expect(getComputedStyle(track).borderRadius).toBe("14px");
   expect(getComputedStyle(label).alignItems).toBe("center");
+
+  // The knob is 22px in a 28px track, so the 4px padding the design draws only ever separates it
+  // from the track's own ends: vertically the knob is centered, leaving 3px, not 4.
+  expect(knobRect.width).toBeGreaterThan(21);
+  expect(knobRect.width).toBeLessThan(23);
+  expect(knobRect.height).toBeGreaterThan(21);
+  expect(knobRect.height).toBeLessThan(23);
+  // `rounded-full` resolves to an arbitrarily large px radius rather than 50%, so what makes
+  // the knob a circle is a radius of at least half its own size, not one exact value.
+  expect(Number.parseFloat(getComputedStyle(knob).borderRadius)).toBeGreaterThanOrEqual(
+    knobRect.width / 2,
+  );
+  expect(knobRect.top - trackRect.top).toBeCloseTo(trackRect.bottom - knobRect.bottom, 0);
 
   const content = screen.getByText("Apply discount").element() as HTMLElement;
   const gap = content.getBoundingClientRect().left - trackRect.right;
