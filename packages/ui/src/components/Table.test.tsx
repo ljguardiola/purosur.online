@@ -4,9 +4,9 @@ import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
-import { IconButton } from "./IconButton";
 import {
   Table,
+  type TableAction,
   TableCellText,
   type TableColumn,
   type TableProps,
@@ -147,6 +147,67 @@ test("renders 12px bold capital column titles", async () => {
   expect(style.fontSize).toBe("12px");
   expect(style.fontWeight).toBe("700");
   expect(style.textTransform).toBe("uppercase");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Nothing stops two array entries from sharing an `id`, for any T, the same way nothing stops
+// two ListFilter options from sharing a `value` — not a type the tuple could enforce, since a
+// row's id has no relationship to any other row's. `id` is only ever used as React's own list
+// key, never read back for anything else, so a caller that duplicates one gets exactly React's
+// own documented duplicate-key behavior: every row still renders, in this same pass, with its own
+// distinct content — the console warning React itself emits is the only extra cost.
+test("still renders every row, each with its own content, when two rows share the same id", async () => {
+  const dupRows: TableRow<Product>[] = [
+    { id: "1", item: { id: "1", name: "Coffee", stock: "12" } },
+    { id: "1", item: { id: "1", name: "Tea", stock: "8" } },
+  ];
+  const screen = await render(<Table aria-label="Products" columns={columns} rows={dupRows} />);
+
+  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: "Tea" })).toBeVisible();
+  expect(screen.container.querySelectorAll("tbody tr")).toHaveLength(2);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// A column's `key` doubles as its sort identity (`sort.column === column.key`), so two columns
+// sharing one isn't silently resolved to a single winner the way a duplicate row id or filter
+// option value is: both independently compare equal to the current sort, so both show as sorted.
+// An unsurprising, if unhelpful, consequence of what `key` already means here — not a reason to
+// add a uniqueness check no other part of this design system's data-driven props has either.
+test("shows both columns as sorted when they share a key that matches the current sort", async () => {
+  const dupColumns = [
+    {
+      key: "same",
+      title: "Producto",
+      sortable: true,
+      defaultDirection: "ascending",
+      render: (p: Product) => p.name,
+    },
+    {
+      key: "same",
+      title: "Stock",
+      align: "end",
+      sortable: true,
+      defaultDirection: "ascending",
+      render: (p: Product) => p.stock,
+    },
+  ] as const;
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={dupColumns}
+      sort={{ column: "same", direction: "ascending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const headers = screen.container.querySelectorAll("th");
+
+  expect(Array.from(headers).map((h) => h.getAttribute("aria-sort"))).toEqual([
+    "ascending",
+    "ascending",
+  ]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -431,8 +492,7 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
       key: "actions",
       kind: "actions",
       srLabel: "Actions",
-      count: 1,
-      render: () => <IconButton aria-label="Edit" icon={<Pencil />} />,
+      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
     },
   ] as const;
   const screen = await render(<Table {...commonProps} columns={actionColumns} />);
@@ -465,13 +525,10 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
       key: "actions",
       kind: "actions",
       srLabel: "Actions",
-      count: 2,
-      render: () => (
-        <>
-          <IconButton aria-label="Edit" icon={<Pencil />} />
-          <IconButton aria-label="Delete" icon={<Trash2 />} />
-        </>
-      ),
+      actions: [
+        () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
+        () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
+      ],
     },
   ] as const;
   const screen = await render(<Table {...commonProps} columns={actionColumns} />);
@@ -509,6 +566,25 @@ test("does not accept a column without a title, or an actions column without its
   expectTypeOf<{ key: string; kind: "actions"; render: (item: Product) => string }>().not.toExtend<
     TableColumn<Product>
   >();
+  expectTypeOf<{ key: string; kind: "actions"; srLabel: string }>().not.toExtend<
+    TableColumn<Product>
+  >();
+});
+
+// The actions column's width comes from the same `actions` array that renders every IconButton
+// (see ACTIONS_CONTENT_WIDTH_PX in Table.tsx), so there is no separate count of its own that
+// could ever disagree with what actually renders: the type only allows the lengths that array
+// knows how to size, one or two.
+test("does not accept an actions column with zero or three actions", () => {
+  expectTypeOf<{ key: string; kind: "actions"; srLabel: string; actions: [] }>().not.toExtend<
+    TableColumn<Product>
+  >();
+  expectTypeOf<{
+    key: string;
+    kind: "actions";
+    srLabel: string;
+    actions: [TableAction<Product>, TableAction<Product>, TableAction<Product>];
+  }>().not.toExtend<TableColumn<Product>>();
 });
 
 const sortableColumns = [
@@ -913,7 +989,12 @@ test("renders each placeholder bar at its own declared width, cycling per column
 test("renders one placeholder square, right-aligned, for a one-button actions column", async () => {
   const actionColumns = [
     { key: "name", title: "Producto", render: (p: Product) => p.name },
-    { key: "actions", kind: "actions", srLabel: "Actions", count: 1, render: () => null },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    },
   ] as const;
   const screen = await render(
     <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,
@@ -938,7 +1019,15 @@ test("renders one placeholder square, right-aligned, for a one-button actions co
 test("renders two placeholder squares with an 8px gap, right-aligned, for a two-button actions column", async () => {
   const actionColumns = [
     { key: "name", title: "Producto", render: (p: Product) => p.name },
-    { key: "actions", kind: "actions", srLabel: "Actions", count: 2, render: () => null },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        () => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} }),
+        () => ({ icon: <Trash2 />, "aria-label": "Delete", onPress: () => {} }),
+      ],
+    },
   ] as const;
   const screen = await render(
     <Table {...commonProps} columns={actionColumns} rows={emptyRows} loading="initial" />,

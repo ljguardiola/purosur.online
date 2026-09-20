@@ -833,6 +833,48 @@ test("removes cleanly, with no error, when unmounted while an intent is still ar
   expect(document.activeElement).toBe(document.body);
 });
 
+// Collapsing to a single page renders nothing (see resolvedPageCount <= 1 above) without the
+// component itself unmounting: the same instance, the same refs, can render again later if
+// pageCount grows back. An intent armed right before that collapse has nowhere left to redirect
+// to, same as a real unmount — the buttons it could have focused are gone from this exact commit,
+// pageButtonRefs is emptied by their own ref cleanup before this effect ever runs, and the
+// browser's own removal-triggered blur to document.body is again the entire, correct outcome.
+function PaginationThatCollapsesOnNext(
+  props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">,
+) {
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(2);
+  return (
+    <Pagination
+      {...props}
+      page={page}
+      pageCount={pageCount}
+      onPageChange={(next) => {
+        setPage(next);
+        setPageCount(1);
+      }}
+    />
+  );
+}
+
+test("does nothing unsafe when pressing Next collapses the page count to one while the intent is still armed", async () => {
+  const screen = await render(
+    <PaginationThatCollapsesOnNext
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  expect(screen.container.innerHTML).toBe("");
+  expect(document.activeElement).toBe(document.body);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // The redirect only ever compares against document.activeElement, never against any particular
 // ancestor: an ancestor's own tabindex (a focus-trap wrapper, a modal, a scroll region) plays no
 // part in the browser's native disable-triggered blur, which always targets document.body

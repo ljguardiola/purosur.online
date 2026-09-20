@@ -2,6 +2,7 @@ import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import type { ButtonIcon } from "./Button";
+import { IconButton } from "./IconButton";
 
 export type TableColumnAlign = "start" | "end";
 export type TableRowState = "selected" | "warning" | "error" | "muted";
@@ -29,14 +30,24 @@ type TableUnsortableDataColumn<T> = TableColumnCommon<T> & {
 
 type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn<T>;
 
+// Builds one row's worth of a single action: the icon and label a caller would otherwise have
+// handed IconButton directly, plus the press handler, already closed over the item that produced
+// them — the same shape IconButton itself takes, minus the parts Table already owns.
+export type TableAction<T> = (item: T) => {
+  icon: ButtonIcon;
+  "aria-label": string;
+  onPress: () => void;
+};
+
 // The actions column's header has no visible title, so assistive technology needs srLabel
-// instead, and its width can't be inferred from the rendered buttons.
+// instead. `actions` both renders every IconButton and determines the column's own width (see
+// ACTIONS_CONTENT_WIDTH_PX below): there's no separate count to fall out of step with it, because
+// there's nothing else left that could say how many buttons this column has.
 type TableActionsColumn<T> = {
   key: string;
   kind: "actions";
   srLabel: string;
-  count: 1 | 2;
-  render: (item: T) => ReactNode;
+  actions: readonly [TableAction<T>] | readonly [TableAction<T>, TableAction<T>];
 };
 
 export type TableColumn<T> = TableDataColumn<T> | TableActionsColumn<T>;
@@ -182,7 +193,9 @@ function headerColumnWidthStyle<T>(
   }
   const leftPadding = isFirst ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
   const rightPadding = isLast ? CELL_EDGE_PADDING_PX : CELL_INNER_PADDING_PX;
-  return { width: `${ACTIONS_CONTENT_WIDTH_PX[column.count] + leftPadding + rightPadding}px` };
+  return {
+    width: `${ACTIONS_CONTENT_WIDTH_PX[column.actions.length] + leftPadding + rightPadding}px`,
+  };
 }
 
 // A muted row's ink-secondary applies to every cell at once: a cell's own content should leave
@@ -328,7 +341,7 @@ function SkeletonRow<T>({ columns }: { columns: readonly TableColumn<T>[] }) {
             {isActions ? (
               <div className="flex flex-row items-center justify-end gap-2">
                 <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
-                {column.count === 2 && (
+                {column.actions.length === 2 && (
                   <div className="size-[2.375rem] shrink-0 rounded-lg bg-surface-sand" />
                 )}
               </div>
@@ -404,7 +417,14 @@ function TableCell<T>({
               ].join(" ")
         }
       >
-        {column.render(item)}
+        {isActions
+          ? column.actions.map((action) => {
+              const { icon, "aria-label": ariaLabel, onPress } = action(item);
+              return (
+                <IconButton key={ariaLabel} icon={icon} aria-label={ariaLabel} onPress={onPress} />
+              );
+            })
+          : column.render(item)}
       </div>
     </td>
   );
