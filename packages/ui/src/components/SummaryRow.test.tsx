@@ -180,17 +180,29 @@ test("flushes every line of a wrapped value against the row's right edge", async
 
 test("keeps an unbreakable value inside the row, narrowing the label past its longest word", async () => {
   const unbreakableValue = "$1.234.567.890,00";
+  const label = "Cash payment received";
   const screen = await render(
     <div style={{ width: "200px" }}>
-      <SummaryRow label="Cash payment received" value={unbreakableValue} />
+      <SummaryRow label={label} value={unbreakableValue} />
     </div>,
   );
-  const value = screen.getByText(unbreakableValue, { exact: true }).element() as HTMLElement;
-  const row = value.parentElement as HTMLElement;
+  const valueElement = screen.getByText(unbreakableValue, { exact: true }).element() as HTMLElement;
+  const labelElement = screen.getByText(label, { exact: true }).element() as HTMLElement;
+  const row = valueElement.parentElement as HTMLElement;
+  const labelLines = document.createRange();
+  labelLines.selectNodeContents(labelElement);
+  const labelLineRects = Array.from(labelLines.getClientRects());
+  const valueRect = valueElement.getBoundingClientRect();
 
-  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
-    row.getBoundingClientRect().right,
-  );
+  expect(valueRect.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
+  expect(valueRect.width).toBeCloseTo(valueElement.scrollWidth, 0);
+
+  // More lines than words means the label had to break inside a word to fit the room the
+  // unbreakable value leaves it, which is what narrowing it past its longest word looks like.
+  expect(labelLineRects.length).toBeGreaterThan(label.split(" ").length);
+  for (const lineRect of labelLineRects) {
+    expect(lineRect.right).toBeLessThanOrEqual(valueRect.left);
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });
