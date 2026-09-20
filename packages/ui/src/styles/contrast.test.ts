@@ -83,6 +83,7 @@ const decorativeTones = [
   "ink-shadow",
   "ink-backdrop",
   "ink-panel-shadow",
+  "brand-blue-ui-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -185,4 +186,30 @@ describe("checkbox unchecked border contrast", () => {
       NON_TEXT_CONTRAST,
     );
   });
+});
+
+// The text field's own border is its resting and hovered boundary marker (there is no icon or
+// glyph standing in for it, unlike the checkbox above), and its invalid border additionally
+// carries the field's error state, so all three need the WCAG non-text contrast minimum against
+// both surfaces the field can sit on (white, and bone for a read-only field).
+describe("text field border contrast", () => {
+  const borders: Record<string, string> = {
+    "resting (line)": "line",
+    "hovered (blue-soft)": "blue-soft",
+    "invalid (status-error-ui)": "status-error-ui",
+  };
+
+  for (const [state, tone] of Object.entries(borders)) {
+    it(`${state} border reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
+      const borderHex = colors[tone];
+
+      expect(borderHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(
+        contrastRatio(borderHex as string, backgrounds.white as string),
+      ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+      expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
+        NON_TEXT_CONTRAST,
+      );
+    });
+  }
 });
