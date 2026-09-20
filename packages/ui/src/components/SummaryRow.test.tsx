@@ -106,9 +106,12 @@ test("grows with a long label instead of keeping a fixed height", async () => {
     </div>,
   );
   const label = screen.getByText(longLabel, { exact: true }).element() as HTMLElement;
+  const row = label.parentElement as HTMLElement;
   const lineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
+  const labelHeight = label.getBoundingClientRect().height;
 
-  expect(label.getBoundingClientRect().height).toBeGreaterThan(lineHeight * 1.5);
+  expect(labelHeight).toBeGreaterThan(lineHeight * 1.5);
+  expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(labelHeight);
 
   await expectNoAccessibilityViolations(screen.container);
 });
