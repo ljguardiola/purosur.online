@@ -30,9 +30,12 @@ const triggerClassName =
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
+// React Aria caps this popover's own max-height to fit the viewport, but leaves overflow to the
+// consumer: without overflow-y-auto, an options list taller than that cap paints straight past
+// the popover's own box instead of scrolling inside it.
 const popoverClassName =
   "min-w-[12.5rem] w-[var(--trigger-width)] rounded-lg border border-line bg-surface-white p-1 " +
-  "shadow-[0_8px_24px_var(--color-ink-menu-shadow)]";
+  "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
 
 const optionClassName =
   "flex h-10 cursor-default items-center justify-between rounded-md px-3 text-sm font-semibold " +

@@ -1,11 +1,27 @@
 import { useEffect, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
 import { Pagination, type PaginationProps } from "./Pagination";
+
+interface DispatchableCdpSession {
+  send(
+    method: "Input.dispatchMouseEvent",
+    params: { type: "mouseMoved"; x: number; y: number },
+  ): Promise<unknown>;
+}
+
+// aria-disabled, not the native attribute, is what marks Previous/Next unavailable, so Playwright's
+// own locator actionability check (which treats aria-disabled as "not enabled") refuses to drive a
+// hover through it — dispatched directly over CDP instead, the same way setup-browser.ts parks the
+// pointer between tests.
+async function hoverAt(x: number, y: number) {
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+}
 
 // The dimmed nav buttons paint their label at full opacity internally, then composite that whole
 // button (label included) at aria-disabled:opacity's alpha onto whatever sits behind it (the
@@ -314,6 +330,31 @@ test("keeps Next focusable, tab-reachable, dimmed and marked unavailable on the 
   expect(next.hasAttribute("disabled")).toBe(false);
   expect(next.getAttribute("aria-disabled")).toBe("true");
   expect(getComputedStyle(next).opacity).toBe("0.65");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not paint the hover background while Previous is unavailable at page 1, unlike an available Next", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+  const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
+  const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
+  const restBackground = getComputedStyle(previous).backgroundColor;
+
+  const previousRect = previous.getBoundingClientRect();
+  await hoverAt(
+    previousRect.left + previousRect.width / 2,
+    previousRect.top + previousRect.height / 2,
+  );
+  expect(previous.getAttribute("data-hovered")).toBe("true");
+  expect(getComputedStyle(previous).backgroundColor).toBe(restBackground);
+
+  // Control: the same hover, over the available Next button, still paints its own hover
+  // background — proving the suppression above is specific to the unavailable state, not a
+  // regression that dropped hover styling everywhere.
+  const nextRect = next.getBoundingClientRect();
+  await hoverAt(nextRect.left + nextRect.width / 2, nextRect.top + nextRect.height / 2);
+  expect(next.getAttribute("data-hovered")).toBe("true");
+  expect(getComputedStyle(next).backgroundColor).toBe(tokenRgb("surface-bone"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -629,13 +670,15 @@ test("names each page button from the caller's own pageLabel, not a bare digit",
 });
 
 test("hides every ellipsis from assistive technology", async () => {
+  // Page 10 of 24 renders [1, …, 10, …, 24]: 5 <li>, 2 of them an ellipsis. getByRole excludes
+  // hidden elements by default, so this counts what actually reaches the accessibility tree —
+  // an aria-hidden span inside a plain <li> wouldn't change that count, since hiding the span
+  // leaves its own parent <li> announced as an empty list item.
   const screen = await render(<Pagination {...baseProps({ page: 10, pageCount: 24 })} />);
-  const ellipses = screen.getByText("…", { exact: true }).elements() as HTMLElement[];
 
-  expect(ellipses).toHaveLength(2);
-  for (const ellipsis of ellipses) {
-    expect(ellipsis.getAttribute("aria-hidden")).toBe("true");
-  }
+  const listItems = screen.getByRole("listitem").elements();
+  expect(listItems).toHaveLength(3);
+  expect(listItems.map((item) => item.textContent)).toEqual(["1", "10", "24"]);
 
   await expectNoAccessibilityViolations(screen.container);
 });

@@ -220,6 +220,33 @@ test("matches the menu to a trigger wider than 200px", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("scrolls a long options list inside the popover instead of painting it past the popover's own box", async () => {
+  const manyOptions = Array.from({ length: 40 }, (_, i) => ({
+    value: `opt${i}`,
+    label: `Option ${i}`,
+  })) as [ListFilterOption<string>, ...ListFilterOption<string>[]];
+  const screen = await render(
+    <ListFilter label="Many" options={manyOptions} value="opt0" onChange={() => {}} />,
+  );
+  await screen.getByRole("button", { name: /Many/ }).click();
+
+  const menu = screen.getByRole("listbox").element().parentElement as HTMLElement;
+  const menuStyle = getComputedStyle(menu);
+
+  expect(menuStyle.overflowY).toBe("auto");
+  // The 40 options need more height than the popover's own capped max-height leaves it, so this
+  // only holds if that overflow is real (not a popover already tall enough to fit everything).
+  expect(menu.scrollHeight).toBeGreaterThan(menu.clientHeight);
+
+  // The real clip proof: a point just past the popover's own bottom edge, where an unclipped
+  // option would otherwise still paint, must not resolve to any option.
+  const menuRect = menu.getBoundingClientRect();
+  const probe = document.elementFromPoint(menuRect.left + 10, menuRect.bottom + 5);
+  expect(probe?.getAttribute("role")).not.toBe("option");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("renders each option at 40px with a 6px radius and 14px semibold ink", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   await screen.getByRole("button", { name: /Estado/ }).click();
@@ -315,12 +342,10 @@ test("keeps showing the old value when the caller's onChange does nothing", asyn
   await expectNoAccessibilityViolations(document.body);
 });
 
-// react-aria's own Select already treats a selectedKey with no matching option as no selection:
-// verified directly (an explicit null-when-missing fallback produced byte-identical DOM output
-// to passing the stale value straight through), so the component relies on that library
-// behavior instead of re-deriving it. Pinned here, not the exact placeholder wording (react-aria's
-// own default, locale-dependent), but its stable, load-bearing facts: the stale label disappears,
-// react-aria's own data-placeholder marker takes its place, and the trigger keeps a real name.
+// react-aria's own Select treats a selectedKey with no matching option as no selection, so this
+// pins its stable, load-bearing facts (the stale label disappears, react-aria's own
+// data-placeholder marker takes its place, the trigger keeps a real name) rather than the exact,
+// locale-dependent placeholder wording.
 test("shows react-aria's own placeholder, not a stale label, when its value points to an option a narrowed options list no longer has", async () => {
   const narrowedOptions: [ListFilterOption<Status>, ListFilterOption<Status>] = [
     { value: "all", label: "Todos" },
