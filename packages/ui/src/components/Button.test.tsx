@@ -762,15 +762,18 @@ test("shares the row with a stretched button of another variant, neither sized b
       <Button variant="secondary" fullWidth>
         No
       </Button>
-      <Button fullWidth>Yes, charge the whole sale to this account</Button>
+      <Button fullWidth>Charge to the account</Button>
     </div>,
   );
+  const [borderedButton, borderlessButton] = [
+    ...(screen.container.firstElementChild as Element).children,
+  ] as HTMLElement[];
   const [bordered, borderless] = widthsInRow(screen.container.firstElementChild as Element);
-  const borderedButton = screen.getByRole("button", { name: "No" }).element() as HTMLElement;
-  const style = getComputedStyle(borderedButton);
+  const style = getComputedStyle(borderedButton as HTMLElement);
   const border =
     Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth);
 
+  expect(lineCount((borderlessButton as HTMLElement).firstChild as ChildNode)).toBe(1);
   expect((bordered as number) + (borderless as number) + 12).toBeCloseTo(500, 0);
   // They grow from nothing into equal halves of what the row has free, so what each ends up
   // measuring differs by exactly the border one of them draws and the other does not.
@@ -827,6 +830,51 @@ test("is the height of its size in a stack that takes its height from its button
     expect(stack.getBoundingClientRect().height, `${size} stack`).toBeCloseTo(expected[size], 0);
     await expectNoAccessibilityViolations(screen.container);
   }
+});
+
+test("is the height of the size it falls back to, in that same stack, on the text variant", async () => {
+  // The text variant does not default to the size the others do, so it reaches the height classes
+  // by a different route and is worth measuring where a stretched button's height is decided.
+  const screen = await render(
+    <div style={contentHeightStackStyle}>
+      <Button variant="text" tone="destructive" fullWidth>
+        Cancel sale
+      </Button>
+    </div>,
+  );
+  const stack = screen.container.firstElementChild as HTMLElement;
+  const button = stack.firstElementChild as HTMLElement;
+
+  expect(button.getBoundingClientRect().height).toBeCloseTo(40, 0);
+  expect(stack.getBoundingClientRect().height).toBeCloseTo(40, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("has nothing to take in a row that is only as wide as what it holds", async () => {
+  const screen = await render(
+    <div style={{ width: "max-content", display: "flex", gap: "12px" }}>
+      <Button variant="secondary">Salir sin completar</Button>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const row = screen.container.firstElementChild as Element;
+  const [sibling, stretched] = widthsInRow(row);
+  const plain = await render(
+    <div>
+      <Button>Confirm</Button>
+    </div>,
+  );
+  const [unstretched] = widthsInRow(plain.container.firstElementChild as Element);
+
+  // Such a row is as wide as its buttons make it, so there is no space left over to grow into and
+  // asking for it changes nothing. Pinned so the day that stops being true is a failure, not a
+  // surprise on a screen.
+  expect(stretched).toBeCloseTo(unstretched as number, 0);
+  expect(row.getBoundingClientRect().width).toBeCloseTo(
+    (sibling as number) + (stretched as number) + 12,
+    0,
+  );
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps its height, its padding and its centering when stretched, at every size", async () => {
