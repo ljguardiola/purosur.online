@@ -16,6 +16,8 @@ const labelTypeClassName: Record<SummaryRowForm, string> = {
   strong: "text-lg font-bold",
 };
 
+const valueBaseClassName = "text-right";
+
 const valueTypeClassName: Record<SummaryRowForm, string> = {
   regular: "text-base font-semibold",
   strong: "text-lg font-bold",
@@ -36,6 +38,7 @@ export function SummaryRow({ label, value, strong = false, saving = false }: Sum
     textColorClassName[form],
   ].join(" ");
   const valueClassName = [
+    valueBaseClassName,
     valueTypeClassName[form],
     saving ? savingColorClassName : textColorClassName[form],
   ].join(" ");

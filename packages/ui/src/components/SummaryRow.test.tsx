@@ -135,6 +135,27 @@ test("keeps a long value inside the row, growing it instead of overflowing", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("flushes every line of a wrapped value against the row's right edge", async () => {
+  const longValue = "A very long value that does not fit on a single line inside this narrow row";
+  const screen = await render(
+    <div style={{ width: "200px" }}>
+      <SummaryRow label="Payment" value={longValue} />
+    </div>,
+  );
+  const value = screen.getByText(longValue, { exact: true }).element() as HTMLElement;
+  const lines = document.createRange();
+  lines.selectNodeContents(value);
+  const lineRects = Array.from(lines.getClientRects());
+  const valueRight = value.getBoundingClientRect().right;
+
+  expect(lineRects.length).toBeGreaterThan(1);
+  for (const lineRect of lineRects) {
+    expect(lineRect.right).toBeCloseTo(valueRight, 0);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("keeps an unbreakable value inside the row, narrowing the label past its longest word", async () => {
   const unbreakableValue = "$1.234.567.890,00";
   const screen = await render(
