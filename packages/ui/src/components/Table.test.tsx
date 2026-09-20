@@ -68,7 +68,10 @@ test("renders a white container with an 8px radius and a 1px line border", async
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("1px");
   expect(style.borderColor).toBe(tokenRgb("line"));
-  expect(style.overflow).toBe("hidden");
+  // "clip" instead of "hidden": same clipping and no-scroll behavior, but it's the one that
+  // honors overflow-clip-margin below, giving the sortable header's own focus ring (which reaches
+  // this same edge) room to paint instead of being cut off by the rounded corner.
+  expect(style.overflow).toBe("clip");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -567,6 +570,60 @@ test("makes the sortable header's own button reach every edge of the header cell
   expect(buttonRect.right).toBeCloseTo(headerRect.right, 0);
   expect(buttonRect.top).toBeCloseTo(headerRect.top, 0);
   expect(buttonRect.bottom).toBeCloseTo(headerRect.bottom, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a visible focus outline in strong blue when a sortable header is reached by keyboard", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
+  await expect
+    .poll(() => getComputedStyle(button).outlineColor)
+    .toBe(tokenRgb("brand-blue-strong"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The button reaches every edge of its header cell (see the test above proving that), which is
+// itself flush against the container's own rounded, clipped edge: without extra room, that ring
+// would be cut off exactly where it matters most. overflow-clip-margin (only honored by "clip",
+// not "hidden" — confirmed by hand against a screenshot) gives it that room without moving
+// anything, so the clip boundary sits at least as far out as the ring's own reach.
+test("gives the sortable header's own focus ring room so the container's rounded clip never cuts it off", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+
+  await userEvent.tab();
+
+  const buttonStyle = getComputedStyle(button);
+  const ringReach =
+    Number.parseFloat(buttonStyle.outlineWidth) + Number.parseFloat(buttonStyle.outlineOffset);
+  const containerStyle = getComputedStyle(container);
+
+  expect(containerStyle.overflow).toBe("clip");
+  expect(
+    Number.parseFloat(containerStyle.getPropertyValue("overflow-clip-margin")),
+  ).toBeGreaterThanOrEqual(ringReach);
 
   await expectNoAccessibilityViolations(screen.container);
 });

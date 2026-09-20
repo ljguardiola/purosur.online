@@ -436,7 +436,10 @@ export function Table<T>({
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-lg border border-line bg-surface-white">
+      {/* "clip" (not "hidden") + overflow-clip-margin: a sortable header's own button reaches
+          this exact edge, so its focus ring needs 6px of room (its own offset + width) past the
+          rounded corner that clips everything else; "hidden" clips flush and ignores the margin. */}
+      <div className="relative overflow-clip rounded-lg border border-line bg-surface-white [overflow-clip-margin:6px]">
         {loading === "updating" && (
           <div
             aria-hidden="true"
