@@ -311,8 +311,9 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(iconRect.width).toBeLessThan(25);
   expect(iconRect.height).toBeGreaterThan(23);
   expect(iconRect.height).toBeLessThan(25);
-  // The icon has no fill of its own, so it renders in the button's own (white) text color.
-  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("surface-white"));
+  // The stroke the glyph is painted with, not the color it inherits: an icon that brought a
+  // stroke of its own would inherit the button's color just the same and pass on that reading.
+  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("surface-white"));
 
   const textRect = textNodeRect(button.firstChild as ChildNode);
   const gap = iconRect.left - textRect.right;
@@ -342,8 +343,8 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   expect(iconRect.width).toBeLessThan(19);
   expect(iconRect.height).toBeGreaterThan(17);
   expect(iconRect.height).toBeLessThan(19);
-  // The icon has no fill of its own, so it renders in the button's own (ink) text color.
-  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("ink"));
+  // See the primary variant's icon test above: the painted stroke, not the inherited color.
+  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("ink"));
 
   const textRect = textNodeRect(button.lastChild as ChildNode);
   const gap = textRect.left - iconRect.right;
@@ -382,7 +383,7 @@ test("renders a plain svg icon (no size prop of its own) at 24px in the primary 
   expect(secondaryRect.width).toBeLessThan(19);
 });
 
-test("keeps the icon size fixed per variant across every button size", async () => {
+test("keeps a caller's icon at its variant's size across every button size", async () => {
   for (const size of sizes) {
     const primary = await render(
       <Button icon={<Check />} size={size}>{`Primary icon ${size}`}</Button>,
@@ -481,7 +482,7 @@ test("sizes the text-only destructive form at 56px with an 18px label at its lar
 
 test("carries its own 18px x icon before the label, with an 8px gap, on both drawn sizes", async () => {
   const x = await lucideShape(<X />);
-  const notX = await lucideShape(<Check />);
+  expect(x, "the comparison below tells lucide icons apart").not.toBe(await lucideShape(<Check />));
 
   for (const size of ["small", "large"] as const) {
     const screen = await render(
@@ -502,7 +503,6 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
 
     // The glyph itself, not just any icon of the right size and color.
     expect((icon as SVGSVGElement).innerHTML, `${size} glyph`).toBe(x);
-    expect(x, "the comparison tells lucide icons apart").not.toBe(notX);
 
     const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
     expect(iconRect.width, `${size} icon width`).toBeGreaterThan(17);
