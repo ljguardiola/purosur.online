@@ -464,11 +464,8 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Mirrors how a real caller wires this controlled component (page/onPageChange round-tripped
-// through the caller's own state): the case that used to drop focus to document.body, six review
-// rounds running, because the button that had just been pressed became disabled and unfocusable.
-// Neither nav button is ever disabled now, so there is nothing left to redirect: pressing Next
-// onto the last page just leaves focus exactly where it already was.
+// Mirrors how a real caller wires this controlled component: page and onPageChange round-tripped
+// through the caller's own state.
 function ControlledPagination({
   initialPage,
   ...props
@@ -527,10 +524,9 @@ test("leaves focus on Previous, never reaching document.body, when pressing it l
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The exact case that started all this: a real async caller, where pressing Next first lands an
-// unrelated re-render (a loading flag flips, the page itself doesn't move yet) and only a tick
-// later, in a separate commit, does the page actually land. There is no intent to lose track of
-// anymore — Next simply never becomes unfocusable, so focus has nowhere to go but stay.
+// A real async caller: pressing Next first lands an unrelated re-render (a loading flag flips,
+// the page itself doesn't move yet), and only a tick later, in a separate commit, does the page
+// actually land.
 function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">) {
   const [page, setPage] = useState(4);
   const [pendingPage, setPendingPage] = useState<number | null>(null);

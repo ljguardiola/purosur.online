@@ -61,13 +61,9 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   ];
 }
 
-// Previous/Next are never natively disabled: a disabled element can't hold focus, so pressing one
-// onto the very page that would disable it (page 1, or the last page) used to drop focus to
-// document.body, needing a whole mechanism to find its way back. Instead they stay focusable and
-// in the tab order always, aria-disabled marks them unavailable for assistive technology (the
-// standard focusable-but-unavailable pattern), and the same dimmed look now follows that
-// attribute; activating one at its own boundary is simply a no-op in the press handler. Nothing
-// ever gets removed, so focus never moves on its own.
+// Previous/Next are never natively disabled, so they stay focusable and in the tab order at their
+// own boundary: aria-disabled marks them unavailable for assistive technology instead, the dimmed
+// look follows that same attribute, and activating one there is a no-op in the press handler.
 const navButtonClassName =
   "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3 " +
   "text-sm text-ink outline-none data-[hovered]:bg-surface-bone " +
