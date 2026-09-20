@@ -3,7 +3,7 @@ import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { insetBoundary, tokenRgb } from "../test/token-colors";
 import { Toggle, type ToggleProps } from "./Toggle";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -29,16 +29,25 @@ function toggleKnob(screen: Screen, name: string): HTMLElement {
   return toggleTrack(screen, name).children[0] as HTMLElement;
 }
 
-// A browser serializes one box-shadow layer as "<color> <x> <y> <blur> <spread>[ inset]", so
-// matching that whole layer pins the boundary's exact width and the fact that it is painted
-// inside the element: a wider spread, or the same spread painted outside as a halo, no longer
-// passes. Substring-matching the width alone would accept both.
-function insetBoundary(token: string, width: string): string {
-  return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
+// Tailwind composes `shadow-none` into its own shadow layers set to fully transparent rather
+// than into the literal "none", so "this element draws no boundary of its own" is not a string
+// comparison: it is that every layer the browser does report paints nothing. Returning the
+// layers that do paint, instead of a boolean, puts the offending one in the failure message.
+function paintedBoxShadowLayers(element: HTMLElement): string[] {
+  const boxShadow = getComputedStyle(element).boxShadow;
+  if (boxShadow === "none") {
+    return [];
+  }
+  // A layer is "<color> <x> <y> <blur> <spread>[ inset]" and the browser serializes color first,
+  // so splitting on the commas that separate layers means skipping the ones inside rgb()/rgba().
+  return boxShadow
+    .split(/,(?![^(]*\))/)
+    .map((layer) => layer.trim())
+    .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
 }
 
-function Harness({ initial = false }: { initial?: boolean }) {
-  const [isOn, setIsOn] = useState(initial);
+function Harness() {
+  const [isOn, setIsOn] = useState(false);
   return (
     <Toggle isSelected={isOn} onChange={setIsOn}>
       Apply discount
@@ -146,7 +155,8 @@ test("colors an on track green UI with no border and a plain white knob at the f
   // On, the knob is already legible against the green track, so it drops its own border the way
   // the track drops the one it carries when off.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(knob).boxShadow).not.toContain(tokenRgb("ink-secondary"));
+  // Not merely "no ink-secondary": the on knob draws no boundary at all, in any color.
+  expect(paintedBoxShadowLayers(knob)).toEqual([]);
 
   // "Far end" for an on toggle is the right edge: the knob sits flush against the track's own
   // 4px padding on the right.
@@ -175,13 +185,14 @@ test("turns an on track's background green strong on hover, keeping the white kn
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the track's size stable between the off and on states", async () => {
+test("keeps the track's and the knob's size stable between the off and on states", async () => {
   const offScreen = await render(
     <Toggle isSelected={false} onChange={() => {}}>
       Apply discount
     </Toggle>,
   );
-  const offRect = toggleTrack(offScreen, "Apply discount").getBoundingClientRect();
+  const offTrackRect = toggleTrack(offScreen, "Apply discount").getBoundingClientRect();
+  const offKnobRect = toggleKnob(offScreen, "Apply discount").getBoundingClientRect();
   await offScreen.unmount();
 
   const onScreen = await render(
@@ -189,10 +200,17 @@ test("keeps the track's size stable between the off and on states", async () => 
       Apply discount
     </Toggle>,
   );
-  const onRect = toggleTrack(onScreen, "Apply discount").getBoundingClientRect();
+  const onTrackRect = toggleTrack(onScreen, "Apply discount").getBoundingClientRect();
+  const onKnobRect = toggleKnob(onScreen, "Apply discount").getBoundingClientRect();
 
-  expect(onRect.width).toBeCloseTo(offRect.width, 0);
-  expect(onRect.height).toBeCloseTo(offRect.height, 0);
+  expect(onTrackRect.width).toBeCloseTo(offTrackRect.width, 0);
+  expect(onTrackRect.height).toBeCloseTo(offTrackRect.height, 0);
+
+  // The knob too: only the off state is measured against the design's 22px above, so without
+  // this the on knob's box is free to differ — which is exactly what swapping its boundary for
+  // one that participates in layout would do.
+  expect(onKnobRect.width).toBeCloseTo(offKnobRect.width, 0);
+  expect(onKnobRect.height).toBeCloseTo(offKnobRect.height, 0);
 
   await expectNoAccessibilityViolations(onScreen.container);
 });

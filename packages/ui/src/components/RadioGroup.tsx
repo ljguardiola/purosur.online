@@ -30,9 +30,7 @@ const radioLabelClassName =
 // instead of a real border, for the same reason as Checkbox.tsx's boxClassName: it never
 // participates in layout, so growing from a 2px border to a 6px ring never resizes the circle.
 const circleClassName =
-  // `block`, not Checkbox's `inline-flex`: that box centers a check icon, while this circle is
-  // empty in both states, so it needs no inner layout — only its own size.
-  "block size-5 shrink-0 rounded-full outline-none " +
+  "size-5 shrink-0 rounded-full outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +

@@ -3,7 +3,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { insetBoundary, tokenRgb } from "../test/token-colors";
 import type { RadioOption } from "./RadioGroup";
 import { RadioGroup, type RadioGroupProps } from "./RadioGroup";
 
@@ -50,14 +50,6 @@ function radioLabel(screen: Screen, name: string): HTMLElement {
 // first child, our own circle as its second, and the caller's label text after that.
 function radioCircle(screen: Screen, name: string): HTMLElement {
   return radioLabel(screen, name).children[1] as HTMLElement;
-}
-
-// A browser serializes one box-shadow layer as "<color> <x> <y> <blur> <spread>[ inset]", so
-// matching that whole layer pins the boundary's exact width and the fact that it is painted
-// inside the circle: a wider spread, or the same spread painted outside as a halo, no longer
-// passes. Substring-matching the width alone would accept both.
-function insetBoundary(token: string, width: string): string {
-  return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
 }
 
 function Harness() {
@@ -250,8 +242,8 @@ test("dims every option to 45% opacity, drops the pointer cursor and blocks focu
     expect(getComputedStyle(label).opacity).toBe("0.45");
     // The hand cursor promises a control that responds; a disabled option doesn't.
     expect(getComputedStyle(label).cursor).toBe("default");
+    expect(radioInput(screen, option.label).disabled).toBe(true);
   }
-  expect(input.disabled).toBe(true);
 
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);

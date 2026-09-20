@@ -14,6 +14,14 @@ export function tokenRgb(name: string): string {
   );
 }
 
+// A browser serializes one box-shadow layer as "<color> <x> <y> <blur> <spread>[ inset]", so
+// matching that whole layer pins the boundary's exact width and the fact that it is painted
+// inside the element: a wider spread, or the same spread painted outside as a halo, no longer
+// passes. Substring-matching the width alone would accept both.
+export function insetBoundary(token: string, width: string): string {
+  return `${tokenRgb(token)} 0px 0px 0px ${width} inset`;
+}
+
 // Reads a "--color-<name>" token's computed color the way the browser itself renders it, instead
 // of parsing its hex text: an 8-digit alpha token (e.g. a backdrop or shadow tint) compiles to an
 // "rgba(...)" string whose alpha channel is rounded by the browser, which hexToRgb/tokenRgb above
