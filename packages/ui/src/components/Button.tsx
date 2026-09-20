@@ -55,7 +55,7 @@ const sizeClassName: Record<ButtonSize, string> = {
 
 // The medium the other variants default to is never drawn for the text variant, so it defaults
 // to the smaller of its own two sizes, the one the design uses everywhere but a modal footer.
-const defaultSize: Record<ButtonVariant, ButtonSize> = {
+const defaultSize: { primary: ButtonSize; secondary: ButtonSize; text: ButtonTextSize } = {
   primary: "medium",
   secondary: "medium",
   text: "small",
@@ -72,9 +72,8 @@ const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-surface-white",
   secondary:
     "gap-2 rounded-md border border-brand-earth-ui bg-transparent font-bold text-ink data-[hovered]:bg-surface-bone",
-  // The design draws this form with no background and no border, so it also draws no corner
-  // radius. The hover background is the only thing a radius rounds here, and it is the secondary
-  // button's bone: the radius comes from there too, the package's other transparent surface.
+  // With no background and no border of its own, this form has no drawn corner radius: the one
+  // here rounds the bone background it takes on hover, so it is the secondary button's.
   text: "gap-2 rounded-md bg-transparent font-semibold text-status-error-ui data-[hovered]:bg-surface-bone",
 };
 

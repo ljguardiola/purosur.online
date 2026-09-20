@@ -35,6 +35,15 @@ function textNodeRect(node: ChildNode): DOMRect {
   return range.getBoundingClientRect();
 }
 
+// An icon's shape lives in its svg's children, and every lucide icon draws a different one, so
+// rendering the expected icon on its own gives a shape to compare a button's icon against. Size
+// and color are imposed from outside and match across icons, which is why they can't tell them
+// apart on their own.
+async function lucideShape(icon: ButtonIcon): Promise<string> {
+  const screen = await render(icon);
+  return (screen.container.querySelector("svg") as SVGSVGElement).innerHTML;
+}
+
 test("renders the text provided by the caller", async () => {
   const screen = await render(<Button>Save</Button>);
 
@@ -121,7 +130,7 @@ test("renders the secondary variant with a transparent background, earth-toned b
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("defaults to the medium size when none is given", async () => {
+test("defaults the primary and secondary variants to the medium size when none is given", async () => {
   const primary = await buttonStyle("Default primary");
   const secondary = await buttonStyle("Default secondary", { variant: "secondary" });
 
@@ -131,7 +140,7 @@ test("defaults to the medium size when none is given", async () => {
   expect(secondary.fontSize).toBe("16px");
 });
 
-test("renders every size in the design's height and text-size scale, shared by both variants", async () => {
+test("renders every size in the design's height and text-size scale, shared by the primary and secondary variants", async () => {
   const expectations: Record<ButtonSize, { height: string; fontSize: string }> = {
     small: { height: "40px", fontSize: "16px" },
     medium: { height: "48px", fontSize: "16px" },
@@ -194,7 +203,7 @@ test("gives the primary and secondary variants their own corner radius", async (
   expect(secondary.borderRadius).toBe("6px");
 });
 
-test("renders bold text on both variants", async () => {
+test("renders bold text on the primary and secondary variants", async () => {
   const primary = await buttonStyle("Primary");
   const secondary = await buttonStyle("Secondary", { variant: "secondary" });
 
@@ -202,7 +211,7 @@ test("renders bold text on both variants", async () => {
   expect(secondary.fontWeight).toBe("700");
 });
 
-test("dims a disabled button to the design's 45% opacity, on both variants", async () => {
+test("dims a disabled button to the design's 45% opacity, on the primary and secondary variants", async () => {
   const primary = await buttonStyle("Primary", { isDisabled: true });
   const secondary = await buttonStyle("Secondary", { variant: "secondary", isDisabled: true });
   const primaryWithIcon = await buttonStyle("Primary icon", { icon: <Check />, isDisabled: true });
@@ -448,6 +457,16 @@ test("sizes the text-only destructive form at 40px with a 16px semibold label by
   expect(style.paddingBottom).toBe("0px");
 });
 
+test("rounds the text-only destructive form like the package's other transparent surface", async () => {
+  // Nothing of the button's own is rounded here — the radius shapes the bone background it takes
+  // on hover, so it is the one the secondary button rounds that same background with.
+  const text = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+  const secondary = await buttonStyle("Cancel", { variant: "secondary" });
+
+  expect(text.borderRadius).toBe("6px");
+  expect(text.borderRadius).toBe(secondary.borderRadius);
+});
+
 test("sizes the text-only destructive form at 56px with an 18px label at its larger drawn size", async () => {
   const style = await buttonStyle("Cancel", {
     variant: "text",
@@ -461,6 +480,9 @@ test("sizes the text-only destructive form at 56px with an 18px label at its lar
 });
 
 test("carries its own 18px x icon before the label, with an 8px gap, on both drawn sizes", async () => {
+  const x = await lucideShape(<X />);
+  const notX = await lucideShape(<Check />);
+
   for (const size of ["small", "large"] as const) {
     const screen = await render(
       <Button variant="text" tone="destructive" size={size}>
@@ -478,12 +500,18 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
     expect(button.lastChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
     expect(button.lastChild?.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
 
+    // The glyph itself, not just any icon of the right size and color.
+    expect((icon as SVGSVGElement).innerHTML, `${size} glyph`).toBe(x);
+    expect(x, "the comparison tells lucide icons apart").not.toBe(notX);
+
     const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
     expect(iconRect.width, `${size} icon width`).toBeGreaterThan(17);
     expect(iconRect.width, `${size} icon width`).toBeLessThan(19);
     expect(iconRect.height, `${size} icon height`).toBeGreaterThan(17);
     expect(iconRect.height, `${size} icon height`).toBeLessThan(19);
-    expect(getComputedStyle(icon as SVGSVGElement).color, `${size} icon color`).toBe(
+    // The stroke is what paints a lucide glyph: reading the inherited `color` instead would pass
+    // just as well for an icon that hardcoded a stroke of its own.
+    expect(getComputedStyle(icon as SVGSVGElement).stroke, `${size} icon stroke`).toBe(
       tokenRgb("status-error-ui"),
     );
 
@@ -580,7 +608,8 @@ test("keeps the text-only destructive form's label and icon readable on the surf
     );
 
     const labelRatio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
-    const iconRatio = contrastRatio(rgbToHex(getComputedStyle(icon).color), rgbToHex(behind));
+    // The glyph's own painted stroke, so this ratio can differ from the label's and fail alone.
+    const iconRatio = contrastRatio(rgbToHex(getComputedStyle(icon).stroke), rgbToHex(behind));
     expect(labelRatio, `${surface} label contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
     expect(iconRatio, `${surface} icon contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 
