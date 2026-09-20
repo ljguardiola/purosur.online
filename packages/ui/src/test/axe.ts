@@ -8,9 +8,8 @@ type CheckOptions = { [checkId: string]: { enabled?: boolean; options?: unknown 
 
 export type AccessibilityRunOptions = axe.RunOptions & { checks?: CheckOptions };
 
-// `options` defaults to every rule axe ships, unchanged from before this parameter existed; a
-// caller only ever passes one to narrow a single rule or check it has a documented reason to
-// narrow, never to broaden what counts as a violation.
+// Without `options`, every rule axe ships runs. A caller passes them only to narrow a single rule
+// or check it has a documented reason to narrow, never to broaden what counts as a violation.
 export async function expectNoAccessibilityViolations(
   target: Element,
   options?: AccessibilityRunOptions,

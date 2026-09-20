@@ -41,7 +41,7 @@ function tooltipElement(screen: Screen): HTMLElement {
 // through aria-describedby rather than DOM position, but axe's shipped exemption list doesn't
 // cover role="tooltip". That list is the rule's own regionMatcher option, so every check in this
 // file adds the tooltip's role to it and leaves the rule itself running: anything else adrift
-// outside a landmark still fails. Replacing the option replaces the whole list, hence the three
+// outside a landmark still fails. Replacing the option replaces the whole list, hence the four
 // shipped selectors repeated alongside the new one.
 const axeOptions = {
   checks: {
@@ -64,8 +64,8 @@ const FOCUSABLE_SELECTOR =
   "[tabindex]";
 
 // A trigger rendered where a test's own markup lands by default sits at the very top of the
-// viewport, where nothing fits above it: react-aria then flips to "bottom" whatever placement it
-// was asked for, so an assertion on the default placement would hold even with the placement gone.
+// viewport, where nothing fits above it: react-aria then flips a "top" request to "bottom", so an
+// assertion on the default placement would hold even with the placement gone.
 // Every test about where the tooltip lands by default renders its trigger halfway down the 900px
 // viewport instead, with room for the box on either side of it, so "below" is a real choice.
 const centeredInViewport = { position: "fixed", top: "50%", left: 16 } as const;
@@ -158,18 +158,19 @@ test("points a 10px ink diamond at its element, with the diamond's tip 8px clear
 
   // The diamond, not the box behind it, is the nearest thing to the element the user can see, so
   // the 8px of air the tooltip is meant to leave is measured from the diamond's tip; measured
-  // against the box instead, the diamond ends up painted over the very element it points at. The
-  // half-pixel tolerance is react-aria's: it rounds the box it positions to whole pixels, while
-  // the diamond's overhang past that box is an irrational multiple of its side.
-  expect(arrowRect.top).toBeGreaterThan(triggerRect.bottom);
-  expect(arrowRect.top - triggerRect.bottom).toBeCloseTo(8, 0);
+  // against the box instead, the diamond ends up painted over the very element it points at.
+  // react-aria floors the box's position to a whole pixel after adding the offset, while the
+  // diamond's overhang past that box is an irrational multiple of its side, so the gap lands
+  // anywhere above 7px and up to 8px depending on where the element's own edge falls.
+  const gapPx = arrowRect.top - triggerRect.bottom;
+  expect(gapPx).toBeGreaterThan(7);
+  expect(gapPx).toBeLessThanOrEqual(8);
 
-  // "Above, pointing at its element" for the default below-the-trigger placement: the square
-  // rotates around its own center, which sits exactly on the tooltip's top edge, so the diamond's
-  // lower half is expected to dip slightly into the box (that's what makes its tip look seamless
-  // against the fill instead of leaving a gap) — what "above" rules out is the arrow's center, or
-  // more, sitting at or below that edge, which a wrong placement or a dropped rotation would both
-  // produce.
+  // "Above, pointing at its element" for the default below-the-trigger placement: OverlayArrow's
+  // wrapper sits just outside the tooltip's top edge, so the square's center lies half a side
+  // above that edge, and once rotated the diamond's lower tip dips slightly into the box, which is
+  // what makes it look seamless against the fill. What "above" rules out is the center sitting at
+  // or below that edge, which a wrong placement would produce.
   expect((arrowRect.top + arrowRect.bottom) / 2).toBeLessThan(tooltipRect.top);
   // The rotated 10px square's bounding box is the 14x14 diamond the design draws.
   expect(arrowRect.width).toBeGreaterThan(13);
@@ -366,19 +367,34 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
   await new Promise((resolve) => setTimeout(resolve, COOLDOWN_BUFFER_MS));
 
-  const hoveredAt = performance.now();
-  await userEvent.hover(trigger);
-  // The default poll timeout is shorter than react-aria's own 1500ms default delay, so without a
-  // longer one here a reverted delay would surface as an opaque poll timeout rather than as the
-  // elapsed time this test is about.
-  await expect.poll(() => screen.getByRole("tooltip").elements().length, { timeout: 3000 }).toBe(1);
-  const elapsedMs = performance.now() - hoveredAt;
+  // react-aria starts the delay when the pointer enters the element, so both ends of the interval
+  // are taken inside the page, where the tooltip's DOM lands: the time the test runner takes to
+  // deliver the hover, and how often it would poll, are left out of what is measured.
+  const enteredAt = new Promise<number>((resolve) => {
+    trigger.addEventListener("pointerenter", () => resolve(performance.now()), { once: true });
+  });
+  const appearedAt = new Promise<number>((resolve) => {
+    const observer = new MutationObserver((records) => {
+      const tooltipAdded = records.some((record) =>
+        Array.from(record.addedNodes).some(
+          (node) =>
+            node instanceof Element &&
+            (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
+        ),
+      );
+      if (tooltipAdded) {
+        observer.disconnect();
+        resolve(performance.now());
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
 
-  // Measured on this suite: 333ms at the chosen 300ms, 31ms with the delay dropped to 0, and past
-  // 1500ms on react-aria's default. The bounds are drawn close enough around the chosen delay to
-  // also exclude 600ms, so a value merely near the right order of magnitude does not pass either.
-  expect(elapsedMs).toBeGreaterThan(200);
-  expect(elapsedMs).toBeLessThan(500);
+  await userEvent.hover(trigger);
+  const elapsedMs = (await appearedAt) - (await enteredAt);
+
+  expect(elapsedMs).toBeGreaterThan(280);
+  expect(elapsedMs).toBeLessThan(400);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
