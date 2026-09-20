@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Button as AriaButton } from "react-aria-components";
 
 export type PaginationProps = {
@@ -121,22 +121,30 @@ export function Pagination({
   pageLabel,
 }: PaginationProps) {
   const resolvedPageCount = resolvePageCount(pageCount);
-  const pageButtonRefs = useRef(new Map<number, HTMLButtonElement>());
-
-  if (resolvedPageCount <= 1) {
-    return null;
-  }
-
   const currentPage = resolvePage(page, resolvedPageCount);
+  const pageButtonRefs = useRef(new Map<number, HTMLButtonElement>());
 
   // Pressing Previous/Next onto the very page that disables it (page 1, or the last page) would
   // otherwise leave a disabled button holding focus, and a disabled element can't hold it: the
-  // browser drops focus to the document body, and a keyboard user loses their place. That target
-  // page's own button is already on screen before the press (pagePlaces always keeps page 1 and
-  // the last page in the fixed 5 places), so focus moves there in the same handler, before the
-  // re-render that disables the nav button even happens.
-  function focusPageButton(target: number) {
-    pageButtonRefs.current.get(target)?.focus();
+  // browser drops focus to the document body, and a keyboard user loses their place. The press
+  // handlers below only know the page they asked for, not what the caller does with it, so they
+  // record which direction was pressed here instead of focusing anything themselves; this effect
+  // runs after every render and acts on the page the component actually re-rendered with. If the
+  // caller never applies the change, currentPage never reaches the boundary, the nav button never
+  // actually disables, and nothing is moved.
+  const pendingBoundaryFocusRef = useRef<"previous" | "next" | null>(null);
+  useLayoutEffect(() => {
+    const pending = pendingBoundaryFocusRef.current;
+    pendingBoundaryFocusRef.current = null;
+    if (pending === "previous" && currentPage <= 1) {
+      pageButtonRefs.current.get(1)?.focus();
+    } else if (pending === "next" && currentPage >= resolvedPageCount) {
+      pageButtonRefs.current.get(resolvedPageCount)?.focus();
+    }
+  });
+
+  if (resolvedPageCount <= 1) {
+    return null;
   }
 
   return (
@@ -145,10 +153,10 @@ export function Pagination({
         isDisabled={currentPage <= 1}
         onPress={() => {
           const target = previousPage(currentPage);
-          onPageChange(target);
           if (target === 1) {
-            focusPageButton(1);
+            pendingBoundaryFocusRef.current = "previous";
           }
+          onPageChange(target);
         }}
         className={navButtonClassName}
       >
@@ -192,10 +200,10 @@ export function Pagination({
         isDisabled={currentPage >= resolvedPageCount}
         onPress={() => {
           const target = nextPage(currentPage, resolvedPageCount);
-          onPageChange(target);
           if (target === resolvedPageCount) {
-            focusPageButton(resolvedPageCount);
+            pendingBoundaryFocusRef.current = "next";
           }
+          onPageChange(target);
         }}
         className={navButtonClassName}
       >

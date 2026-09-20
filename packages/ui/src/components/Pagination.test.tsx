@@ -372,6 +372,34 @@ test("moves focus to page 1's button when Previous disables itself", async () =>
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The component only knows the page it asked for, not the page it will actually get: a caller
+// that ignores onPageChange (as this plain, non-controlled render does) never re-renders it, so
+// currentPage stays exactly where it was. Nothing should jump to a page button that doesn't match
+// what's actually on screen, and Next never actually becomes disabled, so focus simply stays put.
+test("keeps focus on Next and does not jump to the last page's button when the caller ignores the change", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
+  const nextButton = screen.getByRole("button", { name: "Siguiente" }).element();
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  expect(document.activeElement).toBe(nextButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).not.toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps focus on Previous and does not jump to page 1's button when the caller ignores the change", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 2, pageCount: 5 })} />);
+  const previousButton = screen.getByRole("button", { name: "Anterior" }).element();
+
+  await screen.getByRole("button", { name: "Anterior" }).click();
+
+  expect(document.activeElement).toBe(previousButton);
+  await expect.element(screen.getByRole("button", { name: "Anterior" })).not.toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("names its own navigation landmark from the caller's label", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: 1, pageCount: 5, label: "Páginas de resultados" })} />,
