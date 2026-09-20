@@ -220,6 +220,26 @@ test("matches the menu to a trigger wider than 200px", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("caps the trigger at a constrained parent's own width instead of growing past it", async () => {
+  const options: [ListFilterOption<string>, ListFilterOption<string>] = [
+    { value: "a", label: "Esperando confirmación de aprobación del pago del pedido" },
+    { value: "b", label: "Otro" },
+  ];
+  const screen = await render(
+    <div style={{ width: "200px", display: "flex" }}>
+      <ListFilter label="Estado" options={options} value="a" onChange={() => {}} />
+    </div>,
+  );
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+
+  expect(trigger.getBoundingClientRect().width).toBeCloseTo(200, 0);
+  // Not just capped in width: proves the chosen value truncated to fit instead of wrapping
+  // inside the trigger's own fixed 44px height.
+  expect(trigger.scrollHeight).toBe(trigger.clientHeight);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("scrolls a long options list inside the popover instead of painting it past the popover's own box", async () => {
   const manyOptions = Array.from({ length: 40 }, (_, i) => ({
     value: `opt${i}`,

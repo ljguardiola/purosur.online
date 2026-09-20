@@ -25,8 +25,15 @@ export type ListFilterProps<V extends string> = {
   onChange: (value: NoInfer<V>) => void;
 };
 
+// This is a <button>, which (unlike a plain block element) doesn't fill its own container's width
+// on its own — it sizes to its own content instead, past whatever width a caller's layout actually
+// gives it. max-w-full caps that at the container's own width (AriaSelect's own wrapper below
+// needs the ordinary min-w-0 fix for the same reason, one level up) without forcing it wider than
+// a short value needs. The chosen value itself (AriaSelectValue below) needs its own truncate to
+// turn that shrink into an ellipsis instead of the text wrapping inside the trigger's own fixed
+// 44px height.
 const triggerClassName =
-  "flex h-11 items-center gap-2 rounded-lg border-2 bg-surface-white px-3 outline-none " +
+  "flex h-11 max-w-full items-center gap-2 rounded-lg border-2 bg-surface-white px-3 outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
@@ -68,6 +75,13 @@ export function ListFilter<V extends string>({
 
   return (
     <AriaSelect
+      // min-w-0: React Aria's own wrapping element around the trigger and popover is a plain
+      // block box, but it's still this component's own flex item wherever a caller places it —
+      // without this, its automatic minimum size is its own unwrapped content width, which would
+      // keep the whole component from ever shrinking below that regardless of the trigger's own
+      // max-w-full (a plain block child's own width already fills a shrunk parent, so nothing
+      // else is needed here once this floor is cleared).
+      className="min-w-0"
       aria-label={label}
       selectedKey={value}
       onSelectionChange={(key) => {
@@ -87,7 +101,7 @@ export function ListFilter<V extends string>({
             <span id={labelId} className="text-sm text-ink-secondary">
               {label}
             </span>
-            <AriaSelectValue id={valueId} className="text-base font-bold text-ink" />
+            <AriaSelectValue id={valueId} className="truncate text-base font-bold text-ink" />
             {isOpen ? (
               <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
             ) : (
@@ -105,10 +119,7 @@ export function ListFilter<V extends string>({
                 >
                   {({ isSelected }) => (
                     <>
-                      {/* min-w-0: this flex item's default min-width is its own unwrapped
-                          content width, which would keep truncate from ever actually shrinking
-                          it below the option's own fixed 40px-tall row. */}
-                      <span className="min-w-0 truncate">{option.label}</span>
+                      <span className="truncate">{option.label}</span>
                       {isSelected && (
                         <Check
                           aria-hidden="true"
