@@ -785,6 +785,36 @@ test("stays armed through an unrelated body-focus that doesn't yet match the bou
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The intent has to survive an update that changes nothing relevant (a loading flag, an unrelated
+// label), but it only ever gets one real chance: the first time page/pageCount actually differ
+// from what they were at press time, that's treated as the press's own outcome, matched or not.
+// A later, unrelated change that happens to land on a boundary — after several other updates that
+// didn't — must never inherit a long-expired press's redirect.
+test("does not fire later, after an unrelated page change already resolved the press's one chance", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 4, pageCount: 5 })} />);
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  // Several intervening renders that change nothing relevant: still waiting, correctly.
+  await screen.rerender(<Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otro" })} />);
+  await screen.rerender(
+    <Pagination {...baseProps({ page: 4, pageCount: 5, label: "Otra vez" })} />,
+  );
+
+  // An unrelated page change, nothing to do with the press, that doesn't reach a boundary: this
+  // is the press's one chance, taken now even though it doesn't match.
+  await screen.rerender(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
+
+  // Much later, a real boundary is reached — but the press that could have redirected to it
+  // already resolved, unmatched, back when page first changed.
+  await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  expect(document.activeElement).not.toBe(lastPageButton);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 // An armed intent has nowhere left to redirect to once its own component is gone: unmounting
 // while a press is still pending must be a clean no-op, not a stranded reference or a thrown
 // error reaching into a removed tree.
@@ -800,6 +830,43 @@ test("removes cleanly, with no error, when unmounted while an intent is still ar
   await screen.unmount();
 
   expect(screen.container.innerHTML).toBe("");
+  expect(document.activeElement).toBe(document.body);
+});
+
+// The redirect only ever compares against document.activeElement, never against any particular
+// ancestor: an ancestor's own tabindex (a focus-trap wrapper, a modal, a scroll region) plays no
+// part in the browser's native disable-triggered blur, which always targets document.body
+// regardless of what else on the page happens to be programmatically focusable.
+test("still redirects correctly wrapped in an ancestor with its own tabindex", async () => {
+  const screen = await render(
+    <div tabIndex={-1}>
+      <ControlledPagination
+        initialPage={4}
+        pageCount={5}
+        previousLabel="Anterior"
+        nextLabel="Siguiente"
+        label="Paginación"
+        pageLabel={(page) => String(page)}
+      />
+    </div>,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(lastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The one browser fact the whole mechanism leans on: with nothing focused yet, before any
+// interaction at all, document.activeElement already reads as document.body — never null, never
+// undefined, never some other implicit default. A document that "never had focus" is already
+// covered by the exact same check the redirect uses.
+test("proves document.activeElement already reads as document.body before any interaction", async () => {
+  await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+
   expect(document.activeElement).toBe(document.body);
 });
 

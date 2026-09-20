@@ -148,30 +148,45 @@ export function Pagination({
   // element that currently holds it, never from a deliberate change elsewhere — so that's the one
   // signal that ties the redirect to a real disabling happening right now, not a stale intent
   // resolving arbitrarily later.
+  //
+  // document.activeElement is document-scoped: it never reaches into a shadow tree or an iframe
+  // (it reports their host/frame element instead, per spec), so a nav button rendered inside
+  // either would never match previousButtonRef/nextButtonRef and this would treat every render as
+  // "moved elsewhere" — deliberately out of scope, since nothing in this design system renders
+  // into a shadow root or an iframe today. An ancestor's own tabindex changes none of this: it
+  // plays no part in the browser's native disable-triggered blur, which always targets
+  // document.body (proven below, both wrapped in such an ancestor and as the default before any
+  // focus interaction at all).
+  //
+  // Surviving intervening renders isn't the same as waiting forever: an intent is only ever owed
+  // one real chance. armedAtRef pins the page/pageCount as they stood at press time, so a render
+  // that changes neither (a loading flag, an unrelated prop) still counts as "nothing happened
+  // yet" and leaves the intent armed, but the first render where either actually differs is
+  // treated as the press's own outcome — matched or not — and resolves the intent for good. A
+  // later, unrelated change that happens to land on a boundary, after one that didn't, must never
+  // inherit a press whose one chance already came and went.
   const pendingBoundaryFocusRef = useRef(false);
+  const armedAtRef = useRef({ page: currentPage, pageCount: resolvedPageCount });
   const previousButtonRef = useRef<HTMLButtonElement | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement | null>(null);
   useLayoutEffect(() => {
     if (!pendingBoundaryFocusRef.current) {
       return;
     }
+    const armedAt = armedAtRef.current;
+    const somethingChanged =
+      armedAt.page !== currentPage || armedAt.pageCount !== resolvedPageCount;
     const active = document.activeElement;
     const onANavButton = active === previousButtonRef.current || active === nextButtonRef.current;
-    if (active !== document.body && !onANavButton) {
-      // Focus sits on neither: a deliberate move elsewhere, by any means. Moot for good.
-      pendingBoundaryFocusRef.current = false;
+    const focusMovedElsewhere = active !== document.body && !onANavButton;
+    if (!somethingChanged && !focusMovedElsewhere) {
+      // Still waiting: neither the press's own outcome nor anything else has happened yet.
       return;
     }
-    // document.body can hold focus for reasons that have nothing to do with a nav button
-    // disabling (moved away programmatically, an unrelated element removed, a background click),
-    // so it's only treated as the real signal once it also matches a boundary; otherwise this is
-    // just another intervening render, and the intent stays armed exactly as it does while focus
-    // still sits on the nav button itself.
+    pendingBoundaryFocusRef.current = false;
     if (active === document.body && currentPage <= 1) {
-      pendingBoundaryFocusRef.current = false;
       pageButtonRefs.current.get(1)?.focus();
     } else if (active === document.body && currentPage >= resolvedPageCount) {
-      pendingBoundaryFocusRef.current = false;
       pageButtonRefs.current.get(resolvedPageCount)?.focus();
     }
     // An armed intent left pending across an unmount needs no cleanup of its own: React nulls out
@@ -192,6 +207,7 @@ export function Pagination({
         isDisabled={currentPage <= 1}
         onPress={() => {
           pendingBoundaryFocusRef.current = true;
+          armedAtRef.current = { page: currentPage, pageCount: resolvedPageCount };
           onPageChange(previousPage(currentPage));
         }}
         className={navButtonClassName}
@@ -237,6 +253,7 @@ export function Pagination({
         isDisabled={currentPage >= resolvedPageCount}
         onPress={() => {
           pendingBoundaryFocusRef.current = true;
+          armedAtRef.current = { page: currentPage, pageCount: resolvedPageCount };
           onPageChange(nextPage(currentPage, resolvedPageCount));
         }}
         className={navButtonClassName}
