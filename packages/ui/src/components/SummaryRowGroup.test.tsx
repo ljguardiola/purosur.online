@@ -32,6 +32,8 @@ test("stacks rows 8px apart, with a 1px line above and below the group and 16px 
   expect(style.borderBottomWidth).toBe("1px");
   expect(style.borderTopColor).toBe(tokenRgb("line"));
   expect(style.borderBottomColor).toBe(tokenRgb("line"));
+  expect(style.borderLeftWidth).toBe("0px");
+  expect(style.borderRightWidth).toBe("0px");
   expect(style.paddingTop).toBe("16px");
   expect(style.paddingBottom).toBe("16px");
 
