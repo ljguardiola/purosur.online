@@ -171,24 +171,6 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
-// ink-secondary is decorative (already classified above), but it's also what marks the resting
-// boundary of every control that draws one with it — including the text field's own box, whose
-// focused and invalid borders are checked separately below — so it additionally needs the WCAG
-// non-text contrast minimum against the two surfaces those controls can sit on.
-describe("checkbox box, radio circle, text field box, toggle track and toggle off-state knob boundary contrast", () => {
-  it(`ink-secondary reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
-    const borderHex = colors["ink-secondary"];
-
-    expect(borderHex, "ink-secondary is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect(contrastRatio(borderHex as string, backgrounds.white as string)).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-    expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-  });
-});
-
 describe("brand-blue-ui-shadow token", () => {
   it("parses to brand-blue-ui at 20% alpha", () => {
     const shadowHex = colors["brand-blue-ui-shadow"];
@@ -206,12 +188,13 @@ describe("brand-blue-ui-shadow token", () => {
 });
 
 // The text field's own resting, hovered and read-only border reuses the shared ink-secondary
-// boundary already checked above (only its fill changes between them), instead of the softer,
-// decorative "line"/"blue-soft" tokens, which fall short of this minimum (line measures ~1.49:1
-// on white, blue-soft ~1.47:1) and stay reserved for dividers and container edges, never a
-// control's own boundary. Its focused and invalid borders are unique to the field, so those are
-// the two checked here, against both surfaces the field can sit on (white, and bone for a
-// hovered or read-only field).
+// boundary — whose contrast against these same white and bone fills is checked, against a real
+// rendered element, in RadioGroup.test.tsx and Toggle.test.tsx — instead of the softer,
+// decorative "line"/"blue-soft" tokens, which fall short of the WCAG 3:1 non-text contrast
+// minimum (line measures ~1.49:1 on white, blue-soft ~1.47:1) and stay reserved for dividers and
+// container edges, never a control's own boundary. Its focused and invalid borders are unique to
+// the field, so those are the two checked here, against both surfaces the field can sit on
+// (white, and bone for a hovered or read-only field).
 describe("text field border contrast", () => {
   const borders: Record<string, string> = {
     "focused (brand-blue-strong)": "brand-blue-strong",

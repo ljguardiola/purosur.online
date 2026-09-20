@@ -2,8 +2,9 @@ import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { insetBoundary, tokenRgb } from "../test/token-colors";
+import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
 import type { RadioOption } from "./RadioGroup";
 import { RadioGroup, type RadioGroupProps } from "./RadioGroup";
 
@@ -107,6 +108,13 @@ test("colors an unchecked circle white with a 2px ink-secondary border", async (
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  // The unchecked circle's border is a control boundary, not text, so it has to clear WCAG's
+  // 3:1 non-text contrast minimum against the fill it actually renders on — not just carry the
+  // right token name, which a swap to a softer, decorative token (e.g. "line") would still do.
+  const boundaryHex = boundaryColorHex(circle);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -347,7 +355,7 @@ test("does not accept a chosen value outside the group's own options, or an empt
 // cover `value`. Unlike OptionCardGroup's OptionCardOption, RadioOption carries no element-typed
 // field (just `value` and `label`), so nothing here breaks overload inference and no mirror type
 // projecting `options` down to `Pick<RadioOption<V>, "value">` is needed. The "invalid" call still
-// has to compile — this file bans `@ts-expect-error` — so an object that fails the first
+// has to compile — this project bans `@ts-expect-error` — so an object that fails the first
 // overload's `RadioGroupProps<V>` constraint just falls through to the second, `unknown` overload
 // and resolves to `false` instead of refusing to typecheck; that `false` is what the assertion
 // below actually proves.

@@ -39,6 +39,26 @@ export function paintedBoxShadowLayers(element: HTMLElement): string[] {
     .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
 }
 
+// Extracts an element's own painted boundary color as "#rrggbb", for feeding into
+// contrastRatio() alongside the fill it sits on. A box-shadow layer serializes as "<color> <x>
+// <y> <blur> <spread>[ inset]", so the color is always the leading rgb()/rgba() substring; this
+// only handles a single-layer boundary (a checked ring replaces the resting border rather than
+// stacking under it), which is the only shape this package's controls draw.
+export function boundaryColorHex(element: HTMLElement): string {
+  const [layer, ...rest] = paintedBoxShadowLayers(element);
+  if (!layer) {
+    throw new Error("Element draws no boundary of its own");
+  }
+  if (rest.length > 0) {
+    throw new Error(`Element draws more than one boundary layer: ${[layer, ...rest].join(", ")}`);
+  }
+  const color = layer.match(/^rgba?\([^)]*\)/)?.[0];
+  if (!color) {
+    throw new Error(`Could not parse a boundary color from box-shadow layer: "${layer}"`);
+  }
+  return rgbToHex(color);
+}
+
 // Reads a "--color-<name>" token's computed color the way the browser itself renders it, instead
 // of parsing its hex text: an 8-digit alpha token (e.g. a backdrop or shadow tint) compiles to an
 // "rgba(...)" string whose alpha channel is rounded by the browser, which hexToRgb/tokenRgb above

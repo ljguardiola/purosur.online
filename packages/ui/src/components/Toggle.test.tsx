@@ -2,8 +2,15 @@ import { useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { Toggle, type ToggleProps } from "./Toggle";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -96,6 +103,17 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
   // knob the same 2px border the track carries.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  // Both boundaries are control boundaries, not text, so each has to clear WCAG's 3:1 non-text
+  // contrast minimum against the fill it actually renders on — not just carry the right token
+  // name, which a swap to a softer, decorative token (e.g. "line") would still do.
+  const trackBoundaryHex = boundaryColorHex(track);
+  const trackFillHex = rgbToHex(getComputedStyle(track).backgroundColor);
+  expect(contrastRatio(trackBoundaryHex, trackFillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+
+  const knobBoundaryHex = boundaryColorHex(knob);
+  const knobFillHex = rgbToHex(getComputedStyle(knob).backgroundColor);
+  expect(contrastRatio(knobBoundaryHex, knobFillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   // "Near end" for an off toggle is the left edge: the knob sits flush against the track's own
   // 4px padding on the left, with the remaining travel distance open on the right.
