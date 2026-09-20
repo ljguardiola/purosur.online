@@ -35,6 +35,10 @@ const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
 
+// The text a screen reader would read as the field's description: every id `aria-describedby`
+// names, in the order the attribute lists them. A dangling id (one naming an element that isn't
+// in the document) throws rather than silently contributing an empty string, since that is the
+// failure mode a wrongly composed `aria-describedby` actually produces.
 function describedText(input: HTMLInputElement): string {
   const describedBy = input.getAttribute("aria-describedby");
   if (!describedBy) {
@@ -42,7 +46,13 @@ function describedText(input: HTMLInputElement): string {
   }
   return describedBy
     .split(" ")
-    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .map((id) => {
+      const element = document.getElementById(id);
+      if (element === null) {
+        throw new Error(`aria-describedby names "${id}", which is not in the document`);
+      }
+      return element.textContent ?? "";
+    })
     .join(" ");
 }
 
@@ -372,16 +382,18 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   expect(restingShadow).toContain(tokenRgb("ink-secondary"));
   expect(restingShadow).toContain("2px");
 
-  await userEvent.hover(box);
-  expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
-  expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
-
-  // The ordinary field beside it does turn bone under the same pointer, so the assertion above
-  // means "read-only ignores hover", not "the hover never reached the page".
+  // The ordinary field beside it goes first: once the pointer has provably turned that one bone,
+  // a hover over the read-only box that changes nothing means "read-only ignores hover" rather
+  // than "the hover hadn't been applied yet when the assertion ran".
   await userEvent.hover(editableBox);
   await expect
     .poll(() => getComputedStyle(editableBox).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
+
+  await userEvent.hover(box);
+  await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(restingBackground);
+  expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
+  expect(getComputedStyle(editableBox).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
@@ -517,6 +529,27 @@ test("lets disabled win the box treatment over read-only when both apply", async
   // assertion below passing by coincidence because Tab moved focus nowhere at all.
   expect(document.activeElement).toBe(nextControl);
   expect(document.activeElement).not.toBe(input);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("describes an invalid money field with both its unit and its message", async () => {
+  const screen = await render(
+    <TextField
+      kind="amount"
+      label="Importe"
+      value=""
+      onChange={() => {}}
+      prefix="$"
+      invalid
+      errorMessage="Escribí un importe."
+    />,
+  );
+  const input = fieldInput(screen, "Importe");
+  const described = describedText(input);
+
+  expect(described).toContain("$");
+  expect(described).toContain("Escribí un importe.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
