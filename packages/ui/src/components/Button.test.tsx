@@ -680,3 +680,94 @@ test("dims a disabled text-only destructive form and keeps it out of reach", asy
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+// The design's rows are 12px-gapped horizontal footers; the widths below are measured against a
+// container of a known size so a stretched button's share of it can be checked exactly.
+const rowStyle = { width: "500px", display: "flex", gap: "12px" } as const;
+
+function renderedWidth(screen: Awaited<ReturnType<typeof render>>, name: string): number {
+  return (screen.getByRole("button", { name }).element() as HTMLElement).getBoundingClientRect()
+    .width;
+}
+
+test("takes the whole row when it is the only button in it", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+
+  expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes the width a content-sized sibling leaves it in a row", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">Back</Button>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const sibling = renderedWidth(screen, "Back");
+
+  expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500 - sibling - 12, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("splits the row evenly with another stretched button of its variant, whatever their labels", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button fullWidth>No</Button>
+      <Button fullWidth>Yes, charge the whole sale to this account</Button>
+    </div>,
+  );
+  const shortLabel = renderedWidth(screen, "No");
+  const longLabel = renderedWidth(screen, "Yes, charge the whole sale to this account");
+
+  expect(shortLabel).toBeCloseTo(longLabel, 0);
+  expect(shortLabel + longLabel + 12).toBeCloseTo(500, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shares the row with a stretched button of another variant, neither sized by its label", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary" fullWidth>
+        No
+      </Button>
+      <Button fullWidth>Yes, charge the whole sale to this account</Button>
+    </div>,
+  );
+  const bordered = renderedWidth(screen, "No");
+  const borderless = renderedWidth(screen, "Yes, charge the whole sale to this account");
+
+  expect(bordered + borderless + 12).toBeCloseTo(500, 0);
+  // Not an even split to the pixel, and the labels are not why: a row divides what it has to take
+  // back in proportion to each button's width inside its own border, so the secondary's border
+  // leaves it a hair wider. Both stay within a pixel or two of half the row.
+  expect(bordered).toBeGreaterThan(borderless);
+  expect(bordered - borderless).toBeLessThan(2);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("leaves the rest of the row to its siblings when it is not asked to stretch", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="secondary">Back</Button>
+      <Button>Confirm</Button>
+    </div>,
+  );
+
+  expect(renderedWidth(screen, "Back") + renderedWidth(screen, "Confirm") + 12).toBeLessThan(500);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("is available on every variant", () => {
+  expectTypeOf<{ fullWidth: true }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "secondary"; fullWidth: true }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    fullWidth: true;
+  }>().toExtend<ButtonPropsWithoutText>();
+});

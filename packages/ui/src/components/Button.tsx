@@ -25,6 +25,12 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // content, so an empty string or an icon passed as children still compiles; icon-only actions
   // belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
+  // The design stretches a button across the row it sits in: alone it takes the whole row, beside
+  // a button of its own width it takes what that one leaves, and beside another stretched one they
+  // split the row evenly. All three follow from the button asking for its container's full width
+  // and the row shrinking it back to what is free, so there is one option rather than three.
+  // A vertical stack already gives a button its full width, so this is not needed there.
+  fullWidth?: boolean;
 };
 
 // Each variant admits only the combinations the design draws for it, so asking for one it has no
@@ -38,8 +44,12 @@ export type ButtonProps = ButtonCommonProps &
     | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
   );
 
+// Block-level when stretched, inline when not: `w-full` needs a box that owns a line of its own,
+// and `justify-center` keeps the label and icon together in the middle of whatever width results.
+const widthClassName = { content: "inline-flex", full: "flex w-full" } as const;
+
 const baseClassName =
-  "inline-flex items-center justify-center px-4 font-sans " +
+  "items-center justify-center px-4 font-sans " +
   // Excludes outline-color from the transition so the focus ring appears instantly, not mid-fade.
   "transition-[background-color,color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
@@ -90,10 +100,12 @@ export function Button({
   size,
   tone = "default",
   icon,
+  fullWidth = false,
   children,
   ...props
 }: ButtonProps) {
   const className = [
+    widthClassName[fullWidth ? "full" : "content"],
     baseClassName,
     sizeClassName[size ?? defaultSize[variant]],
     variantClassName[variant],
