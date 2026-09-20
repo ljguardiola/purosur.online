@@ -29,6 +29,8 @@ export type {
   OptionCardOption,
 } from "./components/OptionCardGroup";
 export { OptionCardGroup } from "./components/OptionCardGroup";
+export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
+export { RadioGroup } from "./components/RadioGroup";
 export type {
   SegmentedControlIcon,
   SegmentedControlOption,
@@ -40,6 +42,8 @@ export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/Sta
 export { StatusIndicator } from "./components/StatusIndicator";
 export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
 export { TextField } from "./components/TextField";
+export type { ToggleProps } from "./components/Toggle";
+export { Toggle } from "./components/Toggle";
 export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
