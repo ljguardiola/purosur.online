@@ -189,16 +189,18 @@ describe("checkbox unchecked border contrast", () => {
 });
 
 // The text field's own border is its resting and hovered boundary marker (there is no icon or
-// glyph standing in for it, unlike the checkbox above), and its invalid border additionally
-// carries the field's error state, so all three need the WCAG non-text contrast minimum against
-// both surfaces the field can sit on (white, and bone for a hovered or read-only field). The
-// field reuses the checkbox's own ink-secondary border for resting, hovered and read-only (only
-// its fill changes between them) instead of the softer, decorative "line"/"blue-soft" tokens,
-// which fall short of this minimum (line measures ~1.49:1 on white, blue-soft ~1.47:1) and stay
-// reserved for dividers and container edges, never a control's own boundary.
+// glyph standing in for it, unlike the checkbox above), and its focused and invalid borders
+// additionally carry their own state, so every one of them needs the WCAG non-text contrast
+// minimum against both surfaces the field can sit on (white, and bone for a hovered or read-only
+// field). The field reuses the checkbox's own ink-secondary border for resting, hovered and
+// read-only (only its fill changes between them) instead of the softer, decorative
+// "line"/"blue-soft" tokens, which fall short of this minimum (line measures ~1.49:1 on white,
+// blue-soft ~1.47:1) and stay reserved for dividers and container edges, never a control's own
+// boundary.
 describe("text field border contrast", () => {
   const borders: Record<string, string> = {
     "resting and hovered (ink-secondary)": "ink-secondary",
+    "focused (brand-blue-strong)": "brand-blue-strong",
     "invalid (status-error-ui)": "status-error-ui",
   };
 

@@ -3,7 +3,7 @@ import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
+import { tokenRgb } from "../test/token-colors";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -20,6 +20,30 @@ function fieldBox(screen: Screen, name: string): HTMLElement {
 
 function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
+}
+
+// Reads the exact box-shadow a Tailwind shadow utility resolves to in this browser (Tailwind's
+// v4 shadow utilities always compose every shadow layer, most defaulting to a transparent
+// placeholder), so a test can assert full equality against it instead of a substring, which
+// would also match a value with the right widths and the wrong color, or vice versa.
+function shadowValue(className: string): string {
+  const probe = document.createElement("div");
+  probe.className = className;
+  document.body.appendChild(probe);
+  const value = getComputedStyle(probe).boxShadow;
+  probe.remove();
+  return value;
+}
+
+function describedText(input: HTMLInputElement): string {
+  const describedBy = input.getAttribute("aria-describedby");
+  if (!describedBy) {
+    return "";
+  }
+  return describedBy
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
 }
 
 function AmountHarness({ initial = "" }: { initial?: string }) {
@@ -228,14 +252,37 @@ test("turns the box bone on hover, keeping the same 2px ink-secondary border", a
 test("shows a 3px blue-strong border and the focus shadow when focused, as one field in two states", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Motivo");
+  const expectedShadow = shadowValue(
+    "shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]",
+  );
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toContain(tokenRgb("brand-blue-strong"));
-  const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain("3px");
-  expect(style.boxShadow).toContain(tokenBackgroundColor("brand-blue-ui-shadow"));
-  expect(style.boxShadow).toContain("4px");
+  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(expectedShadow);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the focused border instead of the invalid one once an invalid field is focused", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Motivo"
+      value=""
+      onChange={() => {}}
+      invalid
+      errorMessage="Escribí un motivo."
+    />,
+  );
+  const box = fieldBox(screen, "Motivo");
+  const expectedShadow = shadowValue(
+    "shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]",
+  );
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(box).boxShadow).toBe(expectedShadow);
+  expect(getComputedStyle(box).boxShadow).not.toContain(tokenRgb("status-error-ui"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -259,9 +306,15 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
     <TextField kind="plain-text" label="Motivo" value="" onChange={() => {}} disabled />,
   );
   const wrapper = fieldWrapper(screen, "Motivo");
+  const box = fieldBox(screen, "Motivo");
   const input = fieldInput(screen, "Motivo");
 
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
+  // The box itself still renders the field's ordinary resting look underneath that dimming —
+  // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
+  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(box).boxShadow).toContain("2px");
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
@@ -283,13 +336,18 @@ test("lets a read-only field be focused but never typed into, with no hover or f
   const box = fieldBox(screen, "Motivo");
   const input = fieldInput(screen, "Motivo");
   const restingShadow = getComputedStyle(box).boxShadow;
+  const restingBackground = getComputedStyle(box).backgroundColor;
 
   expect(input.readOnly).toBe(true);
-  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(restingBackground).toBe(tokenRgb("surface-bone"));
   // Read-only reuses the same ink-secondary border as resting/hovered, not the softer "line"
   // token: it still marks a control's own boundary and needs the same 3:1 minimum.
   expect(restingShadow).toContain(tokenRgb("ink-secondary"));
   expect(restingShadow).toContain("2px");
+
+  await userEvent.hover(box);
+  expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
+  expect(getComputedStyle(box).backgroundColor).toBe(restingBackground);
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);
@@ -338,14 +396,18 @@ test("replaces the helper line with the field's message and exposes it as invali
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(screen.getByText("Escribí un motivo.").element()).toBeTruthy();
   expect(screen.getByText("No debería verse.").query()).toBeNull();
+  expect(input.getAttribute("aria-describedby")).toBeTruthy();
+  expect(describedText(input)).toContain("Escribí un motivo.");
 
-  const describedBy = input.getAttribute("aria-describedby");
-  expect(describedBy).toBeTruthy();
-  const describedIds = (describedBy as string).split(" ");
-  const describedText = describedIds
-    .map((id) => document.getElementById(id)?.textContent ?? "")
-    .join(" ");
-  expect(describedText).toContain("Escribí un motivo.");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("wires the helper text as the input's own description for assistive technology", async () => {
+  const screen = await render(<AmountHarness />);
+  const input = fieldInput(screen, "Importe");
+
+  expect(input.getAttribute("aria-describedby")).toBeTruthy();
+  expect(describedText(input)).toContain("Hay $ 61.900,00 en la caja antes de este retiro.");
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -412,17 +474,33 @@ test("does not accept a kind that calls for a prefix without one", () => {
   }>().not.toExtend<TextFieldProps>();
 });
 
-test("does not accept a suffix on a kind that calls for a prefix", () => {
+// Each of these also supplies the affix the kind actually requires, so the only thing that can
+// make the candidate fail to extend TextFieldProps is the extra, wrong one — unlike a candidate
+// that's missing its own required affix too, which would fail for that reason alone regardless
+// of what else is wrong with it.
+test("does not accept a suffix on a money kind that already has its own prefix", () => {
   expectTypeOf<{
     kind: "amount";
     label: string;
     value: string;
     onChange: (value: string) => void;
+    prefix: string;
     suffix: string;
   }>().not.toExtend<TextFieldProps>();
 });
 
-test("does not accept a prefix or a suffix on the plain text kind", () => {
+test("does not accept a prefix on a kg kind that already has its own suffix", () => {
+  expectTypeOf<{
+    kind: "weight";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+    prefix: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not accept a prefix on the plain text kind", () => {
   expectTypeOf<{
     kind: "plain-text";
     label: string;
@@ -430,6 +508,39 @@ test("does not accept a prefix or a suffix on the plain text kind", () => {
     onChange: (value: string) => void;
     prefix: string;
   }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not accept a suffix on the plain text kind", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("accepts each kind with exactly the affix it calls for", () => {
+  expectTypeOf<{
+    kind: "amount";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+  }>().toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "weight";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+  }>().toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }>().toExtend<TextFieldProps>();
 });
 
 test("does not accept an invalid field without an error message", () => {
