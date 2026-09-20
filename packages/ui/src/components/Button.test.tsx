@@ -35,6 +35,15 @@ function textNodeRect(node: ChildNode): DOMRect {
   return range.getBoundingClientRect();
 }
 
+// An icon's shape lives in its svg's children, and every lucide icon draws a different one, so
+// rendering the expected icon on its own gives a shape to compare a button's icon against. Size
+// and color are imposed from outside and match across icons, which is why they can't tell them
+// apart on their own.
+async function lucideShape(icon: ButtonIcon): Promise<string> {
+  const screen = await render(icon);
+  return (screen.container.querySelector("svg") as SVGSVGElement).innerHTML;
+}
+
 test("renders the text provided by the caller", async () => {
   const screen = await render(<Button>Save</Button>);
 
@@ -121,7 +130,7 @@ test("renders the secondary variant with a transparent background, earth-toned b
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("defaults to the medium size when none is given", async () => {
+test("defaults the primary and secondary variants to the medium size when none is given", async () => {
   const primary = await buttonStyle("Default primary");
   const secondary = await buttonStyle("Default secondary", { variant: "secondary" });
 
@@ -131,7 +140,7 @@ test("defaults to the medium size when none is given", async () => {
   expect(secondary.fontSize).toBe("16px");
 });
 
-test("renders every size in the design's height and text-size scale, shared by both variants", async () => {
+test("renders every size in the design's height and text-size scale, shared by the primary and secondary variants", async () => {
   const expectations: Record<ButtonSize, { height: string; fontSize: string }> = {
     small: { height: "40px", fontSize: "16px" },
     medium: { height: "48px", fontSize: "16px" },
@@ -194,7 +203,7 @@ test("gives the primary and secondary variants their own corner radius", async (
   expect(secondary.borderRadius).toBe("6px");
 });
 
-test("renders bold text on both variants", async () => {
+test("renders bold text on the primary and secondary variants", async () => {
   const primary = await buttonStyle("Primary");
   const secondary = await buttonStyle("Secondary", { variant: "secondary" });
 
@@ -202,7 +211,7 @@ test("renders bold text on both variants", async () => {
   expect(secondary.fontWeight).toBe("700");
 });
 
-test("dims a disabled button to the design's 45% opacity, on both variants", async () => {
+test("dims a disabled button to the design's 45% opacity, on the primary and secondary variants", async () => {
   const primary = await buttonStyle("Primary", { isDisabled: true });
   const secondary = await buttonStyle("Secondary", { variant: "secondary", isDisabled: true });
   const primaryWithIcon = await buttonStyle("Primary icon", { icon: <Check />, isDisabled: true });
@@ -302,8 +311,9 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(iconRect.width).toBeLessThan(25);
   expect(iconRect.height).toBeGreaterThan(23);
   expect(iconRect.height).toBeLessThan(25);
-  // The icon has no fill of its own, so it renders in the button's own (white) text color.
-  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("surface-white"));
+  // The stroke the glyph is painted with, not the color it inherits: an icon that brought a
+  // stroke of its own would inherit the button's color just the same and pass on that reading.
+  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("surface-white"));
 
   const textRect = textNodeRect(button.firstChild as ChildNode);
   const gap = iconRect.left - textRect.right;
@@ -333,8 +343,8 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   expect(iconRect.width).toBeLessThan(19);
   expect(iconRect.height).toBeGreaterThan(17);
   expect(iconRect.height).toBeLessThan(19);
-  // The icon has no fill of its own, so it renders in the button's own (ink) text color.
-  expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("ink"));
+  // See the primary variant's icon test above: the painted stroke, not the inherited color.
+  expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("ink"));
 
   const textRect = textNodeRect(button.lastChild as ChildNode);
   const gap = textRect.left - iconRect.right;
@@ -373,7 +383,7 @@ test("renders a plain svg icon (no size prop of its own) at 24px in the primary 
   expect(secondaryRect.width).toBeLessThan(19);
 });
 
-test("keeps the icon size fixed per variant across every button size", async () => {
+test("keeps a caller's icon at its variant's size across every button size", async () => {
   for (const size of sizes) {
     const primary = await render(
       <Button icon={<Check />} size={size}>{`Primary icon ${size}`}</Button>,
@@ -416,4 +426,257 @@ test("an empty label from a variable leaves the button nameless, and the accessi
 
   const results = await axe.run(screen.container);
   expect(results.violations.map((violation) => violation.id)).toEqual(["button-name"]);
+});
+
+test("renders the text-only destructive form with no background and no border", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await expect.element(screen.getByRole("button", { name: "Cancel sale" })).toBeVisible();
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(button).borderTopWidth).toBe("0px");
+  expect(getComputedStyle(button).borderBottomWidth).toBe("0px");
+  expect(getComputedStyle(button).borderLeftWidth).toBe("0px");
+  expect(getComputedStyle(button).borderRightWidth).toBe("0px");
+  expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("sizes the text-only destructive form at 40px with a 16px semibold label by default", async () => {
+  const style = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+
+  expect(style.height).toBe("40px");
+  expect(style.fontSize).toBe("16px");
+  expect(style.fontWeight).toBe("600");
+  expect(style.paddingLeft).toBe("16px");
+  expect(style.paddingRight).toBe("16px");
+  expect(style.paddingTop).toBe("0px");
+  expect(style.paddingBottom).toBe("0px");
+});
+
+test("rounds the text-only destructive form like the package's other transparent surface", async () => {
+  // Nothing of the button's own is rounded here — the radius shapes the bone background it takes
+  // on hover, so it is the one the secondary button rounds that same background with.
+  const text = await buttonStyle("Cancel sale", { variant: "text", tone: "destructive" });
+  const secondary = await buttonStyle("Cancel", { variant: "secondary" });
+
+  expect(text.borderRadius).toBe("6px");
+  expect(text.borderRadius).toBe(secondary.borderRadius);
+});
+
+test("sizes the text-only destructive form at 56px with an 18px label at its larger drawn size", async () => {
+  const style = await buttonStyle("Cancel", {
+    variant: "text",
+    tone: "destructive",
+    size: "large",
+  });
+
+  expect(style.height).toBe("56px");
+  expect(style.fontSize).toBe("18px");
+  expect(style.fontWeight).toBe("600");
+});
+
+test("carries its own 18px x icon before the label, with an 8px gap, on both drawn sizes", async () => {
+  const x = await lucideShape(<X />);
+  expect(x, "the comparison below tells lucide icons apart").not.toBe(await lucideShape(<Check />));
+
+  for (const size of ["small", "large"] as const) {
+    const screen = await render(
+      <Button variant="text" tone="destructive" size={size}>
+        {`Cancel sale ${size}`}
+      </Button>,
+    );
+    const button = screen
+      .getByRole("button", { name: `Cancel sale ${size}` })
+      .element() as HTMLElement;
+    const icon = button.querySelector("svg");
+    const iconWrapper = button.firstChild as HTMLElement;
+
+    expect(icon, `${size} icon`).not.toBeNull();
+    expect(iconWrapper.contains(icon), `${size} icon wrapper`).toBe(true);
+    expect(button.lastChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
+    expect(button.lastChild?.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
+
+    // The glyph itself, not just any icon of the right size and color.
+    expect((icon as SVGSVGElement).innerHTML, `${size} glyph`).toBe(x);
+
+    const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
+    expect(iconRect.width, `${size} icon width`).toBeGreaterThan(17);
+    expect(iconRect.width, `${size} icon width`).toBeLessThan(19);
+    expect(iconRect.height, `${size} icon height`).toBeGreaterThan(17);
+    expect(iconRect.height, `${size} icon height`).toBeLessThan(19);
+    // The stroke is what paints a lucide glyph: reading the inherited `color` instead would pass
+    // just as well for an icon that hardcoded a stroke of its own.
+    expect(getComputedStyle(icon as SVGSVGElement).stroke, `${size} icon stroke`).toBe(
+      tokenRgb("status-error-ui"),
+    );
+
+    const textRect = textNodeRect(button.lastChild as ChildNode);
+    const gap = textRect.left - iconRect.right;
+    expect(gap, `${size} gap`).toBeGreaterThan(7);
+    expect(gap, `${size} gap`).toBeLessThan(9);
+
+    await expectNoAccessibilityViolations(screen.container);
+  }
+});
+
+test("accepts the text-only destructive form at both drawn sizes", () => {
+  expectTypeOf<{ variant: "text"; tone: "destructive" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "small";
+  }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "large";
+  }>().toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept the text variant in any tone but destructive, the only one drawn", () => {
+  expectTypeOf<{ variant: "text" }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "text"; tone: "default" }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept a caller's icon on the text variant, which carries its own", () => {
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    icon: ButtonIcon;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("does not accept the text variant at a size the design never draws it", () => {
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "medium";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    tone: "destructive";
+    size: "sale";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("turns the text-only destructive form's background bone on hover, keeping its error-UI label", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+  await userEvent.hover(button);
+  // See the primary hover test above: wait for the exact designed token, not just any opaque color.
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  const hovered = getComputedStyle(button);
+  expect(hovered.color).toBe(tokenRgb("status-error-ui"));
+  const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the text-only destructive form's label and icon readable on the surfaces it sits on", async () => {
+  // The button paints no background of its own at rest, so the surface behind it is what its
+  // label and icon have to stand out against: the two this form is drawn on.
+  for (const surface of ["surface-white", "surface-bone"] as const) {
+    const screen = await render(
+      <div style={{ backgroundColor: tokenRgb(surface) }}>
+        <Button variant="text" tone="destructive">
+          {`Cancel sale on ${surface}`}
+        </Button>
+      </div>,
+    );
+    const button = screen
+      .getByRole("button", { name: `Cancel sale on ${surface}` })
+      .element() as HTMLElement;
+    const icon = button.querySelector("svg") as SVGSVGElement;
+    const behind = getComputedStyle(button.parentElement as HTMLElement).backgroundColor;
+
+    expect(behind, `${surface} behind the button`).toBe(tokenRgb(surface));
+    expect(getComputedStyle(button).backgroundColor, `${surface} button background`).toBe(
+      "rgba(0, 0, 0, 0)",
+    );
+
+    const labelRatio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
+    // The glyph's own painted stroke, so this ratio can differ from the label's and fail alone.
+    const iconRatio = contrastRatio(rgbToHex(getComputedStyle(icon).stroke), rgbToHex(behind));
+    expect(labelRatio, `${surface} label contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+    expect(iconRatio, `${surface} icon contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+
+    await expectNoAccessibilityViolations(screen.container);
+  }
+});
+
+test("shows the shared focus outline on the text-only destructive form", async () => {
+  const screen = await render(
+    <Button variant="text" tone="destructive">
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => getComputedStyle(button).outlineWidth).toBe("3px");
+  await expect.poll(() => getComputedStyle(button).outlineOffset).toBe("3px");
+  await expect
+    .poll(() => getComputedStyle(button).outlineColor)
+    .toBe(tokenRgb("brand-blue-strong"));
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("activates the text-only destructive form by keyboard and by pointer", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button variant="text" tone="destructive" onPress={onPress}>
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+
+  await userEvent.tab();
+  await userEvent.keyboard("{Enter}");
+  expect(onPress).toHaveBeenCalledTimes(1);
+
+  await userEvent.keyboard(" ");
+  expect(onPress).toHaveBeenCalledTimes(2);
+
+  await userEvent.click(button);
+  expect(onPress).toHaveBeenCalledTimes(3);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("dims a disabled text-only destructive form and keeps it out of reach", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <Button variant="text" tone="destructive" onPress={onPress} isDisabled>
+      Cancel sale
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" });
+  const element = button.element() as HTMLElement;
+
+  await expect.element(button).toBeDisabled();
+  expect(getComputedStyle(element).opacity).toBe("0.45");
+  expect(getComputedStyle(element).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+
+  await userEvent.tab();
+  expect(document.activeElement).not.toBe(element);
+
+  await button.click({ force: true });
+  expect(onPress).not.toHaveBeenCalled();
+
+  await expectNoAccessibilityViolations(screen.container);
 });
