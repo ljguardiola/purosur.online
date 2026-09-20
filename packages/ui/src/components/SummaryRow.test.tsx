@@ -97,6 +97,25 @@ test("grows with a long label instead of keeping a fixed height", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps a long value inside the row, growing it instead of overflowing", async () => {
+  const longValue = "A very long value that does not fit on a single line inside this narrow row";
+  const screen = await render(
+    <div style={{ width: "200px" }}>
+      <SummaryRow label="Payment" value={longValue} />
+    </div>,
+  );
+  const value = screen.getByText(longValue, { exact: true }).element() as HTMLElement;
+  const row = value.parentElement as HTMLElement;
+  const lineHeight = Number.parseFloat(getComputedStyle(value).lineHeight);
+
+  expect(value.getBoundingClientRect().height).toBeGreaterThan(lineHeight * 1.5);
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(
+    row.getBoundingClientRect().right,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a summary row without a label or a value", () => {
   expectTypeOf<{ value: string }>().not.toExtend<SummaryRowProps>();
   expectTypeOf<{ label: string }>().not.toExtend<SummaryRowProps>();

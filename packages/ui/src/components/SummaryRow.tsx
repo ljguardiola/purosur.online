@@ -21,7 +21,7 @@ function valueClassName(strong: boolean, saving: boolean): string {
   if (saving) {
     color = "text-brand-green-ui";
   }
-  return `shrink-0 ${sizeAndWeight} ${color}`;
+  return `${sizeAndWeight} ${color}`;
 }
 
 export function SummaryRow({ label, value, strong = false, saving = false }: SummaryRowProps) {
