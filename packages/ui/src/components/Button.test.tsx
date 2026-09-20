@@ -771,3 +771,76 @@ test("is available on every variant", () => {
     fullWidth: true;
   }>().toExtend<ButtonPropsWithoutText>();
 });
+
+const stackStyle = {
+  width: "500px",
+  height: "400px",
+  display: "flex",
+  flexDirection: "column",
+} as const;
+
+test("keeps its height, its padding and its centering when stretched, at every size", async () => {
+  for (const size of sizes) {
+    const plain = await buttonStyle(`Plain ${size}`, { size });
+    const stretched = await buttonStyle(`Stretched ${size}`, { size, fullWidth: true });
+
+    expect(stretched.height, `${size} height`).toBe(plain.height);
+    expect(stretched.fontSize, `${size} font size`).toBe(plain.fontSize);
+    expect(stretched.paddingLeft, `${size} padding-left`).toBe("16px");
+    expect(stretched.paddingRight, `${size} padding-right`).toBe("16px");
+    expect(stretched.paddingTop, `${size} padding-top`).toBe("0px");
+    expect(stretched.paddingBottom, `${size} padding-bottom`).toBe("0px");
+    expect(stretched.justifyContent, `${size} justify-content`).toBe("center");
+    expect(stretched.alignItems, `${size} align-items`).toBe("center");
+  }
+});
+
+test("keeps its icon and label together in the middle of the width it is given", async () => {
+  const screen = await render(
+    <div style={rowStyle}>
+      <Button variant="text" tone="destructive" fullWidth>
+        Cancel sale
+      </Button>
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
+  const buttonRect = button.getBoundingClientRect();
+  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = textNodeRect(button.lastChild as ChildNode);
+
+  const beforeIcon = iconRect.left - buttonRect.left;
+  const afterLabel = buttonRect.right - labelRect.right;
+
+  // Centered in the row, not pushed against the 16px padding at either end.
+  expect(beforeIcon).toBeGreaterThan(16);
+  expect(beforeIcon).toBeCloseTo(afterLabel, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes the width of a vertical stack without being asked to stretch", async () => {
+  const screen = await render(
+    <div style={stackStyle}>
+      <Button>Confirm</Button>
+    </div>,
+  );
+
+  expect(renderedWidth(screen, "Confirm")).toBeCloseTo(500, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("grows across a vertical stack but never along it", async () => {
+  const screen = await render(
+    <div style={stackStyle}>
+      <Button fullWidth>Confirm</Button>
+    </div>,
+  );
+  const rect = (
+    screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement
+  ).getBoundingClientRect();
+
+  expect(rect.width).toBeCloseTo(500, 0);
+  // The stack is 400px tall and holds this button alone: a button that grew along it would take
+  // the whole height instead of the 48px its size gives it.
+  expect(rect.height).toBeCloseTo(48, 0);
+  await expectNoAccessibilityViolations(screen.container);
+});
