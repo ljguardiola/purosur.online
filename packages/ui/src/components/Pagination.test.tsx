@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -585,6 +585,132 @@ test("proves the browser itself drops focus to document.body when a focused nav 
   await screen.rerender(<Pagination {...baseProps({ page: 5, pageCount: 5 })} />);
 
   expect(document.activeElement).toBe(document.body);
+});
+
+// The positive counterpart to the two staleness tests above: pageCount can genuinely change in
+// the very same update the press itself triggers (e.g. the caller's onPageChange also refreshes a
+// filtered total), landing the redirect on a boundary that only exists because of that combined
+// change. The mechanism has to still catch this, not just correctly ignore the unrelated cases.
+function PaginationThatAlsoShrinksOnNext(
+  props: Omit<PaginationProps, "page" | "pageCount" | "onPageChange">,
+) {
+  const [page, setPage] = useState(4);
+  const [pageCount, setPageCount] = useState(5);
+  return (
+    <Pagination
+      {...props}
+      page={page}
+      pageCount={pageCount}
+      onPageChange={(next) => {
+        setPage(next);
+        setPageCount(4);
+      }}
+    />
+  );
+}
+
+test("still redirects focus when pageCount shrinks in the very same update the press triggers", async () => {
+  const screen = await render(
+    <PaginationThatAlsoShrinksOnNext
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  const newLastPageButton = screen.getByRole("button", { name: "4", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(newLastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Two presses landing in the same React batch: a genuine double-press, both calls to the DOM
+// .click() method fired back to back with no await between them (that method doesn't itself move
+// focus the way a real user click does, so Next is focused explicitly first, the way tabbing to
+// it would leave it) — both onPress handlers read the same still-stale currentPage and both ask
+// for page 5, before React ever gets a chance to re-render in response to the first one.
+test("stays correct when Next is pressed twice before any render lands between the two presses", async () => {
+  const screen = await render(
+    <ControlledPagination
+      initialPage={4}
+      pageCount={5}
+      previousLabel="Anterior"
+      nextLabel="Siguiente"
+      label="Paginación"
+      pageLabel={(page) => String(page)}
+    />,
+  );
+  const nextButton = screen
+    .getByRole("button", { name: "Siguiente" })
+    .element() as HTMLButtonElement;
+  nextButton.focus();
+
+  nextButton.click();
+  nextButton.click();
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(lastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("still redirects focus correctly when rendered inside React StrictMode", async () => {
+  const screen = await render(
+    <StrictMode>
+      <ControlledPagination
+        initialPage={4}
+        pageCount={5}
+        previousLabel="Anterior"
+        nextLabel="Siguiente"
+        label="Paginación"
+        pageLabel={(page) => String(page)}
+      />
+    </StrictMode>,
+  );
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+
+  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  await expect.poll(() => document.activeElement).toBe(lastPageButton);
+  await expect.element(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// If the boundary is only reached later, indirectly (a rerender, not the disabling button's own
+// click), and the browser hasn't dropped focus to document.body — because whatever holds it right
+// now is a genuinely unrelated element outside Pagination entirely, never disabled by this update
+// at all — the mechanism must still do nothing rather than guess.
+test("never redirects focus when a boundary is reached while focus sits on an element outside Pagination entirely", async () => {
+  const screen = await render(
+    <>
+      <input aria-label="Unrelated field" />
+      <Pagination {...baseProps({ page: 4, pageCount: 5 })} />
+    </>,
+  );
+  const unrelatedField = screen
+    .getByRole("textbox", { name: "Unrelated field" })
+    .element() as HTMLInputElement;
+
+  await screen.getByRole("button", { name: "Siguiente" }).click();
+  unrelatedField.focus();
+  expect(document.activeElement).toBe(unrelatedField);
+
+  await screen.rerender(
+    <>
+      <input aria-label="Unrelated field" />
+      <Pagination {...baseProps({ page: 5, pageCount: 5 })} />
+    </>,
+  );
+
+  expect(document.activeElement).toBe(unrelatedField);
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("names its own navigation landmark from the caller's label", async () => {

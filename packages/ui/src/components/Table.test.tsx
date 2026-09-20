@@ -73,6 +73,15 @@ test("renders a white container with an 8px radius and a 1px line border", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("has no aria-busy when the table isn't loading", async () => {
+  const screen = await render(<Table {...commonProps} columns={columns} />);
+  const table = screen.getByRole("table").element() as HTMLElement;
+
+  expect(table.hasAttribute("aria-busy")).toBe(false);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("builds the table from real table/thead/tbody/tr/th/td tags instead of styled divs, so every table role comes from the tag itself in every engine", async () => {
   const screen = await render(<Table {...commonProps} columns={columns} />);
   const table = screen.getByRole("table").element() as HTMLElement;
@@ -1139,6 +1148,8 @@ test("renders the empty state in place of the header and rows, in blue strong wh
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
   expect(screen.container.querySelector("table")).toBeNull();
+  const section = screen.container.querySelector("section") as HTMLElement;
+  expect(section.hasAttribute("aria-busy")).toBe(false);
 
   await expectNoAccessibilityViolations(screen.container);
 });
