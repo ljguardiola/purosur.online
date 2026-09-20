@@ -16,6 +16,16 @@ test("stacks rows 8px apart, with a 1px line above and below the group and 16px 
   const style = getComputedStyle(group);
 
   expect(style.rowGap).toBe("8px");
+
+  const [firstRow, secondRow] = Array.from(group.children) as [HTMLElement, HTMLElement];
+  const firstRect = firstRow.getBoundingClientRect();
+  const secondRect = secondRow.getBoundingClientRect();
+  const gap = secondRect.top - firstRect.bottom;
+
+  expect(gap).toBeGreaterThan(7);
+  expect(gap).toBeLessThan(9);
+  expect(secondRect.left).toBeCloseTo(firstRect.left, 0);
+
   expect(style.borderTopWidth).toBe("1px");
   expect(style.borderBottomWidth).toBe("1px");
   expect(style.borderTopColor).toBe(tokenRgb("line"));
