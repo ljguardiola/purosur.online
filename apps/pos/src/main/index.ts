@@ -1,14 +1,22 @@
 import { join } from "node:path";
+import * as Sentry from "@sentry/electron/main";
 import { app, BrowserWindow, MessageChannelMain, session, utilityProcess } from "electron";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
 import { denyWindowOpen, isSameOriginNavigation } from "./navigation-guard";
 import { createWindowOptions } from "./window-options";
 
-// Populated by electron-vite's build (see the build & packaging task): main, preload, core and
-// renderer each land in their own output directory next to this file.
-const CORE_ENTRY = join(import.meta.dirname, "../core/index.js");
-const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.js");
+// No DSN configured (e.g. a local dev build) means no error tracking, not a crash on startup.
+const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({ dsn: sentryDsn });
+}
+
+// Populated by electron-vite's build (see the build & packaging task). The core is built as a
+// second main-side entry, so it lands next to index.js in the same output directory rather than
+// in its own; preload and renderer each get their own directory.
+const CORE_ENTRY = join(import.meta.dirname, "core.js");
+const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.mjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
 const CORE_RESTART_POLICY = { maxAttempts: 5, baseDelayMs: 500, maxDelayMs: 8000 };

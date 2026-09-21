@@ -22,5 +22,10 @@
       "@purosur/ui/*": ["./packages/ui/src/*"]
     }
   },
-  "include": ["packages/*/src", "apps/*/src", "vitest.config.ts"]
+  "include": [
+    "packages/*/src",
+    "apps/*/src",
+    "vitest.config.ts",
+    "apps/pos/electron.vite.config.ts"
+  ]
 }

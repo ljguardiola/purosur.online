@@ -3,16 +3,30 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "package:production": "pnpm build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
+    "package:homologation": "pnpm build && cross-env POS_CHANNEL=homologation electron-builder --config electron-builder.config.mjs --win"
+  },
   "dependencies": {
     "@purosur/contracts": "workspace:*",
     "@purosur/ui": "workspace:*",
+    "@sentry/electron": "^7.19.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "cross-env": "^10.1.0",
     "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "vite": "^7.3.6",
     "vitest-browser-react": "^2.3.0"
   }
 }

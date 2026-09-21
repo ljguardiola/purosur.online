@@ -1,7 +1,13 @@
+import * as Sentry from "@sentry/electron/renderer";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { attachIncomingPort, type PortEventSource } from "./incoming-port";
+
+const sentryDsn = import.meta.env.RENDERER_VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({ dsn: sentryDsn });
+}
 
 // Adapts the DOM's `window` to the pure port-handoff module: real MessageEvents carry a `ports`
 // list, but `window.addEventListener`'s own type only knows about the generic DOM `Event`.

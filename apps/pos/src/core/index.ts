@@ -1,11 +1,20 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
+import * as Sentry from "@sentry/electron/utility";
 import { createMessageGate, type RejectionRecorder } from "./message-gate";
 
-// Forwarded to Sentry once it is initialized in this process (see the build & packaging task);
-// until then a rejection is at least never silently dropped.
+// The core is built as a second main-side entry (see electron.vite.config.ts), so it shares
+// main's MAIN_VITE_ prefixed environment variables.
+const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({ dsn: sentryDsn });
+}
+
 const recorder: RejectionRecorder = {
   recordRejection(rejection) {
     console.error("core: rejected message", rejection);
+    Sentry.captureMessage("core: rejected message", {
+      extra: { raw: rejection.raw, issues: rejection.issues },
+    });
   },
 };
 
