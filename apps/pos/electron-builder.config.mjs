@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { CHANNEL_DATA_FOLDERS, CHANNELS, serializeChannelFile } from "./src/shared/channel.ts";
+import { CHANNELS, serializeChannelFile } from "./src/shared/channel.ts";
 
 // The production and staging installers are chosen via POS_CHANNEL (see package.json's
 // package:production/package:staging scripts). They differ in appId and productName so NSIS
@@ -29,11 +29,7 @@ const { appId, packageName, productName } = channelConfig[channel];
 const updateFeedUrl = process.env.POS_UPDATE_FEED_URL;
 const sentryDsn = process.env.POS_SENTRY_DSN;
 
-const channelFile = serializeChannelFile({
-  channel,
-  dataFolder: CHANNEL_DATA_FOLDERS[channel],
-  ...(sentryDsn ? { sentryDsn } : {}),
-});
+const channelFile = serializeChannelFile({ channel, ...(sentryDsn ? { sentryDsn } : {}) });
 
 /** @type {import('electron-builder').Configuration} */
 export default {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CHANNEL_DATA_FOLDERS } from "../shared/channel";
 import { DEVELOPMENT_SETTINGS, loadChannelSettings } from "./channel-settings";
 
-const stagingText = JSON.stringify({ channel: "staging", dataFolder: "purosur-pos-staging" });
+const stagingText = JSON.stringify({ channel: "staging" });
 
 function readerOf(files: Record<string, string>) {
   const reads: string[] = [];
@@ -39,7 +39,7 @@ describe("loadChannelSettings", () => {
   it("ignores the override in a packaged register, so nothing outside the install can redirect it", () => {
     const channelFile = join("/opt/register/resources", "channel.json");
     const { readFile, reads } = readerOf({
-      [channelFile]: JSON.stringify({ channel: "production", dataFolder: "purosur-pos" }),
+      [channelFile]: JSON.stringify({ channel: "production" }),
       "/tmp/other.json": stagingText,
     });
 
@@ -85,6 +85,43 @@ describe("loadChannelSettings", () => {
     });
 
     expect(result).toEqual({ ok: false, reason: expect.stringContaining(channelFile) });
+  });
+
+  it("refuses a packaged register's channel file that names a data folder", () => {
+    const channelFile = join("/opt/register/resources", "channel.json");
+    const { readFile } = readerOf({
+      [channelFile]: JSON.stringify({ channel: "staging", dataFolder: "purosur-pos-e2e" }),
+    });
+
+    const result = loadChannelSettings({
+      isPackaged: true,
+      resourcesPath: "/opt/register/resources",
+      overridePath: undefined,
+      readFile,
+    });
+
+    expect(result).toEqual({ ok: false, reason: expect.stringContaining("dataFolder") });
+  });
+
+  it("honors the override file's own data folder in an unpackaged run", () => {
+    const { readFile } = readerOf({
+      "/tmp/e2e/channel.json": JSON.stringify({
+        channel: "staging",
+        dataFolder: "purosur-pos-e2e",
+      }),
+    });
+
+    const result = loadChannelSettings({
+      isPackaged: false,
+      resourcesPath: "/electron/resources",
+      overridePath: "/tmp/e2e/channel.json",
+      readFile,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      settings: { channel: "staging", dataFolder: "purosur-pos-e2e" },
+    });
   });
 
   it("reads the override file in an unpackaged run", () => {

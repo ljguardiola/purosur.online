@@ -32,7 +32,8 @@ export function writeChannelFile(contents: unknown): string {
   return path;
 }
 
-// The unpacked app reads its channel from POS_CHANNEL_FILE; a packaged one ignores it.
+// The unpacked app reads its channel, and the data folder it may name, from POS_CHANNEL_FILE; a
+// packaged one ignores it.
 export function appEnv(channelFile: string): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {

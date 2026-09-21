@@ -8,7 +8,7 @@ import { APP_DIR, appEnv, launchApp, platformArgs, writeChannelFile } from "./la
 const ELECTRON_BINARY = createRequire(join(APP_DIR, "package.json"))("electron") as string;
 
 describe("the register's channel file", () => {
-  it("keeps the register's data in the folder its channel file names", async () => {
+  it("keeps an unpackaged run's data in the folder its channel file names", async () => {
     const { app } = await launchApp(
       writeChannelFile({ channel: "staging", dataFolder: "purosur-pos-e2e-channel" }),
     );
@@ -28,7 +28,7 @@ describe("the register's channel file", () => {
   });
 
   it("refuses to start, saying why, when its channel file is malformed", () => {
-    const channelFile = writeChannelFile({ channel: "staging", dataFolder: "purosur-pos" });
+    const channelFile = writeChannelFile({ channel: "staging", dataFolder: "purosur-pos." });
 
     const run = spawnSync(ELECTRON_BINARY, [APP_DIR, ...platformArgs()], {
       env: appEnv(channelFile),

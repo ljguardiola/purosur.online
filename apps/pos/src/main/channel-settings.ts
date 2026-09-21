@@ -1,5 +1,10 @@
 import { join } from "node:path";
-import { type ChannelFileResult, type ChannelSettings, parseChannelFile } from "../shared/channel";
+import {
+  type ChannelFileResult,
+  type ChannelSettings,
+  parseChannelFile,
+  parseLocalChannelFile,
+} from "../shared/channel";
 
 export const DEVELOPMENT_SETTINGS: ChannelSettings = {
   channel: "staging",
@@ -27,6 +32,6 @@ export function loadChannelSettings(source: ChannelSettingsSource): ChannelFileR
     return { ok: false, reason: `cannot read ${path}: ${String(error)}` };
   }
 
-  const result = parseChannelFile(text);
+  const result = source.isPackaged ? parseChannelFile(text) : parseLocalChannelFile(text);
   return result.ok ? result : { ok: false, reason: `${path}: ${result.reason}` };
 }
