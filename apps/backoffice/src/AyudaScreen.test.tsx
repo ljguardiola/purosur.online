@@ -178,6 +178,44 @@ test("gives an article's structure to assistive technology as headings and lists
   expect(related.getByRole("listitem").elements()).toHaveLength(1);
 });
 
+test("centers each step's first text line on its number badge", async () => {
+  const screen = await render(<ContentHarness categoryId="getting_started" articleId="intro" />);
+
+  const step = screen.getByRole("listitem").filter({ hasText: "Cargá tus productos" });
+  await expect.element(step).toBeVisible();
+  const [badge, text] = Array.from(step.element().children);
+  if (!badge || !text?.firstChild) throw new Error("step is missing its badge or text");
+
+  const firstGlyph = document.createRange();
+  firstGlyph.setStart(text.firstChild, 0);
+  firstGlyph.setEnd(text.firstChild, 1);
+  const glyph = firstGlyph.getBoundingClientRect();
+  const badgeBox = badge.getBoundingClientRect();
+
+  expect(glyph.top + glyph.height / 2).toBeCloseTo(badgeBox.top + badgeBox.height / 2, 0);
+});
+
+test("centers a note's icon on the note's full height", async () => {
+  const screen = await render(
+    <div className="w-80">
+      <ContentHarness categoryId="getting_started" articleId="intro" />
+    </div>,
+  );
+
+  const text = screen.getByText("Podés cambiar esto más adelante.");
+  await expect.element(text).toBeVisible();
+  const icon = text.element().previousElementSibling;
+  const note = text.element().parentElement;
+  if (!icon || !note) throw new Error("note is missing its icon or container");
+
+  const noteBox = note.getBoundingClientRect();
+  const iconBox = icon.getBoundingClientRect();
+  const lineHeight = Number.parseFloat(getComputedStyle(text.element()).lineHeight);
+
+  expect(text.element().getBoundingClientRect().height).toBeGreaterThan(lineHeight);
+  expect(iconBox.top + iconBox.height / 2).toBeCloseTo(noteBox.top + noteBox.height / 2, 0);
+});
+
 test("lists a category's articles and search results as list items", async () => {
   const category = await render(<ContentHarness categoryId="getting_started" articleId={null} />);
   expect(

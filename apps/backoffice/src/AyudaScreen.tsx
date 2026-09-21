@@ -97,14 +97,16 @@ function Block({ block, help }: { block: HelpBlock<string>; help: AyudaHelpCatal
               >
                 {index + 1}
               </span>
-              <p className="text-base text-ink leading-[1.45]">{item}</p>
+              <p className="mt-[calc((1.75rem_-_1.45em)_/_2)] text-base text-ink leading-[1.45]">
+                {item}
+              </p>
             </li>
           ))}
         </ol>
       );
     case "note":
       return (
-        <div className="flex items-start gap-3 rounded-lg bg-surface-bone px-4 py-3">
+        <div className="flex items-center gap-3 rounded-lg bg-surface-bone px-4 py-3">
           <Info aria-hidden="true" className="size-[1.125rem] shrink-0 text-brand-blue-strong" />
           <p className="text-ink text-sm leading-[1.4]">{block.text}</p>
         </div>
