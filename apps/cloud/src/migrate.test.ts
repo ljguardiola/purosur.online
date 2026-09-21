@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { runMigrations } from "./migrate.js";
+import { describe, expect, it, vi } from "vitest";
+import { isRetryableConnectionError, runMigrations, waitForDatabase } from "./migrate.js";
 
 describe("runMigrations", () => {
   it("rejects when the database is unreachable", async () => {
@@ -7,7 +7,143 @@ describe("runMigrations", () => {
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
+        // A zero wait budget keeps this test fast: it proves an unreachable database still
+        // fails the deploy, not that the retry loop is bounded (waitForDatabase.test covers that).
+        waitForDatabaseSeconds: 0,
       }),
     ).rejects.toThrow();
+  });
+});
+
+function fakeClock(startMs = 0) {
+  let current = startMs;
+  return {
+    now: () => current,
+    sleep: async (ms: number) => {
+      current += ms;
+    },
+  };
+}
+
+describe("waitForDatabase", () => {
+  it("resolves without waiting when the probe already succeeds", async () => {
+    const clock = fakeClock();
+    const sleep = vi.fn(clock.sleep);
+    const probe = vi.fn(async () => {});
+
+    await waitForDatabase(probe, { budgetSeconds: 10, intervalMs: 500, sleep, now: clock.now });
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("retries a retryable connection error until the probe succeeds", async () => {
+    const clock = fakeClock();
+    let attempts = 0;
+    const probe = vi.fn(async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        throw Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+      }
+    });
+
+    await waitForDatabase(probe, {
+      budgetSeconds: 10,
+      intervalMs: 500,
+      sleep: clock.sleep,
+      now: clock.now,
+    });
+
+    expect(probe).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects with the last connection error once the wait budget is exhausted", async () => {
+    const clock = fakeClock();
+    const error = Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+    const probe = vi.fn(async () => {
+      throw error;
+    });
+
+    await expect(
+      waitForDatabase(probe, {
+        budgetSeconds: 2,
+        intervalMs: 1000,
+        sleep: clock.sleep,
+        now: clock.now,
+      }),
+    ).rejects.toBe(error);
+
+    expect(probe.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("does not retry an error that is not a connection failure", async () => {
+    const clock = fakeClock();
+    const sleep = vi.fn(clock.sleep);
+    const error = Object.assign(new Error("password authentication failed"), { code: "28P01" });
+    const probe = vi.fn(async () => {
+      throw error;
+    });
+
+    await expect(
+      waitForDatabase(probe, { budgetSeconds: 10, intervalMs: 500, sleep, now: clock.now }),
+    ).rejects.toBe(error);
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("calls onWaiting with the error and the elapsed time before each retry", async () => {
+    const clock = fakeClock();
+    let attempts = 0;
+    const probe = vi.fn(async () => {
+      attempts += 1;
+      if (attempts < 2) {
+        throw Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+      }
+    });
+    const onWaiting = vi.fn();
+
+    await waitForDatabase(probe, {
+      budgetSeconds: 10,
+      intervalMs: 500,
+      sleep: clock.sleep,
+      now: clock.now,
+      onWaiting,
+    });
+
+    expect(onWaiting).toHaveBeenCalledTimes(1);
+    expect(onWaiting).toHaveBeenCalledWith(expect.objectContaining({ code: "ECONNREFUSED" }), 0);
+  });
+});
+
+describe("isRetryableConnectionError", () => {
+  it.each([
+    "ECONNREFUSED",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ETIMEDOUT",
+    "ECONNRESET",
+    "CONNECT_TIMEOUT",
+    "CONNECTION_CLOSED",
+    "CONNECTION_ENDED",
+    "57P03",
+  ])("treats %s as a retryable connection failure", (code) => {
+    expect(isRetryableConnectionError(Object.assign(new Error("x"), { code }))).toBe(true);
+  });
+
+  it.each([
+    "28P01", // invalid_password
+    "3D000", // invalid_catalog_name (unknown database)
+    "42601", // syntax_error, e.g. a bad migration statement
+  ])("does not treat %s as a retryable connection failure", (code) => {
+    expect(isRetryableConnectionError(Object.assign(new Error("x"), { code }))).toBe(false);
+  });
+
+  it("does not treat an error without a code as retryable", () => {
+    expect(isRetryableConnectionError(new Error("boom"))).toBe(false);
+  });
+
+  it("does not treat a non-error value as retryable", () => {
+    expect(isRetryableConnectionError("boom")).toBe(false);
   });
 });
