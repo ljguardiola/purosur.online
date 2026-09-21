@@ -10,10 +10,10 @@
 // project: a value read from `process.env` inside this file reaches the compiled graph, so the
 // CLI's evaluator runs this file as ordinary Node, not a sandboxed subset.
 //
-// Open item: Railway's IaC reference states a generated `*.up.railway.app` service domain is
-// "not included in .railway/railway.ts" - it has no DSL field. Generating the staging domain is a
-// one-time imperative step (`railway domain --service cloud --environment staging`), tracked
-// under T6 (first apply), not expressed here. `domains` in this SDK is for custom domains only.
+// Not declared here: Railway's IaC reference states a generated `*.up.railway.app` service domain
+// is "not included in .railway/railway.ts" - it has no DSL field. `.github/workflows/deploy-
+// cloud-staging.yml` ensures one exists after every apply instead (list, create only if missing).
+// `domains` in this SDK is for custom domains only.
 //
 // Open item: `bucket()` returns a plain BucketNode with no `.env` accessor (only
 // postgres()/redis()/mysql()/mongo() are "Referencable"), so this SDK version has no typed way to

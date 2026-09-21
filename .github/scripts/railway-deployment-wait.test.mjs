@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextPollDecision } from "./railway-deployment-wait.mjs";
+import {
+  nextPollDecision,
+  parseDeploymentListOutput,
+  resolvePreviousId,
+} from "./railway-deployment-wait.mjs";
 
 test("waits when the newest deployment is still the pre-apply one", () => {
   const decision = nextPollDecision({
@@ -125,4 +129,60 @@ test("fails a new deployment stuck mid-progress once the timeout passes", () => 
       "deployment dep-new did not reach a terminal status before the timeout (last seen: BUILDING)",
     deploymentId: "dep-new",
   });
+});
+
+// parseDeploymentListOutput ---------------------------------------------------
+
+test("parseDeploymentListOutput reads the newest deployment from a successful call", () => {
+  const current = parseDeploymentListOutput({
+    exitOk: true,
+    stdout: JSON.stringify([{ id: "dep-new", status: "SUCCESS" }]),
+  });
+
+  assert.deepEqual(current, { id: "dep-new", status: "SUCCESS" });
+});
+
+test("parseDeploymentListOutput returns null for an empty list", () => {
+  const current = parseDeploymentListOutput({ exitOk: true, stdout: "[]" });
+
+  assert.equal(current, null);
+});
+
+// On the very first deploy, the service exists (created earlier in the same `config apply`) but
+// may still have zero deployment records for a moment; a real CLI error at this point (as seen
+// live for `domain list` against a service with nothing yet: "Project has no services.") must
+// read as "nothing yet", not crash the poll loop.
+test("parseDeploymentListOutput treats a failed CLI call as no deployment yet, not a crash", () => {
+  const current = parseDeploymentListOutput({
+    exitOk: false,
+    stdout: "",
+    stderr: "Project has no services.\n",
+  });
+
+  assert.equal(current, null);
+});
+
+test("parseDeploymentListOutput treats malformed output as no deployment yet", () => {
+  const current = parseDeploymentListOutput({ exitOk: true, stdout: "not json" });
+
+  assert.equal(current, null);
+});
+
+// resolvePreviousId -----------------------------------------------------------
+
+// A workflow step captures the newest deployment id strictly *before* `railway config apply`
+// runs, so this script never has to guess whether its own first read (which necessarily happens
+// after apply already ran) beat Railway to recording the brand-new deployment - a race that would
+// otherwise make the very deployment being waited for look like "the old one".
+test("resolvePreviousId uses the pre-apply-captured id when one was provided", () => {
+  assert.equal(resolvePreviousId("dep-old", { id: "dep-should-be-ignored" }), "dep-old");
+});
+
+test("resolvePreviousId reads an explicitly empty pre-apply capture as no previous deployment", () => {
+  assert.equal(resolvePreviousId("", { id: "dep-should-be-ignored" }), null);
+});
+
+test("resolvePreviousId falls back to a self-captured read when no override was given", () => {
+  assert.equal(resolvePreviousId(undefined, { id: "dep-self" }), "dep-self");
+  assert.equal(resolvePreviousId(undefined, null), null);
 });

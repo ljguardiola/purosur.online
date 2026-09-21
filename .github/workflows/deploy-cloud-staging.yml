@@ -89,9 +89,23 @@ jobs:
       - name: Install the Railway CLI
         run: npm install -g @railway/cli@5.58.0
 
+      # Captured strictly before `apply` runs, so "wait for the new deployment" below never has to
+      # guess whether its own first read (which necessarily happens after apply) beat Railway to
+      # recording the brand-new deployment. On the very first-ever run the service does not exist
+      # yet at this point either; the script reads that failure the same as "no deployment yet"
+      # (confirmed live: `railway domain list` on a project with no services exits 1 with plain
+      # text, not `[]` - the deployment list command is not assumed to behave differently).
+      - name: Capture the deployment recorded before apply
+        id: pre-apply-deployment
+        env:
+          RAILWAY_SERVICE: cloud
+          RAILWAY_ENVIRONMENT: staging
+        run: node .github/scripts/railway-deployment-wait.mjs --print-newest
+
       # `RAILWAY_TOKEN` is a project token already scoped to the staging environment (provisioned
       # out of band), so `railway config apply` needs no `railway link` step and no --environment
-      # flag - the token alone resolves project and environment.
+      # flag - the token alone resolves project and environment. On the first-ever run this apply
+      # creates postgres, the bucket and the cloud service itself, from the image built above.
       - name: Apply the staging infrastructure
         env:
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
@@ -106,13 +120,23 @@ jobs:
           RAILWAY_SERVICE: cloud
           RAILWAY_ENVIRONMENT: staging
           RAILWAY_DEPLOYMENT_TIMEOUT_SECONDS: "600"
+          RAILWAY_PREVIOUS_DEPLOYMENT_ID: ${{ steps.pre-apply-deployment.outputs.deployment_id }}
         run: node .github/scripts/railway-deployment-wait.mjs
 
-      # CLOUD_STAGING_DOMAIN is set once, by hand, after the one-time `railway domain` bootstrap
-      # (T6): Railway's IaC reference has no field for a generated *.up.railway.app domain, so it
-      # is not declared in .railway/railway.ts.
+      # Railway's IaC reference has no field for a generated *.up.railway.app domain ("Generated
+      # Railway service domains are not included in .railway/railway.ts"), so it is not declared
+      # in .railway/railway.ts; CI ensures one exists here instead, every run, since generating a
+      # second one is never attempted once the service already has one ("One Railway-provided
+      # domain per service").
+      - name: Ensure the staging domain
+        id: domain
+        env:
+          RAILWAY_SERVICE: cloud
+          RAILWAY_ENVIRONMENT: staging
+        run: node .github/scripts/railway-ensure-domain.mjs
+
       - name: Verify the deployed version on the staging domain
         env:
-          CLOUD_HEALTH_DOMAIN: ${{ vars.CLOUD_STAGING_DOMAIN }}
+          CLOUD_HEALTH_DOMAIN: ${{ steps.domain.outputs.domain }}
           CLOUD_HEALTH_EXPECTED_VERSION: ${{ github.sha }}
         run: node .github/scripts/verify-cloud-health.mjs
