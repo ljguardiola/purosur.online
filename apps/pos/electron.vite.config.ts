@@ -7,11 +7,10 @@ import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-// Chosen the same way as in electron-builder.config.mjs. The homologation build is the register's
-// staging, so it reports to the error tracker under the same environment name as the cloud's.
-const channel = process.env.POS_CHANNEL === "homologation" ? "homologation" : "production";
-const sentryEnvironment = channel === "homologation" ? "staging" : "production";
-const channelDefine = { "import.meta.env.SENTRY_ENVIRONMENT": JSON.stringify(sentryEnvironment) };
+// Chosen the same way as in electron-builder.config.mjs; the channel is also the environment the
+// build reports to the error tracker under.
+const channel = process.env.POS_CHANNEL === "staging" ? "staging" : "production";
+const channelDefine = { "import.meta.env.SENTRY_ENVIRONMENT": JSON.stringify(channel) };
 
 // A page loaded from file:// gets no response headers, so the packaged interface can only receive
 // its policy from the page itself.

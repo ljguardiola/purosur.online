@@ -30,13 +30,13 @@ jobs:
   package:
     name: package (${{ matrix.channel }})
     runs-on: windows-latest
-    # Only a merge to main packages the homologation installer under staging, the one environment
-    # that admits main; pull requests package both channels with no credentials at all. The
+    # Only a merge to main packages the staging installer under the staging environment, which
+    # admits nothing but main; pull requests package both channels with no credentials at all. The
     # production installer that carries credentials comes from the tag-bound release workflow.
-    environment: ${{ (github.event_name == 'push' && matrix.channel == 'homologation') && 'staging' || '' }}
+    environment: ${{ (github.event_name == 'push' && matrix.channel == 'staging') && 'staging' || '' }}
     strategy:
       matrix:
-        channel: [production, homologation]
+        channel: [production, staging]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

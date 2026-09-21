@@ -8,7 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "package:production": "cross-env POS_CHANNEL=production electron-vite build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
-    "package:homologation": "cross-env POS_CHANNEL=homologation electron-vite build && cross-env POS_CHANNEL=homologation electron-builder --config electron-builder.config.mjs --win",
+    "package:staging": "cross-env POS_CHANNEL=staging electron-vite build && cross-env POS_CHANNEL=staging electron-builder --config electron-builder.config.mjs --win",
     "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "devDependencies": {
