@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolvePort, resolveVersion, startServer } from "./server.js";
+import {
+  registerShutdownHandlers,
+  reportStartupFailure,
+  resolvePort,
+  resolveVersion,
+  shutdownServer,
+  startServer,
+} from "./server.js";
 
 describe("resolveVersion", () => {
   it("returns APP_VERSION when set", () => {
@@ -47,5 +54,84 @@ describe("startServer", () => {
     expect(buildApp).toHaveBeenCalledWith({ version: "sha123" });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
+  });
+});
+
+describe("shutdownServer", () => {
+  it("closes the app, then flushes Sentry, then exits 0", async () => {
+    const calls: string[] = [];
+    const close = vi.fn(async () => {
+      calls.push("close");
+    });
+    const flush = vi.fn(async (_timeoutMs: number) => {
+      calls.push("flush");
+      return true;
+    });
+    const exit = vi.fn((code: number) => {
+      calls.push(`exit ${code}`);
+    });
+
+    await shutdownServer({ close }, { flush, exit });
+
+    expect(calls).toEqual(["close", "flush", "exit 0"]);
+    expect(flush).toHaveBeenCalledWith(expect.any(Number));
+  });
+
+  it("still flushes Sentry and exits 1 when closing the app fails", async () => {
+    const close = vi.fn().mockRejectedValue(new Error("close failed"));
+    const flush = vi.fn().mockResolvedValue(true);
+    const exit = vi.fn();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await shutdownServer({ close }, { flush, exit });
+
+    expect(flush).toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+    vi.restoreAllMocks();
+  });
+});
+
+describe("registerShutdownHandlers", () => {
+  it("shuts the server down once on SIGTERM or SIGINT, even when both arrive", async () => {
+    const listeners = new Map<string, () => void>();
+    const signals = {
+      once: vi.fn((signal: string, listener: () => void) => {
+        listeners.set(signal, listener);
+      }),
+    };
+    const close = vi.fn().mockResolvedValue(undefined);
+    const flush = vi.fn().mockResolvedValue(true);
+    const exit = vi.fn();
+
+    registerShutdownHandlers({ close }, { signals, flush, exit });
+
+    expect([...listeners.keys()].sort()).toEqual(["SIGINT", "SIGTERM"]);
+    listeners.get("SIGTERM")?.();
+    listeners.get("SIGINT")?.();
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("reportStartupFailure", () => {
+  it("captures the error, flushes Sentry, then exits 1", async () => {
+    const calls: string[] = [];
+    const error = new Error("listen EADDRINUSE");
+    const captureException = vi.fn((captured: unknown) => {
+      calls.push(`capture ${(captured as Error).message}`);
+    });
+    const flush = vi.fn(async (_timeoutMs: number) => {
+      calls.push("flush");
+      return true;
+    });
+    const exit = vi.fn((code: number) => {
+      calls.push(`exit ${code}`);
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await reportStartupFailure(error, { captureException, flush, exit });
+
+    expect(calls).toEqual(["capture listen EADDRINUSE", "flush", "exit 1"]);
+    vi.restoreAllMocks();
   });
 });
