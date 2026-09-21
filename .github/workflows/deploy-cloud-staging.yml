@@ -17,6 +17,7 @@ permissions:
 jobs:
   build:
     name: build and push image
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -66,12 +67,11 @@ jobs:
   deploy:
     name: apply and deploy to staging
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: staging
     permissions:
       contents: read
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -115,6 +115,7 @@ jobs:
       # created a resource before failing on something else; a retried apply converges regardless.
       - name: Apply the staging infrastructure
         env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           CLOUD_SENTRY_DSN: ${{ vars.CLOUD_SENTRY_DSN }}
@@ -124,6 +125,7 @@ jobs:
 
       - name: Wait for the new deployment to succeed
         env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: cloud
           RAILWAY_ENVIRONMENT: staging
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
@@ -139,6 +141,7 @@ jobs:
       - name: Ensure the staging domain
         id: domain
         env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: cloud
           RAILWAY_ENVIRONMENT: staging
         run: node .github/scripts/railway-ensure-domain.mjs
