@@ -181,7 +181,8 @@ export default {
       name: "main-process-scope",
       comment:
         "apps/pos/src/main/ is the Electron main process shell: it may only import " +
-        "its own files, electron, electron-updater, @sentry/electron (Sentry is " +
+        "its own files, apps/pos/src/shared/ (pure code every process's Sentry init " +
+        "shares), electron, electron-updater, @sentry/electron (Sentry is " +
         "initialized in main), and Node builtins - not domain, contracts, ui, core, " +
         "renderer, or any other npm package.",
       severity: "error",
@@ -189,12 +190,24 @@ export default {
       to: {
         pathNot: [
           "^apps/pos/src/main/",
+          "^apps/pos/src/shared/",
           npmPackage("electron"),
           npmPackage("electron-updater"),
           npmPackage("@sentry/electron"),
         ],
         dependencyTypesNot: ["core"],
       },
+    },
+    {
+      name: "shared-is-pure",
+      comment:
+        "apps/pos/src/shared/ is imported by main, core and renderer alike, so it " +
+        "must depend on nothing that isn't already common to all three: no domain, " +
+        "contracts, ui, electron, or any other npm package or Node builtin - only " +
+        "its own files.",
+      severity: "error",
+      from: { path: "^apps/pos/src/shared/" },
+      to: { pathNot: "^apps/pos/src/shared/" },
     },
   ],
   options: {

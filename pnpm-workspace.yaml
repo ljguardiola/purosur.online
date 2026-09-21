@@ -6,3 +6,4 @@ allowBuilds:
   electron: true
   "@serialport/bindings-cpp": true
   esbuild: false
+  electron-winstaller: true
