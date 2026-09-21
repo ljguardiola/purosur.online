@@ -57,10 +57,12 @@ jobs:
       # its update feed only reach the installer's resources/channel.json and app-update.yml,
       # outside app.asar. An unset variable leaves that feature off in the installer. The staging
       # feed is a separate artifact in the staging bucket, so only the staging channel's job ever
-      # carries it; a production installer, on a PR or on main, never gets a value here.
+      # carries it; a production installer, on a PR or on main, never gets a value here. The DSN
+      # reaches only the job running under the staging environment, so no pull request installer
+      # and no production installer built here ever reports to Sentry.
       - run: pnpm --filter @purosur/pos package:${{ matrix.channel }}
         env:
-          POS_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
+          POS_SENTRY_DSN: ${{ (github.event_name == 'push' && matrix.channel == 'staging') && vars.POS_SENTRY_DSN || '' }}
           POS_UPDATE_FEED_URL: ${{ matrix.channel == 'staging' && vars.POS_UPDATE_FEED_URL || '' }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
