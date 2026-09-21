@@ -1,4 +1,5 @@
 import { messages } from "../messages";
+import { BrandPanelScreen } from "./BrandPanelScreen";
 import { CoreDownNotice } from "./CoreDownNotice";
 import { useCoreStatus } from "./useCoreStatus";
 
@@ -10,7 +11,7 @@ export function App() {
   }
 
   if (coreStatus === "starting") {
-    return <main />;
+    return <BrandPanelScreen />;
   }
 
   return (

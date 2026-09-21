@@ -8,11 +8,22 @@ function postCoreStatus(status: "starting" | "down" | "up"): void {
 }
 
 describe("App", () => {
-  it("shows neither the register nor the notice before the core reports it is ready", async () => {
+  it("shows only the brand panel before the core reports it is ready", async () => {
     const screen = await render(<App />);
+
+    await expect.element(screen.getByRole("img", { name: messages.brand.logoAlt })).toBeVisible();
+    await expect.element(screen.getByText(messages.shell.ready)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(messages.coreDown.title)).not.toBeInTheDocument();
+  });
+
+  it("leaves the register for the brand panel when a core that was up starts again", async () => {
+    const screen = await render(<App />);
+    postCoreStatus("up");
+    await expect.element(screen.getByText(messages.shell.ready)).toBeVisible();
 
     postCoreStatus("starting");
 
+    await expect.element(screen.getByRole("img", { name: messages.brand.logoAlt })).toBeVisible();
     await expect.element(screen.getByText(messages.shell.ready)).not.toBeInTheDocument();
     await expect.element(screen.getByText(messages.coreDown.title)).not.toBeInTheDocument();
   });
