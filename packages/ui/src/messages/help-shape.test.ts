@@ -3,8 +3,8 @@ import { defineHelp, type HelpArticle, type HelpArticles, type HelpBlock } from 
 
 const help = defineHelp("es-AR", {
   categories: {
-    getting_started: "Primeros pasos",
-    billing: "Facturación",
+    getting_started: { label: "Primeros pasos" },
+    billing: { label: "Facturación" },
   },
   articles: {
     intro: {

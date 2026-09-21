@@ -1,3 +1,5 @@
+export type { AreaNavItemIcon, AreaNavItemProps } from "./components/AreaNavItem";
+export { AreaNavItem } from "./components/AreaNavItem";
 export type {
   ButtonIcon,
   ButtonProps,
@@ -50,6 +52,8 @@ export type {
   SearchFieldVariant,
 } from "./components/SearchField";
 export { SearchField } from "./components/SearchField";
+export type { SectionNavItemIcon, SectionNavItemProps } from "./components/SectionNavItem";
+export { SectionNavItem } from "./components/SectionNavItem";
 export type {
   SegmentedControlIcon,
   SegmentedControlOption,
@@ -89,6 +93,7 @@ export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
 export type {
+  Category,
   CategoryRecord,
   HelpArticle,
   HelpArticles,

@@ -85,6 +85,7 @@ const decorativeTones = [
   "ink-panel-shadow",
   "brand-blue-ui-shadow",
   "ink-menu-shadow",
+  "surface-white-veil",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {

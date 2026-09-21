@@ -45,6 +45,9 @@
   --color-surface-sand: #ede8db;
   --color-surface-bone: #f6f6f4;
   --color-surface-white: #ffffff;
+  /* White at 15% opacity, for the backoffice area rail's active item, painted over the rail's
+     own dark blue-strong background. */
+  --color-surface-white-veil: #ffffff26;
   --color-ink: #1a1a1a;
   /* The status indicator's neutral tone: readable text without competing with primary ink. */
   --color-ink-secondary: #4a4a46;
