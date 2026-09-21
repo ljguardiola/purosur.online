@@ -105,7 +105,7 @@ async function pixelAt(x: number, y: number): Promise<[number, number, number, n
   const context = canvas.getContext("2d") as CanvasRenderingContext2D;
   context.drawImage(image, 0, 0);
   const dpr = window.devicePixelRatio || 1;
-  const [r, g, b, a] = context.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
+  const [r, g, b, a] = context.getImageData(Math.floor(x * dpr), Math.floor(y * dpr), 1, 1).data;
   return [r as number, g as number, b as number, a as number];
 }
 
@@ -2035,12 +2035,13 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   expect(button.getAttribute("data-focus-visible")).toBe("true");
 
   const rect = button.getBoundingClientRect();
+  const midY = rect.top + rect.height / 2;
 
-  // The ring itself is only a 3px inset band (outline-offset: -3px, see headerButtonClassName),
-  // not the button's whole interior, which stays transparent outside hover - probing anywhere
-  // past that band would read the toolbar through the button regardless of which one's z-index
-  // actually wins, telling nothing about containment. This point sits inside the ring's own band.
-  const ring = await pixelAt(rect.left + 1.5, rect.top + 1.5);
+  // Probed at the left edge's own vertical middle, away from the top-left corner's rounding and
+  // antialiasing (see the ring's own edge test below, which probes the same way): the ring itself
+  // is only a 3px inset band, not the button's whole interior, which stays transparent outside
+  // hover - a corner-adjacent probe reads a blend of both, telling nothing reliable either way.
+  const ring = await pixelAt(rect.left + 1.5, midY);
 
   expect(ring.slice(0, 3)).toEqual(toolbarColor);
 
@@ -2074,7 +2075,11 @@ test("reads the focused header's own ring color at the same probe point when the
   expect(button.getAttribute("data-focus-visible")).toBe("true");
 
   const rect = button.getBoundingClientRect();
-  const ring = await pixelAt(rect.left + 1.5, rect.top + 1.5);
+  const midY = rect.top + rect.height / 2;
+  // Same probe point as the test above (left edge, vertical middle), not literally rect.top: a
+  // corner-adjacent probe lands in the outline's own rounded-corner antialiasing, not a clean
+  // read of either color.
+  const ring = await pixelAt(rect.left + 1.5, midY);
 
   expect(ring.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
 
@@ -2095,7 +2100,14 @@ test("slides the updating bar's segment left to right in a loop", async () => {
 });
 
 test("slides the updating bar's segment exactly from off the left edge to off the right edge, with no dead time", async () => {
-  const screen = await render(<Table {...commonProps} columns={columns} loading="updating" />);
+  // Fixed width: the table is w-full, so an unwrapped render ties the bar's own width - and with
+  // it, how many px short of the edge duration - 1 (below) actually lands - to the runner's own
+  // viewport width, not a value this test controls.
+  const screen = await render(
+    <div style={{ width: "300px" }}>
+      <Table {...commonProps} columns={columns} loading="updating" />
+    </div>,
+  );
   const table = screen.getByRole("table").element() as HTMLElement;
   const bar = table.previousElementSibling as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
