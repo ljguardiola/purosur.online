@@ -63,7 +63,6 @@ export default defineConfig({
     resolve: {
       alias: {
         "@purosur/domain": r("../../packages/domain/src/index.ts"),
-        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
