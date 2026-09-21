@@ -98,33 +98,45 @@ export function ListFilter<V extends string>({
               " ",
             )}
           >
-            {/* shrink-0 keeps this out of the flex-shrink redistribution entirely (with it, even
-                a comfortably-fitting label would lose a proportional sliver alongside the value
-                the moment anything needs to shrink), so it only ever gives up width through the
-                max-width below, never through that redistribution. That max-width - 100% (this
-                item's own share of the trigger's content box) minus the chevron's own 16px, two
-                8px gaps and the value's own 16px ellipsis floor (see AriaSelectValue below) - is
-                exactly what's left once the chevron and a bare ellipsis are accounted for: under
-                it, the label renders at its own full natural width; over it, the flex algorithm
-                clamps the label to this ceiling before the redistribution phase even runs (a
-                flex item's hypothetical size is clamped to its own max-width first), which is
-                also why value never sees less than its own floor - by the time the label's
-                capped, there's nothing left to take from it. truncate (not just whitespace-nowrap
-                alone) turns that clamp into an ellipsis instead of a silent clip. */}
-            <span
-              id={labelId}
-              className="max-w-[calc(100%-48px)] shrink-0 truncate text-sm text-ink-secondary"
-            >
+            {/* The owner's rule ("the value shrinks first; the label only gives way once the
+                value is down to its own ellipsis") is expressed here as a shrink-factor
+                difference, not as arithmetic over the chevron's width and the gaps: an earlier
+                version capped this span's own max-width at a calc() derived from those - a
+                constant that could silently drift out of sync with them (nothing in the type
+                system or the test suite ties a max-w-[calc(...)] number back to what it's
+                actually built from), and that itself only ever approximated the rule, since a
+                flex item's max-width is evaluated against its container's *resolved* width, which
+                depends on the very intrinsic-sizing pass the label's own natural size feeds into -
+                self-referential in a way that made the label truncate at some widths it should've
+                stayed whole at (see the value's own shrink-[9999] below for why that specific
+                failure needed AriaSelectValue's own min-width, not a fix here). This shrink factor
+                needs no such constant: at a 1:9999 ratio, the label's own share of any shrinkage
+                is a fraction of a device sub-pixel until the value's own min-width (below) freezes
+                it - verified by comparing this span's own rendered width, constrained, against
+                its unconstrained natural width; the two matched to within 1/64px, well past any
+                rendering precision that could ever paint differently. truncate (overflow-hidden +
+                text-overflow: ellipsis + white-space: nowrap) is what turns that eventual clamp
+                into an ellipsis instead of a silent clip once the value has nothing left to give
+                and the label starts absorbing the rest. */}
+            <span id={labelId} className="shrink truncate text-sm text-ink-secondary">
               {label}
             </span>
-            {/* min-w-[16px]: truncate's own overflow-hidden already drops this item's automatic
-                minimum size to 0 (an overflow: hidden axis skips the content-based floor a plain
-                flex item would otherwise get), so without an explicit floor of its own the value
-                shrinks to nothing rather than an ellipsis once the label and chevron need the
-                room - the one thing this rule promises it never does. */}
+            {/* shrink-[9999]: takes on (effectively) the entire proportional shrink pass ahead of
+                the label's own default shrink factor above, so the value gives up room first,
+                down to min-w-7's own floor, before the label loses anything measurable (see the
+                label's own comment). min-w-7 (28px): truncate's own overflow-hidden already drops
+                this item's automatic minimum size to 0 (an overflow: hidden axis skips the
+                content-based floor a plain flex item would otherwise get), so without a floor of
+                its own the value shrinks to nothing rather than an ellipsis - the one thing this
+                rule promises it never does. 28px, not less: measured directly (a real ellipsis
+                glyph rendered and inspected pixel by pixel, not just its advance width from
+                canvas measureText, which undercounted it) - at 16px, a wide leading character
+                (like "W") only leaves room for 2 of the ellipsis's own 3 dots, clipping the glyph
+                itself; every width tried from 28px up rendered all 3 dots cleanly regardless of
+                the leading character measured against (digits, "i", "W", "M"). */}
             <AriaSelectValue
               id={valueId}
-              className="min-w-[16px] truncate text-base font-bold text-ink"
+              className="min-w-7 shrink-[9999] truncate text-base font-bold text-ink"
             />
             {isOpen ? (
               <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />

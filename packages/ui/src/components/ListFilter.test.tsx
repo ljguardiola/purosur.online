@@ -23,6 +23,24 @@ function baseProps(overrides: Partial<ListFilterProps<Status>> = {}): ListFilter
   };
 }
 
+// The value's own min-w-7 (see AriaSelectValue's own comment in ListFilter.tsx) - kept as one
+// named constant instead of repeating the literal, so every assertion that pins the floor's own
+// value moves together if that number ever changes.
+const VALUE_FLOOR_PX = 28;
+
+// The trigger's own border box has its own 2px border and 12px of padding past its actual
+// content - real slack a comparison against the border box alone would hide behind, letting
+// something that overflows into the padding (though not literally past the trigger's own drawn
+// edge) still read as "contained". Content edge, not border edge, is what containment means here.
+function contentEdgeRight(trigger: HTMLElement): number {
+  const style = getComputedStyle(trigger);
+  return (
+    trigger.getBoundingClientRect().right -
+    Number.parseFloat(style.paddingRight) -
+    Number.parseFloat(style.borderRightWidth)
+  );
+}
+
 test("renders closed at 44px with an 8px radius, a 2px line border and 12px padding", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
@@ -249,12 +267,39 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The label span's own max-width (see its comment in ListFilter.tsx) only binds once the
-// label's natural width exceeds what's left after the chevron, the gaps and the value's own
-// ellipsis floor: under that, the label renders whole and the value alone gives up room (proven
-// here); at or past it, the label truncates too, but never past its own formula's remainder, and
-// nothing - label, value or chevron - ever paints past the trigger's own right edge either way
-// (proven by the containment checks both this test and the one below share).
+// A value whose own natural width is under the floor (a single-character option, here) still
+// raises its own contribution to min-w-7 during the browser's intrinsic-sizing pass, before any
+// shrinking even starts - not just during that later shrink phase - so the trigger's own
+// shrink-to-fit width already reserves the floor for it from the very first layout pass. Without
+// that min-width, the trigger sizes itself as if the value only ever needed its own (smaller)
+// natural width, and a later pass then clips the label back down against that undersized trigger,
+// leaving a gap between the chevron and the trigger's own content edge - exactly the failure this
+// proves against, in an otherwise fully unconstrained trigger with nothing forcing any shrink.
+test("keeps the label whole and the chevron flush, with no gap, when the chosen value is narrower than its own floor", async () => {
+  const narrow: [ListFilterOption<string>] = [{ value: "a", label: "8" }];
+  const screen = await render(
+    <ListFilter label="Estado" options={narrow} value="a" onChange={() => {}} />,
+  );
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+  const label = trigger.children[0] as HTMLElement;
+  const value = trigger.children[1] as HTMLElement;
+  const chevron = trigger.querySelector("svg") as SVGSVGElement;
+
+  expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+  expect(value.getBoundingClientRect().width).toBeCloseTo(VALUE_FLOOR_PX, 0);
+  expect(chevron.getBoundingClientRect().right).toBeCloseTo(contentEdgeRight(trigger), 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The value's own much larger shrink factor (see its comment in ListFilter.tsx) means it absorbs
+// any shrinkage first: under it, the label renders whole and the value alone gives up room
+// (proven here); once the value is already down at its own min-w-7 floor, the label starts
+// giving way too (proven below), and nothing - label, value or chevron - ever paints past the
+// trigger's own content edge either way (proven by the containment checks both tests share). The
+// content edge, not the trigger's own border box, is what "never paints outside the trigger"
+// actually means: a border-box comparison alone has the trigger's own 2px border and 12px of
+// padding as unexamined slack a wrong measurement could hide behind and still pass.
 test("keeps the label whole and lets the value alone truncate when there's room for the label's own full width", async () => {
   const longOption: [ListFilterOption<string>, ListFilterOption<string>] = [
     { value: "a", label: "Un valor bastante largo para forzar el truncado" },
@@ -280,7 +325,7 @@ test("keeps the label whole and lets the value alone truncate when there's room 
   // trigger's own second direct child, not whatever getByText happens to match inside it.
   const value = trigger.children[1] as HTMLElement;
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
-  const triggerRect = trigger.getBoundingClientRect();
+  const contentRight = contentEdgeRight(trigger);
 
   // Whole: rendered at its own natural (scroll) width, nothing clipped off it.
   expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
@@ -288,17 +333,17 @@ test("keeps the label whole and lets the value alone truncate when there's room 
   // The value alone gave up the room: truncated, but never down to nothing - it still keeps
   // more than just its own bare ellipsis here, since there's room past the label's own width.
   expect(value.scrollWidth).toBeGreaterThan(value.clientWidth);
-  expect(value.getBoundingClientRect().width).toBeGreaterThan(16);
+  expect(value.getBoundingClientRect().width).toBeGreaterThan(VALUE_FLOOR_PX);
 
-  // Nothing paints past the trigger's own right edge.
-  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
-  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
-  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  // Nothing paints past the trigger's own content edge.
+  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
+  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("truncates the label too, down to its own formula, once even the value's ellipsis floor doesn't fit", async () => {
+test("truncates the label too, and pins the value at exactly its own floor, once even the value's ellipsis floor doesn't fit", async () => {
   const screen = await render(
     <div style={{ width: "90px", display: "flex" }}>
       <ListFilter
@@ -316,7 +361,7 @@ test("truncates the label too, down to its own formula, once even the value's el
     .element() as HTMLElement;
   const value = trigger.children[1] as HTMLElement;
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
-  const triggerRect = trigger.getBoundingClientRect();
+  const contentRight = contentEdgeRight(trigger);
 
   // Both give way: the label truncates too, not just wraps or overflows - a height comparison
   // against its own single line-height proves it never wrapped either, while it's shorter than
@@ -325,13 +370,16 @@ test("truncates the label too, down to its own formula, once even the value's el
   expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(labelLineHeight + 1);
   expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
 
-  // The value still keeps at least its own ellipsis, never down to nothing.
-  expect(value.getBoundingClientRect().width).toBeGreaterThan(0);
+  // The value is pinned at exactly its own floor here, not just "some width greater than zero" -
+  // that weaker check holds identically whether the floor is 28px, 1px or absent altogether
+  // (nothing else in this scenario stops the value shrinking further on its own), so only a
+  // direct comparison against the floor's own value actually exercises min-w-7 itself.
+  expect(value.getBoundingClientRect().width).toBeCloseTo(VALUE_FLOOR_PX, 0);
 
-  // Nothing paints past the trigger's own right edge, even here.
-  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
-  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
-  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  // Nothing paints past the trigger's own content edge, even here.
+  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
+  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -347,6 +395,24 @@ test("keeps the label fully legible, not truncated, when there's room for everyt
     .element() as HTMLElement;
 
   expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Neither a scrollWidth/clientWidth comparison nor a rendered-width check can tell truncate's own
+// overflow-hidden + text-overflow: ellipsis + white-space: nowrap apart from a hand-rolled
+// overflow-hidden whitespace-nowrap that clips silently instead - both clip the same box to the
+// same width. Only reading text-overflow itself off computed style catches replacing truncate
+// with that pair, which the comments on both spans in ListFilter.tsx specifically promise never
+// happens (a silent clip, not an ellipsis).
+test("shows an ellipsis, not a silent clip, on both the label and the value", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+  const label = trigger.children[0] as HTMLElement;
+  const value = trigger.children[1] as HTMLElement;
+
+  expect(getComputedStyle(label).textOverflow).toBe("ellipsis");
+  expect(getComputedStyle(value).textOverflow).toBe("ellipsis");
 
   await expectNoAccessibilityViolations(screen.container);
 });
