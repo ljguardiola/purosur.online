@@ -36,6 +36,24 @@ describe("scrubSentryEvent", () => {
     );
   });
 
+  it("redacts the query string and fragment of a relative path", () => {
+    const event = {
+      message: "GET /media/a.jpg?X-Amz-Signature=abc&token=x failed; see /docs/page#access_token=y",
+      extra: { url: "/media/a.jpg?X-Amz-Signature=abc" },
+    };
+
+    const scrubbed = scrubSentryEvent(event);
+
+    expect(scrubbed.message).toBe("GET /media/a.jpg?[redacted] failed; see /docs/page?[redacted]");
+    expect(scrubbed.extra).toEqual({ url: "/media/a.jpg?[redacted]" });
+  });
+
+  it("leaves a relative path without a query string untouched", () => {
+    const event = { message: "GET /fiscal/authorize returned 500" };
+
+    expect(scrubSentryEvent(event).message).toBe("GET /fiscal/authorize returned 500");
+  });
+
   it("leaves a URL without a query string untouched", () => {
     const event = { message: "GET https://cloud.purosur.online/health failed" };
 
@@ -71,6 +89,36 @@ describe("scrubSentryEvent", () => {
       auth_cookie: "[redacted]",
       event_id: "evt-1",
     });
+  });
+
+  it("redacts keys naming a session identifier, a CUIT or a DNI", () => {
+    const event = {
+      extra: {
+        session: "s1",
+        sessionId: "s2",
+        backoffice_session_id: "s3",
+        cuit: "20-12345678-9",
+        issuerCuit: "30-12345678-1",
+        customer_dni: "12345678",
+        Dni: "87654321",
+      },
+    };
+
+    expect(scrubSentryEvent(event).extra).toEqual({
+      session: "[redacted]",
+      sessionId: "[redacted]",
+      backoffice_session_id: "[redacted]",
+      cuit: "[redacted]",
+      issuerCuit: "[redacted]",
+      customer_dni: "[redacted]",
+      Dni: "[redacted]",
+    });
+  });
+
+  it("does not redact keys that merely contain those letters inside another word", () => {
+    const event = { extra: { admin_count: 2, circuit_id: "c-1", fiscal_document_id: "fd-1" } };
+
+    expect(scrubSentryEvent(event).extra).toEqual(event.extra);
   });
 
   it("redacts a bearer token or cookie value found in a string", () => {
