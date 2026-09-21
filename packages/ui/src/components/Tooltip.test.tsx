@@ -55,6 +55,22 @@ const axeOptions = {
 // machine without making the delay test meaningfully slower.
 const COOLDOWN_BUFFER_MS = 500;
 
+// Long enough to outlast react-aria's own 1500ms default delay, so a tooltip that merely opens
+// late still reports its elapsed time rather than this.
+const MEASUREMENT_DEADLINE_MS = 3000;
+
+function beforeDeadline(measurement: Promise<number>, whatNeverHappened: string): Promise<number> {
+  let deadline: ReturnType<typeof setTimeout>;
+  const expiry = new Promise<never>((_, reject) => {
+    deadline = setTimeout(
+      () => reject(new Error(`${whatNeverHappened} within ${MEASUREMENT_DEADLINE_MS}ms`)),
+      MEASUREMENT_DEADLINE_MS,
+    );
+  });
+
+  return Promise.race([measurement, expiry]).finally(() => clearTimeout(deadline));
+}
+
 // Everything the browser puts in the sequential tab order, plus the elements that take focus on
 // a click without being tabbable: a tooltip must hold none of them, since it closes the moment
 // its element loses focus and focus moved into it would land in a box that is about to vanish.
@@ -370,11 +386,16 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   // react-aria starts the delay when the pointer enters the element, so both ends of the interval
   // are taken inside the page, where the tooltip's DOM lands: the time the test runner takes to
   // deliver the hover, and how often it would poll, are left out of what is measured.
+  const watch = new AbortController();
+  let observer: MutationObserver | undefined;
   const enteredAt = new Promise<number>((resolve) => {
-    trigger.addEventListener("pointerenter", () => resolve(performance.now()), { once: true });
+    trigger.addEventListener("pointerenter", () => resolve(performance.now()), {
+      once: true,
+      signal: watch.signal,
+    });
   });
   const appearedAt = new Promise<number>((resolve) => {
-    const observer = new MutationObserver((records) => {
+    observer = new MutationObserver((records) => {
       const tooltipAdded = records.some((record) =>
         Array.from(record.addedNodes).some(
           (node) =>
@@ -383,15 +404,25 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
         ),
       );
       if (tooltipAdded) {
-        observer.disconnect();
         resolve(performance.now());
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
   });
 
-  await userEvent.hover(trigger);
-  const elapsedMs = (await appearedAt) - (await enteredAt);
+  let elapsedMs: number;
+  try {
+    await userEvent.hover(trigger);
+    // Both ends of the interval come from events in the page rather than from a poll the runner
+    // controls, so an end that never arrives would otherwise sit here until the runner gives up on
+    // the whole test, reporting its timeout instead of which end went missing.
+    elapsedMs =
+      (await beforeDeadline(appearedAt, "the tooltip was never added to the page")) -
+      (await beforeDeadline(enteredAt, "the pointer never entered the element"));
+  } finally {
+    watch.abort();
+    observer?.disconnect();
+  }
 
   expect(elapsedMs).toBeGreaterThan(280);
   expect(elapsedMs).toBeLessThan(400);
