@@ -8,22 +8,27 @@ const channel = process.env.POS_CHANNEL === "homologation" ? "homologation" : "p
 const channelConfig = {
   production: {
     appId: "online.purosur.pos",
+    packageName: "purosur-pos",
     productName: "Puro Sur",
     updateFeedUrl: process.env.POS_UPDATE_FEED_URL_PRODUCTION,
   },
   homologation: {
     appId: "online.purosur.pos.homologation",
+    packageName: "purosur-pos-homologation",
     productName: "Puro Sur Homologación",
     updateFeedUrl: process.env.POS_UPDATE_FEED_URL_HOMOLOGATION,
   },
 };
 
-const { appId, productName, updateFeedUrl } = channelConfig[channel];
+const { appId, packageName, productName, updateFeedUrl } = channelConfig[channel];
 
 /** @type {import('electron-builder').Configuration} */
 export default {
   appId,
   productName,
+  // Electron takes the app's name, and so its userData folder, from the packaged package.json
+  // rather than from this configuration.
+  extraMetadata: { name: packageName, productName },
   directories: {
     output: `release/${channel}`,
   },

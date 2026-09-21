@@ -2,8 +2,26 @@ name: Package register
 
 on:
   pull_request:
+    paths:
+      - apps/pos/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.json
+      - .node-version
+      - .github/workflows/package-pos.yml
   push:
     branches: [main]
+    paths:
+      - apps/pos/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.json
+      - .node-version
+      - .github/workflows/package-pos.yml
 
 permissions:
   contents: read
@@ -14,7 +32,11 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        channel: [production, homologation]
+        include:
+          - channel: production
+            sentry-dsn-variable: POS_SENTRY_DSN_PRODUCTION
+          - channel: homologation
+            sentry-dsn-variable: POS_SENTRY_DSN_HOMOLOGATION
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -27,7 +49,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Each channel reads its own repository variables; an unset one leaves that feature off in
+      # the installer. electron-builder.config.mjs only reads the feed of the channel it packages.
       - run: pnpm --filter @purosur/pos package:${{ matrix.channel }}
+        env:
+          MAIN_VITE_SENTRY_DSN: ${{ vars[matrix.sentry-dsn-variable] }}
+          RENDERER_VITE_SENTRY_DSN: ${{ vars[matrix.sentry-dsn-variable] }}
+          POS_UPDATE_FEED_URL_PRODUCTION: ${{ vars.POS_UPDATE_FEED_URL_PRODUCTION }}
+          POS_UPDATE_FEED_URL_HOMOLOGATION: ${{ vars.POS_UPDATE_FEED_URL_HOMOLOGATION }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
