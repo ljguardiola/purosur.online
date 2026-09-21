@@ -732,7 +732,12 @@ function labelSpan(button: HTMLElement): HTMLElement {
 // A width or overflow reading cannot tell truncate's own ellipsis apart from a silent clip: both
 // clip to the same box, and scrollWidth reports the same overflow either way. Only the computed
 // text-overflow catches that swap, so every truncation this suite proves is read through here.
+// The clip box's own width is read first: squeezed to nothing it still holds more content than it
+// has room for, and text-overflow still computes to ellipsis, while nothing is painted at all —
+// neither a character of the label nor the ellipsis standing in for the rest. A label shortened to
+// an ellipsis has to have room to show one, so a box that shows nothing does not pass for one.
 function expectTruncatedWithEllipsis(span: HTMLElement, label: string): void {
+  expect(span.clientWidth, `${label} visible`).toBeGreaterThan(0);
   expect(span.scrollWidth, `${label} truncated`).toBeGreaterThan(span.clientWidth);
   expect(getComputedStyle(span).textOverflow, `${label} ellipsis`).toBe("ellipsis");
 }
@@ -1036,6 +1041,12 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
   const row = screen.container.firstElementChild as Element;
   const [sibling, stretched] = widthsInRow(row);
   const [siblingButton, stretchedButton] = [...row.children] as HTMLElement[];
+  const stretchedStyle = getComputedStyle(stretchedButton as HTMLElement);
+  const chrome =
+    Number.parseFloat(stretchedStyle.paddingLeft) +
+    Number.parseFloat(stretchedStyle.paddingRight) +
+    Number.parseFloat(stretchedStyle.borderLeftWidth) +
+    Number.parseFloat(stretchedStyle.borderRightWidth);
 
   const roomy = await render(
     <div style={rowStyle}>
@@ -1048,14 +1059,41 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
   // The boundary of what stretching can promise. Once a row is narrower than its buttons, it takes
   // width from all of them: the one that never asked to stretch is narrower here than the same
   // button in a row with room, and both shrink down to what the row actually has for them instead
-  // of past it — the row no longer spills, and it is each button's own label that gives way,
-  // shortening to an ellipsis. Asking to stretch neither causes that nor escapes it.
+  // of past it — the row no longer spills. Asking to stretch neither causes that nor escapes it.
   expect(sibling as number).toBeLessThan(siblingWithRoom as number);
   expect(stretched as number).toBeGreaterThan(0);
   expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(200, 0);
   expect(row.getBoundingClientRect().width).toBeCloseTo(200, 0);
+  // The squeezed sibling still has room for a label, and it is that label that gives way.
   expectTruncatedWithEllipsis(labelSpan(siblingButton as HTMLElement), "sibling");
-  expectTruncatedWithEllipsis(labelSpan(stretchedButton as HTMLElement), "stretched");
+  // This row is narrow enough that the stretched button is left with nothing but its own chrome:
+  // padding and border do not shrink, so it stops at their width with none left over for a label,
+  // and the clip box shows neither the label nor an ellipsis. The test below takes the same row
+  // wide enough to leave it room, where the label shortens instead.
+  expect(stretched as number, "stretched down to its chrome").toBeCloseTo(chrome, 0);
+  expect(labelSpan(stretchedButton as HTMLElement).clientWidth, "stretched label box").toBe(0);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shortens a stretched button's label to an ellipsis where the row leaves it room for one", async () => {
+  // 300px is the same row with 100px more: the sibling is back at the 177px it takes on its own,
+  // leaving the stretched button 111px of width for a label that needs 140 — past its chrome, so
+  // there is a clip box to shorten the label inside, and still short of holding it whole.
+  const screen = await render(
+    <div style={{ width: "300px", display: "flex", gap: "12px" }}>
+      <Button variant="secondary">Salir sin completar</Button>
+      <Button fullWidth>Confirmar la venta</Button>
+    </div>,
+  );
+  const row = screen.container.firstElementChild as Element;
+  const [sibling, stretched] = widthsInRow(row);
+  const [, stretchedButton] = [...row.children] as HTMLElement[];
+  const span = labelSpan(stretchedButton as HTMLElement);
+
+  expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(300, 0);
+  expectTruncatedWithEllipsis(span, "stretched");
+  // Shortened on the screen only: the label the button was given is all still there to be read out.
+  expect(span.textContent, "stretched label").toBe("Confirmar la venta");
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -1253,8 +1291,13 @@ test("truncates only once the label's own rendered width passes what the button 
       naturalButton.getBoundingClientRect().width - naturalSpan.getBoundingClientRect().width;
     const exactWidth = textNodeRect(naturalSpan.firstChild as ChildNode).width + chrome;
 
+    // A pixel of slack on this side, because the comparison below rounds the two widths it reads
+    // apart: exactWidth is fractional wherever the text advance is, and a container a fraction
+    // short of it leaves clientWidth rounded down one pixel under the scrollWidth rounded up from
+    // that same text — the font and the device pixel ratio deciding it, not the button. The
+    // truncated case stays a pixel under exactWidth, so what is proven is still the boundary.
     const fits = await render(
-      <div style={{ width: `${exactWidth}px`, display: "flex" }}>
+      <div style={{ width: `${exactWidth + 1}px`, display: "flex" }}>
         <Button size={size} fullWidth>
           {label}
         </Button>
@@ -1322,6 +1365,10 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
         expect(spanRect.bottom, `${caseLabel} bottom`).toBeLessThanOrEqual(buttonRect.bottom);
         expect(spanRect.left, `${caseLabel} left`).toBeGreaterThanOrEqual(buttonRect.left);
         expect(spanRect.right, `${caseLabel} right`).toBeLessThanOrEqual(buttonRect.right);
+        // Every one of these labels is too long to be drawn whole, and what stands in its place is
+        // an ellipsis: read here for each variant and size, since a height or a containment reading
+        // holds just the same for a label clipped without one.
+        expectTruncatedWithEllipsis(span, caseLabel);
         // Neither form grows past the container it was given: the stretched one fills the row and
         // stops there, and the content-sized one is capped at the narrow block's width instead of
         // sizing itself to this label.

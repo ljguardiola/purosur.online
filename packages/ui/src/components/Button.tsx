@@ -32,8 +32,9 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // for or not, down past the width the label needs to show whole — the label then shortens to an
   // ellipsis instead of wrapping onto a second line or spilling past the button. A row only as
   // wide as what it holds has nothing free to give, a container that is not a row leaves a button
-  // its own width, and a vertical stack hands it the full width already, so none of those is what
-  // this is for.
+  // the narrower of its own width and that container's — shortening the label the same way when
+  // the container is the narrower of the two — and a vertical stack hands it the full width
+  // already, so none of those is what this is for.
   fullWidth?: boolean;
 };
 
