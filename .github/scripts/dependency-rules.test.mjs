@@ -309,6 +309,29 @@ test("model-not-use-cases flags model reaching use-cases through an index.ts, it
     "packages/domain/src/returns/use-cases/refund.ts",
     "packages/domain/src/sales/use-cases/create-order.ts",
   ]);
+
+  await writeFixtureFile(
+    root,
+    "packages/domain/src/returns/index.ts",
+    'export { refundPolicy } from "./model/refund-policy";\n',
+  );
+  await writeFixtureFile(
+    root,
+    "packages/domain/src/returns/model/refund-policy.ts",
+    "export function refundPolicy() {}\n",
+  );
+  await writeFixtureFile(
+    root,
+    "packages/domain/src/sales/model/order.ts",
+    [
+      'import { refundPolicy } from "../../returns/index";',
+      "export function order() {",
+      "  return refundPolicy();",
+      "}",
+    ].join("\n"),
+  );
+  const controlReport = await cruiseFixture(root, ["packages"]);
+  assert.equal(violationsFor(controlReport, "model-not-use-cases").length, 0);
 });
 
 test("concept-entry-point-only flags reaching into another concept's internals and allows its index.ts", async (t) => {
@@ -626,7 +649,9 @@ test("renderer-no-node-builtins flags a Node builtin and allows importing packag
 });
 
 test("register-no-cloud-use-cases flags reaching each cloud-only concept's use case and allows reaching a register use case", async (t) => {
-  const cloudOnlyConcepts = ["purchasing", "alerts", "catalog", "pricing"];
+  // Pinned here too, so dropping a concept from the config shows up in this file's diff.
+  assert.deepEqual(CLOUD_ONLY_CONCEPTS, ["purchasing", "alerts", "catalog", "pricing"]);
+  const cloudOnlyConcepts = CLOUD_ONLY_CONCEPTS;
   const files = {
     "apps/pos/src/main/index.ts": importEach(
       cloudOnlyConcepts.map((concept) => `../../../../packages/domain/src/${concept}/index`),

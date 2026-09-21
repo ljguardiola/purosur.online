@@ -58,8 +58,15 @@
       "includes": ["apps/pos/src/renderer/**"],
       "linter": {
         "rules": {
+          "correctness": {
+            "noUnusedImports": "error"
+          },
           "style": {
             "useImportType": {
+              "level": "error",
+              "options": { "style": "separatedType" }
+            },
+            "useExportType": {
               "level": "error",
               "options": { "style": "separatedType" }
             }

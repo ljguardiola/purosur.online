@@ -56,8 +56,11 @@ export default {
         "never the reverse.",
       severity: "error",
       from: { path: "^packages/domain/src/[^/]+/model/" },
-      // Not narrowed to the same concept on purpose: reachable rules don't carry
-      // `from` capture groups into `to.path`, so `$1` would stay literal.
+      // Not narrowed to the same concept on purpose: the final validation of a
+      // reachable rule matches `to.path` without the `from` capture groups, so a
+      // positive `$1` stays literal and never matches. (A negative lookahead like
+      // no-use-case-to-use-case's `(?!$1/)` survives that because it degrades to
+      // always-true after the derive step has already narrowed by concept.)
       to: { path: "^packages/domain/src/[^/]+/use-cases/", reachable: true },
     },
     {
