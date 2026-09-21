@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import type { FastifyInstance } from "fastify";
@@ -9,10 +10,17 @@ export interface ServerEnv {
   APP_VERSION?: string | undefined;
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
+  BACKOFFICE_STATIC_DIR?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_VERSION = "unknown";
+
+// `pnpm --filter @purosur/cloud deploy --prod` (see apps/cloud/Dockerfile) puts this compiled
+// server at <deploy>/dist/server.js; the Dockerfile copies the backoffice's own build to
+// <deploy>/public next to it, so this resolves there by default with no env var needed in the
+// common case. BACKOFFICE_STATIC_DIR still overrides it for any other layout.
+const DEFAULT_STATIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
 /** `APP_VERSION` is baked into the image at build time (the commit SHA); "unknown" is a dev-only fallback. */
 export function resolveVersion(env: ServerEnv): string {
@@ -22,6 +30,20 @@ export function resolveVersion(env: ServerEnv): string {
 export function resolvePort(env: ServerEnv): number {
   const parsed = env.PORT ? Number.parseInt(env.PORT, 10) : Number.NaN;
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
+}
+
+/**
+ * An explicit `BACKOFFICE_STATIC_DIR` is trusted even if it doesn't exist yet, so a real
+ * misconfiguration fails loudly at startup instead of silently serving no backoffice. The
+ * conventional default is only used when it actually exists on disk, so a plain `cloud` checkout
+ * with no backoffice build still starts and serves `/health` — it just 404s everything else,
+ * exactly as it did before this option existed.
+ */
+export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | undefined {
+  if (env.BACKOFFICE_STATIC_DIR) {
+    return env.BACKOFFICE_STATIC_DIR;
+  }
+  return existsSync(defaultDir) ? defaultDir : undefined;
 }
 
 export interface StartServerDeps {
@@ -38,7 +60,10 @@ export async function startServer(
 
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
 
-  const app = doBuildApp({ version: resolveVersion(env) });
+  const app = doBuildApp({
+    version: resolveVersion(env),
+    staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
+  });
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;
 }

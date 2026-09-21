@@ -1,8 +1,12 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   registerShutdownHandlers,
   reportStartupFailure,
   resolvePort,
+  resolveStaticDir,
   resolveVersion,
   shutdownServer,
   startServer,
@@ -31,8 +35,29 @@ describe("resolvePort", () => {
   });
 });
 
+describe("resolveStaticDir", () => {
+  it("returns BACKOFFICE_STATIC_DIR when set, trusting it even if it doesn't exist yet", () => {
+    expect(resolveStaticDir({ BACKOFFICE_STATIC_DIR: "/does/not/exist" }, "/default")).toBe(
+      "/does/not/exist",
+    );
+  });
+
+  it("returns the default directory when it exists on disk", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cloud-static-default-"));
+    try {
+      expect(resolveStaticDir({}, dir)).toBe(dir);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns undefined when neither an override nor the default directory exists", () => {
+    expect(resolveStaticDir({}, "/definitely/does/not/exist/purosur-backoffice")).toBeUndefined();
+  });
+});
+
 describe("startServer", () => {
-  it("initializes Sentry, builds the app with the resolved version, and listens on PORT/0.0.0.0", async () => {
+  it("initializes Sentry, builds the app with the resolved version and static dir, and listens on PORT/0.0.0.0", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
     const initSentry = vi.fn();
@@ -43,6 +68,7 @@ describe("startServer", () => {
       APP_VERSION: "sha123",
       SENTRY_DSN: "https://public@sentry.example/1",
       SENTRY_ENVIRONMENT: "staging",
+      BACKOFFICE_STATIC_DIR: "/app/public",
     };
 
     const app = await startServer(env, { initSentry, buildApp });
@@ -51,9 +77,19 @@ describe("startServer", () => {
       dsn: "https://public@sentry.example/1",
       environment: "staging",
     });
-    expect(buildApp).toHaveBeenCalledWith({ version: "sha123" });
+    expect(buildApp).toHaveBeenCalledWith({ version: "sha123", staticDir: "/app/public" });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
+  });
+
+  it("builds the app with an undefined staticDir when none is configured and the default doesn't exist", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer({}, { initSentry: vi.fn(), buildApp });
+
+    expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
   });
 });
 

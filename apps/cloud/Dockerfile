@@ -17,6 +17,15 @@ RUN pnpm install --frozen-lockfile --filter @purosur/cloud...
 RUN pnpm --filter @purosur/cloud build
 RUN pnpm --filter @purosur/cloud deploy --prod /deploy/cloud
 
+# A second, independent stage: the backoffice's own build tooling (Vite, Tailwind, React) has
+# nothing to do with the cloud service's dependency graph, so it gets its own filtered install
+# instead of widening the one above. Both stages only depend on `base`, so a BuildKit builder runs
+# them in parallel.
+FROM base AS build-backoffice
+COPY . .
+RUN pnpm install --frozen-lockfile --filter @purosur/backoffice...
+RUN pnpm --filter @purosur/backoffice build
+
 FROM base AS runtime
 # Baked in at build time (the commit SHA); GET /health reports it back so a deploy can be verified.
 ARG APP_VERSION
@@ -24,6 +33,9 @@ ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /deploy/cloud ./
+# server.ts's default BACKOFFICE_STATIC_DIR resolves to <this file's dir>/../public, i.e.
+# /app/public from dist/server.js - matched here, so no env var is needed in the common case.
+COPY --from=build-backoffice /repo/apps/backoffice/dist ./public
 RUN addgroup -S cloud && adduser -S cloud -G cloud && chown -R cloud:cloud /app
 USER cloud
 EXPOSE 3000

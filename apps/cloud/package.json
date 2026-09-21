@@ -13,6 +13,7 @@
     "migrate": "node dist/migrate.js"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.4",
     "@sentry/node": "^10.75.0",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.12.5",
