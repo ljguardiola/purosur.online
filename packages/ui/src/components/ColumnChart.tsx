@@ -31,12 +31,14 @@ const chartWidthClassName = "w-max min-w-full";
 // wide tick moves the labels by exactly as much as the bars.
 const visualGridClassName =
   "grid grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5";
-// The ticks stay in flow, so the widest one sets the column's width, on one line: a max-content
-// track never wraps what it was sized from. Each tick's 16px line box is centered on its grid
-// line, so the column is the 150px plot plus half a line box above and below, pulled out by that
-// half on each side so the row stays as tall as the plot.
+// The ticks stay in flow, so the widest one sets the column's width; the chart is never narrower
+// than its content, so the track always reaches that width and no tick wraps. Each tick's 16px
+// line box is centered on its grid line, so the column is the 150px plot plus half a line box
+// above and below, pulled out by that half on each side so the row stays as tall as the plot.
 const axisColumnClassName = "-my-2 flex h-[166px] flex-col justify-between";
-const axisTickClassName = "text-right text-xs font-normal text-ink-secondary";
+// A fixed height, so a tick the caller formats as empty still takes its line and leaves the others
+// on theirs.
+const axisTickClassName = "h-4 text-right text-xs font-normal text-ink-secondary";
 const plotClassName = "relative h-[150px]";
 const gridLineClassName = "absolute inset-x-0 h-px bg-line";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.

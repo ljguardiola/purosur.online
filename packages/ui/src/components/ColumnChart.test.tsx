@@ -468,6 +468,11 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
     expect(contrast).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
   }
 
+  // The axis column is taller than the plot, so pin that the row it shares stays the plot's height
+  // and the labels stay 6px below it.
+  expect(plotRect.height).toBeCloseTo(150, 0);
+  expect(labelsContainer(screen).getBoundingClientRect().top - plotRect.bottom).toBeCloseTo(6, 0);
+
   const lines = gridLines(screen);
   for (let i = 0; i < ticks.length; i++) {
     const tickRect = textRunRect(at(ticks, i));
@@ -542,6 +547,45 @@ test("keeps the axis at its 64px floor when every tick's natural width sits righ
     expect(textRunLineCount(tick)).toBe(1);
     expect(runRect.width).toBeCloseTo(naturalWidth, 0);
     expect(runRect.right).toBeCloseTo(axisRect.right, 0);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("grows the axis by exactly the overflow of a tick just past the 64px floor", async () => {
+  const pastBoundaryText = `${buildLabelAtWidth(64)}x`;
+  const naturalWidth = measureNaturalWidth(pastBoundaryText);
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={() => pastBoundaryText} emptyMessage="No data" />,
+  );
+  const axisRect = axisColumn(screen).getBoundingClientRect();
+  const plotRect = plotArea(screen).getBoundingClientRect();
+
+  expect(naturalWidth).toBeGreaterThan(64);
+  expect(axisRect.width).toBeCloseTo(naturalWidth, 0);
+  expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
+  for (const tick of axisTicks(screen)) {
+    expect(textRunRect(tick).width).toBeCloseTo(naturalWidth, 0);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps every other tick on its grid line when the formatter leaves one tick empty", async () => {
+  const hideZero = (value: number) => (value === 0 ? "" : formatCurrency(value));
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={hideZero} emptyMessage="No data" />,
+  );
+  const ticks = axisTicks(screen);
+  const lines = gridLines(screen);
+
+  expect(at(ticks, 5).textContent).toBe("");
+  for (let i = 0; i < 5; i++) {
+    const tickRect = textRunRect(at(ticks, i));
+    expect((tickRect.top + tickRect.bottom) / 2, `tick ${i}`).toBeCloseTo(
+      at(lines, i).getBoundingClientRect().top,
+      0,
+    );
   }
 
   await expectNoAccessibilityViolations(screen.container);
