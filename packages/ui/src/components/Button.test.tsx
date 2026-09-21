@@ -734,8 +734,9 @@ function labelSpan(button: HTMLElement): HTMLElement {
 // text-overflow catches that swap, so every truncation this suite proves is read through here.
 // The clip box's own width is read first: squeezed to nothing it still holds more content than it
 // has room for, and text-overflow still computes to ellipsis, while nothing is painted at all —
-// neither a character of the label nor the ellipsis standing in for the rest. A label shortened to
-// an ellipsis has to have room to show one, so a box that shows nothing does not pass for one.
+// neither a character of the label nor the ellipsis standing in for the rest. That is the reading
+// this rules out, a box of no width whatsoever; a box narrower than the ellipsis glyph paints
+// nothing either, and no button here is squeezed that far, so nothing measures one.
 function expectTruncatedWithEllipsis(span: HTMLElement, label: string): void {
   expect(span.clientWidth, `${label} visible`).toBeGreaterThan(0);
   expect(span.scrollWidth, `${label} truncated`).toBeGreaterThan(span.clientWidth);
