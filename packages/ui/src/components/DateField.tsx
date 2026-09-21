@@ -1,4 +1,4 @@
-import { type CalendarDate, parseDate } from "@internationalized/date";
+import type { CalendarDate } from "@internationalized/date";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useId } from "react";
 import {
@@ -6,6 +6,9 @@ import {
   Calendar as AriaCalendar,
   CalendarCell as AriaCalendarCell,
   CalendarGrid as AriaCalendarGrid,
+  CalendarGridBody as AriaCalendarGridBody,
+  CalendarGridHeader as AriaCalendarGridHeader,
+  CalendarHeaderCell as AriaCalendarHeaderCell,
   DateInput as AriaDateInput,
   DatePicker as AriaDatePicker,
   DateSegment as AriaDateSegment,
@@ -21,12 +24,15 @@ import type { Locale } from "../messages/formatters";
 
 export type DateFieldVariant = "register" | "backoffice";
 
+// The date is a calendar date, never text: a CalendarDate can only ever hold a day that exists
+// (its own constructor constrains February 30th to the 28th rather than refusing it), so no
+// caller value can reach this component as something it would have to parse and could fail on.
 type DateFieldCommonProps = {
   variant: DateFieldVariant;
   label: string;
-  // ISO 8601 "YYYY-MM-DD", or "" when no date is chosen.
-  value: string;
-  onChange: (value: string) => void;
+  // `null` when no date is chosen.
+  value: CalendarDate | null;
+  onChange: (value: CalendarDate | null) => void;
   helperText?: string;
   disabled?: boolean;
 };
@@ -36,8 +42,8 @@ type DateFieldCommonProps = {
 // same discipline).
 type DateFieldRangeProps =
   | { minValue?: undefined; maxValue?: undefined; rangeMessage?: undefined }
-  | { minValue: string; maxValue?: string; rangeMessage: string }
-  | { minValue?: string; maxValue: string; rangeMessage: string };
+  | { minValue: CalendarDate; maxValue?: CalendarDate; rangeMessage: string }
+  | { minValue?: CalendarDate; maxValue: CalendarDate; rangeMessage: string };
 
 export type DateFieldProps = DateFieldCommonProps & DateFieldRangeProps;
 
@@ -45,14 +51,8 @@ export type DateFieldProps = DateFieldCommonProps & DateFieldRangeProps;
 // Spanish, in both apps this package serves; see packages/ui/src/messages/formatters.ts.
 const LOCALE: Locale = "es-AR";
 
-function parseValue(value: string): CalendarDate | null {
-  return value === "" ? null : parseDate(value);
-}
-
 const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
 
-// The label-to-box gap per variant, as design.pen draws it: 6px for the "Vencimiento" frame
-// (Vf9w7), 4px for every compact "Fecha" frame (MEucn, tUUXc, y0uNJ, P0EsW0).
 const wrapperGapClassName: Record<DateFieldVariant, string> = {
   register: "gap-1.5",
   backoffice: "gap-1",
@@ -75,15 +75,31 @@ const valueClassName: Record<DateFieldVariant, string> = {
 
 const inputBaseClassName = "flex min-w-0 flex-1 outline-none";
 
-// Sized to the 18px the design draws, following IconButton.tsx's own wrapping technique: the
-// wrapper's CSS size is what actually renders, regardless of the icon's own markup. The calendar
-// toggle button is a real tab stop of its own, so it carries the package's own outline focus ring
-// (see Button.tsx's own baseClassName) rather than the field's inset shadow, which belongs to the
-// box as a whole.
-const iconWrapperClassName =
-  "inline-flex size-[1.125rem] shrink-0 text-ink-secondary outline-none [&>svg]:h-full [&>svg]:w-full " +
+// A placeholder segment drawn in the value's own tone makes an empty field read as one already
+// holding a date, so it dims to the secondary tone the way SearchField.tsx's own placeholder does.
+// The focused segment carries a fill of its own because the box's focus shadow is identical
+// whichever segment is active and this field draws no caret: the fill and its white text are the
+// same pair the calendar already uses for the chosen day, whose contrast is checked there too.
+// `not-data-[focused]` keeps the placeholder tone from ever winning over the focused segment's
+// own text color, regardless of the order the two rules compile in.
+const segmentClassName =
+  "rounded-sm outline-none " +
+  "data-[placeholder]:not-data-[focused]:text-ink-secondary " +
+  "data-[focused]:bg-brand-blue-ui data-[focused]:text-surface-white";
+
+// IconButton.tsx's own wrapping technique, both halves of it: the button is the pointer target
+// and an inner wrapper's CSS size is what draws the glyph, regardless of the icon's own markup.
+// WCAG 2.5.8 sets 24x24 CSS px as the minimum target, and the 18px the design draws for the glyph
+// is well under it on a touch-screen register, so the button is 24px square and the glyph keeps
+// its 18px inside it — small enough to sit inside both the 56px and 48px box heights untouched.
+// The calendar toggle button is a real tab stop of its own, so it carries the package's own
+// outline focus ring (see Button.tsx's own baseClassName) rather than the field's inset shadow,
+// which belongs to the box as a whole.
+const iconButtonClassName =
+  "inline-flex size-6 shrink-0 items-center justify-center text-ink-secondary outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+const iconGlyphClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
@@ -116,6 +132,7 @@ const calendarHeadingClassName = "text-base font-bold text-ink capitalize";
 const calendarNavButtonClassName =
   "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-ink-secondary outline-none " +
   "data-[hovered]:bg-surface-bone " +
+  "data-[disabled]:opacity-[0.45] " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 const calendarNavIconClassName =
@@ -126,6 +143,10 @@ const calendarNavIconClassName =
 // ring's brand-blue-strong color to under 2:1 contrast against it. 6px of real spacing (the
 // package's 1.5 step) keeps the ring inside its own cell's gap on every side.
 const calendarGridClassName = "border-separate border-spacing-1.5";
+// The weekday abbreviations name the columns rather than carrying the calendar's own content, so
+// they take the package's supporting-text scale and tone (the same pair helperClassName uses)
+// instead of inheriting whatever typography the surrounding page happens to set.
+const calendarWeekdayClassName = "size-9 text-sm font-normal text-ink-secondary";
 const calendarCellClassName =
   "size-9 cursor-default rounded-md text-center align-middle text-base text-ink outline-none " +
   "data-[hovered]:bg-surface-bone " +
@@ -139,8 +160,10 @@ const calendarCellClassName =
 // separate decorative icon beside it.
 function CalendarToggleButton() {
   return (
-    <AriaButton className={iconWrapperClassName}>
-      <CalendarIcon aria-hidden="true" />
+    <AriaButton className={iconButtonClassName}>
+      <span aria-hidden="true" className={iconGlyphClassName}>
+        <CalendarIcon />
+      </span>
     </AriaButton>
   );
 }
@@ -150,25 +173,28 @@ export function DateField(props: DateFieldProps) {
   // Names the open calendar's own dialog by the month and year it shows, instead of react-aria's
   // own default of reusing the field's label: that label already names the field itself.
   const calendarHeadingId = useId();
-  const minValue = props.minValue !== undefined ? parseValue(props.minValue) : null;
-  const maxValue = props.maxValue !== undefined ? parseValue(props.maxValue) : null;
+  const minValue = props.minValue ?? null;
+  const maxValue = props.maxValue ?? null;
   const rangeMessage = props.rangeMessage;
 
-  const dateValue = parseValue(value);
-  const outOfRange =
-    dateValue !== null &&
-    ((minValue !== null && dateValue.compare(minValue) < 0) ||
-      (maxValue !== null && dateValue.compare(maxValue) > 0));
+  // WCAG's contrast minimum explicitly doesn't apply to an inactive component's own text
+  // (1.4.3/1.4.11), and axe-core's own color-contrast check only honors that exemption for a node
+  // whose OWN `aria-disabled` (or an ancestor's) says so — the wrapper's opacity dip doesn't
+  // qualify. react-aria-components' DatePicker root only forwards a fixed allowlist of DOM props
+  // (see its own filterDOMProps), which excludes `aria-disabled`, so it is set directly on the
+  // text elements that need the exemption, exactly as TextField.tsx already does.
+  const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
 
-  function handleChange(next: CalendarDate | null) {
-    onChange(next ? next.toString() : "");
-  }
+  const outOfRange =
+    value !== null &&
+    ((minValue !== null && value.compare(minValue) < 0) ||
+      (maxValue !== null && value.compare(maxValue) > 0));
 
   return (
     <I18nProvider locale={LOCALE}>
-      <AriaDatePicker
-        value={dateValue}
-        onChange={handleChange}
+      <AriaDatePicker<CalendarDate>
+        value={value}
+        onChange={onChange}
         isDisabled={disabled}
         isInvalid={outOfRange}
         minValue={minValue}
@@ -185,17 +211,17 @@ export function DateField(props: DateFieldProps) {
         >
           {variant === "register" && <CalendarToggleButton />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName[variant]}`}>
-            {(segment) => <AriaDateSegment segment={segment} className="outline-none" />}
+            {(segment) => <AriaDateSegment segment={segment} className={segmentClassName} />}
           </AriaDateInput>
           {variant === "backoffice" && <CalendarToggleButton />}
         </AriaGroup>
         {outOfRange ? (
-          <AriaText slot="errorMessage" className={errorClassName}>
+          <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
             {rangeMessage}
           </AriaText>
         ) : (
           helperText !== undefined && (
-            <AriaText slot="description" className={helperClassName}>
+            <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
               {helperText}
             </AriaText>
           )
@@ -217,7 +243,16 @@ export function DateField(props: DateFieldProps) {
                 </AriaButton>
               </header>
               <AriaCalendarGrid className={calendarGridClassName}>
-                {(date) => <AriaCalendarCell date={date} className={calendarCellClassName} />}
+                <AriaCalendarGridHeader>
+                  {(weekday) => (
+                    <AriaCalendarHeaderCell className={calendarWeekdayClassName}>
+                      {weekday}
+                    </AriaCalendarHeaderCell>
+                  )}
+                </AriaCalendarGridHeader>
+                <AriaCalendarGridBody>
+                  {(date) => <AriaCalendarCell date={date} className={calendarCellClassName} />}
+                </AriaCalendarGridBody>
               </AriaCalendarGrid>
             </AriaCalendar>
           </AriaDialog>

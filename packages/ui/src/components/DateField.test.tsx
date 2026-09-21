@@ -1,3 +1,4 @@
+import { CalendarDate } from "@internationalized/date";
 import { useState } from "react";
 import { beforeEach, expect, expectTypeOf, test } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
@@ -36,13 +37,13 @@ type NoRangeHarnessProps = {
 };
 
 function DateFieldHarness(props: NoRangeHarnessProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState<CalendarDate | null>(null);
   return <DateField {...props} value={value} onChange={setValue} />;
 }
 
 test("renders the register variant at 56px with 16px padding, a leading icon, bold 20px ink value and bold 16px ink label", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const group = fieldGroup(screen, "Expiry");
   const style = getComputedStyle(group);
   const rect = group.getBoundingClientRect();
 
@@ -59,7 +60,7 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   // The icon leads the value in the register variant: it is the group's first element.
   expect(group.firstElementChild?.contains(icon)).toBe(true);
 
-  const label = screen.getByText("Vencimiento").element() as HTMLElement;
+  const label = screen.getByText("Expiry").element() as HTMLElement;
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
@@ -68,8 +69,8 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
 });
 
 test("renders the backoffice variant at 48px with 12px padding and a trailing icon", async () => {
-  const screen = await render(<DateFieldHarness variant="backoffice" label="Fecha" />);
-  const group = fieldGroup(screen, "Fecha");
+  const screen = await render(<DateFieldHarness variant="backoffice" label="Date" />);
+  const group = fieldGroup(screen, "Date");
   const style = getComputedStyle(group);
   const rect = group.getBoundingClientRect();
 
@@ -85,7 +86,7 @@ test("renders the backoffice variant at 48px with 12px padding and a trailing ic
   // The icon trails the value in the backoffice variant: it is the group's last element.
   expect(group.lastElementChild?.contains(icon)).toBe(true);
 
-  const label = screen.getByText("Fecha").element() as HTMLElement;
+  const label = screen.getByText("Date").element() as HTMLElement;
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink-secondary"));
@@ -97,31 +98,31 @@ test("shows the helper line under the register field when supplied", async () =>
   const screen = await render(
     <DateFieldHarness
       variant="register"
-      label="Vencimiento"
-      helperText="Si el mismo producto tiene otro vencimiento, se carga como una línea aparte."
+      label="Expiry"
+      helperText="A different expiry for the same product is entered as a separate line."
     />,
   );
 
   const helper = screen.getByText(
-    "Si el mismo producto tiene otro vencimiento, se carga como una línea aparte.",
+    "A different expiry for the same product is entered as a separate line.",
   );
   await expect.element(helper).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the label 6px above the register field's box, as design.pen's Vf9w7 frame draws", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
-  const wrapper = fieldGroup(screen, "Vencimiento").parentElement as HTMLElement;
+test("keeps the label 6px above the register field's box", async () => {
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const wrapper = fieldGroup(screen, "Expiry").parentElement as HTMLElement;
 
   expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the label 4px above the backoffice field's box, as design.pen's compact Fecha frames draw", async () => {
-  const screen = await render(<DateFieldHarness variant="backoffice" label="Fecha" />);
-  const wrapper = fieldGroup(screen, "Fecha").parentElement as HTMLElement;
+test("keeps the label 4px above the backoffice field's box", async () => {
+  const screen = await render(<DateFieldHarness variant="backoffice" label="Date" />);
+  const wrapper = fieldGroup(screen, "Date").parentElement as HTMLElement;
 
   expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(4);
 
@@ -130,8 +131,8 @@ test("keeps the label 4px above the backoffice field's box, as design.pen's comp
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`shows a white box with a 2px ink-secondary border at rest in the ${variant} variant`, async () => {
-    const screen = await render(<DateFieldHarness variant={variant} label="Vencimiento" />);
-    const group = fieldGroup(screen, "Vencimiento");
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
     const style = getComputedStyle(group);
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
@@ -141,8 +142,8 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 
   test(`clears the non-text 3:1 contrast minimum between the box's own painted boundary and fill, resting and hovered, in the ${variant} variant`, async () => {
-    const screen = await render(<DateFieldHarness variant={variant} label="Vencimiento" />);
-    const group = fieldGroup(screen, "Vencimiento");
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
 
     const restingFill = getComputedStyle(group).backgroundColor;
     expect(restingFill).toBe(tokenRgb("surface-white"));
@@ -164,10 +165,18 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 
   test(`shows a 3px blue-strong border and the focus shadow when a segment is focused in the ${variant} variant`, async () => {
-    const screen = await render(<DateFieldHarness variant={variant} label="Vencimiento" />);
-    const group = fieldGroup(screen, "Vencimiento");
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
 
     await userEvent.tab();
+    if (variant === "register") {
+      // The register variant leads with the calendar toggle button, so the first date segment is
+      // its second tab stop; the backoffice variant trails that button and reaches a segment first.
+      await userEvent.tab();
+    }
+
+    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
+    expect(document.activeElement).toBe(segment);
 
     await expect
       .poll(() => getComputedStyle(group).boxShadow)
@@ -179,11 +188,11 @@ for (const variant of ["register", "backoffice"] as const) {
   test(`dims the whole field to 45% opacity and blocks focus when disabled in the ${variant} variant`, async () => {
     const screen = await render(
       <>
-        <DateFieldHarness variant={variant} label="Vencimiento" disabled />
+        <DateFieldHarness variant={variant} label="Expiry" disabled />
         <button type="button">Next control</button>
       </>,
     );
-    const group = fieldGroup(screen, "Vencimiento");
+    const group = fieldGroup(screen, "Expiry");
     const wrapper = group.parentElement as HTMLElement;
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
@@ -198,9 +207,54 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
+test("marks the helper line as disabled too when the field itself is disabled", async () => {
+  const screen = await render(
+    <DateFieldHarness
+      variant="register"
+      label="Expiry"
+      helperText="A different expiry for the same product is entered as a separate line."
+      disabled
+    />,
+  );
+
+  // Dimmed by the field's own 45% opacity, the helper line would otherwise fail the contrast
+  // minimum despite being correctly hidden away rather than miscolored; naming it disabled is
+  // what claims the exemption an inactive component's own text already has.
+  const helper = screen
+    .getByText("A different expiry for the same product is entered as a separate line.")
+    .element();
+  expect(helper.getAttribute("aria-disabled")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("marks the range message as disabled too when the field itself is disabled", async () => {
+  function ControlledHarness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+    return (
+      <DateField
+        variant="register"
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={new CalendarDate(2027, 1, 1)}
+        maxValue={new CalendarDate(2027, 2, 28)}
+        rangeMessage="The date must be 28/02/2027 or earlier."
+        disabled
+      />
+    );
+  }
+  const screen = await render(<ControlledHarness />);
+
+  const message = screen.getByText("The date must be 28/02/2027 or earlier.").element();
+  expect(message.getAttribute("aria-disabled")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("reads the date as it is typed, day by day, month by month, and a four-digit year", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const group = fieldGroup(screen, "Expiry");
 
   await userEvent.click(group);
   await userEvent.keyboard("28022027");
@@ -213,18 +267,18 @@ test("reads the date as it is typed, day by day, month by month, and a four-digi
 });
 
 function CallerValueHarness(props: NoRangeHarnessProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState<CalendarDate | null>(null);
   return (
     <>
       <DateField {...props} value={value} onChange={setValue} />
-      <p data-testid="caller-value">{value}</p>
+      <p data-testid="caller-value">{value?.toString() ?? ""}</p>
     </>
   );
 }
 
 test("tells the caller the complete date once typing finishes it", async () => {
-  const screen = await render(<CallerValueHarness variant="register" label="Vencimiento" />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const screen = await render(<CallerValueHarness variant="register" label="Expiry" />);
+  const group = fieldGroup(screen, "Expiry");
 
   await userEvent.click(group);
   await userEvent.keyboard("28022027");
@@ -244,19 +298,71 @@ const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
 
-test("shows a 3px blue-strong border and the focus shadow when a segment is focused", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
-  const group = fieldGroup(screen, "Vencimiento");
+for (const variant of ["register", "backoffice"] as const) {
+  test(`draws exactly the package's focused box shadow when a segment is focused in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
 
-  await userEvent.tab();
+    await userEvent.tab();
+    if (variant === "register") {
+      // Same tab order as above: the calendar toggle button leads this variant.
+      await userEvent.tab();
+    }
 
-  await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
+    expect(document.activeElement).toBe(segment);
 
-  await expectNoAccessibilityViolations(screen.container);
-});
+    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`tells an empty field's placeholder from a date already entered, by tone, in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+    const day = group.querySelector('[role="spinbutton"]') as HTMLElement;
+
+    // Drawn in the value's own full-strength tone, an empty field reads as one already holding a
+    // date; the package dims a placeholder to the secondary tone for exactly this reason
+    // (see SearchField.tsx's own inputBaseClassName).
+    expect(day.getAttribute("data-placeholder")).toBe("true");
+    expect(getComputedStyle(day).color).toBe(tokenRgb("ink-secondary"));
+
+    await userEvent.click(group);
+    await userEvent.keyboard("28022027");
+
+    await expect.poll(() => day.getAttribute("data-placeholder")).toBeNull();
+    expect(getComputedStyle(day).color).toBe(tokenRgb("ink"));
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`marks which segment takes the next digit in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+    const [day, month] = Array.from(group.querySelectorAll('[role="spinbutton"]')) as [
+      HTMLElement,
+      HTMLElement,
+    ];
+
+    await userEvent.click(day);
+    await expect.poll(() => day.getAttribute("data-focused")).toBe("true");
+
+    // The box's own focus shadow is the same whichever segment is active, and this field draws no
+    // caret, so without a mark of its own nothing says where the next digit lands.
+    const focused = getComputedStyle(day);
+    expect(focused.backgroundColor).not.toBe(getComputedStyle(month).backgroundColor);
+
+    expect(
+      contrastRatio(rgbToHex(focused.color), rgbToHex(focused.backgroundColor)),
+    ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
 
 test("shows the package's own outline focus ring on the calendar button when it is keyboard-focused", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
 
   // The register variant leads with the calendar button, so it is the field's first tab stop.
   await userEvent.tab();
@@ -274,6 +380,32 @@ test("shows the package's own outline focus ring on the calendar button when it 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+for (const variant of ["register", "backoffice"] as const) {
+  test(`gives the calendar toggle button a 24px-minimum target around its 18px glyph in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+    const toggle = group.querySelector("button") as HTMLElement;
+    const toggleRect = toggle.getBoundingClientRect();
+
+    // A pointer target smaller than 24x24 CSS px fails WCAG 2.5.8, and this package draws
+    // touch-screen point-of-sale screens; an 18px glyph is not something a finger can aim at.
+    expect(toggleRect.width).toBeGreaterThanOrEqual(24);
+    expect(toggleRect.height).toBeGreaterThanOrEqual(24);
+
+    // The glyph itself stays the size the design draws: the target grows around it, not with it.
+    const icon = toggle.querySelector("svg") as SVGSVGElement;
+    expect(icon.getBoundingClientRect().width).toBeCloseTo(18, 0);
+    expect(icon.getBoundingClientRect().height).toBeCloseTo(18, 0);
+
+    // And it grows inside the box the design draws, never past either variant's own height.
+    const groupRect = group.getBoundingClientRect();
+    expect(toggleRect.top).toBeGreaterThanOrEqual(groupRect.top);
+    expect(toggleRect.bottom).toBeLessThanOrEqual(groupRect.bottom);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
+
 // react-aria-components portals the calendar's whole DOM into document.body, outside
 // vitest-browser-react's own render container (see Tooltip.test.tsx's own comment on this), so
 // every accessibility check about the open calendar audits document.body rather than
@@ -288,8 +420,8 @@ async function openCalendar(screen: Screen, name: string): Promise<HTMLElement> 
 }
 
 test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 against white", async () => {
-  const screen = await render(<DateFieldHarness variant="register" label="Vencimiento" />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const dialog = await openCalendar(screen, "Expiry");
   const style = getComputedStyle(dialog);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
@@ -305,11 +437,11 @@ test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 
 
 test("shows the month and year heading with previous and next controls, each with a real accessible name", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
 
   const heading = dialog.querySelector("h2") as HTMLElement;
   expect(heading.textContent).toContain("2027");
@@ -323,13 +455,70 @@ test("shows the month and year heading with previous and next controls, each wit
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the chosen day with a blue UI fill and a white number, clearing the AA text contrast minimum", async () => {
+test("draws the calendar's weekday row in the package's own supporting tone and scale", async () => {
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const weekdays = Array.from(dialog.querySelectorAll("th")) as HTMLElement[];
+  expect(weekdays).toHaveLength(7);
+
+  for (const weekday of weekdays) {
+    expect(weekday.textContent?.trim()).not.toBe("");
+    const style = getComputedStyle(weekday);
+    // Without a scale and tone of its own this row falls back to inherited typography, which is
+    // the only calendar surface that does.
+    expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
+    expect(style.fontWeight).toBe("400");
+    expect(style.color).toBe(tokenRgb("ink-secondary"));
+    expect(
+      contrastRatio(rgbToHex(style.color), rgbToHex(getComputedStyle(dialog).backgroundColor)),
+    ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  }
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("dims the calendar's month controls once the allowed range reaches no further month", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+    return (
+      <DateField
+        variant="register"
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={new CalendarDate(2027, 2, 1)}
+        maxValue={new CalendarDate(2027, 2, 28)}
+        rangeMessage="The date must be in February 2027."
+      />
+    );
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  await openCalendar(screen, "Expiry");
+
+  const previous = document.body.querySelector('[slot="previous"]') as HTMLElement;
+  const next = document.body.querySelector('[slot="next"]') as HTMLElement;
+
+  expect(previous.getAttribute("data-disabled")).toBe("true");
+  expect(next.getAttribute("data-disabled")).toBe("true");
+  // Every inert control in this package dims to 45%; at full strength these two read as working
+  // controls that silently do nothing.
+  expect(getComputedStyle(previous).opacity).toBe("0.45");
+  expect(getComputedStyle(next).opacity).toBe("0.45");
+
+  await userEvent.hover(previous);
+  expect(getComputedStyle(previous).backgroundColor).not.toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the chosen day with a blue UI fill and a white number, clearing the AA text contrast minimum", async () => {
+  function ControlledHarness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+  }
+  const screen = await render(<ControlledHarness />);
+  const dialog = await openCalendar(screen, "Expiry");
 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.textContent?.trim()).toBe("28");
@@ -346,11 +535,11 @@ test("shows the chosen day with a blue UI fill and a white number, clearing the 
 
 test("shows an unchosen day in ink that turns bone on hover", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
   const unchosen = cells.find((cell) => cell.textContent?.trim() === "15") as HTMLElement;
@@ -366,11 +555,11 @@ test("shows an unchosen day in ink that turns bone on hover", async () => {
 
 test("shows the package's own outline focus ring on the focused day", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
   // Opening with the keyboard, instead of a click, keeps the input modality "keyboard" so the day
@@ -395,11 +584,11 @@ test("shows the package's own outline focus ring on the focused day", async () =
 
 test("keeps the focused day's outline ring inside the calendar panel", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-15");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
   toggle.focus();
@@ -439,11 +628,11 @@ test("keeps the focused day's outline ring inside the calendar panel", async () 
 
 test("keeps at least the focus ring's own reach as a real gap between adjacent day cells, horizontally and vertically", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-17");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 17));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
   toggle.focus();
@@ -502,11 +691,11 @@ function focusedDayLabel(dialog: HTMLElement): string {
 
 test("moves the focused day by one with the arrow keys, wrapping into the neighbouring month", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-01");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendarWithKeyboard(screen, "Vencimiento");
+  const dialog = await openCalendarWithKeyboard(screen, "Expiry");
 
   expect(focusedDayLabel(dialog)).toBe("1");
 
@@ -533,8 +722,8 @@ test("moves the focused day by one with the arrow keys, wrapping into the neighb
 });
 
 test("chooses the focused day and closes the calendar with Enter", async () => {
-  const screen = await render(<CallerValueHarness variant="register" label="Vencimiento" />);
-  const dialog = await openCalendarWithKeyboard(screen, "Vencimiento");
+  const screen = await render(<CallerValueHarness variant="register" label="Expiry" />);
+  const dialog = await openCalendarWithKeyboard(screen, "Expiry");
   const focusedLabel = focusedDayLabel(dialog);
 
   await userEvent.keyboard("{Enter}");
@@ -550,8 +739,8 @@ test("chooses the focused day and closes the calendar with Enter", async () => {
 });
 
 test("chooses the focused day and closes the calendar with Space", async () => {
-  const screen = await render(<CallerValueHarness variant="register" label="Vencimiento" />);
-  await openCalendarWithKeyboard(screen, "Vencimiento");
+  const screen = await render(<CallerValueHarness variant="register" label="Expiry" />);
+  await openCalendarWithKeyboard(screen, "Expiry");
 
   await userEvent.keyboard(" ");
 
@@ -562,8 +751,8 @@ test("chooses the focused day and closes the calendar with Space", async () => {
 });
 
 test("closes the calendar without changing the field when Escape is pressed", async () => {
-  const screen = await render(<CallerValueHarness variant="register" label="Vencimiento" />);
-  await openCalendarWithKeyboard(screen, "Vencimiento");
+  const screen = await render(<CallerValueHarness variant="register" label="Expiry" />);
+  await openCalendarWithKeyboard(screen, "Expiry");
 
   await userEvent.keyboard("{Escape}");
 
@@ -575,16 +764,16 @@ test("closes the calendar without changing the field when Escape is pressed", as
 
 test("clicking a day with the mouse chooses it, updates the typed value and closes the calendar", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-01");
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
     return (
       <>
-        <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />
-        <p data-testid="caller-value">{value}</p>
+        <DateField variant="register" label="Expiry" value={value} onChange={setValue} />
+        <p data-testid="caller-value">{value?.toString() ?? ""}</p>
       </>
     );
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
   const target = cells.find((cell) => cell.textContent?.trim() === "15") as HTMLElement;
@@ -595,15 +784,15 @@ test("clicking a day with the mouse chooses it, updates the typed value and clos
     .poll(() => screen.getByTestId("caller-value").element().textContent)
     .toBe("2027-02-15");
 
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   expect(group.textContent).toContain("15");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("updates the calendar's chosen day once typing finishes a complete valid date", async () => {
-  const screen = await render(<CallerValueHarness variant="register" label="Vencimiento" />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const screen = await render(<CallerValueHarness variant="register" label="Expiry" />);
+  const group = fieldGroup(screen, "Expiry");
 
   await userEvent.click(group);
   await userEvent.keyboard("28022027");
@@ -611,7 +800,7 @@ test("updates the calendar's chosen day once typing finishes a complete valid da
     .poll(() => screen.getByTestId("caller-value").element().textContent)
     .toBe("2027-02-28");
 
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.textContent?.trim()).toBe("28");
 
@@ -620,25 +809,25 @@ test("updates the calendar's chosen day once typing finishes a complete valid da
 
 test("refuses a date outside the caller's allowed range, showing its message under the field in error UI", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-03-15");
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
     return (
       <DateField
         variant="register"
-        label="Vencimiento"
+        label="Expiry"
         value={value}
         onChange={setValue}
-        minValue="2027-01-01"
-        maxValue="2027-02-28"
-        rangeMessage="La fecha debe estar antes del 28/02/2027."
+        minValue={new CalendarDate(2027, 1, 1)}
+        maxValue={new CalendarDate(2027, 2, 28)}
+        rangeMessage="The date must be 28/02/2027 or earlier."
       />
     );
   }
   const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   const style = getComputedStyle(group);
 
   expect(style.boxShadow).toContain(insetBoundary("status-error-ui", "2px"));
-  const message = screen.getByText("La fecha debe estar antes del 28/02/2027.");
+  const message = screen.getByText("The date must be 28/02/2027 or earlier.");
   await expect.element(message).toBeVisible();
   expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
 
@@ -647,41 +836,125 @@ test("refuses a date outside the caller's allowed range, showing its message und
 
 test("does not select the out-of-range day in the calendar", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-03-15");
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
     return (
       <DateField
         variant="register"
-        label="Vencimiento"
+        label="Expiry"
         value={value}
         onChange={setValue}
-        minValue="2027-01-01"
-        maxValue="2027-02-28"
-        rangeMessage="La fecha debe estar antes del 28/02/2027."
+        minValue={new CalendarDate(2027, 1, 1)}
+        maxValue={new CalendarDate(2027, 2, 28)}
+        rangeMessage="The date must be 28/02/2027 or earlier."
       />
     );
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
 
   expect(dialog.querySelector('[data-selected="true"]')).toBeNull();
 
   await expectNoAccessibilityViolations(document.body);
 });
 
+// The allowed range includes both of the days that name it: the field refuses what falls outside
+// the bounds, never the bounds themselves.
+const RANGE_MIN = new CalendarDate(2027, 1, 1);
+const RANGE_MAX = new CalendarDate(2027, 2, 28);
+const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
+const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
+
+function BoundedHarness({ value }: { value: CalendarDate }) {
+  const [current, setCurrent] = useState<CalendarDate | null>(value);
+  return (
+    <DateField
+      variant="register"
+      label="Expiry"
+      value={current}
+      onChange={setCurrent}
+      minValue={RANGE_MIN}
+      maxValue={RANGE_MAX}
+      rangeMessage={RANGE_MESSAGE}
+      helperText={RANGE_HELPER}
+    />
+  );
+}
+
+for (const [edge, accepted] of [
+  ["the first day the range allows", RANGE_MIN],
+  ["the last day the range allows", RANGE_MAX],
+  ["a day between the two days the range names", new CalendarDate(2027, 2, 10)],
+] as const) {
+  test(`accepts ${edge}, keeping the resting box and the helper line`, async () => {
+    const screen = await render(<BoundedHarness value={accepted} />);
+    const group = fieldGroup(screen, "Expiry");
+    const style = getComputedStyle(group);
+
+    expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+    expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
+    await expect.element(screen.getByText(RANGE_HELPER)).toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
+
+test("still tells the caller a date typed outside the allowed range, while drawing the field as refused", async () => {
+  function ControlledHarness() {
+    const [value, setValue] = useState<CalendarDate | null>(null);
+    return (
+      <>
+        <DateField
+          variant="register"
+          label="Expiry"
+          value={value}
+          onChange={setValue}
+          minValue={RANGE_MIN}
+          maxValue={RANGE_MAX}
+          rangeMessage={RANGE_MESSAGE}
+        />
+        <p data-testid="caller-value">{value?.toString() ?? ""}</p>
+      </>
+    );
+  }
+  const screen = await render(<ControlledHarness />);
+  const group = fieldGroup(screen, "Expiry");
+
+  await userEvent.click(group);
+  await userEvent.keyboard("15032027");
+
+  // The caller hears every complete date the user finishes, in range or not: it is the caller's
+  // own decision what to do with one the field is refusing.
+  await expect
+    .poll(() => screen.getByTestId("caller-value").element().textContent)
+    .toBe("2027-03-15");
+
+  await expect.element(screen.getByText(RANGE_MESSAGE)).toBeVisible();
+
+  // The focused box draws the package's focus border over every other state, so the refused
+  // boundary is what the field settles on once the user moves away from it.
+  (document.activeElement as HTMLElement).blur();
+  await expect
+    .poll(() => getComputedStyle(group).boxShadow)
+    .toContain(insetBoundary("status-error-ui", "2px"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept an allowed range without the message the field shows outside it", () => {
   expectTypeOf<{
     variant: "register";
     label: string;
-    value: string;
-    onChange: (value: string) => void;
-    minValue: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    minValue: CalendarDate;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
     variant: "register";
     label: string;
-    value: string;
-    onChange: (value: string) => void;
-    maxValue: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    maxValue: CalendarDate;
   }>().not.toExtend<DateFieldProps>();
 });
 
@@ -689,50 +962,85 @@ test("accepts a field with no range at all, and separately with a range and its 
   expectTypeOf<{
     variant: "register";
     label: string;
-    value: string;
-    onChange: (value: string) => void;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
   }>().toExtend<DateFieldProps>();
+  expectTypeOf<{
+    variant: "register";
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    minValue: CalendarDate;
+    maxValue: CalendarDate;
+    rangeMessage: string;
+  }>().toExtend<DateFieldProps>();
+});
+
+test("does not accept a date, a lower bound or an upper bound written as text", () => {
   expectTypeOf<{
     variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
+  }>().not.toExtend<DateFieldProps>();
+  expectTypeOf<{
+    variant: "register";
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
     minValue: string;
     maxValue: string;
     rangeMessage: string;
-  }>().toExtend<DateFieldProps>();
+  }>().not.toExtend<DateFieldProps>();
 });
 
 test("does not accept a field without a variant, a label, a value or onChange", () => {
   expectTypeOf<{
     label: string;
-    value: string;
-    onChange: (value: string) => void;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
     variant: "register";
-    value: string;
-    onChange: (value: string) => void;
-  }>().not.toExtend<DateFieldProps>();
-  expectTypeOf<{
-    variant: "register";
-    label: string;
-    onChange: (value: string) => void;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
     variant: "register";
     label: string;
-    value: string;
+    onChange: (value: CalendarDate | null) => void;
   }>().not.toExtend<DateFieldProps>();
+  expectTypeOf<{
+    variant: "register";
+    label: string;
+    value: CalendarDate | null;
+  }>().not.toExtend<DateFieldProps>();
+});
+
+test("holds a day the calendar system itself constrains, with no text left for the field to parse", async () => {
+  function ControlledHarness() {
+    // February 30th: the calendar system constrains it to the month's real last day instead of
+    // refusing it, so no caller value can reach the field as something it cannot render.
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 30));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+  }
+  const screen = await render(<ControlledHarness />);
+  const group = fieldGroup(screen, "Expiry");
+
+  expect(group.textContent).toContain("28");
+  expect(group.textContent).toContain("02");
+  expect(group.textContent).toContain("2027");
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces the field with its label and current value through its segments", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const group = fieldGroup(screen, "Vencimiento");
+  const group = fieldGroup(screen, "Expiry");
   expect(group.getAttribute("aria-label") ?? group.getAttribute("aria-labelledby")).toBeTruthy();
 
   const segments = Array.from(group.querySelectorAll('[role="spinbutton"]')) as HTMLElement[];
@@ -747,11 +1055,11 @@ test("announces the field with its label and current value through its segments"
 
 test("announces the open calendar as a dialog named by the month and year it shows", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  await openCalendar(screen, "Vencimiento");
+  await openCalendar(screen, "Expiry");
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog).toBeVisible();
@@ -772,11 +1080,11 @@ test("announces the open calendar as a dialog named by the month and year it sho
 
 test("announces the chosen day's button as selected", async () => {
   function ControlledHarness() {
-    const [value, setValue] = useState("2027-02-28");
-    return <DateField variant="register" label="Vencimiento" value={value} onChange={setValue} />;
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
-  const dialog = await openCalendar(screen, "Vencimiento");
+  const dialog = await openCalendar(screen, "Expiry");
 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.closest("td")?.getAttribute("aria-selected")).toBe("true");
