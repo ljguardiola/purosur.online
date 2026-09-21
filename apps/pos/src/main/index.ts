@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
-import { app, BrowserWindow, MessageChannelMain, session, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, MessageChannelMain, session, utilityProcess } from "electron";
 import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
 import {
   scrubSentryBreadcrumb,
@@ -19,6 +19,7 @@ import {
   withoutReplacedDefaultIntegrations,
 } from "./error-reporting-integrations";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
+import { reportStartFailure } from "./start-failure";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
@@ -220,6 +221,10 @@ if (channelSettings.ok) {
 } else {
   // Without its channel the register can't tell whose data folder it may write to, so it doesn't
   // start rather than guess.
-  console.error(`register not started: ${channelSettings.reason}`);
+  reportStartFailure(channelSettings.reason, {
+    isPackaged: app.isPackaged,
+    writeError: (line) => console.error(line),
+    showErrorBox: (title, content) => dialog.showErrorBox(title, content),
+  });
   app.exit(1);
 }
