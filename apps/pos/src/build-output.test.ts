@@ -192,14 +192,11 @@ function collectClassNames(selector: Selector, names: Set<string>): void {
   }
 }
 
-// The unescaped class names any selector in the given CSS uses, collected with Lightning CSS's
-// own selector-AST visitor — the same parser Tailwind's compiler and optimizer are built on (see
-// @tailwindcss/node's own package.json: it pins lightningcss). This is not text matching: there is
-// no selector text to escape, truncate, or search for a boundary around, and the visitor walks
-// into every at-rule (@media, @supports, @layer, @container, ...) on its own, so a class nested
-// arbitrarily deep — in an at-rule or in a pseudo-class's own selector list — is still found.
-// `minify` lets a caller prove that minifying the CSS first (as the packaged build does) doesn't
-// change which classes are found.
+// The unescaped class names any selector in the given CSS uses, collected from Lightning CSS's
+// selector AST rather than by matching selector text. The visitor walks into every at-rule on its
+// own; within a selector, classes inside the pseudo-classes nestedSelectorsOf lists are collected
+// too. `minify` flattens the nested rules Tailwind compiles, the way the packaged build's
+// optimizer does, so a class can be checked in the shape the packaged stylesheet holds it.
 function classNamesIn(css: string, minify = false): Set<string> {
   const names = new Set<string>();
   transform({
