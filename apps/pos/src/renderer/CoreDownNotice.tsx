@@ -1,11 +1,6 @@
 import { PuroSurLogo } from "@purosur/ui";
 import { messages } from "../messages";
 
-// Full-screen split layout from design.pen's "Caja / Núcleo que no vuelve a arrancar" (node
-// rWjoZ): a brand panel on the left (its logo sized to the design's own 420x164 box, node POQGo),
-// the message centered on the right. The design's brand panel also carries a branch/cashier
-// footer, and its message carries a "CAJA 1" eyebrow; neither ships here because the register
-// doesn't know its branch, cashier, or clock yet.
 export function CoreDownNotice() {
   return (
     <div className="flex h-screen w-screen bg-surface-white">
