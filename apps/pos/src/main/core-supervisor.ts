@@ -29,9 +29,6 @@ export interface SupervisedProcess {
   once(event: "exit", listener: (code: number | null) => void): void;
   on(event: "message", listener: (message: unknown) => void): void;
   kill(): void;
-  // Only read by deps.forceKill, which needs it to send SIGKILL directly (kill() itself only ever
-  // sends SIGTERM).
-  pid: number | undefined;
 }
 
 export interface CoreSupervisorDeps {
@@ -49,12 +46,6 @@ export interface CoreSupervisorDeps {
   scheduleReadinessDeadline(run: () => void, delayMs: number): () => void;
   // A started core that hasn't said it is ready within this long is killed and counted as a crash.
   readinessTimeoutMs: number;
-  scheduleForceKill(run: () => void, delayMs: number): () => void;
-  // SIGTERM (kill()) is not guaranteed to end a process: a dependency could install a handler, or
-  // it could be stuck in uninterruptible I/O. A process killed for missing its readiness deadline
-  // that hasn't exited within this long is force-killed instead.
-  killGraceMs: number;
-  forceKill(process: SupervisedProcess): void;
   onProcessStarted?(process: SupervisedProcess): void;
   onProcessExited?(process: SupervisedProcess): void;
   // Fires once per outage: failed periodic retries never report again until a recovered core has
@@ -81,7 +72,6 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   let status: CoreStatus = "starting";
   let cancelScheduled: (() => void) | undefined;
   let cancelReadinessDeadline: (() => void) | undefined;
-  let cancelForceKill: (() => void) | undefined;
 
   function schedule(run: () => void, delayMs: number): void {
     cancelScheduled = deps.scheduleRestart(run, delayMs);
@@ -114,18 +104,12 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
         return;
       }
       missedReadinessDeadline = true;
-      // Forking a replacement before this process's own exit is observed could run two cores at
-      // once if it ignores the kill signal for a while, fighting over the database or hardware;
-      // the exit handler below drives the normal crash path instead. If it's still not gone after
-      // killGraceMs, escalate to a force-kill rather than wait forever — but never escalate past
-      // that: if even a force-kill doesn't end it (stuck in uninterruptible I/O), no amount of
-      // retrying from here can fix a process wedged in the kernel, and forking a second core while
-      // this one might still be alive is exactly the failure this whole path exists to prevent.
+      // Only kill it here. Forking a replacement before this process's own exit is observed could
+      // run two cores at once if it ignores the kill signal for a while, fighting over the
+      // database or hardware; the exit handler below drives the normal crash path instead.
+      // kill() only sends SIGTERM on POSIX; the register ships only for Windows, where it
+      // terminates the process outright, so this can't actually hang waiting for that exit.
       process.kill();
-      cancelForceKill = deps.scheduleForceKill(() => {
-        cancelForceKill = undefined;
-        deps.forceKill(process);
-      }, deps.killGraceMs);
     }, deps.readinessTimeoutMs);
     cancelReadinessDeadline = cancelDeadline;
 
@@ -150,8 +134,6 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
 
     function handleCrash(): void {
       cancelDeadline();
-      cancelForceKill?.();
-      cancelForceKill = undefined;
       if (current === process) {
         current = undefined;
       }
@@ -198,8 +180,6 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       cancelScheduled = undefined;
       cancelReadinessDeadline?.();
       cancelReadinessDeadline = undefined;
-      cancelForceKill?.();
-      cancelForceKill = undefined;
       current?.kill();
     },
   };
