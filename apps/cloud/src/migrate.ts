@@ -15,6 +15,7 @@ export interface RunMigrationsOptions {
   /** Injected in tests so waiting does not consume real time. */
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
+  onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
 const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
@@ -103,6 +104,12 @@ function waitForDatabaseSecondsFromEnv(): number | undefined {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
+function logWaiting(error: unknown, elapsedMs: number): void {
+  console.error(
+    `migrate: database not ready yet after ${Math.round(elapsedMs / 1000)}s (${errorCode(error) ?? "unknown error"}), retrying...`,
+  );
+}
+
 /**
  * Runs pending migrations against `databaseUrl`. This is the pre-deploy command: it runs before
  * the new deployment takes traffic, never at application startup (see server.ts), so a migration
@@ -131,11 +138,7 @@ export async function runMigrations(
       intervalMs: options.waitIntervalMs ?? DEFAULT_WAIT_INTERVAL_MS,
       sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
       now: options.now ?? Date.now,
-      onWaiting: (error, elapsedMs) => {
-        console.error(
-          `migrate: database not ready yet after ${Math.round(elapsedMs / 1000)}s (${errorCode(error) ?? "unknown error"}), retrying...`,
-        );
-      },
+      onWaiting: options.onWaiting ?? logWaiting,
     });
 
     await migrate(drizzle(sql), { migrationsFolder });

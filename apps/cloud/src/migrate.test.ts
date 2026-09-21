@@ -13,6 +13,22 @@ describe("runMigrations", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("keeps retrying an unreachable database until the wait budget runs out", async () => {
+    const onWaiting = vi.fn();
+
+    await expect(
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+        migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+        connectTimeoutSeconds: 1,
+        waitForDatabaseSeconds: 1,
+        waitIntervalMs: 100,
+        onWaiting,
+      }),
+    ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+
+    expect(onWaiting.mock.calls.length).toBeGreaterThan(1);
+  });
 });
 
 function fakeClock(startMs = 0) {
