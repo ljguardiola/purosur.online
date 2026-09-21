@@ -132,7 +132,7 @@ function RelatedPanel({
   return (
     <nav
       aria-label={messages.ayuda.relatedHeading}
-      className="flex w-[18.75rem] shrink-0 flex-col gap-2"
+      className="flex w-[18.75rem] shrink-0 flex-col gap-2 self-start"
     >
       <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
         {messages.ayuda.relatedHeading}
@@ -156,7 +156,7 @@ function ArticleView({
   article: HelpArticle<string, string>;
 }) {
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-1 gap-6">
       <div className="flex flex-1 flex-col gap-4 rounded-lg border border-line bg-surface-white p-6">
         {keyed(article.body, blockContent).map(([key, block]) => (
           <Block key={key} block={block} help={help} />
@@ -237,7 +237,7 @@ export function AyudaContent({
           {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
         </h1>
       </div>
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="w-[26.25rem]">
           <SearchField
             variant="backoffice"

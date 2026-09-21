@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AyudaContent, AyudaSectionColumn } from "./AyudaScreen";
+import { Shell } from "./Shell";
 
 const help = defineHelp("es-AR", {
   categories: {
@@ -288,6 +289,34 @@ test("renders the related panel from the article's related list", async () => {
     .getByRole("link", { name: "Facturación básica" })
     .element() as HTMLAnchorElement;
   expect(related.getAttribute("href")).toBe("/ayuda/billing/billing_basics");
+});
+
+test("stretches the article card to the foot of the content area, sizing the related panel to its own rows", async () => {
+  const screen = await render(
+    <Shell
+      brandName="Puro Sur"
+      areaRailLabel="Áreas"
+      sectionColumnLabel="Secciones"
+      railFooter={null}
+      sectionColumn={null}
+    >
+      <ContentHarness categoryId="getting_started" articleId="intro" />
+    </Shell>,
+  );
+
+  const main = screen.getByRole("main").element().getBoundingClientRect();
+  const related = screen
+    .getByRole("navigation", { name: "También te puede servir" })
+    .element()
+    .getBoundingClientRect();
+  const paragraph = screen.getByText("Configurá tu catálogo antes de abrir la caja.").element();
+  const card = (paragraph.parentElement as HTMLElement).getBoundingClientRect();
+
+  expect(main.bottom - card.bottom).toBeCloseTo(24, 0);
+  expect(related.width).toBeCloseTo(300, 0);
+  expect(related.left - card.right).toBeCloseTo(24, 0);
+  expect(related.top).toBeCloseTo(card.top, 0);
+  expect(related.height).toBeLessThan(card.height);
 });
 
 test("filters to matching articles across every category when searching", async () => {
