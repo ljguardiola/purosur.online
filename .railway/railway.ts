@@ -13,6 +13,12 @@ import { bucket, defineRailway, image, postgres, project, service } from "railwa
 const SERVICE_REGION = "us-east4-eqdc4a";
 const BUCKET_REGION = "iad";
 
+// Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
+// `railway domain <domain> --service cloud`, and only then declared here.
+const CUSTOM_DOMAINS: Record<string, string[]> = {
+  staging: ["staging.purosur.online"],
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -37,6 +43,7 @@ export default defineRailway((ctx) => {
   const cloud = service("cloud", {
     source: image(imageRef, { autoUpdates: { type: "disabled" } }),
     regions: { [SERVICE_REGION]: 1 },
+    domains: CUSTOM_DOMAINS[environment] ?? [],
     deploy: {
       registryCredentials: {
         username: "ljguardiola",
