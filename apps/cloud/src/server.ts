@@ -50,10 +50,11 @@ export interface ExitDeps {
   exit?: (code: number) => void;
 }
 
-export async function shutdownServer(
-  app: Pick<FastifyInstance, "close">,
-  deps: ExitDeps = {},
-): Promise<void> {
+export interface ClosableApp {
+  close(): PromiseLike<unknown>;
+}
+
+export async function shutdownServer(app: ClosableApp, deps: ExitDeps = {}): Promise<void> {
   const flush = deps.flush ?? Sentry.flush;
   const exit = deps.exit ?? process.exit;
 
@@ -74,7 +75,7 @@ export interface SignalSource {
 
 /** Node running as the container's PID 1 ignores SIGTERM unless a handler is registered. */
 export function registerShutdownHandlers(
-  app: Pick<FastifyInstance, "close">,
+  app: ClosableApp,
   deps: ExitDeps & { signals?: SignalSource } = {},
 ): void {
   const signals = deps.signals ?? process;
