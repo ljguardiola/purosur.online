@@ -116,7 +116,7 @@ async function probeDatabase(databaseUrl: string, connectTimeoutSeconds: number)
 
 function logWaiting(error: unknown, elapsedMs: number): void {
   console.error(
-    `migrate: database not ready yet after ${Math.round(elapsedMs / 1000)}s (${errorCode(error) ?? "unknown error"}), retrying...`,
+    `migrate: database not ready yet after ${Math.round(elapsedMs / 1000)}s (${errorCode(error)}), retrying...`,
   );
 }
 
@@ -125,9 +125,9 @@ function logWaiting(error: unknown, elapsedMs: number): void {
  * the new deployment takes traffic, never at application startup (see server.ts), so a migration
  * failure stops the deploy instead of starting a worker against an unmigrated schema.
  *
- * A database created in the same deploy is not immediately ready to accept connections (see
- * issue #154), so this first waits, within a bounded budget, until the database responds to a
- * trivial query before running any migration.
+ * A database created in the same deploy is not immediately ready to accept connections, so this
+ * first waits, within a bounded budget, until the database responds to a trivial query before
+ * running any migration.
  */
 export async function runMigrations(
   databaseUrl: string,

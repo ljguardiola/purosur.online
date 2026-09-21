@@ -16,7 +16,7 @@ describe("runMigrations", () => {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         // A zero wait budget keeps this test fast: it proves an unreachable database still
-        // fails the deploy, not that the retry loop is bounded (waitForDatabase.test covers that).
+        // fails the deploy, not that the retry loop is bounded (the waitForDatabase tests cover that).
         waitForDatabaseSeconds: 0,
       }),
     ).rejects.toThrow();
