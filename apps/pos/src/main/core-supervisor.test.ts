@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCoreSupervisor, decideRestart, type SupervisedProcess } from "./core-supervisor";
+import {
+  type CoreSupervisorDeps,
+  createCoreSupervisor,
+  decideRestart,
+  type SupervisedProcess,
+} from "./core-supervisor";
 
-const policy = { maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 1000 };
+const policy = { maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 1000, stableRunMs: 60_000 };
 
 describe("decideRestart", () => {
   it("restarts with exponentially growing backoff below the attempt limit", () => {
@@ -23,10 +28,15 @@ describe("decideRestart", () => {
 });
 
 class FakeProcess implements SupervisedProcess {
+  killed = false;
   private exitListener: ((code: number | null) => void) | undefined;
 
   once(_event: "exit", listener: (code: number | null) => void): void {
     this.exitListener = listener;
+  }
+
+  kill(): void {
+    this.killed = true;
   }
 
   exit(code: number | null): void {
@@ -34,15 +44,35 @@ class FakeProcess implements SupervisedProcess {
   }
 }
 
+function setUp(overrides: Partial<CoreSupervisorDeps> = {}) {
+  const processes: FakeProcess[] = [];
+  let clock = 0;
+  const fork = vi.fn(() => {
+    const process = new FakeProcess();
+    processes.push(process);
+    return process;
+  });
+  const deps: CoreSupervisorDeps = {
+    fork,
+    scheduleRestart: vi.fn(),
+    now: () => clock,
+    policy,
+    ...overrides,
+  };
+  const supervisor = createCoreSupervisor(deps);
+  return {
+    supervisor,
+    processes,
+    fork,
+    advanceClock: (ms: number) => {
+      clock += ms;
+    },
+  };
+}
+
 describe("createCoreSupervisor", () => {
   it("forks the core process once on start", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
-    });
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart: vi.fn(), policy });
+    const { supervisor, fork } = setUp();
 
     supervisor.start();
 
@@ -50,14 +80,8 @@ describe("createCoreSupervisor", () => {
   });
 
   it("schedules a restart with backoff after an unexpected exit", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
-    });
     const scheduleRestart = vi.fn();
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy });
+    const { supervisor, processes } = setUp({ scheduleRestart });
 
     supervisor.start();
     processes[0]?.exit(1);
@@ -66,14 +90,9 @@ describe("createCoreSupervisor", () => {
   });
 
   it("forks again once the scheduled restart runs", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
+    const { supervisor, processes, fork } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
     });
-    const scheduleRestart = vi.fn((run: () => void) => run());
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy });
 
     supervisor.start();
     processes[0]?.exit(1);
@@ -81,35 +100,20 @@ describe("createCoreSupervisor", () => {
     expect(fork).toHaveBeenCalledTimes(2);
   });
 
-  it("does not schedule a restart after a clean exit", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
-    });
+  it("treats an exit with code 0 that nobody asked for as a crash", () => {
     const scheduleRestart = vi.fn();
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy });
+    const { supervisor, processes } = setUp({ scheduleRestart });
 
     supervisor.start();
     processes[0]?.exit(0);
 
-    expect(scheduleRestart).not.toHaveBeenCalled();
+    expect(scheduleRestart).toHaveBeenCalledExactlyOnceWith(expect.any(Function), 100);
   });
 
   it("reports exhaustion once the attempt limit is reached instead of scheduling forever", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
-    });
-    const scheduleRestart = vi.fn((run: () => void) => run());
     const onRestartsExhausted = vi.fn();
-    const supervisor = createCoreSupervisor({
-      fork,
-      scheduleRestart,
-      policy,
+    const { supervisor, processes, fork } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
       onRestartsExhausted,
     });
 
@@ -125,16 +129,44 @@ describe("createCoreSupervisor", () => {
     expect(fork).toHaveBeenCalledTimes(policy.maxAttempts + 1);
   });
 
-  it("calls onProcessStarted with every forked process, including restarts", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
-    });
+  it("starts counting attempts afresh after the core has stayed up for a stable period", () => {
     const scheduleRestart = vi.fn((run: () => void) => run());
+    const onRestartsExhausted = vi.fn();
+    const { supervisor, processes, advanceClock } = setUp({ scheduleRestart, onRestartsExhausted });
+
+    supervisor.start();
+    processes[0]?.exit(1);
+    processes[1]?.exit(1);
+    processes[2]?.exit(1);
+    advanceClock(policy.stableRunMs);
+    processes[3]?.exit(1);
+
+    expect(onRestartsExhausted).not.toHaveBeenCalled();
+    expect(scheduleRestart).toHaveBeenLastCalledWith(expect.any(Function), policy.baseDelayMs);
+  });
+
+  it("keeps counting attempts when the core crashes again before a stable period", () => {
+    const onRestartsExhausted = vi.fn();
+    const { supervisor, processes, advanceClock } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
+      onRestartsExhausted,
+    });
+
+    supervisor.start();
+    for (let index = 0; index < processes.length; index += 1) {
+      advanceClock(policy.stableRunMs - 1);
+      processes[index]?.exit(1);
+    }
+
+    expect(onRestartsExhausted).toHaveBeenCalledOnce();
+  });
+
+  it("calls onProcessStarted with every forked process, including restarts", () => {
     const onProcessStarted = vi.fn();
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy, onProcessStarted });
+    const { supervisor, processes } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
+      onProcessStarted,
+    });
 
     supervisor.start();
     processes[0]?.exit(1);
@@ -144,20 +176,70 @@ describe("createCoreSupervisor", () => {
     expect(onProcessStarted).toHaveBeenNthCalledWith(2, processes[1]);
   });
 
-  it("stop() prevents a restart from being scheduled for a later exit", () => {
-    const processes: FakeProcess[] = [];
-    const fork = vi.fn(() => {
-      const process = new FakeProcess();
-      processes.push(process);
-      return process;
+  it("calls onProcessExited with the process that exited, before any restart", () => {
+    const events: string[] = [];
+    const { supervisor, processes } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
+      onProcessStarted: (process) =>
+        events.push(`started ${processes.indexOf(process as FakeProcess)}`),
+      onProcessExited: (process) =>
+        events.push(`exited ${processes.indexOf(process as FakeProcess)}`),
     });
+
+    supervisor.start();
+    processes[0]?.exit(1);
+
+    expect(events).toEqual(["started 0", "exited 0", "started 1"]);
+  });
+
+  it("calls onProcessExited when the core stays down after exhausting its attempts", () => {
+    const onProcessExited = vi.fn();
+    const { supervisor, processes } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => run()),
+      onProcessExited,
+    });
+
+    supervisor.start();
+    for (let index = 0; index < processes.length; index += 1) {
+      processes[index]?.exit(1);
+    }
+
+    expect(onProcessExited).toHaveBeenLastCalledWith(processes.at(-1));
+  });
+
+  it("stop() prevents a restart from being scheduled for a later exit", () => {
     const scheduleRestart = vi.fn();
-    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy });
+    const { supervisor, processes } = setUp({ scheduleRestart });
 
     supervisor.start();
     supervisor.stop();
     processes[0]?.exit(1);
 
     expect(scheduleRestart).not.toHaveBeenCalled();
+  });
+
+  it("stop() asks the running core process to exit", () => {
+    const { supervisor, processes } = setUp();
+
+    supervisor.start();
+    supervisor.stop();
+
+    expect(processes[0]?.killed).toBe(true);
+  });
+
+  it("stop() cancels a restart that was already scheduled", () => {
+    let pendingRestart: (() => void) | undefined;
+    const { supervisor, processes, fork } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => {
+        pendingRestart = run;
+      }),
+    });
+
+    supervisor.start();
+    processes[0]?.exit(1);
+    supervisor.stop();
+    pendingRestart?.();
+
+    expect(fork).toHaveBeenCalledOnce();
   });
 });

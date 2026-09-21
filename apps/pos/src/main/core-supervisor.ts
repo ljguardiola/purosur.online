@@ -2,6 +2,8 @@ export interface RestartPolicy {
   maxAttempts: number;
   baseDelayMs: number;
   maxDelayMs: number;
+  // A crash after the core has stayed up this long starts counting attempts from zero again.
+  stableRunMs: number;
 }
 
 export interface RestartDecision {
@@ -22,13 +24,16 @@ export function decideRestart(attempt: number, policy: RestartPolicy): RestartDe
 
 export interface SupervisedProcess {
   once(event: "exit", listener: (code: number | null) => void): void;
+  kill(): void;
 }
 
 export interface CoreSupervisorDeps {
   fork(): SupervisedProcess;
   scheduleRestart(run: () => void, delayMs: number): void;
+  now(): number;
   policy: RestartPolicy;
   onProcessStarted?(process: SupervisedProcess): void;
+  onProcessExited?(process: SupervisedProcess): void;
   onRestartsExhausted?(): void;
 }
 
@@ -37,23 +42,34 @@ export interface CoreSupervisor {
   stop(): void;
 }
 
-// Restarted only on an unexpected exit: main holds no business logic, but it still has to keep
-// the core process alive across a crash, with backoff instead of a hot restart loop.
+// Any exit main didn't ask for through stop() is a crash, whatever its exit code: main holds no
+// business logic, but it still has to keep the core process alive, with backoff instead of a hot
+// restart loop.
 export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   let attempt = 0;
   let stopped = true;
+  let current: SupervisedProcess | undefined;
 
   function launch(): void {
+    if (stopped) {
+      return;
+    }
+
     const process = deps.fork();
+    const startedAt = deps.now();
+    current = process;
     deps.onProcessStarted?.(process);
-    process.once("exit", (code) => {
+    process.once("exit", () => {
+      if (current === process) {
+        current = undefined;
+      }
+      deps.onProcessExited?.(process);
       if (stopped) {
         return;
       }
 
-      if (code === 0) {
+      if (deps.now() - startedAt >= deps.policy.stableRunMs) {
         attempt = 0;
-        return;
       }
 
       const decision = decideRestart(attempt, deps.policy);
@@ -75,6 +91,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
     },
     stop(): void {
       stopped = true;
+      current?.kill();
     },
   };
 }

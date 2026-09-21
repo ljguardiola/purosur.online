@@ -21,7 +21,12 @@ const CORE_ENTRY = join(import.meta.dirname, "core.js");
 const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.cjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
-const CORE_RESTART_POLICY = { maxAttempts: 5, baseDelayMs: 500, maxDelayMs: 8000 };
+const CORE_RESTART_POLICY = {
+  maxAttempts: 5,
+  baseDelayMs: 500,
+  maxDelayMs: 8000,
+  stableRunMs: 60_000,
+};
 
 const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
 
@@ -66,15 +71,15 @@ app.whenReady().then(() => {
     },
   });
 
-  // Tracks whichever core process is currently supervised: set inside `fork` itself (which
-  // always runs before the supervisor's `onProcessStarted` hook below), so a renderer reload —
-  // which needs a fresh port but not a new core process — always reconnects to the live one.
+  // Tracks the live core process, if any: set inside `fork` itself (which always runs before the
+  // supervisor's `onProcessStarted` hook below) and cleared as soon as it exits, so a renderer
+  // reload while the core is down gets no port until the restarted core hands it one.
   let currentCoreProcess: Electron.UtilityProcess | undefined;
   let rendererHasLoadedOnce = false;
 
   function reconnectRendererToCore(): void {
     const coreProcess = currentCoreProcess;
-    if (!coreProcess) {
+    if (!coreProcess || window.isDestroyed()) {
       return;
     }
 
@@ -94,7 +99,13 @@ app.whenReady().then(() => {
     scheduleRestart: (run, delayMs) => {
       setTimeout(run, delayMs);
     },
+    now: () => performance.now(),
     policy: CORE_RESTART_POLICY,
+    onProcessExited: (process) => {
+      if (currentCoreProcess === process) {
+        currentCoreProcess = undefined;
+      }
+    },
     onProcessStarted: () => {
       // On the very first launch the renderer hasn't loaded (and registered its preload's port
       // listener) yet: the `did-finish-load` handler below connects it once it's ready. A
@@ -109,6 +120,9 @@ app.whenReady().then(() => {
     },
   });
   supervisor.start();
+  // Quitting kills the core like any other child process; stopping first keeps that exit from
+  // being taken for a crash and relaunched while the window is going away.
+  app.on("before-quit", () => supervisor.stop());
 
   // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
   // refresh), so a fresh page always gets a live port to whichever core process is running.
