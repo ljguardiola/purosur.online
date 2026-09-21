@@ -56,12 +56,13 @@ export type ButtonProps = ButtonCommonProps &
 // min-w-0 on both forms overrides a flex item's default min-width of auto, which otherwise
 // refuses to shrink a button below its label's own content width — with it still in place, a row
 // too narrow for its buttons would grow the button past the row instead of letting the label
-// inside it truncate. max-w-full only matters to the content-sized form: without a row shrinking
-// it, a button sizes to its label regardless of how narrow its container is, and this caps it at
-// that container's width instead.
+// inside it truncate. max-w-full is needed by both forms: a button sizes to its label whatever
+// its container's width, and grow holds it back only inside a row, so outside one a stretched
+// button spills past a container too narrow for its label exactly as a content-sized one does.
+// This caps either form at that container's width instead.
 const widthClassName = {
   content: "inline-flex min-w-0 max-w-full",
-  full: "flex min-w-0 grow basis-0",
+  full: "flex min-w-0 max-w-full grow basis-0",
 } as const;
 
 const baseClassName =
@@ -155,10 +156,8 @@ export function Button({
       {/* The button is a flex container centering its content (justify-center), so putting
           truncate directly on it clips both ends of an overflowing label with no ellipsis glyph
           at all, instead of shortening just the trailing edge — the label needs its own box to
-          truncate. min-w-0 mirrors the button's own: a flex item's default min-width is its
-          content width, which would keep this span (and so the button around it) from shrinking
-          below the label's own width in the first place. */}
-      <span className="min-w-0 truncate">{children}</span>
+          truncate. */}
+      <span className="truncate">{children}</span>
       {variant === "primary" && sizedIcon}
     </AriaButton>
   );
