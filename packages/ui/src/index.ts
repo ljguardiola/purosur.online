@@ -9,6 +9,8 @@ export type {
 export { Button } from "./components/Button";
 export type { CheckboxProps } from "./components/Checkbox";
 export { Checkbox } from "./components/Checkbox";
+export type { DateFieldProps, DateFieldVariant } from "./components/DateField";
+export { DateField } from "./components/DateField";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
