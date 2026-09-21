@@ -2,6 +2,11 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
 import { app, BrowserWindow, MessageChannelMain, session, utilityProcess } from "electron";
+import {
+  scrubSentryBreadcrumb,
+  scrubSentryEvent,
+  scrubSentryLog,
+} from "../shared/sentry-scrubbing";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
@@ -23,6 +28,9 @@ if (sentryDsn) {
       ...defaults.filter((integration) => integration.name !== "PreloadInjection"),
       Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
     ],
+    beforeSend: scrubSentryEvent,
+    beforeBreadcrumb: scrubSentryBreadcrumb,
+    beforeSendLog: scrubSentryLog,
   });
 }
 

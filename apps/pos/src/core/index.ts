@@ -1,5 +1,10 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
+import {
+  scrubSentryBreadcrumb,
+  scrubSentryEvent,
+  scrubSentryLog,
+} from "../shared/sentry-scrubbing";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createRendererConnection } from "./renderer-connection";
 
@@ -12,6 +17,9 @@ if (sentryDsn) {
     environment: import.meta.env.SENTRY_ENVIRONMENT,
     enableLogs: true,
     integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+    beforeSend: scrubSentryEvent,
+    beforeBreadcrumb: scrubSentryBreadcrumb,
+    beforeSendLog: scrubSentryLog,
   });
 }
 

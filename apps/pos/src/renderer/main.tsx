@@ -1,6 +1,11 @@
 import * as Sentry from "@sentry/electron/renderer";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  scrubSentryBreadcrumb,
+  scrubSentryEvent,
+  scrubSentryLog,
+} from "../shared/sentry-scrubbing";
 import { App } from "./App";
 import type { PortEventSource } from "./incoming-port";
 import { attachIncomingPort } from "./incoming-port";
@@ -12,6 +17,9 @@ if (sentryDsn) {
     environment: import.meta.env.SENTRY_ENVIRONMENT,
     enableLogs: true,
     integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+    beforeSend: scrubSentryEvent,
+    beforeBreadcrumb: scrubSentryBreadcrumb,
+    beforeSendLog: scrubSentryLog,
   });
 }
 
