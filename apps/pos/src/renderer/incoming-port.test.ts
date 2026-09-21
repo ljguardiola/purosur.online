@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { attachIncomingPort, type IncomingPortEvent, type PortEventSource } from "./incoming-port";
+import type { IncomingPortEvent, PortEventSource } from "./incoming-port";
+import { attachIncomingPort } from "./incoming-port";
 
 class FakePort {
   closed = false;
