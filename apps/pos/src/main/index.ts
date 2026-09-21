@@ -13,6 +13,7 @@ import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
+import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
 import {
   CHILD_PROCESS_EVENT_REASONS,
@@ -63,6 +64,21 @@ const RESTART_POLICY = {
   maxDelayMs: 8000,
   stableRunMs: 60_000,
 };
+
+// A core that hasn't said it is ready by then is killed and restarted like a crash. Its boot takes
+// milliseconds today; the margin is for the database and hardware setup it will do before saying
+// it is ready, which must never be mistaken for a hang on a slow register.
+const CORE_READINESS_TIMEOUT_MS = 30_000;
+
+const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
+
+// Only honored in an unpackaged run (development and end-to-end tests), the same trust boundary
+// channel-settings.ts already draws for POS_CHANNEL_FILE: a packaged build always waits the real
+// interval, and nothing lets a compromised production install shorten it.
+function coreRetryIntervalMs(): number {
+  const override = !app.isPackaged ? Number(process.env.POS_CORE_RETRY_INTERVAL_MS) : Number.NaN;
+  return Number.isFinite(override) && override > 0 ? override : DEFAULT_CORE_RETRY_INTERVAL_MS;
+}
 
 const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
 
@@ -142,6 +158,9 @@ function startRegister(settings: ChannelSettings): void {
     // reload while the core is down gets no port until the restarted core hands it one.
     let currentCoreProcess: Electron.UtilityProcess | undefined;
     let rendererHasLoadedOnce = false;
+    // Mirrors what the renderer was last told, so a page that loads or reloads later still learns
+    // it.
+    let coreStatus: CoreStatus = "starting";
 
     function reconnectRendererToCore(): void {
       const coreProcess = currentCoreProcess;
@@ -156,6 +175,21 @@ function startRegister(settings: ChannelSettings): void {
       });
     }
 
+    function sendCoreStatusToRenderer(): void {
+      if (window.isDestroyed()) {
+        return;
+      }
+      broadcastCoreStatus(
+        { postMessage: (channel, message) => window.webContents.postMessage(channel, message) },
+        coreStatus,
+      );
+    }
+
+    function setCoreStatus(status: CoreStatus): void {
+      coreStatus = status;
+      sendCoreStatusToRenderer();
+    }
+
     const supervisor = createCoreSupervisor({
       fork: (): SupervisedProcess => {
         const child = utilityProcess.fork(CORE_ENTRY, coreArgumentsFor(settings.channel), {
@@ -166,10 +200,17 @@ function startRegister(settings: ChannelSettings): void {
         return child;
       },
       scheduleRestart: (run, delayMs) => {
-        setTimeout(run, delayMs);
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
       },
       now: () => performance.now(),
       policy: RESTART_POLICY,
+      retryIntervalMs: coreRetryIntervalMs(),
+      scheduleReadinessDeadline: (run, delayMs) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      },
+      readinessTimeoutMs: CORE_READINESS_TIMEOUT_MS,
       onProcessExited: (process) => {
         if (currentCoreProcess === process) {
           currentCoreProcess = undefined;
@@ -187,6 +228,7 @@ function startRegister(settings: ChannelSettings): void {
         console.error("core process: restart attempts exhausted");
         Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
       },
+      onStatusChange: setCoreStatus,
     });
     supervisor.start();
     // Quitting kills the core like any other child process; stopping first keeps that exit from
@@ -194,10 +236,12 @@ function startRegister(settings: ChannelSettings): void {
     app.on("before-quit", () => supervisor.stop());
 
     // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
-    // refresh), so a fresh page always gets a live port to whichever core process is running.
+    // refresh), so a fresh page always gets a live port to whichever core process is running and
+    // learns the core's current status even if it missed the event that last changed it.
     window.webContents.on("did-finish-load", () => {
       rendererHasLoadedOnce = true;
       reconnectRendererToCore();
+      sendCoreStatusToRenderer();
     });
 
     if (devServerUrl) {

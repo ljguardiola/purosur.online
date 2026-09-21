@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@fontsource-variable/atkinson-hyperlegible-next";
 
+/* An app reaches this package through node_modules, which Tailwind's automatic source detection
+   skips, so its components' classes would never be generated without this. */
+@source "../components";
+
 @theme {
   /* Distinguishes 0/O, 1/l/I and 5/S, bundled locally so nothing is fetched at runtime. */
   --font-sans: "Atkinson Hyperlegible Next Variable", sans-serif;

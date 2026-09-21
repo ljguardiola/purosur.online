@@ -4,6 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # The build-output guard has to scan and compile classes with the same engine the real
+      # build uses (see apps/pos/src/build-output.test.ts), so these move together.
+      tailwindcss:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
     commit-message:
       prefix: "chore(deps)"
     ignore:

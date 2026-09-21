@@ -1,6 +1,7 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { sentryEnvironmentFromCoreArguments } from "../shared/channel";
+import { CORE_READY_MESSAGE } from "../shared/core-readiness";
 import {
   scrubSentryBreadcrumb,
   scrubSentryEvent,
@@ -58,3 +59,5 @@ process.parentPort.on("message", (event) => {
 
   gateFromMain(event.data, handleMainMessage);
 });
+
+process.parentPort.postMessage(CORE_READY_MESSAGE);
