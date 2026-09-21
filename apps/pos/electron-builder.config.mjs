@@ -1,9 +1,15 @@
-// The production and staging builds are chosen at build time via POS_CHANNEL (see package.json's
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { CHANNEL_DATA_FOLDERS, CHANNELS, serializeChannelFile } from "./src/shared/channel.ts";
+
+// The production and staging installers are chosen via POS_CHANNEL (see package.json's
 // package:production/package:staging scripts). They differ in appId and productName so NSIS
-// installs each one to its own directory, Start Menu shortcut and uninstall registry key, and so
-// Electron's per-app userData folder (derived from productName) never collides between the two —
-// letting both be installed side by side on the same machine.
-const channel = process.env.POS_CHANNEL === "staging" ? "staging" : "production";
+// installs each one to its own directory, Start Menu shortcut and uninstall registry key, letting
+// both be installed side by side on the same machine.
+const channel = process.env.POS_CHANNEL;
+if (!CHANNELS.includes(channel)) {
+  throw new Error(`POS_CHANNEL must be one of ${CHANNELS.join(", ")}; got ${channel}`);
+}
 
 const channelConfig = {
   production: {
@@ -21,6 +27,13 @@ const channelConfig = {
 
 const { appId, packageName, productName } = channelConfig[channel];
 const updateFeedUrl = process.env.POS_UPDATE_FEED_URL;
+const sentryDsn = process.env.POS_SENTRY_DSN;
+
+const channelFile = serializeChannelFile({
+  channel,
+  dataFolder: CHANNEL_DATA_FOLDERS[channel],
+  ...(sentryDsn ? { sentryDsn } : {}),
+});
 
 /** @type {import('electron-builder').Configuration} */
 export default {
@@ -46,4 +59,10 @@ export default {
   },
   // Only where each channel's updates are published; nothing checks the feed yet.
   publish: updateFeedUrl ? [{ provider: "generic", url: updateFeedUrl, channel }] : null,
+  // The channel lives next to app.asar rather than inside it, the same way electron-builder writes
+  // the update feed's app-update.yml, before the installer is built from this folder.
+  afterPack: async (context) => {
+    const resourcesDir = context.packager.getResourcesDir(context.appOutDir);
+    await writeFile(join(resourcesDir, "channel.json"), channelFile);
+  },
 };

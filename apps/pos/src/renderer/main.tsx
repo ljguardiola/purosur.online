@@ -10,18 +10,15 @@ import { App } from "./App";
 import type { PortEventSource } from "./incoming-port";
 import { attachIncomingPort } from "./incoming-port";
 
-const sentryDsn = import.meta.env.RENDERER_VITE_SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: import.meta.env.SENTRY_ENVIRONMENT,
-    enableLogs: true,
-    integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
-    beforeSend: scrubSentryEvent,
-    beforeBreadcrumb: scrubSentryBreadcrumb,
-    beforeSendLog: scrubSentryLog,
-  });
-}
+// Neither a DSN nor an environment: the renderer SDK sends everything to main, which owns the
+// destination and stamps its own environment on the renderer's events and logs.
+Sentry.init({
+  enableLogs: true,
+  integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+  beforeSend: scrubSentryEvent,
+  beforeBreadcrumb: scrubSentryBreadcrumb,
+  beforeSendLog: scrubSentryLog,
+});
 
 // Adapts the DOM's `window` to the pure port-handoff module: real MessageEvents carry a `ports`
 // list, but `window.addEventListener`'s own type only knows about the generic DOM `Event`.

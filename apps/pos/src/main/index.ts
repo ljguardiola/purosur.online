@@ -1,12 +1,15 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
 import { app, BrowserWindow, MessageChannelMain, session, utilityProcess } from "electron";
+import { type ChannelSettings, coreArgumentsFor } from "../shared/channel";
 import {
   scrubSentryBreadcrumb,
   scrubSentryEvent,
   scrubSentryLog,
 } from "../shared/sentry-scrubbing";
+import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
@@ -15,12 +18,18 @@ import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
-// No DSN configured (e.g. a local dev build) means no error tracking, not a crash on startup.
-const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
-if (sentryDsn) {
+// Electron derives the data folder from package.json's name, which both channels share; each
+// channel's own folder has to be set before the app is ready.
+function keepDataInChannelFolder(settings: ChannelSettings): void {
+  app.setPath("userData", join(app.getPath("appData"), settings.dataFolder));
+}
+
+function initializeErrorReporting(settings: ChannelSettings): void {
+  // Initialized even without a DSN: the renderer and core SDKs always report through main, which
+  // then has nowhere to send anything and drops it.
   Sentry.init({
-    dsn: sentryDsn,
-    environment: import.meta.env.SENTRY_ENVIRONMENT,
+    ...(settings.sentryDsn ? { dsn: settings.sentryDsn } : {}),
+    environment: settings.channel,
     enableLogs: true,
     // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
     // mode would inject Sentry's own preload, which exposes an API on the page's window.
@@ -77,111 +86,135 @@ function guardWindow(window: BrowserWindow): void {
   window.webContents.setWindowOpenHandler(() => denyWindowOpen());
 }
 
-app.whenReady().then(() => {
-  applyContentSecurityPolicy();
+function startRegister(settings: ChannelSettings): void {
+  app.whenReady().then(() => {
+    applyContentSecurityPolicy();
 
-  const window = new BrowserWindow(createWindowOptions(PRELOAD_ENTRY));
-  guardWindow(window);
-  showWhenReadyAndReviveRenderer(
-    {
-      onceReadyToShow: (listener) => window.once("ready-to-show", listener),
-      show: () => window.show(),
-      isDestroyed: () => window.isDestroyed(),
-      webContents: {
-        onRendererGone: (listener) =>
-          window.webContents.on("render-process-gone", (_event, details) =>
-            listener(details.reason),
-          ),
-        onLoadFailed: (listener) =>
-          window.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
-            if (isMainFrame) {
-              listener({ code, description });
-            }
-          }),
-        reload: () => window.webContents.reload(),
+    const window = new BrowserWindow(createWindowOptions(PRELOAD_ENTRY));
+    guardWindow(window);
+    showWhenReadyAndReviveRenderer(
+      {
+        onceReadyToShow: (listener) => window.once("ready-to-show", listener),
+        show: () => window.show(),
+        isDestroyed: () => window.isDestroyed(),
+        webContents: {
+          onRendererGone: (listener) =>
+            window.webContents.on("render-process-gone", (_event, details) =>
+              listener(details.reason),
+            ),
+          onLoadFailed: (listener) =>
+            window.webContents.on(
+              "did-fail-load",
+              (_event, code, description, _url, isMainFrame) => {
+                if (isMainFrame) {
+                  listener({ code, description });
+                }
+              },
+            ),
+          reload: () => window.webContents.reload(),
+        },
       },
-    },
-    {
-      scheduleReload: (run, delayMs) => {
+      {
+        scheduleReload: (run, delayMs) => {
+          setTimeout(run, delayMs);
+        },
+        now: () => performance.now(),
+        policy: RESTART_POLICY,
+        onRecoveryExhausted: () => {
+          console.error("renderer process: reload attempts exhausted");
+          Sentry.captureMessage("renderer process: reload attempts exhausted", "fatal");
+        },
+        onLoadFailed: ({ code, description }) => {
+          console.error(`renderer: page failed to load (${code} ${description})`);
+          Sentry.captureMessage(`renderer: page failed to load (${code} ${description})`, "error");
+        },
+      },
+    );
+
+    // Tracks the live core process, if any: set inside `fork` itself (which always runs before the
+    // supervisor's `onProcessStarted` hook below) and cleared as soon as it exits, so a renderer
+    // reload while the core is down gets no port until the restarted core hands it one.
+    let currentCoreProcess: Electron.UtilityProcess | undefined;
+    let rendererHasLoadedOnce = false;
+
+    function reconnectRendererToCore(): void {
+      const coreProcess = currentCoreProcess;
+      if (!coreProcess || window.isDestroyed()) {
+        return;
+      }
+
+      establishCoreConnection({
+        createChannel: () => new MessageChannelMain(),
+        sendToCore: (port) => coreProcess.postMessage(null, [port]),
+        sendToRenderer: (port) => window.webContents.postMessage("core-port", null, [port]),
+      });
+    }
+
+    const supervisor = createCoreSupervisor({
+      fork: (): SupervisedProcess => {
+        const child = utilityProcess.fork(CORE_ENTRY, coreArgumentsFor(settings.channel), {
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        forwardCoreOutput(child, process.stdout, process.stderr);
+        currentCoreProcess = child;
+        return child;
+      },
+      scheduleRestart: (run, delayMs) => {
         setTimeout(run, delayMs);
       },
       now: () => performance.now(),
       policy: RESTART_POLICY,
-      onRecoveryExhausted: () => {
-        console.error("renderer process: reload attempts exhausted");
-        Sentry.captureMessage("renderer process: reload attempts exhausted", "fatal");
+      onProcessExited: (process) => {
+        if (currentCoreProcess === process) {
+          currentCoreProcess = undefined;
+        }
       },
-      onLoadFailed: ({ code, description }) => {
-        console.error(`renderer: page failed to load (${code} ${description})`);
-        Sentry.captureMessage(`renderer: page failed to load (${code} ${description})`, "error");
+      onProcessStarted: () => {
+        // On the very first launch the renderer hasn't loaded (and registered its preload's port
+        // listener) yet: the `did-finish-load` handler below connects it once it's ready. A
+        // restart while the renderer is already showing needs to reconnect right away instead.
+        if (rendererHasLoadedOnce) {
+          reconnectRendererToCore();
+        }
       },
-    },
-  );
-
-  // Tracks the live core process, if any: set inside `fork` itself (which always runs before the
-  // supervisor's `onProcessStarted` hook below) and cleared as soon as it exits, so a renderer
-  // reload while the core is down gets no port until the restarted core hands it one.
-  let currentCoreProcess: Electron.UtilityProcess | undefined;
-  let rendererHasLoadedOnce = false;
-
-  function reconnectRendererToCore(): void {
-    const coreProcess = currentCoreProcess;
-    if (!coreProcess || window.isDestroyed()) {
-      return;
-    }
-
-    establishCoreConnection({
-      createChannel: () => new MessageChannelMain(),
-      sendToCore: (port) => coreProcess.postMessage(null, [port]),
-      sendToRenderer: (port) => window.webContents.postMessage("core-port", null, [port]),
+      onRestartsExhausted: () => {
+        console.error("core process: restart attempts exhausted");
+        Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
+      },
     });
-  }
+    supervisor.start();
+    // Quitting kills the core like any other child process; stopping first keeps that exit from
+    // being taken for a crash and relaunched while the window is going away.
+    app.on("before-quit", () => supervisor.stop());
 
-  const supervisor = createCoreSupervisor({
-    fork: (): SupervisedProcess => {
-      const child = utilityProcess.fork(CORE_ENTRY, [], { stdio: ["ignore", "pipe", "pipe"] });
-      forwardCoreOutput(child, process.stdout, process.stderr);
-      currentCoreProcess = child;
-      return child;
-    },
-    scheduleRestart: (run, delayMs) => {
-      setTimeout(run, delayMs);
-    },
-    now: () => performance.now(),
-    policy: RESTART_POLICY,
-    onProcessExited: (process) => {
-      if (currentCoreProcess === process) {
-        currentCoreProcess = undefined;
-      }
-    },
-    onProcessStarted: () => {
-      // On the very first launch the renderer hasn't loaded (and registered its preload's port
-      // listener) yet: the `did-finish-load` handler below connects it once it's ready. A
-      // restart while the renderer is already showing needs to reconnect right away instead.
-      if (rendererHasLoadedOnce) {
-        reconnectRendererToCore();
-      }
-    },
-    onRestartsExhausted: () => {
-      console.error("core process: restart attempts exhausted");
-      Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
-    },
+    // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
+    // refresh), so a fresh page always gets a live port to whichever core process is running.
+    window.webContents.on("did-finish-load", () => {
+      rendererHasLoadedOnce = true;
+      reconnectRendererToCore();
+    });
+
+    if (devServerUrl) {
+      void window.loadURL(devServerUrl);
+    } else {
+      void window.loadFile(RENDERER_ENTRY);
+    }
   });
-  supervisor.start();
-  // Quitting kills the core like any other child process; stopping first keeps that exit from
-  // being taken for a crash and relaunched while the window is going away.
-  app.on("before-quit", () => supervisor.stop());
+}
 
-  // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
-  // refresh), so a fresh page always gets a live port to whichever core process is running.
-  window.webContents.on("did-finish-load", () => {
-    rendererHasLoadedOnce = true;
-    reconnectRendererToCore();
-  });
-
-  if (devServerUrl) {
-    void window.loadURL(devServerUrl);
-  } else {
-    void window.loadFile(RENDERER_ENTRY);
-  }
+const channelSettings = loadChannelSettings({
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath,
+  overridePath: process.env.POS_CHANNEL_FILE,
+  readFile: (path) => readFileSync(path, "utf8"),
 });
+if (channelSettings.ok) {
+  keepDataInChannelFolder(channelSettings.settings);
+  initializeErrorReporting(channelSettings.settings);
+  startRegister(channelSettings.settings);
+} else {
+  // Without its channel the register can't tell whose data folder it may write to, so it doesn't
+  // start rather than guess.
+  console.error(`register not started: ${channelSettings.reason}`);
+  app.exit(1);
+}

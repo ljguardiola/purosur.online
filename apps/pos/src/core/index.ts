@@ -1,5 +1,6 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
+import { sentryEnvironmentFromCoreArguments } from "../shared/channel";
 import {
   scrubSentryBreadcrumb,
   scrubSentryEvent,
@@ -8,13 +9,13 @@ import {
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createRendererConnection } from "./renderer-connection";
 
-// The core is built as a second main-side entry (see electron.vite.config.ts), so it shares
-// main's MAIN_VITE_ prefixed environment variables.
-const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
-if (sentryDsn) {
+// No DSN here: the utility SDK hands every envelope to main, which owns the destination. Main
+// replaces the environment on the core's events but forwards its logs untouched, so the core still
+// needs its own.
+const sentryEnvironment = sentryEnvironmentFromCoreArguments(process.argv);
+if (sentryEnvironment) {
   Sentry.init({
-    dsn: sentryDsn,
-    environment: import.meta.env.SENTRY_ENVIRONMENT,
+    environment: sentryEnvironment,
     enableLogs: true,
     integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
     beforeSend: scrubSentryEvent,
