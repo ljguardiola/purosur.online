@@ -1,7 +1,7 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   registerShutdownHandlers,
   reportStartupFailure,
@@ -36,22 +36,46 @@ describe("resolvePort", () => {
 });
 
 describe("resolveStaticDir", () => {
-  it("returns BACKOFFICE_STATIC_DIR when set, trusting it even if it doesn't exist yet", () => {
-    expect(resolveStaticDir({ BACKOFFICE_STATIC_DIR: "/does/not/exist" }, "/default")).toBe(
-      "/does/not/exist",
-    );
-  });
+  const dirs: string[] = [];
 
-  it("returns the default directory when it exists on disk", () => {
+  function tempDir(withIndexHtml: boolean): string {
     const dir = mkdtempSync(join(tmpdir(), "cloud-static-default-"));
-    try {
-      expect(resolveStaticDir({}, dir)).toBe(dir);
-    } finally {
+    dirs.push(dir);
+    if (withIndexHtml) {
+      writeFileSync(join(dir, "index.html"), "<!doctype html>");
+    }
+    return dir;
+  }
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("returns undefined when neither an override nor the default directory exists", () => {
+  it("returns BACKOFFICE_STATIC_DIR when it holds a build", () => {
+    const dir = tempDir(true);
+    expect(resolveStaticDir({ BACKOFFICE_STATIC_DIR: dir }, "/default")).toBe(dir);
+  });
+
+  it("refuses to start when BACKOFFICE_STATIC_DIR does not exist", () => {
+    expect(() =>
+      resolveStaticDir({ BACKOFFICE_STATIC_DIR: "/does/not/exist" }, "/default"),
+    ).toThrow("/does/not/exist");
+  });
+
+  it("refuses to start when BACKOFFICE_STATIC_DIR has no index.html", () => {
+    const dir = tempDir(false);
+    expect(() => resolveStaticDir({ BACKOFFICE_STATIC_DIR: dir }, "/default")).toThrow(dir);
+  });
+
+  it("returns the default directory when it holds a build", () => {
+    const dir = tempDir(true);
+    expect(resolveStaticDir({}, dir)).toBe(dir);
+  });
+
+  it("returns undefined when the default directory holds no build", () => {
+    expect(resolveStaticDir({}, tempDir(false))).toBeUndefined();
     expect(resolveStaticDir({}, "/definitely/does/not/exist/purosur-backoffice")).toBeUndefined();
   });
 });
@@ -63,21 +87,25 @@ describe("startServer", () => {
     const initSentry = vi.fn();
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
+    const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-start-"));
+    writeFileSync(join(staticDir, "index.html"), "<!doctype html>");
     const env = {
       PORT: "4000",
       APP_VERSION: "sha123",
       SENTRY_DSN: "https://public@sentry.example/1",
       SENTRY_ENVIRONMENT: "staging",
-      BACKOFFICE_STATIC_DIR: "/app/public",
+      BACKOFFICE_STATIC_DIR: staticDir,
     };
 
-    const app = await startServer(env, { initSentry, buildApp });
+    const app = await startServer(env, { initSentry, buildApp }).finally(() =>
+      rmSync(staticDir, { recursive: true, force: true }),
+    );
 
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
       environment: "staging",
     });
-    expect(buildApp).toHaveBeenCalledWith({ version: "sha123", staticDir: "/app/public" });
+    expect(buildApp).toHaveBeenCalledWith({ version: "sha123", staticDir });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
   });

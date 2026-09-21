@@ -1,3 +1,4 @@
+import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -12,13 +13,35 @@ export interface BuildAppOptions {
    */
   setupFastifyErrorHandler?: (app: FastifyInstance) => void;
   /**
-   * The backoffice's built static assets (its `dist/`, containing `index.html`). When given, a
-   * GET request that matches neither a registered route nor a real file under this directory
-   * falls back to `index.html`, so the backoffice's own client-side router handles it — a plain
-   * static file server would 404 on a deep link instead. Omitted in tests that don't need it, and
-   * locally unless `BACKOFFICE_STATIC_DIR` is set (see server.ts).
+   * The backoffice's build (its `dist/`, containing `index.html`). A GET or HEAD for a path with
+   * no file extension that matches neither a route nor a file gets `index.html`, so the
+   * backoffice's client-side router handles deep links.
    */
   staticDir?: string | undefined;
+}
+
+const backofficeSecurityHeaders: Record<string, string> = {
+  "Content-Security-Policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "font-src 'self'",
+    "img-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+};
+
+// Vite names every file under assets/ by its content hash, so an asset URL never changes content.
+function cacheControlFor(staticDir: string, filePath: string): string {
+  const [topLevel] = relative(staticDir, filePath).split(sep);
+  return topLevel === "assets" ? "public, max-age=31536000, immutable" : "no-cache";
 }
 
 export function buildApp(options: BuildAppOptions): FastifyInstance {
@@ -32,9 +55,16 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
 
   const staticDir = options.staticDir;
   if (staticDir) {
-    app.register(fastifyStatic, { root: staticDir });
+    app.register(fastifyStatic, {
+      root: staticDir,
+      setHeaders: (reply, filePath) => {
+        reply.headers(backofficeSecurityHeaders);
+        reply.header("Cache-Control", cacheControlFor(staticDir, filePath));
+      },
+    });
     app.setNotFoundHandler((request, reply) => {
-      if (request.method !== "GET") {
+      const isClientRoute = extname(new URL(request.url, "http://localhost").pathname) === "";
+      if ((request.method !== "GET" && request.method !== "HEAD") || !isClientRoute) {
         reply.code(404).send();
         return;
       }

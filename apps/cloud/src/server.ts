@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import type { FastifyInstance } from "fastify";
@@ -16,10 +17,7 @@ export interface ServerEnv {
 const DEFAULT_PORT = 3000;
 const DEFAULT_VERSION = "unknown";
 
-// `pnpm --filter @purosur/cloud deploy --prod` (see apps/cloud/Dockerfile) puts this compiled
-// server at <deploy>/dist/server.js; the Dockerfile copies the backoffice's own build to
-// <deploy>/public next to it, so this resolves there by default with no env var needed in the
-// common case. BACKOFFICE_STATIC_DIR still overrides it for any other layout.
+// apps/cloud/Dockerfile copies the backoffice build to public/, a sibling of this file's dist/.
 const DEFAULT_STATIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
 /** `APP_VERSION` is baked into the image at build time (the commit SHA); "unknown" is a dev-only fallback. */
@@ -32,18 +30,23 @@ export function resolvePort(env: ServerEnv): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
 }
 
+function holdsBackofficeBuild(dir: string): boolean {
+  return existsSync(join(dir, "index.html"));
+}
+
 /**
- * An explicit `BACKOFFICE_STATIC_DIR` is trusted even if it doesn't exist yet, so a real
- * misconfiguration fails loudly at startup instead of silently serving no backoffice. The
- * conventional default is only used when it actually exists on disk, so a plain `cloud` checkout
- * with no backoffice build still starts and serves `/health` — it just 404s everything else,
- * exactly as it did before this option existed.
+ * An explicit `BACKOFFICE_STATIC_DIR` must hold a build, or startup fails. The default directory
+ * is used only when it holds one, so the service still starts without a backoffice build.
  */
 export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | undefined {
-  if (env.BACKOFFICE_STATIC_DIR) {
-    return env.BACKOFFICE_STATIC_DIR;
+  const explicitDir = env.BACKOFFICE_STATIC_DIR;
+  if (explicitDir) {
+    if (!holdsBackofficeBuild(explicitDir)) {
+      throw new Error(`BACKOFFICE_STATIC_DIR has no index.html: ${explicitDir}`);
+    }
+    return explicitDir;
   }
-  return existsSync(defaultDir) ? defaultDir : undefined;
+  return holdsBackofficeBuild(defaultDir) ? defaultDir : undefined;
 }
 
 export interface StartServerDeps {

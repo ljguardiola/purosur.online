@@ -92,6 +92,67 @@ describe("serving the backoffice's static build", () => {
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
   });
 
+  it("falls back to index.html for a HEAD to a client route, same as a GET", async () => {
+    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+    const response = await app.inject({ method: "HEAD", url: "/ayuda/getting_started" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/html");
+  });
+
+  it.each(["/assets/old-hash.js", "/favicon.ico", "/ayuda/getting_started.png"])(
+    "answers 404 instead of index.html for a missing file like %s",
+    async (url) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const get = await app.inject({ method: "GET", url });
+      const head = await app.inject({ method: "HEAD", url });
+
+      expect(get.statusCode).toBe(404);
+      expect(get.body).not.toContain("backoffice");
+      expect(head.statusCode).toBe(404);
+    },
+  );
+
+  it.each(["/assets/app.js", "/ayuda/getting_started"])(
+    "sends the security headers with %s",
+    async (url) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const response = await app.inject({ method: "GET", url });
+
+      expect(response.headers["content-security-policy"]).toBe(
+        "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; " +
+          "connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; " +
+          "frame-ancestors 'none'",
+      );
+      expect(response.headers["x-content-type-options"]).toBe("nosniff");
+      expect(response.headers["x-frame-options"]).toBe("DENY");
+      expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    },
+  );
+
+  it("lets browsers keep a hashed asset for a year without revalidating", async () => {
+    const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+    const response = await app.inject({ method: "GET", url: "/assets/app.js" });
+
+    expect(response.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+  });
+
+  it.each(["/", "/index.html", "/ayuda/getting_started"])(
+    "makes browsers revalidate the page served for %s",
+    async (url) => {
+      const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
+
+      const response = await app.inject({ method: "GET", url });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["cache-control"]).toBe("no-cache");
+    },
+  );
+
   it("does not fall back for a non-GET request to an unmatched path", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
