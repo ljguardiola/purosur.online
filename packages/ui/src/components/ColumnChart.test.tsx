@@ -89,7 +89,7 @@ function pageBackgroundHex(): string {
 
 // axis 64 + gap 12 + half a bar's own 20px width (10) = 86: the room a label has on the left of
 // the first bar's centre, and the room the chart reserves on the right of the last bar's centre.
-// A label is capped at twice that on both sides of its own bar, and shortened past it.
+// A label is capped at twice that, 86px on each side of its own bar's centre, and shortened past it.
 const LABEL_MAX_WIDTH_PX = 172;
 const CHART_RIGHT_RESERVE_PX = 76;
 
@@ -711,6 +711,10 @@ test("shortens a label wider than 172px with an ellipsis, keeping it one line, c
       expect(spanRect.width).toBeCloseTo(LABEL_MAX_WIDTH_PX, 0);
       expect(span.scrollWidth).toBeGreaterThan(span.clientWidth);
       expect(getComputedStyle(span).textOverflow).toBe("ellipsis");
+      // The text run itself is still wider than the cap: only the box's own clip keeps what
+      // spills past it from painting beyond the chart.
+      expect(textRunRect(span).width).toBeGreaterThan(LABEL_MAX_WIDTH_PX);
+      expect(getComputedStyle(span).overflowX).toBe("hidden");
       expect(spanRect.height).toBeCloseTo(16, 0);
       expectLabelCenteredOnBar(spanRect, barRect);
       expectInsideChartBox(spanRect, rootRect);
@@ -735,6 +739,27 @@ test("renders no label for a bar that doesn't have one", async () => {
   expect(at(columns, 2).textContent).toBe("");
   expect(at(columns, 0).textContent).toBe("Mon 08/17");
   expect(at(columns, 3).textContent).toBe("Thu 08/20");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the zero tick inside the chart box, at the same height, when no bar has a label", async () => {
+  const unlabeled = weekBars.map(({ id, value }) => ({ id, value }));
+  const labelledScreen = await render(
+    <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const labelledHeight = chartRoot(labelledScreen).getBoundingClientRect().height;
+  const screen = await render(
+    <ColumnChart bars={unlabeled} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const rootRect = chartRoot(screen).getBoundingClientRect();
+
+  expect(rootRect.height).toBeCloseTo(labelledHeight, 0);
+  for (const tick of Array.from(axisColumn(screen).children) as HTMLElement[]) {
+    const rect = textRunRect(tick);
+    expect(rect.top).toBeGreaterThanOrEqual(rootRect.top);
+    expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });

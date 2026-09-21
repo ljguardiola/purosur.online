@@ -36,7 +36,9 @@ const gridLineClassName = "absolute inset-x-0 h-px bg-line";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
 const barsRowClassName = "relative flex h-full items-end gap-[11px]";
 const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
-const labelRowClassName = "mt-1.5 flex gap-3";
+// The zero tick's line box is centered on the bottom grid line, so half of it sits below the plot;
+// the label row keeps a label's line of height with no labels in it to hold that half.
+const labelRowClassName = "mt-1.5 flex min-h-4 gap-3";
 const axisSpacerClassName = "w-16";
 // The first bar's centre has 86px of room to the chart's left edge (axis 64 + gap 12 + half the
 // bar's own 20px width). The labels reserve the same room past the last bar's centre, 76px beyond
