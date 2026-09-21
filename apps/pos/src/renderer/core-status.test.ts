@@ -18,6 +18,10 @@ class FakeSource implements CoreStatusEventSource {
     }
   }
 
+  hasListener(): boolean {
+    return this.listener !== undefined;
+  }
+
   dispatch({ source = ownWindow, data }: { source?: unknown; data: unknown }): void {
     this.listener?.({ source, data });
   }
@@ -28,11 +32,24 @@ function coreStatusData(status: unknown): unknown {
 }
 
 describe("attachCoreStatus", () => {
+  it("asks for the current status only once its listener is attached", () => {
+    const source = new FakeSource();
+    let listenerAttachedWhenAsked: boolean | undefined;
+    const requestStatus = vi.fn(() => {
+      listenerAttachedWhenAsked = source.hasListener();
+    });
+
+    attachCoreStatus(source, ownWindow, vi.fn(), requestStatus);
+
+    expect(requestStatus).toHaveBeenCalledOnce();
+    expect(listenerAttachedWhenAsked).toBe(true);
+  });
+
   it("hands a valid down status to the callback", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ data: coreStatusData("down") });
 
     expect(onStatus).toHaveBeenCalledExactlyOnceWith("down");
@@ -42,7 +59,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ data: coreStatusData("up") });
 
     expect(onStatus).toHaveBeenCalledExactlyOnceWith("up");
@@ -52,7 +69,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ data: coreStatusData("starting") });
 
     expect(onStatus).toHaveBeenCalledExactlyOnceWith("starting");
@@ -62,7 +79,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ source: otherWindow, data: coreStatusData("down") });
 
     expect(onStatus).not.toHaveBeenCalled();
@@ -72,7 +89,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ data: "core-port" });
     source.dispatch({
       data: { channel: "something-else", payload: { type: "core-status", status: "down" } },
@@ -85,7 +102,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    attachCoreStatus(source, ownWindow, onStatus);
+    attachCoreStatus(source, ownWindow, onStatus, () => {});
     source.dispatch({ data: coreStatusData("sideways") });
     source.dispatch({ data: { channel: "core-status", payload: { type: "ping" } } });
 
@@ -96,7 +113,7 @@ describe("attachCoreStatus", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
 
-    const detach = attachCoreStatus(source, ownWindow, onStatus);
+    const detach = attachCoreStatus(source, ownWindow, onStatus, () => {});
     detach();
     source.dispatch({ data: coreStatusData("down") });
 

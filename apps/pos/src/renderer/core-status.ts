@@ -28,6 +28,7 @@ export function attachCoreStatus(
   source: CoreStatusEventSource,
   ownWindow: unknown,
   onStatus: (status: CoreStatusMessage["status"]) => void,
+  requestStatus: () => void,
 ): () => void {
   const handleMessage = (event: CoreStatusEvent): void => {
     if (event.source !== ownWindow) {
@@ -43,5 +44,6 @@ export function attachCoreStatus(
   };
 
   source.addEventListener("message", handleMessage);
+  requestStatus();
   return () => source.removeEventListener("message", handleMessage);
 }
