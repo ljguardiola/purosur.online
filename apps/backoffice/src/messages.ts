@@ -2,6 +2,7 @@ import { defineMessages } from "@purosur/ui";
 
 export const messages = defineMessages("es-AR", () => ({
   shell: {
+    brandName: "Puro Sur",
     areaRailLabel: "Áreas",
   },
   ayuda: {

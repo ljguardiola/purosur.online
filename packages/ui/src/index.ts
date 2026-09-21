@@ -42,6 +42,8 @@ export type { PaginationProps } from "./components/Pagination";
 export { Pagination } from "./components/Pagination";
 export type { ProportionBarProps } from "./components/ProportionBar";
 export { ProportionBar } from "./components/ProportionBar";
+export type { PuroSurIsotypeProps } from "./components/PuroSurIsotype";
+export { PuroSurIsotype } from "./components/PuroSurIsotype";
 export type { PuroSurLogoProps } from "./components/PuroSurLogo";
 export { PuroSurLogo } from "./components/PuroSurLogo";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";

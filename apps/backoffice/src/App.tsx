@@ -48,9 +48,10 @@ export function App({ help }: AppProps) {
 
   return (
     <Shell
+      brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.ayuda.sectionsNavLabel}
-      rail={
+      railFooter={
         <AreaNavItem
           label={messages.ayuda.areaLabel}
           icon={<LifeBuoy />}

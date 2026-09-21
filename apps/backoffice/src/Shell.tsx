@@ -1,18 +1,21 @@
+import { PuroSurIsotype } from "@purosur/ui";
 import type { ReactNode } from "react";
 
 export type ShellProps = {
+  brandName: string;
   areaRailLabel: string;
   sectionColumnLabel: string;
-  rail: ReactNode;
+  railFooter: ReactNode;
   sectionColumn: ReactNode;
   children: ReactNode;
 };
 
-/** The backoffice's three-column frame: an area rail, a section column, and the active screen's content. */
+/** The backoffice's three-column frame: an area rail headed by the isotype with its footer pinned to the foot, a section column, and the active screen's content. */
 export function Shell({
+  brandName,
   areaRailLabel,
   sectionColumnLabel,
-  rail,
+  railFooter,
   sectionColumn,
   children,
 }: ShellProps) {
@@ -22,7 +25,8 @@ export function Shell({
         aria-label={areaRailLabel}
         className="flex w-20 shrink-0 flex-col items-center gap-1.5 bg-brand-blue-strong px-3 py-4"
       >
-        {rail}
+        <PuroSurIsotype alt={brandName} className="size-10 object-contain" />
+        <div className="mt-auto flex flex-col items-center gap-1.5">{railFooter}</div>
       </nav>
       <nav
         aria-label={sectionColumnLabel}
