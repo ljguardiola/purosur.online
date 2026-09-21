@@ -9,6 +9,8 @@ export type {
 export { Button } from "./components/Button";
 export type { CheckboxProps } from "./components/Checkbox";
 export { Checkbox } from "./components/Checkbox";
+export type { ColumnChartBar, ColumnChartProps } from "./components/ColumnChart";
+export { ColumnChart } from "./components/ColumnChart";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
@@ -30,6 +32,8 @@ export type {
   OptionCardOption,
 } from "./components/OptionCardGroup";
 export { OptionCardGroup } from "./components/OptionCardGroup";
+export type { ProportionBarProps } from "./components/ProportionBar";
+export { ProportionBar } from "./components/ProportionBar";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
 export { RadioGroup } from "./components/RadioGroup";
 export type {
