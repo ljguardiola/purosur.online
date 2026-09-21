@@ -93,21 +93,26 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
 
     const process = deps.fork();
     let readyAt: number | undefined;
-    let crashed = false;
+    // Set the moment the readiness deadline kills this process, so its message handler never
+    // reports a late "ready" up: the process is already being torn down.
+    let missedReadinessDeadline = false;
     current = process;
     deps.onProcessStarted?.(process);
 
     const cancelDeadline = deps.scheduleReadinessDeadline(() => {
-      if (stopped || crashed) {
+      if (stopped) {
         return;
       }
+      missedReadinessDeadline = true;
+      // Only kill it here. Forking a replacement before this process's own exit is observed could
+      // run two cores at once if it ignores the kill signal for a while, fighting over the
+      // database or hardware; the exit handler below drives the normal crash path instead.
       process.kill();
-      handleCrash();
     }, deps.readinessTimeoutMs);
     cancelReadinessDeadline = cancelDeadline;
 
     process.on("message", (message) => {
-      if (stopped || current !== process || readyAt !== undefined) {
+      if (stopped || current !== process || readyAt !== undefined || missedReadinessDeadline) {
         return;
       }
       if (isCoreReadyMessage(message)) {
@@ -125,13 +130,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       handleCrash();
     });
 
-    // Reached either by the process's own exit or by its readiness deadline; the killed process's
-    // later exit then finds it already handled.
     function handleCrash(): void {
-      if (crashed) {
-        return;
-      }
-      crashed = true;
       cancelDeadline();
       if (current === process) {
         current = undefined;

@@ -522,19 +522,25 @@ describe("createCoreSupervisor", () => {
       vi.useRealTimers();
     });
 
-    it("kills a core that hangs on boot and restarts it like a crash", () => {
-      const { supervisor, processes } = withTimers();
+    it("kills a core that hangs on boot but forks no replacement until it is actually gone", () => {
+      const { supervisor, processes, fork } = withTimers();
 
       supervisor.start();
       vi.advanceTimersByTime(readinessTimeoutMs);
 
       expect(processes[0]?.killed).toBe(true);
-      vi.advanceTimersByTime(policy.baseDelayMs);
-      expect(processes).toHaveLength(2);
+      vi.advanceTimersByTime(policy.maxDelayMs);
+      // A hung process may ignore SIGTERM for a while: forking its replacement before the exit is
+      // observed could leave two cores alive, fighting over the database or hardware.
+      expect(fork).toHaveBeenCalledOnce();
     });
 
-    it("counts the killed process's own later exit only once", () => {
-      const { supervisor, processes } = withTimers();
+    it("restarts through the normal crash path, exactly once, once the killed process's exit is observed", () => {
+      const scheduleRestart = vi.fn((run: () => void, delayMs: number) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      });
+      const { supervisor, processes } = withTimers({ scheduleRestart });
 
       supervisor.start();
       vi.advanceTimersByTime(readinessTimeoutMs);
@@ -542,6 +548,30 @@ describe("createCoreSupervisor", () => {
       vi.advanceTimersByTime(policy.maxDelayMs);
 
       expect(processes).toHaveLength(2);
+      expect(scheduleRestart).toHaveBeenCalledOnce();
+    });
+
+    it("ignores a ready message from a process already killed for missing its deadline", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = withTimers({ onStatusChange });
+
+      supervisor.start();
+      vi.advanceTimersByTime(readinessTimeoutMs);
+      processes[0]?.becomeReady();
+
+      expect(onStatusChange).not.toHaveBeenCalledWith("up");
+    });
+
+    it("stop() while waiting for a deadline-killed process's exit leaves it unhandled", () => {
+      const scheduleRestart = vi.fn();
+      const { supervisor, processes } = withTimers({ scheduleRestart });
+
+      supervisor.start();
+      vi.advanceTimersByTime(readinessTimeoutMs);
+      supervisor.stop();
+      processes[0]?.exit(null);
+
+      expect(scheduleRestart).not.toHaveBeenCalled();
     });
 
     it("exhausts the bounded restarts when every restarted core hangs, reporting the core down", () => {
@@ -576,6 +606,7 @@ describe("createCoreSupervisor", () => {
       vi.advanceTimersByTime(retryIntervalMs);
       const retried = processes.length;
       vi.advanceTimersByTime(readinessTimeoutMs);
+      processes.at(retried - 1)?.exit(null);
       vi.advanceTimersByTime(retryIntervalMs);
 
       expect(processes.at(retried - 1)?.killed).toBe(true);
