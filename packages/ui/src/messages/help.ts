@@ -1,8 +1,6 @@
 import type { Locale } from "./formatters";
 
-// `icon` is a free-form name (e.g. a lucide-react icon name); this package renders no help UI
-// itself, so it neither knows nor constrains which icon set the icon names belong to. Optional:
-// a help catalog with no rail/section navigation (the register's, so far) has no use for it.
+// `icon` is a name each app resolves to an icon of its own choosing.
 export type Category = { label: string; icon?: string };
 export type CategoryRecord = Record<string, Category>;
 
