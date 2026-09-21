@@ -1,0 +1,9 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/out
+**/release
+drafts
+apps/pos/out
+apps/pos/release
