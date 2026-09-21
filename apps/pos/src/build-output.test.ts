@@ -38,7 +38,7 @@ function filesUnder(dir: string): string[] {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
-function buildAndHash(overrides: Record<string, string>): Record<string, string> {
+function build(overrides: Record<string, string>): string {
   const outDir = mkdtempSync(join(tmpdir(), "purosur-pos-build-"));
   outputDirs.push(outDir);
   execFileSync(
@@ -46,6 +46,11 @@ function buildAndHash(overrides: Record<string, string>): Record<string, string>
     [ELECTRON_VITE_CLI, "build", "--outDir", outDir, "--logLevel", "error"],
     { cwd: APP_DIR, env: environmentWith(overrides), stdio: "pipe" },
   );
+  return outDir;
+}
+
+function buildAndHash(overrides: Record<string, string>): Record<string, string> {
+  const outDir = build(overrides);
 
   const hashes: Record<string, string> = {};
   for (const file of filesUnder(outDir)) {
@@ -74,5 +79,38 @@ describe("the register's compiled app code", () => {
 
     expect(Object.keys(plain).length).toBeGreaterThan(0);
     expect(staging).toEqual(plain);
+  }, 120_000);
+});
+
+const UI_COMPONENTS_DIR = join(APP_DIR, "../../packages/ui/src/components");
+
+function designSystemUtilityClasses(): string[] {
+  const classes = new Set<string>();
+  for (const file of filesUnder(UI_COMPONENTS_DIR)) {
+    if (!file.endsWith(".tsx") || file.endsWith(".test.tsx")) {
+      continue;
+    }
+    for (const match of readFileSync(file, "utf8").matchAll(/className="([^"]*)"/g)) {
+      for (const name of match[1]?.split(/\s+/) ?? []) {
+        if (/^[a-z][a-z0-9-]*-[a-z0-9-]+$/.test(name)) {
+          classes.add(name);
+        }
+      }
+    }
+  }
+  return [...classes];
+}
+
+describe("the register's compiled stylesheet", () => {
+  it("includes every utility class the design system's components use", () => {
+    const outDir = build({});
+    const stylesheet = filesUnder(join(outDir, "renderer"))
+      .filter((file) => file.endsWith(".css"))
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
+    const classes = designSystemUtilityClasses();
+
+    expect(classes.length).toBeGreaterThan(0);
+    expect(classes.filter((name) => !stylesheet.includes(`.${name}`))).toEqual([]);
   }, 120_000);
 });
