@@ -49,9 +49,14 @@ function build(overrides: Record<string, string>): string {
   return outDir;
 }
 
-function buildAndHash(overrides: Record<string, string>): Record<string, string> {
-  const outDir = build(overrides);
+let plainOutDir: string | undefined;
 
+function plainBuild(): string {
+  plainOutDir ??= build({});
+  return plainOutDir;
+}
+
+function hashes(outDir: string): Record<string, string> {
   const hashes: Record<string, string> = {};
   for (const file of filesUnder(outDir)) {
     hashes[relative(outDir, file)] = createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -67,15 +72,17 @@ afterAll(() => {
 
 describe("the register's compiled app code", () => {
   it("is byte-identical whatever channel or error-reporting target the build environment names", () => {
-    const plain = buildAndHash({});
-    const staging = buildAndHash({
-      POS_CHANNEL: "staging",
-      POS_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
-      POS_UPDATE_FEED_URL: "https://updates.example.com/staging",
-      MAIN_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
-      RENDERER_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
-      VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
-    });
+    const plain = hashes(plainBuild());
+    const staging = hashes(
+      build({
+        POS_CHANNEL: "staging",
+        POS_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
+        POS_UPDATE_FEED_URL: "https://updates.example.com/staging",
+        MAIN_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
+        RENDERER_VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
+        VITE_SENTRY_DSN: "https://public@o1.ingest.sentry.io/2",
+      }),
+    );
 
     expect(Object.keys(plain).length).toBeGreaterThan(0);
     expect(staging).toEqual(plain);
@@ -92,7 +99,7 @@ function designSystemUtilityClasses(): string[] {
     }
     for (const match of readFileSync(file, "utf8").matchAll(/className="([^"]*)"/g)) {
       for (const name of match[1]?.split(/\s+/) ?? []) {
-        if (/^[a-z][a-z0-9-]*-[a-z0-9-]+$/.test(name)) {
+        if (name !== "") {
           classes.add(name);
         }
       }
@@ -101,16 +108,32 @@ function designSystemUtilityClasses(): string[] {
   return [...classes];
 }
 
+// Tailwind writes a class name into its selector with every character outside [A-Za-z0-9_-]
+// backslash-escaped (`hover:x` becomes `.hover\:x`, `w-2/5` becomes `.w-2\/5`).
+function selectorFor(name: string): RegExp {
+  const escaped = name.replace(/[^A-Za-z0-9_-]/g, (character) => `\\${character}`);
+  const pattern = escaped.replace(/[\\^$.*+?()[\]{}|/]/g, (character) => `\\${character}`);
+  return new RegExp(`\\.${pattern}(?![A-Za-z0-9_\\\\-])`);
+}
+
 describe("the register's compiled stylesheet", () => {
   it("includes every utility class the design system's components use", () => {
-    const outDir = build({});
-    const stylesheet = filesUnder(join(outDir, "renderer"))
+    const stylesheet = filesUnder(join(plainBuild(), "renderer"))
       .filter((file) => file.endsWith(".css"))
       .map((file) => readFileSync(file, "utf8"))
       .join("\n");
     const classes = designSystemUtilityClasses();
 
     expect(classes.length).toBeGreaterThan(0);
-    expect(classes.filter((name) => !stylesheet.includes(`.${name}`))).toEqual([]);
+    expect(classes.filter((name) => !selectorFor(name).test(stylesheet))).toEqual([]);
   }, 120_000);
+
+  it("matches a class only by its whole selector", () => {
+    expect(selectorFor("gap-1").test(".gap-10{gap:1rem}")).toBe(false);
+    expect(selectorFor("gap-1").test(".gap-1{gap:1rem}")).toBe(true);
+    expect(selectorFor("w-2/5").test(".w-2\\/5{width:40%}")).toBe(true);
+    expect(selectorFor("h-[164px]").test(".h-\\[164px\\]{height:164px}")).toBe(true);
+    expect(selectorFor("hover:bg-x").test(".hover\\:bg-x:hover{color:red}")).toBe(true);
+    expect(selectorFor("hover:bg-x").test(".hover\\:bg-x-strong:hover{color:red}")).toBe(false);
+  });
 });
