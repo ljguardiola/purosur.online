@@ -26,6 +26,8 @@
     "packages/*/src",
     "apps/*/src",
     "vitest.config.ts",
-    "apps/pos/electron.vite.config.ts"
+    "apps/pos/electron.vite.config.ts",
+    "apps/pos/e2e",
+    "apps/pos/vitest.e2e.config.ts"
   ]
 }

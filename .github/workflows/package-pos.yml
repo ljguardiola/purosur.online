@@ -59,3 +59,11 @@ jobs:
           name: pos-${{ matrix.channel }}-installer
           path: apps/pos/release/${{ matrix.channel }}/*.exe
           if-no-files-found: error
+
+      # This job's environment carries the channel's real Sentry DSN; the e2e run deliberately
+      # kills the core and sends it an invalid message, so it must never share that build. This
+      # rebuild leaves both Sentry env vars unset (Sentry disabled) and only proves the shell,
+      # never packages it — the installer above already came from the real per-channel build.
+      - run: pnpm --filter @purosur/pos build
+
+      - run: pnpm --filter @purosur/pos test:e2e
