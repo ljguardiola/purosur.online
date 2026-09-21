@@ -22,7 +22,8 @@ const DNI_PATTERN = new RegExp(
 const IDENTIFIER_NUMBER_PATTERN = /^(?:\d{11}|\d{7,8})$/;
 
 // The http.query and http.fragment breadcrumb fields hold the part of a URL Sentry strips from it.
-const SENSITIVE_KEY_PATTERN = /token|key|secret|password|authorization|query|fragment/i;
+const SENSITIVE_KEY_PATTERN =
+  /token|key|secret|password|authorization|query|fragment|cuit|dni|documento/i;
 
 const URL_PATTERN = /\bhttps?:\/\/[^\s"'<>]+/gi;
 
@@ -45,26 +46,62 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function redactValue(value: unknown): unknown {
+interface RedactionOptions {
+  readonly numbers: boolean;
+}
+
+const ALL_VALUES: RedactionOptions = { numbers: true };
+// Sentry's own context integrations fill these sections with numeric diagnostics such as memory
+// sizes, which easily have 8 or 11 digits; only their strings can carry anything from the business.
+const STRINGS_ONLY: RedactionOptions = { numbers: false };
+const SDK_CONTEXT_SECTIONS = new Set([
+  "app",
+  "browser",
+  "chrome",
+  "cloud_resource",
+  "culture",
+  "device",
+  "gpu",
+  "node",
+  "os",
+  "runtime",
+  "trace",
+]);
+
+function redactValue(value: unknown, options: RedactionOptions): unknown {
   if (typeof value === "string") {
     return redactString(value);
   }
-  if (typeof value === "number" && isIdentifierNumber(value)) {
+  if (typeof value === "number" && options.numbers && isIdentifierNumber(value)) {
     return REDACTED;
   }
   if (Array.isArray(value)) {
-    return value.map(redactValue);
+    return value.map((item) => redactValue(item, options));
   }
   if (isPlainObject(value)) {
-    return redactRecord(value);
+    return redactRecord(value, options);
   }
   return value;
 }
 
-function redactRecord(record: Record<string, unknown>): Record<string, unknown> {
+function redactRecord(
+  record: Record<string, unknown>,
+  options: RedactionOptions = ALL_VALUES,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    result[key] = SENSITIVE_KEY_PATTERN.test(key) ? REDACTED : redactValue(value);
+    result[key] = SENSITIVE_KEY_PATTERN.test(key) ? REDACTED : redactValue(value, options);
+  }
+  return result;
+}
+
+function redactContexts(contexts: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [section, value] of Object.entries(contexts)) {
+    result[section] = redactValue(
+      value,
+      SDK_CONTEXT_SECTIONS.has(section) ? STRINGS_ONLY : ALL_VALUES,
+    );
   }
   return result;
 }
@@ -111,7 +148,7 @@ export function scrubSentryEvent<E extends EventLike>(event: E): E {
         }
       : rest.exception,
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,
-    contexts: rest.contexts ? redactRecord(rest.contexts) : rest.contexts,
+    contexts: rest.contexts ? redactContexts(rest.contexts) : rest.contexts,
     tags: rest.tags ? redactRecord(rest.tags) : rest.tags,
     breadcrumbs: rest.breadcrumbs?.map((breadcrumb) => scrubSentryBreadcrumb(breadcrumb)),
   } as E;

@@ -262,6 +262,30 @@ describe("identifiers stored as numbers", () => {
     });
   });
 
+  it("keeps the SDK's numeric device and app diagnostics while still scrubbing context strings", () => {
+    const contexts = {
+      device: { memory_size: 17179869184, free_memory: 12884901888 },
+      app: { app_memory: 52428800, free_memory: 10737418240 },
+      culture: { locale: "es-AR cliente 12345678" },
+    };
+
+    expect(scrubSentryEvent({ contexts }).contexts).toEqual({
+      device: { memory_size: 17179869184, free_memory: 12884901888 },
+      app: { app_memory: 52428800, free_memory: 10737418240 },
+      culture: { locale: "es-AR cliente [redacted]" },
+    });
+  });
+
+  it("redacts fields named after a CUIT, DNI or document whatever their value looks like", () => {
+    const extra = { cuit: "cuit_20304050607", dni_cliente: "x_12345678", documento: 42 };
+
+    expect(scrubSentryEvent({ extra }).extra).toEqual({
+      cuit: "[redacted]",
+      dni_cliente: "[redacted]",
+      documento: "[redacted]",
+    });
+  });
+
   it("keeps numbers that can't be a CUIT or DNI", () => {
     const extra = {
       status_code: 503,
