@@ -153,6 +153,98 @@ test("ignores a matching-image deployment with no readable createdAt", () => {
   assert.deepEqual(decide({ deployments: [undated] }), { action: "wait" });
 });
 
+// Apply created no new deployment (unchanged image) -------------------------------
+
+const STALE_CREATED_AT = "2026-09-21T14:40:03.001Z";
+
+function staleDeployment(status) {
+  return { ...DEPLOYMENT_LIST_FIXTURE[0], id: "stale", status, createdAt: STALE_CREATED_AT };
+}
+
+test("prefers a new deployment that appears within the grace period", () => {
+  const fresh = { ...DEPLOYMENT_LIST_FIXTURE[0], id: "fresh", status: "SUCCESS" };
+
+  const decision = decide({
+    deployments: [fresh, staleDeployment("FAILED")],
+    elapsedMs: 30_000,
+    graceMs: 90_000,
+  });
+
+  assert.deepEqual(decision, { action: "succeed", deploymentId: "fresh" });
+});
+
+test("keeps waiting for a new deployment while the grace period lasts, ignoring the old one", () => {
+  const decision = decide({
+    deployments: [staleDeployment("FAILED")],
+    elapsedMs: 89_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.deepEqual(decision, { action: "wait" });
+});
+
+test("after the grace period, succeeds on the image's last deployment when it succeeded", () => {
+  const decision = decide({
+    deployments: [staleDeployment("SUCCESS"), DEPLOYMENT_LIST_FIXTURE[1]],
+    elapsedMs: 90_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.deepEqual(decision, { action: "succeed", deploymentId: "stale", alreadyDeployed: true });
+});
+
+test("after the grace period, fails at once naming the image's last deployment when it failed", () => {
+  const decision = decide({
+    deployments: [staleDeployment("FAILED")],
+    elapsedMs: 90_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.equal(decision.action, "fail");
+  assert.equal(decision.deploymentId, "stale");
+  assert.match(decision.reason, /stale/);
+  assert.match(decision.reason, /FAILED/);
+  assert.match(decision.reason, /no new deployment/);
+});
+
+test("after the grace period, keeps waiting on the image's last deployment while it is in progress", () => {
+  const decision = decide({
+    deployments: [staleDeployment("DEPLOYING")],
+    elapsedMs: 120_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.deepEqual(decision, { action: "wait" });
+});
+
+test("fails an in-progress last deployment of the image once the overall timeout passes", () => {
+  const decision = decide({
+    deployments: [staleDeployment("DEPLOYING")],
+    elapsedMs: 600_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.equal(decision.action, "fail");
+  assert.equal(decision.deploymentId, "stale");
+  assert.match(decision.reason, /DEPLOYING/);
+});
+
+test("after the grace period, keeps waiting when the image has no deployment at all", () => {
+  const decision = decide({
+    deployments: [DEPLOYMENT_LIST_FIXTURE[1]],
+    elapsedMs: 120_000,
+    timeoutMs: 600_000,
+    graceMs: 90_000,
+  });
+
+  assert.deepEqual(decision, { action: "wait" });
+});
+
 test("keeps waiting through a few consecutive CLI failures", () => {
   const decision = decide({
     deployments: [],

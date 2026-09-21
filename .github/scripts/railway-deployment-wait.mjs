@@ -51,10 +51,12 @@ function createdSince(deployment, appliedAfter) {
  * @param {Array<{ id: string, status: string, createdAt?: string, meta?: { image?: string } }>} input.deployments
  * @param {number} input.elapsedMs - time spent waiting so far.
  * @param {number} input.timeoutMs - the wait budget.
+ * @param {number} [input.graceMs] - how long to wait for a new deployment before falling back to
+ *   the image's newest deployment, since `apply` may create none for an unchanged image.
  * @param {number} [input.consecutiveCliFailures] - failed list calls in a row, up to this poll.
  * @param {number} [input.maxConsecutiveCliFailures] - failed list calls in a row that end the wait.
  * @param {string | null} [input.lastCliError] - the most recent list call error, if any.
- * @returns {{ action: "wait" } | { action: "succeed", deploymentId: string } | { action: "fail", reason: string, deploymentId?: string }}
+ * @returns {{ action: "wait" } | { action: "succeed", deploymentId: string, alreadyDeployed?: true } | { action: "fail", reason: string, deploymentId?: string }}
  */
 export function nextPollDecision({
   targetImage,
@@ -62,6 +64,7 @@ export function nextPollDecision({
   deployments,
   elapsedMs,
   timeoutMs,
+  graceMs = Number.POSITIVE_INFINITY,
   consecutiveCliFailures = 0,
   maxConsecutiveCliFailures = Number.POSITIVE_INFINITY,
   lastCliError = null,
@@ -74,10 +77,25 @@ export function nextPollDecision({
   }
 
   const timedOut = elapsedMs >= timeoutMs;
-  const match = (deployments ?? []).find(
-    (deployment) =>
-      deployment?.meta?.image === targetImage && createdSince(deployment, appliedAfter),
+  const imageDeployments = (deployments ?? []).filter(
+    (deployment) => deployment?.meta?.image === targetImage,
   );
+  const match = imageDeployments.find((deployment) => createdSince(deployment, appliedAfter));
+
+  if (!match && elapsedMs >= graceMs && imageDeployments.length > 0) {
+    const [previous] = imageDeployments;
+    if (SUCCESS_STATUSES.has(previous.status)) {
+      return { action: "succeed", deploymentId: previous.id, alreadyDeployed: true };
+    }
+    if (FAILURE_STATUSES.has(previous.status)) {
+      return {
+        action: "fail",
+        reason: `apply created no new deployment for image ${targetImage}, and its last deployment ${previous.id} reached status ${previous.status}; push a new commit or redeploy`,
+        deploymentId: previous.id,
+      };
+    }
+    return pendingDecision(previous, targetImage, timedOut);
+  }
 
   if (!match) {
     if (timedOut) {
@@ -102,11 +120,15 @@ export function nextPollDecision({
       deploymentId: match.id,
     };
   }
+  return pendingDecision(match, targetImage, timedOut);
+}
+
+function pendingDecision(deployment, targetImage, timedOut) {
   if (timedOut) {
     return {
       action: "fail",
-      reason: `deployment ${match.id} (image ${targetImage}) did not reach a terminal status before the timeout (last seen: ${match.status})`,
-      deploymentId: match.id,
+      reason: `deployment ${deployment.id} (image ${targetImage}) did not reach a terminal status before the timeout (last seen: ${deployment.status})`,
+      deploymentId: deployment.id,
     };
   }
   return { action: "wait" };
@@ -133,6 +155,7 @@ async function runCli() {
   const pollIntervalMs =
     Number(process.env.RAILWAY_DEPLOYMENT_POLL_INTERVAL_SECONDS ?? "10") * 1000;
   const maxConsecutiveCliFailures = Number(process.env.RAILWAY_DEPLOYMENT_MAX_CLI_FAILURES ?? "6");
+  const graceMs = Number(process.env.RAILWAY_DEPLOYMENT_GRACE_SECONDS ?? "90") * 1000;
 
   async function readDeployments() {
     let raw;
@@ -186,12 +209,19 @@ async function runCli() {
       deployments,
       elapsedMs: Date.now() - start,
       timeoutMs,
+      graceMs,
       consecutiveCliFailures,
       maxConsecutiveCliFailures,
       lastCliError,
     });
 
     if (decision.action === "succeed") {
+      if (decision.alreadyDeployed) {
+        console.log(
+          `railway-deployment-wait: image ${targetImage} was already deployed by deployment ${decision.deploymentId}; apply created no new deployment`,
+        );
+        return;
+      }
       console.log(`railway-deployment-wait: deployment ${decision.deploymentId} succeeded`);
       return;
     }
