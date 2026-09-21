@@ -10,14 +10,10 @@
     "package:production": "cross-env POS_CHANNEL=production electron-vite build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
     "package:homologation": "cross-env POS_CHANNEL=homologation electron-vite build && cross-env POS_CHANNEL=homologation electron-builder --config electron-builder.config.mjs --win"
   },
-  "dependencies": {
+  "devDependencies": {
     "@purosur/contracts": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@sentry/electron": "^7.19.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
-  },
-  "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -26,6 +22,8 @@
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "vite": "^7.3.6",
     "vitest-browser-react": "^2.3.0"
   }
