@@ -98,45 +98,20 @@ export function ListFilter<V extends string>({
               " ",
             )}
           >
-            {/* The owner's rule ("the value shrinks first; the label only gives way once the
-                value is down to its own ellipsis") is expressed here as a shrink-factor
-                difference, not as arithmetic over the chevron's width and the gaps: an earlier
-                version capped this span's own max-width at a calc() derived from those - a
-                constant that could silently drift out of sync with them (nothing in the type
-                system or the test suite ties a max-w-[calc(...)] number back to what it's
-                actually built from), and that itself only ever approximated the rule, since a
-                flex item's max-width is evaluated against its container's *resolved* width, which
-                depends on the very intrinsic-sizing pass the label's own natural size feeds into -
-                self-referential in a way that made the label truncate at some widths it should've
-                stayed whole at (see the value's own shrink-[9999] below for why that specific
-                failure needed AriaSelectValue's own min-width, not a fix here). This shrink factor
-                needs no such constant: at a 1:9999 ratio, the label's own share of any shrinkage
-                is a fraction of a device sub-pixel until the value's own min-width (below) freezes
-                it - verified by comparing this span's own rendered width, constrained, against
-                its unconstrained natural width; the two matched to within 1/64px, well past any
-                rendering precision that could ever paint differently. truncate (overflow-hidden +
-                text-overflow: ellipsis + white-space: nowrap) is what turns that eventual clamp
-                into an ellipsis instead of a silent clip once the value has nothing left to give
-                and the label starts absorbing the rest. */}
+            {/* Default shrink, well below the value's own shrink-[9999] below, so the value
+                gives up room first; truncate turns the eventual clamp into an ellipsis instead
+                of a silent clip. */}
             <span id={labelId} className="shrink truncate text-sm text-ink-secondary">
               {label}
             </span>
-            {/* shrink-[9999]: takes on (effectively) the entire proportional shrink pass ahead of
-                the label's own default shrink factor above, so the value gives up room first,
-                down to min-w-7's own floor, before the label loses anything measurable (see the
-                label's own comment). min-w-7 (28px): truncate's own overflow-hidden already drops
-                this item's automatic minimum size to 0 (an overflow: hidden axis skips the
-                content-based floor a plain flex item would otherwise get), so without a floor of
-                its own the value shrinks to nothing rather than an ellipsis - the one thing this
-                rule promises it never does. 28px, not less: measured directly (a real ellipsis
-                glyph rendered and inspected pixel by pixel, not just its advance width from
-                canvas measureText, which undercounted it) - at 16px, a wide leading character
-                (like "W") only leaves room for 2 of the ellipsis's own 3 dots, clipping the glyph
-                itself; every width tried from 28px up rendered all 3 dots cleanly regardless of
-                the leading character measured against (digits, "i", "W", "M"). */}
+            {/* shrink-[9999]: absorbs the shrink pass first, down to min-w-7's own floor, before
+                the label gives way (see the label's own comment). min-w-7 (28px): the floor a
+                real ellipsis glyph needs to render without clipping itself. text-right: keeps a
+                value narrower than that floor flush against the chevron instead of leaving dead
+                space between the two. */}
             <AriaSelectValue
               id={valueId}
-              className="min-w-7 shrink-[9999] truncate text-base font-bold text-ink"
+              className="min-w-7 shrink-[9999] truncate text-right text-base font-bold text-ink"
             />
             {isOpen ? (
               <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />

@@ -267,14 +267,8 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A value whose own natural width is under the floor (a single-character option, here) still
-// raises its own contribution to min-w-7 during the browser's intrinsic-sizing pass, before any
-// shrinking even starts - not just during that later shrink phase - so the trigger's own
-// shrink-to-fit width already reserves the floor for it from the very first layout pass. Without
-// that min-width, the trigger sizes itself as if the value only ever needed its own (smaller)
-// natural width, and a later pass then clips the label back down against that undersized trigger,
-// leaving a gap between the chevron and the trigger's own content edge - exactly the failure this
-// proves against, in an otherwise fully unconstrained trigger with nothing forcing any shrink.
+// A value narrower than min-w-7 still raises the trigger's own shrink-to-fit width to reserve
+// that floor, so nothing here needs to shrink at all.
 test("keeps the label whole and the chevron flush, with no gap, when the chosen value is narrower than its own floor", async () => {
   const narrow: [ListFilterOption<string>] = [{ value: "a", label: "8" }];
   const screen = await render(
@@ -292,14 +286,35 @@ test("keeps the label whole and the chevron flush, with no gap, when the chosen 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The value's own much larger shrink factor (see its comment in ListFilter.tsx) means it absorbs
-// any shrinkage first: under it, the label renders whole and the value alone gives up room
-// (proven here); once the value is already down at its own min-w-7 floor, the label starts
-// giving way too (proven below), and nothing - label, value or chevron - ever paints past the
-// trigger's own content edge either way (proven by the containment checks both tests share). The
-// content edge, not the trigger's own border box, is what "never paints outside the trigger"
-// actually means: a border-box comparison alone has the trigger's own 2px border and 12px of
-// padding as unexamined slack a wrong measurement could hide behind and still pass.
+// The value's own min-w-7 gives a short value (narrower than the floor) a wider box than its own
+// text needs, so text-align keeps the glyphs flush against the box's own trailing edge instead of
+// its leading one - otherwise the visible gap before the chevron would grow with how much shorter
+// than 28px the value's own text is, instead of staying the trigger's own fixed gap-2 (8px) for
+// every value regardless of length. Measures the visible distance (a Range around the text, not
+// the box's own width, which stays 28px either way).
+test("keeps the same visible gap before the chevron for a value shorter than its own floor", async () => {
+  const narrow: [ListFilterOption<string>, ListFilterOption<string>] = [
+    { value: "a", label: "8" },
+    { value: "b", label: "Otro" },
+  ];
+  const screen = await render(
+    <ListFilter label="Estado" options={narrow} value="a" onChange={() => {}} />,
+  );
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+  const value = trigger.children[1] as HTMLElement;
+  const chevron = trigger.querySelector("svg") as SVGSVGElement;
+
+  const textRange = document.createRange();
+  textRange.selectNodeContents(value);
+  const textRight = textRange.getBoundingClientRect().right;
+
+  expect(chevron.getBoundingClientRect().left - textRight).toBeCloseTo(8, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Containment is checked against the content edge, not the border box: the trigger's own border
+// and padding are slack a border-box comparison would hide behind.
 test("keeps the label whole and lets the value alone truncate when there's room for the label's own full width", async () => {
   const longOption: [ListFilterOption<string>, ListFilterOption<string>] = [
     { value: "a", label: "Un valor bastante largo para forzar el truncado" },
@@ -399,12 +414,8 @@ test("keeps the label fully legible, not truncated, when there's room for everyt
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Neither a scrollWidth/clientWidth comparison nor a rendered-width check can tell truncate's own
-// overflow-hidden + text-overflow: ellipsis + white-space: nowrap apart from a hand-rolled
-// overflow-hidden whitespace-nowrap that clips silently instead - both clip the same box to the
-// same width. Only reading text-overflow itself off computed style catches replacing truncate
-// with that pair, which the comments on both spans in ListFilter.tsx specifically promise never
-// happens (a silent clip, not an ellipsis).
+// A width/overflow check can't tell truncate's own ellipsis apart from a silent clip - both
+// clip to the same box. Only computed text-overflow catches that swap.
 test("shows an ellipsis, not a silent clip, on both the label and the value", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
