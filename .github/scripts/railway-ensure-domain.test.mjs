@@ -6,9 +6,7 @@ import {
   parseDomainListOutput,
 } from "./railway-ensure-domain.mjs";
 
-// Real output captured live: `railway domain list --service cloud --json` against a sandbox
-// project's live "cloud" service (github.com/ljguardiola/purosur-deploy-sandbox run
-// 35617967602). The domain is a bare hostname, no scheme.
+// The shape of `railway domain list --service cloud --json`: a bare hostname, no scheme.
 const DOMAIN_LIST_FIXTURE = {
   domains: [
     {
@@ -57,8 +55,7 @@ test("findServiceDomain returns null when domains is missing or not an array", (
 // parseDomainListOutput --------------------------------------------------------
 
 test("parseDomainListOutput reports the real CLI error when the service does not exist yet", () => {
-  // Captured live against the empty "Puro Sur" staging project: `railway domain list --service
-  // cloud --json` exits 1 with this exact text on stderr and nothing on stdout.
+  // `railway domain list` exits 1 with this text on stderr and nothing on stdout.
   const result = parseDomainListOutput({
     exitOk: false,
     stdout: "",
@@ -91,11 +88,6 @@ test("parseDomainListOutput fails when the exit was ok but the output is not JSO
 });
 
 // parseDomainCreateOutput -----------------------------------------------------
-//
-// The create command's own output is treated as opaque: a real sandbox run showed it carrying a
-// scheme (`https://cloud-staging-6fea.up.railway.app`) where the list command's `domain` field
-// does not, so the CLI wrapper never parses a domain out of a create response - it only checks
-// that the call itself succeeded and always re-lists afterward to read the canonical hostname.
 
 test("parseDomainCreateOutput succeeds when the call itself succeeded, without reading a domain from it", () => {
   const result = parseDomainCreateOutput({

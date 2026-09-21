@@ -1,9 +1,8 @@
-// `beforeSend` for the cloud service's Sentry init. Per the design (puro-sur-pos.md §9.6,
-// "Qué no sale de la nube hacia Sentry"): never the body of an HTTP request or response, never
-// auth headers or cookies, never a query string (which is how a presigned URL's signature or a
-// token-in-query would otherwise travel), never a token, key, secret, password, backoffice session
-// identifier, CUIT, DNI or a credential embedded in a connection string. What reaches Sentry is
-// the error type, its stack trace, and opaque identifiers.
+// `beforeSend` for the cloud service's Sentry init: never the body of an HTTP request or
+// response, never auth headers or cookies, never a query string (which is how a presigned URL's
+// signature or a token-in-query would otherwise travel), never a token, key, secret, password,
+// backoffice session identifier, CUIT, DNI or a credential embedded in a connection string. What
+// reaches Sentry is the error type, its stack trace, and opaque identifiers.
 
 const REDACTED = "[redacted]";
 

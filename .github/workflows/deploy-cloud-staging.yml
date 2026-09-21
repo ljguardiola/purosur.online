@@ -86,9 +86,8 @@ jobs:
       # .railway/railway.ts.
       - run: pnpm install --frozen-lockfile
 
-      # The postinstall step downloads the platform binary from GitHub releases, which failed once
-      # in the sandbox with a 504; bounded retries with backoff absorb a transient release-CDN
-      # blip instead of failing the whole deploy on it.
+      # The package's postinstall downloads the platform binary from GitHub releases, which can
+      # fail transiently.
       - name: Install the Railway CLI
         run: |
           for attempt in 1 2 3; do
@@ -107,20 +106,16 @@ jobs:
         id: apply-started
         run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
-      # `RAILWAY_TOKEN` is a project token already scoped to the staging environment (provisioned
-      # out of band), so `railway config apply` needs no `railway link` step and no --environment
-      # flag - the token alone resolves project and environment. On the first-ever run this apply
-      # creates postgres, the bucket and the cloud service itself, from the image built above.
-      # `apply` is not atomic: a sandbox run that ended "failed" with an empty change set still
-      # created a resource before failing on something else; a retried apply converges regardless.
+      # `RAILWAY_TOKEN` is a project token scoped to the staging environment, so it alone resolves
+      # project and environment. `apply` is not atomic: a failed apply may have created some
+      # resources, and re-running it converges.
       - name: Apply the staging infrastructure
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           CLOUD_SENTRY_DSN: ${{ vars.CLOUD_SENTRY_DSN }}
-        # No --confirm-destructive: a plan that would destroy or replace an existing resource
-        # fails this step instead of applying unattended, and needs a human to review it.
+        # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 
       - name: Wait for the new deployment to succeed
@@ -133,11 +128,7 @@ jobs:
           RAILWAY_DEPLOYMENT_TIMEOUT_SECONDS: "600"
         run: node .github/scripts/railway-deployment-wait.mjs
 
-      # Railway's IaC reference has no field for a generated *.up.railway.app domain ("Generated
-      # Railway service domains are not included in .railway/railway.ts"), so it is not declared
-      # in .railway/railway.ts; CI ensures one exists here instead, every run, since generating a
-      # second one is never attempted once the service already has one ("One Railway-provided
-      # domain per service").
+      # Railway IaC cannot declare a generated *.up.railway.app domain.
       - name: Ensure the staging domain
         id: domain
         env:

@@ -1,26 +1,11 @@
-// Pure decision logic behind ensuring the cloud service has a Railway-generated domain, so the
-// deploy workflow can find one to health-check without a manually maintained GitHub variable.
-// Railway's IaC reference has no field for a generated `*.up.railway.app` domain ("Generated
-// Railway service domains are not included in .railway/railway.ts"), so CI resolves it
-// imperatively after `railway config apply`: list the service's domains, and only create one if
-// none exists yet ("One Railway-provided domain per service" - safe to call at most once).
+// Ensures the cloud service has a Railway-generated domain, which Railway IaC cannot declare:
+// list the service's domains and create one only when none exists (Railway allows one generated
+// domain per service).
 //
-// The real shape, captured live from a sandbox run's `railway domain list --service cloud --json`
-// against a live "cloud" service: `{"domains":[{"id":"…","domain":"cloud-staging-6fea.up.railway
-// .app","type":"service","targetPort":null,"syncStatus":"ACTIVE",…}]}` - a bare hostname, no
-// scheme, with `type: "service"` distinguishing it from a custom domain in the same array.
-//
-// The create command's own output is not parsed for a domain at all: the same sandbox run showed
-// it carrying a scheme (`https://cloud-staging-6fea.up.railway.app`), which is why an earlier
-// version of this script building `https://${created domain}/health` produced a doubled-scheme
-// URL and every health check failed. Create output is now opaque - only its exit status matters -
-// and the domain is always read back from a re-list afterward, the same call already trusted for
-// the "domain already exists" path.
-//
-// Confirmed live against the linked, empty "Puro Sur" staging project (no services yet):
-// `railway domain list --service cloud --json` exits 1 with "Project has no services." on stderr
-// and nothing on stdout - a real CLI failure, not JSON - which is why list output is parsed
-// defensively rather than assumed to be valid JSON.
+// `railway domain list --json` returns `{"domains":[{"domain":"<bare hostname>","type":"service",
+// …}]}`, where `type` tells a generated domain from a custom one. The create command's `domain`
+// carries a scheme, so the domain is always read back from a re-list instead. When the service
+// does not exist yet, `domain list` exits 1 with plain text on stderr, not JSON.
 
 /** Reads the domain off the entry whose `type` is `"service"` (a generated `*.up.railway.app`). */
 export function findServiceDomain(parsedList) {
@@ -54,8 +39,8 @@ export function parseDomainListOutput(raw) {
 }
 
 /**
- * Confirms only that the create call itself succeeded; its output is never parsed for a domain
- * (see the module comment above) - the caller always re-lists afterward instead.
+ * Confirms only that the create call itself succeeded; its output is never parsed for a domain,
+ * the caller re-lists afterward instead.
  *
  * @param {{ exitOk: boolean, stdout: string, stderr?: string }} raw - result of
  *   `railway domain --service <service> --environment <environment> --json` (create).
@@ -115,9 +100,7 @@ async function runCli() {
     console.log(`railway-ensure-domain: found existing generated domain ${listed.domain}`);
   } else {
     console.log("railway-ensure-domain: no generated domain yet, creating one");
-    // RAILWAY_DOMAIN_PORT is opt-in: the app reads Railway's own injected PORT (see
-    // apps/cloud/src/server.ts), so the generated domain does not need an explicit target port
-    // unless a future change makes that assumption wrong.
+    // Without a port, the generated domain targets the PORT Railway injects, which the app reads.
     const port = process.env.RAILWAY_DOMAIN_PORT;
     const createArgs = port ? ["domain", "--port", port, ...commonArgs] : ["domain", ...commonArgs];
     const createRaw = await runCommand(execFileAsync, createArgs);

@@ -1,14 +1,8 @@
-// Pure decision logic behind confirming a deploy actually rolled out: poll GET /health on the
-// staging domain until it reports the commit SHA just deployed, or the wait budget runs out. A
-// deployment reaching SUCCESS only means the container started; the health check proves the
-// specific version is the one now serving traffic (the issue's own acceptance criterion).
+// Polls GET /health on the staging domain until it reports the commit SHA just deployed, or the
+// wait budget runs out. A deployment reaching SUCCESS only means the container started; this
+// proves the new version is the one serving traffic.
 
-/**
- * Builds the `/health` URL from a domain value, robust to one already carrying a scheme (a real
- * sandbox run showed the domain-create command's own output carrying one, unlike the domain-list
- * output this workflow actually uses) so `https://${domain}` can never double up into
- * `https://https://…`.
- */
+/** Builds the `/health` URL from a domain value, with or without a scheme. */
 export function buildHealthUrl(domain) {
   const host = domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   return `https://${host}/health`;

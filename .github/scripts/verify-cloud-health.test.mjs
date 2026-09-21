@@ -147,12 +147,6 @@ test("requestTimeoutMs stays positive once the budget is spent", () => {
 });
 
 // buildHealthUrl ---------------------------------------------------------------
-//
-// A real sandbox run's domain-create output carried a scheme
-// (`https://cloud-staging-6fea.up.railway.app`) where the domain-list output (what the workflow
-// uses today) does not, and building `https://${domain}/health` straight from that value produced
-// a doubled scheme (`https://https://…`) that fetch rejected outright. buildHealthUrl is robust to
-// either shape so a future upstream change on either side does not silently reintroduce the bug.
 
 test("builds the health URL from a bare hostname", () => {
   assert.equal(
