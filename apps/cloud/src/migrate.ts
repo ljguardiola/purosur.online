@@ -7,8 +7,7 @@ export interface RunMigrationsOptions {
   migrationsFolder?: string;
   /** Kept short in tests so an unreachable database fails fast instead of hanging. */
   connectTimeoutSeconds?: number;
-  /** Total time budget to wait for the database to accept connections before giving up.
-   * Defaults to MIGRATE_DATABASE_WAIT_SECONDS, or 60 seconds if that is not set. */
+  /** Total time budget to wait for the database to accept connections before giving up. */
   waitForDatabaseSeconds?: number;
   /** Interval between connection probes while waiting. */
   waitIntervalMs?: number;
@@ -115,15 +114,6 @@ async function probeDatabase(databaseUrl: string, connectTimeoutSeconds: number)
   }
 }
 
-function waitForDatabaseSecondsFromEnv(): number | undefined {
-  const raw = process.env.MIGRATE_DATABASE_WAIT_SECONDS;
-  if (raw === undefined) {
-    return undefined;
-  }
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-}
-
 function logWaiting(error: unknown, elapsedMs: number): void {
   console.error(
     `migrate: database not ready yet after ${Math.round(elapsedMs / 1000)}s (${errorCode(error) ?? "unknown error"}), retrying...`,
@@ -150,10 +140,7 @@ export async function runMigrations(
     (remainingMs) =>
       probeDatabase(databaseUrl, probeConnectTimeoutSeconds(remainingMs, connectTimeoutSeconds)),
     {
-      budgetSeconds:
-        options.waitForDatabaseSeconds ??
-        waitForDatabaseSecondsFromEnv() ??
-        DEFAULT_WAIT_FOR_DATABASE_SECONDS,
+      budgetSeconds: options.waitForDatabaseSeconds ?? DEFAULT_WAIT_FOR_DATABASE_SECONDS,
       intervalMs: options.waitIntervalMs ?? DEFAULT_WAIT_INTERVAL_MS,
       sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
       now: options.now ?? Date.now,

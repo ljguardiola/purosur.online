@@ -53,6 +53,28 @@ describe("runMigrations", () => {
 
     expect(onWaiting).toHaveBeenCalledTimes(30);
   });
+
+  it("ignores MIGRATE_DATABASE_WAIT_SECONDS when choosing how long to wait", async () => {
+    vi.stubEnv("MIGRATE_DATABASE_WAIT_SECONDS", "0");
+    const clock = fakeClock();
+    const onWaiting = vi.fn();
+
+    try {
+      await expect(
+        runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+          migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+          connectTimeoutSeconds: 1,
+          sleep: clock.sleep,
+          now: clock.now,
+          onWaiting,
+        }),
+      ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(onWaiting).toHaveBeenCalled();
+  });
 });
 
 describe("probeConnectTimeoutSeconds", () => {
