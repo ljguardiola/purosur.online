@@ -29,10 +29,12 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
   // button beside it leaves, or an equal share beside another button asked for the same — equal
   // once each has taken the room its own padding and border need, so a bordered one measures
   // those 2px wider. A row too narrow for its buttons takes width from every one of them, asked
-  // for or not, down to the longest word each label contains — past the width that keeps a label
-  // on one line — and then spills. A row only as wide as what it holds has nothing free to give,
-  // a container that is not a row leaves a button its own width, and a vertical stack hands it
-  // the full width already, so none of those is what this is for.
+  // for or not, down past the width the label needs to show whole — the label then shortens to an
+  // ellipsis instead of wrapping onto a second line or spilling past the button. A row only as
+  // wide as what it holds has nothing free to give, a container that is not a row leaves a button
+  // the narrower of its own width and that container's — shortening the label the same way when
+  // the container is the narrower of the two — and a vertical stack hands it the full width
+  // already, so none of those is what this is for.
   fullWidth?: boolean;
 };
 
@@ -51,7 +53,18 @@ export type ButtonProps = ButtonCommonProps &
 // into what the row has left over. Asking for the whole row instead and letting the row take the
 // excess back is what the earlier version did, and the row took part of that back out of the
 // button beside it, squeezing its label onto a second line.
-const widthClassName = { content: "inline-flex", full: "flex grow basis-0" } as const;
+//
+// min-w-0 on both forms overrides a flex item's default min-width of auto, which otherwise
+// refuses to shrink a button below its label's own content width — with it still in place, a row
+// too narrow for its buttons would grow the button past the row instead of letting the label
+// inside it truncate. max-w-full is needed by both forms: a button sizes to its label whatever
+// its container's width, and grow holds it back only inside a row, so outside one a stretched
+// button spills past a container too narrow for its label exactly as a content-sized one does.
+// This caps either form at that container's width instead.
+const widthClassName = {
+  content: "inline-flex min-w-0 max-w-full",
+  full: "flex min-w-0 max-w-full grow basis-0",
+} as const;
 
 const baseClassName =
   "items-center justify-center px-4 font-sans " +
@@ -141,7 +154,11 @@ export function Button({
   return (
     <AriaButton {...props} className={className}>
       {variant !== "primary" && sizedIcon}
-      {children}
+      {/* The button is a flex container centering its content (justify-center), so putting
+          truncate directly on it clips both ends of an overflowing label with no ellipsis glyph
+          at all, instead of shortening just the trailing edge — the label needs its own box to
+          truncate. */}
+      <span className="truncate">{children}</span>
       {variant === "primary" && sizedIcon}
     </AriaButton>
   );

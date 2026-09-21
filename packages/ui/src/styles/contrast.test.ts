@@ -46,7 +46,7 @@ const backgrounds: Record<string, string> = {
 // tone (checked against its own contrast threshold below) or a decorative one (checked at all,
 // just not for text contrast). A token in neither list fails the classification test, so a new
 // color can't be added without someone deciding which bucket it belongs to.
-const textTones: Record<string, number> = {
+const textTones = {
   ink: AA_TEXT_CONTRAST,
   "ink-secondary": AAA_TEXT_CONTRAST,
   "brand-blue-ui": AA_TEXT_CONTRAST,
@@ -59,7 +59,7 @@ const textTones: Record<string, number> = {
   "brand-earth-strong": AAA_TEXT_CONTRAST,
   "status-error-strong": AAA_TEXT_CONTRAST,
   "status-warning-strong": AAA_TEXT_CONTRAST,
-};
+} satisfies Record<string, number>;
 
 // Surfaces (the backgrounds themselves, not foreground text/icon color), borders (line,
 // blue-soft, see tokens.css), the plain/accent/message-background shades that are only ever
@@ -84,6 +84,7 @@ const decorativeTones = [
   "ink-backdrop",
   "ink-panel-shadow",
   "brand-blue-ui-shadow",
+  "ink-menu-shadow",
 ];
 
 function itReachesContrastAgainstEverySurface(tones: Record<string, number>) {
@@ -207,12 +208,14 @@ describe("brand-blue-ui-shadow token", () => {
 });
 
 // The text field's own resting, hovered and read-only border reuses the shared ink-secondary
-// boundary — whose contrast against these same white and bone fills is checked, against a real
-// rendered element, in RadioGroup.test.tsx and Toggle.test.tsx — instead of the softer,
-// decorative "line"/"blue-soft" tokens, which fall short of the WCAG 3:1 non-text contrast
-// minimum (line measures ~1.49:1 on white, blue-soft ~1.47:1) and stay reserved for dividers and
-// container edges, never a control's own boundary. Its focused and invalid borders are unique to
-// the field, so those are the two checked here, against both surfaces the field can sit on
+// boundary — whose contrast is checked against a real rendered element on white in
+// RadioGroup.test.tsx and Toggle.test.tsx, and on bone in Checkbox.test.tsx's hovered box and
+// TextField.test.tsx's hovered and read-only field — instead of the softer, decorative
+// "line"/"blue-soft" tokens, which fall short of the WCAG 3:1 non-text contrast minimum (line
+// measures ~1.49:1 on white, blue-soft ~1.47:1) and stay reserved for dividers and container
+// edges rather than a control's own boundary, except where a glyph and the focus ring identify
+// the control, as the icon button's own border does. Its focused and invalid borders are unique
+// to the field, so those are the two checked here, against both surfaces the field can sit on
 // (white, and bone for a hovered or read-only field).
 describe("text field border contrast", () => {
   const borders: Record<string, string> = {
@@ -231,6 +234,84 @@ describe("text field border contrast", () => {
       expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
         NON_TEXT_CONTRAST,
       );
+    });
+  }
+});
+
+// A table row's background changes with its state while its text keeps ink and ink-secondary,
+// a pairing none of the suites above cover.
+const rowStateBackgroundNames = [
+  "brand-blue-message-bg",
+  "status-warning-message-bg",
+  "status-error-message-bg",
+] as const;
+
+describe("table row state background contrast", () => {
+  for (const tone of ["ink", "ink-secondary"] as const) {
+    for (const backgroundName of rowStateBackgroundNames) {
+      it(`${tone} reaches ${textTones[tone]}:1 against ${backgroundName}`, () => {
+        const textHex = colors[tone];
+        const backgroundHex = colors[backgroundName];
+
+        expect(textHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(backgroundHex, `${backgroundName} is missing from the stylesheet`).toMatch(
+          /^#[0-9a-f]{6}$/i,
+        );
+        expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+          textTones[tone],
+        );
+      });
+    }
+  }
+});
+
+// The pagination's current page is the only place in the package where the header/row/pagination
+// area paints text on a strong brand background instead of a message background or a plain
+// surface, so it needs its own pairing check.
+describe("pagination current page background contrast", () => {
+  it(`surface-white reaches ${AA_TEXT_CONTRAST}:1 against brand-blue-ui`, () => {
+    const textHex = colors["surface-white"];
+    const backgroundHex = colors["brand-blue-ui"];
+
+    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex, "brand-blue-ui is missing from the stylesheet").toMatch(
+      /^#[0-9a-f]{6}$/i,
+    );
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AA_TEXT_CONTRAST,
+    );
+  });
+});
+
+// The dimmed nav buttons composite their label's ink at the declared alpha onto whatever sits
+// behind the button (white, or bone under the table's own footer), not onto the button's own
+// equally-faded background, so the pairing below mirrors that compositing rather than comparing
+// two opaque tokens directly. Reads the alpha straight from Pagination.tsx so this check can't
+// drift out of sync with the component.
+describe("pagination dimmed nav button text contrast", () => {
+  const paginationPath = fileURLToPath(new URL("../components/Pagination.tsx", import.meta.url));
+  const paginationSource = readFileSync(paginationPath, "utf-8");
+  const opacityMatch = paginationSource.match(/disabled \? "opacity-\[([\d.]+)\]"/);
+
+  it('declares disabled ? "opacity-[<alpha>]" on the nav buttons', () => {
+    expect(opacityMatch, "no disabled opacity utility found on the nav buttons").not.toBeNull();
+  });
+
+  const alpha = Number.parseFloat(opacityMatch?.[1] ?? "0");
+
+  for (const backgroundName of ["white", "bone"] as const) {
+    it(`ink at that opacity reaches ${AA_TEXT_CONTRAST}:1 against ${backgroundName}`, () => {
+      const ink = hexToRgb(colors.ink as string);
+      const background = hexToRgb(backgrounds[backgroundName] as string);
+      const channel = (fg: number, bg: number) =>
+        Math.round(fg * alpha + bg * (1 - alpha))
+          .toString(16)
+          .padStart(2, "0");
+      const compositedHex = `#${channel(ink.r, background.r)}${channel(ink.g, background.g)}${channel(ink.b, background.b)}`;
+
+      expect(
+        contrastRatio(compositedHex, backgrounds[backgroundName] as string),
+      ).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
     });
   }
 });
