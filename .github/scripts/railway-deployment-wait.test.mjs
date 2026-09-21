@@ -1,22 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextPollDecision, parseDeploymentListOutput } from "./railway-deployment-wait.mjs";
+import {
+  CLOCK_SKEW_ALLOWANCE_MS,
+  nextPollDecision,
+  parseDeploymentListOutput,
+} from "./railway-deployment-wait.mjs";
 
 const TARGET_IMAGE =
   "ghcr.io/ljguardiola/purosur-cloud@sha256:target111111111111111111111111111111111111111111111111111111";
 const OTHER_IMAGE =
   "ghcr.io/ljguardiola/purosur-cloud@sha256:other2222222222222222222222222222222222222222222222222222222";
 
-// Trimmed from a real sandbox run's `railway deployment list --service cloud --json` (newest
-// first): each item carries `meta.image`, the exact image reference that deployment applied, and
-// `meta.imageDigest`. Matching on this directly - instead of diffing against a "previous newest
-// deployment id" snapshot - removes the only race that mattered here: there is no longer a need to
-// capture anything before `config apply` runs, because the target is identified by its content
-// (the image this very pipeline run built), not by "whichever one changed since last time".
+const APPLY_STARTED_AT = Date.parse("2026-09-21T15:14:00.000Z");
+
+// Trimmed from a real `railway deployment list --service cloud --json` (newest first).
 const DEPLOYMENT_LIST_FIXTURE = [
   {
     id: "b6b6f6d2-6e2a-4b8a-9c3a-2a2a2a2a2a2a",
     status: "SUCCESS",
+    createdAt: "2026-09-21T15:14:16.636Z",
     meta: {
       image: TARGET_IMAGE,
       imageDigest: "sha256:target111111111111111111111111111111111111111111111111111111",
@@ -25,6 +27,7 @@ const DEPLOYMENT_LIST_FIXTURE = [
   {
     id: "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a",
     status: "SUCCESS",
+    createdAt: "2026-09-20T10:02:41.120Z",
     meta: {
       image: OTHER_IMAGE,
       imageDigest: "sha256:other2222222222222222222222222222222222222222222222222222222",
@@ -32,126 +35,68 @@ const DEPLOYMENT_LIST_FIXTURE = [
   },
 ];
 
-// nextPollDecision -------------------------------------------------------------
-
-test("waits when no deployment for the target image exists yet", () => {
-  const decision = nextPollDecision({
+function decide(overrides) {
+  return nextPollDecision({
     targetImage: TARGET_IMAGE,
-    deployments: [DEPLOYMENT_LIST_FIXTURE[1]],
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.deepEqual(decision, { action: "wait" });
-});
-
-test("waits on an empty deployment list", () => {
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments: [],
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.deepEqual(decision, { action: "wait" });
-});
-
-test("fails once the timeout passes with no deployment for the target image", () => {
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments: [DEPLOYMENT_LIST_FIXTURE[1]],
-    elapsedMs: 60_000,
-    timeoutMs: 60_000,
-  });
-
-  assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /no deployment/);
-  assert.match(decision.reason, new RegExp(TARGET_IMAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-});
-
-test("succeeds as soon as the deployment matching the target image reaches SUCCESS", () => {
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
+    appliedAfter: APPLY_STARTED_AT,
     deployments: DEPLOYMENT_LIST_FIXTURE,
     elapsedMs: 1000,
     timeoutMs: 60_000,
+    ...overrides,
   });
+}
 
-  assert.deepEqual(decision, { action: "succeed", deploymentId: DEPLOYMENT_LIST_FIXTURE[0].id });
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// nextPollDecision -------------------------------------------------------------
+
+test("waits when no deployment for the target image exists yet", () => {
+  assert.deepEqual(decide({ deployments: [DEPLOYMENT_LIST_FIXTURE[1]] }), { action: "wait" });
 });
 
-test("fails as soon as the deployment matching the target image reaches FAILED", () => {
-  const deployments = [
-    { ...DEPLOYMENT_LIST_FIXTURE[0], status: "FAILED" },
-    DEPLOYMENT_LIST_FIXTURE[1],
-  ];
-
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments,
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.equal(decision.action, "fail");
-  assert.equal(decision.deploymentId, DEPLOYMENT_LIST_FIXTURE[0].id);
-  assert.match(decision.reason, /FAILED/);
+test("waits on an empty deployment list", () => {
+  assert.deepEqual(decide({ deployments: [] }), { action: "wait" });
 });
 
-test("fails as soon as the deployment matching the target image reaches CRASHED", () => {
-  const deployments = [
-    { ...DEPLOYMENT_LIST_FIXTURE[0], status: "CRASHED" },
-    DEPLOYMENT_LIST_FIXTURE[1],
-  ];
-
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments,
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
+test("fails once the timeout passes with no deployment for the target image", () => {
+  const decision = decide({ deployments: [DEPLOYMENT_LIST_FIXTURE[1]], elapsedMs: 60_000 });
 
   assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /CRASHED/);
+  assert.match(decision.reason, /no deployment/);
+  assert.match(decision.reason, new RegExp(escapeRegExp(TARGET_IMAGE)));
 });
 
-test("fails as soon as the deployment matching the target image reaches REMOVED", () => {
-  const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status: "REMOVED" }];
-
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments,
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
+test("succeeds as soon as the deployment matching the target image reaches SUCCESS", () => {
+  assert.deepEqual(decide({}), {
+    action: "succeed",
+    deploymentId: DEPLOYMENT_LIST_FIXTURE[0].id,
   });
+});
 
-  assert.equal(decision.action, "fail");
-  assert.match(decision.reason, /REMOVED/);
+test("fails as soon as the matching deployment reaches a terminal failure status", () => {
+  for (const status of ["FAILED", "CRASHED", "REMOVED", "REMOVING", "SKIPPED"]) {
+    const decision = decide({ deployments: [{ ...DEPLOYMENT_LIST_FIXTURE[0], status }] });
+
+    assert.equal(decision.action, "fail", `expected ${status} to fail`);
+    assert.equal(decision.deploymentId, DEPLOYMENT_LIST_FIXTURE[0].id);
+    assert.match(decision.reason, new RegExp(status));
+  }
 });
 
 test("keeps waiting while the matching deployment is still in progress", () => {
   for (const status of ["QUEUED", "INITIALIZING", "BUILDING", "DEPLOYING", "WAITING"]) {
-    const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status }];
-
-    const decision = nextPollDecision({
-      targetImage: TARGET_IMAGE,
-      deployments,
-      elapsedMs: 1000,
-      timeoutMs: 60_000,
-    });
+    const decision = decide({ deployments: [{ ...DEPLOYMENT_LIST_FIXTURE[0], status }] });
 
     assert.deepEqual(decision, { action: "wait" }, `expected to keep waiting on ${status}`);
   }
 });
 
 test("fails the matching deployment stuck mid-progress once the timeout passes", () => {
-  const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status: "BUILDING" }];
-
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments,
+  const decision = decide({
+    deployments: [{ ...DEPLOYMENT_LIST_FIXTURE[0], status: "BUILDING" }],
     elapsedMs: 60_000,
-    timeoutMs: 60_000,
   });
 
   assert.equal(decision.action, "fail");
@@ -160,49 +105,130 @@ test("fails the matching deployment stuck mid-progress once the timeout passes",
 });
 
 test("ignores an entry with no meta.image rather than crashing", () => {
-  const decision = nextPollDecision({
-    targetImage: TARGET_IMAGE,
-    deployments: [{ id: "no-meta", status: "SUCCESS" }],
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
+  const decision = decide({
+    deployments: [{ id: "no-meta", status: "SUCCESS", createdAt: "2026-09-21T15:14:16.636Z" }],
   });
 
   assert.deepEqual(decision, { action: "wait" });
 });
 
+test("ignores a deployment of the same image created before this apply started", () => {
+  const stale = {
+    ...DEPLOYMENT_LIST_FIXTURE[0],
+    id: "stale-failed",
+    status: "FAILED",
+    createdAt: "2026-09-21T14:40:03.001Z",
+  };
+
+  assert.deepEqual(decide({ deployments: [stale] }), { action: "wait" });
+});
+
+test("matches the new deployment rather than an older one of the same image", () => {
+  const fresh = { ...DEPLOYMENT_LIST_FIXTURE[0], id: "fresh", status: "SUCCESS" };
+  const stale = {
+    ...DEPLOYMENT_LIST_FIXTURE[0],
+    id: "stale",
+    status: "FAILED",
+    createdAt: "2026-09-21T14:40:03.001Z",
+  };
+
+  assert.deepEqual(decide({ deployments: [stale, fresh] }), {
+    action: "succeed",
+    deploymentId: "fresh",
+  });
+});
+
+test("accepts a deployment created slightly before the recorded apply start, within the clock-skew allowance", () => {
+  const skewed = {
+    ...DEPLOYMENT_LIST_FIXTURE[0],
+    createdAt: new Date(APPLY_STARTED_AT - CLOCK_SKEW_ALLOWANCE_MS + 1000).toISOString(),
+  };
+
+  assert.equal(decide({ deployments: [skewed] }).action, "succeed");
+});
+
+test("ignores a matching-image deployment with no readable createdAt", () => {
+  const undated = { ...DEPLOYMENT_LIST_FIXTURE[0], createdAt: undefined };
+
+  assert.deepEqual(decide({ deployments: [undated] }), { action: "wait" });
+});
+
+test("keeps waiting through a few consecutive CLI failures", () => {
+  const decision = decide({
+    deployments: [],
+    consecutiveCliFailures: 2,
+    maxConsecutiveCliFailures: 6,
+    lastCliError: "Project has no services.",
+  });
+
+  assert.deepEqual(decision, { action: "wait" });
+});
+
+test("fails fast with the CLI error once consecutive CLI failures reach the limit", () => {
+  const decision = decide({
+    deployments: [],
+    elapsedMs: 5000,
+    consecutiveCliFailures: 6,
+    maxConsecutiveCliFailures: 6,
+    lastCliError: "Unauthorized. Please login with `railway login`",
+  });
+
+  assert.equal(decision.action, "fail");
+  assert.match(decision.reason, /6 consecutive/);
+  assert.match(decision.reason, /Unauthorized/);
+});
+
+test("includes the last CLI error in the timeout message", () => {
+  const decision = decide({
+    deployments: [],
+    elapsedMs: 60_000,
+    consecutiveCliFailures: 1,
+    maxConsecutiveCliFailures: 6,
+    lastCliError: "unexpected argument '--limit'",
+  });
+
+  assert.equal(decision.action, "fail");
+  assert.match(decision.reason, /unexpected argument '--limit'/);
+});
+
 // parseDeploymentListOutput -----------------------------------------------------
 
 test("parseDeploymentListOutput returns the full array from a successful call", () => {
-  const deployments = parseDeploymentListOutput({
+  const parsed = parseDeploymentListOutput({
     exitOk: true,
     stdout: JSON.stringify(DEPLOYMENT_LIST_FIXTURE),
   });
 
-  assert.deepEqual(deployments, DEPLOYMENT_LIST_FIXTURE);
+  assert.deepEqual(parsed, { deployments: DEPLOYMENT_LIST_FIXTURE, error: null });
 });
 
 test("parseDeploymentListOutput returns an empty array for an empty list", () => {
-  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "[]" }), []);
+  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "[]" }), {
+    deployments: [],
+    error: null,
+  });
 });
 
-// On the very first deploy the service may briefly have no deployment records right after
-// `config apply` creates it; a real CLI failure at this point (as seen live for the sibling
-// `domain list` command against a service with nothing yet: "Project has no services.") must read
-// as "nothing yet", not crash the poll loop.
-test("parseDeploymentListOutput returns an empty array when the CLI call itself failed", () => {
-  const deployments = parseDeploymentListOutput({
+test("parseDeploymentListOutput reports the CLI error when the call itself failed", () => {
+  const parsed = parseDeploymentListOutput({
     exitOk: false,
     stdout: "",
     stderr: "Project has no services.\n",
   });
 
-  assert.deepEqual(deployments, []);
+  assert.deepEqual(parsed, { deployments: [], error: "Project has no services." });
 });
 
-test("parseDeploymentListOutput returns an empty array for malformed output", () => {
-  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "not json" }), []);
+test("parseDeploymentListOutput reports an error for malformed output", () => {
+  const parsed = parseDeploymentListOutput({ exitOk: true, stdout: "not json" });
+
+  assert.deepEqual(parsed.deployments, []);
+  assert.match(parsed.error, /not json/);
 });
 
-test("parseDeploymentListOutput returns an empty array when the output is valid JSON but not an array", () => {
-  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "{}" }), []);
+test("parseDeploymentListOutput reports an error when the output is valid JSON but not an array", () => {
+  const parsed = parseDeploymentListOutput({ exitOk: true, stdout: "{}" });
+
+  assert.deepEqual(parsed.deployments, []);
+  assert.match(parsed.error, /\{\}/);
 });
