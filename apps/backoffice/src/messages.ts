@@ -16,6 +16,8 @@ export const messages = defineMessages("es-AR", () => ({
     relatedHeading: "También te puede servir",
     emptyTitle: "Todavía no hay contenido de ayuda",
     emptyBody: "Cuando se sumen funciones nuevas, sus artículos van a aparecer acá.",
+    pickSectionTitle: "Elegí una sección",
+    pickSectionBody: "O buscá un tema.",
     noResultsTitle: "Sin resultados",
     noResultsBody: "Probá con otras palabras.",
   },

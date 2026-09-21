@@ -84,11 +84,28 @@ function ContentHarness(props: {
   );
 }
 
-test("shows the empty state and the search field when nothing is selected", async () => {
-  const screen = await render(<ContentHarness categoryId={null} articleId={null} />);
+test("shows the empty-catalog state and the search field when the catalog has no articles", async () => {
+  const empty = defineHelp("es-AR", { categories: {}, articles: {} });
+  const screen = await render(
+    <AyudaContent
+      help={empty}
+      categoryId={null}
+      articleId={null}
+      search=""
+      onSearchChange={() => {}}
+    />,
+  );
 
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
   await expect.element(screen.getByText("Todavía no hay contenido de ayuda")).toBeVisible();
+});
+
+test("prompts to pick a section, not the empty-catalog state, when the catalog has articles", async () => {
+  const screen = await render(<ContentHarness categoryId={null} articleId={null} />);
+
+  await expect.element(screen.getByText("Elegí una sección")).toBeVisible();
+  await expect.element(screen.getByText("O buscá un tema.")).toBeVisible();
+  expect(screen.getByText("Todavía no hay contenido de ayuda").query()).toBeNull();
 });
 
 test("lists a selected category's articles as links, under its breadcrumb", async () => {
@@ -167,15 +184,22 @@ test("lists a category's articles and search results as list items", async () =>
   ).toEqual(["Facturación básica"]);
 });
 
-test("labels every state with a level-1 heading", async () => {
+// toBeVisible() accepts a visually hidden (sr-only) element, whose clipped box is 1px wide.
+function isRenderedOnScreen(element: Element): boolean {
+  return element.getBoundingClientRect().width > 1;
+}
+
+test("titles every state with an on-screen level-1 heading", async () => {
   const home = await render(<ContentHarness categoryId={null} articleId={null} />);
-  await expect.element(home.getByRole("heading", { name: "Ayuda", level: 1 })).toBeInTheDocument();
+  const homeHeading = home.getByRole("heading", { name: "Ayuda", level: 1 });
+  await expect.element(homeHeading).toBeVisible();
+  expect(isRenderedOnScreen(homeHeading.element())).toBe(true);
   await home.unmount();
 
   const section = await render(<ContentHarness categoryId="billing" articleId={null} />);
-  await expect
-    .element(section.getByRole("heading", { name: "Facturación", level: 1 }))
-    .toBeInTheDocument();
+  const sectionHeading = section.getByRole("heading", { name: "Facturación", level: 1 });
+  await expect.element(sectionHeading).toBeVisible();
+  expect(isRenderedOnScreen(sectionHeading.element())).toBe(true);
 });
 
 // React logs a duplicate-key warning only after the render commits, so the spy stays installed

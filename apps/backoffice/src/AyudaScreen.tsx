@@ -12,11 +12,13 @@ function ownEntry<Value>(record: Record<string, Value>, key: string | null): Val
   return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
+const focusRingClassName =
+  "outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
+  "focus-visible:outline-brand-blue-strong";
+
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +
-  "text-sm text-ink outline-none transition-colors hover:bg-surface-bone " +
-  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-brand-blue-strong";
+  `text-sm text-ink transition-colors hover:bg-surface-bone ${focusRingClassName}`;
 
 function LinkRow({ to, label }: { to: string; label: string }) {
   return (
@@ -225,19 +227,13 @@ export function AyudaContent({
             {messages.ayuda.breadcrumb({ section: activeCategory.label })}
           </p>
         )}
-        {activeArticle ? (
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="font-bold text-2xl text-brand-blue-strong outline-none"
-          >
-            {activeArticle.title}
-          </h1>
-        ) : (
-          <h1 ref={headingRef} tabIndex={-1} className="sr-only">
-            {activeCategory ? activeCategory.label : messages.ayuda.pageHeading}
-          </h1>
-        )}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className={`font-bold text-2xl text-brand-blue-strong ${focusRingClassName}`}
+        >
+          {activeArticle?.title ?? activeCategory?.label ?? messages.ayuda.pageHeading}
+        </h1>
       </div>
       <div className="flex flex-col gap-4 p-6">
         <div className="w-[26.25rem]">
@@ -262,6 +258,11 @@ export function AyudaContent({
             articles={Object.entries(help.articles).filter(
               ([, article]) => article.category === categoryId,
             )}
+          />
+        ) : Object.keys(help.articles).length > 0 ? (
+          <EmptyState
+            title={messages.ayuda.pickSectionTitle}
+            body={messages.ayuda.pickSectionBody}
           />
         ) : (
           <EmptyState title={messages.ayuda.emptyTitle} body={messages.ayuda.emptyBody} />

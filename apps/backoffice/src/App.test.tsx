@@ -152,3 +152,25 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
     .element(screen.getByRole("heading", { name: "Facturación", level: 1 }))
     .toHaveFocus();
 });
+
+test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {
+  window.history.pushState(null, "", "/ayuda/getting_started");
+  const screen = await render(<App help={help} />);
+
+  const link = screen
+    .getByRole("link", { name: "Facturación", exact: true })
+    .element() as HTMLElement;
+  link.focus();
+  await userEvent.keyboard("{Enter}");
+
+  const heading = screen.getByRole("heading", { name: "Facturación", level: 1 });
+  await expect.element(heading).toHaveFocus();
+  await expect.element(heading).toBeVisible();
+  const headingElement = heading.element() as HTMLElement;
+  // toBeVisible() accepts a visually hidden (sr-only) element, whose clipped box is 1px wide.
+  expect(headingElement.getBoundingClientRect().width).toBeGreaterThan(1);
+  const style = getComputedStyle(headingElement);
+  await expect.poll(() => style.outlineStyle).toBe("solid");
+  expect(style.outlineWidth).toBe("3px");
+  expect(style.outlineColor).toBe(style.color);
+});
