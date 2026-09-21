@@ -141,3 +141,137 @@ describe("scrubSentryLog", () => {
     });
   });
 });
+
+describe("text that isn't a URL", () => {
+  it("is left intact even when it contains a colon and a question mark", () => {
+    const event = { message: "core: is the printer connected? retrying" };
+
+    expect(scrubSentryEvent(event).message).toBe("core: is the printer connected? retrying");
+  });
+});
+
+describe("URLs inside longer text", () => {
+  it("redacts the query of a presigned URL and keeps the text around it", () => {
+    const event = {
+      message: "upload to https://bucket.example.com/x.db?X-Amz-Signature=abc failed",
+    };
+
+    expect(scrubSentryEvent(event).message).toBe(
+      "upload to https://bucket.example.com/x.db?[redacted] failed",
+    );
+  });
+
+  it("redacts the query and fragment of every URL in the same text", () => {
+    const log = {
+      message: "tried http://a.example/one?sig=1 then https://b.example/two#token=2",
+    };
+
+    expect(scrubSentryLog(log).message).toBe(
+      "tried http://a.example/one?[redacted] then https://b.example/two?[redacted]",
+    );
+  });
+
+  it("leaves a URL without a query as it is", () => {
+    const event = { message: "GET https://cloud.purosur.online/health failed" };
+
+    expect(scrubSentryEvent(event).message).toBe("GET https://cloud.purosur.online/health failed");
+  });
+});
+
+describe("outgoing request breadcrumbs", () => {
+  it("redacts the query and fragment Sentry records apart from the URL", () => {
+    const breadcrumb = {
+      category: "http",
+      data: {
+        url: "https://bucket.example.com/x.db",
+        "http.method": "PUT",
+        "http.query": "?X-Amz-Signature=abc",
+        "http.fragment": "#token=abc",
+        status_code: 403,
+      },
+    };
+
+    expect(scrubSentryBreadcrumb(breadcrumb).data).toEqual({
+      url: "https://bucket.example.com/x.db",
+      "http.method": "PUT",
+      "http.query": "[redacted]",
+      "http.fragment": "[redacted]",
+      status_code: 403,
+    });
+  });
+});
+
+describe("identifiers written with separators", () => {
+  it("redacts a DNI written with thousands separators", () => {
+    for (const { message, expected } of [
+      { message: "cliente 12.345.678", expected: "cliente [redacted]" },
+      { message: "cliente 1.234.567.", expected: "cliente [redacted]." },
+      { message: "DNI 12345678.", expected: "DNI [redacted]." },
+    ]) {
+      expect(scrubSentryEvent({ message }).message).toBe(expected);
+    }
+  });
+
+  it("redacts a CUIT written with hyphens at the end of a sentence", () => {
+    expect(scrubSentryEvent({ message: "CUIT 20-30405060-7." }).message).toBe("CUIT [redacted].");
+  });
+
+  it("keeps a UUID whose groups happen to be all digits", () => {
+    const eventId = "12345678-1234-4234-8234-203040506070";
+    const event = { message: `event ${eventId} rejected`, extra: { event_id: eventId } };
+
+    expect(scrubSentryEvent(event)).toEqual(event);
+  });
+});
+
+describe("identifiers stored as numbers", () => {
+  it("redacts a CUIT or DNI number in extra, contexts and tags", () => {
+    const event = {
+      extra: { cuit: 20304050607, dni: 12345678, short_dni: 1234567 },
+      contexts: { customer: { document: 20304050607 } },
+      tags: { dni: 12345678 },
+    };
+
+    expect(scrubSentryEvent(event)).toEqual({
+      extra: { cuit: "[redacted]", dni: "[redacted]", short_dni: "[redacted]" },
+      contexts: { customer: { document: "[redacted]" } },
+      tags: { dni: "[redacted]" },
+    });
+  });
+
+  it("redacts a CUIT or DNI number among a console breadcrumb's arguments", () => {
+    const breadcrumb = {
+      category: "console",
+      data: { logger: "console", arguments: ["rejected", 20304050607, 12345678] },
+    };
+
+    expect(scrubSentryBreadcrumb(breadcrumb).data).toEqual({
+      logger: "console",
+      arguments: ["rejected", "[redacted]", "[redacted]"],
+    });
+  });
+
+  it("redacts a CUIT or DNI number passed to console as a log parameter", () => {
+    const log = {
+      message: "rejected",
+      attributes: { "sentry.message.parameter.0": 20304050607 },
+    };
+
+    expect(scrubSentryLog(log).attributes).toEqual({
+      "sentry.message.parameter.0": "[redacted]",
+    });
+  });
+
+  it("keeps numbers that can't be a CUIT or DNI", () => {
+    const extra = {
+      status_code: 503,
+      attempt: 3,
+      elapsed_ms: 1250.5,
+      timestamp_ms: 1726920000000,
+      timestamp_s: 1726920000,
+      ratio: 12345678.5,
+    };
+
+    expect(scrubSentryEvent({ extra }).extra).toEqual(extra);
+  });
+});

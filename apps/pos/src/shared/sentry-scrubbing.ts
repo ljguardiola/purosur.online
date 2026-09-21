@@ -5,24 +5,40 @@
 
 const REDACTED = "[redacted]";
 
-// A CUIT is 11 digits, either run together or split 2-8-1 with hyphens; a DNI is 7 or 8 digits.
-// Matched in that order so a CUIT's digits are never left exposed as if they were a shorter DNI.
-const CUIT_PATTERN = /\b\d{2}-\d{8}-\d\b|\b\d{11}\b/g;
-const DNI_PATTERN = /\b\d{7,8}\b/g;
+// A CUIT is 11 digits, either run together or split 2-8-1 with hyphens; a DNI is 7 or 8 digits,
+// either run together or with dots as thousands separators. Matched in that order so a CUIT's
+// digits are never left exposed as if they were a shorter DNI. A run of digits joined to a letter,
+// a hyphen or a decimal point is part of something else, such as a UUID or a fractional number.
+const NOT_JOINED_BEFORE = String.raw`(?<![\w-])(?<!\d\.)`;
+const NOT_JOINED_AFTER = String.raw`(?![\w-])(?!\.\d)`;
+const CUIT_PATTERN = new RegExp(
+  `${NOT_JOINED_BEFORE}(?:\\d{2}-\\d{8}-\\d|\\d{11})${NOT_JOINED_AFTER}`,
+  "g",
+);
+const DNI_PATTERN = new RegExp(
+  `${NOT_JOINED_BEFORE}(?:\\d{1,2}\\.\\d{3}\\.\\d{3}|\\d{7,8})${NOT_JOINED_AFTER}`,
+  "g",
+);
+const IDENTIFIER_NUMBER_PATTERN = /^(?:\d{11}|\d{7,8})$/;
 
-const SENSITIVE_KEY_PATTERN = /token|key|secret|password|authorization/i;
+// The http.query and http.fragment breadcrumb fields hold the part of a URL Sentry strips from it.
+const SENSITIVE_KEY_PATTERN = /token|key|secret|password|authorization|query|fragment/i;
 
-function redactUrlQuery(value: string): string {
-  try {
-    const url = new URL(value);
-    return url.search ? `${url.origin}${url.pathname}?${REDACTED}` : value;
-  } catch {
-    return value;
-  }
+const URL_PATTERN = /\bhttps?:\/\/[^\s"'<>]+/gi;
+
+function redactUrlQueries(value: string): string {
+  return value.replace(URL_PATTERN, (url) => {
+    const queryStart = url.search(/[?#]/);
+    return queryStart === -1 ? url : `${url.slice(0, queryStart)}?${REDACTED}`;
+  });
 }
 
 function redactString(value: string): string {
-  return redactUrlQuery(value).replace(CUIT_PATTERN, REDACTED).replace(DNI_PATTERN, REDACTED);
+  return redactUrlQueries(value).replace(CUIT_PATTERN, REDACTED).replace(DNI_PATTERN, REDACTED);
+}
+
+function isIdentifierNumber(value: number): boolean {
+  return Number.isInteger(value) && IDENTIFIER_NUMBER_PATTERN.test(String(Math.abs(value)));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -32,6 +48,9 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function redactValue(value: unknown): unknown {
   if (typeof value === "string") {
     return redactString(value);
+  }
+  if (typeof value === "number" && isIdentifierNumber(value)) {
+    return REDACTED;
   }
   if (Array.isArray(value)) {
     return value.map(redactValue);
@@ -65,6 +84,7 @@ interface EventLike {
   breadcrumbs?: BreadcrumbLike[];
   extra?: Record<string, unknown>;
   contexts?: Record<string, unknown>;
+  tags?: Record<string, unknown>;
   request?: unknown;
 }
 
@@ -92,6 +112,7 @@ export function scrubSentryEvent<E extends EventLike>(event: E): E {
       : rest.exception,
     extra: rest.extra ? redactRecord(rest.extra) : rest.extra,
     contexts: rest.contexts ? redactRecord(rest.contexts) : rest.contexts,
+    tags: rest.tags ? redactRecord(rest.tags) : rest.tags,
     breadcrumbs: rest.breadcrumbs?.map((breadcrumb) => scrubSentryBreadcrumb(breadcrumb)),
   } as E;
 }
