@@ -38,9 +38,17 @@ const barsRowClassName = "relative flex h-full items-end gap-[11px]";
 const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
 const labelRowClassName = "mt-1.5 flex gap-3";
 const axisSpacerClassName = "w-16";
-const labelsContainerClassName = "flex grow gap-[11px]";
+// The first bar's centre has 86px of room to the chart's left edge (axis 64 + gap 12 + half the
+// bar's own 20px width). The labels reserve the same room past the last bar's centre, 76px beyond
+// its own half, so the chart's intrinsic width holds a label at its cap on either end; the plot
+// grows into that room, so the grid lines still span the whole box.
+const labelsContainerClassName = "flex grow gap-[11px] pr-[76px]";
 const labelColumnClassName = "flex w-5 justify-center";
-const labelTextClassName = "text-xs font-normal whitespace-nowrap text-ink-secondary";
+// A label wider than 172px (twice the 86px of room described above) is shortened with an
+// ellipsis instead of overflowing the chart. shrink-0 keeps it from being crushed to the 20px
+// column first: a flex item with overflow hidden otherwise gets a min-width of 0, which would
+// let the column win before the cap ever applied.
+const labelTextClassName = "max-w-[172px] shrink-0 truncate text-xs font-normal text-ink-secondary";
 const emptyMessageClassName = "text-xs font-normal text-ink-secondary";
 const announcedListClassName = "sr-only";
 const announcedPartClassName = "block";

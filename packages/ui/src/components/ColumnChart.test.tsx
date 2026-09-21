@@ -87,6 +87,62 @@ function pageBackgroundHex(): string {
   return rgbToHex(getComputedStyle(document.body).backgroundColor);
 }
 
+// axis 64 + gap 12 + half a bar's own 20px width (10) = 86: the room a label has on the left of
+// the first bar's centre, and the room the chart reserves on the right of the last bar's centre.
+// A label is capped at twice that on both sides of its own bar, and shortened past it.
+const LABEL_MAX_WIDTH_PX = 172;
+const CHART_RIGHT_RESERVE_PX = 76;
+
+// Renders text with the label's own font, outside the chart and unclamped, to read the width it
+// would naturally want — the same measurement the chart's own max-width then caps or leaves alone.
+function measureNaturalWidth(text: string): number {
+  const probe = document.createElement("span");
+  probe.className = "text-xs font-normal whitespace-nowrap";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.textContent = text;
+  document.body.appendChild(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width;
+}
+
+// Grows label text word by word, then character by character, stopping just under a target
+// natural width — the closest this font can land on the label cap without crossing it.
+function buildLabelAtWidth(targetPx: number): string {
+  const word = "Boundary label ";
+  const character = "x";
+  let text = "";
+  while (measureNaturalWidth(text + word) <= targetPx) {
+    text += word;
+  }
+  while (measureNaturalWidth(text + character) <= targetPx) {
+    text += character;
+  }
+  return text;
+}
+
+// One bar at each position that matters for the label cap: right against the chart's left edge,
+// somewhere in the middle with room to spare, and right against the chart's reserved right edge.
+function threeBars(label: string): ColumnChartBar[] {
+  return [
+    { id: "first", label, value: 100 },
+    { id: "middle", label, value: 80 },
+    { id: "last", label, value: 60 },
+  ];
+}
+
+function expectLabelCenteredOnBar(labelRect: DOMRect, barRect: DOMRect): void {
+  expect((labelRect.left + labelRect.right) / 2).toBeCloseTo((barRect.left + barRect.right) / 2, 0);
+}
+
+function expectInsideChartBox(rect: DOMRect, rootRect: DOMRect): void {
+  expect(rect.top).toBeGreaterThanOrEqual(rootRect.top);
+  expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
+  expect(rect.left).toBeGreaterThanOrEqual(rootRect.left - 0.5);
+  expect(rect.right).toBeLessThanOrEqual(rootRect.right + 0.5);
+}
+
 const weekBars: ColumnChartBar[] = [
   { id: "monday", label: "Mon 08/17", value: 214300 },
   { id: "tuesday", value: 90000 },
@@ -493,7 +549,8 @@ test("keeps a label that contains a space on a single line", async () => {
 });
 
 test("paints every axis tick and every label inside its own bounds", async () => {
-  // Labels that fit their own column: a wider one's overflow is issue #131's open question.
+  // Labels here fit their own column outright; a label wider than the chart's own room is
+  // covered by the dedicated cap and shortening tests below.
   const bars: ColumnChartBar[] = [
     { id: "a", label: "1", value: 214300 },
     { id: "b", value: 90000 },
@@ -522,14 +579,16 @@ test("paints every axis tick and every label inside its own bounds", async () =>
 test("paints every bar, grid line and tick inside its own box, at any container width", async () => {
   const bars: ColumnChartBar[] = Array.from({ length: 12 }, (_, index) => ({
     id: `day-${index}`,
-    // Labels that fit their own column: a wider one's overflow is issue #131's open question.
+    // Labels here fit their own column outright; a label wider than the chart's own room is
+    // covered by the dedicated cap and shortening tests below.
     label: `${index}`,
     value: 1000,
   }));
   const axisWidth = 64;
   const axisGap = 12;
   const barsWidth = 12 * 20 + 11 * 11;
-  const chartWidth = axisWidth + axisGap + barsWidth;
+  // The chart's own intrinsic width includes the room it reserves past the last bar.
+  const chartWidth = axisWidth + axisGap + barsWidth + CHART_RIGHT_RESERVE_PX;
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
@@ -552,6 +611,11 @@ test("paints every bar, grid line and tick inside its own box, at any container 
       expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
     }
 
+    // The room reserved for the last label belongs to the plot too, so no grid line stops short.
+    for (const line of gridLines(screen)) {
+      expect(line.getBoundingClientRect().right).toBeCloseTo(rootRect.right, 0);
+    }
+
     for (let i = 0; i < rendered.length; i++) {
       const barRect = at(rendered, i).getBoundingClientRect();
       const columnRect = at(columns, i).getBoundingClientRect();
@@ -560,6 +624,101 @@ test("paints every bar, grid line and tick inside its own box, at any container 
         0,
       );
     }
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps a label that fits unshortened and centered on its own bar, inside the chart box, for the first, an inner and the last bar", async () => {
+  const label = "Mon 08/17";
+  const bars = threeBars(label);
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+
+  for (const containerWidth of ["1px", "2000px"]) {
+    screen.container.style.width = containerWidth;
+    const rootRect = chartRoot(screen).getBoundingClientRect();
+    const rendered = chartBars(screen);
+
+    for (let i = 0; i < bars.length; i++) {
+      const span = labelText(screen, i);
+      const spanRect = span.getBoundingClientRect();
+      const barRect = at(rendered, i).getBoundingClientRect();
+
+      expect(span.textContent).toBe(label);
+      expect(span.scrollWidth).toBeLessThanOrEqual(span.clientWidth);
+      expectLabelCenteredOnBar(spanRect, barRect);
+      expectInsideChartBox(spanRect, rootRect);
+    }
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps a label at the 172px cap unshortened, touching the chart's own edge on the first and last bar", async () => {
+  const label = buildLabelAtWidth(LABEL_MAX_WIDTH_PX);
+  const bars = threeBars(label);
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  screen.container.style.width = "1px";
+
+  const rootRect = chartRoot(screen).getBoundingClientRect();
+  const rendered = chartBars(screen);
+  const firstSpan = labelText(screen, 0);
+  const lastSpan = labelText(screen, 2);
+  const firstRect = firstSpan.getBoundingClientRect();
+  const lastRect = lastSpan.getBoundingClientRect();
+
+  for (const span of [firstSpan, lastSpan]) {
+    expect(span.scrollWidth).toBeLessThanOrEqual(span.clientWidth);
+  }
+  expectLabelCenteredOnBar(firstRect, at(rendered, 0).getBoundingClientRect());
+  expectLabelCenteredOnBar(lastRect, at(rendered, 2).getBoundingClientRect());
+  expectInsideChartBox(firstRect, rootRect);
+  expectInsideChartBox(lastRect, rootRect);
+  // The label keeps its whole natural width, and the room it leaves on the side the cap bounds is
+  // exactly what that width falls short of the cap.
+  const naturalWidth = measureNaturalWidth(label);
+  const slack = (LABEL_MAX_WIDTH_PX - naturalWidth) / 2;
+  expect(firstRect.width).toBeCloseTo(naturalWidth, 0);
+  expect(lastRect.width).toBeCloseTo(naturalWidth, 0);
+  expect(firstRect.left - rootRect.left).toBeCloseTo(slack, 0);
+  expect(rootRect.right - lastRect.right).toBeCloseTo(slack, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shortens a label wider than 172px with an ellipsis, keeping it one line, centered and inside the chart box, and still announces it in full, for the first, an inner and the last bar", async () => {
+  const label =
+    "A label far too long to fit in the room the chart reserves for it on either side of its bar";
+  const bars = threeBars(label);
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+
+  for (const containerWidth of ["1px", "2000px"]) {
+    screen.container.style.width = containerWidth;
+    const rootRect = chartRoot(screen).getBoundingClientRect();
+    const rendered = chartBars(screen);
+
+    for (let i = 0; i < bars.length; i++) {
+      const span = labelText(screen, i);
+      const spanRect = span.getBoundingClientRect();
+      const barRect = at(rendered, i).getBoundingClientRect();
+
+      expect(spanRect.width).toBeCloseTo(LABEL_MAX_WIDTH_PX, 0);
+      expect(span.scrollWidth).toBeGreaterThan(span.clientWidth);
+      expect(getComputedStyle(span).textOverflow).toBe("ellipsis");
+      expect(spanRect.height).toBeCloseTo(16, 0);
+      expectLabelCenteredOnBar(spanRect, barRect);
+      expectInsideChartBox(spanRect, rootRect);
+    }
+  }
+
+  for (const item of announcedItems(screen)) {
+    expect(announcedParts(item)[0]).toBe(label);
   }
 
   await expectNoAccessibilityViolations(screen.container);
