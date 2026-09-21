@@ -10,17 +10,16 @@ const channelConfig = {
     appId: "online.purosur.pos",
     packageName: "purosur-pos",
     productName: "Puro Sur",
-    updateFeedUrl: process.env.POS_UPDATE_FEED_URL_PRODUCTION,
   },
   homologation: {
     appId: "online.purosur.pos.homologation",
     packageName: "purosur-pos-homologation",
     productName: "Puro Sur Homologación",
-    updateFeedUrl: process.env.POS_UPDATE_FEED_URL_HOMOLOGATION,
   },
 };
 
-const { appId, packageName, productName, updateFeedUrl } = channelConfig[channel];
+const { appId, packageName, productName } = channelConfig[channel];
+const updateFeedUrl = process.env.POS_UPDATE_FEED_URL;
 
 /** @type {import('electron-builder').Configuration} */
 export default {

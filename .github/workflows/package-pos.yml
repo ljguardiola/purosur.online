@@ -30,13 +30,11 @@ jobs:
   package:
     name: package (${{ matrix.channel }})
     runs-on: windows-latest
+    # Each channel's credentials live in its own environment under the same variable names.
+    environment: pos-${{ matrix.channel }}
     strategy:
       matrix:
-        include:
-          - channel: production
-            sentry-dsn-variable: POS_SENTRY_DSN_PRODUCTION
-          - channel: homologation
-            sentry-dsn-variable: POS_SENTRY_DSN_HOMOLOGATION
+        channel: [production, homologation]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -49,14 +47,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Each channel reads its own repository variables; an unset one leaves that feature off in
-      # the installer. electron-builder.config.mjs only reads the feed of the channel it packages.
+      # An unset variable leaves that feature off in the installer.
       - run: pnpm --filter @purosur/pos package:${{ matrix.channel }}
         env:
-          MAIN_VITE_SENTRY_DSN: ${{ vars[matrix.sentry-dsn-variable] }}
-          RENDERER_VITE_SENTRY_DSN: ${{ vars[matrix.sentry-dsn-variable] }}
-          POS_UPDATE_FEED_URL_PRODUCTION: ${{ vars.POS_UPDATE_FEED_URL_PRODUCTION }}
-          POS_UPDATE_FEED_URL_HOMOLOGATION: ${{ vars.POS_UPDATE_FEED_URL_HOMOLOGATION }}
+          MAIN_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
+          RENDERER_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
+          POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
