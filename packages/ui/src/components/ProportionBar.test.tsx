@@ -97,3 +97,30 @@ test("meets the non-text contrast minimum between the fill and the track it sits
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("paints nothing for a NaN value", async () => {
+  const screen = await render(<ProportionBar value={Number.NaN} />);
+  const fillRect = proportionBarFill(screen).getBoundingClientRect();
+
+  expect(fillRect.width).toBeCloseTo(0, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("paints nothing for a value of positive infinity", async () => {
+  const screen = await render(<ProportionBar value={Number.POSITIVE_INFINITY} />);
+  const fillRect = proportionBarFill(screen).getBoundingClientRect();
+
+  expect(fillRect.width).toBeCloseTo(0, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("paints nothing for a value of negative infinity", async () => {
+  const screen = await render(<ProportionBar value={Number.NEGATIVE_INFINITY} />);
+  const fillRect = proportionBarFill(screen).getBoundingClientRect();
+
+  expect(fillRect.width).toBeCloseTo(0, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});

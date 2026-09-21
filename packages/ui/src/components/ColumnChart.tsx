@@ -12,10 +12,8 @@ export type ColumnChartProps = {
 
 const PLOT_HEIGHT_PX = 150;
 const TICK_COUNT = 6;
+const MINIMUM_TOP_TICK = 1000;
 
-// One value per grid line/tick index (0 = the top line, 5 = the zero line), evenly spaced across
-// the plot's 150px height. Static per index rather than computed, since the count and spacing
-// never change: only the tick values and the bar heights depend on the caller's data.
 const rowTopClassName = [
   "top-0",
   "top-[30px]",
@@ -25,6 +23,8 @@ const rowTopClassName = [
   "top-[150px]",
 ];
 
+// The top tick's line box is centered on the top grid line, so half of it sits above the plot.
+const chartClassName = "pt-2";
 const axisPlotRowClassName = "flex gap-3";
 const axisColumnClassName = "relative h-[150px] w-16";
 const axisTickClassName =
@@ -32,13 +32,15 @@ const axisTickClassName =
 const plotClassName = "relative h-[150px] flex-1";
 const gridLineClassName = "absolute inset-x-0 h-px bg-line";
 const barsRowClassName = "absolute inset-0 flex items-end gap-[11px]";
-const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
+const barClassName = "w-5 shrink-0 rounded-t-[4px] bg-brand-blue-ui";
 const labelRowClassName = "mt-1.5 flex gap-3";
 const axisSpacerClassName = "w-16 shrink-0";
 const labelsContainerClassName = "flex flex-1 gap-[11px]";
-const labelColumnClassName =
-  "w-5 shrink-0 text-center text-xs font-normal whitespace-nowrap text-ink-secondary";
-const emptyMessageClassName = "text-ink-secondary";
+const labelColumnClassName = "flex w-5 shrink-0 justify-center";
+const labelTextClassName = "text-xs font-normal whitespace-nowrap text-ink-secondary";
+const emptyMessageClassName = "text-xs font-normal text-ink-secondary";
+const announcedListClassName = "sr-only";
+const announcedPartClassName = "block";
 
 // Rounds a raw interval up to the next "nice" number of the form 1, 2 or 5 times a power of ten,
 // the way a chart library picks round axis steps instead of an arbitrary one.
@@ -54,9 +56,15 @@ function roundUpToNiceStep(value: number): number {
   return niceNormalized * magnitude;
 }
 
+function isPlottableValue(value: number): boolean {
+  return Number.isFinite(value) && value >= 0;
+}
+
 function computeTopTick(bars: ColumnChartBar[]): number {
-  const highest = Math.max(0, ...bars.map((bar) => bar.value));
-  return roundUpToNiceStep(highest / 5) * 5;
+  const plottable = bars.map((bar) => bar.value).filter(isPlottableValue);
+  const highest = Math.max(0, ...plottable);
+  const topTick = roundUpToNiceStep(highest / 5) * 5;
+  return topTick > 0 ? topTick : MINIMUM_TOP_TICK;
 }
 
 function tickValues(topTick: number): number[] {
@@ -64,12 +72,10 @@ function tickValues(topTick: number): number[] {
 }
 
 function barHeightPx(value: number, topTick: number): number {
-  return topTick > 0 ? (value / topTick) * PLOT_HEIGHT_PX : 0;
-}
-
-function accessibleBarText(bar: ColumnChartBar, formatValue: (value: number) => string): string {
-  const formatted = formatValue(bar.value);
-  return bar.label ? `${bar.label}: ${formatted}` : formatted;
+  if (!isPlottableValue(value)) {
+    return 0;
+  }
+  return (value / topTick) * PLOT_HEIGHT_PX;
 }
 
 export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProps) {
@@ -81,10 +87,7 @@ export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProp
   const ticks = tickValues(topTick);
 
   return (
-    <div>
-      {/* Every visual part below duplicates, or is redundant with, the text the accessible list
-          carries, so it is hidden from assistive technology the same way InlineNotice hides its
-          own visible title/detail in favor of NoticeLiveRegion's text. */}
+    <div className={chartClassName}>
       <div aria-hidden="true">
         <div className={axisPlotRowClassName}>
           <div className={axisColumnClassName}>
@@ -106,8 +109,6 @@ export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProp
                 <div
                   key={bar.id}
                   className={barClassName}
-                  // The bar's height is a continuous value the caller controls, so it can't be
-                  // one of a fixed set of Tailwind classes the way the bar's other sizing is.
                   style={{ height: `${barHeightPx(bar.value, topTick)}px` }}
                 />
               ))}
@@ -119,19 +120,23 @@ export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProp
           <div className={labelsContainerClassName}>
             {bars.map((bar) => (
               <div key={bar.id} className={labelColumnClassName}>
-                {bar.label}
+                <span className={labelTextClassName}>{bar.label}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
-      {/* The "listitem" role isn't one ARIA computes a name from its own content for, so each
-          item's announced text is given explicitly through aria-label rather than left as text
-          the accessible-name algorithm would otherwise ignore. */}
-      <ul className="sr-only">
-        {bars.map((bar) => (
-          <li key={bar.id} aria-label={accessibleBarText(bar, formatValue)} />
-        ))}
+      <ul className={announcedListClassName}>
+        {bars
+          .filter((bar) => isPlottableValue(bar.value))
+          .map((bar) => (
+            <li key={bar.id}>
+              {bar.label === undefined ? null : (
+                <span className={announcedPartClassName}>{bar.label}</span>
+              )}
+              <span className={announcedPartClassName}>{formatValue(bar.value)}</span>
+            </li>
+          ))}
       </ul>
     </div>
   );
