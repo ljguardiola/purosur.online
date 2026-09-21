@@ -64,6 +64,8 @@ export function showWhenReadyAndReviveRenderer(
     attempt += 1;
 
     if (!decision.shouldRestart) {
+      // An interface that crashed before its first paint never became ready to show.
+      window.show();
       deps.onRecoveryExhausted?.();
       return;
     }

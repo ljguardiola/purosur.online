@@ -165,6 +165,19 @@ describe("showWhenReadyAndReviveRenderer", () => {
     expect(onRecoveryExhausted).toHaveBeenCalledOnce();
   });
 
+  it("shows the window once the attempts are exhausted, even if the interface never painted", () => {
+    const { window, runPendingReload } = setUp();
+
+    for (let failure = 0; failure < 3; failure += 1) {
+      window.loseRenderer("crashed");
+      runPendingReload();
+    }
+    expect(window.shown).toBe(0);
+    window.loseRenderer("crashed");
+
+    expect(window.shown).toBe(1);
+  });
+
   it("counts attempts from zero again after the interface stayed up for a stable run", () => {
     const { window, pendingReloads, onRecoveryExhausted, runPendingReload, advanceClock } = setUp();
 
