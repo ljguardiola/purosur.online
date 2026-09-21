@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { denyWindowOpen, isAllowedNavigation } from "./navigation-guard";
+import { describe, expect, it, vi } from "vitest";
+import { denyDisallowedNavigation, denyWindowOpen, isAllowedNavigation } from "./navigation-guard";
 
 describe("isAllowedNavigation", () => {
   describe("with the interface served by the local development server", () => {
@@ -67,5 +67,27 @@ describe("isAllowedNavigation", () => {
 describe("denyWindowOpen", () => {
   it("always denies opening a new window", () => {
     expect(denyWindowOpen()).toEqual({ action: "deny" });
+  });
+});
+
+// Shared by both `will-navigate` and `will-redirect`, so a page that redirects itself away is
+// blocked exactly like one that navigates there directly.
+describe("denyDisallowedNavigation", () => {
+  const entry = "http://localhost:5173/";
+
+  it("prevents the default action for a disallowed target", () => {
+    const event = { preventDefault: vi.fn() };
+
+    denyDisallowedNavigation(entry, event, "https://example.com");
+
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an allowed target's default action alone", () => {
+    const event = { preventDefault: vi.fn() };
+
+    denyDisallowedNavigation(entry, event, "http://localhost:5173/settings");
+
+    expect(event.preventDefault).not.toHaveBeenCalled();
   });
 });

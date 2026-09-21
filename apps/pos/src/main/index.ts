@@ -10,7 +10,7 @@ import {
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
-import { denyWindowOpen, isAllowedNavigation } from "./navigation-guard";
+import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
@@ -68,9 +68,10 @@ const RENDERER_ENTRY_URL = devServerUrl ?? pathToFileURL(RENDERER_ENTRY).href;
 
 function guardWindow(window: BrowserWindow): void {
   window.webContents.on("will-navigate", (event, url) => {
-    if (!isAllowedNavigation(RENDERER_ENTRY_URL, url)) {
-      event.preventDefault();
-    }
+    denyDisallowedNavigation(RENDERER_ENTRY_URL, event, url);
+  });
+  window.webContents.on("will-redirect", (event, url) => {
+    denyDisallowedNavigation(RENDERER_ENTRY_URL, event, url);
   });
   window.webContents.setWindowOpenHandler(() => denyWindowOpen());
 }
