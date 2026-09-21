@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   CLOCK_SKEW_ALLOWANCE_MS,
+  DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES,
+  DEFAULT_POLL_INTERVAL_SECONDS,
   nextPollDecision,
   parseDeploymentListOutput,
 } from "./railway-deployment-wait.mjs";
@@ -243,6 +245,14 @@ test("after the grace period, keeps waiting when the image has no deployment at 
   });
 
   assert.deepEqual(decision, { action: "wait" });
+});
+
+test("by default tolerates about three minutes of consecutive CLI failures before failing fast", () => {
+  const toleratedMs = DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES * DEFAULT_POLL_INTERVAL_SECONDS * 1000;
+
+  assert.equal(DEFAULT_POLL_INTERVAL_SECONDS, 10);
+  assert.equal(DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES, 18);
+  assert.equal(toleratedMs, 180_000);
 });
 
 test("keeps waiting through a few consecutive CLI failures", () => {

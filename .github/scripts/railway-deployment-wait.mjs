@@ -9,6 +9,9 @@ export const FAILURE_STATUSES = new Set(["FAILED", "CRASHED", "REMOVED", "REMOVI
 // which stamps `createdAt`.
 export const CLOCK_SKEW_ALLOWANCE_MS = 30_000;
 
+export const DEFAULT_POLL_INTERVAL_SECONDS = 10;
+export const DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES = 18;
+
 /**
  * Reads the deployment list out of a `railway deployment list --json` call. A failed call or
  * unusable output yields an empty list plus the error, so the caller can tolerate a transient
@@ -153,8 +156,11 @@ async function runCli() {
 
   const timeoutMs = Number(process.env.RAILWAY_DEPLOYMENT_TIMEOUT_SECONDS ?? "600") * 1000;
   const pollIntervalMs =
-    Number(process.env.RAILWAY_DEPLOYMENT_POLL_INTERVAL_SECONDS ?? "10") * 1000;
-  const maxConsecutiveCliFailures = Number(process.env.RAILWAY_DEPLOYMENT_MAX_CLI_FAILURES ?? "6");
+    Number(process.env.RAILWAY_DEPLOYMENT_POLL_INTERVAL_SECONDS ?? DEFAULT_POLL_INTERVAL_SECONDS) *
+    1000;
+  const maxConsecutiveCliFailures = Number(
+    process.env.RAILWAY_DEPLOYMENT_MAX_CLI_FAILURES ?? DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES,
+  );
   const graceMs = Number(process.env.RAILWAY_DEPLOYMENT_GRACE_SECONDS ?? "90") * 1000;
 
   async function readDeployments() {
