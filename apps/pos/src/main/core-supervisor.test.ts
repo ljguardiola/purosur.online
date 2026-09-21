@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type CoreSupervisorDeps,
   createCoreSupervisor,
@@ -8,6 +8,7 @@ import {
 
 const policy = { maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 1000, stableRunMs: 60_000 };
 const retryIntervalMs = 90_000;
+const readinessTimeoutMs = 30_000;
 
 describe("decideRestart", () => {
   it("restarts with exponentially growing backoff below the attempt limit", () => {
@@ -72,6 +73,8 @@ function setUp(overrides: Partial<CoreSupervisorDeps> = {}) {
     now: () => clock,
     policy,
     retryIntervalMs,
+    scheduleReadinessDeadline: vi.fn(() => () => {}),
+    readinessTimeoutMs,
     ...overrides,
   };
   const supervisor = createCoreSupervisor(deps);
@@ -498,6 +501,121 @@ describe("createCoreSupervisor", () => {
       }
 
       expect(onRestartsExhausted).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("when a started core never says it is ready", () => {
+    function withTimers(overrides: Partial<CoreSupervisorDeps> = {}) {
+      vi.useFakeTimers();
+      const scheduleOnTimer = (run: () => void, delayMs: number) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      };
+      return setUp({
+        scheduleRestart: vi.fn(scheduleOnTimer),
+        scheduleReadinessDeadline: vi.fn(scheduleOnTimer),
+        ...overrides,
+      });
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("kills a core that hangs on boot and restarts it like a crash", () => {
+      const { supervisor, processes } = withTimers();
+
+      supervisor.start();
+      vi.advanceTimersByTime(readinessTimeoutMs);
+
+      expect(processes[0]?.killed).toBe(true);
+      vi.advanceTimersByTime(policy.baseDelayMs);
+      expect(processes).toHaveLength(2);
+    });
+
+    it("counts the killed process's own later exit only once", () => {
+      const { supervisor, processes } = withTimers();
+
+      supervisor.start();
+      vi.advanceTimersByTime(readinessTimeoutMs);
+      processes[0]?.exit(null);
+      vi.advanceTimersByTime(policy.maxDelayMs);
+
+      expect(processes).toHaveLength(2);
+    });
+
+    it("exhausts the bounded restarts when every restarted core hangs, reporting the core down", () => {
+      const onRestartsExhausted = vi.fn();
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = withTimers({ onRestartsExhausted, onStatusChange });
+
+      supervisor.start();
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+        vi.advanceTimersByTime(readinessTimeoutMs);
+        processes[index]?.exit(null);
+        vi.advanceTimersByTime(policy.maxDelayMs);
+      }
+
+      expect(onRestartsExhausted).toHaveBeenCalledOnce();
+      expect(onStatusChange).toHaveBeenLastCalledWith("down");
+      expect(processes.slice(0, policy.maxAttempts + 1).every((process) => process.killed)).toBe(
+        true,
+      );
+    });
+
+    it("keeps retrying periodically, without a new fatal, when a periodic retry's core hangs", () => {
+      const onRestartsExhausted = vi.fn();
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = withTimers({ onRestartsExhausted, onStatusChange });
+
+      supervisor.start();
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+        processes[index]?.exit(1);
+        vi.advanceTimersByTime(policy.maxDelayMs);
+      }
+      vi.advanceTimersByTime(retryIntervalMs);
+      const retried = processes.length;
+      vi.advanceTimersByTime(readinessTimeoutMs);
+      vi.advanceTimersByTime(retryIntervalMs);
+
+      expect(processes.at(retried - 1)?.killed).toBe(true);
+      expect(processes).toHaveLength(retried + 1);
+      expect(onRestartsExhausted).toHaveBeenCalledOnce();
+      expect(onStatusChange).toHaveBeenLastCalledWith("down");
+    });
+
+    it("never kills a core that said it was ready in time", () => {
+      const { supervisor, processes } = withTimers();
+
+      supervisor.start();
+      vi.advanceTimersByTime(readinessTimeoutMs - 1);
+      processes[0]?.becomeReady();
+      vi.advanceTimersByTime(readinessTimeoutMs);
+
+      expect(processes[0]?.killed).toBe(false);
+      expect(processes).toHaveLength(1);
+    });
+
+    it("clears the readiness deadline when the core exits before it", () => {
+      const { supervisor, processes } = withTimers();
+
+      supervisor.start();
+      processes[0]?.exit(1);
+      vi.advanceTimersByTime(policy.baseDelayMs);
+
+      // Only the restarted process's own deadline is left.
+      expect(vi.getTimerCount()).toBe(1);
+      expect(processes[0]?.killed).toBe(false);
+    });
+
+    it("clears the readiness deadline when stopped", () => {
+      const { supervisor, processes } = withTimers();
+
+      supervisor.start();
+      supervisor.stop();
+
+      expect(vi.getTimerCount()).toBe(0);
+      expect(processes).toHaveLength(1);
     });
   });
 });

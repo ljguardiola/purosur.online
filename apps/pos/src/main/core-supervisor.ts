@@ -43,6 +43,9 @@ export interface CoreSupervisorDeps {
   // RestartPolicy, which is also shared with the renderer's own reload recovery: that recovery
   // still gives up for good, only the core keeps retrying forever.
   retryIntervalMs: number;
+  scheduleReadinessDeadline(run: () => void, delayMs: number): () => void;
+  // A started core that hasn't said it is ready within this long is killed and counted as a crash.
+  readinessTimeoutMs: number;
   onProcessStarted?(process: SupervisedProcess): void;
   onProcessExited?(process: SupervisedProcess): void;
   // Fires once per outage: failed periodic retries never report again until a recovered core has
@@ -68,6 +71,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   let outageOpen = false;
   let status: CoreStatus = "starting";
   let cancelScheduled: (() => void) | undefined;
+  let cancelReadinessDeadline: (() => void) | undefined;
 
   function schedule(run: () => void, delayMs: number): void {
     cancelScheduled = deps.scheduleRestart(run, delayMs);
@@ -89,14 +93,25 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
 
     const process = deps.fork();
     let readyAt: number | undefined;
+    let crashed = false;
     current = process;
     deps.onProcessStarted?.(process);
+
+    const cancelDeadline = deps.scheduleReadinessDeadline(() => {
+      if (stopped || crashed) {
+        return;
+      }
+      process.kill();
+      handleCrash();
+    }, deps.readinessTimeoutMs);
+    cancelReadinessDeadline = cancelDeadline;
 
     process.on("message", (message) => {
       if (stopped || current !== process || readyAt !== undefined) {
         return;
       }
       if (isCoreReadyMessage(message)) {
+        cancelDeadline();
         readyAt = deps.now();
         setStatus("up");
       }
@@ -107,6 +122,20 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
         current = undefined;
       }
       deps.onProcessExited?.(process);
+      handleCrash();
+    });
+
+    // Reached either by the process's own exit or by its readiness deadline; the killed process's
+    // later exit then finds it already handled.
+    function handleCrash(): void {
+      if (crashed) {
+        return;
+      }
+      crashed = true;
+      cancelDeadline();
+      if (current === process) {
+        current = undefined;
+      }
       if (stopped) {
         return;
       }
@@ -133,7 +162,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       }
       setStatus("down");
       schedule(launch, deps.retryIntervalMs);
-    });
+    }
   }
 
   return {
@@ -148,6 +177,8 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       stopped = true;
       cancelScheduled?.();
       cancelScheduled = undefined;
+      cancelReadinessDeadline?.();
+      cancelReadinessDeadline = undefined;
       current?.kill();
     },
   };

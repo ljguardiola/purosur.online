@@ -65,6 +65,11 @@ const RESTART_POLICY = {
   stableRunMs: 60_000,
 };
 
+// A core that hasn't said it is ready by then is killed and restarted like a crash. Its boot takes
+// milliseconds today; the margin is for the database and hardware setup it will do before saying
+// it is ready, which must never be mistaken for a hang on a slow register.
+const CORE_READINESS_TIMEOUT_MS = 30_000;
+
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
 // Only honored in an unpackaged run (development and end-to-end tests), the same trust boundary
@@ -201,6 +206,11 @@ function startRegister(settings: ChannelSettings): void {
       now: () => performance.now(),
       policy: RESTART_POLICY,
       retryIntervalMs: coreRetryIntervalMs(),
+      scheduleReadinessDeadline: (run, delayMs) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      },
+      readinessTimeoutMs: CORE_READINESS_TIMEOUT_MS,
       onProcessExited: (process) => {
         if (currentCoreProcess === process) {
           currentCoreProcess = undefined;
