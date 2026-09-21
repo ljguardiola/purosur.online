@@ -29,8 +29,7 @@ export const roles = pgTable(
     name: text("name"),
     isAdministrator: boolean("is_administrator").notNull().default(false),
   },
-  // At most one role can carry the Administrator flag: the migration seeds exactly one and no
-  // further row may ever set it, so the constraint enforces what the design doc promises.
+  // The migration seeds the only Administrator role; no other row may ever carry the flag.
   (table) => [
     uniqueIndex("roles_single_administrator_key")
       .on(table.isAdministrator)

@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -152,11 +152,7 @@ describe("createFirstAdministrator", () => {
   });
 
   it("seeds exactly one Administrator role in the migrations", async () => {
-    const administratorRoles = await db
-      .select()
-      .from(roles)
-      .where(eq(roles.isAdministrator, true))
-      .orderBy(asc(roles.name));
+    const administratorRoles = await db.select().from(roles).where(eq(roles.isAdministrator, true));
 
     expect(administratorRoles).toHaveLength(1);
     expect(administratorRoles[0]).toMatchObject({ name: null, isAdministrator: true });
@@ -171,9 +167,17 @@ describe("createFirstAdministrator", () => {
     ).resolves.toBeDefined();
   });
 
-  it("keeps the migration from ever seeding a second Administrator role", async () => {
+  it("rejects an Administrator role that carries a name", async () => {
+    await db.execute(sql`delete from roles where is_administrator`);
+
     await expect(
       db.execute(sql`insert into roles (name, is_administrator) values ('Impostor', true)`),
+    ).rejects.toThrow();
+  });
+
+  it("rejects a second Administrator role", async () => {
+    await expect(
+      db.execute(sql`insert into roles (is_administrator) values (true)`),
     ).rejects.toThrow();
   });
 });
