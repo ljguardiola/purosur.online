@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextHealthPollDecision } from "./verify-cloud-health.mjs";
+import { buildHealthUrl, nextHealthPollDecision } from "./verify-cloud-health.mjs";
 
 test("succeeds when /health reports ok and the expected version", () => {
   const decision = nextHealthPollDecision({
@@ -93,4 +93,40 @@ test("fails once the timeout passes on a malformed body", () => {
 
   assert.equal(decision.action, "fail");
   assert.match(decision.reason, /status.*ok/i);
+});
+
+// buildHealthUrl ---------------------------------------------------------------
+//
+// A real sandbox run's domain-create output carried a scheme
+// (`https://cloud-staging-6fea.up.railway.app`) where the domain-list output (what the workflow
+// uses today) does not, and building `https://${domain}/health` straight from that value produced
+// a doubled scheme (`https://https://…`) that fetch rejected outright. buildHealthUrl is robust to
+// either shape so a future upstream change on either side does not silently reintroduce the bug.
+
+test("builds the health URL from a bare hostname", () => {
+  assert.equal(
+    buildHealthUrl("cloud-staging-6fea.up.railway.app"),
+    "https://cloud-staging-6fea.up.railway.app/health",
+  );
+});
+
+test("strips an https scheme already present on the domain", () => {
+  assert.equal(
+    buildHealthUrl("https://cloud-staging-6fea.up.railway.app"),
+    "https://cloud-staging-6fea.up.railway.app/health",
+  );
+});
+
+test("strips an http scheme, still using https for the health request", () => {
+  assert.equal(
+    buildHealthUrl("http://cloud-staging-6fea.up.railway.app"),
+    "https://cloud-staging-6fea.up.railway.app/health",
+  );
+});
+
+test("strips a trailing slash before appending /health", () => {
+  assert.equal(
+    buildHealthUrl("https://cloud-staging-6fea.up.railway.app/"),
+    "https://cloud-staging-6fea.up.railway.app/health",
+  );
 });

@@ -3,6 +3,17 @@
 // deployment reaching SUCCESS only means the container started; the health check proves the
 // specific version is the one now serving traffic (the issue's own acceptance criterion).
 
+/**
+ * Builds the `/health` URL from a domain value, robust to one already carrying a scheme (a real
+ * sandbox run showed the domain-create command's own output carrying one, unlike the domain-list
+ * output this workflow actually uses) so `https://${domain}` can never double up into
+ * `https://https://…`.
+ */
+export function buildHealthUrl(domain) {
+  const host = domain.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return `https://${host}/health`;
+}
+
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -58,7 +69,7 @@ async function runCli() {
 
   const timeoutMs = Number(process.env.CLOUD_HEALTH_TIMEOUT_SECONDS ?? "120") * 1000;
   const pollIntervalMs = Number(process.env.CLOUD_HEALTH_POLL_INTERVAL_SECONDS ?? "5") * 1000;
-  const url = `https://${domain}/health`;
+  const url = buildHealthUrl(domain);
 
   async function fetchHealth() {
     try {

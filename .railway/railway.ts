@@ -19,9 +19,20 @@
 // postgres()/redis()/mysql()/mongo() are "Referencable"), so this SDK version has no typed way to
 // wire the bucket's credentials into the cloud service. Nothing in apps/cloud reads the bucket
 // yet, so the bucket is provisioned without service credentials for now.
+//
+// `config apply` is not atomic: a sandbox run that ended `"status":"failed"` with an empty change
+// set had still created the postgres service before failing on something else. A retried apply
+// converges on the declared state regardless - it never needs the previous attempt rolled back by
+// hand.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
 
-const REGION = "iad";
+// "iad" is a bucket region code only. Services and databases place by Railway's deployment region
+// IDs instead, a different code set - verified live: a postgres created with region "iad" landed
+// in "us-east4-eqdc4a" (US East), and every later plan wanted to destructively "Move database
+// postgres to iad" until the database and the service were both pinned to that same deployment
+// region id.
+const SERVICE_REGION = "us-east4-eqdc4a";
+const BUCKET_REGION = "iad";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -44,19 +55,22 @@ export default defineRailway((ctx) => {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
   }
 
-  const db = postgres("postgres", { region: REGION });
-  const media = bucket("media", { region: REGION });
+  const db = postgres("postgres", { region: SERVICE_REGION });
+  const media = bucket("media", { region: BUCKET_REGION });
 
   const cloud = service("cloud", {
     source: image(imageRef, { autoUpdates: { type: "disabled" } }),
+    regions: { [SERVICE_REGION]: 1 },
     deploy: {
       registryCredentials: {
         username: "ljguardiola",
         password: ghcrPullToken,
       },
       // Railway docs: "If your command fails, it will not be retried and the deployment will not
-      // proceed" - the previous deployment keeps serving traffic.
-      preDeployCommand: ["node", "dist/migrate.js"],
+      // proceed" - the previous deployment keeps serving traffic. The array holds at most one
+      // item: Railway rejects more ("Too big: expected array to have <=1 items"), verified live -
+      // `railway config plan` did not catch this locally, only a real `apply` did.
+      preDeployCommand: ["node dist/migrate.js"],
       healthcheckPath: "/health",
     },
     env: {

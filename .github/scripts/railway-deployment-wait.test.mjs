@@ -1,15 +1,43 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  nextPollDecision,
-  parseDeploymentListOutput,
-  resolvePreviousId,
-} from "./railway-deployment-wait.mjs";
+import { nextPollDecision, parseDeploymentListOutput } from "./railway-deployment-wait.mjs";
 
-test("waits when the newest deployment is still the pre-apply one", () => {
+const TARGET_IMAGE =
+  "ghcr.io/ljguardiola/purosur-cloud@sha256:target111111111111111111111111111111111111111111111111111111";
+const OTHER_IMAGE =
+  "ghcr.io/ljguardiola/purosur-cloud@sha256:other2222222222222222222222222222222222222222222222222222222";
+
+// Trimmed from a real sandbox run's `railway deployment list --service cloud --json` (newest
+// first): each item carries `meta.image`, the exact image reference that deployment applied, and
+// `meta.imageDigest`. Matching on this directly - instead of diffing against a "previous newest
+// deployment id" snapshot - removes the only race that mattered here: there is no longer a need to
+// capture anything before `config apply` runs, because the target is identified by its content
+// (the image this very pipeline run built), not by "whichever one changed since last time".
+const DEPLOYMENT_LIST_FIXTURE = [
+  {
+    id: "b6b6f6d2-6e2a-4b8a-9c3a-2a2a2a2a2a2a",
+    status: "SUCCESS",
+    meta: {
+      image: TARGET_IMAGE,
+      imageDigest: "sha256:target111111111111111111111111111111111111111111111111111111",
+    },
+  },
+  {
+    id: "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a",
+    status: "SUCCESS",
+    meta: {
+      image: OTHER_IMAGE,
+      imageDigest: "sha256:other2222222222222222222222222222222222222222222222222222222",
+    },
+  },
+];
+
+// nextPollDecision -------------------------------------------------------------
+
+test("waits when no deployment for the target image exists yet", () => {
   const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-old", status: "SUCCESS" },
+    targetImage: TARGET_IMAGE,
+    deployments: [DEPLOYMENT_LIST_FIXTURE[1]],
     elapsedMs: 1000,
     timeoutMs: 60_000,
   });
@@ -17,83 +45,68 @@ test("waits when the newest deployment is still the pre-apply one", () => {
   assert.deepEqual(decision, { action: "wait" });
 });
 
-test("fails when no new deployment appears before the timeout", () => {
+test("waits on an empty deployment list", () => {
   const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-old", status: "SUCCESS" },
+    targetImage: TARGET_IMAGE,
+    deployments: [],
+    elapsedMs: 1000,
+    timeoutMs: 60_000,
+  });
+
+  assert.deepEqual(decision, { action: "wait" });
+});
+
+test("fails once the timeout passes with no deployment for the target image", () => {
+  const decision = nextPollDecision({
+    targetImage: TARGET_IMAGE,
+    deployments: [DEPLOYMENT_LIST_FIXTURE[1]],
     elapsedMs: 60_000,
     timeoutMs: 60_000,
   });
 
-  assert.deepEqual(decision, {
-    action: "fail",
-    reason: "no new deployment appeared before the timeout",
-  });
+  assert.equal(decision.action, "fail");
+  assert.match(decision.reason, /no deployment/);
+  assert.match(decision.reason, new RegExp(TARGET_IMAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-test("waits when the list comes back empty, even past a previous id", () => {
+test("succeeds as soon as the deployment matching the target image reaches SUCCESS", () => {
   const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: null,
+    targetImage: TARGET_IMAGE,
+    deployments: DEPLOYMENT_LIST_FIXTURE,
     elapsedMs: 1000,
     timeoutMs: 60_000,
   });
 
-  assert.deepEqual(decision, { action: "wait" });
+  assert.deepEqual(decision, { action: "succeed", deploymentId: DEPLOYMENT_LIST_FIXTURE[0].id });
 });
 
-test("waits when there was never a previous deployment and none has appeared yet", () => {
+test("fails as soon as the deployment matching the target image reaches FAILED", () => {
+  const deployments = [
+    { ...DEPLOYMENT_LIST_FIXTURE[0], status: "FAILED" },
+    DEPLOYMENT_LIST_FIXTURE[1],
+  ];
+
   const decision = nextPollDecision({
-    previousId: null,
-    current: null,
+    targetImage: TARGET_IMAGE,
+    deployments,
     elapsedMs: 1000,
     timeoutMs: 60_000,
   });
 
-  assert.deepEqual(decision, { action: "wait" });
+  assert.equal(decision.action, "fail");
+  assert.equal(decision.deploymentId, DEPLOYMENT_LIST_FIXTURE[0].id);
+  assert.match(decision.reason, /FAILED/);
 });
 
-test("succeeds as soon as a new deployment id reaches SUCCESS", () => {
+test("fails as soon as the deployment matching the target image reaches CRASHED", () => {
+  const deployments = [
+    { ...DEPLOYMENT_LIST_FIXTURE[0], status: "CRASHED" },
+    DEPLOYMENT_LIST_FIXTURE[1],
+  ];
+
   const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-new", status: "SUCCESS" },
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.deepEqual(decision, { action: "succeed", deploymentId: "dep-new" });
-});
-
-test("treats any new id as the deployment to track when there was no previous one", () => {
-  const decision = nextPollDecision({
-    previousId: null,
-    current: { id: "dep-first", status: "SUCCESS" },
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.deepEqual(decision, { action: "succeed", deploymentId: "dep-first" });
-});
-
-test("fails as soon as a new deployment reaches FAILED", () => {
-  const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-new", status: "FAILED" },
-    elapsedMs: 1000,
-    timeoutMs: 60_000,
-  });
-
-  assert.deepEqual(decision, {
-    action: "fail",
-    reason: "deployment dep-new reached status FAILED",
-    deploymentId: "dep-new",
-  });
-});
-
-test("fails as soon as a new deployment reaches CRASHED", () => {
-  const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-new", status: "CRASHED" },
+    targetImage: TARGET_IMAGE,
+    deployments,
     elapsedMs: 1000,
     timeoutMs: 60_000,
   });
@@ -102,11 +115,27 @@ test("fails as soon as a new deployment reaches CRASHED", () => {
   assert.match(decision.reason, /CRASHED/);
 });
 
-test("keeps waiting while a new deployment is still in progress", () => {
+test("fails as soon as the deployment matching the target image reaches REMOVED", () => {
+  const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status: "REMOVED" }];
+
+  const decision = nextPollDecision({
+    targetImage: TARGET_IMAGE,
+    deployments,
+    elapsedMs: 1000,
+    timeoutMs: 60_000,
+  });
+
+  assert.equal(decision.action, "fail");
+  assert.match(decision.reason, /REMOVED/);
+});
+
+test("keeps waiting while the matching deployment is still in progress", () => {
   for (const status of ["QUEUED", "INITIALIZING", "BUILDING", "DEPLOYING", "WAITING"]) {
+    const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status }];
+
     const decision = nextPollDecision({
-      previousId: "dep-old",
-      current: { id: "dep-new", status },
+      targetImage: TARGET_IMAGE,
+      deployments,
       elapsedMs: 1000,
       timeoutMs: 60_000,
     });
@@ -115,74 +144,65 @@ test("keeps waiting while a new deployment is still in progress", () => {
   }
 });
 
-test("fails a new deployment stuck mid-progress once the timeout passes", () => {
+test("fails the matching deployment stuck mid-progress once the timeout passes", () => {
+  const deployments = [{ ...DEPLOYMENT_LIST_FIXTURE[0], status: "BUILDING" }];
+
   const decision = nextPollDecision({
-    previousId: "dep-old",
-    current: { id: "dep-new", status: "BUILDING" },
+    targetImage: TARGET_IMAGE,
+    deployments,
     elapsedMs: 60_000,
     timeoutMs: 60_000,
   });
 
-  assert.deepEqual(decision, {
-    action: "fail",
-    reason:
-      "deployment dep-new did not reach a terminal status before the timeout (last seen: BUILDING)",
-    deploymentId: "dep-new",
-  });
+  assert.equal(decision.action, "fail");
+  assert.equal(decision.deploymentId, DEPLOYMENT_LIST_FIXTURE[0].id);
+  assert.match(decision.reason, /BUILDING/);
 });
 
-// parseDeploymentListOutput ---------------------------------------------------
+test("ignores an entry with no meta.image rather than crashing", () => {
+  const decision = nextPollDecision({
+    targetImage: TARGET_IMAGE,
+    deployments: [{ id: "no-meta", status: "SUCCESS" }],
+    elapsedMs: 1000,
+    timeoutMs: 60_000,
+  });
 
-test("parseDeploymentListOutput reads the newest deployment from a successful call", () => {
-  const current = parseDeploymentListOutput({
+  assert.deepEqual(decision, { action: "wait" });
+});
+
+// parseDeploymentListOutput -----------------------------------------------------
+
+test("parseDeploymentListOutput returns the full array from a successful call", () => {
+  const deployments = parseDeploymentListOutput({
     exitOk: true,
-    stdout: JSON.stringify([{ id: "dep-new", status: "SUCCESS" }]),
+    stdout: JSON.stringify(DEPLOYMENT_LIST_FIXTURE),
   });
 
-  assert.deepEqual(current, { id: "dep-new", status: "SUCCESS" });
+  assert.deepEqual(deployments, DEPLOYMENT_LIST_FIXTURE);
 });
 
-test("parseDeploymentListOutput returns null for an empty list", () => {
-  const current = parseDeploymentListOutput({ exitOk: true, stdout: "[]" });
-
-  assert.equal(current, null);
+test("parseDeploymentListOutput returns an empty array for an empty list", () => {
+  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "[]" }), []);
 });
 
-// On the very first deploy, the service exists (created earlier in the same `config apply`) but
-// may still have zero deployment records for a moment; a real CLI error at this point (as seen
-// live for `domain list` against a service with nothing yet: "Project has no services.") must
-// read as "nothing yet", not crash the poll loop.
-test("parseDeploymentListOutput treats a failed CLI call as no deployment yet, not a crash", () => {
-  const current = parseDeploymentListOutput({
+// On the very first deploy the service may briefly have no deployment records right after
+// `config apply` creates it; a real CLI failure at this point (as seen live for the sibling
+// `domain list` command against a service with nothing yet: "Project has no services.") must read
+// as "nothing yet", not crash the poll loop.
+test("parseDeploymentListOutput returns an empty array when the CLI call itself failed", () => {
+  const deployments = parseDeploymentListOutput({
     exitOk: false,
     stdout: "",
     stderr: "Project has no services.\n",
   });
 
-  assert.equal(current, null);
+  assert.deepEqual(deployments, []);
 });
 
-test("parseDeploymentListOutput treats malformed output as no deployment yet", () => {
-  const current = parseDeploymentListOutput({ exitOk: true, stdout: "not json" });
-
-  assert.equal(current, null);
+test("parseDeploymentListOutput returns an empty array for malformed output", () => {
+  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "not json" }), []);
 });
 
-// resolvePreviousId -----------------------------------------------------------
-
-// A workflow step captures the newest deployment id strictly *before* `railway config apply`
-// runs, so this script never has to guess whether its own first read (which necessarily happens
-// after apply already ran) beat Railway to recording the brand-new deployment - a race that would
-// otherwise make the very deployment being waited for look like "the old one".
-test("resolvePreviousId uses the pre-apply-captured id when one was provided", () => {
-  assert.equal(resolvePreviousId("dep-old", { id: "dep-should-be-ignored" }), "dep-old");
-});
-
-test("resolvePreviousId reads an explicitly empty pre-apply capture as no previous deployment", () => {
-  assert.equal(resolvePreviousId("", { id: "dep-should-be-ignored" }), null);
-});
-
-test("resolvePreviousId falls back to a self-captured read when no override was given", () => {
-  assert.equal(resolvePreviousId(undefined, { id: "dep-self" }), "dep-self");
-  assert.equal(resolvePreviousId(undefined, null), null);
+test("parseDeploymentListOutput returns an empty array when the output is valid JSON but not an array", () => {
+  assert.deepEqual(parseDeploymentListOutput({ exitOk: true, stdout: "{}" }), []);
 });

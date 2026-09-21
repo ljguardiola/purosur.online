@@ -86,26 +86,29 @@ jobs:
       # .railway/railway.ts.
       - run: pnpm install --frozen-lockfile
 
+      # The postinstall step downloads the platform binary from GitHub releases, which failed once
+      # in the sandbox with a 504; bounded retries with backoff absorb a transient release-CDN
+      # blip instead of failing the whole deploy on it.
       - name: Install the Railway CLI
-        run: npm install -g @railway/cli@5.58.0
-
-      # Captured strictly before `apply` runs, so "wait for the new deployment" below never has to
-      # guess whether its own first read (which necessarily happens after apply) beat Railway to
-      # recording the brand-new deployment. On the very first-ever run the service does not exist
-      # yet at this point either; the script reads that failure the same as "no deployment yet"
-      # (confirmed live: `railway domain list` on a project with no services exits 1 with plain
-      # text, not `[]` - the deployment list command is not assumed to behave differently).
-      - name: Capture the deployment recorded before apply
-        id: pre-apply-deployment
-        env:
-          RAILWAY_SERVICE: cloud
-          RAILWAY_ENVIRONMENT: staging
-        run: node .github/scripts/railway-deployment-wait.mjs --print-newest
+        run: |
+          for attempt in 1 2 3; do
+            if npm install -g @railway/cli@5.58.0; then
+              exit 0
+            fi
+            echo "npm install -g @railway/cli failed (attempt $attempt/3)"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::npm install -g @railway/cli failed after 3 attempts"
+          exit 1
 
       # `RAILWAY_TOKEN` is a project token already scoped to the staging environment (provisioned
       # out of band), so `railway config apply` needs no `railway link` step and no --environment
       # flag - the token alone resolves project and environment. On the first-ever run this apply
       # creates postgres, the bucket and the cloud service itself, from the image built above.
+      # `apply` is not atomic: a sandbox run that ended "failed" with an empty change set still
+      # created a resource before failing on something else; a retried apply converges regardless.
       - name: Apply the staging infrastructure
         env:
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
@@ -115,12 +118,16 @@ jobs:
         # fails this step instead of applying unattended, and needs a human to review it.
         run: railway config apply --json --yes
 
+      # Matches the deployment whose `meta.image` is the exact digest just applied, rather than
+      # diffing against a "previous newest deployment" snapshot: `railway deployment list --json`
+      # carries that field per deployment (confirmed live against a real sandbox run), so there is
+      # nothing to capture before `apply` runs and no id-reuse race to guard against.
       - name: Wait for the new deployment to succeed
         env:
           RAILWAY_SERVICE: cloud
           RAILWAY_ENVIRONMENT: staging
+          CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
           RAILWAY_DEPLOYMENT_TIMEOUT_SECONDS: "600"
-          RAILWAY_PREVIOUS_DEPLOYMENT_ID: ${{ steps.pre-apply-deployment.outputs.deployment_id }}
         run: node .github/scripts/railway-deployment-wait.mjs
 
       # Railway's IaC reference has no field for a generated *.up.railway.app domain ("Generated
