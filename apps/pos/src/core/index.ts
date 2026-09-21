@@ -1,21 +1,27 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
-import { createMessageGate, type RejectionRecorder } from "./message-gate";
+import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createRendererConnection } from "./renderer-connection";
 
 // The core is built as a second main-side entry (see electron.vite.config.ts), so it shares
 // main's MAIN_VITE_ prefixed environment variables.
 const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
 if (sentryDsn) {
-  Sentry.init({ dsn: sentryDsn });
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: import.meta.env.POS_CHANNEL,
+    enableLogs: true,
+    integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+  });
 }
 
+// Console output is also shipped as logs and breadcrumbs, so the local line carries the same
+// value-free summary as the reported event.
 const recorder: RejectionRecorder = {
   recordRejection(rejection) {
-    console.error("core: rejected message", rejection);
-    Sentry.captureMessage("core: rejected message", {
-      extra: { raw: rejection.raw, issues: rejection.issues },
-    });
+    const summary = summarizeRejection(rejection);
+    console.error("core: rejected message", summary);
+    Sentry.captureMessage("core: rejected message", { level: "warning", extra: { ...summary } });
   },
 };
 

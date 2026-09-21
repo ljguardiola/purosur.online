@@ -12,7 +12,18 @@ import { createWindowOptions } from "./window-options";
 // No DSN configured (e.g. a local dev build) means no error tracking, not a crash on startup.
 const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
 if (sentryDsn) {
-  Sentry.init({ dsn: sentryDsn });
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: import.meta.env.POS_CHANNEL,
+    enableLogs: true,
+    // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
+    // mode would inject Sentry's own preload, which exposes an API on the page's window.
+    ipcMode: Sentry.IPCMode.Protocol,
+    integrations: (defaults) => [
+      ...defaults.filter((integration) => integration.name !== "PreloadInjection"),
+      Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
+    ],
+  });
 }
 
 // electron-vite's output layout: the core is a second main-side entry next to index.js; preload
@@ -115,8 +126,8 @@ app.whenReady().then(() => {
       }
     },
     onRestartsExhausted: () => {
-      // Reported to the error-tracking service once Sentry is initialized in this process.
       console.error("core process: restart attempts exhausted");
+      Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
     },
   });
   supervisor.start();

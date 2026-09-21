@@ -6,7 +6,12 @@ import { attachIncomingPort, type PortEventSource } from "./incoming-port";
 
 const sentryDsn = import.meta.env.RENDERER_VITE_SENTRY_DSN;
 if (sentryDsn) {
-  Sentry.init({ dsn: sentryDsn });
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: import.meta.env.POS_CHANNEL,
+    enableLogs: true,
+    integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
+  });
 }
 
 // Adapts the DOM's `window` to the pure port-handoff module: real MessageEvents carry a `ports`

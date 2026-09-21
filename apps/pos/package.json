@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "package:production": "pnpm build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
-    "package:homologation": "pnpm build && cross-env POS_CHANNEL=homologation electron-builder --config electron-builder.config.mjs --win"
+    "package:production": "cross-env POS_CHANNEL=production electron-vite build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
+    "package:homologation": "cross-env POS_CHANNEL=homologation electron-vite build && cross-env POS_CHANNEL=homologation electron-builder --config electron-builder.config.mjs --win"
   },
   "dependencies": {
     "@purosur/contracts": "workspace:*",

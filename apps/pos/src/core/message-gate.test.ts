@@ -1,6 +1,6 @@
 import { rendererPingMessageSchema } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { createMessageGate } from "./message-gate";
+import { createMessageGate, summarizeRejection } from "./message-gate";
 
 describe("createMessageGate", () => {
   it("lets a message that matches its schema reach the handler", () => {
@@ -40,5 +40,37 @@ describe("createMessageGate", () => {
       raw: { type: "not-a-real-message" },
       issues: [expect.objectContaining({ path: ["type"] })],
     });
+  });
+});
+
+describe("summarizeRejection", () => {
+  it("keeps the message type and where the message failed, but none of its values", () => {
+    // Validation issues can echo the offending input back, as Zod's do when asked to.
+    const issueEchoingInput = {
+      path: ["cardNumber"],
+      message: "Invalid input",
+      input: "4111111111111111",
+    };
+    const summary = summarizeRejection({
+      raw: { type: "sale", cardNumber: "4111111111111111" },
+      issues: [issueEchoingInput],
+    });
+
+    expect(summary).toEqual({
+      messageType: "sale",
+      issues: [{ path: ["cardNumber"], message: "Invalid input" }],
+    });
+    expect(JSON.stringify(summary)).not.toContain("4111111111111111");
+  });
+
+  it.each([
+    ["a string", "hello"],
+    ["null", null],
+    ["an object without a type", { cardNumber: "4111111111111111" }],
+    ["an object whose type is not a string", { type: { nested: "secret" } }],
+  ])("leaves the message type out when the message is %s", (_description, raw) => {
+    const summary = summarizeRejection({ raw, issues: [] });
+
+    expect(summary).toEqual({ messageType: undefined, issues: [] });
   });
 });

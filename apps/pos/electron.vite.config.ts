@@ -7,6 +7,11 @@ import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+// Chosen the same way as in electron-builder.config.mjs, so the built code reports the channel it
+// is packaged for.
+const channel = process.env.POS_CHANNEL === "homologation" ? "homologation" : "production";
+const channelDefine = { "import.meta.env.POS_CHANNEL": JSON.stringify(channel) };
+
 // A page loaded from file:// gets no response headers, so the packaged interface can only receive
 // its policy from the page itself.
 function contentSecurityPolicyMeta(): Plugin {
@@ -28,6 +33,7 @@ function contentSecurityPolicyMeta(): Plugin {
 
 export default defineConfig({
   main: {
+    define: channelDefine,
     build: {
       // electron-vite externalizes every entry in package.json's `dependencies` by default, which
       // would leave workspace packages as bare imports resolving to their TypeScript sources at
@@ -52,6 +58,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    define: channelDefine,
     root: "src/renderer",
     resolve: {
       alias: {
