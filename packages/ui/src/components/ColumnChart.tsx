@@ -24,18 +24,21 @@ const rowTopClassName = [
 ];
 
 // The top tick's line box is centered on the top grid line, so half of it sits above the plot.
-const chartClassName = "pt-2";
+const chartBoxClassName = "pt-2";
+// The chart's box has to hold what it draws, so its width comes from the bars, not the parent.
+const chartWidthClassName = "w-max";
 const axisPlotRowClassName = "flex gap-3";
-const axisColumnClassName = "relative h-[150px] w-16";
+const axisColumnClassName = "relative h-[150px] w-16 shrink-0";
 const axisTickClassName =
   "absolute inset-x-0 -translate-y-1/2 text-right text-xs font-normal text-ink-secondary";
-const plotClassName = "relative h-[150px] flex-1";
+const plotClassName = "relative h-[150px] shrink-0";
 const gridLineClassName = "absolute inset-x-0 h-px bg-line";
-const barsRowClassName = "absolute inset-0 flex items-end gap-[11px]";
+// Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
+const barsRowClassName = "relative flex h-full items-end gap-[11px]";
 const barClassName = "w-5 shrink-0 rounded-t-[4px] bg-brand-blue-ui";
 const labelRowClassName = "mt-1.5 flex gap-3";
 const axisSpacerClassName = "w-16 shrink-0";
-const labelsContainerClassName = "flex flex-1 gap-[11px]";
+const labelsContainerClassName = "flex gap-[11px]";
 const labelColumnClassName = "flex w-5 shrink-0 justify-center";
 const labelTextClassName = "text-xs font-normal whitespace-nowrap text-ink-secondary";
 const emptyMessageClassName = "text-xs font-normal text-ink-secondary";
@@ -48,9 +51,7 @@ function roundUpToNiceStep(value: number): number {
   if (value <= 0) {
     return 0;
   }
-  // log10 can land a hair below an exact power of ten (e.g. log10(100) as 1.9999999999998) due
-  // to floating-point rounding, which would floor to the wrong magnitude; the epsilon corrects it.
-  const magnitude = 10 ** Math.floor(Math.log10(value) + 1e-9);
+  const magnitude = 10 ** Math.floor(Math.log10(value));
   const normalized = value / magnitude;
   const niceNormalized = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
   return niceNormalized * magnitude;
@@ -60,19 +61,21 @@ function isPlottableValue(value: number): boolean {
   return Number.isFinite(value) && value >= 0;
 }
 
-function computeTopTick(bars: ColumnChartBar[]): number {
+// undefined when no bar can be drawn against a scale: either nothing plottable, or a highest
+// value so large that rounding it up to a nice step overflows to Infinity.
+function plottableTopTick(bars: ColumnChartBar[]): number | undefined {
   const plottable = bars.map((bar) => bar.value).filter(isPlottableValue);
   const highest = Math.max(0, ...plottable);
   const topTick = roundUpToNiceStep(highest / 5) * 5;
-  return topTick > 0 ? topTick : MINIMUM_TOP_TICK;
+  return Number.isFinite(topTick) && topTick > 0 ? topTick : undefined;
 }
 
 function tickValues(topTick: number): number[] {
   return Array.from({ length: TICK_COUNT }, (_, index) => (topTick * (TICK_COUNT - 1 - index)) / 5);
 }
 
-function barHeightPx(value: number, topTick: number): number {
-  if (!isPlottableValue(value)) {
+function barHeightPx(value: number, topTick: number | undefined): number {
+  if (topTick === undefined || !isPlottableValue(value)) {
     return 0;
   }
   return (value / topTick) * PLOT_HEIGHT_PX;
@@ -80,14 +83,14 @@ function barHeightPx(value: number, topTick: number): number {
 
 export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProps) {
   if (bars.length === 0) {
-    return <p className={emptyMessageClassName}>{emptyMessage}</p>;
+    return <p className={`${chartBoxClassName} ${emptyMessageClassName}`}>{emptyMessage}</p>;
   }
 
-  const topTick = computeTopTick(bars);
-  const ticks = tickValues(topTick);
+  const topTick = plottableTopTick(bars);
+  const ticks = tickValues(topTick ?? MINIMUM_TOP_TICK);
 
   return (
-    <div className={chartClassName}>
+    <div className={`${chartBoxClassName} ${chartWidthClassName}`}>
       <div aria-hidden="true">
         <div className={axisPlotRowClassName}>
           <div className={axisColumnClassName}>
@@ -127,16 +130,14 @@ export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProp
         </div>
       </div>
       <ul className={announcedListClassName}>
-        {bars
-          .filter((bar) => isPlottableValue(bar.value))
-          .map((bar) => (
-            <li key={bar.id}>
-              {bar.label === undefined ? null : (
-                <span className={announcedPartClassName}>{bar.label}</span>
-              )}
-              <span className={announcedPartClassName}>{formatValue(bar.value)}</span>
-            </li>
-          ))}
+        {bars.map((bar) => (
+          <li key={bar.id}>
+            {bar.label === undefined ? null : (
+              <span className={announcedPartClassName}>{bar.label}</span>
+            )}
+            <span className={announcedPartClassName}>{formatValue(bar.value)}</span>
+          </li>
+        ))}
       </ul>
     </div>
   );

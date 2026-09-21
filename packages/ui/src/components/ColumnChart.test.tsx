@@ -158,6 +158,33 @@ test("keeps every bar 20px wide, over its own label, in a container narrower tha
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps the value axis 64px wide, with every bar over its label, in a container narrower than it", async () => {
+  const bars: ColumnChartBar[] = [
+    { id: "a", label: "1", value: 100 },
+    { id: "b", label: "2", value: 50 },
+    { id: "c", label: "3", value: 75 },
+  ];
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  screen.container.style.width = "50px";
+
+  const rendered = chartBars(screen);
+  const columns = labelColumns(screen);
+  expect(axisColumn(screen).getBoundingClientRect().width).toBeCloseTo(64, 0);
+
+  for (let i = 0; i < rendered.length; i++) {
+    const barRect = at(rendered, i).getBoundingClientRect();
+    const columnRect = at(columns, i).getBoundingClientRect();
+    expect((barRect.left + barRect.right) / 2).toBeCloseTo(
+      (columnRect.left + columnRect.right) / 2,
+      0,
+    );
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("scales each bar's height to its value against the top tick, sitting on the zero line", async () => {
   const bars: ColumnChartBar[] = [
     { id: "a", value: 214300 },
@@ -195,9 +222,9 @@ test("leaves the other bars and the axis intact when one bar's value is NaN", as
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo(0, 0);
+  expect(at(rendered, 0).style.height).toBe("0px");
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo(150, 0);
-  expect(announcedItems(screen)).toHaveLength(1);
-  expect(at(announcedItems(screen), 0).textContent).toBe("$100");
+  expect(announcedItems(screen).map((item) => item.textContent)).toEqual(["$NaN", "$100"]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -215,9 +242,9 @@ test("leaves the other bars and the axis intact when one bar's value is positive
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo(0, 0);
+  expect(at(rendered, 0).style.height).toBe("0px");
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo(150, 0);
-  expect(announcedItems(screen)).toHaveLength(1);
-  expect(at(announcedItems(screen), 0).textContent).toBe("$100");
+  expect(announcedItems(screen).map((item) => item.textContent)).toEqual(["$∞", "$100"]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -235,14 +262,14 @@ test("leaves the other bars and the axis intact when one bar's value is negative
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo(0, 0);
+  expect(at(rendered, 0).style.height).toBe("0px");
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo(150, 0);
-  expect(announcedItems(screen)).toHaveLength(1);
-  expect(at(announcedItems(screen), 0).textContent).toBe("$100");
+  expect(announcedItems(screen).map((item) => item.textContent)).toEqual(["$-∞", "$100"]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("draws nothing, and announces nothing, for a bar with a negative value", async () => {
+test("draws nothing for a bar with a negative value, and still announces it", async () => {
   const bars: ColumnChartBar[] = [
     { id: "a", value: 100 },
     { id: "b", value: -50 },
@@ -255,8 +282,35 @@ test("draws nothing, and announces nothing, for a bar with a negative value", as
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo(150, 0);
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo(0, 0);
   expect(at(rendered, 1).style.height).toBe("0px");
-  expect(announcedItems(screen)).toHaveLength(1);
-  expect(at(announcedItems(screen), 0).textContent).toBe("$100");
+  expect(announcedItems(screen).map((item) => item.textContent)).toEqual(["$100", "$-50"]);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("falls back to the minimum scale when the highest value rounds the top tick past the largest number", async () => {
+  const bars: ColumnChartBar[] = [
+    { id: "a", value: Number.MAX_VALUE },
+    { id: "b", value: 100 },
+  ];
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const rendered = chartBars(screen);
+
+  expect(ticks.map((tick) => tick.textContent)).toEqual([
+    "$1,000",
+    "$800",
+    "$600",
+    "$400",
+    "$200",
+    "$0",
+  ]);
+
+  for (const bar of rendered) {
+    expect(bar.style.height).toBe("0px");
+    expect(bar.getBoundingClientRect().height).toBeCloseTo(0, 0);
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -399,8 +453,15 @@ test("keeps a label that contains a space on a single line", async () => {
 });
 
 test("paints every axis tick and every label inside its own bounds", async () => {
+  // Labels that fit their own column: a wider one's overflow is issue #131's open question.
+  const bars: ColumnChartBar[] = [
+    { id: "a", label: "1", value: 214300 },
+    { id: "b", value: 90000 },
+    { id: "c", label: "3", value: 150000 },
+    { id: "d", label: "4", value: 60000 },
+  ];
   const screen = await render(
-    <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
   const rootRect = chartRoot(screen).getBoundingClientRect();
   const tickRects = (Array.from(axisColumn(screen).children) as HTMLElement[]).map((tick) =>
@@ -413,6 +474,52 @@ test("paints every axis tick and every label inside its own bounds", async () =>
     expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
     expect(rect.left).toBeGreaterThanOrEqual(rootRect.left);
     expect(rect.right).toBeLessThanOrEqual(rootRect.right);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("paints every bar, grid line and tick inside its own box, at any container width", async () => {
+  const bars: ColumnChartBar[] = Array.from({ length: 12 }, (_, index) => ({
+    id: `day-${index}`,
+    // Labels that fit their own column: a wider one's overflow is issue #131's open question.
+    label: `${index}`,
+    value: 1000,
+  }));
+  const axisWidth = 64;
+  const axisGap = 12;
+  const barsWidth = 12 * 20 + 11 * 11;
+  const chartWidth = axisWidth + axisGap + barsWidth;
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+
+  for (const containerWidth of [chartWidth / 2, chartWidth, chartWidth * 2]) {
+    screen.container.style.width = `${containerWidth}px`;
+
+    const rootRect = chartRoot(screen).getBoundingClientRect();
+    const rendered = chartBars(screen);
+    const columns = labelColumns(screen);
+    const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+
+    expect(rootRect.width).toBeCloseTo(chartWidth, 0);
+
+    for (const element of [...rendered, ...gridLines(screen), ...ticks]) {
+      const rect = element.getBoundingClientRect();
+      expect(rect.left).toBeGreaterThanOrEqual(rootRect.left);
+      expect(rect.right).toBeLessThanOrEqual(rootRect.right);
+      expect(rect.top).toBeGreaterThanOrEqual(rootRect.top);
+      expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
+    }
+
+    for (let i = 0; i < rendered.length; i++) {
+      const barRect = at(rendered, i).getBoundingClientRect();
+      const columnRect = at(columns, i).getBoundingClientRect();
+      expect((barRect.left + barRect.right) / 2).toBeCloseTo(
+        (columnRect.left + columnRect.right) / 2,
+        0,
+      );
+    }
   }
 
   await expectNoAccessibilityViolations(screen.container);
@@ -458,6 +565,25 @@ test("renders the empty message in the same type as the rest of the chart, meeti
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("gives the empty message the same box as the chart it replaces, so swapping doesn't shift it", async () => {
+  const empty = await render(
+    <ColumnChart bars={[]} formatValue={formatCurrency} emptyMessage="No sales yet" />,
+  );
+  const populated = await render(
+    <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No sales yet" />,
+  );
+  const emptyStyle = getComputedStyle(chartRoot(empty));
+  const populatedStyle = getComputedStyle(chartRoot(populated));
+
+  expect(emptyStyle.paddingTop).toBe(populatedStyle.paddingTop);
+  expect(emptyStyle.paddingRight).toBe(populatedStyle.paddingRight);
+  expect(emptyStyle.paddingBottom).toBe(populatedStyle.paddingBottom);
+  expect(emptyStyle.paddingLeft).toBe(populatedStyle.paddingLeft);
+
+  await expectNoAccessibilityViolations(populated.container);
+  await expectNoAccessibilityViolations(empty.container);
+});
+
 test("announces each bar's label and formatted value to assistive technology", async () => {
   const screen = await render(
     <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
@@ -481,6 +607,56 @@ test("carries each bar's announced text inside its list item, not in an aria-lab
   expect(at(items, 0).textContent).toContain("Mon 08/17");
   expect(at(items, 0).textContent).toContain("$214,300");
   expect(at(items, 1).textContent).toBe("$90,000");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("announces one item per bar, in order, even when no value can be plotted", async () => {
+  const bars: ColumnChartBar[] = [
+    { id: "a", label: "1", value: Number.NaN },
+    { id: "b", label: "2", value: Number.POSITIVE_INFINITY },
+    { id: "c", value: Number.NEGATIVE_INFINITY },
+    { id: "d", label: "4", value: -50 },
+  ];
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const items = announcedItems(screen);
+  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+
+  expect(items).toHaveLength(bars.length);
+  expect(chartBars(screen)).toHaveLength(bars.length);
+  expect(labelColumns(screen)).toHaveLength(bars.length);
+  expect(announcedParts(at(items, 0))).toEqual(["1", "$NaN"]);
+  expect(announcedParts(at(items, 1))).toEqual(["2", "$∞"]);
+  expect(announcedParts(at(items, 2))).toEqual(["$-∞"]);
+  expect(announcedParts(at(items, 3))).toEqual(["4", "$-50"]);
+  expect(ticks.map((tick) => tick.textContent)).toEqual([
+    "$1,000",
+    "$800",
+    "$600",
+    "$400",
+    "$200",
+    "$0",
+  ]);
+
+  for (const bar of chartBars(screen)) {
+    expect(bar.style.height).toBe("0px");
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps a bar's announced label and value on their own lines, so they don't read as one word", async () => {
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const parts = Array.from(at(announcedItems(screen), 0).children) as HTMLElement[];
+
+  expect(parts).toHaveLength(2);
+  for (const part of parts) {
+    expect(getComputedStyle(part).display).toBe("block");
+  }
 
   await expectNoAccessibilityViolations(screen.container);
 });
