@@ -1,7 +1,7 @@
 // main/ may not depend on packages/contracts (see main-process-scope in .dependency-cruiser.mjs),
 // so this mirrors the wire shape coreStatusMessageSchema validates on the renderer's side
 // (apps/pos/src/renderer/core-status.ts) by convention rather than by a shared import.
-export type CoreStatus = "down" | "up";
+export type CoreStatus = "starting" | "down" | "up";
 
 export interface CoreStatusReceiver {
   postMessage(channel: string, message: { type: "core-status"; status: CoreStatus }): void;

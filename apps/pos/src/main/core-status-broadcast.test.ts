@@ -23,4 +23,15 @@ describe("broadcastCoreStatus", () => {
       status: "up",
     });
   });
+
+  it("posts a validated starting message on the core-status channel", () => {
+    const postMessage = vi.fn();
+
+    broadcastCoreStatus({ postMessage }, "starting");
+
+    expect(postMessage).toHaveBeenCalledExactlyOnceWith("core-status", {
+      type: "core-status",
+      status: "starting",
+    });
+  });
 });

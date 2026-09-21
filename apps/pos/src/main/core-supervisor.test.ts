@@ -31,9 +31,22 @@ describe("decideRestart", () => {
 class FakeProcess implements SupervisedProcess {
   killed = false;
   private exitListener: ((code: number | null) => void) | undefined;
+  private messageListener: ((message: unknown) => void) | undefined;
 
   once(_event: "exit", listener: (code: number | null) => void): void {
     this.exitListener = listener;
+  }
+
+  on(_event: "message", listener: (message: unknown) => void): void {
+    this.messageListener = listener;
+  }
+
+  send(message: unknown): void {
+    this.messageListener?.(message);
+  }
+
+  becomeReady(): void {
+    this.send({ type: "core-ready" });
   }
 
   kill(): void {
@@ -79,6 +92,40 @@ describe("createCoreSupervisor", () => {
     supervisor.start();
 
     expect(fork).toHaveBeenCalledOnce();
+  });
+
+  it("reports the core up only once the started process says it is ready", () => {
+    const onStatusChange = vi.fn();
+    const { supervisor, processes } = setUp({ onStatusChange });
+
+    supervisor.start();
+    expect(onStatusChange).not.toHaveBeenCalled();
+
+    processes[0]?.becomeReady();
+
+    expect(onStatusChange).toHaveBeenCalledExactlyOnceWith("up");
+  });
+
+  it("ignores any other message from the core process", () => {
+    const onStatusChange = vi.fn();
+    const { supervisor, processes } = setUp({ onStatusChange });
+
+    supervisor.start();
+    processes[0]?.send({ type: "something-else" });
+    processes[0]?.send("core-ready");
+
+    expect(onStatusChange).not.toHaveBeenCalled();
+  });
+
+  it("reports the core starting again when a ready core crashes into a bounded restart", () => {
+    const onStatusChange = vi.fn();
+    const { supervisor, processes } = setUp({ onStatusChange });
+
+    supervisor.start();
+    processes[0]?.becomeReady();
+    processes[0]?.exit(1);
+
+    expect(onStatusChange).toHaveBeenLastCalledWith("starting");
   });
 
   it("schedules a restart with backoff after an unexpected exit", () => {
@@ -150,11 +197,31 @@ describe("createCoreSupervisor", () => {
     processes[0]?.exit(1);
     processes[1]?.exit(1);
     processes[2]?.exit(1);
+    processes[3]?.becomeReady();
     advanceClock(policy.stableRunMs);
     processes[3]?.exit(1);
 
     expect(onRestartsExhausted).not.toHaveBeenCalled();
     expect(scheduleRestart).toHaveBeenLastCalledWith(expect.any(Function), policy.baseDelayMs);
+  });
+
+  it("never counts a core that never said it was ready as stable, however long it ran", () => {
+    const onRestartsExhausted = vi.fn();
+    const { supervisor, processes, advanceClock } = setUp({
+      scheduleRestart: vi.fn((run: () => void) => {
+        run();
+        return () => {};
+      }),
+      onRestartsExhausted,
+    });
+
+    supervisor.start();
+    for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+      advanceClock(policy.stableRunMs);
+      processes[index]?.exit(1);
+    }
+
+    expect(onRestartsExhausted).toHaveBeenCalledOnce();
   });
 
   it("keeps counting attempts when the core crashes again before a stable period", () => {
@@ -321,37 +388,86 @@ describe("createCoreSupervisor", () => {
       expect(onRestartsExhausted).toHaveBeenCalledOnce();
     });
 
-    it("notifies recovery as soon as a periodic retry brings the core back", () => {
-      const onRecovered = vi.fn();
+    it("keeps the core down while a periodic retry has only started a process", () => {
+      const onStatusChange = vi.fn();
       const { supervisor, processes } = setUp({
         scheduleRestart: vi.fn((run: () => void) => {
           run();
           return () => {};
         }),
-        onRecovered,
+        onStatusChange,
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts; index += 1) {
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
         processes[index]?.exit(1);
       }
-      expect(onRecovered).not.toHaveBeenCalled();
-
-      // This exit is the one that first reaches the attempt limit; the periodic retry's first
-      // attempt is forked in the very same turn, and that fork is itself the recovery signal.
-      processes[policy.maxAttempts]?.exit(1);
 
       expect(processes).toHaveLength(policy.maxAttempts + 2);
-      expect(onRecovered).toHaveBeenCalledOnce();
+      expect(onStatusChange).toHaveBeenLastCalledWith("down");
+      expect(onStatusChange).not.toHaveBeenCalledWith("up");
     });
 
-    it("never reports recovery for the very first launch", () => {
-      const onRecovered = vi.fn();
-      const { supervisor } = setUp({ onRecovered });
+    it("reports the core up once the periodic retry's process says it is ready", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = setUp({
+        scheduleRestart: vi.fn((run: () => void) => {
+          run();
+          return () => {};
+        }),
+        onStatusChange,
+      });
 
       supervisor.start();
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+        processes[index]?.exit(1);
+      }
+      processes.at(-1)?.becomeReady();
 
-      expect(onRecovered).not.toHaveBeenCalled();
+      expect(onStatusChange).toHaveBeenLastCalledWith("up");
+    });
+
+    it("reports the core down again, without a new fatal, when a recovered core dies before it is stable", () => {
+      const onStatusChange = vi.fn();
+      const onRestartsExhausted = vi.fn();
+      const { supervisor, processes, advanceClock } = setUp({
+        scheduleRestart: vi.fn((run: () => void) => {
+          run();
+          return () => {};
+        }),
+        onStatusChange,
+        onRestartsExhausted,
+      });
+
+      supervisor.start();
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+        processes[index]?.exit(1);
+      }
+      processes.at(-1)?.becomeReady();
+      advanceClock(policy.stableRunMs - 1);
+      processes.at(-1)?.exit(1);
+
+      expect(onStatusChange).toHaveBeenLastCalledWith("down");
+      expect(onRestartsExhausted).toHaveBeenCalledOnce();
+    });
+
+    it("ignores a readiness message from a process that has already exited", () => {
+      const onStatusChange = vi.fn();
+      const { supervisor, processes } = setUp({
+        scheduleRestart: vi.fn((run: () => void) => {
+          run();
+          return () => {};
+        }),
+        onStatusChange,
+      });
+
+      supervisor.start();
+      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+        processes[index]?.exit(1);
+      }
+      processes[policy.maxAttempts]?.becomeReady();
+
+      expect(onStatusChange).not.toHaveBeenCalledWith("up");
     });
 
     it("gives a core that recovers and stays stable fresh bounded restarts, firing a new fatal for its own later exhaustion", () => {
@@ -370,10 +486,9 @@ describe("createCoreSupervisor", () => {
       }
       expect(onRestartsExhausted).toHaveBeenCalledOnce();
 
-      // The periodic retry's core (the last one forked above) comes back and stays up long
-      // enough to be stable.
-      advanceClock(policy.stableRunMs);
       const recoveredProcessIndex = processes.length - 1;
+      processes[recoveredProcessIndex]?.becomeReady();
+      advanceClock(policy.stableRunMs);
       processes[recoveredProcessIndex]?.exit(1);
 
       // A stable recovery resets the attempt count, so this new outage needs its own fresh,

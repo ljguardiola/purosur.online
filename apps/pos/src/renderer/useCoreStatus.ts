@@ -1,3 +1,4 @@
+import type { CoreStatusMessage } from "@purosur/contracts";
 import { useEffect, useState } from "react";
 import type { CoreStatusEventSource } from "./core-status";
 import { attachCoreStatus } from "./core-status";
@@ -13,11 +14,8 @@ const windowMessageSource: CoreStatusEventSource = {
   },
 };
 
-// Assumed up until main says otherwise: main only ever broadcasts "down" once bounded restarts
-// are exhausted, so a register that starts cleanly never shows the notice while waiting to hear
-// from main for the first time.
-export function useCoreStatus(): "down" | "up" {
-  const [status, setStatus] = useState<"down" | "up">("up");
+export function useCoreStatus(): CoreStatusMessage["status"] {
+  const [status, setStatus] = useState<CoreStatusMessage["status"]>("starting");
 
   useEffect(() => attachCoreStatus(windowMessageSource, window, setStatus), []);
 

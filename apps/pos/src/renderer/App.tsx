@@ -9,6 +9,10 @@ export function App() {
     return <CoreDownNotice />;
   }
 
+  if (coreStatus === "starting") {
+    return <main />;
+  }
+
   return (
     <main>
       <p>{messages.shell.ready}</p>

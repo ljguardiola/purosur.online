@@ -1,3 +1,4 @@
+import type { CoreStatusMessage } from "@purosur/contracts";
 import { coreStatusMessageSchema } from "@purosur/contracts";
 
 export interface CoreStatusEvent {
@@ -26,7 +27,7 @@ function payloadOf(data: unknown): unknown {
 export function attachCoreStatus(
   source: CoreStatusEventSource,
   ownWindow: unknown,
-  onStatus: (status: "down" | "up") => void,
+  onStatus: (status: CoreStatusMessage["status"]) => void,
 ): () => void {
   const handleMessage = (event: CoreStatusEvent): void => {
     if (event.source !== ownWindow) {

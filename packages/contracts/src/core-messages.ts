@@ -22,6 +22,6 @@ export type MainToCoreMessage = z.infer<typeof mainToCoreMessageSchema>;
 // never push the renderer into (or out of) its blocking notice with an arbitrary payload.
 export const coreStatusMessageSchema = z.object({
   type: z.literal("core-status"),
-  status: z.enum(["down", "up"]),
+  status: z.enum(["starting", "down", "up"]),
 });
 export type CoreStatusMessage = z.infer<typeof coreStatusMessageSchema>;

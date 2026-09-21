@@ -3,13 +3,24 @@ import { render } from "vitest-browser-react";
 import { messages } from "../messages";
 import { App } from "./App";
 
-function postCoreStatus(status: "down" | "up"): void {
+function postCoreStatus(status: "starting" | "down" | "up"): void {
   window.postMessage({ channel: "core-status", payload: { type: "core-status", status } }, "*");
 }
 
 describe("App", () => {
-  it("renders the ready message from the message catalog", async () => {
+  it("shows neither the register nor the notice before the core reports it is ready", async () => {
     const screen = await render(<App />);
+
+    postCoreStatus("starting");
+
+    await expect.element(screen.getByText(messages.shell.ready)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(messages.coreDown.title)).not.toBeInTheDocument();
+  });
+
+  it("renders the ready message from the message catalog once the core reports it is up", async () => {
+    const screen = await render(<App />);
+
+    postCoreStatus("up");
 
     await expect.element(screen.getByText(messages.shell.ready)).toBeVisible();
   });

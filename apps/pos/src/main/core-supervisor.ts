@@ -1,8 +1,11 @@
+import { isCoreReadyMessage } from "../shared/core-readiness";
+import type { CoreStatus } from "./core-status-broadcast";
+
 export interface RestartPolicy {
   maxAttempts: number;
   baseDelayMs: number;
   maxDelayMs: number;
-  // A crash after the core has stayed up this long starts counting attempts from zero again.
+  // A crash after the core has been ready this long starts counting attempts from zero again.
   stableRunMs: number;
 }
 
@@ -24,6 +27,7 @@ export function decideRestart(attempt: number, policy: RestartPolicy): RestartDe
 
 export interface SupervisedProcess {
   once(event: "exit", listener: (code: number | null) => void): void;
+  on(event: "message", listener: (message: unknown) => void): void;
   kill(): void;
 }
 
@@ -41,13 +45,12 @@ export interface CoreSupervisorDeps {
   retryIntervalMs: number;
   onProcessStarted?(process: SupervisedProcess): void;
   onProcessExited?(process: SupervisedProcess): void;
+  // Fires once per outage: failed periodic retries never report again until a recovered core has
+  // stayed ready for stableRunMs.
   onRestartsExhausted?(): void;
-  // Fires once a periodic retry starts the core again after restarts were exhausted, taking that
-  // start itself as "brought back" — the same signal the rest of this module already treats as
-  // "the core is live" (e.g. main's onProcessStarted reconnects the renderer without waiting to
-  // see whether the process stays up). Whether that outage is over for onRestartsExhausted's own
-  // once-per-outage bookkeeping is a separate, stricter question: see `outageOpen` below.
-  onRecovered?(): void;
+  // "up" only once the running process has said it is ready; "down" from the moment bounded
+  // restarts run out until a periodic retry's process is ready; "starting" otherwise.
+  onStatusChange?(status: CoreStatus): void;
 }
 
 export interface CoreSupervisor {
@@ -62,20 +65,20 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
   let attempt = 0;
   let stopped = true;
   let current: SupervisedProcess | undefined;
-  // True from the moment bounded restarts are first exhausted until the core proves stable
-  // again (the same stableRunMs window that resets `attempt` below): guards onRestartsExhausted
-  // so a periodic retry that keeps failing without ever becoming stable never fires a second
-  // fatal for what is still the same outage.
   let outageOpen = false;
-  // True while onRestartsExhausted has fired and onRecovered hasn't caught up yet: cleared (and
-  // onRecovered called) the moment the core starts again, so the renderer's notice can drop as
-  // soon as a retry takes, without waiting the much longer stableRunMs it takes to close the
-  // outage itself.
-  let noticeVisible = false;
+  let status: CoreStatus = "starting";
   let cancelScheduled: (() => void) | undefined;
 
   function schedule(run: () => void, delayMs: number): void {
     cancelScheduled = deps.scheduleRestart(run, delayMs);
+  }
+
+  function setStatus(next: CoreStatus): void {
+    if (next === status) {
+      return;
+    }
+    status = next;
+    deps.onStatusChange?.(next);
   }
 
   function launch(): void {
@@ -85,13 +88,19 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
     cancelScheduled = undefined;
 
     const process = deps.fork();
-    const startedAt = deps.now();
+    let readyAt: number | undefined;
     current = process;
     deps.onProcessStarted?.(process);
-    if (noticeVisible) {
-      noticeVisible = false;
-      deps.onRecovered?.();
-    }
+
+    process.on("message", (message) => {
+      if (stopped || current !== process || readyAt !== undefined) {
+        return;
+      }
+      if (isCoreReadyMessage(message)) {
+        readyAt = deps.now();
+        setStatus("up");
+      }
+    });
 
     process.once("exit", () => {
       if (current === process) {
@@ -102,7 +111,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
         return;
       }
 
-      if (deps.now() - startedAt >= deps.policy.stableRunMs) {
+      if (readyAt !== undefined && deps.now() - readyAt >= deps.policy.stableRunMs) {
         attempt = 0;
         outageOpen = false;
       }
@@ -111,15 +120,18 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       attempt += 1;
 
       if (decision.shouldRestart) {
+        if (status === "up") {
+          setStatus("starting");
+        }
         schedule(launch, decision.delayMs);
         return;
       }
 
       if (!outageOpen) {
         outageOpen = true;
-        noticeVisible = true;
         deps.onRestartsExhausted?.();
       }
+      setStatus("down");
       schedule(launch, deps.retryIntervalMs);
     });
   }
@@ -129,7 +141,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
       stopped = false;
       attempt = 0;
       outageOpen = false;
-      noticeVisible = false;
+      status = "starting";
       launch();
     },
     stop(): void {

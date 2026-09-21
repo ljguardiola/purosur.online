@@ -153,10 +153,9 @@ function startRegister(settings: ChannelSettings): void {
     // reload while the core is down gets no port until the restarted core hands it one.
     let currentCoreProcess: Electron.UtilityProcess | undefined;
     let rendererHasLoadedOnce = false;
-    // Mirrors what the renderer was last told: reported to a page that loads or reloads while the
-    // core is already down, since it never lived through the onRestartsExhausted call that first
-    // reported it.
-    let coreStatus: CoreStatus = "up";
+    // Mirrors what the renderer was last told, so a page that loads or reloads later still learns
+    // it.
+    let coreStatus: CoreStatus = "starting";
 
     function reconnectRendererToCore(): void {
       const coreProcess = currentCoreProcess;
@@ -218,11 +217,8 @@ function startRegister(settings: ChannelSettings): void {
       onRestartsExhausted: () => {
         console.error("core process: restart attempts exhausted");
         Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
-        setCoreStatus("down");
       },
-      onRecovered: () => {
-        setCoreStatus("up");
-      },
+      onStatusChange: setCoreStatus,
     });
     supervisor.start();
     // Quitting kills the core like any other child process; stopping first keeps that exit from

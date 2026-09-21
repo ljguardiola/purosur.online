@@ -48,6 +48,16 @@ describe("attachCoreStatus", () => {
     expect(onStatus).toHaveBeenCalledExactlyOnceWith("up");
   });
 
+  it("hands a valid starting status to the callback", () => {
+    const source = new FakeSource();
+    const onStatus = vi.fn();
+
+    attachCoreStatus(source, ownWindow, onStatus);
+    source.dispatch({ data: coreStatusData("starting") });
+
+    expect(onStatus).toHaveBeenCalledExactlyOnceWith("starting");
+  });
+
   it("ignores a message posted by any window other than its own", () => {
     const source = new FakeSource();
     const onStatus = vi.fn();
