@@ -388,8 +388,12 @@ export type TableCellTextProps = {
 };
 
 // The 24px/20px line heights and 4px gap are fixed so a row with a detail line always lands
-// exactly at 64px (the cell's own h-14 floor plus its 8px vertical padding), the same way a single line
-// lands at 56px. A falsy-but-real value like 0 or an empty string is content the caller chose to
+// exactly at 64px: 24 (the main line) + 4 (the gap) + 20 (the detail line) + 8 + 8 (the cell's
+// own py-2, top and bottom) - the cell's h-14 floor (a table cell's own height is a minimum, not
+// a cap, see the wrapped-title header test's own comment for the sortable header's own h-11)
+// plays no part here, since that content already exceeds it; it only matters for the single-line
+// case below, where the same content (24 + 8 + 8 = 40px) would otherwise land under it, and h-14
+// alone brings it up to 56px. A falsy-but-real value like 0 or an empty string is content the caller chose to
 // show (`detail && ...` would print a stray, unwrapped "0" for it instead, since 0 is itself
 // falsy), so only undefined, null and boolean count as "no detail": true and false have no
 // content of their own to show, the same way React itself renders a boolean child as nothing —

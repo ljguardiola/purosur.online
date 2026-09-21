@@ -1903,10 +1903,24 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
   await settleScroll();
   const table = screen.getByRole("table").element() as HTMLElement;
   const bar = table.previousElementSibling as HTMLElement;
+  const segment = bar.firstElementChild as HTMLElement;
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
   const buttonRect = button.getBoundingClientRect();
   const barRect = bar.getBoundingClientRect();
   const x = buttonRect.left + buttonRect.width / 2;
+
+  // Paused at 0, the segment's own right edge sits exactly at the bar's own left edge (see the
+  // segment's own sweep test below) - off-screen, nowhere near this probe's x - so the probe
+  // below always lands on the bar's plain, static background, never the segment mid-sweep. Left
+  // running, the segment's own edge crosses this exact x at some point in every loop, and a
+  // screenshot taken right then reads an antialiased blend of the segment and the background
+  // that matches neither's exact color, which is exactly what made this test flake before.
+  const [animation] = segment.getAnimations();
+  if (!animation) {
+    throw new Error("Expected the updating bar's segment to have a running CSS animation.");
+  }
+  animation.pause();
+  animation.currentTime = 0;
 
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", {
@@ -1919,15 +1933,9 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
   expect(button.getAttribute("data-hovered")).toBe("true");
   expect(button.getAttribute("data-focus-visible")).toBeNull();
 
-  // The bar's own segment sweeps its band on a loop, so either of the bar's own two blues here -
-  // never the hover's own sand - proves the bar still wins while merely hovered, unfocused.
-  const barColors = [
-    rgbTuple(tokenRgb("brand-blue-message-bg")),
-    rgbTuple(tokenRgb("brand-blue-ui")),
-  ];
   const pixel = await pixelAt(x, barRect.top + 1);
 
-  expect(barColors).toContainEqual(pixel.slice(0, 3));
+  expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -2020,6 +2028,12 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   await userEvent.tab();
   await settleScroll();
 
+  // The toolbar covers the whole table (inset: 0), so an unfocused header - no ring, nothing of
+  // its own painted at the probe point - would read the toolbar's own color too, passing this
+  // test for the wrong reason (nothing ever actually contended for that pixel). Only a header
+  // that's genuinely focused, ring and all, makes the toolbar-wins result below mean containment.
+  expect(button.getAttribute("data-focus-visible")).toBe("true");
+
   const rect = button.getBoundingClientRect();
 
   // The ring itself is only a 3px inset band (outline-offset: -3px, see headerButtonClassName),
@@ -2029,6 +2043,40 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   const ring = await pixelAt(rect.left + 1.5, rect.top + 1.5);
 
   expect(ring.slice(0, 3)).toEqual(toolbarColor);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Companion control for the test above: same render, same focus, same probe point, but with the
+// toolbar sitting behind everything (z-index: -1, not the z-15 that sits between the bar and the
+// ring) instead of covering the table at z-15. If this read the toolbar's own color too, the
+// apparatus above - render, focus, probe, color compare - would be broken in a way that could
+// make an uncontained ring look contained; reading the ring's own color here is what makes the
+// toolbar-wins result above evidence of containment, not an artifact of a header that never
+// focused or a probe point that never lands on the ring.
+test("reads the focused header's own ring color at the same probe point when the toolbar sits behind everything", async () => {
+  const screen = await render(
+    <div style={{ position: "relative", marginTop: "40px", marginLeft: "40px", width: "300px" }}>
+      <div style={{ position: "absolute", inset: 0, zIndex: -1, background: "rgb(255, 0, 255)" }} />
+      <Table
+        {...commonProps}
+        columns={sortableColumns}
+        sort={{ column: "stock", direction: "descending" }}
+        onSortChange={() => {}}
+      />
+    </div>,
+  );
+  await settleScroll();
+  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  await userEvent.tab();
+  await settleScroll();
+
+  expect(button.getAttribute("data-focus-visible")).toBe("true");
+
+  const rect = button.getBoundingClientRect();
+  const ring = await pixelAt(rect.left + 1.5, rect.top + 1.5);
+
+  expect(ring.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-strong")));
 
   await expectNoAccessibilityViolations(screen.container);
 });
