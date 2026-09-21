@@ -14,6 +14,10 @@ import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
+import {
+  CHILD_PROCESS_EVENT_REASONS,
+  withoutReplacedDefaultIntegrations,
+} from "./error-reporting-integrations";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
@@ -35,7 +39,8 @@ function initializeErrorReporting(settings: ChannelSettings): void {
     // mode would inject Sentry's own preload, which exposes an API on the page's window.
     ipcMode: Sentry.IPCMode.Protocol,
     integrations: (defaults) => [
-      ...defaults.filter((integration) => integration.name !== "PreloadInjection"),
+      ...withoutReplacedDefaultIntegrations(defaults),
+      Sentry.childProcessIntegration({ events: CHILD_PROCESS_EVENT_REASONS }),
       Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] }),
     ],
     beforeSend: scrubSentryEvent,
