@@ -156,6 +156,19 @@ export async function runMigrations(
   }
 }
 
+// Only the code and message are printed: an error can carry the connection string in other
+// fields (an invalid URL keeps it, password included, in `input`).
+export function describeMigrationFailure(error: unknown): string {
+  const code = errorCode(error) ?? "unknown error";
+  if (!(error instanceof Error)) {
+    return code;
+  }
+  const description = `${code}: ${error.message}`;
+  return error.cause === undefined
+    ? description
+    : `${description} (caused by ${describeMigrationFailure(error.cause)})`;
+}
+
 const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
@@ -169,7 +182,7 @@ if (isMainModule) {
         console.log("migrate: done");
       })
       .catch((error: unknown) => {
-        console.error("migrate: failed", error);
+        console.error(`migrate: failed ${describeMigrationFailure(error)}`);
         process.exit(1);
       });
   }
