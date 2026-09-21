@@ -26,16 +26,16 @@ function visualWrapper(screen: Screen): HTMLElement {
   return chartRoot(screen).children[0] as HTMLElement;
 }
 
-function axisPlotRow(screen: Screen): HTMLElement {
+// The axis column, the plot, the label row's spacer and the labels container are the four direct
+// children of the shared grid (visualWrapper itself), in that order: the grid's implicit
+// row-major auto-placement puts the axis column and the plot in row 1, the spacer and the labels
+// container in row 2, sharing the axis column's own track.
+function axisColumn(screen: Screen): HTMLElement {
   return visualWrapper(screen).children[0] as HTMLElement;
 }
 
-function axisColumn(screen: Screen): HTMLElement {
-  return axisPlotRow(screen).children[0] as HTMLElement;
-}
-
 function plotArea(screen: Screen): HTMLElement {
-  return axisPlotRow(screen).children[1] as HTMLElement;
+  return visualWrapper(screen).children[1] as HTMLElement;
 }
 
 function gridLines(screen: Screen): HTMLElement[] {
@@ -50,12 +50,16 @@ function chartBars(screen: Screen): HTMLElement[] {
   return Array.from(barsRow(screen).children) as HTMLElement[];
 }
 
-function labelRow(screen: Screen): HTMLElement {
-  return visualWrapper(screen).children[1] as HTMLElement;
+function labelsContainer(screen: Screen): HTMLElement {
+  return visualWrapper(screen).children[3] as HTMLElement;
 }
 
 function labelColumns(screen: Screen): HTMLElement[] {
-  return Array.from(at(Array.from(labelRow(screen).children), 1).children) as HTMLElement[];
+  return Array.from(labelsContainer(screen).children) as HTMLElement[];
+}
+
+function axisTicks(screen: Screen): HTMLElement[] {
+  return Array.from(axisColumn(screen).children) as HTMLElement[];
 }
 
 // A range over an element's contents measures the text run itself, not the box that holds it.
@@ -87,8 +91,9 @@ function pageBackgroundHex(): string {
   return rgbToHex(getComputedStyle(document.body).backgroundColor);
 }
 
-// axis 64 + gap 12 + half a bar's own 20px width (10) = 86: the room a label has on the left of
-// the first bar's centre, and the room the chart reserves on the right of the last bar's centre.
+// axis 64 + gap 12 + half a bar's own 20px width (10) = at least 86: the room a label has on the
+// left of the first bar's centre (the axis only ever grows past its 64px floor, so this is a
+// floor on the room too), and the room the chart reserves on the right of the last bar's centre.
 // A label is capped at twice that, 86px on each side of its own bar's centre, and shortened past it.
 const LABEL_MAX_WIDTH_PX = 172;
 const CHART_RIGHT_RESERVE_PX = 76;
@@ -275,7 +280,7 @@ test("leaves the other bars and the axis intact when one bar's value is NaN", as
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   const rendered = chartBars(screen);
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
@@ -295,7 +300,7 @@ test("leaves the other bars and the axis intact when one bar's value is positive
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   const rendered = chartBars(screen);
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
@@ -315,7 +320,7 @@ test("leaves the other bars and the axis intact when one bar's value is negative
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   const rendered = chartBars(screen);
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
@@ -353,7 +358,7 @@ test("leaves the other bars and the axis intact when one value is too large to r
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   const rendered = chartBars(screen);
 
   expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
@@ -373,7 +378,7 @@ test("falls back to the minimum scale when no value at all can be drawn", async 
   const screen = await render(
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
 
   expect(ticks.map((tick) => tick.textContent)).toEqual([
     "$1,000",
@@ -451,7 +456,7 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
   expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
 
   const expectedTicks = ["$250,000", "$200,000", "$150,000", "$100,000", "$50,000", "$0"];
-  const ticks = Array.from(axis.children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   expect(ticks.map((tick) => tick.textContent)).toEqual(expectedTicks);
 
   for (const tick of ticks) {
@@ -461,6 +466,207 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
 
     const contrast = contrastRatio(rgbToHex(getComputedStyle(tick).color), pageBackgroundHex());
     expect(contrast).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
+  }
+
+  // The axis column is taller than the plot, so pin that the row it shares still ends where the
+  // plot does: the labels stay 6px below it.
+  expect(labelsContainer(screen).getBoundingClientRect().top - plotRect.bottom).toBeCloseTo(6, 0);
+
+  const lines = gridLines(screen);
+  for (let i = 0; i < ticks.length; i++) {
+    const tickRect = textRunRect(at(ticks, i));
+    expect((tickRect.top + tickRect.bottom) / 2, expectedTicks[i]).toBeCloseTo(
+      at(lines, i).getBoundingClientRect().top,
+      0,
+    );
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Finds the tick whose text is the widest, the way the browser's own grid track sizing does when
+// it grows the axis column to fit its content.
+function widestTick(ticks: HTMLElement[]): HTMLElement {
+  return ticks.reduce((widest, tick) =>
+    measureNaturalWidth(tick.textContent ?? "") >= measureNaturalWidth(widest.textContent ?? "")
+      ? tick
+      : widest,
+  );
+}
+
+test("keeps every tick whole, on one line, right-aligned in the unchanged 64px axis, when every tick fits", async () => {
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+
+  for (const containerWidth of ["1px", "2000px"]) {
+    screen.container.style.width = containerWidth;
+    const rootRect = chartRoot(screen).getBoundingClientRect();
+    const axisRect = axisColumn(screen).getBoundingClientRect();
+    const plotRect = plotArea(screen).getBoundingClientRect();
+
+    expect(axisRect.width).toBeCloseTo(64, 0);
+    expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
+
+    for (const tick of axisTicks(screen)) {
+      const runRect = textRunRect(tick);
+      const naturalWidth = measureNaturalWidth(tick.textContent ?? "");
+
+      expect(textRunLineCount(tick)).toBe(1);
+      expect(runRect.width).toBeCloseTo(naturalWidth, 0);
+      expect(runRect.right).toBeCloseTo(axisRect.right, 0);
+      expect(runRect.left).toBeGreaterThanOrEqual(rootRect.left - 0.5);
+    }
+  }
+
+  const items = announcedItems(screen);
+  expect(items).toHaveLength(weekBars.length);
+  expect(announcedParts(at(items, 0))).toEqual(["Mon 08/17", "$214,300"]);
+  expect(announcedParts(at(items, 3))).toEqual(["Thu 08/20", "$60,000"]);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the axis at its 64px floor when every tick's natural width sits right at that boundary", async () => {
+  const boundaryText = buildLabelAtWidth(64);
+  const formatAtBoundary = () => boundaryText;
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={formatAtBoundary} emptyMessage="No data" />,
+  );
+  const axisRect = axisColumn(screen).getBoundingClientRect();
+  const plotRect = plotArea(screen).getBoundingClientRect();
+  const naturalWidth = measureNaturalWidth(boundaryText);
+
+  expect(axisRect.width).toBeCloseTo(64, 0);
+  expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
+
+  for (const tick of axisTicks(screen)) {
+    const runRect = textRunRect(tick);
+
+    expect(textRunLineCount(tick)).toBe(1);
+    expect(runRect.width).toBeCloseTo(naturalWidth, 0);
+    expect(runRect.right).toBeCloseTo(axisRect.right, 0);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("grows the axis by exactly the overflow of a tick just past the 64px floor", async () => {
+  const pastBoundaryText = `${buildLabelAtWidth(64)}x`;
+  const naturalWidth = measureNaturalWidth(pastBoundaryText);
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={() => pastBoundaryText} emptyMessage="No data" />,
+  );
+  const axisRect = axisColumn(screen).getBoundingClientRect();
+  const plotRect = plotArea(screen).getBoundingClientRect();
+
+  // Past the floor by more than toBeCloseTo's half-pixel, so an axis stuck at 64px cannot pass.
+  expect(naturalWidth - 64).toBeGreaterThan(1);
+  expect(axisRect.width).toBeCloseTo(naturalWidth, 0);
+  expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
+  for (const tick of axisTicks(screen)) {
+    expect(textRunRect(tick).width).toBeCloseTo(naturalWidth, 0);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps every other tick on its grid line when the formatter leaves one tick empty", async () => {
+  const hideZero = (value: number) => (value === 0 ? "" : formatCurrency(value));
+  const screen = await render(
+    <ColumnChart bars={weekBars} formatValue={hideZero} emptyMessage="No data" />,
+  );
+  const ticks = axisTicks(screen);
+  const lines = gridLines(screen);
+
+  expect(at(ticks, 5).textContent).toBe("");
+  for (let i = 0; i < 5; i++) {
+    const tickRect = textRunRect(at(ticks, i));
+    expect((tickRect.top + tickRect.bottom) / 2, `tick ${i}`).toBeCloseTo(
+      at(lines, i).getBoundingClientRect().top,
+      0,
+    );
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("grows the axis to its widest tick for a value far too wide, keeping every tick whole, right-aligned and off the plot", async () => {
+  const bars: ColumnChartBar[] = [{ id: "a", label: "Total", value: 21_430_000_000 }];
+  const wideScreen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  // Renders the same numeric ticks with a constant, short label, so the difference between the
+  // two charts' intrinsic widths is exactly the extra room the wide formatter's axis grew by.
+  const shortScreen = await render(
+    <ColumnChart bars={bars} formatValue={() => "$0"} emptyMessage="No data" />,
+  );
+
+  for (const containerWidth of ["1px", "2000px"]) {
+    wideScreen.container.style.width = containerWidth;
+
+    const rootRect = chartRoot(wideScreen).getBoundingClientRect();
+    const axisRect = axisColumn(wideScreen).getBoundingClientRect();
+    const plotRect = plotArea(wideScreen).getBoundingClientRect();
+    const firstBarRect = at(chartBars(wideScreen), 0).getBoundingClientRect();
+    const ticks = axisTicks(wideScreen);
+    const naturalWidths = ticks.map((tick) => measureNaturalWidth(tick.textContent ?? ""));
+
+    expect(axisRect.width).toBeGreaterThan(64);
+    expect(axisRect.width).toBeCloseTo(Math.max(...naturalWidths), 0);
+    expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
+    expect(textRunRect(widestTick(ticks)).left).toBeGreaterThanOrEqual(rootRect.left - 0.5);
+
+    for (const tick of ticks) {
+      const runRect = textRunRect(tick);
+      const naturalWidth = measureNaturalWidth(tick.textContent ?? "");
+
+      expect(textRunLineCount(tick)).toBe(1);
+      expect(runRect.width).toBeCloseTo(naturalWidth, 0);
+      expect(runRect.right).toBeCloseTo(axisRect.right, 0);
+      expect(runRect.right).toBeLessThan(firstBarRect.left);
+    }
+
+    const rendered = chartBars(wideScreen);
+    const columns = labelColumns(wideScreen);
+    for (let i = 0; i < rendered.length; i++) {
+      const barRect = at(rendered, i).getBoundingClientRect();
+      const columnRect = at(columns, i).getBoundingClientRect();
+      expect((barRect.left + barRect.right) / 2).toBeCloseTo(
+        (columnRect.left + columnRect.right) / 2,
+        0,
+      );
+    }
+  }
+
+  wideScreen.container.style.width = "1px";
+  shortScreen.container.style.width = "1px";
+  const wideRootWidth = chartRoot(wideScreen).getBoundingClientRect().width;
+  const shortRootWidth = chartRoot(shortScreen).getBoundingClientRect().width;
+  const grownAxisWidth = axisColumn(wideScreen).getBoundingClientRect().width;
+  expect(wideRootWidth - shortRootWidth).toBeCloseTo(grownAxisWidth - 64, 0);
+
+  await expectNoAccessibilityViolations(wideScreen.container);
+  await expectNoAccessibilityViolations(shortScreen.container);
+});
+
+test("keeps a tick that contains a space on one line even though it's far wider than 64px", async () => {
+  const formatWithSpaces = (value: number) =>
+    `$ ${value.toLocaleString("en-US").replaceAll(",", " ")}`;
+  const screen = await render(
+    <ColumnChart
+      bars={[{ id: "a", value: 21_430_000 }]}
+      formatValue={formatWithSpaces}
+      emptyMessage="No data"
+    />,
+  );
+  const ticks = axisTicks(screen);
+  const widest = widestTick(ticks);
+
+  expect(widest.textContent).toContain(" ");
+  expect(measureNaturalWidth(widest.textContent ?? "")).toBeGreaterThan(64);
+  for (const tick of ticks) {
+    expect(textRunLineCount(tick)).toBe(1);
   }
 
   await expectNoAccessibilityViolations(screen.container);
@@ -475,12 +681,14 @@ test("rounds the top tick up to a nice step from the highest bar (214300 -> 2500
     />,
   );
 
-  await expect.element(screen.getByText("$250,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$200,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$150,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$100,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$50,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$0")).toBeInTheDocument();
+  expect(axisTicks(screen).map((tick) => tick.textContent)).toEqual([
+    "$250,000",
+    "$200,000",
+    "$150,000",
+    "$100,000",
+    "$50,000",
+    "$0",
+  ]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -494,12 +702,14 @@ test("rounds the top tick up to a nice step from the highest bar (1200 -> 2500)"
     />,
   );
 
-  await expect.element(screen.getByText("$2,500")).toBeInTheDocument();
-  await expect.element(screen.getByText("$2,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$1,500")).toBeInTheDocument();
-  await expect.element(screen.getByText("$1,000")).toBeInTheDocument();
-  await expect.element(screen.getByText("$500")).toBeInTheDocument();
-  await expect.element(screen.getByText("$0")).toBeInTheDocument();
+  expect(axisTicks(screen).map((tick) => tick.textContent)).toEqual([
+    "$2,500",
+    "$2,000",
+    "$1,500",
+    "$1,000",
+    "$500",
+    "$0",
+  ]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -561,9 +771,7 @@ test("paints every axis tick and every label inside its own bounds", async () =>
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
   const rootRect = chartRoot(screen).getBoundingClientRect();
-  const tickRects = (Array.from(axisColumn(screen).children) as HTMLElement[]).map((tick) =>
-    tick.getBoundingClientRect(),
-  );
+  const tickRects = axisTicks(screen).map((tick) => tick.getBoundingClientRect());
   const labelRects = labelColumns(screen).map(textRunRect);
 
   for (const rect of [...tickRects, ...labelRects]) {
@@ -599,7 +807,7 @@ test("paints every bar, grid line and tick inside its own box, at any container 
     const rootRect = chartRoot(screen).getBoundingClientRect();
     const rendered = chartBars(screen);
     const columns = labelColumns(screen);
-    const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+    const ticks = axisTicks(screen);
 
     expect(rootRect.width).toBeCloseTo(Math.max(chartWidth, containerWidth), 0);
 
@@ -755,7 +963,7 @@ test("keeps the zero tick inside the chart box, at the same height, when no bar 
   const rootRect = chartRoot(screen).getBoundingClientRect();
 
   expect(rootRect.height).toBeCloseTo(labelledHeight, 0);
-  for (const tick of Array.from(axisColumn(screen).children) as HTMLElement[]) {
+  for (const tick of axisTicks(screen)) {
     const rect = textRunRect(tick);
     expect(rect.top).toBeGreaterThanOrEqual(rootRect.top);
     expect(rect.bottom).toBeLessThanOrEqual(rootRect.bottom);
@@ -846,7 +1054,7 @@ test("announces one item per bar, in order, even when no value can be plotted", 
     <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
   );
   const items = announcedItems(screen);
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
 
   expect(items).toHaveLength(bars.length);
   expect(chartBars(screen)).toHaveLength(bars.length);
@@ -944,7 +1152,7 @@ test("falls back to a minimum scale, without colliding the axis ticks, when ever
 
   expect(warnings).toEqual([]);
 
-  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+  const ticks = axisTicks(screen);
   expect(ticks.map((tick) => tick.textContent)).toEqual([
     "$1,000",
     "$800",
