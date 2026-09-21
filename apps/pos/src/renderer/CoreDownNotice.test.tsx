@@ -16,4 +16,10 @@ describe("CoreDownNotice", () => {
 
     await expect.element(screen.getByRole("alert")).toBeVisible();
   });
+
+  it("shows the brand panel's logo with its accessible name", async () => {
+    const screen = await render(<CoreDownNotice />);
+
+    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+  });
 });
