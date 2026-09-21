@@ -171,6 +171,25 @@ describe("option card help text on its chosen background contrast", () => {
   });
 });
 
+// The text-tone suite above already covers this exact pair, since it checks ink against the white
+// surface, but only at AA, the threshold ink is listed with there. The tooltip is held to AAA, so
+// what is missing is the threshold, not the pairing: contrastRatio ignores which of the two colors
+// is the background (the suite at the top of this file proves it), so ink read as text on white
+// and surface-white read as text on ink are the same ratio. surface-white stays in decorativeTones
+// because every text tone is checked against the white surface, where surface-white is 1:1.
+describe("tooltip text on ink background contrast", () => {
+  it(`surface-white reaches ${AAA_TEXT_CONTRAST}:1 against ink`, () => {
+    const textHex = colors["surface-white"];
+    const backgroundHex = colors.ink;
+
+    expect(textHex, "surface-white is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(backgroundHex, "ink is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
+    expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
+      AAA_TEXT_CONTRAST,
+    );
+  });
+});
+
 describe("brand-blue-ui-shadow token", () => {
   it("parses to brand-blue-ui at 20% alpha", () => {
     const shadowHex = colors["brand-blue-ui-shadow"];

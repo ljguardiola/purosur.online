@@ -55,6 +55,8 @@ export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./compo
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";
 export { Toggle } from "./components/Toggle";
+export type { TooltipProps } from "./components/Tooltip";
+export { Tooltip } from "./components/Tooltip";
 export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";

@@ -5,11 +5,11 @@ import "vitest-browser-react";
 // Compiles the design tokens so components under test render with real computed styles.
 import "../styles/tokens.css";
 
-// The one CDP call this file needs. `cdp()`'s own type is an intentionally empty placeholder
-// shared across every browser provider (only the Playwright provider this project uses actually
-// implements it, with a real `send` method), so this narrows to that single call instead of
-// widening the type project-wide.
-interface DispatchableCdpSession {
+// The one CDP call this setup and the tests that reset the pointer themselves need. `cdp()`'s own
+// type is an intentionally empty placeholder shared across every browser provider (only the
+// Playwright provider this project uses actually implements it, with a real `send` method), so
+// this narrows to that single call instead of widening the type project-wide.
+export interface DispatchableCdpSession {
   send(
     method: "Input.dispatchMouseEvent",
     params: { type: "mouseMoved"; x: number; y: number },
