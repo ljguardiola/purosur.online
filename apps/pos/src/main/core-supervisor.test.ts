@@ -125,6 +125,25 @@ describe("createCoreSupervisor", () => {
     expect(fork).toHaveBeenCalledTimes(policy.maxAttempts + 1);
   });
 
+  it("calls onProcessStarted with every forked process, including restarts", () => {
+    const processes: FakeProcess[] = [];
+    const fork = vi.fn(() => {
+      const process = new FakeProcess();
+      processes.push(process);
+      return process;
+    });
+    const scheduleRestart = vi.fn((run: () => void) => run());
+    const onProcessStarted = vi.fn();
+    const supervisor = createCoreSupervisor({ fork, scheduleRestart, policy, onProcessStarted });
+
+    supervisor.start();
+    processes[0]?.exit(1);
+
+    expect(onProcessStarted).toHaveBeenCalledTimes(2);
+    expect(onProcessStarted).toHaveBeenNthCalledWith(1, processes[0]);
+    expect(onProcessStarted).toHaveBeenNthCalledWith(2, processes[1]);
+  });
+
   it("stop() prevents a restart from being scheduled for a later exit", () => {
     const processes: FakeProcess[] = [];
     const fork = vi.fn(() => {

@@ -28,6 +28,7 @@ export interface CoreSupervisorDeps {
   fork(): SupervisedProcess;
   scheduleRestart(run: () => void, delayMs: number): void;
   policy: RestartPolicy;
+  onProcessStarted?(process: SupervisedProcess): void;
   onRestartsExhausted?(): void;
 }
 
@@ -44,6 +45,7 @@ export function createCoreSupervisor(deps: CoreSupervisorDeps): CoreSupervisor {
 
   function launch(): void {
     const process = deps.fork();
+    deps.onProcessStarted?.(process);
     process.once("exit", (code) => {
       if (stopped) {
         return;

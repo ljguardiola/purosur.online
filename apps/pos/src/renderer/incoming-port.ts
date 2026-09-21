@@ -7,22 +7,35 @@ export interface PortEventSource<Port> {
   removeEventListener(type: "message", listener: (event: IncomingPortEvent<Port>) => void): void;
 }
 
-// The preload only ever forwards one port, so this hands over the first one it sees and then
-// gets out of the way instead of staying subscribed to every future window message.
-export function attachIncomingPort<Port>(
+export interface ClosablePort {
+  close(): void;
+}
+
+// Main hands over a fresh port on every core restart and every page load/reload (see
+// apps/pos/src/main/index.ts), since a MessagePort pair is single-use: each delivery here closes
+// whatever port was current before and replaces it, instead of keeping only the very first port
+// ever seen or leaking the ones that came before it.
+export function attachIncomingPort<Port extends ClosablePort>(
   source: PortEventSource<Port>,
   onPort: (port: Port) => void,
 ): () => void {
+  let currentPort: Port | undefined;
+
   const handleMessage = (event: IncomingPortEvent<Port>): void => {
     const port = event.ports[0];
     if (port === undefined) {
       return;
     }
 
-    source.removeEventListener("message", handleMessage);
+    currentPort?.close();
+    currentPort = port;
     onPort(port);
   };
 
   source.addEventListener("message", handleMessage);
-  return () => source.removeEventListener("message", handleMessage);
+  return () => {
+    source.removeEventListener("message", handleMessage);
+    currentPort?.close();
+    currentPort = undefined;
+  };
 }
