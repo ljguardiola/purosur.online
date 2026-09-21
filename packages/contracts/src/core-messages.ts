@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// Minimal, business-free messages for the two channels that reach the core process: enough to
-// prove the core's validation gate exists on both.
+// Minimal, business-free messages for the two channels that reach the core process (enough to
+// prove the core's validation gate exists on both), plus main's core status for the renderer.
 export const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
 });
