@@ -13,6 +13,7 @@ import { loadChannelSettings } from "./channel-settings";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { forwardCoreOutput } from "./core-output";
+import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
 import {
   CHILD_PROCESS_EVENT_REASONS,
@@ -152,6 +153,10 @@ function startRegister(settings: ChannelSettings): void {
     // reload while the core is down gets no port until the restarted core hands it one.
     let currentCoreProcess: Electron.UtilityProcess | undefined;
     let rendererHasLoadedOnce = false;
+    // Mirrors what the renderer was last told: reported to a page that loads or reloads while the
+    // core is already down, since it never lived through the onRestartsExhausted call that first
+    // reported it.
+    let coreStatus: CoreStatus = "up";
 
     function reconnectRendererToCore(): void {
       const coreProcess = currentCoreProcess;
@@ -164,6 +169,21 @@ function startRegister(settings: ChannelSettings): void {
         sendToCore: (port) => coreProcess.postMessage(null, [port]),
         sendToRenderer: (port) => window.webContents.postMessage("core-port", null, [port]),
       });
+    }
+
+    function sendCoreStatusToRenderer(): void {
+      if (window.isDestroyed()) {
+        return;
+      }
+      broadcastCoreStatus(
+        { postMessage: (channel, message) => window.webContents.postMessage(channel, message) },
+        coreStatus,
+      );
+    }
+
+    function setCoreStatus(status: CoreStatus): void {
+      coreStatus = status;
+      sendCoreStatusToRenderer();
     }
 
     const supervisor = createCoreSupervisor({
@@ -198,6 +218,10 @@ function startRegister(settings: ChannelSettings): void {
       onRestartsExhausted: () => {
         console.error("core process: restart attempts exhausted");
         Sentry.captureMessage("core process: restart attempts exhausted", "fatal");
+        setCoreStatus("down");
+      },
+      onRecovered: () => {
+        setCoreStatus("up");
       },
     });
     supervisor.start();
@@ -206,10 +230,12 @@ function startRegister(settings: ChannelSettings): void {
     app.on("before-quit", () => supervisor.stop());
 
     // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
-    // refresh), so a fresh page always gets a live port to whichever core process is running.
+    // refresh), so a fresh page always gets a live port to whichever core process is running and
+    // learns the core's current status even if it missed the event that last changed it.
     window.webContents.on("did-finish-load", () => {
       rendererHasLoadedOnce = true;
       reconnectRendererToCore();
+      sendCoreStatusToRenderer();
     });
 
     if (devServerUrl) {

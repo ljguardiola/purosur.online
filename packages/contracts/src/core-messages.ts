@@ -17,3 +17,11 @@ export type MainHealthCheckMessage = z.infer<typeof mainHealthCheckMessageSchema
 
 export const mainToCoreMessageSchema = mainHealthCheckMessageSchema;
 export type MainToCoreMessage = z.infer<typeof mainToCoreMessageSchema>;
+
+// Main tells the renderer whether the core is reachable, so a compromised or buggy sender can
+// never push the renderer into (or out of) its blocking notice with an arbitrary payload.
+export const coreStatusMessageSchema = z.object({
+  type: z.literal("core-status"),
+  status: z.enum(["down", "up"]),
+});
+export type CoreStatusMessage = z.infer<typeof coreStatusMessageSchema>;
