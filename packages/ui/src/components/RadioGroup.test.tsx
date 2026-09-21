@@ -4,7 +4,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import type { RadioOption } from "./RadioGroup";
 import { RadioGroup, type RadioGroupProps } from "./RadioGroup";
 
@@ -125,9 +131,8 @@ test("colors a checked circle white with a 6px blue UI ring and no separate dot"
   const style = getComputedStyle(circle);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("brand-blue-ui", "6px"));
   // The 2px border becomes the ring, rather than being layered under it.
-  expect(style.boxShadow).not.toContain(tokenRgb("ink-secondary"));
+  expect(paintedBoxShadowLayers(circle)).toEqual([insetBoundary("brand-blue-ui", "6px")]);
   expect(circle.querySelector("svg")).toBeNull();
   expect(circle.children.length).toBe(0);
 

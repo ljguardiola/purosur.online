@@ -3,8 +3,15 @@ import { useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { Checkbox, type CheckboxProps } from "./Checkbox";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -73,9 +80,16 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
   expect(box.querySelector("svg")).toBeNull();
+
+  // The boundary check above pins the token this design picked, and a design that picks another
+  // one rewrites that line along with it. What has to hold whichever token is picked is the ratio:
+  // this box's border is a control boundary, not text, so the color it actually renders has to
+  // clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -91,7 +105,12 @@ test("turns an unchecked box's background bone on hover, keeping its border", as
 
   await userEvent.hover(label);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
+  const style = getComputedStyle(box);
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -107,7 +126,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
   const check = box.querySelector("svg") as SVGSVGElement;
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
-  expect(style.boxShadow).not.toContain(tokenRgb("ink-secondary"));
+  expect(paintedBoxShadowLayers(box)).toEqual([]);
   expect(check).not.toBeNull();
 
   const checkRect = check.getBoundingClientRect();

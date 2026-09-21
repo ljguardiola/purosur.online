@@ -2,8 +2,15 @@ import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -240,8 +247,15 @@ test("shows a white box with a 2px ink-secondary border at rest", async () => {
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  // The boundary check above pins the token this design picked, and a design that picks another
+  // one rewrites that line along with it. What has to hold whichever token is picked is the
+  // ratio: the box's border is a control boundary, not text, so the color it actually renders has
+  // to clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -253,8 +267,11 @@ test("turns the box bone on hover, keeping the same 2px ink-secondary border", a
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -305,9 +322,7 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(tokenRgb("status-error-ui"));
-  expect(style.boxShadow).toContain("2px");
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -320,7 +335,9 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
   await userEvent.click(input);
   await userEvent.hover(box);
 
-  await expect.poll(() => getComputedStyle(box).boxShadow).toContain(tokenRgb("brand-blue-strong"));
+  await expect
+    .poll(() => getComputedStyle(box).boxShadow)
+    .toContain(insetBoundary("brand-blue-strong", "3px"));
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await expectNoAccessibilityViolations(screen.container);
@@ -342,8 +359,7 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   // The box itself still renders the field's ordinary resting look underneath that dimming —
   // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(getComputedStyle(box).boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(getComputedStyle(box).boxShadow).toContain("2px");
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
@@ -379,8 +395,10 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   expect(restingBackground).toBe(tokenRgb("surface-bone"));
   // Read-only reuses the same ink-secondary border as resting/hovered, not the softer "line"
   // token: it still marks a control's own boundary and needs the same 3:1 minimum.
-  expect(restingShadow).toContain(tokenRgb("ink-secondary"));
-  expect(restingShadow).toContain("2px");
+  expect(restingShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(contrastRatio(boundaryColorHex(box), rgbToHex(restingBackground))).toBeGreaterThanOrEqual(
+    NON_TEXT_CONTRAST,
+  );
 
   // The ordinary field beside it goes first: once the pointer has provably turned that one bone,
   // a hover over the read-only box that changes nothing means "read-only ignores hover" rather
@@ -433,8 +451,7 @@ test("lets disabled win the box treatment over invalid, while still announcing i
 
   // Disabled's own white-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
 
   // Assistive technology still hears it as invalid, named by its message, regardless of the box.
@@ -488,8 +505,7 @@ test("lets read-only win the box treatment over invalid, while still announcing 
 
   // Read-only's own bone-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
 
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toContain("Enter a reason.");
@@ -519,7 +535,7 @@ test("lets disabled win the box treatment over read-only when both apply", async
 
   // Disabled's white fill wins the box over read-only's bone fill.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
   expect(input.disabled).toBe(true);
   expect(input.readOnly).toBe(true);
@@ -584,10 +600,8 @@ test("replaces the helper line with the field's message and exposes it as invali
   );
   const box = fieldBox(screen, "Reason");
   const input = fieldInput(screen, "Reason");
-  const style = getComputedStyle(box);
 
-  expect(style.boxShadow).toContain(tokenRgb("status-error-ui"));
-  expect(style.boxShadow).toContain("2px");
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(screen.getByText("Enter a reason.").element()).toBeTruthy();
   expect(screen.getByText("Should not be visible.").query()).toBeNull();

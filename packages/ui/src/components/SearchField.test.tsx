@@ -177,7 +177,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await expect
       .poll(() => getComputedStyle(box).boxShadow)
-      .toContain(tokenRgb("brand-blue-strong"));
+      .toContain(insetBoundary("brand-blue-strong", "3px"));
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
 
     await expectNoAccessibilityViolations(screen.container);

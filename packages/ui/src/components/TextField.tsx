@@ -93,8 +93,9 @@ const errorClassName = "text-sm font-normal text-status-error-ui";
 // Resting, hovered and read-only all share the same 2px ink-secondary border — the same choice
 // Checkbox.tsx already makes for its own unchecked box, and for the same reason: a control's own
 // boundary needs the WCAG 3:1 non-text contrast minimum, which the softer, decorative "line" and
-// "blue-soft" tokens fall short of (ink-secondary's own margin against these same white and bone
-// fills is checked, against a real rendered element, in RadioGroup.test.tsx and Toggle.test.tsx).
+// "blue-soft" tokens fall short of (ink-secondary's own margin is checked against a real rendered
+// element on white in RadioGroup.test.tsx and Toggle.test.tsx, and on bone in Checkbox.test.tsx's
+// hovered box and this field's own hovered and read-only tests).
 // Those two tokens stay reserved for dividers and container edges, never this field's own boundary.
 // Only the fill tells resting from hovered apart, following the package's own white-hovers-to-bone
 // rule (see Checkbox.tsx and OptionCardGroup.tsx). A read-only field doesn't react to hover — its
