@@ -249,11 +249,56 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The label span has no shrink protection of its own (unlike the value's truncate and the
-// chevron's shrink-0 above): once the trigger itself can shrink (max-w-full, see its own
-// comment), a flex item's default min-width: auto lets it shrink all the way down to its own
-// longest word before it has to wrap the rest, exactly the failure this proves against.
-test("keeps a multi-word label on one line instead of wrapping it inside a shrunk trigger", async () => {
+// The label span's own max-width (see its comment in ListFilter.tsx) only binds once the
+// label's natural width exceeds what's left after the chevron, the gaps and the value's own
+// ellipsis floor: under that, the label renders whole and the value alone gives up room (proven
+// here); at or past it, the label truncates too, but never past its own formula's remainder, and
+// nothing - label, value or chevron - ever paints past the trigger's own right edge either way
+// (proven by the containment checks both this test and the one below share).
+test("keeps the label whole and lets the value alone truncate when there's room for the label's own full width", async () => {
+  const longOption: [ListFilterOption<string>, ListFilterOption<string>] = [
+    { value: "a", label: "Un valor bastante largo para forzar el truncado" },
+    { value: "b", label: "Otro" },
+  ];
+  const screen = await render(
+    <div style={{ width: "300px", display: "flex" }}>
+      <ListFilter
+        label="Forma de pago del pedido"
+        options={longOption}
+        value="a"
+        onChange={() => {}}
+      />
+    </div>,
+  );
+  const triggerLocator = screen.getByRole("button", { name: /Forma de pago del pedido/ });
+  const trigger = triggerLocator.element() as HTMLElement;
+  const label = triggerLocator
+    .getByText("Forma de pago del pedido", { exact: true })
+    .element() as HTMLElement;
+  // AriaSelectValue's own rendered content reuses the listbox option's own JSX (including its
+  // own nested truncate span), so the flex item that actually carries the min-width floor is the
+  // trigger's own second direct child, not whatever getByText happens to match inside it.
+  const value = trigger.children[1] as HTMLElement;
+  const chevron = trigger.querySelector("svg") as SVGSVGElement;
+  const triggerRect = trigger.getBoundingClientRect();
+
+  // Whole: rendered at its own natural (scroll) width, nothing clipped off it.
+  expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+
+  // The value alone gave up the room: truncated, but never down to nothing - it still keeps
+  // more than just its own bare ellipsis here, since there's room past the label's own width.
+  expect(value.scrollWidth).toBeGreaterThan(value.clientWidth);
+  expect(value.getBoundingClientRect().width).toBeGreaterThan(16);
+
+  // Nothing paints past the trigger's own right edge.
+  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("truncates the label too, down to its own formula, once even the value's ellipsis floor doesn't fit", async () => {
   const screen = await render(
     <div style={{ width: "90px", display: "flex" }}>
       <ListFilter
@@ -265,14 +310,43 @@ test("keeps a multi-word label on one line instead of wrapping it inside a shrun
     </div>,
   );
   const triggerLocator = screen.getByRole("button", { name: /Forma de pago del pedido/ });
+  const trigger = triggerLocator.element() as HTMLElement;
   const label = triggerLocator
     .getByText("Forma de pago del pedido", { exact: true })
     .element() as HTMLElement;
+  const value = trigger.children[1] as HTMLElement;
+  const chevron = trigger.querySelector("svg") as SVGSVGElement;
+  const triggerRect = trigger.getBoundingClientRect();
 
-  // Same reasoning as the value's own check above: a height comparison against the label's own
-  // single line-height catches any wrap, not just one long enough to spill past the trigger box.
+  // Both give way: the label truncates too, not just wraps or overflows - a height comparison
+  // against its own single line-height proves it never wrapped either, while it's shorter than
+  // its own full scroll width proves it's genuinely clipped, not merely narrow by coincidence.
   const labelLineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
   expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(labelLineHeight + 1);
+  expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
+
+  // The value still keeps at least its own ellipsis, never down to nothing.
+  expect(value.getBoundingClientRect().width).toBeGreaterThan(0);
+
+  // Nothing paints past the trigger's own right edge, even here.
+  expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+  expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(triggerRect.right);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// Pins the common, unconstrained case: truncate's own overflow-hidden makes a stray truncation
+// invisible to a one-line height check alone (a clipped single line is still exactly one line
+// tall), so only comparing the label's own scrollWidth against its clientWidth catches it.
+test("keeps the label fully legible, not truncated, when there's room for everything", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  const label = screen
+    .getByRole("button", { name: /Estado/ })
+    .getByText("Estado", { exact: true })
+    .element() as HTMLElement;
+
+  expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
 
   await expectNoAccessibilityViolations(screen.container);
 });
