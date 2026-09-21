@@ -1,6 +1,7 @@
 import { mainToCoreMessageSchema, rendererToCoreMessageSchema } from "@purosur/contracts";
 import * as Sentry from "@sentry/electron/utility";
 import { createMessageGate, type RejectionRecorder } from "./message-gate";
+import { createRendererConnection } from "./renderer-connection";
 
 // The core is built as a second main-side entry (see electron.vite.config.ts), so it shares
 // main's MAIN_VITE_ prefixed environment variables.
@@ -29,13 +30,14 @@ function handleRendererMessage(): void {
   // No business logic yet: the gate existing and wired up is what this shell proves.
 }
 
+const rendererConnection = createRendererConnection((data) => {
+  gateFromRenderer(data, handleRendererMessage);
+});
+
 process.parentPort.on("message", (event) => {
   const [rendererPort] = event.ports;
   if (rendererPort) {
-    rendererPort.on("message", (portEvent) => {
-      gateFromRenderer(portEvent.data, handleRendererMessage);
-    });
-    rendererPort.start();
+    rendererConnection.adopt(rendererPort);
     return;
   }
 

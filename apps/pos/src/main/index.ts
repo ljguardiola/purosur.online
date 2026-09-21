@@ -1,10 +1,12 @@
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import * as Sentry from "@sentry/electron/main";
 import { app, BrowserWindow, MessageChannelMain, session, utilityProcess } from "electron";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
-import { denyWindowOpen, isSameOriginNavigation } from "./navigation-guard";
+import { denyWindowOpen, isAllowedNavigation } from "./navigation-guard";
+import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
 import { createWindowOptions } from "./window-options";
 
 // No DSN configured (e.g. a local dev build) means no error tracking, not a crash on startup.
@@ -37,10 +39,11 @@ function applyContentSecurityPolicy(): void {
   });
 }
 
+const RENDERER_ENTRY_URL = devServerUrl ?? pathToFileURL(RENDERER_ENTRY).href;
+
 function guardWindow(window: BrowserWindow): void {
   window.webContents.on("will-navigate", (event, url) => {
-    const appOrigin = new URL(window.webContents.getURL()).origin;
-    if (!isSameOriginNavigation(appOrigin, url)) {
+    if (!isAllowedNavigation(RENDERER_ENTRY_URL, url)) {
       event.preventDefault();
     }
   });
@@ -52,6 +55,16 @@ app.whenReady().then(() => {
 
   const window = new BrowserWindow(createWindowOptions(PRELOAD_ENTRY));
   guardWindow(window);
+  showWhenReadyAndReviveRenderer({
+    onceReadyToShow: (listener) => window.once("ready-to-show", listener),
+    show: () => window.show(),
+    isDestroyed: () => window.isDestroyed(),
+    webContents: {
+      onRendererGone: (listener) =>
+        window.webContents.on("render-process-gone", (_event, details) => listener(details.reason)),
+      reload: () => window.webContents.reload(),
+    },
+  });
 
   // Tracks whichever core process is currently supervised: set inside `fork` itself (which
   // always runs before the supervisor's `onProcessStarted` hook below), so a renderer reload —

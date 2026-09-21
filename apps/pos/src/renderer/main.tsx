@@ -21,7 +21,7 @@ const windowPortSource: PortEventSource<MessagePort> = {
 };
 
 // Captured for later business features; the shell itself has none yet, so nothing is sent on it.
-attachIncomingPort(windowPortSource, (_port) => {});
+attachIncomingPort(windowPortSource, window, (_port) => {});
 
 const root = document.getElementById("root");
 if (root) {
