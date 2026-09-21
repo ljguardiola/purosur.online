@@ -4,7 +4,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { insetBoundary, tokenRgb } from "../test/token-colors";
 import type { OptionCardIcon, OptionCardOption } from "./OptionCardGroup";
 import { OptionCardGroup, type OptionCardGroupProps } from "./OptionCardGroup";
 
@@ -157,8 +157,7 @@ test("colors a not-chosen card white with a 1px line border, secondary icon, ink
   const style = getComputedStyle(card);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("line"));
-  expect(style.boxShadow).toContain("1px");
+  expect(style.boxShadow).toContain(insetBoundary("line", "1px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));
@@ -175,7 +174,7 @@ test("turns a hovered not-chosen card's background bone without changing its oth
   await userEvent.hover(card);
   await expect.poll(() => getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface-bone"));
 
-  expect(getComputedStyle(card).boxShadow).toContain(tokenRgb("line"));
+  expect(getComputedStyle(card).boxShadow).toContain(insetBoundary("line", "1px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
 
@@ -193,8 +192,7 @@ test("colors the chosen card with the blue message background, a 2px blue border
   const style = getComputedStyle(card);
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  expect(style.boxShadow).toContain(tokenRgb("brand-blue-ui"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("brand-blue-ui", "2px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("brand-blue-strong"));
   expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));

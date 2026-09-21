@@ -4,7 +4,7 @@ import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { rgbToHex, tokenRgb } from "../test/token-colors";
+import { insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
 import { Pagination, type PaginationProps } from "./Pagination";
 
 interface DispatchableCdpSession {
@@ -87,7 +87,7 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.borderWidth).toBe("0px");
-  expect(style.boxShadow).toContain(`${tokenRgb("line")} 0px 0px 0px 1px inset`);
+  expect(style.boxShadow).toContain(insetBoundary("line", "1px"));
   expect(style.fontSize).toBe("14px");
   expect(style.color).toBe(tokenRgb("ink"));
   expect(style.fontWeight).toBe("400");

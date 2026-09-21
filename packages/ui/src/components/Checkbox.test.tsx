@@ -5,7 +5,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { Checkbox, type CheckboxProps } from "./Checkbox";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -120,7 +126,7 @@ test("colors a checked box blue UI with a 16px white check and no border", async
   const check = box.querySelector("svg") as SVGSVGElement;
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
-  expect(style.boxShadow).not.toContain(tokenRgb("ink-secondary"));
+  expect(paintedBoxShadowLayers(box)).toEqual([]);
   expect(check).not.toBeNull();
 
   const checkRect = check.getBoundingClientRect();
