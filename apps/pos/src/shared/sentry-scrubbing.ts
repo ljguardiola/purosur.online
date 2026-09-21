@@ -8,9 +8,10 @@ const REDACTED = "[redacted]";
 // A CUIT is 11 digits, either run together or split 2-8-1 with hyphens; a DNI is 7 or 8 digits,
 // either run together or with dots as thousands separators. Matched in that order so a CUIT's
 // digits are never left exposed as if they were a shorter DNI. A run of digits joined to a letter,
-// a hyphen or a decimal point is part of something else, such as a UUID or a fractional number.
-const NOT_JOINED_BEFORE = String.raw`(?<![\w-])(?<!\d\.)`;
-const NOT_JOINED_AFTER = String.raw`(?![\w-])(?!\.\d)`;
+// a hyphen or a decimal point is part of something else, such as a UUID or a fractional number; an
+// underscore only separates a label from the number it names.
+const NOT_JOINED_BEFORE = String.raw`(?<![A-Za-z0-9-])(?<!\d\.)`;
+const NOT_JOINED_AFTER = String.raw`(?![A-Za-z0-9-])(?!\.\d)`;
 const CUIT_PATTERN = new RegExp(
   `${NOT_JOINED_BEFORE}(?:\\d{2}-\\d{8}-\\d|\\d{11})${NOT_JOINED_AFTER}`,
   "g",
@@ -22,8 +23,18 @@ const DNI_PATTERN = new RegExp(
 const IDENTIFIER_NUMBER_PATTERN = /^(?:\d{11}|\d{7,8})$/;
 
 // The http.query and http.fragment breadcrumb fields hold the part of a URL Sentry strips from it.
-const SENSITIVE_KEY_PATTERN =
-  /token|key|secret|password|authorization|query|fragment|cuit|dni|documento/i;
+const SENSITIVE_KEY_PATTERN = /token|key|secret|password|authorization|query|fragment/i;
+// Matched as whole words of the field name, so a name like "circuit" or "midnight" is left alone.
+const IDENTIFIER_KEY_WORDS = new Set(["cuit", "dni", "documento"]);
+
+function isSensitiveKey(key: string): boolean {
+  if (SENSITIVE_KEY_PATTERN.test(key)) {
+    return true;
+  }
+  return key
+    .split(/[^A-Za-z0-9]+|(?<=[a-z0-9])(?=[A-Z])/)
+    .some((word) => IDENTIFIER_KEY_WORDS.has(word.toLowerCase()));
+}
 
 const URL_PATTERN = /\bhttps?:\/\/[^\s"'<>]+/gi;
 
@@ -46,51 +57,56 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-interface RedactionOptions {
-  readonly numbers: boolean;
-}
-
-const ALL_VALUES: RedactionOptions = { numbers: true };
-// Sentry's own context integrations fill these sections with numeric diagnostics such as memory
-// sizes, which easily have 8 or 11 digits; only their strings can carry anything from the business.
-const STRINGS_ONLY: RedactionOptions = { numbers: false };
-const SDK_CONTEXT_SECTIONS = new Set([
-  "app",
-  "browser",
-  "chrome",
-  "cloud_resource",
-  "culture",
-  "device",
-  "gpu",
-  "node",
-  "os",
-  "runtime",
-  "trace",
+// Sentry's own context integrations put these numeric diagnostics (memory sizes, CPU figures) at
+// the top of their context sections, where they easily have 8 or 11 digits. Only these exact
+// fields, in these sections, keep their numbers; any other number is treated like one from the
+// business.
+const SDK_CONTEXT_SECTIONS = new Set(["app", "device"]);
+const SDK_NUMERIC_DIAGNOSTICS = new Set([
+  "app_memory",
+  "free_memory",
+  "memory_size",
+  "processor_count",
+  "processor_frequency",
+  "screen_density",
 ]);
+const NO_DIAGNOSTICS: ReadonlySet<string> = new Set();
+// The same diagnostics reach every log as "<section>.<field>" attributes.
+const SDK_LOG_ATTRIBUTE_DIAGNOSTICS: ReadonlySet<string> = new Set(
+  [...SDK_CONTEXT_SECTIONS].flatMap((section) =>
+    [...SDK_NUMERIC_DIAGNOSTICS].map((field) => `${section}.${field}`),
+  ),
+);
 
-function redactValue(value: unknown, options: RedactionOptions): unknown {
+function redactValue(value: unknown): unknown {
   if (typeof value === "string") {
     return redactString(value);
   }
-  if (typeof value === "number" && options.numbers && isIdentifierNumber(value)) {
+  if (typeof value === "number" && isIdentifierNumber(value)) {
     return REDACTED;
   }
   if (Array.isArray(value)) {
-    return value.map((item) => redactValue(item, options));
+    return value.map(redactValue);
   }
   if (isPlainObject(value)) {
-    return redactRecord(value, options);
+    return redactRecord(value);
   }
   return value;
 }
 
 function redactRecord(
   record: Record<string, unknown>,
-  options: RedactionOptions = ALL_VALUES,
+  numericDiagnostics: ReadonlySet<string> = NO_DIAGNOSTICS,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    result[key] = SENSITIVE_KEY_PATTERN.test(key) ? REDACTED : redactValue(value, options);
+    if (isSensitiveKey(key)) {
+      result[key] = REDACTED;
+    } else if (typeof value === "number" && numericDiagnostics.has(key)) {
+      result[key] = value;
+    } else {
+      result[key] = redactValue(value);
+    }
   }
   return result;
 }
@@ -98,10 +114,10 @@ function redactRecord(
 function redactContexts(contexts: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [section, value] of Object.entries(contexts)) {
-    result[section] = redactValue(
-      value,
-      SDK_CONTEXT_SECTIONS.has(section) ? STRINGS_ONLY : ALL_VALUES,
-    );
+    result[section] =
+      isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(section)
+        ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS)
+        : redactValue(value);
   }
   return result;
 }
@@ -172,6 +188,8 @@ export function scrubSentryLog<L extends LogLike>(log: L): L {
   return {
     ...rest,
     message: rest.message === undefined ? undefined : redactString(rest.message),
-    attributes: rest.attributes ? redactRecord(rest.attributes) : rest.attributes,
+    attributes: rest.attributes
+      ? redactRecord(rest.attributes, SDK_LOG_ATTRIBUTE_DIAGNOSTICS)
+      : rest.attributes,
   } as L;
 }

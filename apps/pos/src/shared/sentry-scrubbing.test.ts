@@ -276,6 +276,55 @@ describe("identifiers stored as numbers", () => {
     });
   });
 
+  it("redacts an identifier number placed under an SDK section name by anything but the SDK", () => {
+    const contexts = { device: { memory_size: 17179869184, document: 20304050607 } };
+
+    expect(scrubSentryEvent({ contexts }).contexts).toEqual({
+      device: { memory_size: 17179869184, document: "[redacted]" },
+    });
+  });
+
+  it("keeps a diagnostic field's number only inside the SDK's own context sections", () => {
+    const contexts = { customer: { memory_size: 20304050607 } };
+
+    expect(scrubSentryEvent({ contexts }).contexts).toEqual({
+      customer: { memory_size: "[redacted]" },
+    });
+  });
+
+  it("keeps the SDK's numeric device diagnostics among a log's attributes", () => {
+    const log = {
+      message: "core restarted",
+      attributes: {
+        "device.memory_size": 17179869184,
+        "device.processor_frequency": 2400,
+        "sentry.message.parameter.0": 20304050607,
+      },
+    };
+
+    expect(scrubSentryLog(log).attributes).toEqual({
+      "device.memory_size": 17179869184,
+      "device.processor_frequency": 2400,
+      "sentry.message.parameter.0": "[redacted]",
+    });
+  });
+
+  it("redacts a CUIT or DNI glued to a label with an underscore", () => {
+    const event = { message: "rechazado cuit_20304050607 y dni_12345678" };
+
+    expect(scrubSentryEvent(event).message).toBe("rechazado cuit_[redacted] y dni_[redacted]");
+  });
+
+  it("matches CUIT, DNI and document only as whole words of a field name", () => {
+    const extra = { circuit_breaker_state: "open", clienteDni: "x", midnight_run: "yes" };
+
+    expect(scrubSentryEvent({ extra }).extra).toEqual({
+      circuit_breaker_state: "open",
+      clienteDni: "[redacted]",
+      midnight_run: "yes",
+    });
+  });
+
   it("redacts fields named after a CUIT, DNI or document whatever their value looks like", () => {
     const extra = { cuit: "cuit_20304050607", dni_cliente: "x_12345678", documento: 42 };
 
