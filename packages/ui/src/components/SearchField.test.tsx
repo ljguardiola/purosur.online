@@ -170,10 +170,14 @@ for (const variant of ["register", "backoffice"] as const) {
       />,
     );
     const box = fieldBox(screen, "Scan or type the product name");
-    const input = fieldInput(screen, "Scan or type the product name");
 
-    await userEvent.click(input);
+    await userEvent.tab();
     await userEvent.hover(box);
+    // Both assertions below also hold for a focused field the pointer never reached: focus alone
+    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
+    // as the only thing that puts the pointer on the box, and the poll proves it got there before
+    // asserting that focus won over it.
+    await expect.poll(() => box.matches(":hover")).toBe(true);
 
     await expect
       .poll(() => getComputedStyle(box).boxShadow)
