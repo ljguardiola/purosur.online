@@ -1,9 +1,6 @@
 // Secrets are read from the environment of whoever runs `railway config plan`/`apply`; the CLI
 // evaluates this file as ordinary Node, so `process.env` reaches the compiled graph.
 //
-// Railway IaC cannot declare a generated `*.up.railway.app` domain (`domains` is for custom
-// domains only); the deploy workflow ensures one exists after every apply.
-//
 // `bucket()` exposes no `.env` accessor in this SDK version, so the bucket's credentials cannot be
 // referenced from the cloud service here.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
@@ -12,6 +9,12 @@ import { bucket, defineRailway, image, postgres, project, service } from "railwa
 // bucket, and a database given "iad" is placed in "us-east4-eqdc4a".
 const SERVICE_REGION = "us-east4-eqdc4a";
 const BUCKET_REGION = "iad";
+
+// Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
+// `railway domain <domain> --service cloud`, and only then declared here.
+const CUSTOM_DOMAINS: Record<string, string[]> = {
+  staging: ["staging.purosur.online"],
+};
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -37,6 +40,7 @@ export default defineRailway((ctx) => {
   const cloud = service("cloud", {
     source: image(imageRef, { autoUpdates: { type: "disabled" } }),
     regions: { [SERVICE_REGION]: 1 },
+    domains: CUSTOM_DOMAINS[environment] ?? [],
     deploy: {
       registryCredentials: {
         username: "ljguardiola",

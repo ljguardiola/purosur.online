@@ -128,17 +128,8 @@ jobs:
           RAILWAY_DEPLOYMENT_TIMEOUT_SECONDS: "600"
         run: node .github/scripts/railway-deployment-wait.mjs
 
-      # Railway IaC cannot declare a generated *.up.railway.app domain.
-      - name: Ensure the staging domain
-        id: domain
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: cloud
-          RAILWAY_ENVIRONMENT: staging
-        run: node .github/scripts/railway-ensure-domain.mjs
-
       - name: Verify the deployed version on the staging domain
         env:
-          CLOUD_HEALTH_DOMAIN: ${{ steps.domain.outputs.domain }}
+          CLOUD_HEALTH_DOMAIN: staging.purosur.online
           CLOUD_HEALTH_EXPECTED_VERSION: ${{ github.sha }}
         run: node .github/scripts/verify-cloud-health.mjs

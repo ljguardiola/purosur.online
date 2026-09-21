@@ -149,29 +149,26 @@ test("requestTimeoutMs stays positive once the budget is spent", () => {
 // buildHealthUrl ---------------------------------------------------------------
 
 test("builds the health URL from a bare hostname", () => {
-  assert.equal(
-    buildHealthUrl("cloud-staging-6fea.up.railway.app"),
-    "https://cloud-staging-6fea.up.railway.app/health",
-  );
+  assert.equal(buildHealthUrl("staging.purosur.online"), "https://staging.purosur.online/health");
 });
 
 test("strips an https scheme already present on the domain", () => {
   assert.equal(
-    buildHealthUrl("https://cloud-staging-6fea.up.railway.app"),
-    "https://cloud-staging-6fea.up.railway.app/health",
+    buildHealthUrl("https://staging.purosur.online"),
+    "https://staging.purosur.online/health",
   );
 });
 
 test("strips an http scheme, still using https for the health request", () => {
   assert.equal(
-    buildHealthUrl("http://cloud-staging-6fea.up.railway.app"),
-    "https://cloud-staging-6fea.up.railway.app/health",
+    buildHealthUrl("http://staging.purosur.online"),
+    "https://staging.purosur.online/health",
   );
 });
 
 test("strips a trailing slash before appending /health", () => {
   assert.equal(
-    buildHealthUrl("https://cloud-staging-6fea.up.railway.app/"),
-    "https://cloud-staging-6fea.up.railway.app/health",
+    buildHealthUrl("https://staging.purosur.online/"),
+    "https://staging.purosur.online/health",
   );
 });
