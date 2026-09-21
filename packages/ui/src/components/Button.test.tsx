@@ -6,7 +6,14 @@ import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
-import { Button, type ButtonIcon, type ButtonProps, type ButtonSize } from "./Button";
+import {
+  Button,
+  type ButtonIcon,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonTextSize,
+  type ButtonVariant,
+} from "./Button";
 
 const sizes: ButtonSize[] = ["small", "medium", "large", "sale"];
 
@@ -28,7 +35,9 @@ async function buttonStyle(
 }
 
 // Returns the bounding rect of a plain text child node, so a gap can be measured against an
-// adjacent icon without relying on a wrapping element that doesn't exist in the rendered markup.
+// adjacent icon from the label's own glyphs — the label now sits inside its own wrapping span
+// (see labelSpan below), whose box can be wider than the text itself once `truncate` is in play,
+// which would read a gap that includes some of that unused slack instead of just the text.
 function textNodeRect(node: ChildNode): DOMRect {
   const range = document.createRange();
   range.selectNodeContents(node);
@@ -300,10 +309,11 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
   const icon = button.querySelector("svg");
   const iconWrapper = button.lastChild as HTMLElement;
+  const labelWrapper = button.firstChild as HTMLElement;
 
   expect(icon).not.toBeNull();
-  expect(button.firstChild?.nodeType).toBe(Node.TEXT_NODE);
-  expect(button.firstChild?.textContent).toBe("Save");
+  expect(labelWrapper.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+  expect(labelWrapper.textContent).toBe("Save");
   expect(iconWrapper.contains(icon)).toBe(true);
 
   const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
@@ -315,7 +325,7 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   // stroke of its own would inherit the button's color just the same and pass on that reading.
   expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("surface-white"));
 
-  const textRect = textNodeRect(button.firstChild as ChildNode);
+  const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = iconRect.left - textRect.right;
   expect(gap).toBeGreaterThan(11);
   expect(gap).toBeLessThan(13);
@@ -332,11 +342,12 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   const button = screen.getByRole("button", { name: "Cancel" }).element() as HTMLElement;
   const icon = button.querySelector("svg");
   const iconWrapper = button.firstChild as HTMLElement;
+  const labelWrapper = button.lastChild as HTMLElement;
 
   expect(icon).not.toBeNull();
   expect(iconWrapper.contains(icon)).toBe(true);
-  expect(button.lastChild?.nodeType).toBe(Node.TEXT_NODE);
-  expect(button.lastChild?.textContent).toBe("Cancel");
+  expect(labelWrapper.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+  expect(labelWrapper.textContent).toBe("Cancel");
 
   const iconRect = (icon as SVGSVGElement).getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(17);
@@ -346,7 +357,7 @@ test("places the secondary variant's 18px icon before the text with its 8px gap"
   // See the primary variant's icon test above: the painted stroke, not the inherited color.
   expect(getComputedStyle(icon as SVGSVGElement).stroke).toBe(tokenRgb("ink"));
 
-  const textRect = textNodeRect(button.lastChild as ChildNode);
+  const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
   const gap = textRect.left - iconRect.right;
   expect(gap).toBeGreaterThan(7);
   expect(gap).toBeLessThan(9);
@@ -495,11 +506,12 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
       .element() as HTMLElement;
     const icon = button.querySelector("svg");
     const iconWrapper = button.firstChild as HTMLElement;
+    const labelWrapper = button.lastChild as HTMLElement;
 
     expect(icon, `${size} icon`).not.toBeNull();
     expect(iconWrapper.contains(icon), `${size} icon wrapper`).toBe(true);
-    expect(button.lastChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
-    expect(button.lastChild?.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
+    expect(labelWrapper.firstChild?.nodeType, `${size} label node`).toBe(Node.TEXT_NODE);
+    expect(labelWrapper.textContent, `${size} label`).toBe(`Cancel sale ${size}`);
 
     // The glyph itself, not just any icon of the right size and color.
     expect((icon as SVGSVGElement).innerHTML, `${size} glyph`).toBe(x);
@@ -515,7 +527,7 @@ test("carries its own 18px x icon before the label, with an 8px gap, on both dra
       tokenRgb("status-error-ui"),
     );
 
-    const textRect = textNodeRect(button.lastChild as ChildNode);
+    const textRect = textNodeRect(labelWrapper.firstChild as ChildNode);
     const gap = textRect.left - iconRect.right;
     expect(gap, `${size} gap`).toBeGreaterThan(7);
     expect(gap, `${size} gap`).toBeLessThan(9);
@@ -696,6 +708,13 @@ function widthsInRow(row: Element): number[] {
   return [...row.children].map((button) => button.getBoundingClientRect().width);
 }
 
+// The label lives in its own span, on either side of an optional icon wrapper, so it is found by
+// what it is not: the one child element (if any survive an icon-less button) whose subtree holds
+// no svg.
+function labelSpan(button: HTMLElement): HTMLElement {
+  return [...button.children].find((child) => !child.querySelector("svg")) as HTMLElement;
+}
+
 // One rect per line box the text is laid out on, so a label pushed onto a second line counts 2.
 // Handed anything but the label's own text node it would count that node's boxes instead and read
 // 1 whatever the label does, so it refuses rather than answering about the wrong thing.
@@ -756,8 +775,8 @@ test("splits the row evenly with another stretched button of its variant, labels
   expect(shortLabel).toBeCloseTo(longLabel as number, 0);
   expect((shortLabel as number) + (longLabel as number) + 12).toBeCloseTo(500, 0);
   // Labels of different lengths, each still on the one line its button has room for.
-  expect(lineCount((shorter as HTMLElement).firstChild as ChildNode), "shorter").toBe(1);
-  expect(lineCount((longer as HTMLElement).firstChild as ChildNode), "longer").toBe(1);
+  expect(lineCount(labelSpan(shorter as HTMLElement).firstChild as ChildNode), "shorter").toBe(1);
+  expect(lineCount(labelSpan(longer as HTMLElement).firstChild as ChildNode), "longer").toBe(1);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -778,7 +797,7 @@ test("shares the row with a stretched button of another variant, neither sized b
   const border =
     Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth);
 
-  expect(lineCount((borderlessButton as HTMLElement).firstChild as ChildNode)).toBe(1);
+  expect(lineCount(labelSpan(borderlessButton as HTMLElement).firstChild as ChildNode)).toBe(1);
   expect((bordered as number) + (borderless as number) + 12).toBeCloseTo(500, 0);
   // They grow from nothing into equal halves of what the row has free, so what each ends up
   // measuring differs by exactly the border one of them draws and the other does not.
@@ -934,7 +953,7 @@ test("keeps its icon and label together in the middle of the width it is given",
   const button = screen.getByRole("button", { name: "Cancel sale" }).element() as HTMLElement;
   const buttonRect = button.getBoundingClientRect();
   const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
-  const labelRect = textNodeRect(button.lastChild as ChildNode);
+  const labelRect = textNodeRect(labelSpan(button).firstChild as ChildNode);
 
   const beforeIcon = iconRect.left - buttonRect.left;
   const afterLabel = buttonRect.right - labelRect.right;
@@ -991,6 +1010,7 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
   );
   const row = screen.container.firstElementChild as Element;
   const [sibling, stretched] = widthsInRow(row);
+  const [siblingButton, stretchedButton] = [...row.children] as HTMLElement[];
 
   const roomy = await render(
     <div style={rowStyle}>
@@ -1002,11 +1022,17 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
 
   // The boundary of what stretching can promise. Once a row is narrower than its buttons, it takes
   // width from all of them: the one that never asked to stretch is narrower here than the same
-  // button in a row with room, and both end up past the longest word their labels contain, so the
-  // row spills. Asking to stretch neither causes that nor escapes it.
+  // button in a row with room, and both shrink down to what the row actually has for them instead
+  // of past it — the row no longer spills, and it is each button's own label that gives way,
+  // shortening to an ellipsis. Asking to stretch neither causes that nor escapes it.
   expect(sibling as number).toBeLessThan(siblingWithRoom as number);
   expect(stretched as number).toBeGreaterThan(0);
-  expect((sibling as number) + (stretched as number) + 12).toBeGreaterThan(200);
+  expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(200, 0);
+  expect(row.getBoundingClientRect().width).toBeCloseTo(200, 0);
+  const siblingSpan = labelSpan(siblingButton as HTMLElement);
+  const stretchedSpan = labelSpan(stretchedButton as HTMLElement);
+  expect(siblingSpan.scrollWidth).toBeGreaterThan(siblingSpan.clientWidth);
+  expect(stretchedSpan.scrollWidth).toBeGreaterThan(stretchedSpan.clientWidth);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -1071,11 +1097,13 @@ test("keeps every label in the row on a single line", async () => {
     ...(screen.container.firstElementChild as Element).children,
   ] as HTMLElement[];
 
-  // The design draws every one of these labels on one line, and a button's height is fixed, so a
-  // label that wrapped would either fill the button edge to edge or spill past it — nothing hides
-  // it, since the button clips nothing.
-  expect(lineCount((sibling as HTMLElement).firstChild as ChildNode), "sibling").toBe(1);
-  expect(lineCount((stretched as HTMLElement).firstChild as ChildNode), "stretched").toBe(1);
+  // The design draws every one of these labels on one line, and both fit their button with room
+  // to spare, so this is the ordinary case rather than the truncated one: no ellipsis needed, and
+  // still a single line.
+  expect(lineCount(labelSpan(sibling as HTMLElement).firstChild as ChildNode), "sibling").toBe(1);
+  expect(lineCount(labelSpan(stretched as HTMLElement).firstChild as ChildNode), "stretched").toBe(
+    1,
+  );
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -1097,4 +1125,207 @@ test("paints its hover background across the whole width it was given", async ()
   expect(button.getBoundingClientRect().width).toBeCloseTo(500, 0);
   expect(getComputedStyle(button).borderRadius).toBe("6px");
   await expectNoAccessibilityViolations(screen.container);
+});
+
+const heightBySize: Record<ButtonSize, number> = { small: 40, medium: 48, large: 56, sale: 72 };
+
+// Every variant paired with the sizes it is actually drawn at, so a loop over it never asks for a
+// combination the type system itself rejects (the text variant has no medium or sale form).
+const variantSizes: Array<{ variant: ButtonVariant; sizes: ButtonSize[] }> = [
+  { variant: "primary", sizes },
+  { variant: "secondary", sizes },
+  { variant: "text", sizes: ["small", "large"] },
+];
+
+function renderWithVariant(
+  variant: ButtonVariant,
+  size: ButtonSize,
+  fullWidth: boolean,
+  label: string,
+) {
+  return variant === "text" ? (
+    <Button variant="text" tone="destructive" size={size as ButtonTextSize} fullWidth={fullWidth}>
+      {label}
+    </Button>
+  ) : (
+    <Button variant={variant} size={size} fullWidth={fullWidth}>
+      {label}
+    </Button>
+  );
+}
+
+test("keeps the full label visible with no ellipsis when it fits, at every size and variant, stretched or not", async () => {
+  for (const { variant, sizes: variantSizeList } of variantSizes) {
+    for (const size of variantSizeList) {
+      for (const fullWidth of [false, true]) {
+        const label = `Fits ${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
+        const screen = await render(
+          <div style={fullWidth ? rowStyle : undefined}>
+            {renderWithVariant(variant, size, fullWidth, label)}
+          </div>,
+        );
+        const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
+        const span = labelSpan(button);
+        const buttonRect = button.getBoundingClientRect();
+        const spanRect = span.getBoundingClientRect();
+
+        expect(span.textContent, label).toBe(label);
+        expect(span.scrollWidth, label).toBeLessThanOrEqual(span.clientWidth);
+        expect(spanRect.left, label).toBeGreaterThanOrEqual(buttonRect.left);
+        expect(spanRect.right, label).toBeLessThanOrEqual(buttonRect.right);
+        await expectNoAccessibilityViolations(screen.container);
+      }
+    }
+  }
+});
+
+test("truncates only once the label's own rendered width passes what the button has for it", async () => {
+  const label = "A label with plenty of characters to measure a precise boundary against";
+
+  for (const size of sizes) {
+    // Measured unconstrained first, so the exact pixel a label stops fitting at is computed from
+    // its own rendered width and the button's own chrome around it, instead of guessed at. Every
+    // render below reuses the same label, so each button is read back through its own render's
+    // own container instead of by role name — a role query would run against the whole page and
+    // match every one of them at once.
+    const natural = await render(
+      <div style={{ display: "inline-flex" }}>
+        <Button size={size}>{label}</Button>
+      </div>,
+    );
+    const naturalButton = natural.container.querySelector("button") as HTMLElement;
+    const naturalSpan = labelSpan(naturalButton);
+    const chrome =
+      naturalButton.getBoundingClientRect().width - naturalSpan.getBoundingClientRect().width;
+    const exactWidth = Math.ceil(naturalSpan.scrollWidth + chrome);
+
+    const fits = await render(
+      <div style={{ width: `${exactWidth}px`, display: "flex" }}>
+        <Button size={size} fullWidth>
+          {label}
+        </Button>
+      </div>,
+    );
+    const fitsSpan = labelSpan(fits.container.querySelector("button") as HTMLElement);
+    expect(fitsSpan.scrollWidth, `${size} fits`).toBeLessThanOrEqual(fitsSpan.clientWidth);
+    expect(fitsSpan.textContent, `${size} fits text`).toBe(label);
+    await expectNoAccessibilityViolations(fits.container);
+
+    const truncated = await render(
+      <div style={{ width: `${exactWidth - 1}px`, display: "flex" }}>
+        <Button size={size} fullWidth>
+          {label}
+        </Button>
+      </div>,
+    );
+    const truncatedSpan = labelSpan(truncated.container.querySelector("button") as HTMLElement);
+    expect(truncatedSpan.scrollWidth, `${size} truncated`).toBeGreaterThan(
+      truncatedSpan.clientWidth,
+    );
+    await expectNoAccessibilityViolations(truncated.container);
+  }
+});
+
+test("keeps one line, its exact height, and nothing painted outside it when the label is far too long, for every size and variant, stretched or not", async () => {
+  const baseLabel =
+    "This label is far longer than any button could ever comfortably hold on a single line, no matter how much room the page is willing to give it";
+
+  for (const { variant, sizes: variantSizeList } of variantSizes) {
+    for (const size of variantSizeList) {
+      for (const fullWidth of [false, true]) {
+        const caseLabel = `${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
+        // Each case gets its own accessible name, so it can be looked up by role without
+        // matching every other case's button still mounted alongside it from earlier iterations.
+        const label = `${baseLabel} (${caseLabel})`;
+        // The same button drawn with a label that needs no shortening, to measure what one line
+        // of it stands to this variant and size before asking the long one to match.
+        const oneLine = await render(
+          <div style={fullWidth ? rowStyle : { width: "200px" }}>
+            {renderWithVariant(variant, size, fullWidth, `Ok (${caseLabel})`)}
+          </div>,
+        );
+        const oneLineHeight = labelSpan(
+          oneLine.container.querySelector("button") as HTMLElement,
+        ).getBoundingClientRect().height;
+        const screen = await render(
+          <div style={fullWidth ? rowStyle : { width: "200px" }}>
+            {renderWithVariant(variant, size, fullWidth, label)}
+          </div>,
+        );
+        // Resolving by the exact label also proves the accessible name was never shortened, only
+        // the rendered text was.
+        const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
+        const span = labelSpan(button);
+        const buttonRect = button.getBoundingClientRect();
+        const spanRect = span.getBoundingClientRect();
+
+        expect(button.getBoundingClientRect().height, caseLabel).toBeCloseTo(heightBySize[size], 0);
+        // One line, read from what the label is drawn as rather than from the rule that puts it
+        // there: the same span wrapping this label instead of shortening it measures 128px where
+        // one line measures 32. lineCount can't answer it any more — text-overflow: ellipsis
+        // reports the hidden overflow as a second client rect on that very same line, so it
+        // counts 2 for a label that never left the first one.
+        expect(spanRect.height, `${caseLabel} one line`).toBeCloseTo(oneLineHeight, 0);
+        expect(spanRect.top, `${caseLabel} top`).toBeGreaterThanOrEqual(buttonRect.top);
+        expect(spanRect.bottom, `${caseLabel} bottom`).toBeLessThanOrEqual(buttonRect.bottom);
+        expect(spanRect.left, `${caseLabel} left`).toBeGreaterThanOrEqual(buttonRect.left);
+        expect(spanRect.right, `${caseLabel} right`).toBeLessThanOrEqual(buttonRect.right);
+        if (!fullWidth) {
+          expect(buttonRect.width, `${caseLabel} content width`).toBeLessThanOrEqual(200);
+        }
+        await expectNoAccessibilityViolations(screen.container);
+      }
+    }
+  }
+});
+
+test("keeps its icon at full size while a far too long label shortens next to it", async () => {
+  const label =
+    "This label is far longer than the button can hold on a single line next to its icon";
+  const cases: Array<{ variant: "primary" | "secondary"; icon: ButtonIcon; expectedSize: number }> =
+    [
+      { variant: "primary", icon: <Check />, expectedSize: 24 },
+      { variant: "secondary", icon: <X />, expectedSize: 18 },
+    ];
+
+  // The label is the same across every case in this test, so each button is read back through
+  // its own render's own container instead of by role name.
+  for (const { variant, icon, expectedSize } of cases) {
+    const screen = await render(
+      <div style={{ width: "200px" }}>
+        <Button variant={variant} icon={icon}>
+          {label}
+        </Button>
+      </div>,
+    );
+    const button = screen.container.querySelector("button") as HTMLElement;
+    const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+    const span = labelSpan(button);
+
+    expect(iconRect.width, `${variant} icon width`).toBeGreaterThan(expectedSize - 1);
+    expect(iconRect.width, `${variant} icon width`).toBeLessThan(expectedSize + 1);
+    expect(iconRect.height, `${variant} icon height`).toBeGreaterThan(expectedSize - 1);
+    expect(iconRect.height, `${variant} icon height`).toBeLessThan(expectedSize + 1);
+    expect(span.scrollWidth, `${variant} truncated`).toBeGreaterThan(span.clientWidth);
+    expect(button.getBoundingClientRect().width, `${variant} width`).toBeLessThanOrEqual(200);
+    await expectNoAccessibilityViolations(screen.container);
+  }
+
+  // The text variant's own "x" is not caller-configurable, but it sits next to a label that can
+  // outgrow it just the same, so it gets the same proof.
+  const textScreen = await render(
+    <div style={{ width: "200px" }}>
+      <Button variant="text" tone="destructive">
+        {label}
+      </Button>
+    </div>,
+  );
+  const textButton = textScreen.container.querySelector("button") as HTMLElement;
+  const textIconRect = (textButton.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const textSpan = labelSpan(textButton);
+
+  expect(textIconRect.width).toBeGreaterThan(17);
+  expect(textIconRect.width).toBeLessThan(19);
+  expect(textSpan.scrollWidth).toBeGreaterThan(textSpan.clientWidth);
+  await expectNoAccessibilityViolations(textScreen.container);
 });
