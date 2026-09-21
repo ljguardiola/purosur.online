@@ -6,6 +6,12 @@ import {
   scrubSentryEvent,
   scrubSentryLog,
 } from "../shared/sentry-scrubbing";
+// packages/ui's own compiled design tokens (Tailwind's @theme colors, type scale, fonts): the
+// vitest browser project loads this globally for every package/app's tests (see the root
+// vitest.config.ts), but the packaged app needs its own explicit import to ship any of it. A
+// relative path, not a "@purosur/ui/styles/..." specifier, because electron.vite.config.ts's
+// "@purosur/ui" alias already maps that whole prefix straight to packages/ui's index.ts.
+import "../../../../packages/ui/src/styles/tokens.css";
 import { App } from "./App";
 import type { PortEventSource } from "./incoming-port";
 import { attachIncomingPort } from "./incoming-port";
