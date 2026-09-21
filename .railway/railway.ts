@@ -1,9 +1,6 @@
 // Secrets are read from the environment of whoever runs `railway config plan`/`apply`; the CLI
 // evaluates this file as ordinary Node, so `process.env` reaches the compiled graph.
 //
-// Railway IaC cannot declare a generated `*.up.railway.app` domain (`domains` is for custom
-// domains only); the deploy workflow ensures one exists after every apply.
-//
 // `bucket()` exposes no `.env` accessor in this SDK version, so the bucket's credentials cannot be
 // referenced from the cloud service here.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
