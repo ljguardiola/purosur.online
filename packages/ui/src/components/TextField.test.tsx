@@ -2,8 +2,9 @@ import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { tokenRgb } from "../test/token-colors";
+import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -240,8 +241,15 @@ test("shows a white box with a 2px ink-secondary border at rest", async () => {
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  // The boundary check above pins the token this design picked, and a design that picks another
+  // one rewrites that line along with it. What has to hold whichever token is picked is the
+  // ratio: the box's border is a control boundary, not text, so the color it actually renders has
+  // to clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -253,8 +261,11 @@ test("turns the box bone on hover, keeping the same 2px ink-secondary border", a
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(tokenRgb("ink-secondary"));
-  expect(style.boxShadow).toContain("2px");
+  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+
+  const boundaryHex = boundaryColorHex(box);
+  const fillHex = rgbToHex(style.backgroundColor);
+  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -379,8 +390,10 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   expect(restingBackground).toBe(tokenRgb("surface-bone"));
   // Read-only reuses the same ink-secondary border as resting/hovered, not the softer "line"
   // token: it still marks a control's own boundary and needs the same 3:1 minimum.
-  expect(restingShadow).toContain(tokenRgb("ink-secondary"));
-  expect(restingShadow).toContain("2px");
+  expect(restingShadow).toContain(insetBoundary("ink-secondary", "2px"));
+  expect(contrastRatio(boundaryColorHex(box), rgbToHex(restingBackground))).toBeGreaterThanOrEqual(
+    NON_TEXT_CONTRAST,
+  );
 
   // The ordinary field beside it goes first: once the pointer has provably turned that one bone,
   // a hover over the read-only box that changes nothing means "read-only ignores hover" rather
