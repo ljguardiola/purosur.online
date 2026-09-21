@@ -161,7 +161,7 @@ describe("createFirstAdministrator", () => {
   it("rejects a role that is not the Administrator unless it has a name", async () => {
     await expect(
       db.execute(sql`insert into roles (is_administrator) values (false)`),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { constraint: "roles_name_unless_administrator" } });
     await expect(
       db.execute(sql`insert into roles (name, is_administrator) values ('Cashier', false)`),
     ).resolves.toBeDefined();
@@ -172,12 +172,12 @@ describe("createFirstAdministrator", () => {
 
     await expect(
       db.execute(sql`insert into roles (name, is_administrator) values ('Impostor', true)`),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { constraint: "roles_name_unless_administrator" } });
   });
 
   it("rejects a second Administrator role", async () => {
     await expect(
       db.execute(sql`insert into roles (is_administrator) values (true)`),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { constraint: "roles_single_administrator_key" } });
   });
 });
