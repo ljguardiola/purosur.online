@@ -26,6 +26,7 @@ export default defineConfig({
           name: "node",
           include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
           environment: "node",
+          globalSetup: [r("./apps/cloud/vitest.global-setup.ts")],
         },
       },
       {

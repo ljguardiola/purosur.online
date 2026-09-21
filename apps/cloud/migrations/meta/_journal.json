@@ -1,1 +1,13 @@
-{ "version": "7", "dialect": "postgresql", "entries": [] }
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790024796857,
+      "tag": "0000_peaceful_king_bedlam",
+      "breakpoints": true
+    }
+  ]
+}

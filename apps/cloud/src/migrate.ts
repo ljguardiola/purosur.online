@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
 
 export interface RunMigrationsOptions {
   migrationsFolder?: string;
@@ -38,14 +39,6 @@ const RETRYABLE_CONNECTION_ERROR_CODES = new Set([
   "CONNECTION_CLOSED",
   "57P03",
 ]);
-
-function errorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null || !("code" in error)) {
-    return undefined;
-  }
-  const code = (error as { code: unknown }).code;
-  return typeof code === "string" ? code : undefined;
-}
 
 /**
  * True only for errors that mean the database was not reachable or not ready yet. Any other
@@ -156,19 +149,6 @@ export async function runMigrations(
   }
 }
 
-// Only the code and message are printed: an error can carry the connection string in other
-// fields (an invalid URL keeps it, password included, in `input`).
-export function describeMigrationFailure(error: unknown): string {
-  const code = errorCode(error) ?? "unknown error";
-  if (!(error instanceof Error)) {
-    return code;
-  }
-  const description = `${code}: ${error.message}`;
-  return error.cause === undefined
-    ? description
-    : `${description} (caused by ${describeMigrationFailure(error.cause)})`;
-}
-
 const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
@@ -182,7 +162,7 @@ if (isMainModule) {
         console.log("migrate: done");
       })
       .catch((error: unknown) => {
-        console.error(`migrate: failed ${describeMigrationFailure(error)}`);
+        console.error(`migrate: failed ${describeDatabaseFailure(error)}`);
         process.exit(1);
       });
   }

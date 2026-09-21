@@ -7,3 +7,8 @@ allowBuilds:
   "@serialport/bindings-cpp": true
   esbuild: false
   electron-winstaller: true
+
+overrides:
+  # drizzle-kit still loads through the deprecated @esbuild-kit loader, which pins an esbuild
+  # affected by GHSA-67mh-4wv8-2f99. Remove once drizzle-kit no longer depends on @esbuild-kit.
+  "@esbuild-kit/core-utils>esbuild": ^0.25.0
