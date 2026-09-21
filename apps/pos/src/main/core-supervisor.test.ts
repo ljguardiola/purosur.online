@@ -9,6 +9,7 @@ import {
 const policy = { maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 1000, stableRunMs: 60_000 };
 const retryIntervalMs = 90_000;
 const readinessTimeoutMs = 30_000;
+const killGraceMs = 5_000;
 
 describe("decideRestart", () => {
   it("restarts with exponentially growing backoff below the attempt limit", () => {
@@ -29,8 +30,11 @@ describe("decideRestart", () => {
   });
 });
 
+let nextPid = 1;
+
 class FakeProcess implements SupervisedProcess {
   killed = false;
+  pid = nextPid++;
   private exitListener: ((code: number | null) => void) | undefined;
   private messageListener: ((message: unknown) => void) | undefined;
 
@@ -75,6 +79,9 @@ function setUp(overrides: Partial<CoreSupervisorDeps> = {}) {
     retryIntervalMs,
     scheduleReadinessDeadline: vi.fn(() => () => {}),
     readinessTimeoutMs,
+    killGraceMs,
+    scheduleForceKill: vi.fn(() => () => {}),
+    forceKill: vi.fn(),
     ...overrides,
   };
   const supervisor = createCoreSupervisor(deps);
@@ -514,6 +521,7 @@ describe("createCoreSupervisor", () => {
       return setUp({
         scheduleRestart: vi.fn(scheduleOnTimer),
         scheduleReadinessDeadline: vi.fn(scheduleOnTimer),
+        scheduleForceKill: vi.fn(scheduleOnTimer),
         ...overrides,
       });
     }
@@ -544,11 +552,15 @@ describe("createCoreSupervisor", () => {
 
       supervisor.start();
       vi.advanceTimersByTime(readinessTimeoutMs);
-      processes[0]?.exit(null);
-      vi.advanceTimersByTime(policy.maxDelayMs);
+      // The deadline alone must never schedule a restart: only the process's own observed exit
+      // may (this is what the old, unfixed code got wrong — it scheduled one synchronously here).
+      expect(scheduleRestart).not.toHaveBeenCalled();
 
-      expect(processes).toHaveLength(2);
+      processes[0]?.exit(null);
       expect(scheduleRestart).toHaveBeenCalledOnce();
+
+      vi.advanceTimersByTime(policy.maxDelayMs);
+      expect(processes).toHaveLength(2);
     });
 
     it("ignores a ready message from a process already killed for missing its deadline", () => {
@@ -572,6 +584,59 @@ describe("createCoreSupervisor", () => {
       processes[0]?.exit(null);
 
       expect(scheduleRestart).not.toHaveBeenCalled();
+    });
+
+    describe("when a deadline-killed process doesn't exit either", () => {
+      it("force-kills it once the grace period elapses without an observed exit", () => {
+        const forceKill = vi.fn();
+        const { supervisor, processes } = withTimers({ forceKill });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+        expect(forceKill).not.toHaveBeenCalled();
+
+        vi.advanceTimersByTime(killGraceMs);
+
+        expect(forceKill).toHaveBeenCalledExactlyOnceWith(processes[0]);
+      });
+
+      it("never force-kills a process whose exit was observed before the grace period elapsed", () => {
+        const forceKill = vi.fn();
+        const { supervisor, processes } = withTimers({ forceKill });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+        processes[0]?.exit(null);
+        vi.advanceTimersByTime(killGraceMs);
+
+        expect(forceKill).not.toHaveBeenCalled();
+      });
+
+      it("never forks a replacement even after force-killing a process that still hasn't exited", () => {
+        // SIGKILL cannot be blocked, but a process stuck in uninterruptible I/O can still outlive
+        // it. Forking a replacement here risks exactly the two-cores-at-once failure this whole
+        // change exists to prevent; only the process's own observed exit may trigger a restart.
+        const { supervisor, fork } = withTimers();
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+        vi.advanceTimersByTime(killGraceMs);
+        vi.advanceTimersByTime(retryIntervalMs);
+
+        expect(fork).toHaveBeenCalledOnce();
+      });
+
+      it("cancels the pending force-kill when stop() runs first", () => {
+        const forceKill = vi.fn();
+        const { supervisor } = withTimers({ forceKill });
+
+        supervisor.start();
+        vi.advanceTimersByTime(readinessTimeoutMs);
+        supervisor.stop();
+        vi.advanceTimersByTime(killGraceMs);
+
+        expect(forceKill).not.toHaveBeenCalled();
+      });
     });
 
     it("exhausts the bounded restarts when every restarted core hangs, reporting the core down", () => {

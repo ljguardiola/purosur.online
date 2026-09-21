@@ -70,6 +70,11 @@ const RESTART_POLICY = {
 // it is ready, which must never be mistaken for a hang on a slow register.
 const CORE_READINESS_TIMEOUT_MS = 30_000;
 
+// UtilityProcess.kill() sends SIGTERM, which a dependency could catch or which uninterruptible
+// I/O could delay; a core still alive this long after being killed for missing its readiness
+// deadline is force-killed instead of left to hold the database/hardware forever.
+const CORE_KILL_GRACE_MS = 5_000;
+
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
 // Only honored in an unpackaged run (development and end-to-end tests), the same trust boundary
@@ -211,6 +216,21 @@ function startRegister(settings: ChannelSettings): void {
         return () => clearTimeout(id);
       },
       readinessTimeoutMs: CORE_READINESS_TIMEOUT_MS,
+      scheduleForceKill: (run, delayMs) => {
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
+      },
+      killGraceMs: CORE_KILL_GRACE_MS,
+      forceKill: (child) => {
+        if (child.pid === undefined) {
+          return;
+        }
+        try {
+          process.kill(child.pid, "SIGKILL");
+        } catch {
+          // Already exited between the grace deadline firing and this call; nothing to do.
+        }
+      },
       onProcessExited: (process) => {
         if (currentCoreProcess === process) {
           currentCoreProcess = undefined;
