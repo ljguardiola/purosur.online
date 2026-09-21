@@ -13,17 +13,20 @@ if (sentryDsn) {
   Sentry.init({ dsn: sentryDsn });
 }
 
-// Populated by electron-vite's build (see the build & packaging task). The core is built as a
-// second main-side entry, so it lands next to index.js in the same output directory rather than
-// in its own; preload and renderer each get their own directory.
+// electron-vite's output layout: the core is a second main-side entry next to index.js; preload
+// and renderer each get their own directory.
 const CORE_ENTRY = join(import.meta.dirname, "core.js");
-const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.mjs");
+const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.cjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
 const CORE_RESTART_POLICY = { maxAttempts: 5, baseDelayMs: 500, maxDelayMs: 8000 };
 
+const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
+
+// A file:// page gets no response headers, so the packaged interface carries its policy in its own
+// HTML; this header still covers what a meta element can't, such as frame-ancestors.
 function applyContentSecurityPolicy(): void {
-  const policy = buildContentSecurityPolicy();
+  const policy = buildContentSecurityPolicy(devServerUrl ? { devServerUrl } : {});
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -101,7 +104,6 @@ app.whenReady().then(() => {
     reconnectRendererToCore();
   });
 
-  const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
   if (devServerUrl) {
     void window.loadURL(devServerUrl);
   } else {

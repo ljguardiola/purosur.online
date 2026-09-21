@@ -3,7 +3,7 @@ import { createWindowOptions } from "./window-options";
 
 describe("createWindowOptions", () => {
   it("isolates the page from the application's internals", () => {
-    const options = createWindowOptions("/preload/index.mjs");
+    const options = createWindowOptions("/preload/index.cjs");
 
     expect(options.webPreferences.contextIsolation).toBe(true);
     expect(options.webPreferences.sandbox).toBe(true);
@@ -12,8 +12,8 @@ describe("createWindowOptions", () => {
   });
 
   it("wires the given preload script", () => {
-    const options = createWindowOptions("/preload/index.mjs");
+    const options = createWindowOptions("/preload/index.cjs");
 
-    expect(options.webPreferences.preload).toBe("/preload/index.mjs");
+    expect(options.webPreferences.preload).toBe("/preload/index.cjs");
   });
 });

@@ -28,8 +28,8 @@ export default {
     output: `release/${channel}`,
   },
   files: ["out/**/*"],
-  // The installer's own files are already built by electron-vite; nothing here has native
-  // bindings to rebuild yet (see CONTRIBUTING's Windows-only build note in the CI task).
+  // electron-vite has already bundled everything the app runs, and nothing has native bindings to
+  // rebuild.
   npmRebuild: false,
   forceCodeSigning: false,
   win: {
@@ -39,6 +39,6 @@ export default {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
   },
-  // Only the feed URL lives here; checking for and applying an update is issue #84.
+  // Only where each channel's updates are published; nothing checks the feed yet.
   publish: updateFeedUrl ? [{ provider: "generic", url: updateFeedUrl, channel }] : null,
 };

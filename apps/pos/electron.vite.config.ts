@@ -2,26 +2,55 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
+import type { Plugin } from "vite";
+import { buildContentSecurityPolicy } from "./src/main/content-security-policy";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+// A page loaded from file:// gets no response headers, so the packaged interface can only receive
+// its policy from the page itself.
+function contentSecurityPolicyMeta(): Plugin {
+  return {
+    name: "purosur:content-security-policy-meta",
+    apply: "build",
+    transformIndexHtml: () => [
+      {
+        tag: "meta",
+        attrs: {
+          "http-equiv": "Content-Security-Policy",
+          content: buildContentSecurityPolicy({ delivery: "meta" }),
+        },
+        injectTo: "head-prepend",
+      },
+    ],
+  };
+}
+
 export default defineConfig({
-  // `build.externalizeDeps` defaults to true for both `main` and `preload`, so node_modules
-  // dependencies (electron, @sentry/electron, zod) stay external instead of being bundled.
   main: {
     build: {
+      // electron-vite externalizes every entry in package.json's `dependencies` by default, which
+      // would leave workspace packages as bare imports resolving to their TypeScript sources at
+      // runtime. Everything is bundled instead; only `electron` and Node built-ins stay external.
+      externalizeDeps: false,
       rollupOptions: {
         input: {
-          // The core process is a second main-side entry (see the register's design doc, §5.1):
-          // it lands next to index.js in out/main so apps/pos/src/main/index.ts can find it with
-          // a plain relative path instead of a separate output directory.
           index: r("src/main/index.ts"),
+          // Emitted next to index.js, so main finds it with a plain relative path.
           core: r("src/core/index.ts"),
         },
       },
     },
   },
-  preload: {},
+  preload: {
+    build: {
+      rollupOptions: {
+        // A sandboxed preload can't be an ES module, and a .js file inside a "type": "module"
+        // package would be read as one.
+        output: { format: "cjs", entryFileNames: "[name].cjs" },
+      },
+    },
+  },
   renderer: {
     root: "src/renderer",
     resolve: {
@@ -31,7 +60,7 @@ export default defineConfig({
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), contentSecurityPolicyMeta()],
     build: {
       rollupOptions: {
         input: {
