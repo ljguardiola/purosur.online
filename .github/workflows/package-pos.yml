@@ -49,12 +49,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # An unset variable leaves that feature off in the installer.
+      - name: Dependency audit
+        run: pnpm audit
+        continue-on-error: true
+
+      # An unset variable leaves that feature off in the installer. The staging feed is a separate
+      # artifact in the staging bucket, so only the staging channel's job ever carries it; a
+      # production installer, on a PR or on main, never gets a value here.
       - run: pnpm --filter @purosur/pos package:${{ matrix.channel }}
         env:
           MAIN_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
           RENDERER_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
-          POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
+          POS_UPDATE_FEED_URL: ${{ matrix.channel == 'staging' && vars.POS_UPDATE_FEED_URL || '' }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
