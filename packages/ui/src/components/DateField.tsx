@@ -87,16 +87,29 @@ const segmentClassName =
   "data-[placeholder]:not-data-[focused]:text-ink-secondary " +
   "data-[focused]:bg-brand-blue-ui data-[focused]:text-surface-white";
 
+// The `/` separators are literal segments, not editable ones, so react-aria never marks them as
+// placeholders (`data-placeholder` follows `segment.isPlaceholder`, which a literal never is) and
+// they keep the value's own full-strength tone. Dimmed digits between near-black slashes are not
+// the placeholder the rule above is asking for, so while the field holds no date the separators
+// take the same tone: `data-type` is set on every segment, literals included, and a literal is
+// never the focused segment, so this leaves the focused segment's own treatment alone.
+const emptySeparatorClassName = "data-[type=literal]:text-ink-secondary";
+
 // IconButton.tsx's own wrapping technique, both halves of it: the button is the pointer target
 // and an inner wrapper's CSS size is what draws the glyph, regardless of the icon's own markup.
 // WCAG 2.5.8 sets 24x24 CSS px as the minimum target, and the 18px the design draws for the glyph
 // is well under it on a touch-screen register, so the button is 24px square and the glyph keeps
 // its 18px inside it — small enough to sit inside both the 56px and 48px box heights untouched.
+// That target is 3px wider than the glyph on each side, and the design's horizontal metrics are
+// the glyph's, not the target's: the negative margin takes those 3px back out of the flex layout
+// on both sides, so the glyph's own edge lands on the box's padding and the value starts one gap
+// past the glyph, while the button a finger aims at stays 24px square.
 // The calendar toggle button is a real tab stop of its own, so it carries the package's own
-// outline focus ring (see Button.tsx's own baseClassName) rather than the field's inset shadow,
-// which belongs to the box as a whole.
+// outline focus ring (see Button.tsx's own baseClassName). It sits inside the box, whose
+// focus-within shadow it therefore lights up too: both are drawn at once, the ring naming the
+// button and the shadow saying the field as a whole holds focus.
 const iconButtonClassName =
-  "inline-flex size-6 shrink-0 items-center justify-center text-ink-secondary outline-none " +
+  "inline-flex size-6 shrink-0 -mx-[3px] items-center justify-center text-ink-secondary outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 const iconGlyphClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
@@ -211,7 +224,16 @@ export function DateField(props: DateFieldProps) {
         >
           {variant === "register" && <CalendarToggleButton />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName[variant]}`}>
-            {(segment) => <AriaDateSegment segment={segment} className={segmentClassName} />}
+            {(segment) => (
+              <AriaDateSegment
+                segment={segment}
+                className={
+                  value === null
+                    ? `${segmentClassName} ${emptySeparatorClassName}`
+                    : segmentClassName
+                }
+              />
+            )}
           </AriaDateInput>
           {variant === "backoffice" && <CalendarToggleButton />}
         </AriaGroup>

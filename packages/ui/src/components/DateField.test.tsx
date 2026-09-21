@@ -337,6 +337,26 @@ for (const variant of ["register", "backoffice"] as const) {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  test(`dims the separators along with the placeholder while the field holds no date in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+    const separator = () => group.querySelector('[data-type="literal"]') as HTMLElement;
+    expect(separator().textContent?.trim()).not.toBe("");
+
+    // react-aria marks only editable segments as placeholders, so a separator left at the value's
+    // own tone draws near-black slashes between dimmed digits: an empty field that reads as
+    // half entered, which is the very thing dimming the placeholder is there to avoid.
+    expect(getComputedStyle(separator()).color).toBe(tokenRgb("ink-secondary"));
+
+    await userEvent.click(group);
+    await userEvent.keyboard("28022027");
+
+    // Once the field holds a date, the separators are part of the value the design draws.
+    await expect.poll(() => getComputedStyle(separator()).color).toBe(tokenRgb("ink"));
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   test(`marks which segment takes the next digit in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
@@ -401,6 +421,44 @@ for (const variant of ["register", "backoffice"] as const) {
     const groupRect = group.getBoundingClientRect();
     expect(toggleRect.top).toBeGreaterThanOrEqual(groupRect.top);
     expect(toggleRect.bottom).toBeLessThanOrEqual(groupRect.bottom);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
+
+// What the design draws is where the glyph sits, not where its pointer target does: the glyph's
+// own leading edge is at the box's own padding, and the value starts one gap past the glyph.
+const drawnGlyphInset: Record<DateFieldProps["variant"], number> = {
+  register: 16,
+  backoffice: 12,
+};
+
+for (const variant of ["register", "backoffice"] as const) {
+  test(`draws the glyph at the box's own padding and the value one gap past it in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+    const groupRect = group.getBoundingClientRect();
+    const toggle = group.querySelector("button") as HTMLElement;
+    const glyphRect = (toggle.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+    const input = (group.querySelector('[role="spinbutton"]') as HTMLElement)
+      .parentElement as HTMLElement;
+    const inputRect = input.getBoundingClientRect();
+
+    // A 24px target around an 18px glyph is 3px wider than it on each side, so a target laid out
+    // as an ordinary flex item would inset the glyph by that 3px and push the value 3px further
+    // than the gap the design draws.
+    if (variant === "register") {
+      expect(glyphRect.left - groupRect.left).toBeCloseTo(drawnGlyphInset[variant], 0);
+      expect(inputRect.left - glyphRect.right).toBeCloseTo(8, 0);
+    } else {
+      expect(groupRect.right - glyphRect.right).toBeCloseTo(drawnGlyphInset[variant], 0);
+      expect(glyphRect.left - inputRect.right).toBeCloseTo(8, 0);
+    }
+
+    // Putting the glyph back on the drawing moves the target, it never shrinks it.
+    const toggleRect = toggle.getBoundingClientRect();
+    expect(toggleRect.width).toBeGreaterThanOrEqual(24);
+    expect(toggleRect.height).toBeGreaterThanOrEqual(24);
 
     await expectNoAccessibilityViolations(screen.container);
   });
