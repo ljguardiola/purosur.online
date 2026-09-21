@@ -32,7 +32,8 @@ const CORE_ENTRY = join(import.meta.dirname, "core.js");
 const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.cjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
-const CORE_RESTART_POLICY = {
+// Bounds both the core's restarts and the interface's reloads.
+const RESTART_POLICY = {
   maxAttempts: 5,
   baseDelayMs: 500,
   maxDelayMs: 8000,
@@ -71,16 +72,41 @@ app.whenReady().then(() => {
 
   const window = new BrowserWindow(createWindowOptions(PRELOAD_ENTRY));
   guardWindow(window);
-  showWhenReadyAndReviveRenderer({
-    onceReadyToShow: (listener) => window.once("ready-to-show", listener),
-    show: () => window.show(),
-    isDestroyed: () => window.isDestroyed(),
-    webContents: {
-      onRendererGone: (listener) =>
-        window.webContents.on("render-process-gone", (_event, details) => listener(details.reason)),
-      reload: () => window.webContents.reload(),
+  showWhenReadyAndReviveRenderer(
+    {
+      onceReadyToShow: (listener) => window.once("ready-to-show", listener),
+      show: () => window.show(),
+      isDestroyed: () => window.isDestroyed(),
+      webContents: {
+        onRendererGone: (listener) =>
+          window.webContents.on("render-process-gone", (_event, details) =>
+            listener(details.reason),
+          ),
+        onLoadFailed: (listener) =>
+          window.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
+            if (isMainFrame) {
+              listener({ code, description });
+            }
+          }),
+        reload: () => window.webContents.reload(),
+      },
     },
-  });
+    {
+      scheduleReload: (run, delayMs) => {
+        setTimeout(run, delayMs);
+      },
+      now: () => performance.now(),
+      policy: RESTART_POLICY,
+      onRecoveryExhausted: () => {
+        console.error("renderer process: reload attempts exhausted");
+        Sentry.captureMessage("renderer process: reload attempts exhausted", "fatal");
+      },
+      onLoadFailed: ({ code, description }) => {
+        console.error(`renderer: page failed to load (${code} ${description})`);
+        Sentry.captureMessage(`renderer: page failed to load (${code} ${description})`, "error");
+      },
+    },
+  );
 
   // Tracks the live core process, if any: set inside `fork` itself (which always runs before the
   // supervisor's `onProcessStarted` hook below) and cleared as soon as it exits, so a renderer
@@ -111,7 +137,7 @@ app.whenReady().then(() => {
       setTimeout(run, delayMs);
     },
     now: () => performance.now(),
-    policy: CORE_RESTART_POLICY,
+    policy: RESTART_POLICY,
     onProcessExited: (process) => {
       if (currentCoreProcess === process) {
         currentCoreProcess = undefined;
