@@ -7,6 +7,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { __unstable__loadDesignSystem } from "@tailwindcss/node";
 import { Scanner } from "@tailwindcss/oxide";
+import { transform } from "lightningcss";
 import { afterAll, describe, expect, it } from "vitest";
 
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -99,28 +100,6 @@ const UI_TOKENS_CSS = join(APP_DIR, "../../packages/ui/src/styles/tokens.css");
 // need).
 const TAILWIND_RESOLUTION_BASE = dirname(UI_TOKENS_CSS);
 
-interface ScannedUtility {
-  candidate: string;
-  // The exact selector Tailwind's own compiler emitted for this candidate (e.g.
-  // ".hover\:bg-x:hover", ".\32 xl\:p-4"), taken verbatim from its own output — never
-  // hand-escaped, so it's correct for every case that engine handles, digit-leading classes
-  // included.
-  selector: string;
-}
-
-function selectorIn(compiledRule: string): string | undefined {
-  const full = compiledRule.match(/\.[^{]+(?=\{)/)?.[0]?.trim();
-  if (full === undefined) {
-    return undefined;
-  }
-  // Everything from the first unescaped ":" onward is a pseudo-class/pseudo-element suffix, not
-  // part of the class name itself, and a pseudo-element can be serialized two ways (":after" or
-  // "::after") depending on the packaged build's own browser-compatibility transform — so it's
-  // dropped rather than matched verbatim; the class name itself never contains an unescaped ":".
-  const suffixStart = full.search(/(?<!\\):/);
-  return suffixStart === -1 ? full : full.slice(0, suffixStart);
-}
-
 // The same scanner and compiler @tailwindcss/vite itself builds the app's CSS with (see its own
 // source): the given theme decides what a candidate compiles to, so this finds and validates
 // classes exactly as a real build would — a plain literal className, a *ClassName constant, a
@@ -129,13 +108,8 @@ function selectorIn(compiledRule: string): string | undefined {
 // with no hand-rolled shape rules to keep in sync with new patterns. candidatesToCss returns null
 // for a scanned token that isn't actually a valid utility (an import specifier, a TS union
 // member, a *ClassName record's own variant key, plain prose), so those are never even candidates
-// to filter out by hand, and its own selector for a valid one is used verbatim, never
-// re-escaped by hand.
-async function scanUtilities(
-  sourceDir: string,
-  css: string,
-  cssBase: string,
-): Promise<ScannedUtility[]> {
+// this test has to account for.
+async function scanCandidates(sourceDir: string, css: string, cssBase: string): Promise<string[]> {
   const designSystem = await __unstable__loadDesignSystem(css, { base: cssBase });
   const scanner = new Scanner({
     sources: [
@@ -145,42 +119,41 @@ async function scanUtilities(
   });
   const candidates = scanner.scan();
   const compiled = designSystem.candidatesToCss(candidates);
-
-  const utilities: ScannedUtility[] = [];
-  for (const [index, candidate] of candidates.entries()) {
-    const rule = compiled[index];
-    if (rule === null || rule === undefined) {
-      continue;
-    }
-    const selector = selectorIn(rule);
-    if (selector !== undefined) {
-      utilities.push({ candidate, selector });
-    }
-  }
-  return utilities;
+  return candidates.filter((_, index) => compiled[index] !== null);
 }
 
-function designSystemUtilities(): Promise<ScannedUtility[]> {
-  return scanUtilities(
+function designSystemCandidates(): Promise<string[]> {
+  return scanCandidates(
     UI_COMPONENTS_DIR,
     readFileSync(UI_TOKENS_CSS, "utf8"),
     TAILWIND_RESOLUTION_BASE,
   );
 }
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// A rule's selector is Tailwind's own exact output for one candidate (see selectorIn above), so
-// matching it verbatim is enough on its own to tell a class from a longer class that merely
-// starts with the same characters, as long as what follows the match isn't itself part of an
-// identifier: ".gap-1" must never match inside ".gap-10{gap:2.5rem}" (a digit continues the
-// name), but has to match a real suffix a variant or combinator can add after the class name
-// itself — ":is(...)", "[data-x]", " > svg", a bare "{" — which selectorIn deliberately leaves
-// out of the class name it returns.
-function ruleExists(selector: string, stylesheet: string): boolean {
-  return new RegExp(`${escapeRegExp(selector)}(?![A-Za-z0-9_\\\\-])`).test(stylesheet);
+// The unescaped class names any selector in the given CSS uses, collected with Lightning CSS's
+// own selector-AST visitor — the same parser Tailwind's compiler and optimizer are built on (see
+// @tailwindcss/node's own package.json: it pins lightningcss). This is not text matching: there is
+// no selector text to escape, truncate, or search for a boundary around, and the visitor walks
+// into every at-rule (@media, @supports, @layer, @container, ...) on its own, so a class nested
+// arbitrarily deep is still found. `minify` lets a caller prove that minifying the CSS first (as
+// the packaged build does) doesn't change which classes are found.
+function classNamesIn(css: string, minify = false): Set<string> {
+  const names = new Set<string>();
+  transform({
+    filename: "stylesheet.css",
+    code: Buffer.from(css),
+    minify,
+    visitor: {
+      Selector(selector) {
+        for (const component of selector) {
+          if (component.type === "class") {
+            names.add(component.name);
+          }
+        }
+      },
+    },
+  });
+  return names;
 }
 
 describe("the register's compiled stylesheet", () => {
@@ -189,38 +162,76 @@ describe("the register's compiled stylesheet", () => {
       .filter((file) => file.endsWith(".css"))
       .map((file) => readFileSync(file, "utf8"))
       .join("\n");
-    const utilities = await designSystemUtilities();
+    const classNames = classNamesIn(stylesheet);
+    const candidates = await designSystemCandidates();
 
-    expect(utilities.length).toBeGreaterThan(0);
-    expect(
-      utilities
-        .filter((utility) => !ruleExists(utility.selector, stylesheet))
-        .map((u) => u.candidate),
-    ).toEqual([]);
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates.filter((candidate) => !classNames.has(candidate))).toEqual([]);
   }, 120_000);
 });
 
-describe("ruleExists", () => {
-  it("matches a rule only by its whole selector, never a shorter selector's prefix", () => {
-    expect(ruleExists(".gap-1", ".gap-10{gap:2.5rem}")).toBe(false);
-    expect(ruleExists(".gap-1", ".gap-1{gap:0.25rem}")).toBe(true);
+describe("classNamesIn", () => {
+  it("collects a class name from a plain rule", () => {
+    expect(classNamesIn(".gap-1{gap:0.25rem}")).toEqual(new Set(["gap-1"]));
   });
 
-  it("matches even when a variant or combinator suffix follows the class name in the real rule", () => {
-    // selectorIn deliberately stops before a suffix like this (see its own comment), so matching
-    // has to tolerate one following the class name here instead of requiring the class name to be
-    // the entire selector.
-    expect(
-      ruleExists(
-        ".group-data-\\[hovered\\]\\:bg-surface-bone",
-        ".group-data-\\[hovered\\]\\:bg-surface-bone:is(:where(.group)[data-hovered] *){background-color:red}",
-      ),
-    ).toBe(true);
+  it("does not confuse one class with a longer class that starts with the same characters", () => {
+    expect(classNamesIn(".gap-10{gap:2.5rem}").has("gap-1")).toBe(false);
+  });
+
+  it("walks into every at-rule a real utility can be nested inside", () => {
+    const css = [
+      "@media (width >= 96rem) { .in-media { color: red; } }",
+      "@supports (color: red) { .in-supports { color: red; } }",
+      "@layer utilities { .in-layer { color: red; } }",
+      "@container (min-width: 1.5rem) { .in-container { color: red; } }",
+    ].join("\n");
+
+    const names = classNamesIn(css);
+
+    expect(names).toEqual(new Set(["in-media", "in-supports", "in-layer", "in-container"]));
+  });
+
+  it("collects the unescaped class name regardless of how it's escaped or what follows it", () => {
+    const css = [
+      // A digit-leading class: CSS's own codepoint escape (`\32 ` = hex 0x32 = "2"), not a
+      // per-character backslash.
+      String.raw`.\32 xl\:p-4{padding:1rem}`,
+      // A pseudo-element suffix, serialized either way depending on the build's own
+      // browser-compatibility transform.
+      String.raw`.after\:content-\[\'\*\'\]::after{content:"*"}`,
+      String.raw`.after\:content-\[\'\*\'\]:after{content:"*"}`,
+      // An arbitrary-variant combinator suffix.
+      String.raw`.\[\&\>svg\]\:h-full > svg{height:100%}`,
+      // A trailing :is(...)/attribute-selector suffix, as a group-data-[...] variant compiles to.
+      String.raw`.group-data-\[selected\]\:bg-red-500:is(:where(.group)[data-selected] *){color:red}`,
+    ].join("\n");
+
+    const names = classNamesIn(css);
+
+    expect(names).toEqual(
+      new Set([
+        "2xl:p-4",
+        "after:content-['*']",
+        "[&>svg]:h-full",
+        "group-data-[selected]:bg-red-500",
+      ]),
+    );
+  });
+
+  it("finds the same classes whether the CSS is minified or not", () => {
+    const css = ".gap-1{gap:0.25rem}\n@media (width >= 96rem) { .in-media { color: red; } }";
+
+    expect(classNamesIn(css, true)).toEqual(classNamesIn(css, false));
+  });
+
+  it("reports a class actually absent from the CSS as absent, never silently", () => {
+    expect(classNamesIn(".gap-1{gap:0.25rem}").has("this-class-does-not-exist")).toBe(false);
   });
 });
 
-describe("scanUtilities", () => {
-  it("finds classes wherever a component builds them, not just a literal JSX className attribute", async () => {
+describe("scanCandidates and classNamesIn end to end", () => {
+  it("scans, compiles, minifies and matches classes the same way the real guard does", async () => {
     const fixtureDir = mkdtempSync(join(tmpdir(), "purosur-pos-class-scan-"));
     outputDirs.push(fixtureDir);
     writeFileSync(
@@ -232,7 +243,10 @@ describe("scanUtilities", () => {
         "      <span className={rowClassName(isFirst)} />",
         "      <span className={contentClassName} />",
         '      <span className="[&>svg]:h-full" />',
+        '      <span className="[&_>_svg]:h-full" />',
         '      <span className="2xl:p-4" />',
+        '      <span className="min-[1.5rem]:p-4" />',
+        '      <span className="group-data-[selected]:bg-red-500" />',
         "    </div>",
         "  );",
         "}",
@@ -252,27 +266,43 @@ describe("scanUtilities", () => {
         "",
       ].join("\n"),
     );
+    const css = '@import "tailwindcss";';
 
-    const utilities = await scanUtilities(
-      fixtureDir,
-      '@import "tailwindcss";',
-      TAILWIND_RESOLUTION_BASE,
-    );
-    const candidates = utilities.map((utility) => utility.candidate);
+    const candidates = await scanCandidates(fixtureDir, css, TAILWIND_RESOLUTION_BASE);
+    const expectedCandidates = [
+      "p-8",
+      "pl-1.5",
+      "border-l-4",
+      "after:content-['*']",
+      "[&>svg]:h-full",
+      "[&_>_svg]:h-full",
+      // A digit-leading variant: Tailwind's own escape for it (`.\32 xl\:p-4`) is exactly what a
+      // hand-escaping scheme (backslash before every non [A-Za-z0-9_-] character) gets wrong.
+      "2xl:p-4",
+      // Its own compiled rule's @container prelude contains a decimal point ("1.5rem") before the
+      // rule's actual selector — exactly what previously broke a "first '.' before '{'" selector
+      // search.
+      "min-[1.5rem]:p-4",
+      "group-data-[selected]:bg-red-500",
+    ];
+    expect(candidates).toEqual(expect.arrayContaining(expectedCandidates));
 
-    expect(candidates).toEqual(
-      expect.arrayContaining([
-        "p-8",
-        "pl-1.5",
-        "border-l-4",
-        "after:content-['*']",
-        "[&>svg]:h-full",
-        // A digit-leading variant: Tailwind's own CSS.escape-style output (`.\32 xl\:p-4`) is
-        // exactly what a hand-escaping scheme (backslash before every non [A-Za-z0-9_-]
-        // character) gets wrong, since a leading digit needs its own escape, not the variant
-        // colon's.
-        "2xl:p-4",
-      ]),
-    );
+    const designSystem = await __unstable__loadDesignSystem(css, {
+      base: TAILWIND_RESOLUTION_BASE,
+    });
+    const compiledCss = designSystem
+      .candidatesToCss(candidates)
+      .filter((rule) => rule !== null)
+      .join("\n");
+    // Minified, like the packaged build's own CSS, to prove minification doesn't change which
+    // classes are found.
+    const classNames = classNamesIn(compiledCss, true);
+
+    for (const candidate of expectedCandidates) {
+      expect(classNames.has(candidate)).toBe(true);
+    }
+    // A class genuinely absent from the compiled CSS has to be reported missing, not silently
+    // accepted.
+    expect(classNames.has("this-class-does-not-exist")).toBe(false);
   }, 30_000);
 });
