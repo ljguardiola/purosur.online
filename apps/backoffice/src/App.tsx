@@ -49,6 +49,7 @@ export function App({ help }: AppProps) {
   return (
     <Shell
       areaRailLabel={messages.shell.areaRailLabel}
+      sectionColumnLabel={messages.ayuda.sectionsNavLabel}
       rail={
         <AreaNavItem
           label={messages.ayuda.areaLabel}

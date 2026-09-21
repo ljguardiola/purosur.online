@@ -10,6 +10,7 @@ export const messages = defineMessages("es-AR", () => ({
     pageDocumentTitle: (params: { page: string }) => `${params.page} · Ayuda · Puro Sur`,
     pageHeading: "Ayuda",
     sectionsHeading: "Ayuda",
+    sectionsNavLabel: "Secciones de ayuda",
     searchPlaceholder: "Buscar en la ayuda",
     breadcrumb: (params: { section: string }) => `Ayuda · ${params.section}`,
     relatedHeading: "También te puede servir",

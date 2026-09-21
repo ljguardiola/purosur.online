@@ -38,53 +38,67 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 
 type ArticleEntry = [string, HelpArticle<string, string>];
 
-function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {articles.map(([id, article]) => (
-        <LinkRow key={id} to={articleHref(article.category, id)} label={article.title} />
-      ))}
-    </div>
-  );
+/** Pairs each item with a React key, numbering repeated content so identical items stay distinct. */
+function keyed<Item>(items: readonly Item[], keyOf: (item: Item) => string): Array<[string, Item]> {
+  const occurrences = new Map<string, number>();
+  return items.map((item) => {
+    const content = keyOf(item);
+    const occurrence = (occurrences.get(content) ?? 0) + 1;
+    occurrences.set(content, occurrence);
+    return [`${occurrence}:${content}`, item];
+  });
 }
 
-// A stable identity for a body block that never relies on its position, since a heading or note
-// could be reordered without changing what it says.
-function blockKey(block: HelpBlock<string>): string {
+function blockContent(block: HelpBlock<string>): string {
   switch (block.kind) {
     case "heading":
     case "paragraph":
     case "note":
       return `${block.kind}:${block.text}`;
     case "steps":
-      return `steps:${block.items.join("|")}`;
+      return `steps:${JSON.stringify(block.items)}`;
     case "articleLink":
       return `articleLink:${block.article}`;
   }
+}
+
+function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {articles.map(([id, article]) => (
+        <li key={id}>
+          <LinkRow to={articleHref(article.category, id)} label={article.title} />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function Block({ block, help }: { block: HelpBlock<string>; help: AyudaHelpCatalog }) {
   switch (block.kind) {
     case "heading":
       return (
-        <p className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
+        <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
           {block.text}
-        </p>
+        </h2>
       );
     case "paragraph":
       return <p className="text-base text-ink leading-[1.5]">{block.text}</p>;
     case "steps":
       return (
-        <div className="flex flex-col gap-3">
-          {block.items.map((item, index) => (
-            <div key={item} className="flex items-start gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-blue-message-bg font-bold text-brand-blue-strong text-sm">
+        <ol className="flex flex-col gap-3">
+          {keyed(block.items, (item) => item).map(([key, item], index) => (
+            <li key={key} className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-blue-message-bg font-bold text-brand-blue-strong text-sm"
+              >
                 {index + 1}
               </span>
               <p className="text-base text-ink leading-[1.45]">{item}</p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       );
     case "note":
       return (
@@ -109,20 +123,25 @@ function RelatedPanel({
   help: AyudaHelpCatalog;
   relatedIds: readonly string[];
 }) {
+  const related = relatedIds.flatMap((id): ArticleEntry[] => {
+    const article = ownEntry(help.articles, id);
+    return article ? [[id, article]] : [];
+  });
   return (
     <nav
       aria-label={messages.ayuda.relatedHeading}
       className="flex w-[18.75rem] shrink-0 flex-col gap-2"
     >
-      <p className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
+      <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
         {messages.ayuda.relatedHeading}
-      </p>
-      {relatedIds.map((id) => {
-        const article = ownEntry(help.articles, id);
-        return article ? (
-          <LinkRow key={id} to={articleHref(article.category, id)} label={article.title} />
-        ) : null;
-      })}
+      </h2>
+      <ul className="flex flex-col gap-2">
+        {keyed(related, ([id]) => id).map(([key, [id, article]]) => (
+          <li key={key}>
+            <LinkRow to={articleHref(article.category, id)} label={article.title} />
+          </li>
+        ))}
+      </ul>
     </nav>
   );
 }
@@ -137,8 +156,8 @@ function ArticleView({
   return (
     <div className="flex gap-6">
       <div className="flex flex-1 flex-col gap-4 rounded-lg border border-line bg-surface-white p-6">
-        {article.body.map((block) => (
-          <Block key={blockKey(block)} block={block} help={help} />
+        {keyed(article.body, blockContent).map(([key, block]) => (
+          <Block key={key} block={block} help={help} />
         ))}
       </div>
       {article.related && article.related.length > 0 && (
@@ -159,15 +178,18 @@ export function AyudaSectionColumn({ help, activeCategoryId }: AyudaSectionColum
     <>
       <h2 className="font-bold text-brand-blue-strong text-xl">{messages.ayuda.sectionsHeading}</h2>
       <div className="h-2.5" />
-      {Object.entries(help.categories).map(([id, category]) => (
-        <SectionNavItem
-          key={id}
-          label={category.label}
-          icon={sectionIcon(category.icon)}
-          active={id === activeCategoryId}
-          {...linkProps(sectionHref(id))}
-        />
-      ))}
+      <ul className="flex flex-col gap-1">
+        {Object.entries(help.categories).map(([id, category]) => (
+          <li key={id}>
+            <SectionNavItem
+              label={category.label}
+              icon={sectionIcon(category.icon)}
+              active={id === activeCategoryId}
+              {...linkProps(sectionHref(id))}
+            />
+          </li>
+        ))}
+      </ul>
     </>
   );
 }

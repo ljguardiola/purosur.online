@@ -53,6 +53,14 @@ test("AyudaSectionColumn lists every category as a link, marking the active one"
   expect(billing.getAttribute("aria-current")).toBe("page");
 });
 
+test("AyudaSectionColumn lists the categories as list items under its heading", async () => {
+  const screen = await render(<AyudaSectionColumn help={help} activeCategoryId={null} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
+  const items = screen.getByRole("list").getByRole("listitem").elements();
+  expect(items.map((item) => item.textContent)).toEqual(["Primeros pasos", "Facturación"]);
+});
+
 test("AyudaSectionColumn renders no items for an empty catalog", async () => {
   const empty = defineHelp("es-AR", { categories: {}, articles: {} });
   const screen = await render(<AyudaSectionColumn help={empty} activeCategoryId={null} />);
@@ -112,6 +120,125 @@ test("renders a selected article's breadcrumb, title and every block kind", asyn
   for (const link of articleLinks) {
     expect((link as HTMLAnchorElement).getAttribute("href")).toBe("/ayuda/billing/billing_basics");
   }
+});
+
+test("gives an article's structure to assistive technology as headings and lists", async () => {
+  const screen = await render(<ContentHarness categoryId="getting_started" articleId="intro" />);
+
+  await expect.element(screen.getByRole("heading", { name: "Bienvenida", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Antes de empezar", level: 2 }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "También te puede servir", level: 2 }))
+    .toBeVisible();
+
+  const steps = screen.getByRole("list").filter({ hasText: "Cargá tus productos" });
+  expect((steps.element() as HTMLElement).tagName).toBe("OL");
+  expect(
+    steps
+      .getByRole("listitem")
+      .elements()
+      .map((item) => item.textContent),
+  ).toEqual(["1Cargá tus productos", "2Abrí la caja"]);
+
+  const related = screen.getByRole("navigation", { name: "También te puede servir" });
+  expect(related.getByRole("listitem").elements()).toHaveLength(1);
+});
+
+test("lists a category's articles and search results as list items", async () => {
+  const category = await render(<ContentHarness categoryId="getting_started" articleId={null} />);
+  expect(
+    category
+      .getByRole("listitem")
+      .elements()
+      .map((item) => item.textContent),
+  ).toEqual(["Bienvenida"]);
+  await category.unmount();
+
+  const results = await render(
+    <ContentHarness categoryId={null} articleId={null} search="factura" />,
+  );
+  expect(
+    results
+      .getByRole("listitem")
+      .elements()
+      .map((item) => item.textContent),
+  ).toEqual(["Facturación básica"]);
+});
+
+test("labels every state with a level-1 heading", async () => {
+  const home = await render(<ContentHarness categoryId={null} articleId={null} />);
+  await expect.element(home.getByRole("heading", { name: "Ayuda", level: 1 })).toBeInTheDocument();
+  await home.unmount();
+
+  const section = await render(<ContentHarness categoryId="billing" articleId={null} />);
+  await expect
+    .element(section.getByRole("heading", { name: "Facturación", level: 1 }))
+    .toBeInTheDocument();
+});
+
+// React logs a duplicate-key warning only after the render commits, so the spy stays installed
+// for a tick past the render before it is read.
+async function collectKeyWarnings(renderContent: () => Promise<unknown>): Promise<string[]> {
+  const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+  await renderContent();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const warnings = spy.mock.calls
+    .map((call) => call.map(String).join(" "))
+    .filter((message) => message.includes("same key"));
+  spy.mockRestore();
+  return warnings;
+}
+
+test("the duplicate-key probe catches colliding keys", async () => {
+  const warnings = await collectKeyWarnings(() =>
+    render(
+      <ul>
+        {["same", "same"].map((text) => (
+          <li key={text}>{text}</li>
+        ))}
+      </ul>,
+    ),
+  );
+
+  expect(warnings).not.toEqual([]);
+});
+
+test("renders repeated blocks, steps and related articles without colliding keys", async () => {
+  const repetitive = defineHelp("es-AR", {
+    categories: { getting_started: { label: "Primeros pasos" } },
+    articles: {
+      intro: {
+        category: "getting_started",
+        title: "Bienvenida",
+        body: [
+          { kind: "note", text: "Guardá los cambios." },
+          { kind: "steps", items: ["Revisá", "Confirmá", "Revisá"] },
+          { kind: "note", text: "Guardá los cambios." },
+          { kind: "steps", items: ["Revisá", "Confirmá", "Revisá"] },
+          { kind: "articleLink", article: "other" },
+          { kind: "articleLink", article: "other" },
+        ],
+        related: ["other", "other"],
+      },
+      other: { category: "getting_started", title: "Otro", body: [] },
+    },
+  });
+
+  const warnings = await collectKeyWarnings(() =>
+    render(
+      <AyudaContent
+        help={repetitive}
+        categoryId="getting_started"
+        articleId="intro"
+        search=""
+        onSearchChange={() => {}}
+      />,
+    ),
+  );
+
+  expect(warnings).toEqual([]);
 });
 
 test("renders the related panel from the article's related list", async () => {

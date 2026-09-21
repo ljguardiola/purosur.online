@@ -1,7 +1,10 @@
 import type { HelpArticle, HelpBlock } from "@purosur/ui";
 
 function normalizeForSearch(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 function blockText(block: HelpBlock<string>): readonly string[] {

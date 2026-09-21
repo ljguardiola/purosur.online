@@ -74,10 +74,13 @@ test("moves an article reached under another category to its own category's URL"
   await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
 });
 
-test("renders the shell's area rail landmark", async () => {
+test("renders the shell's area rail and section column landmarks", async () => {
   const screen = await render(<App help={emptyHelp} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("navigation", { name: "Secciones de ayuda" }))
+    .toBeVisible();
 });
 
 test("shows the active Ayuda item in the rail and the Ayuda screen's own content", async () => {
