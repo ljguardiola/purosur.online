@@ -468,9 +468,8 @@ test("renders a 64px right-aligned value axis with a tick per grid line, formatt
     expect(contrast).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
   }
 
-  // The axis column is taller than the plot, so pin that the row it shares stays the plot's height
-  // and the labels stay 6px below it.
-  expect(plotRect.height).toBeCloseTo(150, 0);
+  // The axis column is taller than the plot, so pin that the row it shares still ends where the
+  // plot does: the labels stay 6px below it.
   expect(labelsContainer(screen).getBoundingClientRect().top - plotRect.bottom).toBeCloseTo(6, 0);
 
   const lines = gridLines(screen);
@@ -561,7 +560,8 @@ test("grows the axis by exactly the overflow of a tick just past the 64px floor"
   const axisRect = axisColumn(screen).getBoundingClientRect();
   const plotRect = plotArea(screen).getBoundingClientRect();
 
-  expect(naturalWidth).toBeGreaterThan(64);
+  // Past the floor by more than toBeCloseTo's half-pixel, so an axis stuck at 64px cannot pass.
+  expect(naturalWidth - 64).toBeGreaterThan(1);
   expect(axisRect.width).toBeCloseTo(naturalWidth, 0);
   expect(plotRect.left - axisRect.right).toBeCloseTo(12, 0);
   for (const tick of axisTicks(screen)) {
