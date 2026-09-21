@@ -21,7 +21,7 @@ export type IconButtonProps = Omit<
   };
 
 const className =
-  "inline-flex h-[2.375rem] w-[2.375rem] items-center justify-center rounded-lg " +
+  "inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-lg " +
   "border border-line bg-surface-white text-brand-blue-strong " +
   "transition-[background-color,border-color] outline-none " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +

@@ -28,6 +28,21 @@ test("renders at 38x38px with a white background, an 8px radius and a line borde
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("stays 38x38px even in a flex container too narrow to fit it, overflowing instead of shrinking", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", width: "20px" }}>
+      <IconButton aria-label="Delete row" icon={<Trash2 />} />
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: "Delete row" }).element() as HTMLElement;
+  const rect = button.getBoundingClientRect();
+
+  expect(rect.width).toBeGreaterThan(37);
+  expect(rect.width).toBeLessThan(39);
+  expect(rect.height).toBeGreaterThan(37);
+  expect(rect.height).toBeLessThan(39);
+});
+
 test("renders the caller's glyph at 18px in strong blue", async () => {
   const screen = await render(<IconButton aria-label="Delete row" icon={<Trash2 />} />);
   const button = screen.getByRole("button", { name: "Delete row" }).element() as HTMLElement;

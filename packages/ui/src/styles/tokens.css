@@ -69,6 +69,34 @@
   --color-ink-backdrop: #1a1a1a80;
   /* Ink at 30% opacity, for the modal panel's own drop shadow. */
   --color-ink-panel-shadow: #1a1a1a4d;
+  /* Ink at 16% opacity, for the list filter's open menu drop shadow. */
+  --color-ink-menu-shadow: #1a1a1a29;
+
+  /* Keeps the table's placeholder rows invisible for 300ms, then reveals them in one step, with
+     no timer: the delay and the fill mode live entirely in this animation. */
+  --animate-table-placeholder-reveal: table-placeholder-reveal 0s 300ms both;
+
+  /* Slides the table's updating bar segment across its track so it never looks stuck; paired
+     with motion-reduce:animate-none where it's used, for prefers-reduced-motion. */
+  --animate-table-loading-bar: table-loading-bar 1.2s linear infinite;
+}
+
+@keyframes table-placeholder-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes table-loading-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
 }
 
 @layer base {
