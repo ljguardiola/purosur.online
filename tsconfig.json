@@ -28,6 +28,7 @@
     "vitest.config.ts",
     "apps/cloud/vitest.global-setup.ts",
     "apps/pos/electron.vite.config.ts",
+    "apps/backoffice/vite.config.ts",
     "apps/pos/e2e",
     "apps/pos/vitest.e2e.config.ts",
     ".railway/railway.ts"

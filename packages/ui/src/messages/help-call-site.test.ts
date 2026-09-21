@@ -53,7 +53,7 @@ describe("defineHelp's reference safety at the call site", () => {
     const result = typeCheckCall(
       "bad-category.ts",
       `defineHelp("es-AR", {
-        categories: { getting_started: "Primeros pasos" },
+        categories: { getting_started: { label: "Primeros pasos" } },
         articles: { intro: { category: "ghost", title: "Bienvenida", body: [] } },
       });`,
     );
@@ -66,7 +66,7 @@ describe("defineHelp's reference safety at the call site", () => {
     const result = typeCheckCall(
       "bad-related.ts",
       `defineHelp("es-AR", {
-        categories: { getting_started: "Primeros pasos" },
+        categories: { getting_started: { label: "Primeros pasos" } },
         articles: { intro: { category: "getting_started", title: "B", body: [], related: ["ghost"] } },
       });`,
     );
@@ -79,7 +79,7 @@ describe("defineHelp's reference safety at the call site", () => {
     const result = typeCheckCall(
       "bad-article-link.ts",
       `defineHelp("es-AR", {
-        categories: { getting_started: "Primeros pasos" },
+        categories: { getting_started: { label: "Primeros pasos" } },
         articles: {
           intro: { category: "getting_started", title: "B", body: [{ kind: "articleLink", article: "ghost" }] } },
       });`,
@@ -93,7 +93,7 @@ describe("defineHelp's reference safety at the call site", () => {
     const result = typeCheckCall(
       "valid.ts",
       `defineHelp("es-AR", {
-        categories: { getting_started: "Primeros pasos", billing: "Facturación" },
+        categories: { getting_started: { label: "Primeros pasos" }, billing: { label: "Facturación" } },
         articles: {
           intro: {
             category: "getting_started", title: "B", related: ["billing_basics"],

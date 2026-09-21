@@ -1,3 +1,5 @@
+export type { AreaNavItemIcon, AreaNavItemProps } from "./components/AreaNavItem";
+export { AreaNavItem } from "./components/AreaNavItem";
 export type {
   ButtonIcon,
   ButtonProps,
@@ -40,6 +42,8 @@ export type { PaginationProps } from "./components/Pagination";
 export { Pagination } from "./components/Pagination";
 export type { ProportionBarProps } from "./components/ProportionBar";
 export { ProportionBar } from "./components/ProportionBar";
+export type { PuroSurIsotypeProps } from "./components/PuroSurIsotype";
+export { PuroSurIsotype } from "./components/PuroSurIsotype";
 export type { PuroSurLogoProps } from "./components/PuroSurLogo";
 export { PuroSurLogo } from "./components/PuroSurLogo";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
@@ -50,6 +54,8 @@ export type {
   SearchFieldVariant,
 } from "./components/SearchField";
 export { SearchField } from "./components/SearchField";
+export type { SectionNavItemIcon, SectionNavItemProps } from "./components/SectionNavItem";
+export { SectionNavItem } from "./components/SectionNavItem";
 export type {
   SegmentedControlIcon,
   SegmentedControlOption,
@@ -89,6 +95,7 @@ export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
 export type {
+  Category,
   CategoryRecord,
   HelpArticle,
   HelpArticles,

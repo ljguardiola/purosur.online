@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import type { FastifyInstance } from "fastify";
@@ -9,10 +11,14 @@ export interface ServerEnv {
   APP_VERSION?: string | undefined;
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
+  BACKOFFICE_STATIC_DIR?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_VERSION = "unknown";
+
+// apps/cloud/Dockerfile copies the backoffice build to public/, a sibling of this file's dist/.
+const DEFAULT_STATIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
 /** `APP_VERSION` is baked into the image at build time (the commit SHA); "unknown" is a dev-only fallback. */
 export function resolveVersion(env: ServerEnv): string {
@@ -22,6 +28,25 @@ export function resolveVersion(env: ServerEnv): string {
 export function resolvePort(env: ServerEnv): number {
   const parsed = env.PORT ? Number.parseInt(env.PORT, 10) : Number.NaN;
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
+}
+
+function holdsBackofficeBuild(dir: string): boolean {
+  return existsSync(join(dir, "index.html"));
+}
+
+/**
+ * An explicit `BACKOFFICE_STATIC_DIR` must hold a build, or startup fails. The default directory
+ * is used only when it holds one, so the service still starts without a backoffice build.
+ */
+export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | undefined {
+  const explicitDir = env.BACKOFFICE_STATIC_DIR;
+  if (explicitDir) {
+    if (!holdsBackofficeBuild(explicitDir)) {
+      throw new Error(`BACKOFFICE_STATIC_DIR has no index.html: ${explicitDir}`);
+    }
+    return explicitDir;
+  }
+  return holdsBackofficeBuild(defaultDir) ? defaultDir : undefined;
 }
 
 export interface StartServerDeps {
@@ -38,7 +63,10 @@ export async function startServer(
 
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
 
-  const app = doBuildApp({ version: resolveVersion(env) });
+  const app = doBuildApp({
+    version: resolveVersion(env),
+    staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
+  });
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;
 }

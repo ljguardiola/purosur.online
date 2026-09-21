@@ -1,6 +1,8 @@
 import type { Locale } from "./formatters";
 
-export type CategoryRecord = Record<string, string>;
+// `icon` is a name each app resolves to an icon of its own choosing.
+export type Category = { label: string; icon?: string };
+export type CategoryRecord = Record<string, Category>;
 
 export type HelpBlock<ArticleId extends string> =
   | { kind: "heading"; text: string }

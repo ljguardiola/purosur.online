@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   registerShutdownHandlers,
   reportStartupFailure,
   resolvePort,
+  resolveStaticDir,
   resolveVersion,
   shutdownServer,
   startServer,
@@ -31,29 +35,89 @@ describe("resolvePort", () => {
   });
 });
 
+describe("resolveStaticDir", () => {
+  const dirs: string[] = [];
+
+  function tempDir(withIndexHtml: boolean): string {
+    const dir = mkdtempSync(join(tmpdir(), "cloud-static-default-"));
+    dirs.push(dir);
+    if (withIndexHtml) {
+      writeFileSync(join(dir, "index.html"), "<!doctype html>");
+    }
+    return dir;
+  }
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns BACKOFFICE_STATIC_DIR when it holds a build", () => {
+    const dir = tempDir(true);
+    expect(resolveStaticDir({ BACKOFFICE_STATIC_DIR: dir }, "/default")).toBe(dir);
+  });
+
+  it("refuses to start when BACKOFFICE_STATIC_DIR does not exist", () => {
+    expect(() =>
+      resolveStaticDir({ BACKOFFICE_STATIC_DIR: "/does/not/exist" }, "/default"),
+    ).toThrow("/does/not/exist");
+  });
+
+  it("refuses to start when BACKOFFICE_STATIC_DIR has no index.html", () => {
+    const dir = tempDir(false);
+    expect(() => resolveStaticDir({ BACKOFFICE_STATIC_DIR: dir }, "/default")).toThrow(dir);
+  });
+
+  it("returns the default directory when it holds a build", () => {
+    const dir = tempDir(true);
+    expect(resolveStaticDir({}, dir)).toBe(dir);
+  });
+
+  it("returns undefined when the default directory holds no build", () => {
+    expect(resolveStaticDir({}, tempDir(false))).toBeUndefined();
+    expect(resolveStaticDir({}, "/definitely/does/not/exist/purosur-backoffice")).toBeUndefined();
+  });
+});
+
 describe("startServer", () => {
-  it("initializes Sentry, builds the app with the resolved version, and listens on PORT/0.0.0.0", async () => {
+  it("initializes Sentry, builds the app with the resolved version and static dir, and listens on PORT/0.0.0.0", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
     const initSentry = vi.fn();
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
+    const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-start-"));
+    writeFileSync(join(staticDir, "index.html"), "<!doctype html>");
     const env = {
       PORT: "4000",
       APP_VERSION: "sha123",
       SENTRY_DSN: "https://public@sentry.example/1",
       SENTRY_ENVIRONMENT: "staging",
+      BACKOFFICE_STATIC_DIR: staticDir,
     };
 
-    const app = await startServer(env, { initSentry, buildApp });
+    const app = await startServer(env, { initSentry, buildApp }).finally(() =>
+      rmSync(staticDir, { recursive: true, force: true }),
+    );
 
     expect(initSentry).toHaveBeenCalledWith({
       dsn: "https://public@sentry.example/1",
       environment: "staging",
     });
-    expect(buildApp).toHaveBeenCalledWith({ version: "sha123" });
+    expect(buildApp).toHaveBeenCalledWith({ version: "sha123", staticDir });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
+  });
+
+  it("builds the app with an undefined staticDir when none is configured and the default doesn't exist", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer({}, { initSentry: vi.fn(), buildApp });
+
+    expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
   });
 });
 

@@ -17,6 +17,11 @@ RUN pnpm install --frozen-lockfile --filter @purosur/cloud...
 RUN pnpm --filter @purosur/cloud build
 RUN pnpm --filter @purosur/cloud deploy --prod /deploy/cloud
 
+FROM base AS build-backoffice
+COPY . .
+RUN pnpm install --frozen-lockfile --filter @purosur/backoffice...
+RUN pnpm --filter @purosur/backoffice build
+
 FROM base AS runtime
 # Baked in at build time (the commit SHA); GET /health reports it back so a deploy can be verified.
 ARG APP_VERSION
@@ -24,6 +29,8 @@ ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /deploy/cloud ./
+# dist/server.js serves the backoffice from ../public when BACKOFFICE_STATIC_DIR is unset.
+COPY --from=build-backoffice /repo/apps/backoffice/dist ./public
 RUN addgroup -S cloud && adduser -S cloud -G cloud && chown -R cloud:cloud /app
 USER cloud
 EXPOSE 3000
