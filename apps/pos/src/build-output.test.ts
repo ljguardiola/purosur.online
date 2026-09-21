@@ -5,6 +5,8 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { __unstable__loadDesignSystem } from "@tailwindcss/node";
+import { Scanner } from "@tailwindcss/oxide";
 import { afterAll, describe, expect, it } from "vitest";
 
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -90,108 +92,30 @@ describe("the register's compiled app code", () => {
 });
 
 const UI_COMPONENTS_DIR = join(APP_DIR, "../../packages/ui/src/components");
+const UI_TOKENS_CSS = join(APP_DIR, "../../packages/ui/src/styles/tokens.css");
 
-// Scans forward from just inside an opening "{" (a JSX `className={` expression) for its matching
-// close, counting brace depth so nested braces — an object/array literal, a template literal's
-// `${...}` — don't end the span early. None of the classes below ever contain "{" or "}"
-// themselves, so counting braces alone (ignoring string context) is enough.
-function balancedBraceSpan(source: string, openBraceIndex: number): string {
-  let depth = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{") {
-      depth += 1;
-    } else if (character === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openBraceIndex + 1, index);
-      }
-    }
-  }
-  return source.slice(openBraceIndex + 1);
-}
-
-// Scans forward from just after the "=" of a `*ClassName = ...;` declaration for its terminating
-// top-level ";", tracking bracket depth so a Record<...> object literal's own punctuation doesn't
-// end the span early.
-function declarationSpan(source: string, afterEqualsIndex: number): string {
-  let depth = 0;
-  for (let index = afterEqualsIndex; index < source.length; index += 1) {
-    const character = source[index];
-    if (character === "{" || character === "[" || character === "(") {
-      depth += 1;
-    } else if (character === "}" || character === "]" || character === ")") {
-      depth -= 1;
-    } else if (character === ";" && depth <= 0) {
-      return source.slice(afterEqualsIndex, index);
-    }
-  }
-  return source.slice(afterEqualsIndex);
-}
-
-// Class-bearing text lives in exactly two shapes in packages/ui's components: a JSX
-// `className={...}` expression, and a declaration whose identifier contains "ClassName"
-// (case-sensitively, so the lowercase `className` prop/attribute itself never matches). Scanning
-// only inside these regions is what keeps every other string literal in the file — TS union
-// members, a *ClassName record's own variant keys, React `key`s, a plain function argument, an
-// import specifier — out of the candidate set, without having to recognize each of those shapes
-// by name.
-function classBearingRegions(source: string): string[] {
-  const regions: string[] = [];
-  for (const match of source.matchAll(/\bclassName=\{/g)) {
-    regions.push(balancedBraceSpan(source, match.index + match[0].length - 1));
-  }
-  for (const match of source.matchAll(/\b[$\w]*ClassName[$\w]*\s*(?::[^=\n]*)?=\s*/g)) {
-    regions.push(declarationSpan(source, match.index + match[0].length));
-  }
-  return regions;
-}
-
-// A Tailwind utility (including a variant prefix and an arbitrary value) is lowercase and built
-// only from these characters. A bare word with none of "-", ":" or "[" is excluded even when it's
-// shaped like one (e.g. a one-word utility such as "flex"): it reads exactly the same as ordinary
-// prose (e.g. "content"), and there is no way to tell them apart from characters alone, so this
-// trades a little recall for never reporting an English word as a missing class.
-const UTILITY_TOKEN = /^-?[a-z][a-z0-9:/.\-[\]_%!()]*$/;
-
-function looksLikeUtilityClass(token: string): boolean {
-  if (token === "" || token.startsWith("aria-")) {
-    return false;
-  }
-  return /[-:[]/.test(token) && UTILITY_TOKEN.test(token);
-}
-
-// The candidate tokens a source file's `className={...}` expressions and `*ClassName`
-// declarations use, minus each declaration's own variant keys (e.g. `"plain-text"` in
-// TextField.tsx's `frameClassName` record) and anything that doesn't look like a utility class.
-function utilityClassesIn(source: string): string[] {
-  const classes = new Set<string>();
-  for (const region of classBearingRegions(source)) {
-    for (const match of region.matchAll(/"([^"]*)"(\s*:)?/g)) {
-      if (match[2]) {
-        continue;
-      }
-      for (const token of (match[1] ?? "").split(/\s+/)) {
-        if (looksLikeUtilityClass(token)) {
-          classes.add(token);
-        }
-      }
-    }
-  }
-  return [...classes];
-}
-
-function designSystemUtilityClasses(): string[] {
-  const classes = new Set<string>();
-  for (const file of filesUnder(UI_COMPONENTS_DIR)) {
-    if (!file.endsWith(".tsx") || file.endsWith(".test.tsx")) {
-      continue;
-    }
-    for (const name of utilityClassesIn(readFileSync(file, "utf8"))) {
-      classes.add(name);
-    }
-  }
-  return [...classes];
+// The same scanner and compiler @tailwindcss/vite itself builds the app's CSS with (see its own
+// source): the design system's own theme decides what a candidate compiles to, so this finds and
+// validates classes exactly as the real build does — a plain literal className, a *ClassName
+// constant, a variant-map value, a function body, a template literal, an arbitrary-value or
+// arbitrary-variant selector, anything Tailwind's own scanner recognizes, wherever it appears in
+// the file — with no hand-rolled shape rules to keep in sync with new patterns. candidatesToCss
+// returns null for a scanned token that isn't actually a valid utility (an import specifier, a TS
+// union member, a *ClassName record's own variant key, plain prose), so those are never even
+// candidates to filter out by hand.
+async function designSystemUtilityClasses(): Promise<string[]> {
+  const designSystem = await __unstable__loadDesignSystem(readFileSync(UI_TOKENS_CSS, "utf8"), {
+    base: dirname(UI_TOKENS_CSS),
+  });
+  const scanner = new Scanner({
+    sources: [
+      { base: UI_COMPONENTS_DIR, pattern: "**/*", negated: false },
+      { base: UI_COMPONENTS_DIR, pattern: "**/*.test.tsx", negated: true },
+    ],
+  });
+  const candidates = scanner.scan();
+  const compiled = designSystem.candidatesToCss(candidates);
+  return candidates.filter((_, index) => compiled[index] !== null);
 }
 
 // Tailwind writes a class name into its selector with every character outside [A-Za-z0-9_-]
@@ -203,12 +127,12 @@ function selectorFor(name: string): RegExp {
 }
 
 describe("the register's compiled stylesheet", () => {
-  it("includes every utility class the design system's components use", () => {
+  it("includes every utility class the design system's components use", async () => {
     const stylesheet = filesUnder(join(plainBuild(), "renderer"))
       .filter((file) => file.endsWith(".css"))
       .map((file) => readFileSync(file, "utf8"))
       .join("\n");
-    const classes = designSystemUtilityClasses();
+    const classes = await designSystemUtilityClasses();
 
     expect(classes.length).toBeGreaterThan(0);
     expect(classes.filter((name) => !selectorFor(name).test(stylesheet))).toEqual([]);
@@ -224,64 +148,27 @@ describe("the register's compiled stylesheet", () => {
   });
 });
 
-describe("utilityClassesIn", () => {
-  it("extracts classes from a *ClassName string constant, including concatenated pieces", () => {
-    const source = 'const trackClassName =\n  "items-center gap-3 " +\n  "outline-none";';
+describe("designSystemUtilityClasses", () => {
+  it("finds classes wherever packages/ui's components build them, not just literal JSX className attributes", async () => {
+    const classes = await designSystemUtilityClasses();
 
-    expect(utilityClassesIn(source)).toEqual(
-      expect.arrayContaining(["items-center", "gap-3", "outline-none"]),
-    );
-  });
-
-  it("extracts classes from a className={...} expression, including array-join and template forms", () => {
-    const source =
-      "function Row() {\n" +
-      '  return <span className={["min-w-0", colorClassName].join(" ")} />;\n' +
-      "}";
-
-    expect(utilityClassesIn(source)).toEqual(expect.arrayContaining(["min-w-0"]));
-  });
-
-  it("keeps a *ClassName record's class values but drops its variant keys", () => {
-    const source =
-      "const frameClassName: Record<Kind, string> = {\n" +
-      '  "plain-text": "h-[3.25rem] px-4",\n' +
-      "};";
-
-    const classes = utilityClassesIn(source);
-
-    expect(classes).toEqual(expect.arrayContaining(["h-[3.25rem]", "px-4"]));
+    // A plain literal `className="..."` attribute (Table.tsx's empty state title), unique to it.
+    expect(classes).toContain("max-w-[32.5rem]");
+    // A class returned from a function body, built with a ternary (Table.tsx's
+    // cellHorizontalPaddingClassName), unique to it.
+    expect(classes).toContain("pl-1.5");
+    // A lowercase `const className = [...]` — not a `*ClassName`-named identifier
+    // (NotificationCard.tsx), unique to it.
+    expect(classes).toContain("border-l-4");
+    // A template literal, not a plain string (TextField.tsx's requiredLabelClassName), unique to
+    // it.
+    expect(classes).toContain("after:content-['*']");
+    // A ternary's true-branch operand immediately followed by ":" (ListFilter.tsx) — a
+    // hand-rolled "string followed by : is a variant-map key" rule would drop this, unique to it.
+    expect(classes).toContain("border-brand-blue-ui");
+    // Modal.tsx's ModalContextTone union members and TextField.tsx's frameClassName variant keys
+    // are never classes, however class-shaped they read.
+    expect(classes).not.toContain("brand-blue-ui");
     expect(classes).not.toContain("plain-text");
-  });
-
-  it("ignores a string literal that isn't part of a className expression or a *ClassName declaration", () => {
-    const source = 'export type ModalContextTone = "brand-blue-ui" | "brand-earth-ui";';
-
-    expect(utilityClassesIn(source)).toEqual([]);
-  });
-
-  it("ignores an import specifier, even one shaped like a hyphenated class list", () => {
-    const source = 'import { Switch as AriaSwitch } from "react-aria-components";';
-
-    expect(utilityClassesIn(source)).toEqual([]);
-  });
-
-  it("ignores an aria- attribute name inside a className expression", () => {
-    const source = 'const x = <span className={isOpen ? "aria-hidden" : "inline-flex"} />;';
-
-    const classes = utilityClassesIn(source);
-
-    expect(classes).not.toContain("aria-hidden");
-    expect(classes).toContain("inline-flex");
-  });
-
-  it("ignores a bare word that reads as prose, keeping only compound utility-shaped tokens", () => {
-    const source = 'const noticeClassName = "content flex gap-2";';
-
-    const classes = utilityClassesIn(source);
-
-    expect(classes).not.toContain("content");
-    expect(classes).not.toContain("flex");
-    expect(classes).toContain("gap-2");
   });
 });
