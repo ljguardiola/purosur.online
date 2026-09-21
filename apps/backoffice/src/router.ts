@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-// Fired after every navigate() push, since a pushState() call never triggers "popstate" on its
-// own — only the browser's back/forward buttons do.
+// pushState() and replaceState() never fire "popstate"; only the browser's back/forward buttons do.
 const NAVIGATE_EVENT = "purosur:navigate";
 
 function subscribe(callback: () => void): () => void {
@@ -28,11 +27,21 @@ export function useRoute(): string {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/** Pushes a new history entry for `path` and notifies every mounted useRoute(). */
-export function navigate(path: string): void {
-  if (path === window.location.pathname) {
-    return;
+/** Calls `listener` on every navigate() call, even to the current path, and on browser back/forward. */
+export function onNavigate(listener: () => void): () => void {
+  return subscribe(listener);
+}
+
+export type NavigateOptions = {
+  replace?: boolean;
+};
+
+/** Moves to `path` in a new history entry, or in the current one with `replace`, and notifies every useRoute() and onNavigate() listener. */
+export function navigate(path: string, options: NavigateOptions = {}): void {
+  if (options.replace) {
+    window.history.replaceState(null, "", path);
+  } else if (path !== window.location.pathname) {
+    window.history.pushState(null, "", path);
   }
-  window.history.pushState(null, "", path);
   window.dispatchEvent(new Event(NAVIGATE_EVENT));
 }

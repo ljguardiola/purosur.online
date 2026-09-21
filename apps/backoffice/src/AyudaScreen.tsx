@@ -1,16 +1,16 @@
-import type { CategoryRecord, HelpArticle, HelpBlock, HelpCatalog } from "@purosur/ui";
+import type { HelpArticle, HelpBlock } from "@purosur/ui";
 import { SearchField, SectionNavItem } from "@purosur/ui";
 import { ChevronRight, Info, Search } from "lucide-react";
-import { articleHref, sectionHref } from "./ayudaRoutes";
+import type { Ref } from "react";
+import { type AyudaHelpCatalog, articleHref, sectionHref } from "./ayudaRoutes";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
 import { searchArticles } from "./searchHelp";
 import { sectionIcon } from "./sectionIcons";
 
-export type AyudaHelpCatalog = HelpCatalog<
-  CategoryRecord,
-  Record<string, HelpArticle<string, string>>
->;
+function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
+  return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
+}
 
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +
@@ -94,7 +94,7 @@ function Block({ block, help }: { block: HelpBlock<string>; help: AyudaHelpCatal
         </div>
       );
     case "articleLink": {
-      const linked = help.articles[block.article];
+      const linked = ownEntry(help.articles, block.article);
       return linked ? (
         <LinkRow to={articleHref(linked.category, block.article)} label={linked.title} />
       ) : null;
@@ -118,7 +118,7 @@ function RelatedPanel({
         {messages.ayuda.relatedHeading}
       </p>
       {relatedIds.map((id) => {
-        const article = help.articles[id];
+        const article = ownEntry(help.articles, id);
         return article ? (
           <LinkRow key={id} to={articleHref(article.category, id)} label={article.title} />
         ) : null;
@@ -178,6 +178,7 @@ export type AyudaContentProps = {
   articleId: string | null;
   search: string;
   onSearchChange: (value: string) => void;
+  headingRef?: Ref<HTMLHeadingElement>;
 };
 
 /** The Ayuda screen's own content: search, and whatever the current route/search selects, for Shell's children slot. */
@@ -187,9 +188,10 @@ export function AyudaContent({
   articleId,
   search,
   onSearchChange,
+  headingRef,
 }: AyudaContentProps) {
-  const activeCategory = categoryId ? help.categories[categoryId] : undefined;
-  const activeArticle = articleId ? help.articles[articleId] : undefined;
+  const activeCategory = ownEntry(help.categories, categoryId);
+  const activeArticle = ownEntry(help.articles, articleId);
   const isSearching = search.trim() !== "";
   const results = isSearching ? searchArticles(help.articles, search) : [];
 
@@ -201,8 +203,18 @@ export function AyudaContent({
             {messages.ayuda.breadcrumb({ section: activeCategory.label })}
           </p>
         )}
-        {activeArticle && (
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{activeArticle.title}</h1>
+        {activeArticle ? (
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-bold text-2xl text-brand-blue-strong outline-none"
+          >
+            {activeArticle.title}
+          </h1>
+        ) : (
+          <h1 ref={headingRef} tabIndex={-1} className="sr-only">
+            {activeCategory ? activeCategory.label : messages.ayuda.pageHeading}
+          </h1>
         )}
       </div>
       <div className="flex flex-col gap-4 p-6">

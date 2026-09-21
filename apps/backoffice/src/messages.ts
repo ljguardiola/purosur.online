@@ -6,6 +6,9 @@ export const messages = defineMessages("es-AR", () => ({
   },
   ayuda: {
     areaLabel: "Ayuda",
+    documentTitle: "Ayuda · Puro Sur",
+    pageDocumentTitle: (params: { page: string }) => `${params.page} · Ayuda · Puro Sur`,
+    pageHeading: "Ayuda",
     sectionsHeading: "Ayuda",
     searchPlaceholder: "Buscar en la ayuda",
     breadcrumb: (params: { section: string }) => `Ayuda · ${params.section}`,
