@@ -1,5 +1,12 @@
 // Cloud-only concepts: the register (apps/pos) never runs their use cases.
-const CLOUD_ONLY_CONCEPTS = "purchasing|alerts|catalog|pricing";
+export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
+
+// Matches an npm package either by its raw specifier (left unresolved when the
+// package isn't installed) or by its resolved node_modules path, never by a repo
+// folder that happens to share the package's name.
+function npmPackage(name) {
+  return `^${name}(/|$)|(^|/)node_modules/${name}/`;
+}
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 export default {
@@ -44,11 +51,14 @@ export default {
     {
       name: "model-not-use-cases",
       comment:
-        "A concept's model/ must not depend on that same concept's use-cases/; the " +
-        "dependency runs from use-cases down to model, never the reverse.",
+        "model/ must never reach (directly or transitively) any use-cases/, its own " +
+        "concept's or another's; the dependency runs from use-cases down to model, " +
+        "never the reverse.",
       severity: "error",
-      from: { path: "^packages/domain/src/([^/]+)/model/" },
-      to: { path: "^packages/domain/src/$1/use-cases/" },
+      from: { path: "^packages/domain/src/[^/]+/model/" },
+      // Not narrowed to the same concept on purpose: reachable rules don't carry
+      // `from` capture groups into `to.path`, so `$1` would stay literal.
+      to: { path: "^packages/domain/src/[^/]+/use-cases/", reachable: true },
     },
     {
       name: "concept-entry-point-only",
@@ -62,6 +72,16 @@ export default {
         path: "^packages/domain/src/(?!$1/)[^/]+/",
         pathNot: "^packages/domain/src/(?!$1/)[^/]+/index\\.ts$",
       },
+    },
+    {
+      name: "concept-not-domain-root",
+      comment:
+        "A file inside a domain concept must not import a file at the root of " +
+        "packages/domain/src (its index.ts included); a root file can re-export " +
+        "another concept's internals and so bypass concept-entry-point-only.",
+      severity: "error",
+      from: { path: "^packages/domain/src/[^/]+/" },
+      to: { path: "^packages/domain/src/[^/]+$" },
     },
     {
       name: "no-use-case-to-use-case",
@@ -110,17 +130,18 @@ export default {
       severity: "error",
       from: { path: "^apps/pos/src/renderer/" },
       to: {
-        path:
-          "^apps/pos/src/core/|" +
-          "(^|/)electron($|/)|" +
-          "(^|/)better-sqlite3($|/)|" +
-          "(^|/)drizzle-orm($|/)|" +
-          "(^|/)serialport($|/)|" +
-          "(^|/)@serialport/[^/]+($|/)",
+        path: [
+          "^apps/pos/src/core/",
+          npmPackage("electron"),
+          npmPackage("better-sqlite3"),
+          npmPackage("drizzle-orm"),
+          npmPackage("serialport"),
+          npmPackage("@serialport/[^/]+"),
+        ],
       },
     },
     {
-      name: "renderer-no-db-or-hardware",
+      name: "renderer-no-node-builtins",
       comment:
         "The renderer runs in a sandboxed browser context: it must never touch a " +
         "Node builtin module directly.",
@@ -132,12 +153,12 @@ export default {
       name: "register-no-cloud-use-cases",
       comment:
         "Nothing under apps/pos/ may reach (directly or transitively) a use case of " +
-        `a cloud-only concept (${CLOUD_ONLY_CONCEPTS.replaceAll("|", ", ")}); the ` +
+        `a cloud-only concept (${CLOUD_ONLY_CONCEPTS.join(", ")}); the ` +
         "register never runs those.",
       severity: "error",
       from: { path: "^apps/pos/" },
       to: {
-        path: `^packages/domain/src/(${CLOUD_ONLY_CONCEPTS})/use-cases/`,
+        path: `^packages/domain/src/(${CLOUD_ONLY_CONCEPTS.join("|")})/use-cases/`,
         reachable: true,
       },
     },
@@ -151,11 +172,12 @@ export default {
       severity: "error",
       from: { path: "^apps/pos/src/main/" },
       to: {
-        pathNot:
-          "^apps/pos/src/main/|" +
-          "(^|/)electron($|/)|" +
-          "(^|/)electron-updater($|/)|" +
-          "(^|/)@sentry/electron($|/)",
+        pathNot: [
+          "^apps/pos/src/main/",
+          npmPackage("electron"),
+          npmPackage("electron-updater"),
+          npmPackage("@sentry/electron"),
+        ],
         dependencyTypesNot: ["core"],
       },
     },

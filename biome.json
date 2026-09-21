@@ -55,6 +55,19 @@
       }
     },
     {
+      "includes": ["apps/pos/src/renderer/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": {
+              "level": "error",
+              "options": { "style": "separatedType" }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/ui/src/**", "apps/*/src/**", "!**/*.test.ts", "!**/*.test.tsx"],
       "linter": {
         "rules": {

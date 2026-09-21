@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import extractTSConfig from "dependency-cruiser/config-utl/extract-ts-config";
-import config from "../../.dependency-cruiser.mjs";
+import config, { CLOUD_ONLY_CONCEPTS } from "../../.dependency-cruiser.mjs";
 
 async function writeFixtureFile(root, relativePath, content) {
   const filePath = join(root, relativePath);
@@ -36,39 +37,36 @@ async function installPnpmPackage(root, packageName) {
   await symlink(realDir, linkPath, "dir");
 }
 
-async function makeFixture(files) {
+// Every fixture gets the tsconfig.json the repository's options name; a fixture
+// that needs TypeScript path-alias resolution (an `@purosur/*` import) provides
+// its own with an explicit baseUrl, so resolution doesn't depend on the
+// process's current working directory.
+async function makeFixture(t, files) {
   const root = await mkdtemp(join(tmpdir(), "depcruise-fixture-"));
-  for (const [relativePath, content] of Object.entries(files)) {
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const withTsConfig = { [config.options.tsConfig.fileName]: "{}\n", ...files };
+  for (const [relativePath, content] of Object.entries(withTsConfig)) {
     await writeFixtureFile(root, relativePath, content);
   }
   return root;
 }
 
-// Cruises a fixture with the repository's real forbidden rules. Fixtures that
-// need TypeScript path-alias resolution (an `@purosur/*` import) provide their
-// own tsconfig.json with an explicit baseUrl, so resolution doesn't depend on
-// the process's current working directory.
-async function cruiseFixture(root, dirs, { withTsConfig = false } = {}) {
-  const ruleSet = { forbidden: config.forbidden };
-  let transpileOptions;
-
-  if (withTsConfig) {
-    const tsConfigFileName = join(root, "tsconfig.json");
-    ruleSet.options = { tsConfig: { fileName: tsConfigFileName } };
-    transpileOptions = { tsConfig: extractTSConfig(tsConfigFileName) };
-  }
-
+// Cruises a fixture with the repository's real rules and options, overriding
+// only what has to point into the fixture: baseDir and the tsconfig.json path.
+async function cruiseFixture(root, dirs) {
+  const tsConfigFileName = join(root, config.options.tsConfig.fileName);
   const result = await cruise(
     dirs,
     {
-      outputType: "json",
+      ...config.options,
+      tsConfig: { ...config.options.tsConfig, fileName: tsConfigFileName },
       baseDir: root,
-      tsPreCompilationDeps: true,
+      outputType: "json",
       validate: true,
-      ruleSet,
+      ruleSet: { forbidden: config.forbidden },
     },
     undefined,
-    transpileOptions,
+    { tsConfig: extractTSConfig(tsConfigFileName) },
   );
 
   return JSON.parse(result.output);
@@ -79,7 +77,7 @@ function violationsFor(report, ruleName) {
 }
 
 test("domain-is-pure flags everything outside packages/domain/src and allows what stays inside it", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/model/order.ts": [
       'import { readFileSync } from "node:fs";',
       'import { Button } from "@purosur/ui";',
@@ -103,10 +101,9 @@ test("domain-is-pure flags everything outside packages/domain/src and allows wha
       },
     }),
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
   await installPnpmPackage(root, "installed-npm-lib");
 
-  const report = await cruiseFixture(root, ["packages", "apps"], { withTsConfig: true });
+  const report = await cruiseFixture(root, ["packages", "apps"]);
   const violations = violationsFor(report, "domain-is-pure");
   const violationTargets = violations.map((violation) => violation.to);
 
@@ -131,17 +128,46 @@ test("domain-is-pure flags everything outside packages/domain/src and allows wha
       "}",
     ].join("\n"),
   );
-  const controlReport = await cruiseFixture(root, ["packages", "apps"], { withTsConfig: true });
+  const controlReport = await cruiseFixture(root, ["packages", "apps"]);
   assert.equal(violationsFor(controlReport, "domain-is-pure").length, 0);
 });
 
+test("domain-is-pure flags a type-only import of an npm package", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/model/order.ts": [
+      'import type { ZodType } from "zod";',
+      "export type Order = ZodType;",
+    ].join("\n"),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violations = violationsFor(report, "domain-is-pure");
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].to, "zod");
+});
+
+test("a test file importing a forbidden module breaks no rule", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/model/order.test.ts": [
+      'import { readFileSync } from "node:fs";',
+      'import { Button } from "../../../../ui/src/index";',
+      "export const deps = [readFileSync, Button];",
+    ].join("\n"),
+    "packages/ui/src/index.ts": "export const Button = {};\n",
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.deepEqual(report.summary.violations, []);
+});
+
 test("apps-to-packages-only flags packages importing an app and allows the reverse", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/ui/src/index.ts":
       'import { helper } from "../../../apps/pos/src/helper";\nexport { helper };\n',
     "apps/pos/src/helper.ts": "export function helper() {}\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["packages", "apps"]);
   const violations = violationsFor(report, "apps-to-packages-only");
@@ -160,11 +186,10 @@ test("apps-to-packages-only flags packages importing an app and allows the rever
 });
 
 test("no-app-to-app flags one app importing another and allows importing within the same app", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "apps/pos/src/a.ts": 'import { b } from "../../backoffice/src/b";\nexport { b };\n',
     "apps/backoffice/src/b.ts": "export function b() {}\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["apps"]);
   const violations = violationsFor(report, "no-app-to-app");
@@ -179,7 +204,7 @@ test("no-app-to-app flags one app importing another and allows importing within 
 });
 
 test("domain-not-contracts flags domain importing contracts and allows contracts importing domain via its alias", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/model/order.ts": [
       'import type { OrderContract } from "../../../../contracts/src/index";',
       "export type Order = OrderContract;",
@@ -196,9 +221,8 @@ test("domain-not-contracts flags domain importing contracts and allows contracts
     }),
     "packages/domain/src/index.ts": "export type Id = string;\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
-  const report = await cruiseFixture(root, ["packages"], { withTsConfig: true });
+  const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "domain-not-contracts");
 
   assert.equal(violations.length, 1);
@@ -216,7 +240,7 @@ test("domain-not-contracts flags domain importing contracts and allows contracts
       "\n",
     ),
   );
-  const controlReport = await cruiseFixture(root, ["packages"], { withTsConfig: true });
+  const controlReport = await cruiseFixture(root, ["packages"]);
   const controlViolations = violationsFor(controlReport, "domain-not-contracts");
 
   assert.equal(controlViolations.length, 0);
@@ -227,7 +251,7 @@ test("domain-not-contracts flags domain importing contracts and allows contracts
 });
 
 test("model-not-use-cases flags model depending on its own concept's use-cases and allows the reverse", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/model/order.ts": [
       'import { createOrder } from "../use-cases/create-order";',
       "export function order() {",
@@ -236,7 +260,6 @@ test("model-not-use-cases flags model depending on its own concept's use-cases a
     ].join("\n"),
     "packages/domain/src/sales/use-cases/create-order.ts": "export function createOrder() {}\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "model-not-use-cases");
@@ -263,8 +286,33 @@ test("model-not-use-cases flags model depending on its own concept's use-cases a
   assert.equal(violationsFor(controlReport, "model-not-use-cases").length, 0);
 });
 
+test("model-not-use-cases flags model reaching use-cases through an index.ts, its own concept's or another's", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/model/order.ts": [
+      'import { createOrder } from "../index";',
+      'import { refund } from "../../returns/index";',
+      "export function order() {",
+      "  return [createOrder, refund];",
+      "}",
+    ].join("\n"),
+    "packages/domain/src/sales/index.ts":
+      'export { createOrder } from "./use-cases/create-order";\n',
+    "packages/domain/src/sales/use-cases/create-order.ts": "export function createOrder() {}\n",
+    "packages/domain/src/returns/index.ts": 'export { refund } from "./use-cases/refund";\n',
+    "packages/domain/src/returns/use-cases/refund.ts": "export function refund() {}\n",
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const reached = violationsFor(report, "model-not-use-cases").map((violation) => violation.to);
+
+  assert.deepEqual(reached.sort(), [
+    "packages/domain/src/returns/use-cases/refund.ts",
+    "packages/domain/src/sales/use-cases/create-order.ts",
+  ]);
+});
+
 test("concept-entry-point-only flags reaching into another concept's internals and allows its index.ts", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/use-cases/create-order.ts": [
       'import { refundPolicy } from "../../returns/model/refund-policy";',
       "export function createOrder() {",
@@ -275,7 +323,6 @@ test("concept-entry-point-only flags reaching into another concept's internals a
     "packages/domain/src/returns/index.ts":
       'export { refundPolicy } from "./model/refund-policy";\n',
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "concept-entry-point-only");
@@ -297,8 +344,58 @@ test("concept-entry-point-only flags reaching into another concept's internals a
   assert.equal(violationsFor(controlReport, "concept-entry-point-only").length, 0);
 });
 
+test("a use case reaching into its own concept's model breaks no rule", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/use-cases/create-order.ts": [
+      'import { order } from "../model/order";',
+      "export function createOrder() {",
+      "  return order();",
+      "}",
+    ].join("\n"),
+    "packages/domain/src/sales/model/order.ts": "export function order() {}\n",
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.deepEqual(report.summary.violations, []);
+});
+
+test("concept-not-domain-root flags a concept importing a domain root helper or the domain root index.ts", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/use-cases/create-order.ts": [
+      'import { refundPolicy } from "../../bridge";',
+      'import { refund } from "@purosur/domain";',
+      "export function createOrder() {",
+      "  return [refundPolicy, refund];",
+      "}",
+    ].join("\n"),
+    "packages/domain/src/bridge.ts":
+      'export { refundPolicy } from "./returns/model/refund-policy";\n',
+    "packages/domain/src/index.ts": 'export { refund } from "./returns/index";\n',
+    "packages/domain/src/returns/model/refund-policy.ts": "export function refundPolicy() {}\n",
+    "packages/domain/src/returns/index.ts":
+      'export { refundPolicy as refund } from "./model/refund-policy";\n',
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        baseUrl: ".",
+        paths: { "@purosur/domain": ["./packages/domain/src/index.ts"] },
+      },
+    }),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+  const violationTargets = violationsFor(report, "concept-not-domain-root").map(
+    (violation) => violation.to,
+  );
+
+  assert.deepEqual(violationTargets.toSorted(), [
+    "packages/domain/src/bridge.ts",
+    "packages/domain/src/index.ts",
+  ]);
+});
+
 test("no-use-case-to-use-case flags reaching another concept's use case through its index.ts and allows same-concept use", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/use-cases/create-order.ts": [
       'import { refund } from "../../returns/index";',
       "export function createOrder() {",
@@ -309,7 +406,6 @@ test("no-use-case-to-use-case flags reaching another concept's use case through 
       'export function refund() {\n  return "refunded";\n}\n',
     "packages/domain/src/returns/index.ts": 'export { refund } from "./use-cases/refund";\n',
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "no-use-case-to-use-case");
@@ -344,8 +440,24 @@ test("no-use-case-to-use-case flags reaching another concept's use case through 
   assert.equal(violationsFor(controlReport, "no-use-case-to-use-case").length, 0);
 });
 
+test("no-use-case-to-use-case allows a use case calling another use case of its own concept", async (t) => {
+  const root = await makeFixture(t, {
+    "packages/domain/src/sales/use-cases/create-order.ts": [
+      'import { priceOrder } from "./price-order";',
+      "export function createOrder() {",
+      "  return priceOrder();",
+      "}",
+    ].join("\n"),
+    "packages/domain/src/sales/use-cases/price-order.ts": "export function priceOrder() {}\n",
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.equal(violationsFor(report, "no-use-case-to-use-case").length, 0);
+});
+
 test("no-concept-cycles flags a cycle crossing concepts and allows one contained inside a single concept", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "packages/domain/src/sales/index.ts": [
       'import { helper } from "../returns/index";',
       "export function saleThing() {",
@@ -359,7 +471,6 @@ test("no-concept-cycles flags a cycle crossing concepts and allows one contained
       "}",
     ].join("\n"),
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["packages"]);
   const violations = violationsFor(report, "no-concept-cycles");
@@ -387,7 +498,7 @@ test("no-concept-cycles flags a cycle crossing concepts and allows one contained
 });
 
 test("renderer-types-only-from-domain flags a value import from domain and allows a type-only one", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "apps/pos/src/renderer/view.ts": [
       'import { Order } from "../../../../packages/domain/src/sales/index";',
       "export function show(order) {",
@@ -397,7 +508,6 @@ test("renderer-types-only-from-domain flags a value import from domain and allow
     ].join("\n"),
     "packages/domain/src/sales/index.ts": "export const Order = { id: 1 };\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["apps", "packages"]);
   const violations = violationsFor(report, "renderer-types-only-from-domain");
@@ -424,81 +534,121 @@ test("renderer-types-only-from-domain flags a value import from domain and allow
   assert.equal(violationsFor(controlReport, "renderer-types-only-from-domain").length, 0);
 });
 
-test("renderer-no-db-or-hardware flags Node/db/hardware/core imports and allows importing packages/ui", async (t) => {
-  const root = await makeFixture({
-    "apps/pos/src/renderer/view.ts": [
-      'import { readFileSync } from "node:fs";',
-      'import Database from "better-sqlite3";',
-      'import { startCore } from "../core/index";',
-      "export function show() {",
-      "  return [readFileSync, Database, startCore];",
-      "}",
-    ].join("\n"),
+const RENDERER_FORBIDDEN_PACKAGES = [
+  "electron",
+  "better-sqlite3",
+  "drizzle-orm",
+  "serialport",
+  "@serialport/parser-readline",
+];
+
+function importEach(specifiers) {
+  return [
+    ...specifiers.map((specifier, index) => `import * as dep${index} from "${specifier}";`),
+    `export const deps = [${specifiers.map((_, index) => `dep${index}`).join(", ")}];`,
+  ].join("\n");
+}
+
+test("renderer-no-db-or-hardware flags db/hardware packages and core, and allows packages/ui and a local folder named like a package", async (t) => {
+  const specifiers = [...RENDERER_FORBIDDEN_PACKAGES, "drizzle-orm/sqlite-core", "../core/index"];
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/view.ts": importEach(specifiers),
     "apps/pos/src/core/index.ts": "export function startCore() {}\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["apps"]);
-  const violations = violationsFor(report, "renderer-no-db-or-hardware");
-  const violationTargets = violations.map((violation) => violation.to);
+  const violationTargets = violationsFor(report, "renderer-no-db-or-hardware").map(
+    (violation) => violation.to,
+  );
 
-  assert.equal(violations.length, 3);
-  assert.equal(violationTargets.includes("fs"), true);
-  assert.equal(violationTargets.includes("better-sqlite3"), true);
-  assert.equal(violationTargets.includes("apps/pos/src/core/index.ts"), true);
+  assert.deepEqual(
+    violationTargets.toSorted(),
+    [
+      ...RENDERER_FORBIDDEN_PACKAGES,
+      "apps/pos/src/core/index.ts",
+      "drizzle-orm/sqlite-core",
+    ].toSorted(),
+  );
 
   await writeFixtureFile(
     root,
     "apps/pos/src/renderer/view.ts",
-    [
-      'import { Button } from "../../../../packages/ui/src/index";',
-      "export function show() {",
-      "  return Button;",
-      "}",
-    ].join("\n"),
+    importEach(["../../../../packages/ui/src/index", "./electron/bridge"]),
   );
+  await writeFixtureFile(root, "apps/pos/src/renderer/electron/bridge.ts", "export {};\n");
   await writeFixtureFile(root, "packages/ui/src/index.ts", "export const Button = {};\n");
   const controlReport = await cruiseFixture(root, ["apps", "packages"]);
   assert.equal(violationsFor(controlReport, "renderer-no-db-or-hardware").length, 0);
 });
 
-test("renderer-no-db-or-hardware flags an installed forbidden package by its resolved node_modules path", async (t) => {
-  const root = await makeFixture({
-    "apps/pos/src/renderer/view.ts": [
-      'import Database from "better-sqlite3";',
-      "export function show() {",
-      "  return Database;",
-      "}",
-    ].join("\n"),
+test("renderer-no-db-or-hardware flags installed forbidden packages by their resolved node_modules paths", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/view.ts": importEach(RENDERER_FORBIDDEN_PACKAGES),
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
-  await installPnpmPackage(root, "better-sqlite3");
+  for (const packageName of RENDERER_FORBIDDEN_PACKAGES) {
+    await installPnpmPackage(root, packageName);
+  }
 
   const report = await cruiseFixture(root, ["apps"]);
-  const violations = violationsFor(report, "renderer-no-db-or-hardware");
+  const violationTargets = violationsFor(report, "renderer-no-db-or-hardware").map(
+    (violation) => violation.to,
+  );
 
-  assert.equal(violations.length, 1);
-  assert.equal(violations[0].to.endsWith("node_modules/better-sqlite3/index.js"), true);
+  assert.equal(violationTargets.length, RENDERER_FORBIDDEN_PACKAGES.length);
+  for (const packageName of RENDERER_FORBIDDEN_PACKAGES) {
+    assert.equal(
+      violationTargets.some((to) => to.endsWith(`node_modules/${packageName}/index.js`)),
+      true,
+      packageName,
+    );
+  }
 });
 
-test("register-no-cloud-use-cases flags reaching a cloud-only use case and allows reaching a register use case", async (t) => {
-  const root = await makeFixture({
-    "apps/pos/src/main/index.ts": [
-      'import { reorder } from "../../../../packages/domain/src/purchasing/index";',
-      "export function run() {",
-      "  return reorder();",
-      "}",
-    ].join("\n"),
-    "packages/domain/src/purchasing/use-cases/reorder.ts": "export function reorder() {}\n",
-    "packages/domain/src/purchasing/index.ts": 'export { reorder } from "./use-cases/reorder";\n',
+test("renderer-no-node-builtins flags a Node builtin and allows importing packages/ui", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/view.ts": importEach(["node:fs"]),
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
-  const report = await cruiseFixture(root, ["apps", "packages"]);
-  const violations = violationsFor(report, "register-no-cloud-use-cases");
+  const report = await cruiseFixture(root, ["apps"]);
+  const violations = violationsFor(report, "renderer-no-node-builtins");
 
   assert.equal(violations.length, 1);
-  assert.equal(violations[0].to, "packages/domain/src/purchasing/use-cases/reorder.ts");
+  assert.equal(violations[0].to, "fs");
+
+  await writeFixtureFile(
+    root,
+    "apps/pos/src/renderer/view.ts",
+    importEach(["../../../../packages/ui/src/index"]),
+  );
+  await writeFixtureFile(root, "packages/ui/src/index.ts", "export const Button = {};\n");
+  const controlReport = await cruiseFixture(root, ["apps", "packages"]);
+  assert.equal(violationsFor(controlReport, "renderer-no-node-builtins").length, 0);
+});
+
+test("register-no-cloud-use-cases flags reaching each cloud-only concept's use case and allows reaching a register use case", async (t) => {
+  const cloudOnlyConcepts = ["purchasing", "alerts", "catalog", "pricing"];
+  const files = {
+    "apps/pos/src/main/index.ts": importEach(
+      cloudOnlyConcepts.map((concept) => `../../../../packages/domain/src/${concept}/index`),
+    ),
+  };
+  for (const concept of cloudOnlyConcepts) {
+    files[`packages/domain/src/${concept}/use-cases/run.ts`] = "export function run() {}\n";
+    files[`packages/domain/src/${concept}/index.ts`] = 'export { run } from "./use-cases/run";\n';
+  }
+  const root = await makeFixture(t, files);
+
+  const report = await cruiseFixture(root, ["apps", "packages"]);
+  const violationTargets = violationsFor(report, "register-no-cloud-use-cases").map(
+    (violation) => violation.to,
+  );
+
+  assert.deepEqual(
+    violationTargets.toSorted(),
+    cloudOnlyConcepts
+      .map((concept) => `packages/domain/src/${concept}/use-cases/run.ts`)
+      .toSorted(),
+  );
 
   await writeFixtureFile(
     root,
@@ -524,26 +674,38 @@ test("register-no-cloud-use-cases flags reaching a cloud-only use case and allow
   assert.equal(violationsFor(controlReport, "register-no-cloud-use-cases").length, 0);
 });
 
+test("every cloud-only concept register-no-cloud-use-cases names exists in packages/domain/src", async () => {
+  const domainSource = fileURLToPath(new URL("../../packages/domain/src/", import.meta.url));
+
+  assert.equal(CLOUD_ONLY_CONCEPTS.length > 0, true);
+  for (const concept of CLOUD_ONLY_CONCEPTS) {
+    const entry = await stat(join(domainSource, concept));
+    assert.equal(entry.isDirectory(), true, concept);
+  }
+});
+
 test("main-process-scope flags importing other packages and allows electron and Node builtins", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "apps/pos/src/main/index.ts": [
       'import { Button } from "../../../../packages/ui/src/index";',
       'import leftPad from "left-pad";',
+      'import { ipc } from "../core/electron/ipc";',
       "export function run() {",
-      "  return [Button, leftPad];",
+      "  return [Button, leftPad, ipc];",
       "}",
     ].join("\n"),
     "packages/ui/src/index.ts": "export const Button = {};\n",
+    "apps/pos/src/core/electron/ipc.ts": "export const ipc = {};\n",
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
 
   const report = await cruiseFixture(root, ["apps", "packages"]);
   const violations = violationsFor(report, "main-process-scope");
   const violationTargets = violations.map((violation) => violation.to);
 
-  assert.equal(violations.length, 2);
+  assert.equal(violations.length, 3);
   assert.equal(violationTargets.includes("packages/ui/src/index.ts"), true);
   assert.equal(violationTargets.includes("left-pad"), true);
+  assert.equal(violationTargets.includes("apps/pos/src/core/electron/ipc.ts"), true);
 
   await writeFixtureFile(
     root,
@@ -551,17 +713,23 @@ test("main-process-scope flags importing other packages and allows electron and 
     [
       'import { app } from "electron";',
       'import { readFileSync } from "node:fs";',
+      'import { createWindow } from "./window";',
       "export function run() {",
-      "  return [app, readFileSync];",
+      "  return [app, readFileSync, createWindow];",
       "}",
     ].join("\n"),
+  );
+  await writeFixtureFile(
+    root,
+    "apps/pos/src/main/window.ts",
+    "export function createWindow() {}\n",
   );
   const controlReport = await cruiseFixture(root, ["apps", "packages"]);
   assert.equal(violationsFor(controlReport, "main-process-scope").length, 0);
 });
 
 test("main-process-scope allows an installed electron, electron-updater, and @sentry/electron by their resolved node_modules paths", async (t) => {
-  const root = await makeFixture({
+  const root = await makeFixture(t, {
     "apps/pos/src/main/index.ts": [
       'import { app } from "electron";',
       'import updater from "electron-updater";',
@@ -571,7 +739,6 @@ test("main-process-scope allows an installed electron, electron-updater, and @se
       "}",
     ].join("\n"),
   });
-  t.after(() => rm(root, { recursive: true, force: true }));
   await installPnpmPackage(root, "electron");
   await installPnpmPackage(root, "electron-updater");
   await installPnpmPackage(root, "@sentry/electron");
