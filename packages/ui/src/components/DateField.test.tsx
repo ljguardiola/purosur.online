@@ -6,7 +6,13 @@ import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import type { DispatchableCdpSession } from "../test/setup-browser";
-import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { DateField, type DateFieldProps } from "./DateField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -136,7 +142,7 @@ for (const variant of ["register", "backoffice"] as const) {
     const style = getComputedStyle(group);
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -198,7 +204,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
     expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(getComputedStyle(group).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
 
     await userEvent.tab();
     expect(document.activeElement).toBe(nextControl);
@@ -484,7 +490,7 @@ test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.borderRadius).toBe("8px");
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "1px"));
+  expect(paintedBoxShadowLayers(dialog)).toEqual([insetBoundary("ink-secondary", "1px")]);
 
   const boundaryHex = boundaryColorHex(dialog);
   const fillHex = rgbToHex(style.backgroundColor);
@@ -884,7 +890,7 @@ test("refuses a date outside the caller's allowed range, showing its message und
   const group = fieldGroup(screen, "Expiry");
   const style = getComputedStyle(group);
 
-  expect(style.boxShadow).toContain(insetBoundary("status-error-ui", "2px"));
+  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("status-error-ui", "2px")]);
   const message = screen.getByText("The date must be 28/02/2027 or earlier.");
   await expect.element(message).toBeVisible();
   expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
@@ -948,8 +954,7 @@ for (const [edge, accepted] of [
     const group = fieldGroup(screen, "Expiry");
     const style = getComputedStyle(group);
 
-    expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
-    expect(style.boxShadow).not.toContain(tokenRgb("status-error-ui"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
     expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
     await expect.element(screen.getByText(RANGE_HELPER)).toBeVisible();
 
