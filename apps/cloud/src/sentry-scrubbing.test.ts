@@ -48,6 +48,40 @@ describe("scrubSentryEvent", () => {
     expect(scrubbed.extra).toEqual({ url: "/media/a.jpg?[redacted]" });
   });
 
+  it("redacts the query string of the path in Fastify's not-found message", () => {
+    const notFound = "Route GET:/media/a.jpg?X-Amz-Signature=abc not found";
+    const event = {
+      message: notFound,
+      exception: { values: [{ type: "NotFoundError", value: notFound }] },
+    };
+
+    const scrubbed = scrubSentryEvent(event);
+
+    expect(scrubbed.message).toBe("Route GET:/media/a.jpg?[redacted] not found");
+    expect(scrubbed.exception?.values?.[0]?.value).toBe(
+      "Route GET:/media/a.jpg?[redacted] not found",
+    );
+  });
+
+  it("redacts the query string of a relative path after a bracket or a backtick", () => {
+    const event = {
+      message: "fetch [/media/a.jpg?sig=abc] and `/media/b.jpg?token=x` failed",
+    };
+
+    expect(scrubSentryEvent(event).message).toBe(
+      "fetch [/media/a.jpg?[redacted] and `/media/b.jpg?[redacted]` failed",
+    );
+  });
+
+  it("leaves an already-redacted URL unchanged when scrubbed again", () => {
+    const once = scrubSentryEvent({
+      message: "GET https://cloud.purosur.online/media/a.jpg?token=abc failed",
+    });
+
+    expect(once.message).toBe("GET https://cloud.purosur.online/media/a.jpg?[redacted] failed");
+    expect(scrubSentryEvent(once).message).toBe(once.message);
+  });
+
   it("leaves a relative path without a query string untouched", () => {
     const event = { message: "GET /fiscal/authorize returned 500" };
 

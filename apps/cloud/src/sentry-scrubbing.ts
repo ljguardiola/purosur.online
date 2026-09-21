@@ -16,7 +16,8 @@ const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni)/;
 const DROPPED_SECTIONS = new Set(["request", "response"]);
 
 const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
-const RELATIVE_PATH_WITH_QUERY_PATTERN = /(^|[\s"'(=,;])(\/[^\s"'<>?#]*)[?#][^\s"'<>]*/g;
+// The path must not start with `//`, so the `://` of an absolute URL is never matched as a path.
+const RELATIVE_PATH_WITH_QUERY_PATTERN = /(^|[\s"'(=,;:[`])(\/(?!\/)[^\s"'<>?#`]*)[?#][^\s"'<>`]*/g;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
 
 function toSnakeCase(key: string): string {
