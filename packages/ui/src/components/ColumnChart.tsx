@@ -27,26 +27,31 @@ const rowTopClassName = [
 const chartBoxClassName = "pt-2";
 // The chart's box has to hold what it draws, so it never falls below the width its bars need.
 const chartWidthClassName = "w-max min-w-full";
-const axisPlotRowClassName = "flex gap-3";
-const axisColumnClassName = "relative h-[150px] w-16";
-const axisTickClassName =
-  "absolute inset-x-0 -translate-y-1/2 text-right text-xs font-normal text-ink-secondary";
-const plotClassName = "relative h-[150px] grow";
+// The axis column and the labels' spacer share the first track, so an axis that grows to fit a
+// wide tick moves the labels by exactly as much as the bars.
+const visualGridClassName =
+  "grid grid-cols-[minmax(4rem,max-content)_minmax(0,1fr)] gap-x-3 gap-y-1.5";
+// The ticks stay in flow, so the widest one sets the column's width, on one line: a max-content
+// track never wraps what it was sized from. Each tick's 16px line box is centered on its grid
+// line, so the column is the 150px plot plus half a line box above and below, pulled out by that
+// half on each side so the row stays as tall as the plot.
+const axisColumnClassName = "-my-2 flex h-[166px] flex-col justify-between";
+const axisTickClassName = "text-right text-xs font-normal text-ink-secondary";
+const plotClassName = "relative h-[150px]";
 const gridLineClassName = "absolute inset-x-0 h-px bg-line";
 // Positioned, so the bars paint over the absolutely positioned grid lines instead of under them.
 const barsRowClassName = "relative flex h-full items-end gap-[11px]";
 const barClassName = "w-5 rounded-t-[4px] bg-brand-blue-ui";
 // The zero tick's line box is centered on the bottom grid line, so half of it sits below the plot;
-// the label row keeps a label's line of height with no labels in it to hold that half.
-const labelRowClassName = "mt-1.5 flex min-h-4 gap-3";
-const axisSpacerClassName = "w-16";
-// The first bar's centre has 86px of room to the chart's left edge (axis 64 + gap 12 + half the
-// bar's own 20px width). The labels reserve the same room past the last bar's centre, 76px beyond
-// its own half, so the chart's intrinsic width holds a label at its cap on either end; the plot
-// grows into that room, so the grid lines still span the whole box.
-const labelsContainerClassName = "flex grow gap-[11px] pr-[76px]";
+// the labels keep a label's line of height with no labels in them to hold that half.
+//
+// The first bar's centre has at least 86px of room to the chart's left edge (axis at least 64 +
+// gap 12 + half the bar's own 20px width). The labels reserve the same room past the last bar's
+// centre, 76px beyond its own half, so the chart's intrinsic width holds a label at its cap on
+// either end; the plot grows into that room, so the grid lines still span the whole box.
+const labelsContainerClassName = "flex min-h-4 gap-[11px] pr-[76px]";
 const labelColumnClassName = "flex w-5 justify-center";
-// A label wider than 172px (twice the 86px of room described above) is shortened with an
+// A label wider than 172px (twice the least room described above) is shortened with an
 // ellipsis instead of overflowing the chart. shrink-0 keeps it from being crushed to the 20px
 // column first: a flex item with overflow hidden otherwise gets a min-width of 0, which would
 // let the column win before the cap ever applied.
@@ -102,42 +107,35 @@ export function ColumnChart({ bars, formatValue, emptyMessage }: ColumnChartProp
 
   return (
     <div className={`${chartBoxClassName} ${chartWidthClassName}`}>
-      <div aria-hidden="true">
-        <div className={axisPlotRowClassName}>
-          <div className={axisColumnClassName}>
-            {ticks.map((tick, index) => (
-              <span
-                key={rowTopClassName[index]}
-                className={`${axisTickClassName} ${rowTopClassName[index]}`}
-              >
-                {formatValue(tick)}
-              </span>
+      <div aria-hidden="true" className={visualGridClassName}>
+        <div className={axisColumnClassName}>
+          {ticks.map((tick, index) => (
+            <span key={rowTopClassName[index]} className={axisTickClassName}>
+              {formatValue(tick)}
+            </span>
+          ))}
+        </div>
+        <div className={plotClassName}>
+          {rowTopClassName.map((topClassName) => (
+            <div key={topClassName} className={`${gridLineClassName} ${topClassName}`} />
+          ))}
+          <div className={barsRowClassName}>
+            {bars.map((bar) => (
+              <div
+                key={bar.id}
+                className={barClassName}
+                style={{ height: `${barHeightPx(bar.value, topTick)}px` }}
+              />
             ))}
-          </div>
-          <div className={plotClassName}>
-            {rowTopClassName.map((topClassName) => (
-              <div key={topClassName} className={`${gridLineClassName} ${topClassName}`} />
-            ))}
-            <div className={barsRowClassName}>
-              {bars.map((bar) => (
-                <div
-                  key={bar.id}
-                  className={barClassName}
-                  style={{ height: `${barHeightPx(bar.value, topTick)}px` }}
-                />
-              ))}
-            </div>
           </div>
         </div>
-        <div className={labelRowClassName}>
-          <div className={axisSpacerClassName} />
-          <div className={labelsContainerClassName}>
-            {bars.map((bar) => (
-              <div key={bar.id} className={labelColumnClassName}>
-                <span className={labelTextClassName}>{bar.label}</span>
-              </div>
-            ))}
-          </div>
+        <div />
+        <div className={labelsContainerClassName}>
+          {bars.map((bar) => (
+            <div key={bar.id} className={labelColumnClassName}>
+              <span className={labelTextClassName}>{bar.label}</span>
+            </div>
+          ))}
         </div>
       </div>
       <ul className={announcedListClassName}>
