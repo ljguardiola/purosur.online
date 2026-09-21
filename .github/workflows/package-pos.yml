@@ -53,13 +53,14 @@ jobs:
         run: pnpm audit
         continue-on-error: true
 
-      # An unset variable leaves that feature off in the installer. The staging feed is a separate
-      # artifact in the staging bucket, so only the staging channel's job ever carries it; a
-      # production installer, on a PR or on main, never gets a value here.
+      # The app code is built with nothing channel-specific in it; the channel, its Sentry DSN and
+      # its update feed only reach the installer's resources/channel.json and app-update.yml,
+      # outside app.asar. An unset variable leaves that feature off in the installer. The staging
+      # feed is a separate artifact in the staging bucket, so only the staging channel's job ever
+      # carries it; a production installer, on a PR or on main, never gets a value here.
       - run: pnpm --filter @purosur/pos package:${{ matrix.channel }}
         env:
-          MAIN_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
-          RENDERER_VITE_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
+          POS_SENTRY_DSN: ${{ vars.POS_SENTRY_DSN }}
           POS_UPDATE_FEED_URL: ${{ matrix.channel == 'staging' && vars.POS_UPDATE_FEED_URL || '' }}
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -68,8 +69,46 @@ jobs:
           path: apps/pos/release/${{ matrix.channel }}/*.exe
           if-no-files-found: error
 
-      # The staging build carries a real Sentry DSN; the e2e run deliberately kills the core and
-      # sends it an invalid message, so it runs against this rebuild, which has none.
-      - run: pnpm --filter @purosur/pos build
+      # electron-builder leaves the folder the installer was built from next to it.
+      - name: Hash the packaged app code
+        shell: bash
+        env:
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          sha256sum "apps/pos/release/$CHANNEL/win-unpacked/resources/app.asar" | cut -d ' ' -f 1 > "app-asar-$CHANNEL.sha256"
+          cat "app-asar-$CHANNEL.sha256"
 
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pos-${{ matrix.channel }}-app-asar-sha256
+          path: app-asar-${{ matrix.channel }}.sha256
+          if-no-files-found: error
+
+      # Runs the unpacked app from the same out/ the installer packaged. It reads a channel file
+      # the test writes itself, with no DSN, so the deliberate core kill and invalid message never
+      # reach Sentry.
       - run: pnpm --filter @purosur/pos test:e2e
+
+  same-app-code:
+    name: same app code in both channels
+    needs: package
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pos-*-app-asar-sha256
+          path: hashes
+          merge-multiple: true
+
+      - name: Compare the two channels' app.asar
+        run: |
+          production="$(cat hashes/app-asar-production.sha256)"
+          staging="$(cat hashes/app-asar-staging.sha256)"
+          echo "production: $production"
+          echo "staging:    $staging"
+          if [ -z "$production" ] || [ "$production" != "$staging" ]; then
+            echo "::error::app.asar differs between the production and staging installers"
+            exit 1
+          fi
+
