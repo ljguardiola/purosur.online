@@ -134,7 +134,7 @@ test("turns an off track's background bone on hover, keeping its border", async 
 
   await userEvent.hover(label);
   await expect.poll(() => getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(getComputedStyle(track).boxShadow).toContain(tokenRgb("ink-secondary"));
+  expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });

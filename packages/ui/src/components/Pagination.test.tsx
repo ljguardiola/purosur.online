@@ -4,7 +4,7 @@ import { cdp, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { rgbToHex, tokenRgb } from "../test/token-colors";
+import { insetBoundary, paintedBoxShadowLayers, rgbToHex, tokenRgb } from "../test/token-colors";
 import { Pagination, type PaginationProps } from "./Pagination";
 
 interface DispatchableCdpSession {
@@ -87,7 +87,7 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.borderWidth).toBe("0px");
-  expect(style.boxShadow).toContain(`${tokenRgb("line")} 0px 0px 0px 1px inset`);
+  expect(style.boxShadow).toContain(insetBoundary("line", "1px"));
   expect(style.fontSize).toBe("14px");
   expect(style.color).toBe(tokenRgb("ink"));
   expect(style.fontWeight).toBe("400");
@@ -110,7 +110,7 @@ test("hovers a non-current page button to a bone background", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("marks the current page blue UI with bold white text", async () => {
+test("marks the current page blue UI with bold white text and no border", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
   const current = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
   const style = getComputedStyle(current);
@@ -118,6 +118,7 @@ test("marks the current page blue UI with bold white text", async () => {
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
   expect(style.color).toBe(tokenRgb("surface-white"));
   expect(style.fontWeight).toBe("700");
+  expect(paintedBoxShadowLayers(current)).toEqual([]);
   expect(current.getAttribute("aria-current")).toBe("page");
 
   await expectNoAccessibilityViolations(screen.container);
