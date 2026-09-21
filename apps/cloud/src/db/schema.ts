@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   jsonb,
   pgTable,
   primaryKey,
@@ -25,7 +26,7 @@ export const roles = pgTable(
   "roles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    name: text("name").notNull(),
+    name: text("name"),
     isAdministrator: boolean("is_administrator").notNull().default(false),
   },
   // At most one role can carry the Administrator flag: the migration seeds exactly one and no
@@ -34,6 +35,12 @@ export const roles = pgTable(
     uniqueIndex("roles_single_administrator_key")
       .on(table.isAdministrator)
       .where(sql`${table.isAdministrator} = true`),
+    // The Administrator role is fixed and never renamed, so its display name comes from the
+    // backoffice's message catalog instead of being stored; every other role stores its own.
+    check(
+      "roles_name_unless_administrator",
+      sql`(${table.isAdministrator} AND ${table.name} IS NULL) OR (NOT ${table.isAdministrator} AND ${table.name} IS NOT NULL)`,
+    ),
   ],
 );
 

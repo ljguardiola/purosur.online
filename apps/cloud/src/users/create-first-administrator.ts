@@ -57,6 +57,9 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
   db: PgDatabase<TQueryResult>,
   input: CreateFirstAdministratorInput,
 ): Promise<CreateFirstAdministratorResult> {
+  const name = normalizeName(input.name);
+  const email = normalizeEmail(input.email);
+
   return db.transaction(async (tx) => {
     // Serializes concurrent runs: only one can pass the "no users yet" check below.
     await tx.execute(sql`LOCK TABLE users IN EXCLUSIVE MODE`);
@@ -65,9 +68,6 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
     if (existingUsers.length > 0) {
       throw new FirstAdministratorAlreadyBootstrappedError();
     }
-
-    const name = normalizeName(input.name);
-    const email = normalizeEmail(input.email);
 
     const [administratorRole] = await tx
       .select({ id: roles.id })
@@ -93,7 +93,7 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
       entityId: createdUser.id,
       actorId: createdUser.id,
       previousValue: null,
-      newValue: { firstName: name, email, role: "administrator" },
+      newValue: { firstName: name, email, roleId: administratorRole.id },
     });
 
     return { id: createdUser.id, email };

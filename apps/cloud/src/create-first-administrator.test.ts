@@ -1,7 +1,6 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
+import { describe, expect, inject, it } from "vitest";
 import { parseCreateFirstAdministratorArgs, UsageError } from "./create-first-administrator.js";
 
 describe("parseCreateFirstAdministratorArgs", () => {
@@ -51,19 +50,7 @@ describe("parseCreateFirstAdministratorArgs", () => {
 });
 
 describe("the create-first-administrator command", () => {
-  // The command has real local imports (the use case, the schema), so it cannot run as raw
-  // TypeScript the way migrate.ts's spawn test does: Node's type stripping only strips the
-  // entrypoint file it is given, it does not resolve a ".js" specifier to a sibling ".ts" file.
-  // Compiling once here spawns the exact artifact the package ships (`node dist/....js`).
-  const CLOUD_DIR = fileURLToPath(new URL("../", import.meta.url));
-  const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
-  const ENTRYPOINT = fileURLToPath(
-    new URL("../dist/create-first-administrator.js", import.meta.url),
-  );
-
-  beforeAll(() => {
-    execFileSync(process.execPath, [TSC_BIN, "-p", "tsconfig.json"], { cwd: CLOUD_DIR });
-  }, 30_000);
+  const ENTRYPOINT = join(inject("cloudBuildDir"), "create-first-administrator.js");
 
   it("prints a usage error and exits 1 when required arguments are missing", () => {
     const result = spawnSync(process.execPath, [ENTRYPOINT], {
@@ -72,7 +59,9 @@ describe("the create-first-administrator command", () => {
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("create-first-administrator:");
+    expect(result.stderr).toContain(
+      "create-first-administrator: usage: create-first-administrator --name <name> --email <email>",
+    );
   });
 
   it("fails with a clear message when DATABASE_URL is not set", () => {

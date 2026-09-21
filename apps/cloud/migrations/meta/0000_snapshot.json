@@ -1,5 +1,5 @@
 {
-  "id": "06e34e05-3301-4298-a63c-2e98cb4a6762",
+  "id": "ed65bdb0-da00-4b97-8db4-fbbb014143eb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -86,7 +86,7 @@
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "is_administrator": {
           "name": "is_administrator",
@@ -118,7 +118,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "roles_name_unless_administrator": {
+          "name": "roles_name_unless_administrator",
+          "value": "(\"roles\".\"is_administrator\" AND \"roles\".\"name\" IS NULL) OR (NOT \"roles\".\"is_administrator\" AND \"roles\".\"name\" IS NOT NULL)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.user_roles": {

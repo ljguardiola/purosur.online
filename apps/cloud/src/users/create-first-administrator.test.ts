@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { asc, eq, sql } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { auditLog, roles, userRoles, users } from "../db/schema.js";
 import {
   createFirstAdministrator,
@@ -65,11 +65,11 @@ describe("createFirstAdministrator", () => {
       entityId: result.id,
       actorId: result.id,
       previousValue: null,
-      newValue: { firstName: "Ada Lovelace", email: "ada@example.com", role: "administrator" },
+      newValue: { firstName: "Ada Lovelace", email: "ada@example.com", roleId },
     });
   });
 
-  it("normalizes the email by trimming and lowercasing it", async () => {
+  it("trims the name and trims and lowercases the email", async () => {
     const result = await createFirstAdministrator(db, {
       name: "  Ada Lovelace  ",
       email: "  ADA@Example.com  ",
@@ -79,9 +79,29 @@ describe("createFirstAdministrator", () => {
     expect(createdUser).toMatchObject({ firstName: "Ada Lovelace", email: "ada@example.com" });
   });
 
-  it("refuses when a user already exists and leaves the database unchanged", async () => {
-    const roleId = await administratorRoleId();
-    await db.insert(users).values({ firstName: "Existing Person", email: "existing@example.com" });
+  it("refuses a second run and keeps only what the first run created", async () => {
+    const first = await createFirstAdministrator(db, {
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    await expect(
+      createFirstAdministrator(db, { name: "Grace Hopper", email: "grace@example.com" }),
+    ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
+
+    const remainingUsers = await db.select().from(users);
+    expect(remainingUsers).toHaveLength(1);
+    expect(remainingUsers[0]).toMatchObject({ id: first.id, email: "ada@example.com" });
+    await expect(db.select().from(userRoles)).resolves.toEqual([
+      { userId: first.id, roleId: await administratorRoleId() },
+    ]);
+    const auditRows = await db.select().from(auditLog);
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({ entityId: first.id });
+  });
+
+  it("refuses when any user already exists, even one without a role", async () => {
+    await db.insert(users).values({ firstName: "Plain Cashier", email: "cashier@example.com" });
 
     await expect(
       createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }),
@@ -89,21 +109,9 @@ describe("createFirstAdministrator", () => {
 
     const remainingUsers = await db.select().from(users);
     expect(remainingUsers).toHaveLength(1);
-    expect(remainingUsers[0]).toMatchObject({ email: "existing@example.com" });
+    expect(remainingUsers[0]).toMatchObject({ email: "cashier@example.com" });
     await expect(db.select().from(userRoles)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
-    // The existing user was not the Administrator: its role membership is untouched by the refusal.
-    expect(roleId).toBeTruthy();
-  });
-
-  it("refuses when the only existing user is not the Administrator", async () => {
-    await db.insert(users).values({ firstName: "Plain Cashier", email: "cashier@example.com" });
-
-    await expect(
-      createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }),
-    ).rejects.toBeInstanceOf(FirstAdministratorAlreadyBootstrappedError);
-
-    await expect(db.select().from(users)).resolves.toHaveLength(1);
   });
 
   it("rejects an empty name and creates nothing", async () => {
@@ -130,6 +138,19 @@ describe("createFirstAdministrator", () => {
     await expect(db.select().from(users)).resolves.toEqual([]);
   });
 
+  it.each([
+    ["an empty name", { name: "   ", email: "ada@example.com" }],
+    ["a malformed email", { name: "Ada Lovelace", email: "not-an-email" }],
+  ])("rejects %s without opening a transaction", async (_, input) => {
+    const transaction = vi.spyOn(db, "transaction");
+
+    await expect(createFirstAdministrator(db, input)).rejects.toBeInstanceOf(
+      InvalidFirstAdministratorInputError,
+    );
+
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
   it("seeds exactly one Administrator role in the migrations", async () => {
     const administratorRoles = await db
       .select()
@@ -138,7 +159,16 @@ describe("createFirstAdministrator", () => {
       .orderBy(asc(roles.name));
 
     expect(administratorRoles).toHaveLength(1);
-    expect(administratorRoles[0]).toMatchObject({ name: "Administrador", isAdministrator: true });
+    expect(administratorRoles[0]).toMatchObject({ name: null, isAdministrator: true });
+  });
+
+  it("rejects a role that is not the Administrator unless it has a name", async () => {
+    await expect(
+      db.execute(sql`insert into roles (is_administrator) values (false)`),
+    ).rejects.toThrow();
+    await expect(
+      db.execute(sql`insert into roles (name, is_administrator) values ('Cashier', false)`),
+    ).resolves.toBeDefined();
   });
 
   it("keeps the migration from ever seeding a second Administrator role", async () => {

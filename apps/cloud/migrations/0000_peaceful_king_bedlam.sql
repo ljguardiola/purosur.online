@@ -10,8 +10,9 @@ CREATE TABLE "audit_log" (
 --> statement-breakpoint
 CREATE TABLE "roles" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"name" text NOT NULL,
-	"is_administrator" boolean DEFAULT false NOT NULL
+	"name" text,
+	"is_administrator" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "roles_name_unless_administrator" CHECK (("roles"."is_administrator" AND "roles"."name" IS NULL) OR (NOT "roles"."is_administrator" AND "roles"."name" IS NOT NULL))
 );
 --> statement-breakpoint
 CREATE TABLE "user_roles" (
@@ -32,4 +33,4 @@ ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_users_id_fk" FOREIGN
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "roles_single_administrator_key" ON "roles" USING btree ("is_administrator") WHERE "roles"."is_administrator" = true;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_key" ON "users" USING btree ("email");--> statement-breakpoint
-INSERT INTO "roles" ("name", "is_administrator") VALUES ('Administrador', true);
+INSERT INTO "roles" ("is_administrator") VALUES (true);
