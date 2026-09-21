@@ -64,6 +64,16 @@ const RESTART_POLICY = {
   stableRunMs: 60_000,
 };
 
+const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
+
+// Only honored in an unpackaged run (development and end-to-end tests), the same trust boundary
+// channel-settings.ts already draws for POS_CHANNEL_FILE: a packaged build always waits the real
+// interval, and nothing lets a compromised production install shorten it.
+function coreRetryIntervalMs(): number {
+  const override = !app.isPackaged ? Number(process.env.POS_CORE_RETRY_INTERVAL_MS) : Number.NaN;
+  return Number.isFinite(override) && override > 0 ? override : DEFAULT_CORE_RETRY_INTERVAL_MS;
+}
+
 const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
 
 // A file:// page gets no response headers, so the packaged interface carries its policy in its own
@@ -166,10 +176,12 @@ function startRegister(settings: ChannelSettings): void {
         return child;
       },
       scheduleRestart: (run, delayMs) => {
-        setTimeout(run, delayMs);
+        const id = setTimeout(run, delayMs);
+        return () => clearTimeout(id);
       },
       now: () => performance.now(),
       policy: RESTART_POLICY,
+      retryIntervalMs: coreRetryIntervalMs(),
       onProcessExited: (process) => {
         if (currentCoreProcess === process) {
           currentCoreProcess = undefined;
