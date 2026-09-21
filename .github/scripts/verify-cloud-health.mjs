@@ -56,6 +56,33 @@ export function nextHealthPollDecision({ result, expectedVersion, elapsedMs, tim
   return { action: "wait" };
 }
 
+export const MAX_REQUEST_TIMEOUT_MS = 10_000;
+
+/** One request's timeout: capped, and never beyond what is left of the wait budget. */
+export function requestTimeoutMs({ elapsedMs, timeoutMs }) {
+  return Math.max(1, Math.min(MAX_REQUEST_TIMEOUT_MS, timeoutMs - elapsedMs));
+}
+
+/**
+ * @param {string} url
+ * @param {{ fetchImpl?: typeof fetch, requestTimeoutMs: number, log?: (message: string) => void }} options
+ * @returns {Promise<{ status: number, body: unknown } | null>} null when the request failed or
+ *   timed out.
+ */
+export async function fetchHealth(url, { fetchImpl = fetch, requestTimeoutMs, log = console.log }) {
+  try {
+    const response = await fetchImpl(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(requestTimeoutMs),
+    });
+    const body = await response.json().catch(() => undefined);
+    return { status: response.status, body };
+  } catch (error) {
+    log(`verify-cloud-health: request failed: ${error instanceof Error ? error.message : error}`);
+    return null;
+  }
+}
+
 async function runCli() {
   const domain = process.env.CLOUD_HEALTH_DOMAIN;
   const expectedVersion = process.env.CLOUD_HEALTH_EXPECTED_VERSION;
@@ -71,24 +98,13 @@ async function runCli() {
   const pollIntervalMs = Number(process.env.CLOUD_HEALTH_POLL_INTERVAL_SECONDS ?? "5") * 1000;
   const url = buildHealthUrl(domain);
 
-  async function fetchHealth() {
-    try {
-      const response = await fetch(url, { redirect: "follow" });
-      const body = await response.json().catch(() => undefined);
-      return { status: response.status, body };
-    } catch (error) {
-      console.log(
-        `verify-cloud-health: request failed: ${error instanceof Error ? error.message : error}`,
-      );
-      return null;
-    }
-  }
-
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const start = Date.now();
 
   for (;;) {
-    const result = await fetchHealth();
+    const result = await fetchHealth(url, {
+      requestTimeoutMs: requestTimeoutMs({ elapsedMs: Date.now() - start, timeoutMs }),
+    });
     const decision = nextHealthPollDecision({
       result,
       expectedVersion,

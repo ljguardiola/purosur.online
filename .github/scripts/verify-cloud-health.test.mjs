@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildHealthUrl, nextHealthPollDecision } from "./verify-cloud-health.mjs";
+import {
+  buildHealthUrl,
+  fetchHealth,
+  MAX_REQUEST_TIMEOUT_MS,
+  nextHealthPollDecision,
+  requestTimeoutMs,
+} from "./verify-cloud-health.mjs";
 
 test("succeeds when /health reports ok and the expected version", () => {
   const decision = nextHealthPollDecision({
@@ -93,6 +99,51 @@ test("fails once the timeout passes on a malformed body", () => {
 
   assert.equal(decision.action, "fail");
   assert.match(decision.reason, /status.*ok/i);
+});
+
+// fetchHealth / requestTimeoutMs -------------------------------------------------
+
+function hangingFetch(_url, { signal }) {
+  return new Promise((_resolve, reject) => {
+    signal.addEventListener("abort", () => reject(signal.reason));
+  });
+}
+
+test("fetchHealth gives up on a response that never arrives once its request timeout passes", async () => {
+  const started = Date.now();
+
+  const result = await fetchHealth("https://cloud.example/health", {
+    fetchImpl: hangingFetch,
+    requestTimeoutMs: 50,
+    log: () => {},
+  });
+
+  assert.equal(result, null);
+  assert.ok(Date.now() - started < 1000, "expected the request to be aborted near its timeout");
+});
+
+test("fetchHealth returns the status and parsed body of a response", async () => {
+  const fetchImpl = async () => new Response(JSON.stringify({ status: "ok", version: "abc" }));
+
+  const result = await fetchHealth("https://cloud.example/health", {
+    fetchImpl,
+    requestTimeoutMs: 1000,
+    log: () => {},
+  });
+
+  assert.deepEqual(result, { status: 200, body: { status: "ok", version: "abc" } });
+});
+
+test("requestTimeoutMs never lets one request outlast the remaining wait budget", () => {
+  assert.equal(requestTimeoutMs({ elapsedMs: 115_000, timeoutMs: 120_000 }), 5000);
+});
+
+test("requestTimeoutMs caps a single request well inside a fresh budget", () => {
+  assert.equal(requestTimeoutMs({ elapsedMs: 0, timeoutMs: 120_000 }), MAX_REQUEST_TIMEOUT_MS);
+});
+
+test("requestTimeoutMs stays positive once the budget is spent", () => {
+  assert.ok(requestTimeoutMs({ elapsedMs: 130_000, timeoutMs: 120_000 }) > 0);
 });
 
 // buildHealthUrl ---------------------------------------------------------------
