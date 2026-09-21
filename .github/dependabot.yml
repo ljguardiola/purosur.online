@@ -6,16 +6,14 @@ updates:
       interval: "weekly"
     groups:
       # The build-output guard has to scan and compile classes with the exact same engine the
-      # real build uses (see apps/pos/src/build-output.test.ts), so these move together.
-      # lightningcss is included because @tailwindcss/node pins it to an exact version (no caret)
-      # in its own package.json: it's the parser Tailwind's compiler and optimizer are built on,
-      # and the guard parses with the same one, so it has to track @tailwindcss/node's pin exactly
-      # rather than drift to whatever range a separate lightningcss-only PR would pick.
+      # real build uses (see apps/pos/src/build-output.test.ts), so these move together. This
+      # does not include lightningcss: the guard only parses CSS with it (to collect class names),
+      # which doesn't depend on Tailwind's own exact internal version of it, so it's a plain caret
+      # range like the rest of the repo's dependencies and updates independently.
       tailwindcss:
         patterns:
           - "tailwindcss"
           - "@tailwindcss/*"
-          - "lightningcss"
     commit-message:
       prefix: "chore(deps)"
     ignore:
