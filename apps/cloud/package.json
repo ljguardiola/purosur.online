@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "create-first-administrator": "node dist/create-first-administrator.js"
   },
   "dependencies": {
     "@sentry/node": "^10.75.0",
