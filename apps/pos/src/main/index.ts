@@ -14,7 +14,7 @@ const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
-    environment: import.meta.env.POS_CHANNEL,
+    environment: import.meta.env.SENTRY_ENVIRONMENT,
     enableLogs: true,
     // Protocol mode lets the renderer reach main through a privileged custom scheme. Classic IPC
     // mode would inject Sentry's own preload, which exposes an API on the page's window.

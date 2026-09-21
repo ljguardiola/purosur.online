@@ -8,7 +8,7 @@ const sentryDsn = import.meta.env.RENDERER_VITE_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
-    environment: import.meta.env.POS_CHANNEL,
+    environment: import.meta.env.SENTRY_ENVIRONMENT,
     enableLogs: true,
     integrations: [Sentry.consoleLoggingIntegration({ levels: ["info", "warn", "error"] })],
   });

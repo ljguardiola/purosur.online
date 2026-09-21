@@ -30,8 +30,10 @@ jobs:
   package:
     name: package (${{ matrix.channel }})
     runs-on: windows-latest
-    # Each channel's credentials live in its own environment under the same variable names.
-    environment: pos-${{ matrix.channel }}
+    # Only a merge to main packages the homologation installer under staging, the one environment
+    # that admits main; pull requests package both channels with no credentials at all. The
+    # production installer that carries credentials comes from the tag-bound release workflow.
+    environment: ${{ (github.event_name == 'push' && matrix.channel == 'homologation') && 'staging' || '' }}
     strategy:
       matrix:
         channel: [production, homologation]
@@ -60,10 +62,8 @@ jobs:
           path: apps/pos/release/${{ matrix.channel }}/*.exe
           if-no-files-found: error
 
-      # This job's environment carries the channel's real Sentry DSN; the e2e run deliberately
-      # kills the core and sends it an invalid message, so it must never share that build. This
-      # rebuild leaves both Sentry env vars unset (Sentry disabled) and only proves the shell,
-      # never packages it — the installer above already came from the real per-channel build.
+      # The staging build carries a real Sentry DSN; the e2e run deliberately kills the core and
+      # sends it an invalid message, so it runs against this rebuild, which has none.
       - run: pnpm --filter @purosur/pos build
 
       - run: pnpm --filter @purosur/pos test:e2e
