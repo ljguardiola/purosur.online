@@ -142,6 +142,7 @@ test("keeps every bar 20px wide, over its own label, in a container narrower tha
 
   const rendered = chartBars(screen);
   const columns = labelColumns(screen);
+  expect(chartRoot(screen).getBoundingClientRect().width).toBeGreaterThan(200);
   expect(rendered).toHaveLength(12);
   expect(columns).toHaveLength(12);
 
@@ -171,6 +172,7 @@ test("keeps the value axis 64px wide, with every bar over its label, in a contai
 
   const rendered = chartBars(screen);
   const columns = labelColumns(screen);
+  expect(chartRoot(screen).getBoundingClientRect().width).toBeGreaterThan(50);
   expect(axisColumn(screen).getBoundingClientRect().width).toBeCloseTo(64, 0);
 
   for (let i = 0; i < rendered.length; i++) {
@@ -287,7 +289,7 @@ test("draws nothing for a bar with a negative value, and still announces it", as
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("falls back to the minimum scale when the highest value rounds the top tick past the largest number", async () => {
+test("leaves the other bars and the axis intact when one value is too large to round onto a scale", async () => {
   const bars: ColumnChartBar[] = [
     { id: "a", value: Number.MAX_VALUE },
     { id: "b", value: 100 },
@@ -298,6 +300,25 @@ test("falls back to the minimum scale when the highest value rounds the top tick
   const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
   const rendered = chartBars(screen);
 
+  expect(ticks.map((tick) => tick.textContent)).toEqual(["$100", "$80", "$60", "$40", "$20", "$0"]);
+
+  expect(at(rendered, 0).style.height).toBe("0px");
+  expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo(150, 0);
+  expect(announcedItems(screen)).toHaveLength(2);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("falls back to the minimum scale when no value at all can be drawn", async () => {
+  const bars: ColumnChartBar[] = [
+    { id: "a", value: Number.MAX_VALUE },
+    { id: "b", value: Number.NaN },
+  ];
+  const screen = await render(
+    <ColumnChart bars={bars} formatValue={formatCurrency} emptyMessage="No data" />,
+  );
+  const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
+
   expect(ticks.map((tick) => tick.textContent)).toEqual([
     "$1,000",
     "$800",
@@ -307,9 +328,8 @@ test("falls back to the minimum scale when the highest value rounds the top tick
     "$0",
   ]);
 
-  for (const bar of rendered) {
+  for (const bar of chartBars(screen)) {
     expect(bar.style.height).toBe("0px");
-    expect(bar.getBoundingClientRect().height).toBeCloseTo(0, 0);
   }
 
   await expectNoAccessibilityViolations(screen.container);
@@ -339,6 +359,26 @@ test("renders 6 full-width, 1px grid lines in the line color, evenly spaced acro
     expect(rect.width).toBeCloseTo(plotRect.width, 0);
     expect(getComputedStyle(line).backgroundColor).toBe(tokenRgb("line"));
   }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws the bars over the grid lines, not under them", async () => {
+  const screen = await render(
+    <ColumnChart
+      bars={[{ id: "a", label: "1", value: 1000 }]}
+      formatValue={formatCurrency}
+      emptyMessage="No data"
+    />,
+  );
+  const bar = at(chartBars(screen), 0);
+  const barRect = bar.getBoundingClientRect();
+  const crossedLine = at(gridLines(screen), 3);
+  const lineRect = crossedLine.getBoundingClientRect();
+
+  expect(lineRect.top).toBeGreaterThan(barRect.top);
+  expect(lineRect.top).toBeLessThan(barRect.bottom);
+  expect(document.elementFromPoint(barRect.left + barRect.width / 2, lineRect.top + 0.5)).toBe(bar);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -502,7 +542,7 @@ test("paints every bar, grid line and tick inside its own box, at any container 
     const columns = labelColumns(screen);
     const ticks = Array.from(axisColumn(screen).children) as HTMLElement[];
 
-    expect(rootRect.width).toBeCloseTo(chartWidth, 0);
+    expect(rootRect.width).toBeCloseTo(Math.max(chartWidth, containerWidth), 0);
 
     for (const element of [...rendered, ...gridLines(screen), ...ticks]) {
       const rect = element.getBoundingClientRect();
