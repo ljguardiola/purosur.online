@@ -9,6 +9,7 @@ import {
 } from "../shared/sentry-scrubbing";
 import { buildContentSecurityPolicy } from "./content-security-policy";
 import { establishCoreConnection } from "./core-connection";
+import { forwardCoreOutput } from "./core-output";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
 import { denyDisallowedNavigation, denyWindowOpen } from "./navigation-guard";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
@@ -138,7 +139,8 @@ app.whenReady().then(() => {
 
   const supervisor = createCoreSupervisor({
     fork: (): SupervisedProcess => {
-      const child = utilityProcess.fork(CORE_ENTRY);
+      const child = utilityProcess.fork(CORE_ENTRY, [], { stdio: ["ignore", "pipe", "pipe"] });
+      forwardCoreOutput(child, process.stdout, process.stderr);
       currentCoreProcess = child;
       return child;
     },
