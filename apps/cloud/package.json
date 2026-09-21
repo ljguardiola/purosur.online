@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "create-first-administrator": "node dist/create-first-administrator.js"
   },
   "dependencies": {
     "@sentry/node": "^10.75.0",
@@ -19,6 +20,7 @@
     "postgres": "^3.4.9"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "drizzle-kit": "^0.31.10"
   }
 }

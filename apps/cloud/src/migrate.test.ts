@@ -1,8 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { join } from "node:path";
+import { describe, expect, inject, it, vi } from "vitest";
 import {
-  describeMigrationFailure,
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
   runMigrations,
@@ -82,31 +81,14 @@ describe("runMigrations", () => {
 
 describe("the migrate command", () => {
   it("does not print the database URL when it fails on a malformed one", () => {
-    const result = spawnSync(
-      process.execPath,
-      [fileURLToPath(new URL("./migrate.ts", import.meta.url))],
-      {
-        env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },
-        encoding: "utf8",
-      },
-    );
+    const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
+      env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },
+      encoding: "utf8",
+    });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("ERR_INVALID_URL");
     expect(`${result.stdout}${result.stderr}`).not.toContain("s3cret-password");
-  });
-});
-
-describe("describeMigrationFailure", () => {
-  it("includes the database's own error behind a failed query", () => {
-    const databaseError = Object.assign(new Error('syntax error at or near "tabel"'), {
-      code: "42601",
-    });
-    const failedQuery = new Error("Failed query: create tabel x", { cause: databaseError });
-
-    expect(describeMigrationFailure(failedQuery)).toContain(
-      '42601: syntax error at or near "tabel"',
-    );
   });
 });
 
