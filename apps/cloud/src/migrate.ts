@@ -72,7 +72,7 @@ export interface WaitForDatabaseOptions {
  * error from `probe` is rethrown immediately, without waiting.
  */
 export async function waitForDatabase(
-  probe: () => Promise<unknown>,
+  probe: (remainingMs: number) => Promise<unknown>,
   options: WaitForDatabaseOptions,
 ): Promise<void> {
   const start = options.now();
@@ -80,18 +80,38 @@ export async function waitForDatabase(
 
   for (;;) {
     try {
-      await probe();
+      await probe(Math.max(deadline - options.now(), 0));
       return;
     } catch (error) {
       if (!isRetryableConnectionError(error)) {
         throw error;
       }
-      if (options.now() >= deadline) {
+      const remainingMs = deadline - options.now();
+      if (remainingMs <= 0) {
         throw error;
       }
       options.onWaiting?.(error, options.now() - start);
-      await options.sleep(options.intervalMs);
+      await options.sleep(Math.min(options.intervalMs, remainingMs));
     }
+  }
+}
+
+// postgres.js reads a connect timeout of 0 as "no timeout", so a probe made with the budget
+// already spent still gets a short timeout instead of an unbounded one.
+const MIN_PROBE_CONNECT_TIMEOUT_SECONDS = 1;
+
+export function probeConnectTimeoutSeconds(remainingMs: number, maxSeconds: number): number {
+  return Math.max(Math.min(maxSeconds, remainingMs / 1000), MIN_PROBE_CONNECT_TIMEOUT_SECONDS);
+}
+
+// Each probe uses its own client: a reused postgres.js client adds its own growing reconnect
+// backoff to every failed connection, which would stretch the wait far beyond its budget.
+async function probeDatabase(databaseUrl: string, connectTimeoutSeconds: number): Promise<void> {
+  const sql = postgres(databaseUrl, { max: 1, connect_timeout: connectTimeoutSeconds });
+  try {
+    await sql`select 1`;
+  } finally {
+    await sql.end({ timeout: 1 });
   }
 }
 
@@ -124,13 +144,12 @@ export async function runMigrations(
   options: RunMigrationsOptions = {},
 ): Promise<void> {
   const migrationsFolder = options.migrationsFolder ?? DEFAULT_MIGRATIONS_FOLDER;
-  const sql = postgres(databaseUrl, {
-    max: 1,
-    connect_timeout: options.connectTimeoutSeconds ?? 10,
-  });
+  const connectTimeoutSeconds = options.connectTimeoutSeconds ?? 10;
 
-  try {
-    await waitForDatabase(() => sql`select 1`, {
+  await waitForDatabase(
+    (remainingMs) =>
+      probeDatabase(databaseUrl, probeConnectTimeoutSeconds(remainingMs, connectTimeoutSeconds)),
+    {
       budgetSeconds:
         options.waitForDatabaseSeconds ??
         waitForDatabaseSecondsFromEnv() ??
@@ -139,8 +158,11 @@ export async function runMigrations(
       sleep: options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
       now: options.now ?? Date.now,
       onWaiting: options.onWaiting ?? logWaiting,
-    });
+    },
+  );
 
+  const sql = postgres(databaseUrl, { max: 1, connect_timeout: connectTimeoutSeconds });
+  try {
     await migrate(drizzle(sql), { migrationsFolder });
   } finally {
     await sql.end({ timeout: 1 });

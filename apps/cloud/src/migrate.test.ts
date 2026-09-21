@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { isRetryableConnectionError, runMigrations, waitForDatabase } from "./migrate.js";
+import {
+  isRetryableConnectionError,
+  probeConnectTimeoutSeconds,
+  runMigrations,
+  waitForDatabase,
+} from "./migrate.js";
 
 describe("runMigrations", () => {
   it("rejects when the database is unreachable", async () => {
@@ -28,6 +33,39 @@ describe("runMigrations", () => {
     ).rejects.toMatchObject({ code: "ECONNREFUSED" });
 
     expect(onWaiting.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("probes on the wait interval without the driver's reconnect backoff piling up", async () => {
+    const clock = fakeClock();
+    const onWaiting = vi.fn();
+
+    await expect(
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+        migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+        connectTimeoutSeconds: 1,
+        waitForDatabaseSeconds: 30,
+        waitIntervalMs: 1000,
+        sleep: clock.sleep,
+        now: clock.now,
+        onWaiting,
+      }),
+    ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+
+    expect(onWaiting).toHaveBeenCalledTimes(30);
+  });
+});
+
+describe("probeConnectTimeoutSeconds", () => {
+  it("uses the configured connect timeout while the budget has more time left", () => {
+    expect(probeConnectTimeoutSeconds(30_000, 10)).toBe(10);
+  });
+
+  it("shortens the connect timeout to the time left in the budget", () => {
+    expect(probeConnectTimeoutSeconds(2_500, 10)).toBe(2.5);
+  });
+
+  it("never returns zero, which the driver reads as no timeout at all", () => {
+    expect(probeConnectTimeoutSeconds(0, 10)).toBeGreaterThan(0);
   });
 });
 
@@ -90,6 +128,45 @@ describe("waitForDatabase", () => {
     ).rejects.toBe(error);
 
     expect(probe.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it("passes each probe the time left in the budget", async () => {
+    const clock = fakeClock();
+    const remaining: number[] = [];
+    const probe = vi.fn(async (remainingMs: number) => {
+      remaining.push(remainingMs);
+      throw Object.assign(new Error("connection refused"), { code: "ECONNREFUSED" });
+    });
+
+    await expect(
+      waitForDatabase(probe, {
+        budgetSeconds: 2,
+        intervalMs: 1000,
+        sleep: clock.sleep,
+        now: clock.now,
+      }),
+    ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+
+    expect(remaining).toEqual([2000, 1000, 0]);
+  });
+
+  it("does not run past the budget when each failing probe takes time", async () => {
+    const clock = fakeClock();
+    const probe = vi.fn(async (remainingMs: number) => {
+      await clock.sleep(Math.min(700, remainingMs));
+      throw Object.assign(new Error("connect timeout"), { code: "CONNECT_TIMEOUT" });
+    });
+
+    await expect(
+      waitForDatabase(probe, {
+        budgetSeconds: 5,
+        intervalMs: 1000,
+        sleep: clock.sleep,
+        now: clock.now,
+      }),
+    ).rejects.toMatchObject({ code: "CONNECT_TIMEOUT" });
+
+    expect(clock.now()).toBeLessThanOrEqual(5000);
   });
 
   it("does not retry an error that is not a connection failure", async () => {
