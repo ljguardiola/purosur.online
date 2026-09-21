@@ -56,7 +56,7 @@ test("redirects an unknown category or article to the closest page that exists",
 
   await expect.poll(() => window.location.pathname).toBe("/ayuda");
   await expect
-    .element(screen.getByRole("heading", { name: "Ayuda", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 1 }))
     .toBeInTheDocument();
 
   window.history.pushState(null, "", "/ayuda/getting_started/unknown");

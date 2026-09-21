@@ -97,21 +97,30 @@ test("shows the empty-catalog state and the search field when the catalog has no
   );
 
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
-  await expect.element(screen.getByText("Todavía no hay contenido de ayuda")).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByText("Todavía no hay contenido de ayuda").elements()).toHaveLength(1);
 });
 
 test("prompts to pick a section, not the empty-catalog state, when the catalog has articles", async () => {
   const screen = await render(<ContentHarness categoryId={null} articleId={null} />);
 
-  await expect.element(screen.getByText("Elegí una sección")).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByText("Elegí una sección").elements()).toHaveLength(1);
   await expect.element(screen.getByText("O buscá un tema.")).toBeVisible();
   expect(screen.getByText("Todavía no hay contenido de ayuda").query()).toBeNull();
 });
 
-test("lists a selected category's articles as links, under its breadcrumb", async () => {
+test("lists a selected category's articles as links, titled by the category alone", async () => {
   const screen = await render(<ContentHarness categoryId="getting_started" articleId={null} />);
 
-  await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Primeros pasos", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByText("Ayuda · Primeros pasos").query()).toBeNull();
 
   const link = screen.getByRole("link", { name: "Bienvenida" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/ayuda/getting_started/intro");
@@ -120,8 +129,13 @@ test("lists a selected category's articles as links, under its breadcrumb", asyn
 test("renders a selected article's breadcrumb, title and every block kind", async () => {
   const screen = await render(<ContentHarness categoryId="getting_started" articleId="intro" />);
 
-  await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Bienvenida" })).toBeVisible();
+  const breadcrumb = screen.getByText("Ayuda · Primeros pasos");
+  const title = screen.getByRole("heading", { name: "Bienvenida", level: 1 });
+  await expect.element(breadcrumb).toBeVisible();
+  await expect.element(title).toBeVisible();
+  expect(breadcrumb.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    title.element().getBoundingClientRect().top,
+  );
   await expect.element(screen.getByText("Antes de empezar")).toBeVisible();
   await expect
     .element(screen.getByText("Configurá tu catálogo antes de abrir la caja."))
@@ -191,7 +205,7 @@ function isRenderedOnScreen(element: Element): boolean {
 
 test("titles every state with an on-screen level-1 heading", async () => {
   const home = await render(<ContentHarness categoryId={null} articleId={null} />);
-  const homeHeading = home.getByRole("heading", { name: "Ayuda", level: 1 });
+  const homeHeading = home.getByRole("heading", { name: "Elegí una sección", level: 1 });
   await expect.element(homeHeading).toBeVisible();
   expect(isRenderedOnScreen(homeHeading.element())).toBe(true);
   await home.unmount();

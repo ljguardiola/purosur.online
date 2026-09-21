@@ -29,10 +29,10 @@ function LinkRow({ to, label }: { to: string; label: string }) {
   );
 }
 
-function EmptyState({ title, body }: { title: string; body: string }) {
+function EmptyState({ title, body }: { title?: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-white px-6 py-12 text-center">
-      <p className="font-bold text-brand-blue-strong text-lg">{title}</p>
+      {title && <p className="font-bold text-brand-blue-strong text-lg">{title}</p>}
       <p className="text-ink-secondary text-sm">{body}</p>
     </div>
   );
@@ -218,11 +218,13 @@ export function AyudaContent({
   const activeArticle = ownEntry(help.articles, articleId);
   const isSearching = search.trim() !== "";
   const results = isSearching ? searchArticles(help.articles, search) : [];
+  const hasArticles = Object.keys(help.articles).length > 0;
+  const idleTitle = hasArticles ? messages.ayuda.pickSectionTitle : messages.ayuda.emptyTitle;
 
   return (
     <>
-      <div className="flex h-18 shrink-0 items-center gap-4 border-line border-b bg-surface-white px-8">
-        {activeCategory && (
+      <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
+        {activeArticle && activeCategory && (
           <p className="text-ink-secondary text-sm">
             {messages.ayuda.breadcrumb({ section: activeCategory.label })}
           </p>
@@ -232,7 +234,7 @@ export function AyudaContent({
           tabIndex={-1}
           className={`font-bold text-2xl text-brand-blue-strong ${focusRingClassName}`}
         >
-          {activeArticle?.title ?? activeCategory?.label ?? messages.ayuda.pageHeading}
+          {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
         </h1>
       </div>
       <div className="flex flex-col gap-4 p-6">
@@ -259,13 +261,10 @@ export function AyudaContent({
               ([, article]) => article.category === categoryId,
             )}
           />
-        ) : Object.keys(help.articles).length > 0 ? (
-          <EmptyState
-            title={messages.ayuda.pickSectionTitle}
-            body={messages.ayuda.pickSectionBody}
-          />
         ) : (
-          <EmptyState title={messages.ayuda.emptyTitle} body={messages.ayuda.emptyBody} />
+          <EmptyState
+            body={hasArticles ? messages.ayuda.pickSectionBody : messages.ayuda.emptyBody}
+          />
         )}
       </div>
     </>
