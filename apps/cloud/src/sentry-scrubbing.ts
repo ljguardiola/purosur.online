@@ -16,9 +16,41 @@ const SENSITIVE_KEY_WORD_PATTERN = /(?:^|_)(?:session|cuit|dni)/;
 const DROPPED_SECTIONS = new Set(["request", "response"]);
 
 const URL_PATTERN = /\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s"'<>]+/g;
-// The path must not start with `//`, so the `://` of an absolute URL is never matched as a path.
-const RELATIVE_PATH_WITH_QUERY_PATTERN = /(^|[\s"'(=,;:[`])(\/(?!\/)[^\s"'<>?#`]*)[?#][^\s"'<>`]*/g;
 const BEARER_TOKEN_PATTERN = /\bBearer\s+[A-Za-z0-9\-_.]+/g;
+
+// A path (relative or protocol-relative; a scheme URL is already redacted whole by URL_PATTERN
+// above) has no consistent boundary character in front of it in a log message - it can follow a
+// bracket, a colon, a backtick, or nothing at all. A prior version tried to enumerate every
+// possible leading delimiter in a character class, which both missed a protocol-relative path
+// (no leading delimiter to require) and stopped matching a query early at any character it hadn't
+// also enumerated (leaking the rest of the query past a backtick). Working token by token instead
+// needs no such enumeration: any whitespace-delimited token carrying a "/" before its "?"/"#" is a
+// path, full stop. Only a closing bracket, parenthesis, angle bracket, quote or backtick is
+// trusted as "wrapping" the path rather than being part of it: sentence punctuation (a comma,
+// semicolon or period) is common inside a real token or path segment, so it is left inside the
+// redaction rather than guessed at.
+const TRAILING_DELIMITER_PATTERN = /[\])>"'`]$/;
+
+function redactPathToken(token: string): string {
+  const slashIndex = token.indexOf("/");
+  if (slashIndex === -1) {
+    return token;
+  }
+  const queryIndex = token.search(/[?#]/);
+  if (queryIndex === -1 || queryIndex < slashIndex) {
+    return token;
+  }
+
+  const queryPart = token.slice(queryIndex + 1);
+  if (queryPart === REDACTED) {
+    // Already scrubbed by URL_PATTERN above, or by this same pass on an earlier call: redacting
+    // again would misread the placeholder's own closing "]" as a delimiter to preserve.
+    return token;
+  }
+
+  const closingDelimiter = TRAILING_DELIMITER_PATTERN.exec(queryPart)?.[0] ?? "";
+  return `${token.slice(0, queryIndex)}?${REDACTED}${closingDelimiter}`;
+}
 
 function toSnakeCase(key: string): string {
   return key
@@ -47,7 +79,7 @@ function redactUrl(url: string): string {
 function redactString(value: string): string {
   return value
     .replace(URL_PATTERN, redactUrl)
-    .replace(RELATIVE_PATH_WITH_QUERY_PATTERN, `$1$2?${REDACTED}`)
+    .replace(/\S+/g, redactPathToken)
     .replace(BEARER_TOKEN_PATTERN, REDACTED);
 }
 

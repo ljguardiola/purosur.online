@@ -63,13 +63,29 @@ describe("scrubSentryEvent", () => {
     );
   });
 
-  it("redacts the query string of a relative path after a bracket or a backtick", () => {
+  it("redacts the query string of a relative path after a bracket or a backtick, keeping the closing delimiter", () => {
     const event = {
       message: "fetch [/media/a.jpg?sig=abc] and `/media/b.jpg?token=x` failed",
     };
 
     expect(scrubSentryEvent(event).message).toBe(
-      "fetch [/media/a.jpg?[redacted] and `/media/b.jpg?[redacted]` failed",
+      "fetch [/media/a.jpg?[redacted]] and `/media/b.jpg?[redacted]` failed",
+    );
+  });
+
+  it("redacts a relative path query that contains a backtick, without leaking what follows it", () => {
+    const event = { message: "GET /media/a.jpg?token=ab`cd failed" };
+
+    expect(scrubSentryEvent(event).message).toBe("GET /media/a.jpg?[redacted] failed");
+  });
+
+  it("redacts the query string of a protocol-relative path", () => {
+    const event = {
+      message: "GET //cdn.example.com/media/a.jpg?X-Amz-Signature=abc failed",
+    };
+
+    expect(scrubSentryEvent(event).message).toBe(
+      "GET //cdn.example.com/media/a.jpg?[redacted] failed",
     );
   });
 
