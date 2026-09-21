@@ -330,10 +330,14 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
 test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Reason");
-  const input = fieldInput(screen, "Reason");
 
-  await userEvent.click(input);
+  await userEvent.tab();
   await userEvent.hover(box);
+  // Both assertions below also hold for a focused field the pointer never reached: focus alone
+  // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
+  // as the only thing that puts the pointer on the box, and the poll proves it got there before
+  // asserting that focus won over it.
+  await expect.poll(() => box.matches(":hover")).toBe(true);
 
   await expect
     .poll(() => getComputedStyle(box).boxShadow)
