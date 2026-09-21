@@ -557,6 +557,32 @@ test("renderer-types-only-from-domain flags a value import from domain and allow
   assert.equal(violationsFor(controlReport, "renderer-types-only-from-domain").length, 0);
 });
 
+test("renderer-no-domain-re-exports flags every re-export from domain, even an empty or type-only one, and allows a type import", async (t) => {
+  const root = await makeFixture(t, {
+    "apps/pos/src/renderer/empty.ts":
+      'export {} from "../../../../packages/domain/src/sales/index";\n',
+    "apps/pos/src/renderer/typed.ts":
+      'export type { Order } from "../../../../packages/domain/src/sales/index";\n',
+    "apps/pos/src/renderer/view.ts": [
+      'import type { Order } from "../../../../packages/domain/src/sales/index";',
+      "export function show(order: Order) {",
+      "  return order.id;",
+      "}",
+    ].join("\n"),
+    "packages/domain/src/sales/index.ts": "export type Order = { id: number };\n",
+  });
+
+  const report = await cruiseFixture(root, ["apps", "packages"]);
+  const sources = violationsFor(report, "renderer-no-domain-re-exports").map(
+    (violation) => violation.from,
+  );
+
+  assert.deepEqual(sources.toSorted(), [
+    "apps/pos/src/renderer/empty.ts",
+    "apps/pos/src/renderer/typed.ts",
+  ]);
+});
+
 const RENDERER_FORBIDDEN_PACKAGES = [
   "electron",
   "better-sqlite3",

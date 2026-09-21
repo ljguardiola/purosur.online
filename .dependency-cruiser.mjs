@@ -125,6 +125,18 @@ export default {
       },
     },
     {
+      name: "renderer-no-domain-re-exports",
+      comment:
+        "apps/pos/src/renderer/ never re-exports from packages/domain. An empty or " +
+        "type-only re-export (`export {} from`, `export type { X } from`) is " +
+        "classified type-only, yet the empty form is kept by verbatimModuleSyntax " +
+        "and loads the domain module at runtime; the renderer has no reason to " +
+        "re-export domain at all.",
+      severity: "error",
+      from: { path: "^apps/pos/src/renderer/" },
+      to: { path: "^packages/domain/src/", dependencyTypes: ["export"] },
+    },
+    {
       name: "renderer-no-db-or-hardware",
       comment:
         "The renderer runs in a sandboxed browser context: it must never touch " +
