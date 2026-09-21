@@ -39,9 +39,6 @@ const channelFile = serializeChannelFile({
 export default {
   appId,
   productName,
-  // Electron takes the app's name, and so its userData folder, from the packaged package.json
-  // rather than from this configuration.
-  extraMetadata: { name: packageName, productName },
   directories: {
     output: `release/${channel}`,
   },
@@ -59,6 +56,13 @@ export default {
   },
   // Only where each channel's updates are published; nothing checks the feed yet.
   publish: updateFeedUrl ? [{ provider: "generic", url: updateFeedUrl, channel }] : null,
+  // app.asar's package.json is copied from disk untouched, so it is the same for both channels,
+  // but electron-builder also names the updater's cache folder (in app-update.yml and in the
+  // installer, which keeps a copy of itself there) after the in-memory package name. Renaming only
+  // that copy keeps the two channels' caches apart without changing the app code.
+  beforePack: (context) => {
+    context.packager.info.metadata.name = packageName;
+  },
   // The channel lives next to app.asar rather than inside it, the same way electron-builder writes
   // the update feed's app-update.yml, before the installer is built from this folder.
   afterPack: async (context) => {
