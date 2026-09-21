@@ -123,9 +123,11 @@ describe("isRetryableConnectionError", () => {
     "EAI_AGAIN",
     "ETIMEDOUT",
     "ECONNRESET",
+    "EHOSTUNREACH",
+    "ENETUNREACH",
+    "ECONNABORTED",
     "CONNECT_TIMEOUT",
     "CONNECTION_CLOSED",
-    "CONNECTION_ENDED",
     "57P03",
   ])("treats %s as a retryable connection failure", (code) => {
     expect(isRetryableConnectionError(Object.assign(new Error("x"), { code }))).toBe(true);
@@ -135,6 +137,7 @@ describe("isRetryableConnectionError", () => {
     "28P01", // invalid_password
     "3D000", // invalid_catalog_name (unknown database)
     "42601", // syntax_error, e.g. a bad migration statement
+    "CONNECTION_ENDED", // the client was already ended, which no amount of waiting undoes
   ])("does not treat %s as a retryable connection failure", (code) => {
     expect(isRetryableConnectionError(Object.assign(new Error("x"), { code }))).toBe(false);
   });
