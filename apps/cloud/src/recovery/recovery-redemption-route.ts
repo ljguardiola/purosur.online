@@ -6,7 +6,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
-import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
+import {
+  type RecoveryRejectedAttemptKind,
+  recordRejectedAttempt,
+} from "./recovery-rejected-attempt-accumulator.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { recoveryTokenErrorResponse } from "./recovery-token-error-response.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -30,7 +33,7 @@ function sendTokenError(reply: FastifyReply, status: "invalid" | "burned" | "exp
   void reply.code(error.statusCode).send({ code: error.code, message: error.message });
 }
 
-type RedemptionAttempt = "registration_options" | "redeem";
+type RedemptionAttempt = Exclude<RecoveryRejectedAttemptKind, "request">;
 
 class CredentialAlreadyRegistered extends Error {}
 
