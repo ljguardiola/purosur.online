@@ -15,11 +15,9 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the rate limiter's fixed hourly window is deterministic. */
+  /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
 }
-
-const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
 function sendTokenError(reply: FastifyReply, status: "invalid" | "burned" | "expired"): void {
   const error = recoveryTokenErrorResponse(status);
@@ -61,13 +59,13 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     reply: FastifyReply,
   ): Promise<boolean> {
     const sourceAddress = resolveSourceAddress(request);
-    const { allowed } = await recordRedemptionAttempt(options.db, {
+    const rateLimit = await recordRedemptionAttempt(options.db, {
       sourceAddress,
       now: now(),
     });
-    if (!allowed) {
+    if (!rateLimit.allowed) {
       await reply
-        .header("Retry-After", String(RATE_LIMIT_WINDOW_SECONDS))
+        .header("Retry-After", String(rateLimit.retryAfterSeconds))
         .code(429)
         .send({ code: "rate_limited", message: "too many recovery attempts" });
       return false;

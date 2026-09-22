@@ -13,6 +13,7 @@ let client: PGlite;
 let db: PgliteDatabase<Record<string, never>>;
 let app: FastifyInstance;
 let jobQueue: RecoveryJobQueue & { enqueued: string[] };
+let currentTime: Date;
 
 beforeEach(async () => {
   client = new PGlite();
@@ -27,12 +28,13 @@ beforeEach(async () => {
     },
   };
 
+  currentTime = new Date("2026-01-05T12:00:00.000Z");
   app = Fastify();
   registerRecoveryRoutes(app, {
     db,
     jobQueue,
     backofficeOrigin: BACKOFFICE_ORIGIN,
-    now: () => new Date("2026-01-05T12:00:00.000Z"),
+    now: () => currentTime,
   });
 });
 
@@ -129,6 +131,35 @@ describe("POST /users/recovery/request", () => {
       "ada@example.com",
       "ada@example.com",
     ]);
+  });
+
+  it("rejects an email longer than 254 characters as validation_failed without enqueuing a job", async () => {
+    const response = await post({ email: `${"a".repeat(243)}@example.com` });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(jobQueue.enqueued).toEqual([]);
+  });
+
+  it("accepts an email of exactly 254 characters", async () => {
+    const email = `${"a".repeat(242)}@example.com`;
+
+    const response = await post({ email });
+
+    expect(response.statusCode).toBe(200);
+    expect(jobQueue.enqueued).toEqual([email]);
+  });
+
+  it("sends Retry-After as the seconds left until the limit frees a slot", async () => {
+    for (let i = 0; i < 5; i++) {
+      await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
+    }
+    currentTime = new Date("2026-01-05T12:45:00.000Z");
+
+    const sixth = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
+
+    expect(sixth.statusCode).toBe(429);
+    expect(sixth.headers["retry-after"]).toBe(String(15 * 60));
   });
 
   it("rate-limits the 11th request per hour from the same source address and enqueues nothing", async () => {

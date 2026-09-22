@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -119,22 +120,23 @@ export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
   "redemption_source_address",
 ]);
 
-// A fixed hourly window, keyed by (kind, value, window start): the request handler upserts and
-// increments the row for the current hour instead of a sliding window (§11, issue #167).
-export const recoveryRateLimitCounters = pgTable(
-  "recovery_rate_limit_counters",
+// One row per admitted attempt, so each limit counts the last 60 minutes rather than a clock hour.
+// Rows that leave the window are pruned as later attempts are recorded, which keeps the table
+// bounded by the attempts admitted within one hour.
+export const recoveryRateLimitAttempts = pgTable(
+  "recovery_rate_limit_attempts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     keyKind: recoveryRateLimitKeyKind("key_kind").notNull(),
     keyValue: text("key_value").notNull(),
-    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
-    count: integer("count").notNull().default(0),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
   },
   (table) => [
-    uniqueIndex("recovery_rate_limit_counters_key").on(
+    index("recovery_rate_limit_attempts_key_idx").on(
       table.keyKind,
       table.keyValue,
-      table.windowStart,
+      table.attemptedAt,
     ),
+    index("recovery_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );

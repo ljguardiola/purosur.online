@@ -8,25 +8,25 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
-  /** Injected in tests so the rate limiter's fixed hourly window is deterministic. */
+  /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
 }
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
+// The longest address SMTP can deliver to (RFC 5321's 256-octet path minus its angle brackets).
+const EMAIL_MAX_LENGTH = 254;
 
 function normalizeEmail(rawEmail: unknown): string | undefined {
   if (typeof rawEmail !== "string") {
     return undefined;
   }
   const email = rawEmail.trim().toLowerCase();
-  return EMAIL_SHAPE.test(email) ? email : undefined;
+  return email.length <= EMAIL_MAX_LENGTH && EMAIL_SHAPE.test(email) ? email : undefined;
 }
-
-const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
 /**
  * Registers `POST /users/recovery/request` (§9.7, D44, issue #167). Does the same work for every
- * well-formed address — both hourly limits, then one unconditional job enqueue — and answers with
+ * well-formed address — both rolling one-hour limits, then one unconditional job enqueue — and answers with
  * no body, so nothing about the response depends on whether that address belongs to a real
  * account.
  */
@@ -62,14 +62,14 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
 
     const sourceAddress = resolveSourceAddress(request);
 
-    const { allowed } = await recordRecoveryRequestAttempt(options.db, {
+    const rateLimit = await recordRecoveryRequestAttempt(options.db, {
       destinationAddress: email,
       sourceAddress,
       now: now(),
     });
-    if (!allowed) {
+    if (!rateLimit.allowed) {
       await reply
-        .header("Retry-After", String(RATE_LIMIT_WINDOW_SECONDS))
+        .header("Retry-After", String(rateLimit.retryAfterSeconds))
         .code(429)
         .send({ code: "rate_limited", message: "too many recovery-link requests" });
       return;

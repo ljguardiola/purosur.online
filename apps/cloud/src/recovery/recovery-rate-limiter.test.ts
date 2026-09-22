@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -20,6 +21,18 @@ afterEach(async () => {
 });
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const MINUTE_MS = 60 * 1000;
+
+function minutesAfterNoon(minutes: number): Date {
+  return new Date(NOON.getTime() + minutes * MINUTE_MS);
+}
+
+async function storedKeyValues(): Promise<string[]> {
+  const result = await client.query<{ key_value: string }>(
+    "select key_value from recovery_rate_limit_attempts",
+  );
+  return result.rows.map((row) => row.key_value);
+}
 
 describe("recordRecoveryRequestAttempt", () => {
   it("allows the first request for a fresh destination and source address", async () => {
@@ -105,6 +118,115 @@ describe("recordRecoveryRequestAttempt", () => {
 
     expect(afterRollover.allowed).toBe(true);
   });
+
+  it("counts the last 60 minutes, not the current clock hour, so a limit never doubles across the hour", async () => {
+    for (let i = 0; i < 5; i++) {
+      await recordRecoveryRequestAttempt(db, {
+        destinationAddress: "ada@example.com",
+        sourceAddress: `203.0.113.${i}`,
+        now: minutesAfterNoon(59),
+      });
+    }
+
+    const twoMinutesLater = await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.99",
+      now: minutesAfterNoon(61),
+    });
+
+    expect(twoMinutesLater.allowed).toBe(false);
+  });
+
+  it("reports the seconds until the destination's oldest counted request leaves the window", async () => {
+    for (let i = 0; i < 5; i++) {
+      await recordRecoveryRequestAttempt(db, {
+        destinationAddress: "ada@example.com",
+        sourceAddress: `203.0.113.${i}`,
+        now: minutesAfterNoon(i * 10),
+      });
+    }
+
+    const rejected = await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.99",
+      now: minutesAfterNoon(50),
+    });
+
+    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 10 * 60 });
+  });
+
+  it("reports the seconds until the source address's oldest counted request leaves the window", async () => {
+    for (let i = 0; i < 10; i++) {
+      await recordRecoveryRequestAttempt(db, {
+        destinationAddress: `user${i}@example.com`,
+        sourceAddress: "203.0.113.10",
+        now: minutesAfterNoon(i * 5),
+      });
+    }
+
+    const rejected = await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "one-too-many@example.com",
+      sourceAddress: "203.0.113.10",
+      now: minutesAfterNoon(45),
+    });
+
+    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 15 * 60 });
+  });
+
+  it("admits a request made exactly when the reported wait runs out", async () => {
+    for (let i = 0; i < 5; i++) {
+      await recordRecoveryRequestAttempt(db, {
+        destinationAddress: "ada@example.com",
+        sourceAddress: `203.0.113.${i}`,
+        now: minutesAfterNoon(i * 10),
+      });
+    }
+    const rejected = await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.99",
+      now: minutesAfterNoon(50),
+    });
+    if (rejected.allowed) {
+      throw new Error("test setup: expected the sixth request to be rejected");
+    }
+
+    const retried = await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.100",
+      now: new Date(minutesAfterNoon(50).getTime() + rejected.retryAfterSeconds * 1000),
+    });
+
+    expect(retried.allowed).toBe(true);
+  });
+
+  it("stores the destination address only as its SHA-256 hash", async () => {
+    await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
+
+    const keyValues = await storedKeyValues();
+    expect(keyValues.some((value) => value.includes("ada@example.com"))).toBe(false);
+    expect(keyValues).toContain(createHash("sha256").update("ada@example.com").digest("hex"));
+  });
+
+  it("prunes attempts that already left the window when a later attempt is recorded", async () => {
+    await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "ada@example.com",
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
+
+    await recordRecoveryRequestAttempt(db, {
+      destinationAddress: "grace@example.com",
+      sourceAddress: "203.0.113.20",
+      now: minutesAfterNoon(90),
+    });
+
+    expect(await storedKeyValues()).toHaveLength(2);
+    expect(await storedKeyValues()).not.toContain("203.0.113.10");
+  });
 });
 
 describe("recordRedemptionAttempt", () => {
@@ -162,5 +284,37 @@ describe("recordRedemptionAttempt", () => {
     });
 
     expect(afterRollover.allowed).toBe(true);
+  });
+
+  it("counts the last 60 minutes, not the current clock hour", async () => {
+    for (let i = 0; i < 10; i++) {
+      await recordRedemptionAttempt(db, {
+        sourceAddress: "203.0.113.10",
+        now: minutesAfterNoon(59),
+      });
+    }
+
+    const twoMinutesLater = await recordRedemptionAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: minutesAfterNoon(61),
+    });
+
+    expect(twoMinutesLater.allowed).toBe(false);
+  });
+
+  it("reports the seconds until the oldest counted attempt leaves the window", async () => {
+    for (let i = 0; i < 10; i++) {
+      await recordRedemptionAttempt(db, {
+        sourceAddress: "203.0.113.10",
+        now: minutesAfterNoon(i),
+      });
+    }
+
+    const rejected = await recordRedemptionAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: minutesAfterNoon(20),
+    });
+
+    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 40 * 60 });
   });
 });

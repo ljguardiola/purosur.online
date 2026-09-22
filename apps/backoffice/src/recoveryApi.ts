@@ -3,8 +3,8 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
-// The cloud's rate limiter uses a fixed one-hour window (request-recovery-route.ts,
-// recovery-redemption-route.ts): the fallback a missing `Retry-After` header gets.
+// The cloud's rate limiter counts a rolling one-hour window, so no wait is ever longer than an
+// hour: the fallback a missing `Retry-After` header gets.
 const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 
 export type RecoveryRequestOutcome =

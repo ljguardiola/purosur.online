@@ -19,6 +19,7 @@ let db: PgliteDatabase<Record<string, never>>;
 let app: FastifyInstance;
 let userId: string;
 let tokenSequence: number;
+let currentTime: Date;
 
 beforeEach(async () => {
   client = new PGlite();
@@ -35,11 +36,12 @@ beforeEach(async () => {
   }
   userId = user.id;
 
+  currentTime = NOON;
   app = Fastify();
   registerRecoveryRedemptionRoutes(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
-    now: () => NOON,
+    now: () => currentTime,
   });
 });
 
@@ -244,6 +246,18 @@ describe("POST /users/recovery/registration-options", () => {
     expect(eleventh.statusCode).toBe(429);
     expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
     expect(eleventh.headers["retry-after"]).toBeDefined();
+  });
+
+  it("sends Retry-After as the seconds left until the limit frees a slot", async () => {
+    for (let i = 0; i < 10; i++) {
+      await postOptions({ recovery_token: "an-unknown-raw-token" });
+    }
+    currentTime = new Date(NOON.getTime() + 20 * 60 * 1000);
+
+    const eleventh = await postOptions({ recovery_token: "an-unknown-raw-token" });
+
+    expect(eleventh.statusCode).toBe(429);
+    expect(eleventh.headers["retry-after"]).toBe(String(40 * 60));
   });
 });
 
