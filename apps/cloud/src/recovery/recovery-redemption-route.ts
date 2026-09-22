@@ -24,6 +24,10 @@ function sendTokenError(reply: FastifyReply, status: "invalid" | "burned" | "exp
   void reply.code(error.statusCode).send({ code: error.code, message: error.message });
 }
 
+type RedemptionAttempt = "registration_options" | "redeem";
+
+class CredentialAlreadyRegistered extends Error {}
+
 function readRawToken(body: unknown): string | undefined {
   const recoveryToken = (body as { recovery_token?: unknown } | undefined)?.recovery_token;
   return typeof recoveryToken === "string" && recoveryToken !== "" ? recoveryToken : undefined;
@@ -73,6 +77,43 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     return true;
   }
 
+  // Every rejected attempt on a token that exists is audited against the account it belongs to;
+  // an unknown token has no account to attribute the attempt to.
+  async function auditRejectedAttempt(
+    token: RecoveryTokenRow,
+    attempt: RedemptionAttempt,
+    rejectedWith: string,
+  ): Promise<void> {
+    await options.db.insert(auditLog).values({
+      entity: "recovery_token",
+      entityId: token.id,
+      actorId: token.userId,
+      previousValue: null,
+      newValue: { attempt, rejectedWith },
+    });
+  }
+
+  async function rejectToken(
+    reply: FastifyReply,
+    attempt: RedemptionAttempt,
+    status: "invalid" | "burned" | "expired",
+    token: RecoveryTokenRow | undefined,
+  ): Promise<void> {
+    if (token) {
+      await auditRejectedAttempt(token, attempt, recoveryTokenErrorResponse(status).code);
+    }
+    sendTokenError(reply, status);
+  }
+
+  async function rejectRedemptionAsInvalid(
+    reply: FastifyReply,
+    token: RecoveryTokenRow,
+    body: { message: string; details?: { field: string }[] },
+  ): Promise<void> {
+    await auditRejectedAttempt(token, "redeem", "validation_failed");
+    await reply.code(400).send({ code: "validation_failed", ...body });
+  }
+
   app.post("/users/recovery/registration-options", async (request, reply) => {
     if (!checkOrigin(request, reply)) {
       return;
@@ -93,19 +134,29 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       now(),
     );
     if (classification.status !== "valid") {
-      sendTokenError(reply, classification.status);
+      await rejectToken(reply, "registration_options", classification.status, classification.token);
       return;
     }
     const token = classification.token;
 
     const [account] = await options.db
-      .select({ id: users.id, firstName: users.firstName, email: users.email })
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        email: users.email,
+        active: users.active,
+      })
       .from(users)
       .where(eq(users.id, token.userId))
       .limit(1);
     if (!account) {
       // The account backing this token no longer exists; nothing to register against.
       sendTokenError(reply, "invalid");
+      return;
+    }
+    if (!account.active) {
+      // A deactivated account can't recover access, so its link is as unusable as an unknown one.
+      await rejectToken(reply, "registration_options", "invalid", token);
       return;
     }
 
@@ -157,14 +208,27 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
 
     const classification = await classifyRecoveryToken(options.db, tokenHash, redeemedAt);
     if (classification.status !== "valid") {
-      sendTokenError(reply, classification.status);
+      await rejectToken(reply, "redeem", classification.status, classification.token);
       return;
     }
     const token: RecoveryTokenRow = classification.token;
 
+    const [account] = await options.db
+      .select({ id: users.id, active: users.active })
+      .from(users)
+      .where(eq(users.id, token.userId))
+      .limit(1);
+    if (!account) {
+      sendTokenError(reply, "invalid");
+      return;
+    }
+    if (!account.active) {
+      await rejectToken(reply, "redeem", "invalid", token);
+      return;
+    }
+
     if (!token.registrationChallenge) {
-      await reply.code(400).send({
-        code: "validation_failed",
+      await rejectRedemptionAsInvalid(reply, token, {
         message: "no passkey registration was ever started for this recovery link",
       });
       return;
@@ -173,8 +237,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
       ?.passkey_registration as RegistrationResponseJSON | undefined;
     if (!passkeyRegistration) {
-      await reply.code(400).send({
-        code: "validation_failed",
+      await rejectRedemptionAsInvalid(reply, token, {
         message: "passkey_registration is required",
         details: [{ field: "passkey_registration" }],
       });
@@ -189,25 +252,14 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       requireUserVerification: true,
     }).catch(() => ({ verified: false as const }));
     if (!verification.verified) {
-      await reply.code(400).send({
-        code: "validation_failed",
+      await rejectRedemptionAsInvalid(reply, token, {
         message: "the passkey registration did not verify against the backoffice's origin",
       });
       return;
     }
     const { registrationInfo } = verification;
 
-    const [account] = await options.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.id, token.userId))
-      .limit(1);
-    if (!account) {
-      sendTokenError(reply, "invalid");
-      return;
-    }
-
-    const outcome = await options.db.transaction(async (tx) => {
+    const burnAndRegister = options.db.transaction(async (tx) => {
       const [burned] = await tx
         .update(recoveryTokens)
         .set({ usedAt: redeemedAt })
@@ -235,9 +287,11 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           deviceType: registrationInfo.credentialDeviceType,
           backedUp: registrationInfo.credentialBackedUp,
         })
+        .onConflictDoNothing({ target: passkeys.credentialId })
         .returning({ id: passkeys.id });
       if (!newPasskey) {
-        throw new Error("inserting the recovered passkey returned no row");
+        // Throwing rolls the burn back, so the link stays usable with a different authenticator.
+        throw new CredentialAlreadyRegistered();
       }
 
       await tx.insert(auditLog).values({
@@ -261,12 +315,25 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
 
       return { burned: true, userId: account.id } as const;
     });
+    const outcome = await burnAndRegister.catch((error: unknown) => {
+      if (error instanceof CredentialAlreadyRegistered) {
+        return { burned: false, credentialAlreadyRegistered: true } as const;
+      }
+      throw error;
+    });
 
+    if ("credentialAlreadyRegistered" in outcome) {
+      await rejectRedemptionAsInvalid(reply, token, {
+        message: "this passkey is already registered",
+        details: [{ field: "passkey_registration" }],
+      });
+      return;
+    }
     if (!outcome.burned) {
       // Lost a race with a concurrent redemption of the same token: reclassify it fresh so the
       // response matches what actually happened instead of assuming it was this request's own.
       const raced = await classifyRecoveryToken(options.db, tokenHash, now());
-      sendTokenError(reply, raced.status === "valid" ? "burned" : raced.status);
+      await rejectToken(reply, "redeem", raced.status === "valid" ? "burned" : raced.status, token);
       return;
     }
 

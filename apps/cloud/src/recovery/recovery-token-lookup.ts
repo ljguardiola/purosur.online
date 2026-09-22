@@ -12,14 +12,15 @@ export interface RecoveryTokenRow {
 }
 
 export type RecoveryTokenClassification =
-  | { status: "invalid" | "burned" | "expired"; token?: undefined }
-  | { status: "valid"; token: RecoveryTokenRow };
+  | { status: "invalid"; token?: undefined }
+  | { status: "burned" | "expired" | "valid"; token: RecoveryTokenRow };
 
 /**
  * Classifies a recovery token by its hash, following the priority §9.7/issue #167 fix for both
  * `registration-options` and `redeem`: unknown first (`invalid`), then used or voided by a newer
  * request (`burned`), then past `expires_at` (`expired`) — a token that is both used/voided and
- * expired reports `burned`, since it was consumed before it had the chance to expire.
+ * expired reports `burned`, since it was consumed before it had the chance to expire. Any token
+ * it finds comes back with its row, so a rejected attempt can still be attributed to its account.
  */
 export async function classifyRecoveryToken<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -43,10 +44,10 @@ export async function classifyRecoveryToken<TQueryResult extends PgQueryResultHK
     return { status: "invalid" };
   }
   if (row.usedAt !== null || row.voidedAt !== null) {
-    return { status: "burned" };
+    return { status: "burned", token: row };
   }
   if (row.expiresAt.getTime() <= now.getTime()) {
-    return { status: "expired" };
+    return { status: "expired", token: row };
   }
   return { status: "valid", token: row };
 }

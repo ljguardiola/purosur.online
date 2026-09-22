@@ -67,6 +67,25 @@ describe("classifyRecoveryToken", () => {
     expect(result.status).toBe("burned");
   });
 
+  it("returns the row of a burned or expired token so the attempt can be attributed", async () => {
+    await db.insert(recoveryTokens).values([
+      {
+        userId,
+        tokenHash: "burned-hash",
+        issuedAt: NOON,
+        expiresAt: new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),
+        usedAt: NOON,
+      },
+      { userId, tokenHash: "expired-hash", issuedAt: NOON, expiresAt: NOON },
+    ]);
+
+    const burned = await classifyRecoveryToken(db, "burned-hash", NOON);
+    const expired = await classifyRecoveryToken(db, "expired-hash", NOON);
+
+    expect(burned.token?.userId).toBe(userId);
+    expect(expired.token?.userId).toBe(userId);
+  });
+
   it("classifies a token voided by a newer request as burned", async () => {
     await db.insert(recoveryTokens).values({
       userId,

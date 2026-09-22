@@ -112,8 +112,17 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
       expect(tokenRows).toHaveLength(1);
       expect(tokenRows[0]?.usedAt).not.toBeNull();
 
+      // The winner audits the burn and the new passkey; the loser audits its own rejected attempt.
       const auditRows = await db.select().from(auditLog).where(eq(auditLog.actorId, userId));
-      expect(auditRows.map((row) => row.entity).sort()).toEqual(["passkey", "recovery_token"]);
+      expect(auditRows.map((row) => row.entity).sort()).toEqual([
+        "passkey",
+        "recovery_token",
+        "recovery_token",
+      ]);
+      expect(auditRows.map((row) => row.newValue)).toContainEqual({
+        attempt: "redeem",
+        rejectedWith: "recovery_token_burned",
+      });
     } finally {
       await server.close();
     }

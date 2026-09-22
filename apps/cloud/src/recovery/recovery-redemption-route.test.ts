@@ -452,3 +452,195 @@ describe("POST /users/recovery/redeem", () => {
     expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
   });
 });
+
+async function rejectedAttemptAuditRows() {
+  const rows = await db.select().from(auditLog).where(eq(auditLog.entity, "recovery_token"));
+  return rows.filter((row) => (row.newValue as { rejectedWith?: string } | null)?.rejectedWith);
+}
+
+async function deactivateUser() {
+  await db.update(users).set({ active: false }).where(eq(users.id, userId));
+}
+
+async function registerCredentialAlready(credentialId: string) {
+  await db.insert(passkeys).values({
+    userId,
+    credentialId,
+    publicKey: "unused-in-this-test",
+    counter: 0,
+    deviceType: "singleDevice",
+    backedUp: false,
+  });
+}
+
+async function tokenUsedAt(rawToken: string) {
+  const [tokenRow] = await db
+    .select({ usedAt: recoveryTokens.usedAt })
+    .from(recoveryTokens)
+    .where(eq(recoveryTokens.tokenHash, hashRecoveryToken(rawToken)));
+  return tokenRow?.usedAt;
+}
+
+describe("recovery redemption for a deactivated account", () => {
+  it("rejects registration-options as recovery_token_invalid", async () => {
+    const rawToken = await issueToken();
+    await deactivateUser();
+
+    const response = await postOptions({ recovery_token: rawToken });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
+  });
+
+  it("rejects redeem as recovery_token_invalid without registering a passkey or burning the token", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
+    await deactivateUser();
+
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
+    const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(insertedPasskeys).toHaveLength(0);
+    expect(await tokenUsedAt(rawToken)).toBeNull();
+  });
+});
+
+describe("recovery redemption with a credential that is already registered", () => {
+  it("rejects it as validation_failed without burning the token", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
+    await registerCredentialAlready(credential.id);
+
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(await tokenUsedAt(rawToken)).toBeNull();
+  });
+});
+
+describe("auditing rejected recovery redemptions", () => {
+  it.each([
+    ["an already-used token", { usedAt: NOON }, "recovery_token_burned"],
+    ["an expired token", { expiresAt: new Date(NOON.getTime() - 1) }, "recovery_token_expired"],
+  ] as const)(
+    "audits registration-options and redeem for %s against the account",
+    async (_, overrides, code) => {
+      const rawToken = await issueToken(overrides);
+
+      await postOptions({ recovery_token: rawToken });
+      await postRedeem({ recovery_token: rawToken });
+
+      const rows = await rejectedAttemptAuditRows();
+      expect(rows).toHaveLength(2);
+      for (const row of rows) {
+        expect(row.actorId).toBe(userId);
+        expect(row.newValue).toMatchObject({ rejectedWith: code });
+      }
+      expect(rows.map((row) => (row.newValue as { attempt: string }).attempt).sort()).toEqual([
+        "redeem",
+        "registration_options",
+      ]);
+    },
+  );
+
+  it("audits a redeem whose passkey registration does not verify", async () => {
+    const rawTokenA = await issueToken();
+    const optionsA = await getRegistrationOptions(rawTokenA);
+    const rawTokenB = await issueToken();
+    await getRegistrationOptions(rawTokenB);
+    const credentialForA = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, optionsA);
+
+    await postRedeem({ recovery_token: rawTokenB, passkey_registration: credentialForA });
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      actorId: userId,
+      newValue: { attempt: "redeem", rejectedWith: "validation_failed" },
+    });
+  });
+
+  it("audits a redeem attempted before registration options were requested", async () => {
+    const rawToken = await issueToken();
+
+    await postRedeem({ recovery_token: rawToken });
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.newValue).toMatchObject({ rejectedWith: "validation_failed" });
+  });
+
+  it("audits a redeem that is missing its passkey registration", async () => {
+    const rawToken = await issueToken();
+    await getRegistrationOptions(rawToken);
+
+    await postRedeem({ recovery_token: rawToken });
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.newValue).toMatchObject({ rejectedWith: "validation_failed" });
+  });
+
+  it("audits a redeem with a credential that is already registered", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
+    await registerCredentialAlready(credential.id);
+
+    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      actorId: userId,
+      newValue: { attempt: "redeem", rejectedWith: "validation_failed" },
+    });
+  });
+
+  it("audits registration-options and redeem for a deactivated account", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
+    await deactivateUser();
+
+    await postOptions({ recovery_token: rawToken });
+    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.actorId).toBe(userId);
+      expect(row.newValue).toMatchObject({ rejectedWith: "recovery_token_invalid" });
+    }
+  });
+
+  it("writes nothing for a token that matches no row, since there is no account to attribute it to", async () => {
+    await postOptions({ recovery_token: "an-unknown-raw-token" });
+    await postRedeem({ recovery_token: "an-unknown-raw-token" });
+
+    await expect(db.select().from(auditLog)).resolves.toEqual([]);
+  });
+
+  it("writes nothing for a rate-limited attempt, which is rejected before the token is looked up", async () => {
+    const rawToken = await issueToken({ usedAt: NOON });
+    for (let i = 0; i < 10; i++) {
+      await postOptions({ recovery_token: "an-unknown-raw-token" });
+    }
+
+    const rateLimited = await postOptions({ recovery_token: rawToken });
+
+    expect(rateLimited.statusCode).toBe(429);
+    await expect(db.select().from(auditLog)).resolves.toEqual([]);
+  });
+});
