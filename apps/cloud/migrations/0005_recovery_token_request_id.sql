@@ -1,0 +1,2 @@
+ALTER TABLE "recovery_tokens" ADD COLUMN "request_id" uuid DEFAULT gen_random_uuid() NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "recovery_tokens_one_live_per_user" ON "recovery_tokens" USING btree ("user_id") WHERE "recovery_tokens"."used_at" IS NULL AND "recovery_tokens"."voided_at" IS NULL;

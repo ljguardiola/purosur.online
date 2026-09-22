@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -60,8 +60,22 @@ interface IssueTokenOverrides {
 async function issueToken(overrides: IssueTokenOverrides = {}): Promise<string> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
+  const forUserId = overrides.forUserId ?? userId;
+  // An account holds one live token at a time: issuing another voids the previous one first.
+  if (!overrides.usedAt && !overrides.voidedAt) {
+    await db
+      .update(recoveryTokens)
+      .set({ voidedAt: NOON })
+      .where(
+        and(
+          eq(recoveryTokens.userId, forUserId),
+          isNull(recoveryTokens.usedAt),
+          isNull(recoveryTokens.voidedAt),
+        ),
+      );
+  }
   await db.insert(recoveryTokens).values({
-    userId: overrides.forUserId ?? userId,
+    userId: forUserId,
     tokenHash: hashRecoveryToken(rawToken),
     issuedAt: NOON,
     expiresAt: overrides.expiresAt ?? new Date(NOON.getTime() + FIFTEEN_MINUTES_MS),

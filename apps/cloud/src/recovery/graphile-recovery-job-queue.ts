@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { WorkerUtils } from "graphile-worker";
 import type { RecoveryRequestJobPayload } from "./process-recovery-request-job.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
@@ -16,6 +17,7 @@ export function createGraphileRecoveryJobQueue(
         email: request.email,
         requestedAt: request.requestedAt.toISOString(),
         admitted: request.admitted,
+        requestId: randomUUID(),
       };
       await workerUtils.addJob(RECOVERY_REQUEST_TASK_IDENTIFIER, payload);
     },

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
@@ -53,11 +53,16 @@ function fakeEmailSender(): RecoveryEmailSender & { sentLinks: string[] } {
 const NOW = new Date("2026-01-05T12:00:00.000Z");
 
 function admittedRequest(email: string, requestedAt = NOW): RecoveryRequestJobPayload {
-  return { email, requestedAt: requestedAt.toISOString(), admitted: true };
+  return { email, requestedAt: requestedAt.toISOString(), admitted: true, requestId: randomUUID() };
 }
 
 function rateLimitedRequest(email: string, requestedAt = NOW): RecoveryRequestJobPayload {
-  return { email, requestedAt: requestedAt.toISOString(), admitted: false };
+  return {
+    email,
+    requestedAt: requestedAt.toISOString(),
+    admitted: false,
+    requestId: randomUUID(),
+  };
 }
 
 function jobDeps(emailSender: RecoveryEmailSender, now = NOW) {
@@ -161,17 +166,63 @@ describe("processRecoveryRequestJob", () => {
     expect(emailSender.sentLinks).toHaveLength(1);
   });
 
+  it("audits an admitted request whose job finds a link already issued for a newer request", async () => {
+    const userId = await insertUser("ada@example.com");
+    const emailSender = fakeEmailSender();
+    const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
+    await processRecoveryRequestJob(
+      db,
+      admittedRequest("ada@example.com", newerRequestAt),
+      jobDeps(emailSender, newerRequestAt),
+    );
+
+    await processRecoveryRequestJob(
+      db,
+      admittedRequest("ada@example.com", NOW),
+      jobDeps(emailSender, new Date(NOW.getTime() + 7 * 60 * 1000)),
+    );
+
+    const auditRows = await requestAuditRows();
+    expect(auditRows).toHaveLength(1);
+    expect(auditRows[0]).toMatchObject({
+      entityId: userId,
+      actorId: userId,
+      newValue: { attempt: "request", rejectedWith: "superseded" },
+    });
+  });
+
+  it("issues no second link for a different request made in the same millisecond", async () => {
+    await insertUser("ada@example.com");
+    const emailSender = fakeEmailSender();
+
+    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), jobDeps(emailSender));
+    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), jobDeps(emailSender));
+
+    const tokens = await db.select().from(recoveryTokens);
+    expect(tokens).toHaveLength(1);
+    expect(emailSender.sentLinks).toHaveLength(1);
+  });
+
+  it("never stores two live tokens for the same account", async () => {
+    const userId = await insertUser("ada@example.com");
+    const liveToken = (tokenHash: string) => ({
+      userId,
+      tokenHash,
+      expiresAt: new Date(NOW.getTime() + 15 * 60 * 1000),
+    });
+    await db.insert(recoveryTokens).values(liveToken("first-live-hash"));
+
+    await expect(db.insert(recoveryTokens).values(liveToken("second-live-hash"))).rejects.toThrow();
+  });
+
   it("lets a retry of the same request replace the link that request already issued", async () => {
     await insertUser("ada@example.com");
     const emailSender = fakeEmailSender();
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), jobDeps(emailSender));
+    const request = admittedRequest("ada@example.com");
+    await processRecoveryRequestJob(db, request, jobDeps(emailSender));
 
     const retryAt = new Date(NOW.getTime() + 60 * 1000);
-    await processRecoveryRequestJob(
-      db,
-      admittedRequest("ada@example.com"),
-      jobDeps(emailSender, retryAt),
-    );
+    await processRecoveryRequestJob(db, request, jobDeps(emailSender, retryAt));
 
     const tokens = await db.select().from(recoveryTokens);
     expect(tokens).toHaveLength(2);

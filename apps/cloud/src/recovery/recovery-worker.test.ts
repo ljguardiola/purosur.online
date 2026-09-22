@@ -90,6 +90,7 @@ describe("startRecoveryWorker", () => {
       email: "ada@example.com",
       requestedAt: "2026-01-05T12:00:00.000Z",
       admitted: true,
+      requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
     };
     await expect(task(payload)).rejects.toThrow("boom");
 
@@ -130,7 +131,20 @@ describe("startRecoveryWorker", () => {
     await expect(task({})).rejects.toThrow();
     await expect(task({ email: "ada@example.com" })).rejects.toThrow();
     await expect(
-      task({ email: "ada@example.com", requestedAt: "not-a-date", admitted: true }),
+      task({
+        email: "ada@example.com",
+        requestedAt: "not-a-date",
+        admitted: true,
+        requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      task({
+        email: "ada@example.com",
+        requestedAt: "2026-01-05T12:00:00.000Z",
+        admitted: true,
+        requestId: "not-a-uuid",
+      }),
     ).rejects.toThrow();
     expect(connectToDatabase).not.toHaveBeenCalled();
   });

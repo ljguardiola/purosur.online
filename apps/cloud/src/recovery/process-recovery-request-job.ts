@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
@@ -10,6 +10,8 @@ export interface RecoveryRequestJobPayload {
   /** ISO 8601: graphile-worker stores the payload as JSON. */
   requestedAt: string;
   admitted: boolean;
+  /** Fixed when the request is enqueued, so every retry of its job carries the same one. */
+  requestId: string;
 }
 
 export interface ProcessRecoveryRequestJobDeps {
@@ -37,7 +39,9 @@ function recoveryLink(backofficeOrigin: string, rawToken: string): string {
  * only audits it against that account. Otherwise it issues a fresh token in the same transaction
  * that voids any live one for that account, audits the issuance, and emails the link. An email
  * that fails to send throws, so graphile-worker's own retry applies; that retry replaces the link
- * its own request already issued, but never one issued for a newer request.
+ * its own request already issued, but never one issued for a different request made at the same
+ * time or later, which instead leaves the request audited as superseded. Jobs for the same account
+ * are serialized, so concurrent ones can never both leave a live link.
  */
 export async function processRecoveryRequestJob<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -74,14 +78,28 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
   const rawToken = generateRawToken();
 
   const issued = await db.transaction(async (tx) => {
-    const [newerRequestToken] = await tx
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`recovery_token:${account.id}`}, 0))`,
+    );
+    const [supersedingToken] = await tx
       .select({ id: recoveryTokens.id })
       .from(recoveryTokens)
       .where(
-        and(eq(recoveryTokens.userId, account.id), gt(recoveryTokens.requestedAt, requestedAt)),
+        and(
+          eq(recoveryTokens.userId, account.id),
+          gte(recoveryTokens.requestedAt, requestedAt),
+          ne(recoveryTokens.requestId, payload.requestId),
+        ),
       )
       .limit(1);
-    if (newerRequestToken) {
+    if (supersedingToken) {
+      await tx.insert(auditLog).values({
+        entity: "user",
+        entityId: account.id,
+        actorId: account.id,
+        previousValue: null,
+        newValue: { attempt: "request", rejectedWith: "superseded" },
+      });
       return false;
     }
 
@@ -102,6 +120,7 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
         userId: account.id,
         tokenHash: hashRecoveryToken(rawToken),
         requestedAt,
+        requestId: payload.requestId,
         issuedAt: now,
         expiresAt: new Date(now.getTime() + TOKEN_LIFETIME_MS),
       })

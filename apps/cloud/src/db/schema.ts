@@ -92,8 +92,9 @@ export const passkeys = pgTable(
   (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
 );
 
-// One live token per user at a time: an admitted request voids any previous row before inserting
-// its own (§9.7 "Cada pedido admitido emite un enlace nuevo y deja sin efecto el anterior").
+// One live token per user at a time, enforced by `recovery_tokens_one_live_per_user`: an admitted
+// request voids any previous row before inserting its own (§9.7 "Cada pedido admitido emite un
+// enlace nuevo y deja sin efecto el anterior").
 export const recoveryTokens = pgTable(
   "recovery_tokens",
   {
@@ -105,6 +106,8 @@ export const recoveryTokens = pgTable(
     // When the admitted request behind this token was made, which can be well before `issued_at`
     // when its job is retried; a job never replaces a token issued for a newer request.
     requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    // Identifies that admitted request, so a retry of its job recognizes the token it issued.
+    requestId: uuid("request_id").notNull().defaultRandom(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
@@ -112,7 +115,12 @@ export const recoveryTokens = pgTable(
     // Set by T2's registration-options endpoint once WebAuthn registration starts for this token.
     registrationChallenge: text("registration_challenge"),
   },
-  (table) => [uniqueIndex("recovery_tokens_token_hash_key").on(table.tokenHash)],
+  (table) => [
+    uniqueIndex("recovery_tokens_token_hash_key").on(table.tokenHash),
+    uniqueIndex("recovery_tokens_one_live_per_user")
+      .on(table.userId)
+      .where(sql`${table.usedAt} IS NULL AND ${table.voidedAt} IS NULL`),
+  ],
 );
 
 export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
