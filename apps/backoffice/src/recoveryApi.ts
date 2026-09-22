@@ -56,21 +56,23 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
   return { kind: "failed" };
 }
 
+// The contract's `recovery_token_invalid` and `validation_failed` both answer 400, and
+// `recovery_token_burned` and `recovery_token_expired` both answer 410 (§9.7), so the status alone
+// no longer tells the two apart: the body's `code` is the actual discriminator.
+const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
+  recovery_token_invalid: "invalid",
+  recovery_token_burned: "burned",
+  recovery_token_expired: "expired",
+  validation_failed: "validation_failed",
+};
+
 async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTokenOutcome<Value>> {
-  switch (response.status) {
-    case 404:
-      return { kind: "invalid" };
-    case 409:
-      return { kind: "burned" };
-    case 410:
-      return { kind: "expired" };
-    case 400:
-      return { kind: "validation_failed" };
-    case 429:
-      return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-    default:
-      return { kind: "failed" };
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
+  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+  const kind = body?.code ? TOKEN_ERROR_KIND_BY_CODE[body.code] : undefined;
+  return kind ? { kind } : { kind: "failed" };
 }
 
 /** Hands back a still-live token's WebAuthn creation options and the account's display name, without touching the token (recovery-redemption-route.ts's `registration-options`). */

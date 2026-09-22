@@ -12,13 +12,13 @@ export function recoveryTokenErrorResponse(
   switch (status) {
     case "invalid":
       return {
-        statusCode: 404,
+        statusCode: 400,
         code: "recovery_token_invalid",
         message: "the recovery link is not recognized",
       };
     case "burned":
       return {
-        statusCode: 409,
+        statusCode: 410,
         code: "recovery_token_burned",
         message: "the recovery link was already used or replaced by a newer one",
       };

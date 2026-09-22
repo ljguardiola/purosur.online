@@ -201,14 +201,14 @@ describe("POST /users/recovery/registration-options", () => {
   it("rejects an unknown token as recovery_token_invalid", async () => {
     const response = await postOptions({ recovery_token: "an-unknown-raw-token" });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
   });
 
   it("rejects a missing recovery_token as recovery_token_invalid", async () => {
     const response = await postOptions({});
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
   });
 
@@ -217,7 +217,7 @@ describe("POST /users/recovery/registration-options", () => {
 
     const response = await postOptions({ recovery_token: rawToken });
 
-    expect(response.statusCode).toBe(409);
+    expect(response.statusCode).toBe(410);
     expect(response.json()).toMatchObject({ code: "recovery_token_burned" });
   });
 
@@ -226,7 +226,7 @@ describe("POST /users/recovery/registration-options", () => {
 
     const response = await postOptions({ recovery_token: rawToken });
 
-    expect(response.statusCode).toBe(409);
+    expect(response.statusCode).toBe(410);
     expect(response.json()).toMatchObject({ code: "recovery_token_burned" });
   });
 
@@ -320,7 +320,7 @@ describe("POST /users/recovery/redeem", () => {
 
     const second = await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
 
-    expect(second.statusCode).toBe(409);
+    expect(second.statusCode).toBe(410);
     expect(second.json()).toMatchObject({ code: "recovery_token_burned" });
     const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskeys).toHaveLength(1);
@@ -337,7 +337,7 @@ describe("POST /users/recovery/redeem", () => {
       postRedeem({ recovery_token: rawToken, passkey_registration: credential }),
     ]);
 
-    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 409]);
+    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 410]);
     const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskeys).toHaveLength(1);
   });
@@ -410,7 +410,7 @@ describe("POST /users/recovery/redeem", () => {
   it("rejects an unknown token as recovery_token_invalid", async () => {
     const response = await postRedeem({ recovery_token: "an-unknown-raw-token" });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
   });
 
@@ -419,7 +419,7 @@ describe("POST /users/recovery/redeem", () => {
 
     const response = await postRedeem({ recovery_token: rawToken });
 
-    expect(response.statusCode).toBe(409);
+    expect(response.statusCode).toBe(410);
     expect(response.json()).toMatchObject({ code: "recovery_token_burned" });
   });
 
@@ -428,7 +428,7 @@ describe("POST /users/recovery/redeem", () => {
 
     const response = await postRedeem({ recovery_token: rawToken });
 
-    expect(response.statusCode).toBe(409);
+    expect(response.statusCode).toBe(410);
     expect(response.json()).toMatchObject({ code: "recovery_token_burned" });
   });
 
@@ -462,7 +462,7 @@ describe("POST /users/recovery/redeem", () => {
     }
     for (let i = 0; i < 5; i++) {
       const response = await postRedeem({ recovery_token: "an-unknown-raw-token" });
-      expect(response.statusCode).toBe(404);
+      expect(response.statusCode).toBe(400);
     }
 
     const rawToken = await issueToken();
@@ -508,7 +508,7 @@ describe("recovery redemption for a deactivated account", () => {
 
     const response = await postOptions({ recovery_token: rawToken });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
   });
 
@@ -523,7 +523,7 @@ describe("recovery redemption for a deactivated account", () => {
       passkey_registration: credential,
     });
 
-    expect(response.statusCode).toBe(404);
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
     const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskeys).toHaveLength(0);

@@ -97,14 +97,17 @@ test("fetchRegistrationOptions sends the token and returns the options and displ
 });
 
 test.each([
-  [404, "invalid"],
-  [409, "burned"],
-  [410, "expired"],
-])("fetchRegistrationOptions maps status %d to %s", async (status, kind) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code: "recovery_token_x" }));
+  [400, "recovery_token_invalid", "invalid"],
+  [410, "recovery_token_burned", "burned"],
+  [410, "recovery_token_expired", "expired"],
+])(
+  "fetchRegistrationOptions maps status %d code %s to %s, discriminating by code",
+  async (status, code, kind) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code }));
 
-  await expect(fetchRegistrationOptions("the-token")).resolves.toEqual({ kind });
-});
+    await expect(fetchRegistrationOptions("the-token")).resolves.toEqual({ kind });
+  },
+);
 
 test("fetchRegistrationOptions maps 429 to rate_limited with the Retry-After seconds", async () => {
   vi.mocked(fetch).mockResolvedValue(
@@ -143,14 +146,23 @@ test("redeemRecovery sends the token and the passkey registration, returning the
 });
 
 test.each([
-  [404, "invalid"],
-  [409, "burned"],
-  [410, "expired"],
-  [400, "validation_failed"],
-])("redeemRecovery maps status %d to %s", async (status, kind) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code: "x" }));
+  [400, "recovery_token_invalid", "invalid"],
+  [410, "recovery_token_burned", "burned"],
+  [410, "recovery_token_expired", "expired"],
+  [400, "validation_failed", "validation_failed"],
+])(
+  "redeemRecovery maps status %d code %s to %s, discriminating by code",
+  async (status, code, kind) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code }));
 
-  await expect(redeemRecovery("the-token", registration)).resolves.toEqual({ kind });
+    await expect(redeemRecovery("the-token", registration)).resolves.toEqual({ kind });
+  },
+);
+
+test("redeemRecovery maps an unrecognized code at a known status to failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "something_unexpected" }));
+
+  await expect(redeemRecovery("the-token", registration)).resolves.toEqual({ kind: "failed" });
 });
 
 test("redeemRecovery maps 429 to rate_limited with the Retry-After seconds", async () => {

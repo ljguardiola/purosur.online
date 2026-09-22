@@ -99,8 +99,8 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
 
       const [first, second] = await Promise.all([redeem(), redeem()]);
 
-      expect([first.status, second.status].sort()).toEqual([200, 409]);
-      const loser = first.status === 409 ? first : second;
+      expect([first.status, second.status].sort()).toEqual([200, 410]);
+      const loser = first.status === 410 ? first : second;
       expect(await loser.json()).toMatchObject({ code: "recovery_token_burned" });
 
       const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
