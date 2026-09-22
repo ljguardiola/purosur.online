@@ -168,14 +168,21 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     });
     let firstFlush: Promise<number> | undefined;
     let secondFlush: Promise<number> | undefined;
+    let holding: Promise<void> | undefined;
     try {
       // Holding audit_log stalls the first flush right before it writes, with its rows taken.
-      const holding = holder.begin(async (tx) => {
+      holding = holder.begin(async (tx) => {
         await tx`lock table audit_log in share mode`;
         auditLogHeld();
         await auditLogReleased;
       });
-      await auditLogLocked;
+      // Attached at creation, same as the flush promises below: a failure here must not add an
+      // unhandled rejection on top of whatever this test already reports.
+      holding.catch(() => {});
+      // If the holder transaction fails before it locks the table, auditLogLocked never
+      // resolves on its own; race it against holding so that failure surfaces here instead of
+      // hanging this await to the test timeout.
+      await Promise.race([auditLogLocked, holding]);
       firstFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(firstFlusher), {
         now: () => CLOSED_NOW,
       });
@@ -207,7 +214,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
       expect(auditRows[0]?.newValue).toMatchObject({ count: 2 });
     } finally {
       releaseAuditLog();
-      await Promise.allSettled([firstFlush, secondFlush]);
+      await Promise.allSettled([firstFlush, secondFlush, holding]);
       await Promise.all(
         [holder, firstFlusher, secondFlusher].map((client) => client.end({ timeout: 1 })),
       );
