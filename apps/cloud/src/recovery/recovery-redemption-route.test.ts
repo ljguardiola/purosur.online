@@ -653,7 +653,7 @@ describe("auditing rejected recovery redemptions", () => {
   });
 
   describe("grouped audit of rate-limited rejections (H1)", () => {
-    it("upserts the accumulator for a rate-limited registration-options/redeem attempt on a known token, without any individual audit row or a token lookup", async () => {
+    it("upserts the accumulator for a rate-limited registration-options/redeem attempt on a known token, without any individual audit row, token lookup or account lookup", async () => {
       const rawToken = await issueToken({ usedAt: NOON });
       for (let i = 0; i < 10; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
@@ -680,7 +680,9 @@ describe("auditing rejected recovery redemptions", () => {
       expect(rateLimitedOptions.statusCode).toBe(429);
       expect(rateLimitedRedeem.statusCode).toBe(429);
       expect(queries.length).toBeGreaterThan(0);
-      expect(queries.filter((query) => query.includes('"recovery_tokens"'))).toEqual([]);
+      expect(
+        queries.filter((query) => query.includes('"recovery_tokens"') || query.includes('"users"')),
+      ).toEqual([]);
       await expect(db.select().from(auditLog)).resolves.toEqual([]);
       const rows = await accumulatorRows();
       expect(
