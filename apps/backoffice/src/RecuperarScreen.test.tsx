@@ -104,7 +104,7 @@ test("shows a generic error notice on any other failure", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("No pudimos enviar el enlace")).toBeVisible();
-  await expect.element(screen.getByText("Probá de nuevo en un rato.")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });

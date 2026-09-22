@@ -205,10 +205,7 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "registered") {
     return (
       <AccessLayout>
-        <AccessHeader
-          heading={messages.access.registrar.successTitle}
-          description={messages.access.registrar.successDetail}
-        />
+        <AccessHeader heading={messages.access.registrar.successTitle} />
         <AccessFooterLink
           to={INGRESAR_PATH}
           icon={<ArrowLeft />}

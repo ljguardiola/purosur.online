@@ -110,7 +110,7 @@ test("shows the drawn Registrar copy with the account's display name, without th
 
 test.each([
   ["invalid" as const, "Este enlace no es válido"],
-  ["burned" as const, "Este enlace ya no sirve"],
+  ["burned" as const, "Este enlace ya no se puede usar"],
   ["expired" as const, "Este enlace venció"],
 ])("shows the %s token state with a way to request a new link", async (kind, title) => {
   vi.mocked(fetchRegistrationOptions).mockResolvedValue({ kind });
@@ -169,10 +169,7 @@ test("registers the passkey and shows the success state, without implying a sess
   await expect.poll(() => vi.mocked(redeemRecovery).mock.calls.length).toBe(1);
   expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
 
-  await expect.element(screen.getByText("Registraste tu passkey")).toBeVisible();
-  await expect
-    .element(screen.getByText("Iniciá sesión con ella desde la pantalla de acceso."))
-    .toBeVisible();
+  await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
   const signInLink = screen.getByRole("link", { name: "Ir a ingresar" }).element();
   expect(signInLink.getAttribute("href")).toBe("/ingresar");
 
@@ -220,5 +217,5 @@ test("moves to the burned state when redeem discovers the token was consumed mea
   const screen = await render(<RegistrarPasskeyScreen />);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect.element(screen.getByText("Este enlace ya no sirve")).toBeVisible();
+  await expect.element(screen.getByText("Este enlace ya no se puede usar")).toBeVisible();
 });
