@@ -13,8 +13,8 @@ import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-a
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
 
-// Cron support (a `crontab` string RunnerOptions accepts in place of a crontab file) is graphile-
-// worker 0.18's own: apps/cloud/node_modules/graphile-worker/dist/interfaces.d.ts:644-650.
+// Cron support is graphile-worker 0.18's own: its `RunnerOptions` takes this `crontab` string in
+// place of a crontab file, so no cron process or crontab file is deployed alongside the service.
 const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;
 
 // A slow job, such as an admitted request waiting on its email, never holds up every other one;
