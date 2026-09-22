@@ -24,7 +24,9 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@testcontainers/postgresql": "^12.1.0",
     "drizzle-kit": "^0.31.10",
-    "nid-webauthn-emulator": "^0.2.15"
+    "nid-webauthn-emulator": "^0.2.15",
+    "testcontainers": "^12.1.0"
   }
 }

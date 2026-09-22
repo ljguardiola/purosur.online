@@ -7,6 +7,11 @@ allowBuilds:
   "@serialport/bindings-cpp": true
   esbuild: false
   electron-winstaller: true
+  # Pulled in by testcontainers' optional SSH-tunnel support, which the recovery integration
+  # tests never use (they talk to the container's published port directly).
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
 
 overrides:
   # drizzle-kit still loads through the deprecated @esbuild-kit loader, which pins an esbuild

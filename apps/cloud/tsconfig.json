@@ -8,5 +8,9 @@
     "noEmit": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/recovery/recovery-integration-database.ts",
+    "src/recovery/find-free-port.ts"
+  ]
 }

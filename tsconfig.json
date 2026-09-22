@@ -27,6 +27,7 @@
     "apps/*/src",
     "vitest.config.ts",
     "apps/cloud/vitest.global-setup.ts",
+    "apps/cloud/vitest.global-setup.postgres.ts",
     "apps/pos/electron.vite.config.ts",
     "apps/backoffice/vite.config.ts",
     "apps/pos/e2e",

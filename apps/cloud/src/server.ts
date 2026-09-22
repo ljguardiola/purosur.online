@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
+import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
 import { createResendRecoveryEmailSender } from "./recovery/resend-email-sender.js";
@@ -106,22 +107,38 @@ export interface RecoveryInfrastructure {
   close(): Promise<void>;
 }
 
+export interface SetUpRecoveryDeps {
+  /**
+   * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
+   * it can run this same function — a real postgres-js pool and graphile-worker's real `run()` —
+   * against a real Testcontainers Postgres without sending a real email. Production never passes
+   * it, so `startServer` always gets the real Resend sender below.
+   */
+  emailSender?: RecoveryEmailSender;
+}
+
 /**
  * Connects to the database for the HTTP request path, and separately starts graphile-worker
  * (`recovery-worker.ts`) so this same process also processes the jobs `POST
- * /users/recovery/request` enqueues. Not covered by an automated test: graphile-worker's `run()`
- * installs its own schema and needs a real Postgres connection with LISTEN/NOTIFY, which this
- * repository's PGlite-based test database does not provide.
+ * /users/recovery/request` enqueues. Covered by apps/cloud/src/recovery/*.integration.test.ts
+ * against a real Testcontainers Postgres: graphile-worker's `run()` installs its own schema and
+ * needs a real Postgres connection with LISTEN/NOTIFY, which this repository's PGlite-based test
+ * database does not provide.
  */
-async function setUpRecovery(recoveryEnv: RecoveryEnv): Promise<RecoveryInfrastructure> {
+export async function setUpRecovery(
+  recoveryEnv: RecoveryEnv,
+  deps: SetUpRecoveryDeps = {},
+): Promise<RecoveryInfrastructure> {
   const sql = postgres(recoveryEnv.databaseUrl);
   const db = drizzle(sql);
   const jobQueue = createGraphileRecoveryJobQueue(recoveryEnv.databaseUrl);
-  const emailSender = createResendRecoveryEmailSender({
-    apiKey: recoveryEnv.resendApiKey,
-    from: recoveryEnv.emailFrom,
-    replyTo: recoveryEnv.emailReplyTo,
-  });
+  const emailSender =
+    deps.emailSender ??
+    createResendRecoveryEmailSender({
+      apiKey: recoveryEnv.resendApiKey,
+      from: recoveryEnv.emailFrom,
+      replyTo: recoveryEnv.emailReplyTo,
+    });
   const worker = await startRecoveryWorker({
     databaseUrl: recoveryEnv.databaseUrl,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
