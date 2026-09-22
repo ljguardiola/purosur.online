@@ -43,11 +43,10 @@ function readRawToken(body: unknown): string | undefined {
 }
 
 /**
- * Registers the two WebAuthn-facing endpoints that complete recovery-by-email (§9.7, D44, issue
- * #167): `registration-options` (not in the doc — a T2 technical decision, see the feature
- * document) hands back creation options for a still-live token without touching it, and `redeem`
- * verifies the browser's response and, in one transaction, burns the token and registers the new
- * passkey. Neither ever opens a session.
+ * Registers the two WebAuthn-facing endpoints that complete recovery-by-email:
+ * `registration-options` hands back creation options for a still-live token without touching it,
+ * and `redeem` verifies the browser's response and, in one transaction, burns the token and
+ * registers the new passkey. Neither ever opens a session.
  */
 export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -82,8 +81,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     });
     if (!rateLimit.allowed) {
       // One synchronous upsert keyed by the token's own stored hash, never a lookup: known and
-      // unknown tokens do identical work (issue #167, "rejected for exceeding the hourly limits
-      // are recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500.
+      // unknown tokens do identical work. A bookkeeping failure here must never turn this 429
+      // into a 500.
       // A request that carries no token at all has nothing to key the accumulator by.
       const rawToken = readRawToken(request.body);
       if (rawToken) {

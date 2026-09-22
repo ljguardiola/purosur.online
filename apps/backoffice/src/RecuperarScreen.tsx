@@ -18,7 +18,10 @@ function validateEmail(value: string): string | undefined {
   return EMAIL_SHAPE.test(trimmed) ? undefined : messages.access.recuperar.emailInvalid;
 }
 
-/** design.pen `Backoffice / Acceso · Recuperar el acceso` (PK7Uo) and `· Enlace enviado` (qFIYf); the 429 and generic-failure states are undrawn, following `Bloqueado por intentos` (j0Ps9)'s Aviso-above-the-action pattern. */
+/**
+ * The 429 and generic-failure states have no drawn design of their own; both follow the same
+ * notice-above-the-action pattern used for other blocked-by-attempts states in the product.
+ */
 export function RecuperarScreen() {
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);

@@ -59,7 +59,10 @@ function TokenErrorNotice({
   );
 }
 
-/** design.pen `Backoffice / Acceso · Registrar una passkey nueva` (Pk5Ze), without the deferred "Se cerraron las sesiones abiertas" notice (#168). Every token/rate-limit/failure state is undrawn, following `Bloqueado por intentos` (j0Ps9)'s error-tone Aviso pattern. */
+/**
+ * Every token/rate-limit/failure state has no drawn design of its own; each follows the same
+ * error-tone notice pattern used for other blocked-by-attempts states in the product.
+ */
 export function RegistrarPasskeyScreen() {
   // A lazy initializer runs during the component's initial render, before any effect can strip
   // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
@@ -97,8 +100,8 @@ export function RegistrarPasskeyScreen() {
   }, [token]);
 
   useEffect(() => {
-    // The token never reaches server logs or a Referer header through the URL fragment (T1's
-    // technical decision); it is stripped from the URL right away so it doesn't linger there.
+    // The token never reaches server logs or a Referer header through the URL fragment; it is
+    // stripped from the URL right away so it doesn't linger there.
     // Idempotent by construction: a StrictMode-doubled effect run finds nothing left to strip.
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);

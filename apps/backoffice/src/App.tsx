@@ -78,7 +78,6 @@ function AyudaApp({ help }: AppProps) {
   );
 }
 
-/** Routes to the access screens outside the Shell (design.pen's "Backoffice / Acceso" frames), or to the Ayuda-in-Shell app for every other path; the root path stays Ayuda until #168 gates it behind a session. */
 export function App({ help }: AppProps) {
   const route = useRoute();
 

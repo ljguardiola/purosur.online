@@ -39,7 +39,7 @@ function postJson(path: string, body: unknown): Promise<Response> {
   });
 }
 
-/** Requests the recovery link for `email` (§9.7). The cloud answers identically, with no body, whether or not that address is registered. */
+/** The cloud answers identically, with no body, whether or not `email` belongs to a real account. */
 export async function requestRecoveryLink(email: string): Promise<RecoveryRequestOutcome> {
   let response: Response;
   try {

@@ -13,11 +13,12 @@ import {
 } from "./recovery-integration-database.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
-// T2's "registers at most one passkey when redeemed concurrently" test only proved this on
-// PGlite's single connection, which serializes every query and can never race for real. This
-// proves the same guarantee (the atomic `UPDATE ... WHERE used_at IS NULL ... RETURNING` in
-// recovery-redemption-route.ts) against a real Postgres with a real postgres-js pool of more than
-// one connection, over two genuinely parallel HTTP requests.
+// `recovery-redemption-route.test.ts`'s "registers at most one passkey when the same token is
+// redeemed concurrently" test only proved this on PGlite's single connection, which serializes
+// every query and can never race for real. This proves the same guarantee (the atomic
+// `UPDATE ... WHERE used_at IS NULL ... RETURNING` in recovery-redemption-route.ts) against a real
+// Postgres with a real postgres-js pool of more than one connection, over two genuinely parallel
+// HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 

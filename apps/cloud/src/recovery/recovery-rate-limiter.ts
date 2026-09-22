@@ -7,8 +7,7 @@ import { recoveryRateLimitAttempts } from "../db/schema.js";
 export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
 const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
 const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
-// Not specified by the issue or the doc (T2 technical decision, see feature document): the same
-// tope-por-origen budget as the request endpoint's source-address limit, shared by both
+// The same per-source budget as the request endpoint's source-address limit, shared by both
 // `registration-options` and `redeem` so probing either one counts against it.
 const REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 const PRUNE_BATCH_SIZE = 100;

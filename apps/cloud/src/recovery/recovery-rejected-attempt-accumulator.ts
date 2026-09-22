@@ -22,9 +22,9 @@ export function windowStartFor(now: Date): Date {
 }
 
 /**
- * Records one rejected request or redemption attempt against issue #167's grouped-audit
- * accumulator: a single synchronous upsert, identical work whether or not the key resolves to a
- * real account, so a flood of rejections never costs more than one row per (kind, key, hour). The
+ * Records one rejected request or redemption attempt against the grouped-audit accumulator: a
+ * single synchronous upsert, identical work whether or not the key resolves to a real account, so
+ * a flood of rejections never costs more than one row per (kind, key, hour). The
  * row's `count` grows with each attempt, and `first_at`/`last_at` keep the earliest and latest
  * attempt time whatever order concurrent attempts land in. A `recovery-rejected-attempt-flush.ts`
  * cron task later turns closed windows into audit rows and deletes the accumulator rows it flushed.

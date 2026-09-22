@@ -5,9 +5,9 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 
-// design.pen draws the brand panel at 680px in its 1440px frame (Backoffice / Acceso): every
-// layout assertion below runs at that exact viewport, the same way Modal.test.tsx and
-// DateField.test.tsx pin a desktop viewport instead of the default phone-sized one.
+// The brand panel is drawn at a fixed 680px within a 1440px desktop frame: every layout assertion
+// below runs at that exact viewport, the same way Modal.test.tsx and DateField.test.tsx pin a
+// desktop viewport instead of the default phone-sized one.
 beforeEach(async () => {
   await page.viewport(1440, 900);
 });
@@ -35,8 +35,8 @@ test("aligns the logo and the Backoffice caption to the panel's left padding, as
   const captionRect = screen.getByText("Backoffice").element().getBoundingClientRect();
   const logoRect = screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect();
 
-  // design.pen draws both at the panel's 32px padding: the 460x180 logo box on the left edge,
-  // vertically centered, and the caption in the bottom-left corner.
+  // Both sit at the panel's 32px padding: the 460x180 logo box on the left edge, vertically
+  // centered, and the caption in the bottom-left corner.
   expect(captionRect.left - panelRect.left).toBeCloseTo(32, 0);
   expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
   expect(logoRect.left - panelRect.left).toBeCloseTo(32, 0);

@@ -218,8 +218,8 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * The graphile-worker cron task body for issue #167's grouped audit of rate-limited rejections:
- * resolves every CLOSED window's accumulator rows to the account each key belongs to —
+ * The graphile-worker cron task body for the grouped audit of rate-limited rejections: resolves
+ * every CLOSED window's accumulator rows to the account each key belongs to —
  * `request`'s destination-address hash to the account whose own normalized email hashes the same
  * way, `registration_options`/`redeem`'s token hash to `recovery_tokens.user_id` — merges every
  * row of the same account, kind and window into one audit_log row (several tokens of the same

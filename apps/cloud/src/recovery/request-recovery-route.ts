@@ -31,10 +31,9 @@ function normalizeEmail(rawEmail: unknown): string | undefined {
 }
 
 /**
- * Registers `POST /users/recovery/request` (§9.7, D44, issue #167). Does the same work for every
- * well-formed address — both rolling one-hour limits, then one unconditional job enqueue — and
- * answers with no body, so nothing about the response depends on whether that address belongs
- * to a real account.
+ * Registers `POST /users/recovery/request`. Does the same work for every well-formed address —
+ * both rolling one-hour limits, then one unconditional job enqueue — and answers with no body, so
+ * nothing about the response depends on whether that address belongs to a real account.
  */
 export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -45,10 +44,10 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
   app.post("/users/recovery/request", async (request, reply) => {
-    // No session exists on this path, so cross-site request forgery is checked the same way §11
-    // fixes for every other unauthenticated, state-changing request from the backoffice: the
-    // Origin header verified against the backoffice's own origin. The doc names no error code for
-    // this rejection; `origin_rejected` follows the shared `{ code, message, details }` envelope.
+    // No session exists on this path, so cross-site request forgery is checked the same way
+    // `recovery-redemption-route.ts`'s own endpoints check it: the Origin header verified against
+    // the backoffice's own origin. `origin_rejected` follows the shared
+    // `{ code, message, details }` envelope.
     if (request.headers.origin !== options.backofficeOrigin) {
       await reply.code(403).send({
         code: "origin_rejected",
@@ -78,8 +77,8 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     });
     if (!rateLimit.allowed) {
       // One synchronous upsert, never a lookup: the same work whether or not this address
-      // belongs to a real account (issue #167, "rejected for exceeding the hourly limits are
-      // recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500.
+      // belongs to a real account. A bookkeeping failure here must never turn this 429 into a
+      // 500.
       try {
         await doRecordRejectedAttempt(options.db, {
           kind: "request",

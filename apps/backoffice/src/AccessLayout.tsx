@@ -7,15 +7,14 @@ export type AccessLayoutProps = {
   children: ReactNode;
 };
 
-/** The access screens' own frame, outside the Shell (design.pen's "Backoffice / Acceso" frames): a brand panel, its logo and caption on the left padding, beside the centered form content. */
+/** The access screens' own frame, outside the Shell. */
 export function AccessLayout({ children }: AccessLayoutProps) {
   return (
     <div className="flex h-screen w-screen bg-surface-white">
-      {/* The design's own 680px (design.pen's 1440px frame), as a shrinkable flex-basis rather
-          than a fixed width: these screens are desktop-only (§12.3), but a fixed, non-shrinking
-          panel would force the same horizontal scroll BrandPanelScreen.tsx (the POS's own
-          two-panel access layout) avoids. min-w-80 keeps the same usable floor at narrower
-          widths. */}
+      {/* 680px as a shrinkable flex-basis rather than a fixed width: these screens are
+          desktop-only, but a fixed, non-shrinking panel would force the same horizontal scroll
+          BrandPanelScreen.tsx (the POS's own two-panel access layout) avoids. min-w-80 keeps the
+          same usable floor at narrower widths. */}
       <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
         <div className="flex-1" />
         <PuroSurLogo

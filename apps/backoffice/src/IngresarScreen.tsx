@@ -3,7 +3,6 @@ import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { RECUPERAR_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 
-/** design.pen `Backoffice / Acceso · Ingresar` (L3KghW), without the "Ingresar con passkey" button (#168). */
 export function IngresarScreen() {
   return (
     <AccessLayout>

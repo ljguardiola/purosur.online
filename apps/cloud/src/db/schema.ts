@@ -71,7 +71,8 @@ export const auditLog = pgTable("audit_log", {
   newValue: jsonb("new_value"),
 });
 
-// Registered by T2's redeem endpoint; created now so that work only ever inserts, never migrates.
+// Registered by the recovery redemption route; created now so that later work only ever inserts,
+// never migrates.
 export const passkeys = pgTable(
   "passkeys",
   {
@@ -80,8 +81,7 @@ export const passkeys = pgTable(
       .notNull()
       .references(() => users.id),
     credentialId: text("credential_id").notNull(),
-    // Base64url-encoded WebAuthn COSE public key, the same at-rest representation the device
-    // token already uses for opaque high-entropy values (§11 "El token de dispositivo...").
+    // Base64url-encoded WebAuthn COSE public key.
     publicKey: text("public_key").notNull(),
     counter: integer("counter").notNull(),
     transports: jsonb("transports").$type<string[]>(),
@@ -93,8 +93,7 @@ export const passkeys = pgTable(
 );
 
 // One live token per user at a time, enforced by `recovery_tokens_one_live_per_user`: an admitted
-// request voids any previous row before inserting its own (§9.7 "Cada pedido admitido emite un
-// enlace nuevo y deja sin efecto el anterior").
+// request voids any previous row before inserting its own.
 export const recoveryTokens = pgTable(
   "recovery_tokens",
   {
@@ -112,7 +111,7 @@ export const recoveryTokens = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
-    // Set by T2's registration-options endpoint once WebAuthn registration starts for this token.
+    // Set by the registration-options endpoint once WebAuthn registration starts for this token.
     registrationChallenge: text("registration_challenge"),
   },
   (table) => [
@@ -126,7 +125,7 @@ export const recoveryTokens = pgTable(
 export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
   "destination_address",
   "source_address",
-  // T2's registration-options and redeem endpoints share this one, keyed by source address only
+  // The registration-options and redeem endpoints share this one, keyed by source address only
   // (there is no destination address once the recovery token itself identifies the account).
   "redemption_source_address",
 ]);
@@ -159,13 +158,12 @@ export const recoveryRejectedAttemptKind = pgEnum("recovery_rejected_attempt_kin
 ]);
 
 // One row per (kind, key hash, hour window), incremented synchronously on every rejected request
-// or redemption attempt instead of writing an individual audit row per attempt (issue #167's
-// "rejected for exceeding the hourly limits are recorded grouped"). `key_hash` is the same
-// SHA-256 the rate limiter already keys its destination-address counter by (for `request`) or the
-// token hash already stored on `recovery_tokens` (for `registration_options`/`redeem`), so this
-// upsert never needs to look an address or token up. A periodic graphile-worker cron task resolves
-// each closed window to an account and turns it into one audit_log row, then deletes the rows it
-// flushed; storage stays bounded to one row per key per open hour.
+// or redemption attempt instead of writing an individual audit row per attempt. `key_hash` is the
+// same SHA-256 the rate limiter already keys its destination-address counter by (for `request`)
+// or the token hash already stored on `recovery_tokens` (for `registration_options`/`redeem`), so
+// this upsert never needs to look an address or token up. A periodic graphile-worker cron task
+// resolves each closed window to an account and turns it into one audit_log row, then deletes the
+// rows it flushed; storage stays bounded to one row per key per open hour.
 export const recoveryRejectedAttemptAccumulator = pgTable(
   "recovery_rejected_attempt_accumulator",
   {

@@ -21,7 +21,7 @@ export interface ServerEnv {
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
   BACKOFFICE_STATIC_DIR?: string | undefined;
-  /** Once set, the recovery-by-email feature (issue #167) wires up: see `resolveRecoveryEnv`. */
+  /** Once set, the recovery-by-email feature wires up: see `resolveRecoveryEnv`. */
   DATABASE_URL?: string | undefined;
   RESEND_API_KEY?: string | undefined;
   RECOVERY_EMAIL_FROM?: string | undefined;
@@ -75,15 +75,13 @@ export interface RecoveryEnv {
 function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): string {
   const value = env[name];
   if (!value) {
-    throw new Error(
-      `${name} must be set once DATABASE_URL is configured (recovery-by-email, issue #167)`,
-    );
+    throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
   }
   return value;
 }
 
 /**
- * The recovery-by-email feature (issue #167) wires up once `DATABASE_URL` is set, the same
+ * The recovery-by-email feature wires up once `DATABASE_URL` is set, the same
  * dev-friendly default `resolveStaticDir` uses for the backoffice build above: a missing database
  * lets the service start without it (e.g. in a test), but a configured database with the rest of
  * this config missing is a real misconfiguration and fails fast instead of starting half-wired.

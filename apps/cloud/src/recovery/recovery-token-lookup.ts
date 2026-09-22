@@ -16,11 +16,11 @@ export type RecoveryTokenClassification =
   | { status: "burned" | "expired" | "valid"; token: RecoveryTokenRow };
 
 /**
- * Classifies a recovery token by its hash, following the priority §9.7/issue #167 fix for both
- * `registration-options` and `redeem`: unknown first (`invalid`), then used or voided by a newer
- * request (`burned`), then past `expires_at` (`expired`) — a token that is both used/voided and
- * expired reports `burned`, since it was consumed before it had the chance to expire. Any token
- * it finds comes back with its row, so a rejected attempt can still be attributed to its account.
+ * Classifies a recovery token by its hash, checking unknown first (`invalid`), then used or
+ * voided by a newer request (`burned`), then past `expires_at` (`expired`) — a token that is both
+ * used/voided and expired reports `burned`, since it was consumed before it had the chance to
+ * expire. Any token it finds comes back with its row, so a rejected attempt can still be
+ * attributed to its account.
  */
 export async function classifyRecoveryToken<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

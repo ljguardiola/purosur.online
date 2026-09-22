@@ -26,7 +26,7 @@ export interface ProcessRecoveryRequestJobResult {
   send?: SendRecoveryLinkInput;
 }
 
-const TOKEN_BYTES = 20; // 160 bits, well over the ≥80-bit floor (§11, D44).
+const TOKEN_BYTES = 20; // 160 bits, well over the minimum entropy floor for this kind of token.
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
@@ -35,7 +35,7 @@ function generateRawToken(): string {
 
 function recoveryLink(backofficeOrigin: string, rawToken: string): string {
   // The token lives in the URL fragment, never sent to the server, so it never reaches access
-  // logs or a Referer header (§9.7).
+  // logs or a Referer header.
   return `${backofficeOrigin}/recuperar/enlace#${rawToken}`;
 }
 

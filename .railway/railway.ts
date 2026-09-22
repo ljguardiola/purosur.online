@@ -16,8 +16,8 @@ const CUSTOM_DOMAINS: Record<string, string[]> = {
   staging: ["staging.purosur.online"],
 };
 
-// The recovery-request email's sender, per environment (issue #167, D44): the reply-to address is
-// the same across every environment, so it is a plain constant rather than a per-environment map.
+// The recovery-request email's sender is per environment, but its reply-to address is the same
+// across every environment, so it is a plain constant rather than a per-environment map.
 const RECOVERY_EMAIL_FROM: Record<string, string> = {
   staging: "Puro Sur <acceso@mail.staging.purosur.online>",
 };
