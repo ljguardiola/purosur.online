@@ -3,7 +3,8 @@ import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { recoveryRateLimitAttempts } from "../db/schema.js";
 
-const WINDOW_MS = 60 * 60 * 1000;
+/** The hour every recovery limit counts over, and the window rejected attempts are grouped by. */
+export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
 const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
 const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 // Not specified by the issue or the doc (T2 technical decision, see feature document): the same
@@ -71,7 +72,7 @@ async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
   keys: RateLimitedKey[],
   now: Date,
 ): Promise<RecoveryRateLimitResult> {
-  const windowStart = new Date(now.getTime() - WINDOW_MS);
+  const windowStart = new Date(now.getTime() - RECOVERY_WINDOW_MS);
   await pruneExpiredAttempts(db, windowStart);
 
   return db.transaction(async (tx) => {
@@ -96,7 +97,7 @@ async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
         .limit(key.limit);
       const oldestCounted = counted[key.limit - 1];
       if (oldestCounted) {
-        const slotFreesAt = oldestCounted.attemptedAt.getTime() + WINDOW_MS;
+        const slotFreesAt = oldestCounted.attemptedAt.getTime() + RECOVERY_WINDOW_MS;
         retryAfterMs = Math.max(retryAfterMs, slotFreesAt - now.getTime());
       }
     }

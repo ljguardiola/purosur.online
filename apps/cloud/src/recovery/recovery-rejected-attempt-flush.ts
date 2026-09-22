@@ -6,8 +6,9 @@ import {
   recoveryTokens,
   users,
 } from "../db/schema.js";
+import { RECOVERY_WINDOW_MS } from "./recovery-rate-limiter.js";
+import type { RecoveryRejectedAttemptKind } from "./recovery-rejected-attempt-accumulator.js";
 
-const WINDOW_MS = 60 * 60 * 1000;
 // A rejection sampled just before the hour ends can still be upserting its row a moment after;
 // waiting this long past the hour means the window is flushed only once nothing lands in it any
 // more, instead of a late upsert re-creating a row the flush already deleted.
@@ -27,7 +28,7 @@ type AccumulatorRow = typeof recoveryRejectedAttemptAccumulator.$inferSelect;
 
 interface FlushedGroup {
   accountId: string;
-  kind: AccumulatorRow["kind"];
+  kind: RecoveryRejectedAttemptKind;
   count: number;
   firstAt: Date;
   lastAt: Date;
@@ -240,7 +241,7 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
 export async function flushClosedRecoveryRejectedAttemptWindows<
   TQueryResult extends PgQueryResultHKT,
 >(db: PgDatabase<TQueryResult>, deps: FlushRecoveryRejectedAttemptWindowsDeps): Promise<number> {
-  const closedBefore = new Date(deps.now().getTime() - WINDOW_MS - CLOSE_GRACE_MS);
+  const closedBefore = new Date(deps.now().getTime() - RECOVERY_WINDOW_MS - CLOSE_GRACE_MS);
   const batchSize = deps.batchSize ?? FLUSH_BATCH_SIZE;
 
   let flushed = 0;

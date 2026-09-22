@@ -1,10 +1,12 @@
 import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { recoveryRejectedAttemptAccumulator } from "../db/schema.js";
+import {
+  recoveryRejectedAttemptAccumulator,
+  type recoveryRejectedAttemptKind,
+} from "../db/schema.js";
+import { RECOVERY_WINDOW_MS } from "./recovery-rate-limiter.js";
 
-const WINDOW_MS = 60 * 60 * 1000;
-
-export type RecoveryRejectedAttemptKind = "request" | "registration_options" | "redeem";
+export type RecoveryRejectedAttemptKind = (typeof recoveryRejectedAttemptKind.enumValues)[number];
 
 export interface RecordRejectedAttemptInput {
   kind: RecoveryRejectedAttemptKind;
@@ -16,7 +18,7 @@ export interface RecordRejectedAttemptInput {
 
 /** Floors a timestamp to the start of its hour, the accumulator's grouping window. */
 export function windowStartFor(now: Date): Date {
-  return new Date(Math.floor(now.getTime() / WINDOW_MS) * WINDOW_MS);
+  return new Date(Math.floor(now.getTime() / RECOVERY_WINDOW_MS) * RECOVERY_WINDOW_MS);
 }
 
 /**
@@ -24,8 +26,8 @@ export function windowStartFor(now: Date): Date {
  * accumulator: a single synchronous upsert, identical work whether or not the key resolves to a
  * real account, so a flood of rejections never costs more than one row per (kind, key, hour). The
  * row's `count` grows with each attempt, and `first_at`/`last_at` keep the earliest and latest
- * attempt time whatever order concurrent attempts land in. A `recovery-rejected-attempt-flush.ts` cron task later turns closed windows into audit
- * rows and deletes the accumulator rows it flushed.
+ * attempt time whatever order concurrent attempts land in. A `recovery-rejected-attempt-flush.ts`
+ * cron task later turns closed windows into audit rows and deletes the accumulator rows it flushed.
  */
 export async function recordRejectedAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
