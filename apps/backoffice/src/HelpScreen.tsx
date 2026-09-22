@@ -2,7 +2,7 @@ import type { HelpArticle, HelpBlock } from "@purosur/ui";
 import { SearchField, SectionNavItem } from "@purosur/ui";
 import { ChevronRight, Info, Search } from "lucide-react";
 import type { Ref } from "react";
-import { type AyudaHelpCatalog, articleHref, sectionHref } from "./ayudaRoutes";
+import { articleHref, type BackofficeHelpCatalog, sectionHref } from "./helpRoutes";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
 import { searchArticles } from "./searchHelp";
@@ -76,7 +76,7 @@ function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
   );
 }
 
-function Block({ block, help }: { block: HelpBlock<string>; help: AyudaHelpCatalog }) {
+function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelpCatalog }) {
   switch (block.kind) {
     case "heading":
       return (
@@ -124,7 +124,7 @@ function RelatedPanel({
   help,
   relatedIds,
 }: {
-  help: AyudaHelpCatalog;
+  help: BackofficeHelpCatalog;
   relatedIds: readonly string[];
 }) {
   const related = relatedIds.flatMap((id): ArticleEntry[] => {
@@ -133,11 +133,11 @@ function RelatedPanel({
   });
   return (
     <nav
-      aria-label={messages.ayuda.relatedHeading}
+      aria-label={messages.help.relatedHeading}
       className="flex w-[18.75rem] shrink-0 flex-col gap-2 self-start"
     >
       <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
-        {messages.ayuda.relatedHeading}
+        {messages.help.relatedHeading}
       </h2>
       <ul className="flex flex-col gap-2">
         {keyed(related, ([id]) => id).map(([key, [id, article]]) => (
@@ -154,7 +154,7 @@ function ArticleView({
   help,
   article,
 }: {
-  help: AyudaHelpCatalog;
+  help: BackofficeHelpCatalog;
   article: HelpArticle<string, string>;
 }) {
   return (
@@ -171,16 +171,16 @@ function ArticleView({
   );
 }
 
-export type AyudaSectionColumnProps = {
-  help: AyudaHelpCatalog;
+export type HelpSectionColumnProps = {
+  help: BackofficeHelpCatalog;
   activeCategoryId: string | null;
 };
 
 /** The section column's content: every help category as a nav row, for Shell's sectionColumn slot. */
-export function AyudaSectionColumn({ help, activeCategoryId }: AyudaSectionColumnProps) {
+export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnProps) {
   return (
     <>
-      <h2 className="font-bold text-brand-blue-strong text-xl">{messages.ayuda.sectionsHeading}</h2>
+      <h2 className="font-bold text-brand-blue-strong text-xl">{messages.help.sectionsHeading}</h2>
       <div className="h-2.5" />
       <ul className="flex flex-col gap-1">
         {Object.entries(help.categories).map(([id, category]) => (
@@ -198,8 +198,8 @@ export function AyudaSectionColumn({ help, activeCategoryId }: AyudaSectionColum
   );
 }
 
-export type AyudaContentProps = {
-  help: AyudaHelpCatalog;
+export type HelpContentProps = {
+  help: BackofficeHelpCatalog;
   categoryId: string | null;
   articleId: string | null;
   search: string;
@@ -207,28 +207,28 @@ export type AyudaContentProps = {
   headingRef?: Ref<HTMLHeadingElement>;
 };
 
-/** The Ayuda screen's own content: search, and whatever the current route/search selects, for Shell's children slot. */
-export function AyudaContent({
+/** The help screen's own content: search, and whatever the current route/search selects, for Shell's children slot. */
+export function HelpContent({
   help,
   categoryId,
   articleId,
   search,
   onSearchChange,
   headingRef,
-}: AyudaContentProps) {
+}: HelpContentProps) {
   const activeCategory = ownEntry(help.categories, categoryId);
   const activeArticle = ownEntry(help.articles, articleId);
   const isSearching = search.trim() !== "";
   const results = isSearching ? searchArticles(help.articles, search) : [];
   const hasArticles = Object.keys(help.articles).length > 0;
-  const idleTitle = hasArticles ? messages.ayuda.pickSectionTitle : messages.ayuda.emptyTitle;
+  const idleTitle = hasArticles ? messages.help.pickSectionTitle : messages.help.emptyTitle;
 
   return (
     <>
       <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
         {activeArticle && activeCategory && (
           <p className="text-ink-secondary text-sm">
-            {messages.ayuda.breadcrumb({ section: activeCategory.label })}
+            {messages.help.breadcrumb({ section: activeCategory.label })}
           </p>
         )}
         <h1
@@ -245,7 +245,7 @@ export function AyudaContent({
             variant="backoffice"
             value={search}
             onChange={onSearchChange}
-            placeholder={messages.ayuda.searchPlaceholder}
+            placeholder={messages.help.searchPlaceholder}
             icon={<Search />}
           />
         </div>
@@ -253,7 +253,7 @@ export function AyudaContent({
           results.length > 0 ? (
             <ArticleList articles={results} />
           ) : (
-            <EmptyState title={messages.ayuda.noResultsTitle} body={messages.ayuda.noResultsBody} />
+            <EmptyState title={messages.help.noResultsTitle} body={messages.help.noResultsBody} />
           )
         ) : activeArticle ? (
           <ArticleView help={help} article={activeArticle} />
@@ -265,7 +265,7 @@ export function AyudaContent({
           />
         ) : (
           <EmptyState
-            body={hasArticles ? messages.ayuda.pickSectionBody : messages.ayuda.emptyBody}
+            body={hasArticles ? messages.help.pickSectionBody : messages.help.emptyBody}
           />
         )}
       </div>

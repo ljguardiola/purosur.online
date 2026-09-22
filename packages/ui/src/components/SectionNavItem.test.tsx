@@ -12,12 +12,12 @@ test("renders as a link naming its own label, with the icon hidden from assistiv
       label="Primeros pasos"
       icon={<Flag />}
       active={false}
-      href="/ayuda/getting_started"
+      href="/help/getting_started"
     />,
   );
 
   const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/ayuda/getting_started");
+  expect(link.getAttribute("href")).toBe("/help/getting_started");
   expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -25,7 +25,7 @@ test("renders as a link naming its own label, with the icon hidden from assistiv
 
 test("marks the active item with aria-current, an azul-fondo fill and a bold 16px azul-fuerte label", async () => {
   const screen = await render(
-    <SectionNavItem label="Primeros pasos" icon={<Flag />} active href="/ayuda/getting_started" />,
+    <SectionNavItem label="Primeros pasos" icon={<Flag />} active href="/help/getting_started" />,
   );
 
   const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;
@@ -49,7 +49,7 @@ test("leaves an inactive item with no aria-current, a negro 14px label and an in
       label="Primeros pasos"
       icon={<Flag />}
       active={false}
-      href="/ayuda/getting_started"
+      href="/help/getting_started"
     />,
   );
 
@@ -74,7 +74,7 @@ test("turns bone on hover while inactive", async () => {
       label="Primeros pasos"
       icon={<Flag />}
       active={false}
-      href="/ayuda/getting_started"
+      href="/help/getting_started"
     />,
   );
   const link = screen.getByRole("link", { name: "Primeros pasos" }).element() as HTMLAnchorElement;

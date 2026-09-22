@@ -82,7 +82,7 @@ describe("serving the backoffice's static build", () => {
   it("falls back to index.html for a GET to a path that matches no static file or route", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-    const response = await app.inject({ method: "GET", url: "/ayuda/getting_started" });
+    const response = await app.inject({ method: "GET", url: "/help/getting_started" });
 
     expect(response.statusCode).toBe(200);
     expect(response.body).toBe("<!doctype html><title>backoffice</title>");
@@ -100,13 +100,13 @@ describe("serving the backoffice's static build", () => {
   it("falls back to index.html for a HEAD to a client route, same as a GET", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-    const response = await app.inject({ method: "HEAD", url: "/ayuda/getting_started" });
+    const response = await app.inject({ method: "HEAD", url: "/help/getting_started" });
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toContain("text/html");
   });
 
-  it.each(["/assets/old-hash.js", "/favicon.ico", "/ayuda/getting_started.png"])(
+  it.each(["/assets/old-hash.js", "/favicon.ico", "/help/getting_started.png"])(
     "answers 404 instead of index.html for a missing file like %s",
     async (url) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
@@ -120,7 +120,7 @@ describe("serving the backoffice's static build", () => {
     },
   );
 
-  it.each(["/assets/app.js", "/ayuda/getting_started"])(
+  it.each(["/assets/app.js", "/help/getting_started"])(
     "sends the security headers with %s",
     async (url) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
@@ -146,7 +146,7 @@ describe("serving the backoffice's static build", () => {
     expect(response.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
   });
 
-  it.each(["/", "/index.html", "/ayuda/getting_started"])(
+  it.each(["/", "/index.html", "/help/getting_started"])(
     "makes browsers revalidate the page served for %s",
     async (url) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
@@ -161,7 +161,7 @@ describe("serving the backoffice's static build", () => {
   it("does not fall back for a non-GET request to an unmatched path", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
-    const response = await app.inject({ method: "POST", url: "/ayuda/getting_started" });
+    const response = await app.inject({ method: "POST", url: "/help/getting_started" });
 
     expect(response.statusCode).toBe(404);
   });
@@ -169,7 +169,7 @@ describe("serving the backoffice's static build", () => {
   it("keeps the plain 404 behavior when no staticDir is configured", async () => {
     const app = buildApp({ version: "abc1234" });
 
-    const response = await app.inject({ method: "GET", url: "/ayuda/getting_started" });
+    const response = await app.inject({ method: "GET", url: "/help/getting_started" });
 
     expect(response.statusCode).toBe(404);
   });

@@ -2,9 +2,9 @@ import { AreaNavItem } from "@purosur/ui";
 import { LifeBuoy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
-import { AyudaContent, AyudaSectionColumn } from "./AyudaScreen";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
-import { type AyudaHelpCatalog, type AyudaRoute, resolveAyudaPath } from "./ayudaRoutes";
+import { HelpContent, HelpSectionColumn } from "./HelpScreen";
+import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
 import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
@@ -13,63 +13,63 @@ import { Shell } from "./Shell";
 import { SignInScreen } from "./SignInScreen";
 
 export type AppProps = {
-  help: AyudaHelpCatalog;
+  help: BackofficeHelpCatalog;
 };
 
-function documentTitle(help: AyudaHelpCatalog, { categoryId, articleId }: AyudaRoute): string {
+function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
   const page =
     (articleId ? help.articles[articleId]?.title : undefined) ??
     (categoryId ? help.categories[categoryId]?.label : undefined);
-  return page ? messages.ayuda.pageDocumentTitle({ page }) : messages.ayuda.documentTitle;
+  return page ? messages.help.pageDocumentTitle({ page }) : messages.help.documentTitle;
 }
 
-/** The Ayuda-in-Shell part of the app, root for every path outside the access screens below. */
-function AyudaApp({ help }: AppProps) {
+/** The Help-in-Shell part of the app, root for every path outside the access screens below. */
+function HelpApp({ help }: AppProps) {
   const route = useRoute();
-  const ayudaRoute = resolveAyudaPath(help, route);
+  const helpRoute = resolveHelpPath(help, route);
   const [search, setSearch] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const shownPath = useRef(ayudaRoute.path);
-  const title = documentTitle(help, ayudaRoute);
+  const shownPath = useRef(helpRoute.path);
+  const title = documentTitle(help, helpRoute);
 
   useEffect(() => onNavigate(() => setSearch("")), []);
 
   useEffect(() => {
-    if (ayudaRoute.path !== route) {
-      navigate(ayudaRoute.path, { replace: true });
+    if (helpRoute.path !== route) {
+      navigate(helpRoute.path, { replace: true });
     }
-  }, [ayudaRoute.path, route]);
+  }, [helpRoute.path, route]);
 
   useEffect(() => {
     document.title = title;
   }, [title]);
 
   useEffect(() => {
-    if (shownPath.current !== ayudaRoute.path) {
-      shownPath.current = ayudaRoute.path;
+    if (shownPath.current !== helpRoute.path) {
+      shownPath.current = helpRoute.path;
       headingRef.current?.focus();
     }
-  }, [ayudaRoute.path]);
+  }, [helpRoute.path]);
 
   return (
     <Shell
       brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.ayuda.sectionsNavLabel}
+      sectionColumnLabel={messages.help.sectionsNavLabel}
       railFooter={
         <AreaNavItem
-          label={messages.ayuda.areaLabel}
+          label={messages.help.areaLabel}
           icon={<LifeBuoy />}
           active
-          {...linkProps("/ayuda")}
+          {...linkProps("/help")}
         />
       }
-      sectionColumn={<AyudaSectionColumn help={help} activeCategoryId={ayudaRoute.categoryId} />}
+      sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
     >
-      <AyudaContent
+      <HelpContent
         help={help}
-        categoryId={ayudaRoute.categoryId}
-        articleId={ayudaRoute.articleId}
+        categoryId={helpRoute.categoryId}
+        articleId={helpRoute.articleId}
         search={search}
         onSearchChange={setSearch}
         headingRef={headingRef}
@@ -89,6 +89,6 @@ export function App({ help }: AppProps) {
     case REGISTER_PASSKEY_PATH:
       return <RegisterPasskeyScreen />;
     default:
-      return <AyudaApp help={help} />;
+      return <HelpApp help={help} />;
   }
 }

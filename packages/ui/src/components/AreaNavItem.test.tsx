@@ -21,17 +21,17 @@ function renderItem(props: Omit<AreaNavItemProps, "icon">) {
 }
 
 test("renders as a link naming its own label, with the icon hidden from assistive technology", async () => {
-  const screen = await renderItem({ label: "Ayuda", active: false, href: "/ayuda" });
+  const screen = await renderItem({ label: "Ayuda", active: false, href: "/help" });
 
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/ayuda");
+  expect(link.getAttribute("href")).toBe("/help");
   expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks the active item with aria-current and paints it blanco over a translucent white fill", async () => {
-  const screen = await renderItem({ label: "Ayuda", active: true, href: "/ayuda" });
+  const screen = await renderItem({ label: "Ayuda", active: true, href: "/help" });
 
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("aria-current")).toBe("page");
@@ -45,7 +45,7 @@ test("marks the active item with aria-current and paints it blanco over a transl
 });
 
 test("leaves an inactive item with no aria-current, painted azul-tenue with no background", async () => {
-  const screen = await renderItem({ label: "Ayuda", active: false, href: "/ayuda" });
+  const screen = await renderItem({ label: "Ayuda", active: false, href: "/help" });
 
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
   expect(link.hasAttribute("aria-current")).toBe(false);
@@ -63,7 +63,7 @@ test("forwards a click handler, so the app can drive its own router", async () =
   const screen = await renderItem({
     label: "Ayuda",
     active: false,
-    href: "/ayuda",
+    href: "/help",
     onClick: (event) => {
       event.preventDefault();
       clicked = true;

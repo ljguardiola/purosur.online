@@ -2,7 +2,7 @@ import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { AyudaContent, AyudaSectionColumn } from "./AyudaScreen";
+import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { Shell } from "./Shell";
 
 const help = defineHelp("es-AR", {
@@ -32,39 +32,39 @@ const help = defineHelp("es-AR", {
 });
 
 beforeEach(() => {
-  window.history.pushState(null, "", "/ayuda");
+  window.history.pushState(null, "", "/help");
 });
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("AyudaSectionColumn lists every category as a link, marking the active one", async () => {
-  const screen = await render(<AyudaSectionColumn help={help} activeCategoryId="billing" />);
+test("HelpSectionColumn lists every category as a link, marking the active one", async () => {
+  const screen = await render(<HelpSectionColumn help={help} activeCategoryId="billing" />);
 
   await expect.element(screen.getByText("Ayuda")).toBeVisible();
 
   const gettingStarted = screen
     .getByRole("link", { name: "Primeros pasos" })
     .element() as HTMLAnchorElement;
-  expect(gettingStarted.getAttribute("href")).toBe("/ayuda/getting_started");
+  expect(gettingStarted.getAttribute("href")).toBe("/help/getting_started");
   expect(gettingStarted.hasAttribute("aria-current")).toBe(false);
 
   const billing = screen.getByRole("link", { name: "Facturación" }).element() as HTMLAnchorElement;
   expect(billing.getAttribute("aria-current")).toBe("page");
 });
 
-test("AyudaSectionColumn lists the categories as list items under its heading", async () => {
-  const screen = await render(<AyudaSectionColumn help={help} activeCategoryId={null} />);
+test("HelpSectionColumn lists the categories as list items under its heading", async () => {
+  const screen = await render(<HelpSectionColumn help={help} activeCategoryId={null} />);
 
   await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
   const items = screen.getByRole("list").getByRole("listitem").elements();
   expect(items.map((item) => item.textContent)).toEqual(["Primeros pasos", "Facturación"]);
 });
 
-test("AyudaSectionColumn renders no items for an empty catalog", async () => {
+test("HelpSectionColumn renders no items for an empty catalog", async () => {
   const empty = defineHelp("es-AR", { categories: {}, articles: {} });
-  const screen = await render(<AyudaSectionColumn help={empty} activeCategoryId={null} />);
+  const screen = await render(<HelpSectionColumn help={empty} activeCategoryId={null} />);
 
   expect(screen.container.querySelectorAll("a").length).toBe(0);
 });
@@ -75,7 +75,7 @@ function ContentHarness(props: {
   search?: string;
 }) {
   return (
-    <AyudaContent
+    <HelpContent
       help={help}
       categoryId={props.categoryId}
       articleId={props.articleId}
@@ -88,7 +88,7 @@ function ContentHarness(props: {
 test("shows the empty-catalog state and the search field when the catalog has no articles", async () => {
   const empty = defineHelp("es-AR", { categories: {}, articles: {} });
   const screen = await render(
-    <AyudaContent
+    <HelpContent
       help={empty}
       categoryId={null}
       articleId={null}
@@ -124,7 +124,7 @@ test("lists a selected category's articles as links, titled by the category alon
   expect(screen.getByText("Ayuda · Primeros pasos").query()).toBeNull();
 
   const link = screen.getByRole("link", { name: "Bienvenida" }).element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/ayuda/getting_started/intro");
+  expect(link.getAttribute("href")).toBe("/help/getting_started/intro");
 });
 
 test("renders a selected article's breadcrumb, title and every block kind", async () => {
@@ -145,12 +145,13 @@ test("renders a selected article's breadcrumb, title and every block kind", asyn
   await expect.element(screen.getByText("Abrí la caja")).toBeVisible();
   await expect.element(screen.getByText("Podés cambiar esto más adelante.")).toBeVisible();
 
-  // "Facturación básica" appears twice: once as this article's own articleLink block, once again
-  // in the related panel (both point at the same article on purpose, per the fixture above).
+  // The billing-basics article's title appears twice: once as this article's own articleLink
+  // block, once again in the related panel (both point at the same article on purpose, per the
+  // fixture above).
   const articleLinks = screen.getByRole("link", { name: "Facturación básica" }).elements();
   expect(articleLinks).toHaveLength(2);
   for (const link of articleLinks) {
-    expect((link as HTMLAnchorElement).getAttribute("href")).toBe("/ayuda/billing/billing_basics");
+    expect((link as HTMLAnchorElement).getAttribute("href")).toBe("/help/billing/billing_basics");
   }
 });
 
@@ -305,7 +306,7 @@ test("renders repeated blocks, steps and related articles without colliding keys
 
   const warnings = await collectKeyWarnings(() =>
     render(
-      <AyudaContent
+      <HelpContent
         help={repetitive}
         categoryId="getting_started"
         articleId="intro"
@@ -326,7 +327,7 @@ test("renders the related panel from the article's related list", async () => {
     .getByRole("navigation", { name: "También te puede servir" })
     .getByRole("link", { name: "Facturación básica" })
     .element() as HTMLAnchorElement;
-  expect(related.getAttribute("href")).toBe("/ayuda/billing/billing_basics");
+  expect(related.getAttribute("href")).toBe("/help/billing/billing_basics");
 });
 
 test("stretches the article card to the foot of the content area, sizing the related panel to its own rows", async () => {
@@ -365,7 +366,7 @@ test("filters to matching articles across every category when searching", async 
   const link = screen
     .getByRole("link", { name: "Facturación básica" })
     .element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/ayuda/billing/billing_basics");
+  expect(link.getAttribute("href")).toBe("/help/billing/billing_basics");
   expect(screen.getByRole("link", { name: "Bienvenida" }).query()).toBeNull();
 });
 
@@ -380,7 +381,7 @@ test("shows a no-results state for a search that matches nothing", async () => {
 test("typing in the search field calls onSearchChange", async () => {
   const onSearchChange = vi.fn();
   const screen = await render(
-    <AyudaContent
+    <HelpContent
       help={help}
       categoryId={null}
       articleId={null}
