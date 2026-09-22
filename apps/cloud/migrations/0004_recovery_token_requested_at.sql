@@ -1,0 +1,1 @@
+ALTER TABLE "recovery_tokens" ADD COLUMN "requested_at" timestamp with time zone DEFAULT now() NOT NULL;

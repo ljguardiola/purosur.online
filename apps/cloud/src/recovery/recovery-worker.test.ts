@@ -86,12 +86,17 @@ describe("startRecoveryWorker", () => {
       "the registered recovery-request task",
     );
 
-    await expect(task({ email: "ada@example.com" })).rejects.toThrow("boom");
+    const payload = {
+      email: "ada@example.com",
+      requestedAt: "2026-01-05T12:00:00.000Z",
+      admitted: true,
+    };
+    await expect(task(payload)).rejects.toThrow("boom");
 
     expect(connectToDatabase).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
     expect(processJob).toHaveBeenCalledWith(
       fakeDb,
-      { email: "ada@example.com" },
+      payload,
       expect.objectContaining({
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
@@ -123,6 +128,10 @@ describe("startRecoveryWorker", () => {
     );
 
     await expect(task({})).rejects.toThrow();
+    await expect(task({ email: "ada@example.com" })).rejects.toThrow();
+    await expect(
+      task({ email: "ada@example.com", requestedAt: "not-a-date", admitted: true }),
+    ).rejects.toThrow();
     expect(connectToDatabase).not.toHaveBeenCalled();
   });
 });

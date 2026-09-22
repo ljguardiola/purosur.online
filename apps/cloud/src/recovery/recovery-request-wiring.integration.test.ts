@@ -189,6 +189,41 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
     }
   });
 
+  it("sends no link for an over-limit request, and audits it against the account", async () => {
+    const email = `ada-limit-${randomUUID()}@example.com`;
+    const userId = await seedActiveUser(integrationDb.databaseUrl, email);
+    const sender = new FakeRecoveryEmailSender();
+    const server = await startRealServer(integrationDb.databaseUrl, sender);
+
+    try {
+      for (let i = 0; i < 5; i++) {
+        expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
+      }
+      expect((await postRecoveryRequest(server.origin, email)).status).toBe(429);
+
+      await vi.waitFor(async () => {
+        expect(await countQueuedRecoveryJobs(integrationDb.databaseUrl)).toBe(0);
+      }, WAIT_OPTIONS);
+
+      expect(sender.sent).toHaveLength(5);
+      const sql = postgres(integrationDb.databaseUrl, { max: 1 });
+      try {
+        const auditRows = await drizzle(sql)
+          .select()
+          .from(auditLog)
+          .where(eq(auditLog.actorId, userId));
+        expect(auditRows.map((row) => row.newValue)).toContainEqual({
+          attempt: "request",
+          rejectedWith: "rate_limited",
+        });
+      } finally {
+        await sql.end({ timeout: 1 });
+      }
+    } finally {
+      await server.close();
+    }
+  });
+
   it("retries a send that fails once through graphile-worker's own retry, and eventually delivers it", async () => {
     const email = `ada-retry-${randomUUID()}@example.com`;
     await seedActiveUser(integrationDb.databaseUrl, email);

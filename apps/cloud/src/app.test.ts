@@ -199,8 +199,8 @@ describe("wiring the recovery routes", () => {
       recovery: {
         db,
         jobQueue: {
-          async enqueueRecoveryRequest(email) {
-            enqueued.push(email);
+          async enqueueRecoveryRequest(request) {
+            enqueued.push(request.email);
           },
         },
         backofficeOrigin: "https://staging.purosur.online",

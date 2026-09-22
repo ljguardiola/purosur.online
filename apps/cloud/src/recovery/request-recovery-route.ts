@@ -26,9 +26,9 @@ function normalizeEmail(rawEmail: unknown): string | undefined {
 
 /**
  * Registers `POST /users/recovery/request` (§9.7, D44, issue #167). Does the same work for every
- * well-formed address — both rolling one-hour limits, then one unconditional job enqueue — and answers with
- * no body, so nothing about the response depends on whether that address belongs to a real
- * account.
+ * well-formed address — both rolling one-hour limits, then one unconditional job enqueue — and
+ * answers with no body, so nothing about the response depends on whether that address belongs
+ * to a real account.
  */
 export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -61,11 +61,19 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     }
 
     const sourceAddress = resolveSourceAddress(request);
+    const requestedAt = now();
 
     const rateLimit = await recordRecoveryRequestAttempt(options.db, {
       destinationAddress: email,
       sourceAddress,
-      now: now(),
+      now: requestedAt,
+    });
+    // Enqueued either way: the job, not this handler, looks the account up to audit a rejected
+    // request, so a rejection costs the same whether or not the address belongs to an account.
+    await options.jobQueue.enqueueRecoveryRequest({
+      email,
+      requestedAt,
+      admitted: rateLimit.allowed,
     });
     if (!rateLimit.allowed) {
       await reply
@@ -75,7 +83,6 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
 
-    await options.jobQueue.enqueueRecoveryRequest(email);
     await reply.code(200).send();
   });
 }

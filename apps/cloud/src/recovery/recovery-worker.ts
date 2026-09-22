@@ -25,10 +25,15 @@ function connectToDatabase(databaseUrl: string): DatabaseConnection {
 }
 
 function isRecoveryRequestJobPayload(payload: unknown): payload is RecoveryRequestJobPayload {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+  const candidate = payload as Partial<Record<keyof RecoveryRequestJobPayload, unknown>>;
   return (
-    typeof payload === "object" &&
-    payload !== null &&
-    typeof (payload as { email?: unknown }).email === "string"
+    typeof candidate.email === "string" &&
+    typeof candidate.requestedAt === "string" &&
+    !Number.isNaN(Date.parse(candidate.requestedAt)) &&
+    typeof candidate.admitted === "boolean"
   );
 }
 

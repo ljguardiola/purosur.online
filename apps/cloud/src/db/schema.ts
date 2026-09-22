@@ -102,6 +102,9 @@ export const recoveryTokens = pgTable(
       .notNull()
       .references(() => users.id),
     tokenHash: text("token_hash").notNull(),
+    // When the admitted request behind this token was made, which can be well before `issued_at`
+    // when its job is retried; a job never replaces a token issued for a newer request.
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),

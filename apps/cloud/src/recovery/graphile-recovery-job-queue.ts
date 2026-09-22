@@ -1,4 +1,5 @@
 import { addJobAdhoc } from "graphile-worker";
+import type { RecoveryRequestJobPayload } from "./process-recovery-request-job.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
@@ -17,10 +18,13 @@ export function createGraphileRecoveryJobQueue(
   const doAddJob = deps.addJobAdhoc ?? addJobAdhoc;
 
   return {
-    async enqueueRecoveryRequest(email) {
-      await doAddJob({ connectionString: databaseUrl }, RECOVERY_REQUEST_TASK_IDENTIFIER, {
-        email,
-      });
+    async enqueueRecoveryRequest(request) {
+      const payload: RecoveryRequestJobPayload = {
+        email: request.email,
+        requestedAt: request.requestedAt.toISOString(),
+        admitted: request.admitted,
+      };
+      await doAddJob({ connectionString: databaseUrl }, RECOVERY_REQUEST_TASK_IDENTIFIER, payload);
     },
   };
 }

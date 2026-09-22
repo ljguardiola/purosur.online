@@ -29,6 +29,13 @@
       "when": 1790082829561,
       "tag": "0003_recovery_rolling_rate_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790083512267,
+      "tag": "0004_recovery_token_requested_at",
+      "breakpoints": true
     }
   ]
 }
