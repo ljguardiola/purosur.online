@@ -41,7 +41,7 @@ describe("startRecoveryWorker", () => {
     ).toBeInstanceOf(Function);
   });
 
-  it("registers the rejected-attempt flush task and schedules it through a crontab string", async () => {
+  it("registers the rejected-attempt flush task and schedules it every 5 minutes", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
 
@@ -60,7 +60,7 @@ describe("startRecoveryWorker", () => {
         RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER as keyof typeof options.taskList
       ],
     ).toBeInstanceOf(Function);
-    expect(options.crontab).toContain(RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER);
+    expect(options.crontab).toBe("*/5 * * * * recovery-rejected-attempt-flush");
   });
 
   it("delegates stop() to the runner returned by graphile-worker", async () => {

@@ -658,12 +658,29 @@ describe("auditing rejected recovery redemptions", () => {
       for (let i = 0; i < 10; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
       }
+      const queries: string[] = [];
+      const observedApp = Fastify();
+      registerRecoveryRedemptionRoutes(observedApp, {
+        db: drizzle(client, { logger: { logQuery: (query) => queries.push(query) } }),
+        backofficeOrigin: BACKOFFICE_ORIGIN,
+        now: () => currentTime,
+      });
+      const postObserved = (url: string) =>
+        observedApp.inject({
+          method: "POST",
+          url,
+          headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+          payload: { recovery_token: rawToken },
+        });
 
-      const rateLimitedOptions = await postOptions({ recovery_token: rawToken });
-      const rateLimitedRedeem = await postRedeem({ recovery_token: rawToken });
+      const rateLimitedOptions = await postObserved("/users/recovery/registration-options");
+      const rateLimitedRedeem = await postObserved("/users/recovery/redeem");
+      await observedApp.close();
 
       expect(rateLimitedOptions.statusCode).toBe(429);
       expect(rateLimitedRedeem.statusCode).toBe(429);
+      expect(queries.length).toBeGreaterThan(0);
+      expect(queries.filter((query) => query.includes('"recovery_tokens"'))).toEqual([]);
       await expect(db.select().from(auditLog)).resolves.toEqual([]);
       const rows = await accumulatorRows();
       expect(

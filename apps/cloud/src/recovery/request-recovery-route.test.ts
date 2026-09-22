@@ -3,7 +3,7 @@ import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { recoveryRejectedAttemptAccumulator } from "../db/schema.js";
+import { recoveryRejectedAttemptAccumulator, users } from "../db/schema.js";
 import type { RecoveryJobQueue, RecoveryRequest } from "./recovery-job-queue.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { registerRecoveryRoutes } from "./request-recovery-route.js";
@@ -206,14 +206,31 @@ describe("POST /users/recovery/request", () => {
   });
 
   describe("grouped audit of rate-limited rejections (H1)", () => {
-    it("upserts the accumulator instead of enqueuing a job, identically for a registered address", async () => {
+    it("upserts the accumulator instead of enqueuing a job, without looking a registered address up", async () => {
+      await db.insert(users).values({ firstName: "Ada", email: "ada@example.com" });
       for (let i = 0; i < 5; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       }
+      const queries: string[] = [];
+      const observedApp = Fastify();
+      registerRecoveryRoutes(observedApp, {
+        db: drizzle(client, { logger: { logQuery: (query) => queries.push(query) } }),
+        jobQueue,
+        backofficeOrigin: BACKOFFICE_ORIGIN,
+        now: () => currentTime,
+      });
 
-      const rejected = await post({ email: "ada@example.com" }, { "x-real-ip": "203.0.113.99" });
+      const rejected = await observedApp.inject({
+        method: "POST",
+        url: "/users/recovery/request",
+        headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.99" },
+        payload: { email: "ada@example.com" },
+      });
+      await observedApp.close();
 
       expect(rejected.statusCode).toBe(429);
+      expect(queries.length).toBeGreaterThan(0);
+      expect(queries.filter((query) => query.includes('"users"'))).toEqual([]);
       expect(jobQueue.requests).toHaveLength(5);
       const rows = await accumulatorRows();
       expect(rows).toHaveLength(1);

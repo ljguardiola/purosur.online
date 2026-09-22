@@ -177,6 +177,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     const rows = await db.select().from(auditLog);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
+      entity: "user",
       entityId: userId,
       actorId: userId,
       at: last,
@@ -213,6 +214,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     const rows = await db.select().from(auditLog);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
+      entity: "user",
       entityId: userId,
       actorId: userId,
       newValue: { attempt: "redeem", rejectedWith: "rate_limited", count: 2 },
