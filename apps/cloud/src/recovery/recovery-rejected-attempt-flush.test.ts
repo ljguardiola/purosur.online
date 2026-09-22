@@ -157,6 +157,30 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toEqual([]);
   });
 
+  it("reads the accounts' addresses once per flush, however many batches the request keys span", async () => {
+    const at = new Date("2026-01-05T12:05:00.000Z");
+    const emails = ["ada@example.com", "grace@example.com", "linus@example.com"];
+    for (const email of emails) {
+      await insertUser(email);
+      await recordRejectedAttempt(db, {
+        kind: "request",
+        keyHash: hashDestinationAddress(email),
+        now: at,
+      });
+    }
+    const queries: string[] = [];
+    const observedDb = drizzle(client, { logger: { logQuery: (query) => queries.push(query) } });
+
+    const flushed = await flushClosedRecoveryRejectedAttemptWindows(observedDb, {
+      now: () => CLOSED_NOW,
+      batchSize: 1,
+    });
+
+    expect(flushed).toBe(3);
+    await expect(db.select().from(auditLog)).resolves.toHaveLength(3);
+    expect(queries.filter((query) => query.includes('from "users"'))).toHaveLength(1);
+  });
+
   it("resolves a request-kind key to its account and writes one grouped audit row, then deletes the accumulator row", async () => {
     const userId = await insertUser("ada@example.com");
     const first = new Date("2026-01-05T12:05:00.000Z");

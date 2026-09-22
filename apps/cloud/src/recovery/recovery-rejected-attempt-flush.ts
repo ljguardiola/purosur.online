@@ -50,23 +50,16 @@ function chunk<T>(values: T[], size: number): T[][] {
   return chunks;
 }
 
-async function resolveDestinationHashes<TQueryResult extends PgQueryResultHKT>(
+async function loadAccountsByDestinationHash<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
-  keyHashes: string[],
-  batchSize: number,
 ): Promise<Map<string, string>> {
-  const accountByHash = new Map<string, string>();
-  for (const hashes of chunk(keyHashes, batchSize)) {
-    const accounts = await tx
-      .select({ id: users.id, hash: destinationAddressHash })
-      .from(users)
-      .where(inArray(destinationAddressHash, hashes));
-    for (const account of accounts) {
-      accountByHash.set(account.hash, account.id);
-    }
-  }
-  return accountByHash;
+  const accounts = await tx.select({ id: users.id, hash: destinationAddressHash }).from(users);
+  return new Map(accounts.map((account) => [account.hash, account.id]));
 }
+
+type DestinationAccounts<TQueryResult extends PgQueryResultHKT> = (
+  tx: Transaction<TQueryResult>,
+) => Promise<Map<string, string>>;
 
 async function resolveTokenHashes<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
@@ -127,6 +120,7 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   closedBefore: Date,
   batchSize: number,
+  destinationAccounts: DestinationAccounts<TQueryResult>,
 ): Promise<number> {
   return db.transaction(async (tx) => {
     // One flush at a time: every row of one account, kind and window is merged by the same
@@ -155,11 +149,9 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
       return 0;
     }
 
-    const accountByDestinationHash = await resolveDestinationHashes(
-      tx,
-      batch.filter((row) => row.kind === "request").map((row) => row.keyHash),
-      batchSize,
-    );
+    const accountByDestinationHash = batch.some((row) => row.kind === "request")
+      ? await destinationAccounts(tx)
+      : new Map<string, string>();
     const accountByTokenHash = await resolveTokenHashes(
       tx,
       batch.filter((row) => row.kind !== "request").map((row) => row.keyHash),
@@ -244,9 +236,15 @@ export async function flushClosedRecoveryRejectedAttemptWindows<
   const closedBefore = new Date(deps.now().getTime() - RECOVERY_WINDOW_MS - CLOSE_GRACE_MS);
   const batchSize = deps.batchSize ?? FLUSH_BATCH_SIZE;
 
+  let accountsByDestinationHash: Promise<Map<string, string>> | undefined;
+  const destinationAccounts: DestinationAccounts<TQueryResult> = (tx) => {
+    accountsByDestinationHash ??= loadAccountsByDestinationHash(tx);
+    return accountsByDestinationHash;
+  };
+
   let flushed = 0;
   for (;;) {
-    const flushedInBatch = await flushOneBatch(db, closedBefore, batchSize);
+    const flushedInBatch = await flushOneBatch(db, closedBefore, batchSize, destinationAccounts);
     if (flushedInBatch === 0) {
       return flushed;
     }
