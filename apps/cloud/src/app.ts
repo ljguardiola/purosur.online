@@ -1,9 +1,14 @@
 import { extname, relative, sep } from "node:path";
 import fastifyStatic from "@fastify/static";
 import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@sentry/node";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
+import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
+import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
 
-export interface BuildAppOptions {
+export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   /** The deployed version (commit SHA), reported by `GET /health`. */
   version: string;
   /**
@@ -18,6 +23,12 @@ export interface BuildAppOptions {
    * backoffice's client-side router handles deep links.
    */
   staticDir?: string | undefined;
+  /**
+   * Registers every `POST /users/recovery/*` route (request, registration-options, redeem) when
+   * given. Left out, the service still starts (e.g. in a test that has no database), the same
+   * way `staticDir` is optional above.
+   */
+  recovery?: RecoveryRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -44,7 +55,9 @@ function cacheControlFor(staticDir: string, filePath: string): string {
   return topLevel === "assets" ? "public, max-age=31536000, immutable" : "no-cache";
 }
 
-export function buildApp(options: BuildAppOptions): FastifyInstance {
+export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT>(
+  options: BuildAppOptions<TQueryResult>,
+): FastifyInstance {
   const app = Fastify();
 
   const setupFastifyErrorHandler =
@@ -52,6 +65,11 @@ export function buildApp(options: BuildAppOptions): FastifyInstance {
   setupFastifyErrorHandler(app);
 
   app.get("/health", async () => ({ status: "ok", version: options.version }));
+
+  if (options.recovery) {
+    registerRecoveryRoutes(app, options.recovery);
+    registerRecoveryRedemptionRoutes(app, options.recovery);
+  }
 
   const staticDir = options.staticDir;
   if (staticDir) {

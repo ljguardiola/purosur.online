@@ -2,8 +2,17 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { FastifyInstance } from "fastify";
+import { makeWorkerUtils } from "graphile-worker";
+import pg from "pg";
+import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
+import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
+import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
+import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
+import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
+import { createResendRecoveryEmailSender } from "./recovery/resend-email-sender.js";
 import { initSentry } from "./sentry.js";
 
 export interface ServerEnv {
@@ -12,6 +21,12 @@ export interface ServerEnv {
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
   BACKOFFICE_STATIC_DIR?: string | undefined;
+  /** Once set, the recovery-by-email feature wires up: see `resolveRecoveryEnv`. */
+  DATABASE_URL?: string | undefined;
+  RESEND_API_KEY?: string | undefined;
+  RECOVERY_EMAIL_FROM?: string | undefined;
+  RECOVERY_EMAIL_REPLY_TO?: string | undefined;
+  BACKOFFICE_ORIGIN?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -49,9 +64,112 @@ export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | u
   return holdsBackofficeBuild(defaultDir) ? defaultDir : undefined;
 }
 
+export interface RecoveryEnv {
+  databaseUrl: string;
+  resendApiKey: string;
+  emailFrom: string;
+  emailReplyTo: string;
+  backofficeOrigin: string;
+}
+
+function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): string {
+  const value = env[name];
+  if (!value) {
+    throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
+  }
+  return value;
+}
+
+/**
+ * The recovery-by-email feature wires up once `DATABASE_URL` is set, the same
+ * dev-friendly default `resolveStaticDir` uses for the backoffice build above: a missing database
+ * lets the service start without it (e.g. in a test), but a configured database with the rest of
+ * this config missing is a real misconfiguration and fails fast instead of starting half-wired.
+ */
+export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
+  if (!env.DATABASE_URL) {
+    return undefined;
+  }
+  return {
+    databaseUrl: env.DATABASE_URL,
+    resendApiKey: requireRecoveryEnvVar(env, "RESEND_API_KEY"),
+    emailFrom: requireRecoveryEnvVar(env, "RECOVERY_EMAIL_FROM"),
+    emailReplyTo: requireRecoveryEnvVar(env, "RECOVERY_EMAIL_REPLY_TO"),
+    backofficeOrigin: requireRecoveryEnvVar(env, "BACKOFFICE_ORIGIN"),
+  };
+}
+
+export interface RecoveryInfrastructure {
+  db: PostgresJsDatabase<Record<string, never>>;
+  jobQueue: RecoveryJobQueue;
+  backofficeOrigin: string;
+  worker: RecoveryWorkerHandle;
+  close(): Promise<void>;
+}
+
+export interface SetUpRecoveryDeps {
+  /**
+   * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
+   * it can run this same function — a real postgres-js pool and graphile-worker's real `run()` —
+   * against a real Testcontainers Postgres without sending a real email. Production never passes
+   * it, so `startServer` always gets the real Resend sender below.
+   */
+  emailSender?: RecoveryEmailSender;
+}
+
+/**
+ * Connects to the database for the HTTP request path, and separately starts graphile-worker
+ * (`recovery-worker.ts`) so this same process also processes the jobs `POST
+ * /users/recovery/request` enqueues. Covered by apps/cloud/src/recovery/*.integration.test.ts
+ * against a real Testcontainers Postgres: graphile-worker's `run()` installs its own schema and
+ * needs a real Postgres connection with LISTEN/NOTIFY, which this repository's PGlite-based test
+ * database does not provide.
+ */
+export async function setUpRecovery(
+  recoveryEnv: RecoveryEnv,
+  deps: SetUpRecoveryDeps = {},
+): Promise<RecoveryInfrastructure> {
+  const sql = postgres(recoveryEnv.databaseUrl);
+  const db = drizzle(sql);
+  const emailSender =
+    deps.emailSender ??
+    createResendRecoveryEmailSender({
+      apiKey: recoveryEnv.resendApiKey,
+      from: recoveryEnv.emailFrom,
+      replyTo: recoveryEnv.emailReplyTo,
+    });
+  const worker = await startRecoveryWorker({
+    databaseUrl: recoveryEnv.databaseUrl,
+    backofficeOrigin: recoveryEnv.backofficeOrigin,
+    emailSender,
+  });
+  // Owned here rather than by graphile-worker, whose own `release()` ends a pool it created without
+  // waiting for it, and drops that pool's error handler first.
+  const jobQueuePool = new pg.Pool({ connectionString: recoveryEnv.databaseUrl });
+  jobQueuePool.on("error", (error) => {
+    console.error("recovery job queue: idle database client failed", error);
+  });
+  const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool });
+  const jobQueue = createGraphileRecoveryJobQueue(workerUtils);
+
+  return {
+    db,
+    jobQueue,
+    backofficeOrigin: recoveryEnv.backofficeOrigin,
+    worker,
+    async close() {
+      await worker.stop();
+      await workerUtils.release();
+      await jobQueuePool.end();
+      await sql.end({ timeout: 1 });
+    },
+  };
+}
+
 export interface StartServerDeps {
   initSentry?: typeof initSentry;
   buildApp?: (options: BuildAppOptions) => FastifyInstance;
+  setUpRecovery?: (recoveryEnv: RecoveryEnv) => Promise<RecoveryInfrastructure>;
 }
 
 export async function startServer(
@@ -60,13 +178,29 @@ export async function startServer(
 ): Promise<FastifyInstance> {
   const doInitSentry = deps.initSentry ?? initSentry;
   const doBuildApp = deps.buildApp ?? buildApp;
+  const doSetUpRecovery = deps.setUpRecovery ?? setUpRecovery;
 
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
+
+  const recoveryEnv = resolveRecoveryEnv(env);
+  const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
 
   const app = doBuildApp({
     version: resolveVersion(env),
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
+    ...(recovery
+      ? {
+          recovery: {
+            db: recovery.db,
+            jobQueue: recovery.jobQueue,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
+        }
+      : {}),
   });
+  if (recovery) {
+    app.addHook("onClose", () => recovery.close());
+  }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;
 }

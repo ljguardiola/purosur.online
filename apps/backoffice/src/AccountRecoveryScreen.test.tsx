@@ -1,0 +1,111 @@
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
+import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
+import { requestRecoveryLink } from "./recoveryApi";
+
+vi.mock("./recoveryApi", () => ({ requestRecoveryLink: vi.fn() }));
+
+beforeEach(() => {
+  vi.mocked(requestRecoveryLink).mockReset();
+});
+
+afterEach(() => {
+  vi.mocked(requestRecoveryLink).mockReset();
+});
+
+// The required asterisk folds into the input's accessible name in Chromium (see
+// TextField.test.tsx's own "marks a required field with an asterisk" test), so this queries by
+// role alone: the form has only one textbox.
+async function fillEmail(screen: Awaited<ReturnType<typeof render>>, value: string) {
+  await userEvent.fill(screen.getByRole("textbox"), value);
+}
+
+test("shows the recovery form with its heading, email field, submit button and back link", async () => {
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("textbox")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Enviar el enlace" })).toBeVisible();
+  const backLink = screen.getByRole("link", { name: "Volver a ingresar" }).element();
+  expect(backLink.getAttribute("href")).toBe("/sign-in");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("rejects an empty email without calling the API", async () => {
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Ingresá tu correo.")).toBeVisible();
+  expect(requestRecoveryLink).not.toHaveBeenCalled();
+});
+
+test("rejects a malformed email without calling the API", async () => {
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await fillEmail(screen, "not-an-email");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
+  expect(requestRecoveryLink).not.toHaveBeenCalled();
+});
+
+test("confirms the link was sent, with the uniform notice, after a successful submit", async () => {
+  vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "sent" });
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await fillEmail(screen, "lucia.perez@purosur.online");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Revisá tu correo", level: 1 }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Si el correo es de una cuenta, ya llegó el enlace"))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado.",
+      ),
+    )
+    .toBeVisible();
+  expect(requestRecoveryLink).toHaveBeenCalledWith("lucia.perez@purosur.online");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a rate-limited notice that does not blame the connection, naming when to retry", async () => {
+  vi.mocked(requestRecoveryLink).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 3600,
+  });
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await fillEmail(screen, "lucia.perez@purosur.online");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Demasiados pedidos de recuperación")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
+  expect(screen.getByText(/conexi[oó]n/i).query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a generic error notice on any other failure", async () => {
+  vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "failed" });
+  const screen = await render(<AccountRecoveryScreen />);
+
+  await fillEmail(screen, "lucia.perez@purosur.online");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("No pudimos enviar el enlace")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});

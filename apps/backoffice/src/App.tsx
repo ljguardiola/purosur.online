@@ -1,12 +1,16 @@
 import { AreaNavItem } from "@purosur/ui";
 import { LifeBuoy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
 import { AyudaContent, AyudaSectionColumn } from "./AyudaScreen";
+import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { type AyudaHelpCatalog, type AyudaRoute, resolveAyudaPath } from "./ayudaRoutes";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
+import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
+import { SignInScreen } from "./SignInScreen";
 
 export type AppProps = {
   help: AyudaHelpCatalog;
@@ -19,7 +23,8 @@ function documentTitle(help: AyudaHelpCatalog, { categoryId, articleId }: AyudaR
   return page ? messages.ayuda.pageDocumentTitle({ page }) : messages.ayuda.documentTitle;
 }
 
-export function App({ help }: AppProps) {
+/** The Ayuda-in-Shell part of the app, root for every path outside the access screens below. */
+function AyudaApp({ help }: AppProps) {
   const route = useRoute();
   const ayudaRoute = resolveAyudaPath(help, route);
   const [search, setSearch] = useState("");
@@ -71,4 +76,19 @@ export function App({ help }: AppProps) {
       />
     </Shell>
   );
+}
+
+export function App({ help }: AppProps) {
+  const route = useRoute();
+
+  switch (route) {
+    case SIGN_IN_PATH:
+      return <SignInScreen />;
+    case ACCOUNT_RECOVERY_PATH:
+      return <AccountRecoveryScreen />;
+    case REGISTER_PASSKEY_PATH:
+      return <RegisterPasskeyScreen />;
+    default:
+      return <AyudaApp help={help} />;
+  }
 }

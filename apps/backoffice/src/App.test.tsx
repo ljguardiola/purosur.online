@@ -1,8 +1,15 @@
 import { defineHelp } from "@purosur/ui";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./App";
+import { fetchRegistrationOptions } from "./recoveryApi";
+
+vi.mock("./recoveryApi", () => ({
+  requestRecoveryLink: vi.fn(),
+  fetchRegistrationOptions: vi.fn(() => new Promise(() => {})),
+  redeemRecovery: vi.fn(),
+}));
 
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
 
@@ -151,6 +158,36 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
   await expect
     .element(screen.getByRole("heading", { name: "Facturación", level: 1 }))
     .toHaveFocus();
+});
+
+test("routes /sign-in to the sign-in screen, outside the Shell", async () => {
+  window.history.pushState(null, "", "/sign-in");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
+});
+
+test("routes /account-recovery to the recovery form, outside the Shell", async () => {
+  window.history.pushState(null, "", "/account-recovery");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
+});
+
+test("routes /account-recovery/passkey to the passkey registration screen, reading its token from the hash", async () => {
+  window.history.pushState(null, "", "/account-recovery/passkey#the-token");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
+  expect(fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
+  expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
 test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {

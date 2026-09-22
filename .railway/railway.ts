@@ -16,6 +16,13 @@ const CUSTOM_DOMAINS: Record<string, string[]> = {
   staging: ["staging.purosur.online"],
 };
 
+// The recovery-request email's sender is per environment, but its reply-to address is the same
+// across every environment, so it is a plain constant rather than a per-environment map.
+const RECOVERY_EMAIL_FROM: Record<string, string> = {
+  staging: "Puro Sur <acceso@mail.staging.purosur.online>",
+};
+const RECOVERY_EMAIL_REPLY_TO = "purosur.comarca@gmail.com";
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -24,15 +31,33 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function requireBackofficeOrigin(environment: string): string {
+  const [domain] = CUSTOM_DOMAINS[environment] ?? [];
+  if (!domain) {
+    throw new Error(`.railway/railway.ts: no backoffice domain configured for ${environment}`);
+  }
+  return `https://${domain}`;
+}
+
+function requireRecoveryEmailFrom(environment: string): string {
+  const from = RECOVERY_EMAIL_FROM[environment];
+  if (!from) {
+    throw new Error(`.railway/railway.ts: no recovery email sender configured for ${environment}`);
+  }
+  return from;
+}
+
 export default defineRailway((ctx) => {
   // An image digest reference (ghcr.io/ljguardiola/purosur-cloud@sha256:...), never a moving tag.
   const imageRef = requireEnv("CLOUD_IMAGE_REF");
   const ghcrPullToken = requireEnv("GHCR_PULL_TOKEN");
   const sentryDsn = requireEnv("CLOUD_SENTRY_DSN");
+  const resendApiKey = requireEnv("RESEND_API_KEY");
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
   }
+  const backofficeOrigin = requireBackofficeOrigin(environment);
 
   const db = postgres("postgres", { region: SERVICE_REGION });
   const media = bucket("media", { region: BUCKET_REGION });
@@ -56,6 +81,10 @@ export default defineRailway((ctx) => {
       DATABASE_URL: db.env.DATABASE_URL,
       SENTRY_DSN: sentryDsn,
       SENTRY_ENVIRONMENT: environment,
+      RESEND_API_KEY: resendApiKey,
+      RECOVERY_EMAIL_FROM: requireRecoveryEmailFrom(environment),
+      RECOVERY_EMAIL_REPLY_TO,
+      BACKOFFICE_ORIGIN: backofficeOrigin,
     },
   });
 

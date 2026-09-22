@@ -1,8 +1,13 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
+
+const MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
 
 describe("GET /health", () => {
   it("responds 200 with status ok and the given version", async () => {
@@ -167,5 +172,98 @@ describe("serving the backoffice's static build", () => {
     const response = await app.inject({ method: "GET", url: "/ayuda/getting_started" });
 
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("wiring the recovery routes", () => {
+  it("does not register POST /users/recovery/request when no recovery option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/request",
+      payload: { email: "ada@example.com" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers POST /users/recovery/request when a recovery option is given", async () => {
+    const client = new PGlite();
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    const enqueued: string[] = [];
+
+    const app = buildApp({
+      version: "abc1234",
+      recovery: {
+        db,
+        jobQueue: {
+          async enqueueRecoveryRequest(request) {
+            enqueued.push(request.email);
+          },
+        },
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/request",
+      headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
+      payload: { email: "ada@example.com" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enqueued).toEqual(["ada@example.com"]);
+
+    await client.close();
+  });
+
+  it("does not register the redemption routes when no recovery option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const optionsResponse = await app.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      payload: { recovery_token: "a-raw-token" },
+    });
+    const redeemResponse = await app.inject({
+      method: "POST",
+      url: "/users/recovery/redeem",
+      payload: { recovery_token: "a-raw-token" },
+    });
+
+    expect(optionsResponse.statusCode).toBe(404);
+    expect(redeemResponse.statusCode).toBe(404);
+  });
+
+  it("registers the redemption routes when a recovery option is given", async () => {
+    const client = new PGlite();
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const app = buildApp({
+      version: "abc1234",
+      recovery: {
+        db,
+        jobQueue: { async enqueueRecoveryRequest() {} },
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: "an-unknown-raw-token" },
+    });
+
+    // An unrecognized token still proves the route is wired: it reaches the redemption handler's
+    // own token-classification error instead of Fastify's generic 404 for an unregistered route.
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
+
+    await client.close();
   });
 });
