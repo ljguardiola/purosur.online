@@ -41,10 +41,16 @@ export function reportPoolErrors(
     checkedOut.delete(client);
   });
   pool.on("connect", (client) => {
+    // pg raises one killed backend twice on the same connection — first the backend's own fatal
+    // message, then the socket closing under it — and a connection it has raised an error for is
+    // dead and never handed out again, so only the first of the two says anything new.
+    let reported = false;
+
     client.on("error", (error) => {
-      if (!checkedOut.has(client)) {
+      if (reported || !checkedOut.has(client)) {
         return;
       }
+      reported = true;
       reportRecoveryError(`${label}: active database client failed`, error, deps);
     });
   });

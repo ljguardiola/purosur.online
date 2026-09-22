@@ -64,6 +64,47 @@ describe("reportPoolErrors", () => {
     expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
   });
 
+  it("reports a checked-out connection once, though pg emits its error twice: the backend's message, then the closing socket", () => {
+    const pool = new FakePool();
+    const captureException = vi.fn();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    reportPoolErrors(pool, "recovery worker", { captureException });
+
+    const client = new FakeClient();
+    checkOut(pool, client);
+    const fatal = new Error("terminating connection due to administrator command");
+    const terminated = new Error("Connection terminated unexpectedly");
+
+    client.emit("error", fatal);
+    client.emit("error", terminated);
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "recovery worker: active database client failed",
+      fatal,
+    );
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(fatal);
+  });
+
+  it("reports each failing connection, not just the first one", () => {
+    const pool = new FakePool();
+    const captureException = vi.fn();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    reportPoolErrors(pool, "recovery worker", { captureException });
+
+    const firstClient = new FakeClient();
+    const secondClient = new FakeClient();
+    checkOut(pool, firstClient);
+    checkOut(pool, secondClient);
+    const firstError = new Error("terminating connection due to administrator command");
+    const secondError = new Error("terminating connection due to administrator command");
+
+    firstClient.emit("error", firstError);
+    firstClient.emit("error", firstError);
+    secondClient.emit("error", secondError);
+
+    expect(captureException.mock.calls).toEqual([[firstError], [secondError]]);
+  });
+
   it("reports a dropped connection the pool already took back exactly once, as the idle failure it is", () => {
     const pool = new FakePool();
     const captureException = vi.fn();
