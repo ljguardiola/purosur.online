@@ -55,9 +55,20 @@ function chunk<T>(values: T[], size: number): T[][] {
 
 async function loadAccountsByDestinationHash<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
+  keyHashes: string[],
+  batchSize: number,
 ): Promise<Map<string, string>> {
-  const accounts = await tx.select({ id: users.id, hash: destinationAddressHash }).from(users);
-  return new Map(accounts.map((account) => [account.hash, account.id]));
+  const accountByHash = new Map<string, string>();
+  for (const hashes of chunk(keyHashes, batchSize)) {
+    const accounts = await tx
+      .select({ id: users.id, hash: destinationAddressHash })
+      .from(users)
+      .where(inArray(destinationAddressHash, hashes));
+    for (const account of accounts) {
+      accountByHash.set(account.hash, account.id);
+    }
+  }
+  return accountByHash;
 }
 
 async function resolveTokenHashes<TQueryResult extends PgQueryResultHKT>(
@@ -147,9 +158,13 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
       return 0;
     }
 
-    const accountByDestinationHash = batch.some((row) => row.kind === "request")
-      ? await loadAccountsByDestinationHash(tx)
-      : new Map<string, string>();
+    const requestKeyHashes = batch
+      .filter((row) => row.kind === "request")
+      .map((row) => row.keyHash);
+    const accountByDestinationHash =
+      requestKeyHashes.length > 0
+        ? await loadAccountsByDestinationHash(tx, requestKeyHashes, batchSize)
+        : new Map<string, string>();
     const accountByTokenHash = await resolveTokenHashes(
       tx,
       batch.filter((row) => row.kind !== "request").map((row) => row.keyHash),

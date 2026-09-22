@@ -181,6 +181,28 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     expect(queries.filter((query) => query.includes('from "users"'))).toHaveLength(3);
   });
 
+  it("looks the accounts up by the batch's own request key hashes, not every stored address", async () => {
+    await insertUser("ada@example.com");
+    await insertUser("unrelated@example.com");
+    await recordRejectedAttempt(db, {
+      kind: "request",
+      keyHash: hashDestinationAddress("ada@example.com"),
+      now: new Date("2026-01-05T12:05:00.000Z"),
+    });
+    const queries: { query: string; params: unknown[] }[] = [];
+    const observedDb = drizzle(client, {
+      logger: { logQuery: (query, params) => queries.push({ query, params }) },
+    });
+
+    const flushed = await flushClosedRecoveryRejectedAttemptWindows(observedDb, {
+      now: () => CLOSED_NOW,
+    });
+
+    expect(flushed).toBe(1);
+    const usersQuery = queries.find(({ query }) => query.includes('from "users"'));
+    expect(usersQuery?.params).toEqual([hashDestinationAddress("ada@example.com")]);
+  });
+
   it("resolves a request-kind key to an account created after an earlier batch of the same flush run", async () => {
     const adaId = await insertUser("ada@example.com");
     await recordRejectedAttempt(db, {
