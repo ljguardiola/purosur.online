@@ -2,6 +2,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
+import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
@@ -12,8 +13,8 @@ import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-a
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
 
-// Cron support (a `crontab` string RunnerOptions accepts in place of a crontab file) is graphile-
-// worker 0.18's own: apps/cloud/node_modules/graphile-worker/dist/interfaces.d.ts:644-650.
+// Cron support is graphile-worker 0.18's own: its `RunnerOptions` takes this `crontab` string in
+// place of a crontab file, so no cron process or crontab file is deployed alongside the service.
 const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;
 
 // A slow job, such as an admitted request waiting on its email, never holds up every other one;
@@ -92,9 +93,7 @@ export async function startRecoveryWorker(
   const now = options.now ?? (() => new Date());
 
   const pool = doCreatePool(options.databaseUrl);
-  pool.on("error", (error) => {
-    console.error("recovery worker: idle database client failed", error);
-  });
+  reportPoolErrors(pool, "recovery worker");
 
   const runner = await doRun({
     pgPool: pool as Pool,

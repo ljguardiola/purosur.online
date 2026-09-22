@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { Pool } from "pg";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 import {
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
@@ -31,6 +31,10 @@ function mustExist<T>(value: T | undefined, description: string): T {
 }
 
 describe("startRecoveryWorker", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("starts graphile-worker against its own pool for the given connection string, with the recovery-request task", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
@@ -59,6 +63,7 @@ describe("startRecoveryWorker", () => {
     const runWorker = vi.fn().mockResolvedValue(fakeRunner());
     const pool = new FakePool();
     const createPool = vi.fn().mockReturnValue(pool);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await startRecoveryWorker(
       {
@@ -69,8 +74,42 @@ describe("startRecoveryWorker", () => {
       { runWorker, createPool },
     );
 
+    const error = new Error("idle client disconnected");
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
-    expect(() => pool.emit("error", new Error("idle client disconnected"))).not.toThrow();
+    expect(() => pool.emit("error", error)).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "recovery worker: idle database client failed",
+      error,
+    );
+  });
+
+  it("installs a connect handler on the pool it owns, so graphile-worker's own assertPool never installs (and later removes) its own", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+
+    expect(pool.listenerCount("connect")).toBeGreaterThan(0);
+    const client = new EventEmitter();
+    pool.emit("connect", client);
+    pool.emit("acquire", client);
+    const error = new Error("connection terminated unexpectedly");
+
+    expect(client.listenerCount("error")).toBeGreaterThan(0);
+    expect(() => client.emit("error", error)).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "recovery worker: active database client failed",
+      error,
+    );
   });
 
   it("registers the rejected-attempt flush task and schedules it every 5 minutes", async () => {

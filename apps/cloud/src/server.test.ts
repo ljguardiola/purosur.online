@@ -1,8 +1,10 @@
+import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createRecoveryJobQueuePool,
   registerShutdownHandlers,
   reportStartupFailure,
   resolvePort,
@@ -290,7 +292,59 @@ describe("startServer", () => {
   });
 });
 
+describe("createRecoveryJobQueuePool", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  class FakePool extends EventEmitter {
+    readonly end = vi.fn().mockResolvedValue(undefined);
+  }
+
+  it("installs a permanent error handler on the pool it owns, so a disconnected idle client never becomes an unhandled error", () => {
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    createRecoveryJobQueuePool("postgres://user:pass@db/purosur", { createPool });
+
+    const error = new Error("idle client disconnected");
+    expect(createPool).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
+    expect(pool.listenerCount("error")).toBeGreaterThan(0);
+    expect(() => pool.emit("error", error)).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "recovery job queue: idle database client failed",
+      error,
+    );
+  });
+
+  it("installs a connect handler on the pool it owns, so graphile-worker's own assertPool never installs (and later removes) its own", () => {
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    createRecoveryJobQueuePool("postgres://user:pass@db/purosur", { createPool });
+
+    expect(pool.listenerCount("connect")).toBeGreaterThan(0);
+    const client = new EventEmitter();
+    pool.emit("connect", client);
+    pool.emit("acquire", client);
+    const error = new Error("connection terminated unexpectedly");
+
+    expect(client.listenerCount("error")).toBeGreaterThan(0);
+    expect(() => client.emit("error", error)).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "recovery job queue: active database client failed",
+      error,
+    );
+  });
+});
+
 describe("shutdownServer", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("closes the app, then flushes Sentry, then exits 0", async () => {
     const calls: string[] = [];
     const close = vi.fn(async () => {
@@ -320,7 +374,6 @@ describe("shutdownServer", () => {
 
     expect(flush).toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(1);
-    vi.restoreAllMocks();
   });
 });
 
@@ -347,6 +400,10 @@ describe("registerShutdownHandlers", () => {
 });
 
 describe("reportStartupFailure", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("captures the error, flushes Sentry, then exits 1", async () => {
     const calls: string[] = [];
     const error = new Error("listen EADDRINUSE");
@@ -365,6 +422,5 @@ describe("reportStartupFailure", () => {
     await reportStartupFailure(error, { captureException, flush, exit });
 
     expect(calls).toEqual(["capture listen EADDRINUSE", "flush", "exit 1"]);
-    vi.restoreAllMocks();
   });
 });

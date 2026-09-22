@@ -1,8 +1,32 @@
 import * as Sentry from "@sentry/node";
 
-export interface ReportRecoveryBookkeepingErrorDeps {
+export interface ReportRecoveryErrorDeps {
   /** Injected in tests, the same way `server.ts`'s `reportStartupFailure` does. */
   captureException?: (error: unknown) => unknown;
+}
+
+/**
+ * Runs one half of a report and drops its own failure. Reports are made from inside pg's `error`
+ * listeners, where a throw is an uncaught exception that ends the process — the very crash the
+ * listeners exist to prevent — and there is nowhere left to report a failing reporter to.
+ */
+function withoutThrowing(report: () => void): void {
+  try {
+    report();
+  } catch {
+    // Deliberately dropped: see above.
+  }
+}
+
+/** How recovery reports a failure it swallows: the console for a log stream, Sentry for an alert. */
+export function reportRecoveryError(
+  message: string,
+  error: unknown,
+  deps: ReportRecoveryErrorDeps = {},
+): void {
+  const captureException = deps.captureException ?? Sentry.captureException;
+  withoutThrowing(() => console.error(message, error));
+  withoutThrowing(() => captureException(error));
 }
 
 /**
@@ -12,9 +36,7 @@ export interface ReportRecoveryBookkeepingErrorDeps {
  */
 export function reportRecoveryBookkeepingError(
   error: unknown,
-  deps: ReportRecoveryBookkeepingErrorDeps = {},
+  deps: ReportRecoveryErrorDeps = {},
 ): void {
-  const captureException = deps.captureException ?? Sentry.captureException;
-  console.error("recovery: bookkeeping failed", error);
-  captureException(error);
+  reportRecoveryError("recovery: bookkeeping failed", error, deps);
 }

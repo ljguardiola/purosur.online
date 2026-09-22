@@ -9,6 +9,7 @@ import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
+import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
@@ -153,6 +154,25 @@ export interface RecoveryInfrastructure {
   close(): Promise<void>;
 }
 
+export interface CreateRecoveryJobQueuePoolDeps {
+  /** Injected in tests; defaults to a real `pg.Pool` for `connectionString`. */
+  createPool?: (connectionString: string) => Pick<pg.Pool, "on" | "end">;
+}
+
+/**
+ * Owned here rather than by graphile-worker, whose own `release()` ends a pool it created without
+ * waiting for it, and drops that pool's error handlers first.
+ */
+export function createRecoveryJobQueuePool(
+  connectionString: string,
+  deps: CreateRecoveryJobQueuePoolDeps = {},
+): Pick<pg.Pool, "on" | "end"> {
+  const doCreatePool = deps.createPool ?? ((url: string) => new pg.Pool({ connectionString: url }));
+  const pool = doCreatePool(connectionString);
+  reportPoolErrors(pool, "recovery job queue");
+  return pool;
+}
+
 export interface SetUpRecoveryDeps {
   /**
    * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
@@ -189,13 +209,8 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
   });
-  // Owned here rather than by graphile-worker, whose own `release()` ends a pool it created without
-  // waiting for it, and drops that pool's error handler first.
-  const jobQueuePool = new pg.Pool({ connectionString: recoveryEnv.databaseUrl });
-  jobQueuePool.on("error", (error) => {
-    console.error("recovery job queue: idle database client failed", error);
-  });
-  const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool });
+  const jobQueuePool = createRecoveryJobQueuePool(recoveryEnv.databaseUrl);
+  const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool as pg.Pool });
   const jobQueue = createGraphileRecoveryJobQueue(workerUtils);
 
   return {
