@@ -136,6 +136,20 @@ async function stopWorker(worker: RecoveryWorkerHandle | undefined): Promise<voi
 }
 
 /**
+ * Runs `cleanup` after `error` so a failure never leaves a leak behind it, then reports the
+ * failure that triggered it: both, joined, if `cleanup` itself throws, so neither is lost — or
+ * `error` alone otherwise, unreplaced by whatever `cleanup` returned.
+ */
+async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promise<never> {
+  try {
+    await cleanup();
+  } catch (cleanupError) {
+    throw new AggregateError([error, cleanupError], "cleanup after failure also failed");
+  }
+  throw error;
+}
+
+/**
  * Shutting down over the connections this test just cut is not what it asserts: the cut can stop
  * graphile-worker's runner by itself, which makes the shutdown reject on its first step. Any other
  * failure still fails this test, and the worker is already stopped either way.
@@ -156,37 +170,47 @@ async function startRealServer(
 ): Promise<StartedFixture> {
   const port = await findFreePort();
   let recovery: RecoveryInfrastructure | undefined;
-  const app = await startServer(
-    {
-      PORT: String(port),
-      DATABASE_URL: databaseUrl,
-      RESEND_API_KEY: "unused-a-fake-sender-is-injected-below",
-      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
-      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
-      BACKOFFICE_ORIGIN,
-    },
-    {
-      // The only seam this test touches: everything else (the pool, graphile-worker's run(),
-      // the routes) is `setUpRecovery`'s real production wiring, unmodified.
-      setUpRecovery: async (recoveryEnv) => {
-        recovery = await setUpRecovery(recoveryEnv, { emailSender });
-        return recovery;
+  let app: Awaited<ReturnType<typeof startServer>>;
+  try {
+    app = await startServer(
+      {
+        PORT: String(port),
+        DATABASE_URL: databaseUrl,
+        RESEND_API_KEY: "unused-a-fake-sender-is-injected-below",
+        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+        BACKOFFICE_ORIGIN,
       },
-    },
-  );
+      {
+        // The only seam this test touches: everything else (the pool, graphile-worker's run(),
+        // the routes) is `setUpRecovery`'s real production wiring, unmodified.
+        setUpRecovery: async (recoveryEnv) => {
+          recovery = await setUpRecovery(recoveryEnv, { emailSender });
+          return recovery;
+        },
+      },
+    );
+  } catch (error) {
+    // `recovery` can already be set here even though `startServer` never returned: a rejection
+    // after its own setup resolved (e.g. `app.listen` failing) would otherwise leave its worker
+    // running and polling this file's shared database with no `close()` ever called on it.
+    await rethrowAfter(error, () => (recovery ? recovery.close() : Promise.resolve()));
+  }
   return {
     origin: `http://127.0.0.1:${port}`,
     /**
-     * `setUpRecovery`'s own shutdown stops the worker first and gives up at its first rejection,
-     * so a shutdown that fails partway can leave the worker polling. Every test in this file
-     * shares one database, where a worker that outlived its test would take a later test's job and
-     * deliver it through that test's sender, so the worker is stopped whatever the shutdown did.
+     * Only runs `stopWorker` when `app.close()` itself fails: a resolved `app.close()` already
+     * ran `setUpRecovery`'s own shutdown (which stops the worker first) to completion through
+     * Fastify's `onClose` hook, so stopping the worker again would just be a second `stop()` on
+     * one already stopped. Every test in this file shares one database, where a worker a failed
+     * shutdown left behind would take a later test's job and deliver it through that test's
+     * sender, so a failed close still stops it explicitly.
      */
     async close() {
       try {
         await app.close();
-      } finally {
-        await stopWorker(recovery?.worker);
+      } catch (error) {
+        await rethrowAfter(error, () => stopWorker(recovery?.worker));
       }
     },
   };

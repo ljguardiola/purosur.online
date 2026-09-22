@@ -148,7 +148,7 @@ describe("reportPoolErrors", () => {
     );
   });
 
-  it("keeps attaching a handler to every later connection, unlike graphile-worker's own releaser which removes its handlers on release", () => {
+  it("keeps attaching a handler to every later connection, unlike graphile-worker's own releaser which removes its handlers when the worker stops", () => {
     const pool = new FakePool();
     reportPoolErrors(pool, "recovery job queue");
 
