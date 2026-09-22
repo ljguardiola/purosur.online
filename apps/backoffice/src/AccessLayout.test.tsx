@@ -5,14 +5,14 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 
-// The brand panel is drawn at a fixed 680px within a 1440px desktop frame: every layout assertion
-// below runs at that exact viewport, the same way Modal.test.tsx and DateField.test.tsx pin a
-// desktop viewport instead of the default phone-sized one.
+// Pins a desktop viewport instead of the default phone-sized one, the same way Modal.test.tsx and
+// DateField.test.tsx do, so the panel's fixed pixel width below is measured at a size it actually
+// fits.
 beforeEach(async () => {
   await page.viewport(1440, 900);
 });
 
-test("sizes the brand panel at the design's 680px, at the design's own viewport", async () => {
+test("sizes the brand panel at 680px on a 1440px-wide desktop", async () => {
   const screen = await render(
     <AccessLayout>
       <p>screen content</p>
@@ -23,7 +23,7 @@ test("sizes the brand panel at the design's 680px, at the design's own viewport"
   expect(panel.getBoundingClientRect().width).toBeCloseTo(680, 0);
 });
 
-test("aligns the logo and the Backoffice caption to the panel's left padding, as drawn", async () => {
+test("places the logo and the Backoffice caption on the panel's 32px padding", async () => {
   const screen = await render(
     <AccessLayout>
       <p>screen content</p>

@@ -19,8 +19,8 @@ function validateEmail(value: string): string | undefined {
 }
 
 /**
- * The 429 and generic-failure states have no drawn design of their own; both follow the same
- * notice-above-the-action pattern used for other blocked-by-attempts states in the product.
+ * The 429 and generic-failure states share the notice-above-the-action pattern used for other
+ * blocked-by-attempts states in the product.
  */
 export function RecuperarScreen() {
   const [email, setEmail] = useState("");

@@ -22,7 +22,7 @@ async function fillEmail(screen: Awaited<ReturnType<typeof render>>, value: stri
   await userEvent.fill(screen.getByRole("textbox"), value);
 }
 
-test("shows the drawn recovery form and its back link", async () => {
+test("shows the recovery form with its heading, email field, submit button and back link", async () => {
   const screen = await render(<RecuperarScreen />);
 
   await expect
@@ -55,7 +55,7 @@ test("rejects a malformed email without calling the API", async () => {
   expect(requestRecoveryLink).not.toHaveBeenCalled();
 });
 
-test("shows Enlace enviado with its drawn copy after a successful submit", async () => {
+test("shows Enlace enviado with its heading and body copy after a successful submit", async () => {
   vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "sent" });
   const screen = await render(<RecuperarScreen />);
 

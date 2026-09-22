@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { IngresarScreen } from "./IngresarScreen";
 
-test("shows the drawn Ingresar copy and the recovery link, without a passkey sign-in button", async () => {
+test("shows the Ingresar heading, its passkey copy and the recovery link, without a passkey sign-in button", async () => {
   const screen = await render(<IngresarScreen />);
 
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();

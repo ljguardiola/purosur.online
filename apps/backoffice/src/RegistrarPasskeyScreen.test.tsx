@@ -81,7 +81,7 @@ test("shows a loading state before the registration options resolve", async () =
   await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
 });
 
-test("shows the drawn Registrar copy with the account's display name, without the deferred sessions notice", async () => {
+test("shows the Registrar heading and copy with the account's display name, without the deferred sessions notice", async () => {
   vi.mocked(fetchRegistrationOptions).mockResolvedValue({
     kind: "ok",
     value: { displayName: "Lucía Pérez", options: registrationOptions },

@@ -60,8 +60,8 @@ function TokenErrorNotice({
 }
 
 /**
- * Every token/rate-limit/failure state has no drawn design of its own; each follows the same
- * error-tone notice pattern used for other blocked-by-attempts states in the product.
+ * Every token/rate-limit/failure state shares the error-tone notice pattern used for other
+ * blocked-by-attempts states in the product.
  */
 export function RegistrarPasskeyScreen() {
   // A lazy initializer runs during the component's initial render, before any effect can strip
