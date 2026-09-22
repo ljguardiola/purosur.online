@@ -260,8 +260,9 @@ describe("wiring the recovery routes", () => {
     });
 
     // An unrecognized token still proves the route is wired: it reaches the redemption handler's
-    // own token-classification error instead of Fastify's generic 404 for an unregistered route.
-    expect(response.statusCode).toBe(404);
+    // own token-classification error body instead of Fastify's generic not-found response for an
+    // unregistered route.
+    expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
 
     await client.close();
