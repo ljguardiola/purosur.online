@@ -166,6 +166,8 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const auditLogLocked = new Promise<void>((resolve) => {
       auditLogHeld = resolve;
     });
+    let firstFlush: Promise<number> | undefined;
+    let secondFlush: Promise<number> | undefined;
     try {
       // Holding audit_log stalls the first flush right before it writes, with its rows taken.
       const holding = holder.begin(async (tx) => {
@@ -174,13 +176,18 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
         await auditLogReleased;
       });
       await auditLogLocked;
-      const firstFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(firstFlusher), {
+      firstFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(firstFlusher), {
         now: () => CLOSED_NOW,
       });
+      // Closing the clients below always settles these, whether or not they are awaited first; a
+      // failure between here and that await would otherwise reject them with nothing attached,
+      // and vitest would report that on top of whatever assertion actually failed.
+      firstFlush.catch(() => {});
       await waitUntilBlockedOnALock("first-flush");
-      const secondFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(secondFlusher), {
+      secondFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(secondFlusher), {
         now: () => CLOSED_NOW,
       });
+      secondFlush.catch(() => {});
       await waitUntilBlockedOnALock("second-flush");
 
       const accumulatorLocksOfTheSecondFlush = await sql`
@@ -200,6 +207,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
       expect(auditRows[0]?.newValue).toMatchObject({ count: 2 });
     } finally {
       releaseAuditLog();
+      await Promise.allSettled([firstFlush, secondFlush]);
       await Promise.all(
         [holder, firstFlusher, secondFlusher].map((client) => client.end({ timeout: 1 })),
       );
