@@ -157,7 +157,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toEqual([]);
   });
 
-  it("reads the accounts' addresses once per flush, however many batches the request keys span", async () => {
+  it("reads the accounts' addresses again for each batch that carries request keys, not once for the whole flush", async () => {
     const at = new Date("2026-01-05T12:05:00.000Z");
     const emails = ["ada@example.com", "grace@example.com", "linus@example.com"];
     for (const email of emails) {
@@ -178,7 +178,49 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
 
     expect(flushed).toBe(3);
     await expect(db.select().from(auditLog)).resolves.toHaveLength(3);
-    expect(queries.filter((query) => query.includes('from "users"'))).toHaveLength(1);
+    expect(queries.filter((query) => query.includes('from "users"'))).toHaveLength(3);
+  });
+
+  it("resolves a request-kind key to an account created after an earlier batch of the same flush run", async () => {
+    const adaId = await insertUser("ada@example.com");
+    await recordRejectedAttempt(db, {
+      kind: "request",
+      keyHash: hashDestinationAddress("ada@example.com"),
+      now: new Date("2026-01-05T11:05:00.000Z"),
+    });
+    await recordRejectedAttempt(db, {
+      kind: "request",
+      keyHash: hashDestinationAddress("grace@example.com"),
+      now: new Date("2026-01-05T12:05:00.000Z"),
+    });
+
+    let batchCount = 0;
+    let graceId: string | undefined;
+    const originalTransaction = db.transaction.bind(db);
+    // Grace's account is created only once the first batch (ada's older window) has already
+    // committed, so it exists before the second batch (grace's window) runs, but did not exist
+    // when the run started.
+    db.transaction = ((callback: Parameters<typeof db.transaction>[0]) => {
+      batchCount += 1;
+      if (batchCount === 2) {
+        return insertUser("grace@example.com").then((id) => {
+          graceId = id;
+          return originalTransaction(callback);
+        });
+      }
+      return originalTransaction(callback);
+    }) as typeof db.transaction;
+
+    const flushed = await flushClosedRecoveryRejectedAttemptWindows(db, {
+      now: () => CLOSED_NOW,
+      batchSize: 1,
+    });
+
+    expect(flushed).toBe(2);
+    const rows = await db.select().from(auditLog);
+    expect(rows.map((row) => row.entityId).sort()).toEqual(
+      [adaId, mustExist(graceId, "the hooked transaction to have created grace's account")].sort(),
+    );
   });
 
   it("resolves a request-kind key to its account and writes one grouped audit row, then deletes the accumulator row", async () => {

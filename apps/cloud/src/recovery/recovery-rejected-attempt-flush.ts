@@ -60,10 +60,6 @@ async function loadAccountsByDestinationHash<TQueryResult extends PgQueryResultH
   return new Map(accounts.map((account) => [account.hash, account.id]));
 }
 
-type DestinationAccounts<TQueryResult extends PgQueryResultHKT> = (
-  tx: Transaction<TQueryResult>,
-) => Promise<Map<string, string>>;
-
 async function resolveTokenHashes<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
   keyHashes: string[],
@@ -123,7 +119,6 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   closedBefore: Date,
   batchSize: number,
-  destinationAccounts: DestinationAccounts<TQueryResult>,
 ): Promise<number> {
   return db.transaction(async (tx) => {
     // One flush at a time: every row of one account, kind and window is merged by the same
@@ -153,7 +148,7 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
     }
 
     const accountByDestinationHash = batch.some((row) => row.kind === "request")
-      ? await destinationAccounts(tx)
+      ? await loadAccountsByDestinationHash(tx)
       : new Map<string, string>();
     const accountByTokenHash = await resolveTokenHashes(
       tx,
@@ -239,15 +234,9 @@ export async function flushClosedRecoveryRejectedAttemptWindows<
   const closedBefore = new Date(deps.now().getTime() - RECOVERY_WINDOW_MS - CLOSE_GRACE_MS);
   const batchSize = deps.batchSize ?? FLUSH_BATCH_SIZE;
 
-  let accountsByDestinationHash: Promise<Map<string, string>> | undefined;
-  const destinationAccounts: DestinationAccounts<TQueryResult> = (tx) => {
-    accountsByDestinationHash ??= loadAccountsByDestinationHash(tx);
-    return accountsByDestinationHash;
-  };
-
   let flushed = 0;
   for (;;) {
-    const flushedInBatch = await flushOneBatch(db, closedBefore, batchSize, destinationAccounts);
+    const flushedInBatch = await flushOneBatch(db, closedBefore, batchSize);
     if (flushedInBatch === 0) {
       return flushed;
     }
