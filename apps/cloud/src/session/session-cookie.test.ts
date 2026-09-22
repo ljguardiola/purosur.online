@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clearSessionCookie,
   readSessionCookie,
   SESSION_COOKIE_NAME,
   serializeSessionCookie,
@@ -20,6 +21,25 @@ describe("serializeSessionCookie", () => {
     expect(header).toContain("SameSite=Lax");
     expect(header).toContain("Path=/");
     expect(header).not.toContain("Domain=");
+  });
+});
+
+describe("clearSessionCookie", () => {
+  it("carries no session id under the session cookie's own name", () => {
+    const header = clearSessionCookie();
+
+    expect(header.startsWith(`${SESSION_COOKIE_NAME}=;`)).toBe(true);
+  });
+
+  it("is HttpOnly, Secure, SameSite=Lax, scoped to the whole origin, and expires immediately", () => {
+    const header = clearSessionCookie();
+
+    expect(header).toContain("HttpOnly");
+    expect(header).toContain("Secure");
+    expect(header).toContain("SameSite=Lax");
+    expect(header).toContain("Path=/");
+    expect(header).not.toContain("Domain=");
+    expect(header).toContain("Max-Age=0");
   });
 });
 

@@ -268,3 +268,46 @@ describe("wiring the recovery routes", () => {
     await client.close();
   });
 });
+
+describe("wiring the session routes", () => {
+  it("does not register GET /users/session or POST /users/session/sign-out when no session option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const readResponse = await app.inject({ method: "GET", url: "/users/session" });
+    const signOutResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/sign-out",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(readResponse.statusCode).toBe(404);
+    expect(signOutResponse.statusCode).toBe(404);
+  });
+
+  it("registers GET /users/session and POST /users/session/sign-out when a session option is given", async () => {
+    const client = new PGlite();
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const app = buildApp({
+      version: "abc1234",
+      session: { db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const readResponse = await app.inject({ method: "GET", url: "/users/session" });
+    const signOutResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/sign-out",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in either case, so both reach their own route handler's
+    // 401 instead of Fastify's generic not-found response for an unregistered route.
+    expect(readResponse.statusCode).toBe(401);
+    expect(readResponse.json()).toMatchObject({ code: "unauthenticated" });
+    expect(signOutResponse.statusCode).toBe(401);
+    expect(signOutResponse.json()).toMatchObject({ code: "unauthenticated" });
+
+    await client.close();
+  });
+});

@@ -3,7 +3,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from "@simple
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
+import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 import {
@@ -340,6 +340,13 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           backedUp: registrationInfo.credentialBackedUp,
         },
       });
+
+      // Redeeming a recovery link ends every session already open on the account (drafts/docs
+      // §12.3 ~3878, §9.7 ~3204); it never opens a new one itself.
+      await tx
+        .update(sessions)
+        .set({ revokedAt: redeemedAt })
+        .where(and(eq(sessions.userId, account.id), isNull(sessions.revokedAt)));
 
       return { burned: true, userId: account.id } as const;
     });

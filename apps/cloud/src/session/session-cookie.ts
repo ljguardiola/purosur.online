@@ -10,6 +10,15 @@ export function serializeSessionCookie(rawSessionId: string): string {
   return `${SESSION_COOKIE_NAME}=${rawSessionId}; HttpOnly; Secure; SameSite=Lax; Path=/`;
 }
 
+/**
+ * The `Set-Cookie` value that ends the session cookie in the browser: same attributes as
+ * `serializeSessionCookie` (so the browser recognizes it as the same cookie) but with an empty
+ * value and `Max-Age=0`, so the browser drops it immediately instead of waiting for it to expire.
+ */
+export function clearSessionCookie(): string {
+  return `${SESSION_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+}
+
 /** Reads the raw session id back out of an incoming `Cookie` request header, if it was sent. */
 export function readSessionCookie(cookieHeader: string | undefined): string | undefined {
   if (!cookieHeader) {

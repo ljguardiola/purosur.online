@@ -10,6 +10,7 @@ import {
   passkeys,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  sessions,
   users,
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
@@ -309,6 +310,72 @@ describe("POST /users/recovery/redeem", () => {
 
     const auditRows = await db.select().from(auditLog).where(eq(auditLog.actorId, userId));
     expect(auditRows.map((row) => row.entity).sort()).toEqual(["passkey", "recovery_token"]);
+  });
+
+  it("revokes every open session of the account, and opens no new one", async () => {
+    await db.insert(sessions).values([
+      {
+        userId,
+        sessionIdHash: "open-session-1-hash",
+        createdAt: NOON,
+        lastSeenAt: NOON,
+      },
+      {
+        userId,
+        sessionIdHash: "open-session-2-hash",
+        createdAt: NOON,
+        lastSeenAt: NOON,
+      },
+      {
+        userId,
+        sessionIdHash: "already-revoked-session-hash",
+        createdAt: NOON,
+        lastSeenAt: NOON,
+        revokedAt: NOON,
+      },
+    ]);
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    const rows = await db.select().from(sessions).where(eq(sessions.userId, userId));
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      expect(row.revokedAt).not.toBeNull();
+    }
+  });
+
+  it("does not touch another account's open sessions", async () => {
+    const [otherUser] = await db
+      .insert(users)
+      .values({ firstName: "Grace Hopper", email: "grace@example.com" })
+      .returning({ id: users.id });
+    if (!otherUser) {
+      throw new Error("test setup: seeding the other user returned no row");
+    }
+    await db.insert(sessions).values({
+      userId: otherUser.id,
+      sessionIdHash: "other-account-session-hash",
+      createdAt: NOON,
+      lastSeenAt: NOON,
+    });
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+
+    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+
+    const [otherRow] = await db.select().from(sessions).where(eq(sessions.userId, otherUser.id));
+    expect(otherRow?.revokedAt).toBeNull();
   });
 
   it("rejects reusing an already-redeemed token without registering a second passkey", async () => {
