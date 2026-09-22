@@ -25,6 +25,8 @@ const WINDOW_START = new Date("2026-01-05T12:00:00.000Z");
 const CLOSED_NOW = new Date("2026-01-05T13:10:00.000Z");
 // More than the 65,535 parameters one Postgres statement can bind.
 const UNBOUNDED_KEY_COUNT = 70_000;
+const WAIT_POLL_MS = 50;
+const WAIT_POLL_ATTEMPTS = 200;
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -35,6 +37,29 @@ beforeAll(async () => {
   sql = postgres(integrationDb.databaseUrl, { max: CONCURRENT_FLUSHES });
   db = drizzle(sql);
 }, 60_000);
+
+function connectAs(applicationName: string): ReturnType<typeof postgres> {
+  return postgres(integrationDb.databaseUrl, {
+    max: 1,
+    connection: { application_name: applicationName },
+  });
+}
+
+async function waitUntilBlockedOnALock(applicationName: string): Promise<void> {
+  for (let attempt = 0; attempt < WAIT_POLL_ATTEMPTS; attempt++) {
+    const [row] = await sql<{ blocked: boolean }[]>`
+      select exists (
+        select 1 from pg_stat_activity
+        where application_name = ${applicationName} and wait_event_type = 'Lock'
+      ) as blocked
+    `;
+    if (row?.blocked) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, WAIT_POLL_MS));
+  }
+  throw new Error(`${applicationName} never blocked on a lock`);
+}
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
@@ -111,6 +136,74 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     expect(auditRows).toHaveLength(1);
     expect(auditRows[0]?.newValue).toMatchObject({ attempt: "redeem", count: 16 });
     await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toEqual([]);
+  });
+
+  it("makes an overlapping flush wait for the one in progress before it touches any accumulated row", async () => {
+    const email = `margaret-${randomUUID()}@example.com`;
+    const [user] = await db
+      .insert(users)
+      .values({ firstName: "Margaret Hamilton", email })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    await db.insert(recoveryRejectedAttemptAccumulator).values({
+      kind: "request",
+      keyHash: hashDestinationAddress(email),
+      windowStart: WINDOW_START,
+      count: 2,
+      firstAt: new Date("2026-01-05T12:05:00.000Z"),
+      lastAt: new Date("2026-01-05T12:50:00.000Z"),
+    });
+    const holder = connectAs("audit-log-holder");
+    const firstFlusher = connectAs("first-flush");
+    const secondFlusher = connectAs("second-flush");
+    let releaseAuditLog = () => {};
+    const auditLogReleased = new Promise<void>((resolve) => {
+      releaseAuditLog = resolve;
+    });
+    let auditLogHeld = () => {};
+    const auditLogLocked = new Promise<void>((resolve) => {
+      auditLogHeld = resolve;
+    });
+    try {
+      // Holding audit_log stalls the first flush right before it writes, with its rows taken.
+      const holding = holder.begin(async (tx) => {
+        await tx`lock table audit_log in share mode`;
+        auditLogHeld();
+        await auditLogReleased;
+      });
+      await auditLogLocked;
+      const firstFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(firstFlusher), {
+        now: () => CLOSED_NOW,
+      });
+      await waitUntilBlockedOnALock("first-flush");
+      const secondFlush = flushClosedRecoveryRejectedAttemptWindows(drizzle(secondFlusher), {
+        now: () => CLOSED_NOW,
+      });
+      await waitUntilBlockedOnALock("second-flush");
+
+      const accumulatorLocksOfTheSecondFlush = await sql`
+        select 1 from pg_locks
+        join pg_stat_activity using (pid)
+        where application_name = 'second-flush'
+          and relation = 'recovery_rejected_attempt_accumulator'::regclass
+      `;
+      releaseAuditLog();
+      await holding;
+      const outcomes = await Promise.all([firstFlush, secondFlush]);
+
+      expect(accumulatorLocksOfTheSecondFlush).toHaveLength(0);
+      expect(outcomes).toEqual([1, 0]);
+      const auditRows = await db.select().from(auditLog).where(eq(auditLog.actorId, user.id));
+      expect(auditRows).toHaveLength(1);
+      expect(auditRows[0]?.newValue).toMatchObject({ count: 2 });
+    } finally {
+      releaseAuditLog();
+      await Promise.all(
+        [holder, firstFlusher, secondFlusher].map((client) => client.end({ timeout: 1 })),
+      );
+    }
   });
 
   it("flushes more closed rows than one statement could ever bind as parameters", async () => {
