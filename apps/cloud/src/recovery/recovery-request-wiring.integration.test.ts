@@ -9,7 +9,7 @@ import {
   recoveryTokens,
   users,
 } from "../db/schema.js";
-import { setUpRecovery, startServer } from "../server.js";
+import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
 import { findFreePort } from "./find-free-port.js";
 import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
@@ -18,7 +18,7 @@ import {
 } from "./recovery-integration-database.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER, type RecoveryWorkerHandle } from "./recovery-worker.js";
 
 // Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
 // pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
@@ -26,6 +26,9 @@ import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 // other seam (job enqueue, job processing, token issuance, auditing) runs for real.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
+// Shorter than the ten idle seconds after which pg-pool reaps the connection the drained request
+// leaves in the job-queue pool, so that connection is still there when the test cuts it.
+const DRAIN_OPTIONS = { timeout: 5_000, interval: 50 };
 
 class FakeRecoveryEmailSender implements RecoveryEmailSender {
   readonly sent: SendRecoveryLinkInput[] = [];
@@ -111,12 +114,39 @@ async function dropEveryConnection(databaseUrl: string): Promise<void> {
   }
 }
 
-/** Shutting down over connections this test just cut is not what it asserts. */
-async function closeQuietly(server: StartedFixture): Promise<void> {
+// graphile-worker's runner stops itself once its worker pool gives up, which cutting every
+// connection can do, and stopping an already stopped runner rejects with this.
+const RUNNER_ALREADY_STOPPED = "Runner is already stopped";
+
+function isRunnerAlreadyStopped(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(RUNNER_ALREADY_STOPPED);
+}
+
+async function stopWorker(worker: RecoveryWorkerHandle | undefined): Promise<void> {
+  if (!worker) {
+    return;
+  }
+  try {
+    await worker.stop();
+  } catch (error) {
+    if (!isRunnerAlreadyStopped(error)) {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Shutting down over the connections this test just cut is not what it asserts: the cut can stop
+ * graphile-worker's runner by itself, which makes the shutdown reject on its first step. Any other
+ * failure still fails this test, and the worker is already stopped either way.
+ */
+async function closeAfterCuttingConnections(server: StartedFixture): Promise<void> {
   try {
     await server.close();
-  } catch {
-    // The assertions above already reported what this test is about.
+  } catch (error) {
+    if (!isRunnerAlreadyStopped(error)) {
+      throw error;
+    }
   }
 }
 
@@ -125,6 +155,7 @@ async function startRealServer(
   emailSender: RecoveryEmailSender,
 ): Promise<StartedFixture> {
   const port = await findFreePort();
+  let recovery: RecoveryInfrastructure | undefined;
   const app = await startServer(
     {
       PORT: String(port),
@@ -137,12 +168,27 @@ async function startRealServer(
     {
       // The only seam this test touches: everything else (the pool, graphile-worker's run(),
       // the routes) is `setUpRecovery`'s real production wiring, unmodified.
-      setUpRecovery: (recoveryEnv) => setUpRecovery(recoveryEnv, { emailSender }),
+      setUpRecovery: async (recoveryEnv) => {
+        recovery = await setUpRecovery(recoveryEnv, { emailSender });
+        return recovery;
+      },
     },
   );
   return {
     origin: `http://127.0.0.1:${port}`,
-    close: () => app.close(),
+    /**
+     * `setUpRecovery`'s own shutdown stops the worker first and gives up at its first rejection,
+     * so a shutdown that fails partway can leave the worker polling. Every test in this file
+     * shares one database, where a worker that outlived its test would take a later test's job and
+     * deliver it through that test's sender, so the worker is stopped whatever the shutdown did.
+     */
+    async close() {
+      try {
+        await app.close();
+      } finally {
+        await stopWorker(recovery?.worker);
+      }
+    },
   };
 }
 
@@ -172,6 +218,20 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       // every pool it is given that is missing an error or a connect listener.
       expect(warnings.filter((warning) => /doesn't have|err\.red/.test(warning))).toEqual([]);
 
+      // What puts a connection of the job-queue pool under the cut below: a request enqueues
+      // through that pool and only answers once its job is in. The connection graphile-worker's
+      // own migration leaves in the pool is instead reaped ten idle seconds later, so relying on
+      // it would make this test a race against that timer. The job is waited out before the cut
+      // because the tests below share this database and count every job queued in it.
+      const enqueued = await postRecoveryRequest(
+        server.origin,
+        `dropped-${randomUUID()}@example.com`,
+      );
+      expect(enqueued.status).toBe(200);
+      await vi.waitFor(async () => {
+        expect(await countQueuedRecoveryJobs(integrationDb.databaseUrl)).toBe(0);
+      }, DRAIN_OPTIONS);
+
       await dropEveryConnection(integrationDb.databaseUrl);
 
       await vi.waitFor(() => {
@@ -179,7 +239,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
         expect(reports.filter((report) => WORKER_FAILURE.test(report))).not.toEqual([]);
       }, WAIT_OPTIONS);
     } finally {
-      await closeQuietly(server);
+      await closeAfterCuttingConnections(server);
     }
   });
 
