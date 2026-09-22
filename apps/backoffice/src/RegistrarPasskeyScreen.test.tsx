@@ -1,4 +1,5 @@
 import { startRegistration } from "@simplewebauthn/browser";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -36,6 +37,31 @@ test("reads the token from the URL fragment and strips it right away", async () 
   await expect.poll(() => window.location.hash).toBe("");
   await expect.poll(() => window.location.pathname).toBe("/recuperar/enlace");
   expect(fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
+});
+
+test("keeps the token across React StrictMode's double-mount effects, in dev", async () => {
+  vi.mocked(fetchRegistrationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+  vi.mocked(startRegistration).mockResolvedValue(registrationResponse);
+  vi.mocked(redeemRecovery).mockResolvedValue({ kind: "ok", value: { userId: "user-1" } });
+
+  const screen = await render(
+    <StrictMode>
+      <RegistrarPasskeyScreen />
+    </StrictMode>,
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Registrá una passkey nueva", level: 1 }))
+    .toBeVisible();
+  expect(fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
+
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.poll(() => vi.mocked(redeemRecovery).mock.calls.length).toBe(1);
+  expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
 });
 
 test("shows the invalid-link state without calling the API when there is no token", async () => {

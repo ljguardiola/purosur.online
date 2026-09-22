@@ -1,8 +1,49 @@
 import { LifeBuoy } from "lucide-react";
-import { expect, test } from "vitest";
+import { beforeEach, expect, test } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
+
+// design.pen draws the brand panel at 680px in its 1440px frame (Backoffice / Acceso): every
+// layout assertion below runs at that exact viewport, the same way Modal.test.tsx and
+// DateField.test.tsx pin a desktop viewport instead of the default phone-sized one.
+beforeEach(async () => {
+  await page.viewport(1440, 900);
+});
+
+test("sizes the brand panel at the design's 680px, at the design's own viewport", async () => {
+  const screen = await render(
+    <AccessLayout>
+      <p>screen content</p>
+    </AccessLayout>,
+  );
+
+  const panel = screen.getByText("Backoffice").element().parentElement as HTMLElement;
+  expect(panel.getBoundingClientRect().width).toBeCloseTo(680, 0);
+});
+
+test("places the Backoffice caption bottom-left in the panel, with the logo centered", async () => {
+  const screen = await render(
+    <AccessLayout>
+      <p>screen content</p>
+    </AccessLayout>,
+  );
+
+  const panel = screen.getByText("Backoffice").element().parentElement as HTMLElement;
+  const panelRect = panel.getBoundingClientRect();
+  const captionRect = screen.getByText("Backoffice").element().getBoundingClientRect();
+  const logoRect = screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect();
+
+  // The panel's own p-8 (32px) padding is the design's ≈32px offset from the left and bottom
+  // edges: the caption needs no extra margin, only to stop being centered like the logo above it.
+  expect(captionRect.left - panelRect.left).toBeCloseTo(32, 0);
+  expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
+
+  const panelCenterX = panelRect.left + panelRect.width / 2;
+  const logoCenterX = logoRect.left + logoRect.width / 2;
+  expect(logoCenterX).toBeCloseTo(panelCenterX, 0);
+});
 
 test("shows the brand panel with the logo and the Backoffice caption, before the content", async () => {
   const screen = await render(

@@ -11,17 +11,21 @@ export type AccessLayoutProps = {
 export function AccessLayout({ children }: AccessLayoutProps) {
   return (
     <div className="flex h-screen w-screen bg-surface-white">
-      {/* Percentage width with a floor, not the design's fixed 680px: these screens are desktop-only
-          (§12.3), but a fixed panel would force the same horizontal scroll BrandPanelScreen.tsx
-          (the POS's own two-panel access layout) avoids the same way. */}
-      <div className="flex w-2/5 min-w-80 shrink-0 flex-col items-center bg-surface-sand p-8">
+      {/* The design's own 680px (design.pen's 1440px frame), as a shrinkable flex-basis rather
+          than a fixed width: these screens are desktop-only (§12.3), but a fixed, non-shrinking
+          panel would force the same horizontal scroll BrandPanelScreen.tsx (the POS's own
+          two-panel access layout) avoids. min-w-80 keeps the same usable floor at narrower
+          widths. */}
+      <div className="flex w-[680px] min-w-80 flex-col items-center bg-surface-sand p-8">
         <div className="flex-1" />
         <PuroSurLogo
           alt={messages.shell.brandName}
           className="h-auto max-h-[180px] w-full max-w-[460px] object-contain"
         />
         <div className="flex-1" />
-        <p className="text-sm font-bold text-ink-secondary">{messages.access.brandCaption}</p>
+        <p className="self-start text-sm font-bold text-ink-secondary">
+          {messages.access.brandCaption}
+        </p>
       </div>
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="flex w-full max-w-[440px] flex-col gap-4">{children}</div>

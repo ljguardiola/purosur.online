@@ -2,7 +2,7 @@ import { Button, InlineNotice } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { INGRESAR_PATH, RECUPERAR_PATH } from "./accessRoutes";
 import { messages } from "./messages";
@@ -61,11 +61,14 @@ function TokenErrorNotice({
 
 /** design.pen `Backoffice / Acceso · Registrar una passkey nueva` (Pk5Ze), without the deferred "Se cerraron las sesiones abiertas" notice (#168). Every token/rate-limit/failure state is undrawn, following `Bloqueado por intentos` (j0Ps9)'s error-tone Aviso pattern. */
 export function RegistrarPasskeyScreen() {
-  const tokenRef = useRef<string | null>(null);
+  // A lazy initializer runs once during the component's initial render, before any effect can
+  // strip the fragment. React 18 StrictMode (dev only, see main.tsx) double-invokes both the
+  // render body and effects, but never re-runs a lazy initializer to simulate a remount, so this
+  // stays the URL fragment's single source of truth even when the mount effect below runs twice.
+  const [token] = useState<string | null>(() => readToken());
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
 
   const load = useCallback(async () => {
-    const token = tokenRef.current;
     if (!token) {
       setPhase({ kind: "invalid" });
       return;
@@ -91,12 +94,12 @@ export function RegistrarPasskeyScreen() {
     } else {
       setPhase({ kind: "loadError" });
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
-    tokenRef.current = readToken();
     // The token never reaches server logs or a Referer header through the URL fragment (T1's
     // technical decision); it is stripped from the URL right away so it doesn't linger there.
+    // Idempotent by construction: a StrictMode-doubled effect run finds nothing left to strip.
     if (window.location.hash) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
@@ -104,7 +107,6 @@ export function RegistrarPasskeyScreen() {
   }, [load]);
 
   async function handleRegister(readyPhase: ReadyPhase) {
-    const token = tokenRef.current;
     if (!token) {
       setPhase({ kind: "invalid" });
       return;
