@@ -1,8 +1,19 @@
 import * as Sentry from "@sentry/node";
 
-export interface ReportRecoveryBookkeepingErrorDeps {
+export interface ReportRecoveryErrorDeps {
   /** Injected in tests, the same way `server.ts`'s `reportStartupFailure` does. */
   captureException?: (error: unknown) => unknown;
+}
+
+/** How recovery reports a failure it swallows: the console for a log stream, Sentry for an alert. */
+export function reportRecoveryError(
+  message: string,
+  error: unknown,
+  deps: ReportRecoveryErrorDeps = {},
+): void {
+  const captureException = deps.captureException ?? Sentry.captureException;
+  console.error(message, error);
+  captureException(error);
 }
 
 /**
@@ -12,9 +23,7 @@ export interface ReportRecoveryBookkeepingErrorDeps {
  */
 export function reportRecoveryBookkeepingError(
   error: unknown,
-  deps: ReportRecoveryBookkeepingErrorDeps = {},
+  deps: ReportRecoveryErrorDeps = {},
 ): void {
-  const captureException = deps.captureException ?? Sentry.captureException;
-  console.error("recovery: bookkeeping failed", error);
-  captureException(error);
+  reportRecoveryError("recovery: bookkeeping failed", error, deps);
 }

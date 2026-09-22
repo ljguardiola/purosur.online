@@ -1,5 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
+import { reportRecoveryBookkeepingError, reportRecoveryError } from "./recovery-error-reporting.js";
+
+describe("reportRecoveryError", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("logs the given message with the error and reports the error to Sentry, without throwing", () => {
+    const captureException = vi.fn().mockReturnValue("event-id");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = new Error("connection terminated unexpectedly");
+
+    expect(() =>
+      reportRecoveryError("recovery worker: idle database client failed", error, {
+        captureException,
+      }),
+    ).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "recovery worker: idle database client failed",
+      error,
+    );
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
+  });
+});
 
 describe("reportRecoveryBookkeepingError", () => {
   afterEach(() => {

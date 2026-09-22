@@ -9,7 +9,7 @@ import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
-import { reportEveryConnectionError } from "./recovery/pool-connection-error-handler.js";
+import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
@@ -123,10 +123,7 @@ export function createRecoveryJobQueuePool(
 ): Pick<pg.Pool, "on" | "end"> {
   const doCreatePool = deps.createPool ?? ((url: string) => new pg.Pool({ connectionString: url }));
   const pool = doCreatePool(connectionString);
-  pool.on("error", (error) => {
-    console.error("recovery job queue: idle database client failed", error);
-  });
-  reportEveryConnectionError(pool, "recovery job queue");
+  reportPoolErrors(pool, "recovery job queue");
   return pool;
 }
 

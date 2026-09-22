@@ -241,12 +241,18 @@ describe("createRecoveryJobQueuePool", () => {
   it("installs a permanent error handler on the pool it owns, so a disconnected idle client never becomes an unhandled error", () => {
     const pool = new FakePool();
     const createPool = vi.fn().mockReturnValue(pool);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     createRecoveryJobQueuePool("postgres://user:pass@db/purosur", { createPool });
 
+    const error = new Error("idle client disconnected");
     expect(createPool).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
     expect(pool.listenerCount("error")).toBeGreaterThan(0);
-    expect(() => pool.emit("error", new Error("idle client disconnected"))).not.toThrow();
+    expect(() => pool.emit("error", error)).not.toThrow();
+    expect(consoleError).toHaveBeenCalledWith(
+      "recovery job queue: idle database client failed",
+      error,
+    );
   });
 
   it("installs a connect handler on the pool it owns, so graphile-worker's own assertPool never installs (and later removes) its own", () => {
@@ -259,6 +265,7 @@ describe("createRecoveryJobQueuePool", () => {
     expect(pool.listenerCount("connect")).toBeGreaterThan(0);
     const client = new EventEmitter();
     pool.emit("connect", client);
+    pool.emit("acquire", client);
     const error = new Error("connection terminated unexpectedly");
 
     expect(client.listenerCount("error")).toBeGreaterThan(0);
