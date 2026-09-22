@@ -58,7 +58,7 @@ export type AccessFooterLinkProps = {
   label: string;
 };
 
-/** A footer link back to another access screen, e.g. "Perdí mis passkeys" or "Volver a ingresar". */
+/** A footer link to another access screen, such as the lost-passkeys link or the way back to sign-in. */
 export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
     <a
