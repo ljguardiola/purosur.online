@@ -11,6 +11,7 @@ import {
   recoveryTokens,
   sessions,
   signInChallenges,
+  signInLockouts,
   users,
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
@@ -470,6 +471,21 @@ describe("POST /users/session/authenticate", () => {
       expect(next.statusCode).toBe(401);
     });
 
+    it("blocks the address on the tenth rejected attempt, not on the request after it", async () => {
+      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
+        const response = await postAuthenticate({ assertion: rejectedAssertion() });
+        expect(response.statusCode).toBe(401);
+      }
+
+      expect(await db.select().from(signInLockouts)).toHaveLength(1);
+      const audited = await db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.entity, "backoffice_lockout"));
+      expect(audited).toHaveLength(1);
+      expect(audited[0]?.newValue).toMatchObject({ failureCount: SIGN_IN_FAILURE_LIMIT });
+    });
+
     it("does not count a sign-in that succeeded", async () => {
       const emulator = new WebAuthnEmulator();
       await registerPasskey(userId, emulator);
@@ -484,6 +500,32 @@ describe("POST /users/session/authenticate", () => {
       const response = await postAuthenticate({ assertion: rejectedAssertion() });
 
       expect(response.statusCode).toBe(401);
+    });
+
+    it("still answers the uniform rejection, on the same timing floor, when the bookkeeping fails", async () => {
+      const reportError = vi.fn();
+      const failing = Fastify();
+      registerSessionAuthenticateRoute(failing, {
+        db,
+        backofficeOrigin: BACKOFFICE_ORIGIN,
+        now: () => currentTime,
+        delay: delaySpy,
+        confirmRejectedSignInAttempt: () => Promise.reject(new Error("the database went away")),
+        reportError,
+      });
+
+      const response = await failing.inject({
+        method: "POST",
+        url: "/users/session/authenticate",
+        headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
+        payload: { assertion: rejectedAssertion() },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authentication_failed" });
+      expect(delaySpy).toHaveBeenCalled();
+      expect(reportError).toHaveBeenCalled();
+      await failing.close();
     });
 
     it("writes one backoffice_lockout audit row with no actor per block, however many attempts follow it", async () => {

@@ -51,6 +51,10 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
    * still hands the session cookie — and from someone opening the URL themselves (`none`). This
    * route writes `last_seen_at` and can revoke a row, so none of that may happen for a request
    * the browser already said did not come from the backoffice.
+   *
+   * Known limitation: a request carrying neither header still reaches that write path. A browser
+   * old enough to send no Fetch Metadata at all would be turned away from the backoffice itself
+   * by a third guard, and the backoffice is a desktop application on a current browser.
    */
   function checkRequestIsSameOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     const origin = request.headers.origin;

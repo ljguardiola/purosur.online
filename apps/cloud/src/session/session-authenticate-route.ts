@@ -12,6 +12,7 @@ import { generateSessionId, hashSessionId } from "./session-id.js";
 import { consumeSignInChallenge } from "./sign-in-challenge.js";
 import {
   admitSignInAttempt,
+  confirmRejectedSignInAttempt,
   discardSignInAttempt,
   hashSourceAddress,
   type TrippedSignInLockout,
@@ -24,6 +25,8 @@ export interface SessionAuthenticateRouteOptions<TQueryResult extends PgQueryRes
   now?: () => Date;
   /** Injected in tests to keep the uniform-failure timing floor from slowing the suite down. */
   delay?: (ms: number) => Promise<void>;
+  /** Injected in tests to prove a bookkeeping failure never turns a rejection into a 500. */
+  confirmRejectedSignInAttempt?: typeof confirmRejectedSignInAttempt;
   /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
 }
@@ -71,6 +74,8 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   const now = options.now ?? (() => new Date());
   const delay = options.delay ?? defaultDelay;
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
+  const doConfirmRejectedSignInAttempt =
+    options.confirmRejectedSignInAttempt ?? confirmRejectedSignInAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -84,7 +89,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     return true;
   }
 
-  /** The attempt stays counted against its source address: it is a rejected sign-in. */
+  /** The one answer every rejection gets, never sooner than the floor every other one takes. */
   async function rejectAuthentication(reply: FastifyReply, startedAt: number): Promise<void> {
     const elapsedMs = performance.now() - startedAt;
     if (elapsedMs < FAILURE_RESPONSE_FLOOR_MS) {
@@ -95,15 +100,29 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   }
 
   /**
-   * A body with nothing to verify in it never reaches the credential check, so it is not a
-   * rejected sign-in attempt and gives its slot of the address's lockout budget back.
+   * Settles this attempt as the rejected sign-in it is, blocking the address when it is the one
+   * that reaches the limit. Bookkeeping must never change the answer: a failure here would
+   * otherwise turn the uniform 401 into a 500 and skip the timing floor, which is exactly what
+   * tells one rejection reason from another.
    */
-  async function rejectUnverifiableRequest(
-    attemptId: string,
+  async function rejectSignInAttempt(
+    sourceAddress: string,
+    attemptedAt: Date,
     reply: FastifyReply,
     startedAt: number,
   ): Promise<void> {
-    await discardSignInAttempt(options.db, attemptId);
+    try {
+      const confirmed = await doConfirmRejectedSignInAttempt(options.db, {
+        sourceAddress,
+        now: attemptedAt,
+      });
+      if (confirmed.trippedLockout) {
+        await auditLockout(sourceAddress, confirmed.trippedLockout);
+      }
+    } catch (error) {
+      reportError(error);
+    }
+
     await rejectAuthentication(reply, startedAt);
   }
 
@@ -132,6 +151,23 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       return;
     }
 
+    // Read entirely in process, before anything is recorded anywhere: a request with no assertion
+    // to verify is not an authentication attempt, so it must never take a slot of the address's
+    // lockout budget. Taking one and handing it back afterwards leaves a window in which enough
+    // requests carrying nothing at all can still block the address they came from.
+    const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
+      | AuthenticationResponseJSON
+      | undefined;
+    if (!assertion || typeof assertion.id !== "string") {
+      await rejectAuthentication(reply, startedAt);
+      return;
+    }
+    const challenge = readAssertionChallenge(assertion);
+    if (challenge === undefined) {
+      await rejectAuthentication(reply, startedAt);
+      return;
+    }
+
     const sourceAddress = resolveSourceAddress(request);
     const attemptedAt = now();
     const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
@@ -146,19 +182,6 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         .header("Retry-After", String(retryAfterSeconds))
         .code(429)
         .send({ code: "rate_limited", message: "too many sign-in attempts" });
-      return;
-    }
-
-    const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
-      | AuthenticationResponseJSON
-      | undefined;
-    if (!assertion || typeof assertion.id !== "string") {
-      await rejectUnverifiableRequest(admission.attemptId, reply, startedAt);
-      return;
-    }
-    const challenge = readAssertionChallenge(assertion);
-    if (challenge === undefined) {
-      await rejectUnverifiableRequest(admission.attemptId, reply, startedAt);
       return;
     }
 
@@ -185,14 +208,14 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       .where(eq(passkeys.credentialId, assertion.id))
       .limit(1);
     if (!passkey) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }
     // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
     // CA-ACC-19); the same rule blocks it from ever opening a new one. The rejection must not be
     // distinguishable from an unknown credential, so it never runs signature verification either.
     if (!passkey.active) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }
 
@@ -210,7 +233,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       requireUserVerification: true,
     }).catch(() => ({ verified: false as const }));
     if (!verification.verified) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }
     const { authenticationInfo } = verification;
@@ -220,7 +243,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     // clone signal and is rejected like any other failed attempt.
     const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
     if (isCloneSignal) {
-      await rejectAuthentication(reply, startedAt);
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
       return;
     }
 

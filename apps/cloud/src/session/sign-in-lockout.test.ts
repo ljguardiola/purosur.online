@@ -5,10 +5,12 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   admitSignInAttempt,
+  confirmRejectedSignInAttempt,
   discardSignInAttempt,
   hashSourceAddress,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
+  type TrippedSignInLockout,
 } from "./sign-in-lockout.js";
 
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
@@ -37,12 +39,17 @@ function attempt(sourceAddress: string, now: Date) {
   return admitSignInAttempt(db, { sourceAddress, now });
 }
 
-/** An attempt that was admitted and then rejected by the credential check, so it stays counted. */
-async function rejectedAttempt(sourceAddress: string, now: Date): Promise<void> {
+/** One whole attempt that the credential check went on to reject, settled as such. */
+async function rejectedAttempt(
+  sourceAddress: string,
+  now: Date,
+): Promise<TrippedSignInLockout | null> {
   const admission = await attempt(sourceAddress, now);
   if (!admission.admitted) {
     throw new Error("test setup: expected this attempt to be admitted");
   }
+  const confirmed = await confirmRejectedSignInAttempt(db, { sourceAddress, now });
+  return confirmed.trippedLockout;
 }
 
 async function rejectedAttempts(sourceAddress: string, now: Date, count: number): Promise<void> {
@@ -58,7 +65,15 @@ describe("admitSignInAttempt", () => {
     expect(admission.admitted).toBe(true);
   });
 
-  it("admits attempts up to the limit and blocks the one that finds it reached", async () => {
+  it("admits the attempt that will reach the limit, so it is answered as the rejection it is", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT - 1);
+
+    const admission = await attempt("203.0.113.10", NOON);
+
+    expect(admission.admitted).toBe(true);
+  });
+
+  it("refuses the next attempt once the block is set", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
     const admission = await attempt("203.0.113.10", NOON);
@@ -66,29 +81,26 @@ describe("admitSignInAttempt", () => {
     expect(admission).toMatchObject({
       admitted: false,
       blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
+      trippedLockout: null,
     });
   });
 
-  it("reports the block it set, once, so each block is audited a single time", async () => {
-    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
-
-    const tripping = await attempt("203.0.113.10", NOON);
-    const next = await attempt("203.0.113.10", NOON);
-
-    if (tripping.admitted || next.admitted) {
-      throw new Error("test setup: expected both attempts to be blocked");
+  it("caps a burst at the limit by refusing an attempt while that many are still unsettled", async () => {
+    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
+      const admission = await attempt("203.0.113.10", NOON);
+      expect(admission.admitted).toBe(true);
     }
-    expect(tripping.trippedLockout).toMatchObject({
-      failureCount: SIGN_IN_FAILURE_LIMIT,
-      blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
-    });
-    expect(typeof tripping.trippedLockout?.id).toBe("string");
-    expect(next.trippedLockout).toBeNull();
+
+    const admission = await attempt("203.0.113.10", NOON);
+
+    if (admission.admitted) {
+      throw new Error("test setup: expected the attempt past the limit to be refused");
+    }
+    expect(admission.trippedLockout).toMatchObject({ failureCount: SIGN_IN_FAILURE_LIMIT });
   });
 
   it("keeps blocking for the whole 15 minutes", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
-    await attempt("203.0.113.10", NOON);
 
     const admission = await attempt(
       "203.0.113.10",
@@ -100,7 +112,6 @@ describe("admitSignInAttempt", () => {
 
   it("admits again as soon as the 15 minutes are up, instead of blocking out the hour", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
-    await attempt("203.0.113.10", NOON);
 
     const admission = await attempt(
       "203.0.113.10",
@@ -112,15 +123,12 @@ describe("admitSignInAttempt", () => {
 
   it("makes the next block need its own ten rejected attempts, not one more on top of the old ten", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
-    await attempt("203.0.113.10", NOON);
     const afterBlock = new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS);
 
     await rejectedAttempts("203.0.113.10", afterBlock, SIGN_IN_FAILURE_LIMIT - 1);
-    const withinLimit = await attempt("203.0.113.10", afterBlock);
-    const overLimit = await attempt("203.0.113.10", afterBlock);
+    const stillAdmitted = await attempt("203.0.113.10", afterBlock);
 
-    expect(withinLimit.admitted).toBe(true);
-    expect(overLimit.admitted).toBe(false);
+    expect(stillAdmitted.admitted).toBe(true);
   });
 
   it("does not count an attempt that was discarded", async () => {
@@ -131,9 +139,12 @@ describe("admitSignInAttempt", () => {
     }
 
     await discardSignInAttempt(db, discarded.attemptId);
-    const admission = await attempt("203.0.113.10", NOON);
+    const confirmed = await confirmRejectedSignInAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
 
-    expect(admission.admitted).toBe(true);
+    expect(confirmed.trippedLockout).toBeNull();
   });
 
   it("does not let one source address's attempts count against another", async () => {
@@ -166,6 +177,38 @@ describe("admitSignInAttempt", () => {
       "select source_address from sign_in_failures",
     );
     expect(rowsAfter.rows.map((row) => row.source_address)).toEqual(["203.0.113.20"]);
+  });
+});
+
+describe("confirmRejectedSignInAttempt", () => {
+  it("does not block an address that has not reached the limit", async () => {
+    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
+      const tripped = await rejectedAttempt("203.0.113.10", NOON);
+      expect(tripped).toBeNull();
+    }
+  });
+
+  it("blocks on the attempt that reaches the limit, for 15 minutes", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT - 1);
+
+    const tripped = await rejectedAttempt("203.0.113.10", NOON);
+
+    expect(tripped).toMatchObject({
+      failureCount: SIGN_IN_FAILURE_LIMIT,
+      blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
+    });
+    expect(typeof tripped?.id).toBe("string");
+  });
+
+  it("reports the block once, so each block is audited a single time", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
+
+    const confirmed = await confirmRejectedSignInAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
+
+    expect(confirmed.trippedLockout).toBeNull();
   });
 });
 
