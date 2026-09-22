@@ -4,11 +4,18 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./App";
 import { fetchRegistrationOptions } from "./recoveryApi";
+import { fetchSession, signOut } from "./sessionApi";
 
 vi.mock("./recoveryApi", () => ({
   requestRecoveryLink: vi.fn(),
   fetchRegistrationOptions: vi.fn(() => new Promise(() => {})),
   redeemRecovery: vi.fn(),
+}));
+vi.mock("./sessionApi", () => ({
+  fetchSession: vi.fn(),
+  fetchAuthenticationOptions: vi.fn(),
+  authenticate: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
@@ -34,10 +41,18 @@ const help = defineHelp("es-AR", {
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
+  window.localStorage.clear();
+  vi.mocked(fetchSession).mockReset().mockResolvedValue({
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+  });
+  vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
 });
 
 afterEach(() => {
   window.history.pushState(null, "", "/");
+  window.localStorage.clear();
 });
 
 test("redirects the root path to /help without leaving the root in the history", async () => {
@@ -95,7 +110,9 @@ test("shows the active Help item in the rail and the Help screen's own content",
 
   const screen = await render(<App help={emptyHelp} />);
 
-  const helpItem = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
+  const helpItemLocator = screen.getByRole("link", { name: "Ayuda" });
+  await expect.element(helpItemLocator).toBeVisible();
+  const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBe("page");
 
   await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
@@ -160,7 +177,8 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
     .toHaveFocus();
 });
 
-test("routes /sign-in to the sign-in screen, outside the Shell", async () => {
+test("routes /sign-in to the sign-in screen, outside the Shell, when no session is live", async () => {
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
   window.history.pushState(null, "", "/sign-in");
 
   const screen = await render(<App help={emptyHelp} />);
@@ -170,6 +188,7 @@ test("routes /sign-in to the sign-in screen, outside the Shell", async () => {
 });
 
 test("routes /account-recovery to the recovery form, outside the Shell", async () => {
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
   window.history.pushState(null, "", "/account-recovery");
 
   const screen = await render(<App help={emptyHelp} />);
@@ -181,6 +200,7 @@ test("routes /account-recovery to the recovery form, outside the Shell", async (
 });
 
 test("routes /account-recovery/passkey to the passkey registration screen, reading its token from the hash", async () => {
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
   window.history.pushState(null, "", "/account-recovery/passkey#the-token");
 
   const screen = await render(<App help={emptyHelp} />);
@@ -188,6 +208,60 @@ test("routes /account-recovery/passkey to the passkey registration screen, readi
   await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
   expect(fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
+});
+
+test("renders nothing while the mount session check is pending", async () => {
+  vi.mocked(fetchSession).mockReturnValue(new Promise(() => {}));
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Ingresar" }).query()).toBeNull();
+});
+
+test("routes a shell path to the sign-in screen when the mount check finds no session", async () => {
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+});
+
+test("shows the session-expired notice when a session was open in this browser before and now answers unauthenticated", async () => {
+  window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+});
+
+test("redirects away from /sign-in to the shell when a session is already live", async () => {
+  window.history.pushState(null, "", "/sign-in");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Ingresar" }).query()).toBeNull();
+});
+
+test("shows the signed-in user's name in the rail footer, and Salir signs back out to /sign-in", async () => {
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByText("Lucas Guardiola")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
+
+  await expect.poll(() => vi.mocked(signOut).mock.calls.length).toBe(1);
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
 });
 
 test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {
