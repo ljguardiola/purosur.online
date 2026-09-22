@@ -206,6 +206,73 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
 });
 
+test("retries with fresh options after another tab replaced this link's challenge", async () => {
+  const staleOptions = { challenge: "from-this-tab", rp: { id: "purosur.online" } } as never;
+  const freshOptions = { challenge: "fetched-again", rp: { id: "purosur.online" } } as never;
+  vi.mocked(fetchRegistrationOptions)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: staleOptions },
+    })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: freshOptions },
+    });
+  const optionFetchesWhenWebAuthnStarted: number[] = [];
+  vi.mocked(startRegistration).mockImplementation(async () => {
+    optionFetchesWhenWebAuthnStarted.push(vi.mocked(fetchRegistrationOptions).mock.calls.length);
+    return registrationResponse;
+  });
+  // The other tab's options call replaced the stored challenge, so this tab's first attempt fails.
+  vi.mocked(redeemRecovery)
+    .mockResolvedValueOnce({ kind: "validation_failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: { userId: "user-1" } });
+
+  const screen = await render(<RegistrarPasskeyScreen />);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  await expect.poll(() => vi.mocked(fetchRegistrationOptions).mock.calls.length).toBe(2);
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar la passkey" }))
+    .not.toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
+  expect(startRegistration).toHaveBeenLastCalledWith({ optionsJSON: freshOptions });
+  // Each attempt starts WebAuthn straight from its click, with no options fetch in between.
+  expect(optionFetchesWhenWebAuthnStarted).toEqual([1, 2]);
+});
+
+test("fetches fresh options after the browser cancels, for the next attempt", async () => {
+  const freshOptions = { challenge: "fetched-again", rp: { id: "purosur.online" } } as never;
+  vi.mocked(fetchRegistrationOptions)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: freshOptions },
+    });
+  vi.mocked(startRegistration)
+    .mockRejectedValueOnce(new Error("NotAllowedError"))
+    .mockResolvedValueOnce(registrationResponse);
+  vi.mocked(redeemRecovery).mockResolvedValue({ kind: "ok", value: { userId: "user-1" } });
+
+  const screen = await render(<RegistrarPasskeyScreen />);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+  await expect.poll(() => vi.mocked(fetchRegistrationOptions).mock.calls.length).toBe(2);
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar la passkey" }))
+    .not.toBeDisabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
+  expect(startRegistration).toHaveBeenLastCalledWith({ optionsJSON: freshOptions });
+});
+
 test("moves to the burned state when redeem discovers the token was consumed meanwhile", async () => {
   vi.mocked(fetchRegistrationOptions).mockResolvedValue({
     kind: "ok",

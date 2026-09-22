@@ -61,10 +61,10 @@ function TokenErrorNotice({
 
 /** design.pen `Backoffice / Acceso · Registrar una passkey nueva` (Pk5Ze), without the deferred "Se cerraron las sesiones abiertas" notice (#168). Every token/rate-limit/failure state is undrawn, following `Bloqueado por intentos` (j0Ps9)'s error-tone Aviso pattern. */
 export function RegistrarPasskeyScreen() {
-  // A lazy initializer runs once during the component's initial render, before any effect can
-  // strip the fragment. React 18 StrictMode (dev only, see main.tsx) double-invokes both the
-  // render body and effects, but never re-runs a lazy initializer to simulate a remount, so this
-  // stays the URL fragment's single source of truth even when the mount effect below runs twice.
+  // A lazy initializer runs during the component's initial render, before any effect can strip
+  // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
+  // that same initial render, before the mount effect below strips the hash, so both read the
+  // same token and the state keeps it even when that effect runs twice.
   const [token] = useState<string | null>(() => readToken());
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
 
@@ -106,6 +106,33 @@ export function RegistrarPasskeyScreen() {
     void load();
   }, [load]);
 
+  // The cloud keeps only the latest challenge per link, which another tab may have replaced, so a
+  // failed attempt fetches fresh options for the next one. It happens now rather than on the next
+  // click so that click still starts WebAuthn directly, within its user activation.
+  async function refreshAfterFailedAttempt(recoveryToken: string, readyPhase: ReadyPhase) {
+    setPhase({ ...readyPhase, attemptFailed: true, submitting: true });
+    const outcome = await fetchRegistrationOptions(recoveryToken);
+    if (outcome.kind === "ok") {
+      setPhase({
+        kind: "ready",
+        displayName: outcome.value.displayName,
+        options: outcome.value.options,
+        attemptFailed: true,
+        submitting: false,
+      });
+    } else if (
+      outcome.kind === "invalid" ||
+      outcome.kind === "burned" ||
+      outcome.kind === "expired"
+    ) {
+      setPhase({ kind: outcome.kind });
+    } else if (outcome.kind === "rate_limited") {
+      setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else {
+      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+    }
+  }
+
   async function handleRegister(readyPhase: ReadyPhase) {
     if (!token) {
       setPhase({ kind: "invalid" });
@@ -117,7 +144,7 @@ export function RegistrarPasskeyScreen() {
       () => null,
     );
     if (!registration) {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      await refreshAfterFailedAttempt(token, readyPhase);
       return;
     }
 
@@ -133,7 +160,7 @@ export function RegistrarPasskeyScreen() {
     } else if (outcome.kind === "rate_limited") {
       setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      await refreshAfterFailedAttempt(token, readyPhase);
     }
   }
 
