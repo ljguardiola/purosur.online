@@ -7,6 +7,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
+import type { SessionAuthenticateRouteOptions } from "./session/session-authenticate-route.js";
+import { registerSessionAuthenticateRoute } from "./session/session-authenticate-route.js";
+import { registerSessionAuthenticationOptionsRoute } from "./session/session-authentication-options-route.js";
+import { registerSessionReadRoute } from "./session/session-read-route.js";
+import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   /** The deployed version (commit SHA), reported by `GET /health`. */
@@ -29,6 +34,12 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * way `staticDir` is optional above.
    */
   recovery?: RecoveryRouteOptions<TQueryResult>;
+  /**
+   * Registers all four `/users/session/*` routes (`authentication-options`, `authenticate`, the
+   * session-read `GET /users/session`, and `sign-out`) when given, the same
+   * optional-feature-wiring shape `recovery` uses above.
+   */
+  session?: SessionAuthenticateRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -69,6 +80,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   if (options.recovery) {
     registerRecoveryRoutes(app, options.recovery);
     registerRecoveryRedemptionRoutes(app, options.recovery);
+  }
+
+  if (options.session) {
+    registerSessionAuthenticationOptionsRoute(app, options.session);
+    registerSessionAuthenticateRoute(app, options.session);
+    registerSessionReadRoute(app, options.session);
+    registerSessionSignOutRoute(app, options.session);
   }
 
   const staticDir = options.staticDir;

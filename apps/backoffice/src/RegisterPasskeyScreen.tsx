@@ -1,7 +1,7 @@
 import { Button, InlineNotice } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
-import { ArrowLeft, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
@@ -240,6 +240,12 @@ export function RegisterPasskeyScreen() {
     return (
       <AccessLayout>
         <AccessHeader heading={messages.access.registerPasskey.successTitle} />
+        <InlineNotice
+          tone="info"
+          icon={<ShieldCheck />}
+          title={messages.access.registerPasskey.sessionsClosedTitle}
+          detail={messages.access.registerPasskey.sessionsClosedDetail}
+        />
         <AccessFooterLink
           to={SIGN_IN_PATH}
           icon={<ArrowLeft />}

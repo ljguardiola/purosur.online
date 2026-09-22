@@ -59,13 +59,13 @@ export const userRoles = pgTable(
   (table) => [primaryKey({ columns: [table.userId, table.roleId] })],
 );
 
+// `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
+// lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   entity: text("entity").notNull(),
   entityId: uuid("entity_id").notNull(),
-  actorId: uuid("actor_id")
-    .notNull()
-    .references(() => users.id),
+  actorId: uuid("actor_id").references(() => users.id),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   previousValue: jsonb("previous_value"),
   newValue: jsonb("new_value"),
@@ -183,4 +183,73 @@ export const recoveryRejectedAttemptAccumulator = pgTable(
     ),
     index("recovery_rejected_attempt_accumulator_window_idx").on(table.windowStart, table.id),
   ],
+);
+
+// A server-side session: the cookie carries only the raw, opaque id, this row carries only its
+// SHA-256 hash (the same shape `recovery_tokens.token_hash` already stores its own secret in).
+// `created_at` anchors the session's absolute expiry, `last_seen_at` its idle expiry, and
+// `revoked_at` covers every way a session stops early (sign-out, a redeemed recovery link ending
+// every open session of the account, or any future forced termination) without a separate events
+// table.
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    sessionIdHash: text("session_id_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("sessions_session_id_hash_key").on(table.sessionIdHash)],
+);
+
+// One row per short-lived WebAuthn authentication challenge `POST
+// /users/session/authentication-options` issues: sign-in is discoverable (no username or token
+// submitted first), so there is no existing per-user row to stash the challenge on the way
+// `recovery_tokens.registration_challenge` does. The challenge value itself is the lookup key when
+// `POST /users/session/authenticate` verifies an assertion, and the row is deleted once consumed
+// (or once it has aged past its short lifetime).
+export const signInChallenges = pgTable(
+  "sign_in_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    challenge: text("challenge").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("sign_in_challenges_challenge_key").on(table.challenge)],
+);
+
+// One row per server-rejected sign-in attempt, keyed by source address only (never by account:
+// without a password there's no "wrong password", and without a username there's no account to
+// key a lockout on). Modeled on `recovery_rate_limit_attempts`'s own rolling-window shape (one row
+// per event, pruned as later attempts land) rather than reused directly: that table counts every
+// *admitted* recovery request to throttle volume, while this one counts only *rejected* sign-ins
+// and, on reaching the threshold, imposes a fixed 15-minute block independent of the window's own
+// decay (see `sign_in_lockouts` below).
+export const signInFailures = pgTable(
+  "sign_in_failures",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceAddress: text("source_address").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("sign_in_failures_source_address_idx").on(table.sourceAddress, table.attemptedAt),
+    index("sign_in_failures_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+// The fixed-duration block a source address earns once `sign_in_failures` reaches the rolling
+// limit: one row per source address, holding only how long the block still runs.
+export const signInLockouts = pgTable(
+  "sign_in_lockouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceAddress: text("source_address").notNull(),
+    blockedUntil: timestamp("blocked_until", { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex("sign_in_lockouts_source_address_key").on(table.sourceAddress)],
 );

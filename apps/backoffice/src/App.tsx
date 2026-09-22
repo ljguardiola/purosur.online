@@ -1,6 +1,7 @@
 import { AreaNavItem } from "@purosur/ui";
 import { LifeBuoy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AccountFooter } from "./AccountFooter";
 import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
@@ -10,11 +11,18 @@ import { messages } from "./messages";
 import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
-import { SignInScreen } from "./SignInScreen";
+import { type SignInOpeningNotice, SignInScreen } from "./SignInScreen";
+import { fetchSession } from "./sessionApi";
+import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 
 export type AppProps = {
   help: BackofficeHelpCatalog;
 };
+
+type SessionState =
+  | { kind: "loading" }
+  | { kind: "signed-out"; notice: SignInOpeningNotice | undefined }
+  | { kind: "signed-in"; displayName: string };
 
 function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
   const page =
@@ -23,8 +31,13 @@ function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: H
   return page ? messages.help.pageDocumentTitle({ page }) : messages.help.documentTitle;
 }
 
+type HelpAppProps = AppProps & {
+  displayName: string;
+  onSignedOut: () => void;
+};
+
 /** The Help-in-Shell part of the app, root for every path outside the access screens below. */
-function HelpApp({ help }: AppProps) {
+function HelpApp({ help, displayName, onSignedOut }: HelpAppProps) {
   const route = useRoute();
   const helpRoute = resolveHelpPath(help, route);
   const [search, setSearch] = useState("");
@@ -57,12 +70,15 @@ function HelpApp({ help }: AppProps) {
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.help.sectionsNavLabel}
       railFooter={
-        <AreaNavItem
-          label={messages.help.areaLabel}
-          icon={<LifeBuoy />}
-          active
-          {...linkProps("/help")}
-        />
+        <>
+          <AreaNavItem
+            label={messages.help.areaLabel}
+            icon={<LifeBuoy />}
+            active
+            {...linkProps("/help")}
+          />
+          <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
+        </>
       }
       sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
     >
@@ -80,15 +96,86 @@ function HelpApp({ help }: AppProps) {
 
 export function App({ help }: AppProps) {
   const route = useRoute();
+  const [session, setSession] = useState<SessionState>({ kind: "loading" });
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSession().then((outcome) => {
+      if (cancelled) {
+        return;
+      }
+      if (outcome.kind === "ok") {
+        markSignedIn();
+        setSession({ kind: "signed-in", displayName: outcome.displayName });
+        return;
+      }
+      if (outcome.kind === "failed") {
+        // Nobody said the session ended — the question never got an answer. Clearing the marker
+        // here would turn the next attempt's honest "venció" into a lie, and the session itself
+        // may well still be live.
+        setSession({ kind: "signed-out", notice: "check_failed" });
+        return;
+      }
+      const expired = wasSignedIn();
+      clearSignedInMarker();
+      setSession({ kind: "signed-out", notice: expired ? "expired" : undefined });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isAccessRoute =
+    route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
+
+  useEffect(() => {
+    if (session.kind === "loading") {
+      return;
+    }
+    if (session.kind === "signed-in" && route === SIGN_IN_PATH) {
+      navigate("/", { replace: true });
+    } else if (session.kind !== "signed-in" && !isAccessRoute) {
+      navigate(SIGN_IN_PATH, { replace: true });
+    }
+  }, [session.kind, route, isAccessRoute]);
+
+  function handleSignedIn() {
+    setSession({ kind: "loading" });
+    void fetchSession().then((outcome) => {
+      if (outcome.kind === "ok") {
+        markSignedIn();
+        setSession({ kind: "signed-in", displayName: outcome.displayName });
+      } else {
+        setSession({
+          kind: "signed-out",
+          notice: outcome.kind === "failed" ? "check_failed" : undefined,
+        });
+      }
+    });
+  }
+
+  function handleSignedOut() {
+    clearSignedInMarker();
+    setSession({ kind: "signed-out", notice: undefined });
+    navigate(SIGN_IN_PATH, { replace: true });
+  }
+
+  if (session.kind === "loading") {
+    return null;
+  }
 
   switch (route) {
     case SIGN_IN_PATH:
-      return <SignInScreen />;
+      return session.kind === "signed-in" ? null : (
+        <SignInScreen openingNotice={session.notice} onSignedIn={handleSignedIn} />
+      );
     case ACCOUNT_RECOVERY_PATH:
       return <AccountRecoveryScreen />;
     case REGISTER_PASSKEY_PATH:
       return <RegisterPasskeyScreen />;
     default:
-      return <HelpApp help={help} />;
+      return session.kind === "signed-in" ? (
+        <HelpApp help={help} displayName={session.displayName} onSignedOut={handleSignedOut} />
+      ) : null;
   }
 }

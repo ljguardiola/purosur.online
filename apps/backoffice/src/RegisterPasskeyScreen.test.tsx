@@ -154,7 +154,7 @@ test("shows a generic load error with a retry action", async () => {
   expect(fetchRegistrationOptions).toHaveBeenCalledTimes(2);
 });
 
-test("registers the passkey and shows the success state, without implying a session opened", async () => {
+test("registers the passkey and shows the success state, naming that open sessions were closed", async () => {
   vi.mocked(fetchRegistrationOptions).mockResolvedValue({
     kind: "ok",
     value: { displayName: "Lucía Pérez", options: registrationOptions },
@@ -170,7 +170,12 @@ test("registers the passkey and shows the success state, without implying a sess
   expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
 
   await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
-  expect(screen.getByText(/sesi[oó]n/i).query()).toBeNull();
+  await expect
+    .element(screen.getByText("Se cerraron las sesiones abiertas de tu cuenta"))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Si alguien más estaba adentro con tu cuenta, ya no lo está."))
+    .toBeVisible();
   const signInLink = screen.getByRole("link", { name: "Ir a ingresar" }).element();
   expect(signInLink.getAttribute("href")).toBe("/sign-in");
 

@@ -19,11 +19,11 @@ const POSTGRES_IMAGE = "postgres:18-alpine";
 
 /**
  * Starts one real Postgres container for the whole test run, shared by every
- * `*.integration.test.ts` file under apps/cloud/src/recovery. These tests exist because PGlite
- * has no LISTEN/NOTIFY or advisory locks, which the real production wiring (a postgres-js pool
- * plus graphile-worker's real `run()`) needs; without a working Docker daemon there is no way to
- * prove that wiring, so a missing or unreachable Docker fails this project's run loudly instead
- * of silently skipping it.
+ * `*.integration.test.ts` file under apps/cloud/src. These tests exist because PGlite serves
+ * every query on one connection and has no LISTEN/NOTIFY, which the real production wiring (a
+ * postgres-js pool, concurrent connections racing an advisory lock, plus graphile-worker's real
+ * `run()`) needs; without a working Docker daemon there is no way to prove that wiring, so a
+ * missing or unreachable Docker fails this project's run loudly instead of silently skipping it.
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   let container: StartedPostgreSqlContainer;
@@ -32,7 +32,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
-      "apps/cloud recovery integration tests require a working Docker daemon to start a real " +
+      "apps/cloud integration tests require a working Docker daemon to start a real " +
         `Postgres via Testcontainers (image ${POSTGRES_IMAGE}). Starting the container failed: ` +
         `${reason}. Start Docker and retry; these tests are never skipped.`,
       { cause: error },

@@ -25,17 +25,17 @@ export default defineConfig({
         test: {
           name: "node",
           include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
-          // Runs on its own dedicated Postgres container instead (see the "cloud-recovery-integration"
+          // Runs on its own dedicated Postgres container instead (see the "cloud-integration"
           // project below): these need a real Postgres, not this project's PGlite-friendly setup.
-          exclude: ["apps/cloud/src/recovery/*.integration.test.ts"],
+          exclude: ["apps/cloud/src/*/*.integration.test.ts"],
           environment: "node",
           globalSetup: [r("./apps/cloud/vitest.global-setup.ts")],
         },
       },
       {
         test: {
-          name: "cloud-recovery-integration",
-          include: ["apps/cloud/src/recovery/*.integration.test.ts"],
+          name: "cloud-integration",
+          include: ["apps/cloud/src/*/*.integration.test.ts"],
           environment: "node",
           // One real Postgres container (Testcontainers) for the whole run, required rather than
           // skipped when Docker is unavailable: see apps/cloud/vitest.global-setup.postgres.ts.

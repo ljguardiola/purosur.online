@@ -4,6 +4,15 @@ export const messages = defineMessages("es-AR", (f) => ({
   shell: {
     brandName: "Puro Sur",
     areaRailLabel: "Áreas",
+    signOut: {
+      itemLabel: "Salir",
+      title: "¿Salir del backoffice?",
+      closeLabel: "Cerrar",
+      cancel: "Cancelar",
+      confirm: "Salir",
+      failedTitle: "No se pudo salir",
+      failedDetail: "Probá de nuevo.",
+    },
   },
   access: {
     brandCaption: "Backoffice",
@@ -13,6 +22,16 @@ export const messages = defineMessages("es-AR", (f) => ({
       description:
         "Con la passkey de este dispositivo: la huella, la cara o el PIN de la computadora o del teléfono.",
       recoverLink: "Perdí mis passkeys",
+      submit: "Ingresar con passkey",
+      blockedTitle: "Demasiados intentos desde esta conexión",
+      blockedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      expiredTitle: "Tu sesión venció",
+      expiredDetail: "Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado.",
+      checkFailedTitle: "No pudimos verificar tu sesión",
+      checkFailedDetail: "Probá de nuevo en unos minutos.",
+      attemptFailedTitle: "No se pudo ingresar",
+      attemptFailedDetail: "Probá de nuevo.",
     },
     accountRecovery: {
       eyebrow: "Perdí mis passkeys",
@@ -58,6 +77,8 @@ export const messages = defineMessages("es-AR", (f) => ({
       attemptFailedDetail: "Podés volver a intentarlo con este mismo enlace.",
       successTitle: "Registraste la passkey",
       goToSignIn: "Ir a ingresar",
+      sessionsClosedTitle: "Se cerraron las sesiones abiertas de tu cuenta",
+      sessionsClosedDetail: "Si alguien más estaba adentro con tu cuenta, ya no lo está.",
     },
   },
   help: {
