@@ -1,7 +1,7 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
-import type { PoolClient } from "pg";
+import pg, { type Pool, type PoolClient } from "pg";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
@@ -60,6 +60,15 @@ export interface StartRecoveryWorkerDeps {
   processJob?: typeof processRecoveryRequestJob;
   /** Injected in tests to observe the call without a real database. */
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
+  /**
+   * Injected in tests; defaults to a real `pg.Pool` for `databaseUrl`. Owned here rather than by
+   * graphile-worker's own pool (the one it builds when only `connectionString` is given), which
+   * removes its own error handlers and calls `pgPool.end()` without awaiting it once the runner
+   * stops — leaving a window where an idle client a test's `DROP DATABASE ... WITH FORCE`
+   * disconnects mid-shutdown has no error listener and crashes the process. Keeping our own
+   * handler installed until `stop()` has actually awaited closing the pool closes that window.
+   */
+  createPool?: (connectionString: string) => Pick<Pool, "on" | "end">;
 }
 
 /**
@@ -78,10 +87,17 @@ export async function startRecoveryWorker(
   const doCreateDatabase = deps.createDatabase ?? createDatabase;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
+  const doCreatePool =
+    deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
   const now = options.now ?? (() => new Date());
 
+  const pool = doCreatePool(options.databaseUrl);
+  pool.on("error", (error) => {
+    console.error("recovery worker: idle database client failed", error);
+  });
+
   const runner = await doRun({
-    connectionString: options.databaseUrl,
+    pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
     crontab: RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB,
     taskList: {
@@ -105,5 +121,10 @@ export async function startRecoveryWorker(
     },
   });
 
-  return { stop: () => runner.stop() };
+  return {
+    async stop() {
+      await runner.stop();
+      await pool.end();
+    },
+  };
 }

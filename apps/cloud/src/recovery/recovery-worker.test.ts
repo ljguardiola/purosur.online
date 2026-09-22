@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 import {
@@ -12,6 +14,15 @@ function fakeRunner() {
   return { stop: vi.fn().mockResolvedValue(undefined) };
 }
 
+/**
+ * Stands in for the `pg.Pool` `startRecoveryWorker` now owns itself, so a test can assert its
+ * error handler stays installed and that `stop()` actually awaits closing it, without opening a
+ * real socket.
+ */
+class FakePool extends EventEmitter {
+  readonly end = vi.fn().mockResolvedValue(undefined);
+}
+
 function mustExist<T>(value: T | undefined, description: string): T {
   if (value === undefined) {
     throw new Error(`test setup: expected ${description}`);
@@ -20,9 +31,11 @@ function mustExist<T>(value: T | undefined, description: string): T {
 }
 
 describe("startRecoveryWorker", () => {
-  it("starts graphile-worker against the given connection string with the recovery-request task", async () => {
+  it("starts graphile-worker against its own pool for the given connection string, with the recovery-request task", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
 
     await startRecoveryWorker(
       {
@@ -30,15 +43,34 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
-      { runWorker },
+      { runWorker, createPool },
     );
 
+    expect(createPool).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
     expect(runWorker).toHaveBeenCalledTimes(1);
-    const [options] = runWorker.mock.calls[0] as [{ connectionString: string; taskList: object }];
-    expect(options.connectionString).toBe("postgres://user:pass@db/purosur");
+    const [options] = runWorker.mock.calls[0] as [{ pgPool: Pool; taskList: object }];
+    expect(options.pgPool).toBe(pool);
     expect(
       options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER as keyof typeof options.taskList],
     ).toBeInstanceOf(Function);
+  });
+
+  it("installs a permanent error handler on the pool it owns, so a disconnected idle client never becomes an unhandled error", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+
+    expect(pool.listenerCount("error")).toBeGreaterThan(0);
+    expect(() => pool.emit("error", new Error("idle client disconnected"))).not.toThrow();
   });
 
   it("registers the rejected-attempt flush task and schedules it every 5 minutes", async () => {
@@ -63,9 +95,19 @@ describe("startRecoveryWorker", () => {
     expect(options.crontab).toBe("*/5 * * * * recovery-rejected-attempt-flush");
   });
 
-  it("delegates stop() to the runner returned by graphile-worker", async () => {
-    const runner = fakeRunner();
+  it("delegates stop() to the runner returned by graphile-worker, then awaits closing the pool it owns", async () => {
+    const events: string[] = [];
+    const runner = {
+      stop: vi.fn().mockImplementation(async () => {
+        events.push("runner stopped");
+      }),
+    };
     const runWorker = vi.fn().mockResolvedValue(runner);
+    const pool = new FakePool();
+    pool.end.mockImplementation(async () => {
+      events.push("pool ended");
+    });
+    const createPool = vi.fn().mockReturnValue(pool);
 
     const handle = await startRecoveryWorker(
       {
@@ -73,11 +115,15 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
-      { runWorker },
+      { runWorker, createPool },
     );
     await handle.stop();
 
     expect(runner.stop).toHaveBeenCalledTimes(1);
+    expect(pool.end).toHaveBeenCalledTimes(1);
+    // The runner must fully stop using the pool before we close it, so a job the runner is still
+    // draining never sees its connection cut from under it.
+    expect(events).toEqual(["runner stopped", "pool ended"]);
   });
 
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
