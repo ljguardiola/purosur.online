@@ -106,10 +106,12 @@ export function RegistrarPasskeyScreen() {
     void load();
   }, [load]);
 
-  // The cloud keeps only the latest challenge per link, which another tab may have replaced, so a
-  // failed attempt fetches fresh options for the next one. It happens now rather than on the next
-  // click so that click still starts WebAuthn directly, within its user activation.
-  async function refreshAfterFailedAttempt(recoveryToken: string, readyPhase: ReadyPhase) {
+  // The cloud keeps only the latest challenge per link, which another tab may have replaced, so an
+  // attempt the cloud rejected fetches fresh options for the next one. Every fetch counts against
+  // the per-source redemption limit, so an attempt that never reached the cloud keeps its options.
+  // It happens now rather than on the next click so that click still starts WebAuthn directly,
+  // within its user activation.
+  async function refreshAfterRejectedAttempt(recoveryToken: string, readyPhase: ReadyPhase) {
     setPhase({ ...readyPhase, attemptFailed: true, submitting: true });
     const outcome = await fetchRegistrationOptions(recoveryToken);
     if (outcome.kind === "ok") {
@@ -144,7 +146,7 @@ export function RegistrarPasskeyScreen() {
       () => null,
     );
     if (!registration) {
-      await refreshAfterFailedAttempt(token, readyPhase);
+      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
       return;
     }
 
@@ -159,8 +161,10 @@ export function RegistrarPasskeyScreen() {
       setPhase({ kind: outcome.kind });
     } else if (outcome.kind === "rate_limited") {
       setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else if (outcome.kind === "validation_failed") {
+      await refreshAfterRejectedAttempt(token, readyPhase);
     } else {
-      await refreshAfterFailedAttempt(token, readyPhase);
+      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
     }
   }
 

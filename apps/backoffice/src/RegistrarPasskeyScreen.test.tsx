@@ -244,17 +244,11 @@ test("retries with fresh options after another tab replaced this link's challeng
   expect(optionFetchesWhenWebAuthnStarted).toEqual([1, 2]);
 });
 
-test("fetches fresh options after the browser cancels, for the next attempt", async () => {
-  const freshOptions = { challenge: "fetched-again", rp: { id: "purosur.online" } } as never;
-  vi.mocked(fetchRegistrationOptions)
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: { displayName: "Lucía Pérez", options: registrationOptions },
-    })
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: { displayName: "Lucía Pérez", options: freshOptions },
-    });
+test("keeps the current options after the browser cancels, without fetching them again", async () => {
+  vi.mocked(fetchRegistrationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
   vi.mocked(startRegistration)
     .mockRejectedValueOnce(new Error("NotAllowedError"))
     .mockResolvedValueOnce(registrationResponse);
@@ -262,7 +256,7 @@ test("fetches fresh options after the browser cancels, for the next attempt", as
 
   const screen = await render(<RegistrarPasskeyScreen />);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
-  await expect.poll(() => vi.mocked(fetchRegistrationOptions).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Registrar la passkey" }))
     .not.toBeDisabled();
@@ -270,7 +264,8 @@ test("fetches fresh options after the browser cancels, for the next attempt", as
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
-  expect(startRegistration).toHaveBeenLastCalledWith({ optionsJSON: freshOptions });
+  expect(startRegistration).toHaveBeenLastCalledWith({ optionsJSON: registrationOptions });
+  expect(fetchRegistrationOptions).toHaveBeenCalledTimes(1);
 });
 
 test("moves to the burned state when redeem discovers the token was consumed meanwhile", async () => {
