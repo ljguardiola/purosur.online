@@ -88,7 +88,21 @@ describe("recordRejectedAttempt", () => {
     expect(await rows()).toHaveLength(4);
   });
 
-  it("never lets a concurrent request's key collide across the exact same second", async () => {
+  it("keeps first_at at the earliest and last_at at the latest attempt when attempts arrive out of order", async () => {
+    const earliest = new Date("2026-01-05T12:05:00.000Z");
+    const middle = new Date("2026-01-05T12:20:00.000Z");
+    const latest = new Date("2026-01-05T12:40:00.000Z");
+
+    await recordRejectedAttempt(db, { kind: "request", keyHash: "hash-a", now: middle });
+    await recordRejectedAttempt(db, { kind: "request", keyHash: "hash-a", now: latest });
+    await recordRejectedAttempt(db, { kind: "request", keyHash: "hash-a", now: earliest });
+
+    const stored = await rows();
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({ count: 3, firstAt: earliest, lastAt: latest });
+  });
+
+  it("merges two upserts of the same key at the same instant into one row counting both", async () => {
     const at = new Date("2026-01-05T12:10:00.000Z");
 
     await Promise.all([
