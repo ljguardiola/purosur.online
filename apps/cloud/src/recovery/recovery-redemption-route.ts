@@ -72,9 +72,10 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     attempt: RedemptionAttempt,
   ): Promise<boolean> {
     const sourceAddress = resolveSourceAddress(request);
+    const attemptedAt = now();
     const rateLimit = await recordRedemptionAttempt(options.db, {
       sourceAddress,
-      now: now(),
+      now: attemptedAt,
     });
     if (!rateLimit.allowed) {
       // One synchronous upsert keyed by the token's own stored hash, never a lookup: known and
@@ -87,7 +88,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           await doRecordRejectedAttempt(options.db, {
             kind: attempt,
             keyHash: hashRecoveryToken(rawToken),
-            now: now(),
+            now: attemptedAt,
           });
         } catch (error) {
           reportError(error);

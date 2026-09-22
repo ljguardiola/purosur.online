@@ -702,6 +702,44 @@ describe("auditing rejected recovery redemptions", () => {
       );
     });
 
+    it("records the rejected attempt at the same instant the rate limit was decided on", async () => {
+      let ticks = 0;
+      const ticking = () => new Date(NOON.getTime() + ticks++ * 1000);
+      const tickingApp = Fastify();
+      registerRecoveryRedemptionRoutes(tickingApp, {
+        db,
+        backofficeOrigin: BACKOFFICE_ORIGIN,
+        now: ticking,
+      });
+      const postTicking = (rawToken: string) =>
+        tickingApp.inject({
+          method: "POST",
+          url: "/users/recovery/redeem",
+          headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+          payload: { recovery_token: rawToken },
+        });
+      for (let i = 0; i < 10; i++) {
+        await postTicking("an-unknown-raw-token");
+      }
+      const decidedAt = new Date(NOON.getTime() + ticks * 1000);
+
+      const rateLimited = await postTicking("a-rate-limited-raw-token");
+
+      expect(rateLimited.statusCode).toBe(429);
+      const [row] = await db
+        .select()
+        .from(recoveryRejectedAttemptAccumulator)
+        .where(
+          eq(
+            recoveryRejectedAttemptAccumulator.keyHash,
+            hashRecoveryToken("a-rate-limited-raw-token"),
+          ),
+        );
+      expect(row).toMatchObject({ firstAt: decidedAt, lastAt: decidedAt });
+
+      await tickingApp.close();
+    });
+
     it("writes nothing to the accumulator when the rejected request carries no token at all", async () => {
       for (let i = 0; i < 10; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });
