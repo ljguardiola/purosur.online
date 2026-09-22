@@ -18,6 +18,7 @@
     "@sentry/node": "^10.75.0",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.12.5",
+    "graphile-worker": "^0.18.0",
     "postgres": "^3.4.9"
   },
   "devDependencies": {

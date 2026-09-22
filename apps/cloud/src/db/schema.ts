@@ -2,7 +2,9 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  integer,
   jsonb,
+  pgEnum,
   pgTable,
   primaryKey,
   text,
@@ -67,3 +69,69 @@ export const auditLog = pgTable("audit_log", {
   previousValue: jsonb("previous_value"),
   newValue: jsonb("new_value"),
 });
+
+// Registered by T2's redeem endpoint; created now so that work only ever inserts, never migrates.
+export const passkeys = pgTable(
+  "passkeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    credentialId: text("credential_id").notNull(),
+    // Base64url-encoded WebAuthn COSE public key, the same at-rest representation the device
+    // token already uses for opaque high-entropy values (§11 "El token de dispositivo...").
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull(),
+    transports: jsonb("transports").$type<string[]>(),
+    deviceType: text("device_type").notNull(),
+    backedUp: boolean("backed_up").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
+);
+
+// One live token per user at a time: an admitted request voids any previous row before inserting
+// its own (§9.7 "Cada pedido admitido emite un enlace nuevo y deja sin efecto el anterior").
+export const recoveryTokens = pgTable(
+  "recovery_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    // Set by T2's registration-options endpoint once WebAuthn registration starts for this token.
+    registrationChallenge: text("registration_challenge"),
+  },
+  (table) => [uniqueIndex("recovery_tokens_token_hash_key").on(table.tokenHash)],
+);
+
+export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
+  "destination_address",
+  "source_address",
+]);
+
+// A fixed hourly window, keyed by (kind, value, window start): the request handler upserts and
+// increments the row for the current hour instead of a sliding window (§11, issue #167).
+export const recoveryRateLimitCounters = pgTable(
+  "recovery_rate_limit_counters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: recoveryRateLimitKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("recovery_rate_limit_counters_key").on(
+      table.keyKind,
+      table.keyValue,
+      table.windowStart,
+    ),
+  ],
+);

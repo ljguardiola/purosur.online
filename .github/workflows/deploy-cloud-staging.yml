@@ -115,6 +115,7 @@ jobs:
           CLOUD_IMAGE_REF: ${{ needs.build.outputs.image_ref }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           CLOUD_SENTRY_DSN: ${{ vars.CLOUD_SENTRY_DSN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 

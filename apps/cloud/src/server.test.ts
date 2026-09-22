@@ -6,6 +6,7 @@ import {
   registerShutdownHandlers,
   reportStartupFailure,
   resolvePort,
+  resolveRecoveryEnv,
   resolveStaticDir,
   resolveVersion,
   shutdownServer,
@@ -80,6 +81,41 @@ describe("resolveStaticDir", () => {
   });
 });
 
+describe("resolveRecoveryEnv", () => {
+  it("returns undefined when DATABASE_URL is not set, same as a dev environment with no database", () => {
+    expect(resolveRecoveryEnv({})).toBeUndefined();
+  });
+
+  const FULL_RECOVERY_ENV = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+    RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+  };
+
+  it("resolves every field once DATABASE_URL and the rest are all set", () => {
+    expect(resolveRecoveryEnv(FULL_RECOVERY_ENV)).toEqual({
+      databaseUrl: "postgres://user:pass@db/purosur",
+      resendApiKey: "re_test_key",
+      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+      emailReplyTo: "purosur.comarca@gmail.com",
+      backofficeOrigin: "https://staging.purosur.online",
+    });
+  });
+
+  it.each([
+    "RESEND_API_KEY",
+    "RECOVERY_EMAIL_FROM",
+    "RECOVERY_EMAIL_REPLY_TO",
+    "BACKOFFICE_ORIGIN",
+  ] as const)("throws when DATABASE_URL is set but %s is missing", (missing) => {
+    const env = { ...FULL_RECOVERY_ENV, [missing]: undefined };
+
+    expect(() => resolveRecoveryEnv(env)).toThrow(missing);
+  });
+});
+
 describe("startServer", () => {
   it("initializes Sentry, builds the app with the resolved version and static dir, and listens on PORT/0.0.0.0", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
@@ -118,6 +154,76 @@ describe("startServer", () => {
     await startServer({}, { initSentry: vi.fn(), buildApp });
 
     expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
+  });
+
+  it("builds the app with no recovery option when DATABASE_URL is not set", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+    const setUpRecovery = vi.fn();
+
+    await startServer({}, { initSentry: vi.fn(), buildApp, setUpRecovery });
+
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
+  });
+
+  it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const onCloseHooks: Array<() => Promise<void>> = [];
+    const fakeApp = {
+      listen,
+      addHook: vi.fn((name: string, hook: () => Promise<void>) => {
+        if (name === "onClose") {
+          onCloseHooks.push(hook);
+        }
+      }),
+    } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+    const close = vi.fn().mockResolvedValue(undefined);
+    const fakeRecovery = {
+      db: { marker: "fake-db" },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      close,
+    };
+    const setUpRecovery = vi.fn().mockResolvedValue(fakeRecovery);
+
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    };
+
+    await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
+
+    expect(setUpRecovery).toHaveBeenCalledWith({
+      databaseUrl: "postgres://user:pass@db/purosur",
+      resendApiKey: "re_test_key",
+      emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+      emailReplyTo: "purosur.comarca@gmail.com",
+      backofficeOrigin: "https://staging.purosur.online",
+    });
+    expect(buildApp).toHaveBeenCalledWith({
+      version: "unknown",
+      staticDir: undefined,
+      recovery: {
+        db: fakeRecovery.db,
+        jobQueue: fakeRecovery.jobQueue,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
+    });
+
+    expect(onCloseHooks).toHaveLength(1);
+    const [onClose] = onCloseHooks;
+    if (!onClose) {
+      throw new Error("test setup: expected an onClose hook to have been registered");
+    }
+    await onClose();
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });
 
