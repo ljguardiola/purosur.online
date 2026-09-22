@@ -12,8 +12,9 @@ import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-a
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
 
-// Every hour window closes on the hour; running the flush every 5 minutes keeps the audit trail
-// close to real time without adding meaningful load (see recovery-rejected-attempt-flush.ts).
+// Every hour window closes a short grace period after the hour; running the flush every 5 minutes
+// keeps the audit trail close to real time without adding meaningful load (see
+// recovery-rejected-attempt-flush.ts).
 // Cron support (a `crontab` string RunnerOptions accepts in place of a crontab file) is graphile-
 // worker 0.18's own: apps/cloud/node_modules/graphile-worker/dist/interfaces.d.ts:644-650.
 const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;

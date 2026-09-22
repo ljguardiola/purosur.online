@@ -52,8 +52,14 @@ async function insertToken(userId: string, rawToken: string): Promise<void> {
   });
 }
 
-const CLOSED_NOW = new Date("2026-01-05T13:05:00.000Z");
+// The 12:00 window's hour ends at 13:00; it only counts as closed once the grace period after that
+// has passed too.
+const CLOSED_NOW = new Date("2026-01-05T13:10:00.000Z");
 const OPEN_NOW = new Date("2026-01-05T12:30:00.000Z");
+
+function byAccountAndAttempt(a: { entityId: string; attempt: string }, b: typeof a): number {
+  return `${a.entityId}:${a.attempt}`.localeCompare(`${b.entityId}:${b.attempt}`);
+}
 
 describe("flushClosedRecoveryRejectedAttemptWindows", () => {
   it("does nothing when no accumulator row's window has closed yet", async () => {
@@ -68,6 +74,87 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
 
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
     await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toHaveLength(1);
+  });
+
+  it("leaves a window unflushed during the grace period right after its hour ends", async () => {
+    await insertUser("ada@example.com");
+    await recordRejectedAttempt(db, {
+      kind: "request",
+      keyHash: hashDestinationAddress("ada@example.com"),
+      now: new Date("2026-01-05T12:10:00.000Z"),
+    });
+
+    await flushClosedRecoveryRejectedAttemptWindows(db, {
+      now: () => new Date("2026-01-05T13:09:59.999Z"),
+    });
+
+    await expect(db.select().from(auditLog)).resolves.toEqual([]);
+    await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toHaveLength(1);
+  });
+
+  it("resolves a request-kind key to an account whose address has non-ASCII characters", async () => {
+    const userId = await insertUser("josé.núñez@example.com");
+    await recordRejectedAttempt(db, {
+      kind: "request",
+      keyHash: hashDestinationAddress("josé.núñez@example.com"),
+      now: new Date("2026-01-05T12:05:00.000Z"),
+    });
+
+    await flushClosedRecoveryRejectedAttemptWindows(db, { now: () => CLOSED_NOW });
+
+    const rows = await db.select().from(auditLog);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ entityId: userId, newValue: { attempt: "request", count: 1 } });
+  });
+
+  it("flushes more rows than one batch holds, still writing one audit row per account, kind and window", async () => {
+    const adaId = await insertUser("ada@example.com");
+    const graceId = await insertUser("grace@example.com");
+    const adaTokens = ["ada-token-1", "ada-token-2", "ada-token-3", "ada-token-4", "ada-token-5"];
+    for (const rawToken of adaTokens) {
+      await insertToken(adaId, rawToken);
+    }
+    await insertToken(graceId, "grace-token-1");
+    const at = new Date("2026-01-05T12:05:00.000Z");
+    for (const rawToken of [...adaTokens, "grace-token-1"]) {
+      await recordRejectedAttempt(db, {
+        kind: "redeem",
+        keyHash: hashRecoveryToken(rawToken),
+        now: at,
+      });
+    }
+    for (const email of ["ada@example.com", "grace@example.com", "nobody@example.com"]) {
+      await recordRejectedAttempt(db, {
+        kind: "request",
+        keyHash: hashDestinationAddress(email),
+        now: at,
+      });
+    }
+
+    const flushed = await flushClosedRecoveryRejectedAttemptWindows(db, {
+      now: () => CLOSED_NOW,
+      batchSize: 2,
+    });
+
+    expect(flushed).toBe(9);
+    const rows = await db.select().from(auditLog);
+    expect(
+      rows
+        .map((row) => ({
+          entityId: row.entityId,
+          attempt: (row.newValue as { attempt: string }).attempt,
+          count: (row.newValue as { count: number }).count,
+        }))
+        .sort(byAccountAndAttempt),
+    ).toEqual(
+      [
+        { entityId: adaId, attempt: "redeem", count: 5 },
+        { entityId: adaId, attempt: "request", count: 1 },
+        { entityId: graceId, attempt: "redeem", count: 1 },
+        { entityId: graceId, attempt: "request", count: 1 },
+      ].sort(byAccountAndAttempt),
+    );
+    await expect(db.select().from(recoveryRejectedAttemptAccumulator)).resolves.toEqual([]);
   });
 
   it("resolves a request-kind key to its account and writes one grouped audit row, then deletes the accumulator row", async () => {
