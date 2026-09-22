@@ -92,7 +92,7 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
 
   await expect.element(screen.getByText("Demasiados pedidos de recuperación")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
-  expect(screen.getByText(/conexión/).query()).toBeNull();
+  expect(screen.getByText(/conexi[oó]n/i).query()).toBeNull();
 
   await expectNoAccessibilityViolations(screen.container);
 });

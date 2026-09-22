@@ -103,7 +103,7 @@ test("shows the Registrar heading and copy with the account's display name, with
       ),
     )
     .toBeVisible();
-  expect(screen.getByText("Se cerraron las sesiones abiertas de tu cuenta").query()).toBeNull();
+  expect(screen.getByText(/sesi[oó]n/i).query()).toBeNull();
 
   await expectNoAccessibilityViolations(screen.container);
 });
