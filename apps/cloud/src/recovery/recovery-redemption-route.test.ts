@@ -632,15 +632,37 @@ describe("auditing rejected recovery redemptions", () => {
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
   });
 
-  it("writes nothing for a rate-limited attempt, which is rejected before the token is looked up", async () => {
+  it("audits rate-limited registration-options and redeem attempts on a known token against its account", async () => {
     const rawToken = await issueToken({ usedAt: NOON });
     for (let i = 0; i < 10; i++) {
       await postOptions({ recovery_token: "an-unknown-raw-token" });
     }
 
-    const rateLimited = await postOptions({ recovery_token: rawToken });
+    const rateLimitedOptions = await postOptions({ recovery_token: rawToken });
+    const rateLimitedRedeem = await postRedeem({ recovery_token: rawToken });
 
-    expect(rateLimited.statusCode).toBe(429);
+    expect(rateLimitedOptions.statusCode).toBe(429);
+    expect(rateLimitedRedeem.statusCode).toBe(429);
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows.map((row) => ({ actorId: row.actorId, newValue: row.newValue }))).toEqual([
+      {
+        actorId: userId,
+        newValue: { attempt: "registration_options", rejectedWith: "rate_limited" },
+      },
+      { actorId: userId, newValue: { attempt: "redeem", rejectedWith: "rate_limited" } },
+    ]);
+  });
+
+  it("writes nothing for a rate-limited attempt on a token that matches no row", async () => {
+    for (let i = 0; i < 10; i++) {
+      await postOptions({ recovery_token: "an-unknown-raw-token" });
+    }
+
+    const rateLimitedOptions = await postOptions({ recovery_token: "another-unknown-raw-token" });
+    const rateLimitedRedeem = await postRedeem({ recovery_token: "another-unknown-raw-token" });
+
+    expect(rateLimitedOptions.statusCode).toBe(429);
+    expect(rateLimitedRedeem.statusCode).toBe(429);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
   });
 });

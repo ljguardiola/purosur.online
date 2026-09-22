@@ -61,6 +61,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   async function checkRedemptionRateLimit(
     request: FastifyRequest,
     reply: FastifyReply,
+    attempt: RedemptionAttempt,
   ): Promise<boolean> {
     const sourceAddress = resolveSourceAddress(request);
     const rateLimit = await recordRedemptionAttempt(options.db, {
@@ -68,6 +69,13 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       now: now(),
     });
     if (!rateLimit.allowed) {
+      const rawToken = readRawToken(request.body);
+      const { token } = rawToken
+        ? await classifyRecoveryToken(options.db, hashRecoveryToken(rawToken), now())
+        : { token: undefined };
+      if (token) {
+        await auditRejectedAttempt(token, attempt, "rate_limited");
+      }
       await reply
         .header("Retry-After", String(rateLimit.retryAfterSeconds))
         .code(429)
@@ -118,7 +126,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     if (!checkOrigin(request, reply)) {
       return;
     }
-    if (!(await checkRedemptionRateLimit(request, reply))) {
+    if (!(await checkRedemptionRateLimit(request, reply, "registration_options"))) {
       return;
     }
 
@@ -194,7 +202,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     if (!checkOrigin(request, reply)) {
       return;
     }
-    if (!(await checkRedemptionRateLimit(request, reply))) {
+    if (!(await checkRedemptionRateLimit(request, reply, "redeem"))) {
       return;
     }
 
