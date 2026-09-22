@@ -3,13 +3,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
 } from "./process-recovery-request-job.js";
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
@@ -40,33 +39,14 @@ async function insertUser(email: string, active = true): Promise<string> {
   return mustExist(row, "inserting the user to return a row").id;
 }
 
-function fakeEmailSender(): RecoveryEmailSender & { sentLinks: string[] } {
-  const sentLinks: string[] = [];
-  return {
-    sentLinks,
-    async sendRecoveryLink(input) {
-      sentLinks.push(input.link);
-    },
-  };
-}
-
 const NOW = new Date("2026-01-05T12:00:00.000Z");
 
-function admittedRequest(email: string, requestedAt = NOW): RecoveryRequestJobPayload {
-  return { email, requestedAt: requestedAt.toISOString(), admitted: true, requestId: randomUUID() };
+function request(email: string, requestedAt = NOW): RecoveryRequestJobPayload {
+  return { email, requestedAt: requestedAt.toISOString(), requestId: randomUUID() };
 }
 
-function rateLimitedRequest(email: string, requestedAt = NOW): RecoveryRequestJobPayload {
-  return {
-    email,
-    requestedAt: requestedAt.toISOString(),
-    admitted: false,
-    requestId: randomUUID(),
-  };
-}
-
-function jobDeps(emailSender: RecoveryEmailSender, now = NOW) {
-  return { now: () => now, backofficeOrigin: "https://staging.purosur.online", emailSender };
+function jobDeps(now = NOW) {
+  return { now: () => now, backofficeOrigin: "https://staging.purosur.online" };
 }
 
 async function requestAuditRows() {
@@ -75,31 +55,20 @@ async function requestAuditRows() {
 
 describe("processRecoveryRequestJob", () => {
   it("does nothing when no active account matches the email", async () => {
-    const emailSender = fakeEmailSender();
-
-    await processRecoveryRequestJob(db, admittedRequest("unknown@example.com"), {
-      now: () => NOW,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    const result = await processRecoveryRequestJob(db, request("unknown@example.com"), jobDeps());
 
     await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
-    expect(emailSender.sentLinks).toEqual([]);
+    expect(result).toEqual({});
   });
 
-  it("issues no token and sends nothing for a deactivated account, but audits the request", async () => {
+  it("issues no token and returns nothing to send for a deactivated account, but audits the request", async () => {
     const userId = await insertUser("ada@example.com", false);
-    const emailSender = fakeEmailSender();
 
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), {
-      now: () => NOW,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    const result = await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
 
     await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
-    expect(emailSender.sentLinks).toEqual([]);
+    expect(result).toEqual({});
     const auditRows = await requestAuditRows();
     expect(auditRows).toHaveLength(1);
     expect(auditRows[0]).toMatchObject({
@@ -109,78 +78,49 @@ describe("processRecoveryRequestJob", () => {
     });
   });
 
-  it("issues no token and sends nothing for a rate-limited request, but audits it", async () => {
-    const userId = await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
+  it("stamps a deactivated-account audit row with the request time, not the job's run time (H4)", async () => {
+    const requestedAt = new Date(NOW.getTime() - 10 * 60 * 1000);
+    await insertUser("ada@example.com", false);
 
-    await processRecoveryRequestJob(
-      db,
-      rateLimitedRequest("ada@example.com"),
-      jobDeps(emailSender),
-    );
+    await processRecoveryRequestJob(db, request("ada@example.com", requestedAt), jobDeps(NOW));
 
-    await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
-    expect(emailSender.sentLinks).toEqual([]);
-    const auditRows = await requestAuditRows();
-    expect(auditRows).toHaveLength(1);
-    expect(auditRows[0]).toMatchObject({
-      entityId: userId,
-      actorId: userId,
-      newValue: { attempt: "request", rejectedWith: "rate_limited" },
-    });
-  });
-
-  it("writes nothing for a rate-limited request to an unknown address", async () => {
-    const emailSender = fakeEmailSender();
-
-    await processRecoveryRequestJob(
-      db,
-      rateLimitedRequest("unknown@example.com"),
-      jobDeps(emailSender),
-    );
-
-    await expect(db.select().from(auditLog)).resolves.toEqual([]);
-    expect(emailSender.sentLinks).toEqual([]);
+    const [auditRow] = await requestAuditRows();
+    expect(mustExist(auditRow, "the account_inactive audit row").at).toEqual(requestedAt);
   });
 
   it("never voids a link issued for a newer request when an older request's job runs late", async () => {
     await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
     const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
     await processRecoveryRequestJob(
       db,
-      admittedRequest("ada@example.com", newerRequestAt),
-      jobDeps(emailSender, newerRequestAt),
+      request("ada@example.com", newerRequestAt),
+      jobDeps(newerRequestAt),
     );
 
     const lateRetryAt = new Date(NOW.getTime() + 7 * 60 * 1000);
-    await processRecoveryRequestJob(
+    const lateResult = await processRecoveryRequestJob(
       db,
-      admittedRequest("ada@example.com", NOW),
-      jobDeps(emailSender, lateRetryAt),
+      request("ada@example.com", NOW),
+      jobDeps(lateRetryAt),
     );
 
     const tokens = await db.select().from(recoveryTokens);
     expect(tokens).toHaveLength(1);
     expect(tokens[0]?.voidedAt).toBeNull();
-    expect(emailSender.sentLinks).toHaveLength(1);
+    expect(lateResult).toEqual({});
   });
 
   it("audits an admitted request whose job finds a link already issued for a newer request", async () => {
     const userId = await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
     const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
     await processRecoveryRequestJob(
       db,
-      admittedRequest("ada@example.com", newerRequestAt),
-      jobDeps(emailSender, newerRequestAt),
+      request("ada@example.com", newerRequestAt),
+      jobDeps(newerRequestAt),
     );
 
-    await processRecoveryRequestJob(
-      db,
-      admittedRequest("ada@example.com", NOW),
-      jobDeps(emailSender, new Date(NOW.getTime() + 7 * 60 * 1000)),
-    );
+    const lateRunAt = new Date(NOW.getTime() + 7 * 60 * 1000);
+    await processRecoveryRequestJob(db, request("ada@example.com", NOW), jobDeps(lateRunAt));
 
     const auditRows = await requestAuditRows();
     expect(auditRows).toHaveLength(1);
@@ -191,16 +131,35 @@ describe("processRecoveryRequestJob", () => {
     });
   });
 
+  it("stamps a superseded audit row with the superseded request's own time, not the job's run time (H4)", async () => {
+    await insertUser("ada@example.com");
+    const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
+    await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", newerRequestAt),
+      jobDeps(newerRequestAt),
+    );
+
+    const supersededRequestAt = NOW;
+    const lateRunAt = new Date(NOW.getTime() + 7 * 60 * 1000);
+    await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", supersededRequestAt),
+      jobDeps(lateRunAt),
+    );
+
+    const [auditRow] = await requestAuditRows();
+    expect(mustExist(auditRow, "the superseded audit row").at).toEqual(supersededRequestAt);
+  });
+
   it("issues no second link for a different request made in the same millisecond", async () => {
     await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
 
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), jobDeps(emailSender));
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), jobDeps(emailSender));
+    await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
+    await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
 
     const tokens = await db.select().from(recoveryTokens);
     expect(tokens).toHaveLength(1);
-    expect(emailSender.sentLinks).toHaveLength(1);
   });
 
   it("never stores two live tokens for the same account", async () => {
@@ -217,28 +176,23 @@ describe("processRecoveryRequestJob", () => {
 
   it("lets a retry of the same request replace the link that request already issued", async () => {
     await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
-    const request = admittedRequest("ada@example.com");
-    await processRecoveryRequestJob(db, request, jobDeps(emailSender));
+    const requestPayload = request("ada@example.com");
+    const first = await processRecoveryRequestJob(db, requestPayload, jobDeps());
 
     const retryAt = new Date(NOW.getTime() + 60 * 1000);
-    await processRecoveryRequestJob(db, request, jobDeps(emailSender, retryAt));
+    const retry = await processRecoveryRequestJob(db, requestPayload, jobDeps(retryAt));
 
     const tokens = await db.select().from(recoveryTokens);
     expect(tokens).toHaveLength(2);
     expect(tokens.filter((token) => token.voidedAt === null)).toHaveLength(1);
-    expect(emailSender.sentLinks).toHaveLength(2);
+    expect(first.send).toBeDefined();
+    expect(retry.send).toBeDefined();
   });
 
-  it("issues a hashed token, expiring in 15 minutes, audits it, and emails the link", async () => {
+  it("issues a hashed token, expiring in 15 minutes, audits it, and returns the link to send", async () => {
     const userId = await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
 
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), {
-      now: () => NOW,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    const result = await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
 
     const tokens = await db.select().from(recoveryTokens);
     expect(tokens).toHaveLength(1);
@@ -250,10 +204,10 @@ describe("processRecoveryRequestJob", () => {
       voidedAt: null,
     });
 
-    expect(emailSender.sentLinks).toHaveLength(1);
-    const link = mustExist(emailSender.sentLinks[0], "the email sender to receive one link");
-    expect(link).toMatch(/^https:\/\/staging\.purosur\.online\/recuperar\/enlace#.+$/);
-    const rawToken = mustExist(link.split("#")[1], "the link to carry a token fragment");
+    const send = mustExist(result.send, "a link to send");
+    expect(send.to).toBe("ada@example.com");
+    expect(send.link).toMatch(/^https:\/\/staging\.purosur\.online\/recuperar\/enlace#.+$/);
+    const rawToken = mustExist(send.link.split("#")[1], "the link to carry a token fragment");
     // The link's fragment carries the raw token; the row only ever stores its hash.
     const expectedHash = createHash("sha256").update(rawToken).digest("base64url");
     const token = mustExist(tokens[0], "one recovery token row");
@@ -274,26 +228,30 @@ describe("processRecoveryRequestJob", () => {
     expect(JSON.stringify(auditRow.newValue)).not.toContain(token.tokenHash);
   });
 
+  it("stamps the token-issuance audit row with the request time, not the job's run time (H4)", async () => {
+    const requestedAt = new Date(NOW.getTime() - 3 * 60 * 1000);
+    await insertUser("ada@example.com");
+
+    await processRecoveryRequestJob(db, request("ada@example.com", requestedAt), jobDeps(NOW));
+
+    const [auditRow] = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entity, "recovery_token"));
+    expect(mustExist(auditRow, "the token-issuance audit row").at).toEqual(requestedAt);
+  });
+
   it("voids any previous live token for the account when issuing a new one", async () => {
     const userId = await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
 
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), {
-      now: () => NOW,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    const first = await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
     const firstToken = mustExist(
       (await db.select().from(recoveryTokens))[0],
       "the first recovery token row",
     );
 
     const later = new Date(NOW.getTime() + 60 * 1000);
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com", later), {
-      now: () => later,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    await processRecoveryRequestJob(db, request("ada@example.com", later), jobDeps(later));
 
     const tokensById = new Map(
       (await db.select().from(recoveryTokens)).map((token) => [token.id, token]),
@@ -306,16 +264,12 @@ describe("processRecoveryRequestJob", () => {
     );
     expect(tokensById.get(secondTokenId)?.voidedAt).toBeNull();
     expect(tokensById.get(secondTokenId)?.userId).toBe(userId);
+    expect(first.send).toBeDefined();
   });
 
   it("does not void an already-used or already-voided token again", async () => {
     await insertUser("ada@example.com");
-    const emailSender = fakeEmailSender();
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com"), {
-      now: () => NOW,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    await processRecoveryRequestJob(db, request("ada@example.com"), jobDeps());
     const firstToken = mustExist(
       (await db.select().from(recoveryTokens))[0],
       "the first recovery token row",
@@ -324,11 +278,7 @@ describe("processRecoveryRequestJob", () => {
     await db.update(recoveryTokens).set({ usedAt }).where(eq(recoveryTokens.id, firstToken.id));
 
     const later = new Date(NOW.getTime() + 60 * 1000);
-    await processRecoveryRequestJob(db, admittedRequest("ada@example.com", later), {
-      now: () => later,
-      backofficeOrigin: "https://staging.purosur.online",
-      emailSender,
-    });
+    await processRecoveryRequestJob(db, request("ada@example.com", later), jobDeps(later));
 
     const reloadedFirst = mustExist(
       (await db.select().from(recoveryTokens).where(eq(recoveryTokens.id, firstToken.id)))[0],
@@ -336,20 +286,5 @@ describe("processRecoveryRequestJob", () => {
     );
     expect(reloadedFirst.usedAt).toEqual(usedAt);
     expect(reloadedFirst.voidedAt).toBeNull();
-  });
-
-  it("propagates the email sender's failure so graphile-worker retries the job", async () => {
-    await insertUser("ada@example.com");
-    const failingSender: RecoveryEmailSender = {
-      sendRecoveryLink: vi.fn().mockRejectedValue(new Error("resend unavailable")),
-    };
-
-    await expect(
-      processRecoveryRequestJob(db, admittedRequest("ada@example.com"), {
-        now: () => NOW,
-        backofficeOrigin: "https://staging.purosur.online",
-        emailSender: failingSender,
-      }),
-    ).rejects.toThrow("resend unavailable");
   });
 });

@@ -2,22 +2,28 @@ import { randomBytes } from "node:crypto";
 import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
-import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import type { SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 export interface RecoveryRequestJobPayload {
   email: string;
   /** ISO 8601: graphile-worker stores the payload as JSON. */
   requestedAt: string;
-  admitted: boolean;
-  /** Fixed when the request is enqueued, so every retry of its job carries the same one. */
+  /** Fixed when the request is enqueued, so every retry of its job carries the same one. Only an
+   * admitted request is ever enqueued (see `recovery-rejected-attempt-accumulator.ts` for a
+   * rejected one), so this job never carries a rate-limit rejection of its own. */
   requestId: string;
 }
 
 export interface ProcessRecoveryRequestJobDeps {
   now: () => Date;
   backofficeOrigin: string;
-  emailSender: RecoveryEmailSender;
+}
+
+export interface ProcessRecoveryRequestJobResult {
+  /** Set only when a link was actually issued; the caller sends it after releasing the pool
+   * client this job borrowed, so a slow Resend call never holds it checked out (H3). */
+  send?: SendRecoveryLinkInput;
 }
 
 const TOKEN_BYTES = 20; // 160 bits, well over the ≥80-bit floor (§11, D44).
@@ -34,47 +40,47 @@ function recoveryLink(backofficeOrigin: string, rawToken: string): string {
 }
 
 /**
- * The graphile-worker task body for every well-formed `POST /users/recovery/request`: resolves
- * the account and, for a request the rate limiter rejected or an account that is deactivated,
- * only audits it against that account. Otherwise it issues a fresh token in the same transaction
- * that voids any live one for that account, audits the issuance, and emails the link. An email
- * that fails to send throws, so graphile-worker's own retry applies; that retry replaces the link
- * its own request already issued, but never one issued for a different request made at the same
- * time or later, which instead leaves the request audited as superseded. Jobs for the same account
- * are serialized, so concurrent ones can never both leave a live link.
+ * The graphile-worker task body for every admitted `POST /users/recovery/request` (a rejected one
+ * is never enqueued: see `recovery-rejected-attempt-accumulator.ts`). Resolves the account and,
+ * for a deactivated one, only audits it against that account. Otherwise it issues a fresh token in
+ * the same transaction that voids any live one for that account and audits the issuance, then
+ * returns the link for the caller to send once it has released the pool client this job borrowed
+ * (H3): the caller must propagate a send failure so graphile-worker's own retry applies, and that
+ * retry replaces the link its own request already issued, but never one issued for a different
+ * request made at the same time or later, which instead leaves the request audited as superseded.
+ * Every audit row this job writes is stamped `at` the request's own time (H4), not whenever this
+ * job happens to run. Jobs for the same account are serialized, so concurrent ones can never both
+ * leave a live link.
  */
 export async function processRecoveryRequestJob<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   payload: RecoveryRequestJobPayload,
   deps: ProcessRecoveryRequestJobDeps,
-): Promise<void> {
+): Promise<ProcessRecoveryRequestJobResult> {
+  const requestedAt = new Date(payload.requestedAt);
+
   const [account] = await db
     .select({ id: users.id, active: users.active })
     .from(users)
     .where(eq(users.email, payload.email))
     .limit(1);
   if (!account) {
-    return;
+    return {};
   }
 
-  const rejectedWith = !payload.admitted
-    ? "rate_limited"
-    : !account.active
-      ? "account_inactive"
-      : undefined;
-  if (rejectedWith) {
+  if (!account.active) {
     await db.insert(auditLog).values({
       entity: "user",
       entityId: account.id,
       actorId: account.id,
       previousValue: null,
-      newValue: { attempt: "request", rejectedWith },
+      newValue: { attempt: "request", rejectedWith: "account_inactive" },
+      at: requestedAt,
     });
-    return;
+    return {};
   }
 
   const now = deps.now();
-  const requestedAt = new Date(payload.requestedAt);
   const rawToken = generateRawToken();
 
   const issued = await db.transaction(async (tx) => {
@@ -99,6 +105,7 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
         actorId: account.id,
         previousValue: null,
         newValue: { attempt: "request", rejectedWith: "superseded" },
+        at: requestedAt,
       });
       return false;
     }
@@ -142,16 +149,14 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
         issuedAt: token.issuedAt.toISOString(),
         expiresAt: token.expiresAt.toISOString(),
       },
+      at: requestedAt,
     });
 
     return true;
   });
   if (!issued) {
-    return;
+    return {};
   }
 
-  await deps.emailSender.sendRecoveryLink({
-    to: payload.email,
-    link: recoveryLink(deps.backofficeOrigin, rawToken),
-  });
+  return { send: { to: payload.email, link: recoveryLink(deps.backofficeOrigin, rawToken) } };
 }

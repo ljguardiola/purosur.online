@@ -52,13 +52,11 @@ describe("recovery-request jobs for the same account running concurrently agains
           {
             email,
             requestedAt: requestedAt.toISOString(),
-            admitted: true,
             requestId: randomUUID(),
           },
           {
             now: () => new Date(),
             backofficeOrigin: "https://staging.purosur.online",
-            emailSender: { sendRecoveryLink: async () => {} },
           },
         ),
       ),

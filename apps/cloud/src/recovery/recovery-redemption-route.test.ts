@@ -4,8 +4,14 @@ import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator from "nid-webauthn-emulator";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  auditLog,
+  passkeys,
+  recoveryRejectedAttemptAccumulator,
+  recoveryTokens,
+  users,
+} from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
@@ -646,37 +652,100 @@ describe("auditing rejected recovery redemptions", () => {
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
   });
 
-  it("audits rate-limited registration-options and redeem attempts on a known token against its account", async () => {
-    const rawToken = await issueToken({ usedAt: NOON });
-    for (let i = 0; i < 10; i++) {
-      await postOptions({ recovery_token: "an-unknown-raw-token" });
-    }
+  describe("grouped audit of rate-limited rejections (H1)", () => {
+    it("upserts the accumulator for a rate-limited registration-options/redeem attempt on a known token, without any individual audit row or a token lookup", async () => {
+      const rawToken = await issueToken({ usedAt: NOON });
+      for (let i = 0; i < 10; i++) {
+        await postOptions({ recovery_token: "an-unknown-raw-token" });
+      }
 
-    const rateLimitedOptions = await postOptions({ recovery_token: rawToken });
-    const rateLimitedRedeem = await postRedeem({ recovery_token: rawToken });
+      const rateLimitedOptions = await postOptions({ recovery_token: rawToken });
+      const rateLimitedRedeem = await postRedeem({ recovery_token: rawToken });
 
-    expect(rateLimitedOptions.statusCode).toBe(429);
-    expect(rateLimitedRedeem.statusCode).toBe(429);
-    const rows = await rejectedAttemptAuditRows();
-    expect(rows.map((row) => ({ actorId: row.actorId, newValue: row.newValue }))).toEqual([
-      {
-        actorId: userId,
-        newValue: { attempt: "registration_options", rejectedWith: "rate_limited" },
-      },
-      { actorId: userId, newValue: { attempt: "redeem", rejectedWith: "rate_limited" } },
-    ]);
+      expect(rateLimitedOptions.statusCode).toBe(429);
+      expect(rateLimitedRedeem.statusCode).toBe(429);
+      await expect(db.select().from(auditLog)).resolves.toEqual([]);
+      const rows = await accumulatorRows();
+      expect(
+        rows.map((row) => ({ kind: row.kind, keyHash: row.keyHash, count: row.count })),
+      ).toEqual(
+        expect.arrayContaining([
+          { kind: "registration_options", keyHash: hashRecoveryToken(rawToken), count: 1 },
+          { kind: "redeem", keyHash: hashRecoveryToken(rawToken), count: 1 },
+        ]),
+      );
+    });
+
+    it("does the identical accumulator work for a rate-limited attempt on a token that matches no row", async () => {
+      for (let i = 0; i < 10; i++) {
+        await postOptions({ recovery_token: "an-unknown-raw-token" });
+      }
+
+      const rateLimitedOptions = await postOptions({ recovery_token: "another-unknown-raw-token" });
+      const rateLimitedRedeem = await postRedeem({ recovery_token: "another-unknown-raw-token" });
+
+      expect(rateLimitedOptions.statusCode).toBe(429);
+      expect(rateLimitedRedeem.statusCode).toBe(429);
+      await expect(db.select().from(auditLog)).resolves.toEqual([]);
+      const rows = await accumulatorRows();
+      expect(
+        rows.map((row) => ({ kind: row.kind, keyHash: row.keyHash, count: row.count })),
+      ).toEqual(
+        expect.arrayContaining([
+          {
+            kind: "registration_options",
+            keyHash: hashRecoveryToken("another-unknown-raw-token"),
+            count: 1,
+          },
+          { kind: "redeem", keyHash: hashRecoveryToken("another-unknown-raw-token"), count: 1 },
+        ]),
+      );
+    });
+
+    it("writes nothing to the accumulator when the rejected request carries no token at all", async () => {
+      for (let i = 0; i < 10; i++) {
+        await postOptions({ recovery_token: "an-unknown-raw-token" });
+      }
+
+      const rateLimitedOptions = await postOptions({});
+
+      expect(rateLimitedOptions.statusCode).toBe(429);
+      await expect(accumulatorRows()).resolves.toEqual([]);
+    });
   });
 
-  it("writes nothing for a rate-limited attempt on a token that matches no row", async () => {
-    for (let i = 0; i < 10; i++) {
-      await postOptions({ recovery_token: "an-unknown-raw-token" });
-    }
+  describe("bookkeeping failures never block the 429 response (H2)", () => {
+    it("still answers 429 with Retry-After when recording the rejected attempt fails", async () => {
+      for (let i = 0; i < 10; i++) {
+        await postOptions({ recovery_token: "an-unknown-raw-token" });
+      }
+      const reportError = vi.fn();
+      const failingApp = Fastify();
+      registerRecoveryRedemptionRoutes(failingApp, {
+        db,
+        backofficeOrigin: BACKOFFICE_ORIGIN,
+        now: () => currentTime,
+        recordRejectedAttempt: vi.fn().mockRejectedValue(new Error("accumulator write failed")),
+        reportError,
+      });
 
-    const rateLimitedOptions = await postOptions({ recovery_token: "another-unknown-raw-token" });
-    const rateLimitedRedeem = await postRedeem({ recovery_token: "another-unknown-raw-token" });
+      const response = await failingApp.inject({
+        method: "POST",
+        url: "/users/recovery/registration-options",
+        headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+        payload: { recovery_token: "an-unknown-raw-token" },
+      });
 
-    expect(rateLimitedOptions.statusCode).toBe(429);
-    expect(rateLimitedRedeem.statusCode).toBe(429);
-    await expect(db.select().from(auditLog)).resolves.toEqual([]);
+      expect(response.statusCode).toBe(429);
+      expect(response.json()).toMatchObject({ code: "rate_limited" });
+      expect(response.headers["retry-after"]).toBeDefined();
+      expect(reportError).toHaveBeenCalledWith(expect.any(Error));
+
+      await failingApp.close();
+    });
   });
 });
+
+async function accumulatorRows() {
+  return db.select().from(recoveryRejectedAttemptAccumulator);
+}

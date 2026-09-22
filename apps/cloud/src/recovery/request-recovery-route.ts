@@ -1,7 +1,9 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
-import { recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
+import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
+import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 
 export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -10,6 +12,10 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   backofficeOrigin: string;
   /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
+  /** Injected in tests to prove H2: a bookkeeping failure never turns the 429 into a 500. */
+  recordRejectedAttempt?: typeof recordRejectedAttempt;
+  /** Injected in tests; defaults to logging and reporting to Sentry. */
+  reportError?: (error: unknown) => void;
 }
 
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
@@ -35,6 +41,8 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   options: RecoveryRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
+  const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
   app.post("/users/recovery/request", async (request, reply) => {
     // No session exists on this path, so cross-site request forgery is checked the same way §11
@@ -68,14 +76,19 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
       sourceAddress,
       now: requestedAt,
     });
-    // Enqueued either way: the job, not this handler, looks the account up to audit a rejected
-    // request, so a rejection costs the same whether or not the address belongs to an account.
-    await options.jobQueue.enqueueRecoveryRequest({
-      email,
-      requestedAt,
-      admitted: rateLimit.allowed,
-    });
     if (!rateLimit.allowed) {
+      // One synchronous upsert, never a lookup: the same work whether or not this address
+      // belongs to a real account (issue #167, "rejected for exceeding the hourly limits are
+      // recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500 (H2).
+      try {
+        await doRecordRejectedAttempt(options.db, {
+          kind: "request",
+          keyHash: hashDestinationAddress(email),
+          now: requestedAt,
+        });
+      } catch (error) {
+        reportError(error);
+      }
       await reply
         .header("Retry-After", String(rateLimit.retryAfterSeconds))
         .code(429)
@@ -83,6 +96,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
 
+    await options.jobQueue.enqueueRecoveryRequest({ email, requestedAt });
     await reply.code(200).send();
   });
 }

@@ -151,3 +151,38 @@ export const recoveryRateLimitAttempts = pgTable(
     index("recovery_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
+
+export const recoveryRejectedAttemptKind = pgEnum("recovery_rejected_attempt_kind", [
+  "request",
+  "registration_options",
+  "redeem",
+]);
+
+// One row per (kind, key hash, hour window), incremented synchronously on every rejected request
+// or redemption attempt instead of writing an individual audit row per attempt (issue #167's
+// "rejected for exceeding the hourly limits are recorded grouped"). `key_hash` is the same
+// SHA-256 the rate limiter already keys its destination-address counter by (for `request`) or the
+// token hash already stored on `recovery_tokens` (for `registration_options`/`redeem`), so this
+// upsert never needs to look an address or token up. A periodic graphile-worker cron task resolves
+// each closed window to an account and turns it into one audit_log row, then deletes the rows it
+// flushed; storage stays bounded to one row per key per open hour.
+export const recoveryRejectedAttemptAccumulator = pgTable(
+  "recovery_rejected_attempt_accumulator",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: recoveryRejectedAttemptKind("kind").notNull(),
+    keyHash: text("key_hash").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(1),
+    firstAt: timestamp("first_at", { withTimezone: true }).notNull(),
+    lastAt: timestamp("last_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("recovery_rejected_attempt_accumulator_key").on(
+      table.kind,
+      table.keyHash,
+      table.windowStart,
+    ),
+    index("recovery_rejected_attempt_accumulator_window_idx").on(table.windowStart),
+  ],
+);

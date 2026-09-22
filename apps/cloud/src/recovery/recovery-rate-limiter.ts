@@ -38,7 +38,11 @@ interface RateLimitedKey {
   limit: number;
 }
 
-function hashDestinationAddress(normalizedAddress: string): string {
+/**
+ * Shared with `recovery-rejected-attempt-accumulator.ts` so a rejected request's accumulator key
+ * hashes the destination address exactly as this rate limiter's own counter does.
+ */
+export function hashDestinationAddress(normalizedAddress: string): string {
   return createHash("sha256").update(normalizedAddress).digest("hex");
 }
 

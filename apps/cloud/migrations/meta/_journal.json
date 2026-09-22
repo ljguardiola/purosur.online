@@ -43,6 +43,13 @@
       "when": 1790084813601,
       "tag": "0005_recovery_token_request_id",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790086331610,
+      "tag": "0006_recovery_rejected_attempt_accumulator",
+      "breakpoints": true
     }
   ]
 }

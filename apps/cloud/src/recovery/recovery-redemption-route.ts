@@ -4,7 +4,9 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
+import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
+import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
 import { resolveSourceAddress } from "./recovery-source-address.js";
 import { recoveryTokenErrorResponse } from "./recovery-token-error-response.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -17,6 +19,10 @@ export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResu
   backofficeOrigin: string;
   /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
+  /** Injected in tests to prove H2: a bookkeeping failure never turns the 429 into a 500. */
+  recordRejectedAttempt?: typeof recordRejectedAttempt;
+  /** Injected in tests; defaults to logging and reporting to Sentry. */
+  reportError?: (error: unknown) => void;
 }
 
 function sendTokenError(reply: FastifyReply, status: "invalid" | "burned" | "expired"): void {
@@ -46,6 +52,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
 ): void {
   const now = options.now ?? (() => new Date());
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
+  const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
+  const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -69,12 +77,21 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       now: now(),
     });
     if (!rateLimit.allowed) {
+      // One synchronous upsert keyed by the token's own stored hash, never a lookup: known and
+      // unknown tokens do identical work (issue #167, "rejected for exceeding the hourly limits
+      // are recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500
+      // (H2). A request that carries no token at all has nothing to key the accumulator by.
       const rawToken = readRawToken(request.body);
-      const { token } = rawToken
-        ? await classifyRecoveryToken(options.db, hashRecoveryToken(rawToken), now())
-        : { token: undefined };
-      if (token) {
-        await auditRejectedAttempt(token, attempt, "rate_limited");
+      if (rawToken) {
+        try {
+          await doRecordRejectedAttempt(options.db, {
+            kind: attempt,
+            keyHash: hashRecoveryToken(rawToken),
+            now: now(),
+          });
+        } catch (error) {
+          reportError(error);
+        }
       }
       await reply
         .header("Retry-After", String(rateLimit.retryAfterSeconds))
