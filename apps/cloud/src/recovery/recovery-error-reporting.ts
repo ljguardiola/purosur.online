@@ -5,6 +5,19 @@ export interface ReportRecoveryErrorDeps {
   captureException?: (error: unknown) => unknown;
 }
 
+/**
+ * Runs one half of a report and drops its own failure. Reports are made from inside pg's `error`
+ * listeners, where a throw is an uncaught exception that ends the process — the very crash the
+ * listeners exist to prevent — and there is nowhere left to report a failing reporter to.
+ */
+function withoutThrowing(report: () => void): void {
+  try {
+    report();
+  } catch {
+    // Deliberately dropped: see above.
+  }
+}
+
 /** How recovery reports a failure it swallows: the console for a log stream, Sentry for an alert. */
 export function reportRecoveryError(
   message: string,
@@ -12,8 +25,8 @@ export function reportRecoveryError(
   deps: ReportRecoveryErrorDeps = {},
 ): void {
   const captureException = deps.captureException ?? Sentry.captureException;
-  console.error(message, error);
-  captureException(error);
+  withoutThrowing(() => console.error(message, error));
+  withoutThrowing(() => captureException(error));
 }
 
 /**
