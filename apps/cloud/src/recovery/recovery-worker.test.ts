@@ -156,7 +156,10 @@ describe("startRecoveryWorker", () => {
       return result;
     });
     const processJob = vi.fn().mockResolvedValue({
-      send: { to: "ada@example.com", link: "https://staging.purosur.online/recuperar/enlace#raw" },
+      send: {
+        to: "ada@example.com",
+        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+      },
     });
     const sendRecoveryLink = vi.fn().mockImplementation(async () => {
       events.push("sendRecoveryLink called");
@@ -203,7 +206,10 @@ describe("startRecoveryWorker", () => {
       callback({ marker: "fake-client" }),
     );
     const processJob = vi.fn().mockResolvedValue({
-      send: { to: "ada@example.com", link: "https://staging.purosur.online/recuperar/enlace#raw" },
+      send: {
+        to: "ada@example.com",
+        link: "https://staging.purosur.online/account-recovery/passkey#raw",
+      },
     });
     const sendRecoveryLink = vi.fn().mockRejectedValue(new Error("resend unavailable"));
 

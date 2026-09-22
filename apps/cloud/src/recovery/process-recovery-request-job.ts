@@ -36,7 +36,7 @@ function generateRawToken(): string {
 function recoveryLink(backofficeOrigin: string, rawToken: string): string {
   // The token lives in the URL fragment, never sent to the server, so it never reaches access
   // logs or a Referer header.
-  return `${backofficeOrigin}/recuperar/enlace#${rawToken}`;
+  return `${backofficeOrigin}/account-recovery/passkey#${rawToken}`;
 }
 
 /**

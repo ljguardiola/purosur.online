@@ -4,7 +4,7 @@ import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
-import { INGRESAR_PATH, RECUPERAR_PATH } from "./accessRoutes";
+import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 
@@ -50,9 +50,9 @@ function TokenErrorNotice({
       />
       {offerNewLink && (
         <AccessFooterLink
-          to={RECUPERAR_PATH}
+          to={ACCOUNT_RECOVERY_PATH}
           icon={<ArrowLeft />}
-          label={messages.access.registrar.requestNewLink}
+          label={messages.access.registerPasskey.requestNewLink}
         />
       )}
     </>
@@ -63,7 +63,7 @@ function TokenErrorNotice({
  * Every token/rate-limit/failure state shares the error-tone notice pattern used for other
  * blocked-by-attempts states in the product.
  */
-export function RegistrarPasskeyScreen() {
+export function RegisterPasskeyScreen() {
   // A lazy initializer runs during the component's initial render, before any effect can strip
   // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
   // that same initial render, before the mount effect below strips the hash, so both read the
@@ -174,8 +174,8 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "loading") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registrar.heading} />
-        <p role="status">{messages.access.registrar.loading}</p>
+        <AccessHeader heading={messages.access.registerPasskey.heading} />
+        <p role="status">{messages.access.registerPasskey.loading}</p>
       </AccessLayout>
     );
   }
@@ -183,21 +183,21 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "invalid" || phase.kind === "burned" || phase.kind === "expired") {
     const copy = {
       invalid: {
-        title: messages.access.registrar.invalidTitle,
-        detail: messages.access.registrar.invalidDetail,
+        title: messages.access.registerPasskey.invalidTitle,
+        detail: messages.access.registerPasskey.invalidDetail,
       },
       burned: {
-        title: messages.access.registrar.burnedTitle,
-        detail: messages.access.registrar.burnedDetail,
+        title: messages.access.registerPasskey.burnedTitle,
+        detail: messages.access.registerPasskey.burnedDetail,
       },
       expired: {
-        title: messages.access.registrar.expiredTitle,
-        detail: messages.access.registrar.expiredDetail,
+        title: messages.access.registerPasskey.expiredTitle,
+        detail: messages.access.registerPasskey.expiredDetail,
       },
     }[phase.kind];
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registrar.heading} />
+        <AccessHeader heading={messages.access.registerPasskey.heading} />
         <TokenErrorNotice title={copy.title} detail={copy.detail} offerNewLink />
       </AccessLayout>
     );
@@ -206,12 +206,12 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "rate_limited") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registrar.heading} />
+        <AccessHeader heading={messages.access.registerPasskey.heading} />
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.registrar.rateLimitedTitle}
-          detail={messages.access.registrar.rateLimitedDetail({
+          title={messages.access.registerPasskey.rateLimitedTitle}
+          detail={messages.access.registerPasskey.rateLimitedDetail({
             minutes: Math.ceil(phase.retryAfterSeconds / 60),
           })}
         />
@@ -222,15 +222,15 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "loadError") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registrar.heading} />
+        <AccessHeader heading={messages.access.registerPasskey.heading} />
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.registrar.loadErrorTitle}
-          detail={messages.access.registrar.loadErrorDetail}
+          title={messages.access.registerPasskey.loadErrorTitle}
+          detail={messages.access.registerPasskey.loadErrorDetail}
         />
         <Button variant="secondary" onPress={() => void load()}>
-          {messages.access.registrar.retry}
+          {messages.access.registerPasskey.retry}
         </Button>
       </AccessLayout>
     );
@@ -239,11 +239,11 @@ export function RegistrarPasskeyScreen() {
   if (phase.kind === "registered") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registrar.successTitle} />
+        <AccessHeader heading={messages.access.registerPasskey.successTitle} />
         <AccessFooterLink
-          to={INGRESAR_PATH}
+          to={SIGN_IN_PATH}
           icon={<ArrowLeft />}
-          label={messages.access.registrar.goToSignIn}
+          label={messages.access.registerPasskey.goToSignIn}
         />
       </AccessLayout>
     );
@@ -253,15 +253,15 @@ export function RegistrarPasskeyScreen() {
     <AccessLayout>
       <AccessHeader
         eyebrow={phase.displayName}
-        heading={messages.access.registrar.heading}
-        description={messages.access.registrar.description}
+        heading={messages.access.registerPasskey.heading}
+        description={messages.access.registerPasskey.description}
       />
       {phase.attemptFailed && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.registrar.attemptFailedTitle}
-          detail={messages.access.registrar.attemptFailedDetail}
+          title={messages.access.registerPasskey.attemptFailedTitle}
+          detail={messages.access.registerPasskey.attemptFailedDetail}
         />
       )}
       <Button
@@ -272,9 +272,9 @@ export function RegistrarPasskeyScreen() {
         isDisabled={phase.submitting}
         onPress={() => void handleRegister(phase)}
       >
-        {messages.access.registrar.submit}
+        {messages.access.registerPasskey.submit}
       </Button>
-      <p className="text-sm text-ink-secondary">{messages.access.registrar.footerHint}</p>
+      <p className="text-sm text-ink-secondary">{messages.access.registerPasskey.footerHint}</p>
     </AccessLayout>
   );
 }

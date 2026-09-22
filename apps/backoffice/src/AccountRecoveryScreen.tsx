@@ -2,7 +2,7 @@ import { Button, InlineNotice, TextField } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
-import { INGRESAR_PATH } from "./accessRoutes";
+import { SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { requestRecoveryLink } from "./recoveryApi";
 
@@ -13,16 +13,16 @@ type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "err
 function validateEmail(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
-    return messages.access.recuperar.emailRequired;
+    return messages.access.accountRecovery.emailRequired;
   }
-  return EMAIL_SHAPE.test(trimmed) ? undefined : messages.access.recuperar.emailInvalid;
+  return EMAIL_SHAPE.test(trimmed) ? undefined : messages.access.accountRecovery.emailInvalid;
 }
 
 /**
  * The 429 and generic-failure states share the notice-above-the-action pattern used for other
  * blocked-by-attempts states in the product.
  */
-export function RecuperarScreen() {
+export function AccountRecoveryScreen() {
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
@@ -53,19 +53,19 @@ export function RecuperarScreen() {
     return (
       <AccessLayout>
         <AccessHeader
-          eyebrow={messages.access.recuperar.sentEyebrow}
-          heading={messages.access.recuperar.sentHeading}
+          eyebrow={messages.access.accountRecovery.sentEyebrow}
+          heading={messages.access.accountRecovery.sentHeading}
         />
         <InlineNotice
           tone="info"
           icon={<MailCheck />}
-          title={messages.access.recuperar.sentNoticeTitle}
-          detail={messages.access.recuperar.sentNoticeDetail}
+          title={messages.access.accountRecovery.sentNoticeTitle}
+          detail={messages.access.accountRecovery.sentNoticeDetail}
         />
         <AccessFooterLink
-          to={INGRESAR_PATH}
+          to={SIGN_IN_PATH}
           icon={<ArrowLeft />}
-          label={messages.access.recuperar.backLink}
+          label={messages.access.accountRecovery.backLink}
         />
       </AccessLayout>
     );
@@ -74,16 +74,16 @@ export function RecuperarScreen() {
   return (
     <AccessLayout>
       <AccessHeader
-        eyebrow={messages.access.recuperar.eyebrow}
-        heading={messages.access.recuperar.heading}
-        description={messages.access.recuperar.description}
+        eyebrow={messages.access.accountRecovery.eyebrow}
+        heading={messages.access.accountRecovery.heading}
+        description={messages.access.accountRecovery.description}
       />
       {notice?.kind === "rate_limited" && (
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.recuperar.rateLimitedTitle}
-          detail={messages.access.recuperar.rateLimitedDetail({
+          title={messages.access.accountRecovery.rateLimitedTitle}
+          detail={messages.access.accountRecovery.rateLimitedDetail({
             minutes: Math.ceil(notice.retryAfterSeconds / 60),
           })}
         />
@@ -92,14 +92,14 @@ export function RecuperarScreen() {
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.recuperar.errorTitle}
-          detail={messages.access.recuperar.errorDetail}
+          title={messages.access.accountRecovery.errorTitle}
+          detail={messages.access.accountRecovery.errorDetail}
         />
       )}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
         <TextField
           kind="plain-text"
-          label={messages.access.recuperar.emailLabel}
+          label={messages.access.accountRecovery.emailLabel}
           value={email}
           onChange={(value) => {
             setEmail(value);
@@ -118,13 +118,13 @@ export function RecuperarScreen() {
           icon={<Send />}
           isDisabled={submitting}
         >
-          {messages.access.recuperar.submit}
+          {messages.access.accountRecovery.submit}
         </Button>
       </form>
       <AccessFooterLink
-        to={INGRESAR_PATH}
+        to={SIGN_IN_PATH}
         icon={<ArrowLeft />}
-        label={messages.access.recuperar.backLink}
+        label={messages.access.accountRecovery.backLink}
       />
     </AccessLayout>
   );

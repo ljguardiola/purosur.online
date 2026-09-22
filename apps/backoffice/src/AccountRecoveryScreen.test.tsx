@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { RecuperarScreen } from "./RecuperarScreen";
+import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
 import { requestRecoveryLink } from "./recoveryApi";
 
 vi.mock("./recoveryApi", () => ({ requestRecoveryLink: vi.fn() }));
@@ -23,7 +23,7 @@ async function fillEmail(screen: Awaited<ReturnType<typeof render>>, value: stri
 }
 
 test("shows the recovery form with its heading, email field, submit button and back link", async () => {
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await expect
     .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
@@ -31,13 +31,13 @@ test("shows the recovery form with its heading, email field, submit button and b
   await expect.element(screen.getByRole("textbox")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Enviar el enlace" })).toBeVisible();
   const backLink = screen.getByRole("link", { name: "Volver a ingresar" }).element();
-  expect(backLink.getAttribute("href")).toBe("/ingresar");
+  expect(backLink.getAttribute("href")).toBe("/sign-in");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("rejects an empty email without calling the API", async () => {
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
@@ -46,7 +46,7 @@ test("rejects an empty email without calling the API", async () => {
 });
 
 test("rejects a malformed email without calling the API", async () => {
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await fillEmail(screen, "not-an-email");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
@@ -57,7 +57,7 @@ test("rejects a malformed email without calling the API", async () => {
 
 test("confirms the link was sent, with the uniform notice, after a successful submit", async () => {
   vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "sent" });
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
@@ -85,7 +85,7 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
     kind: "rate_limited",
     retryAfterSeconds: 3600,
   });
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
@@ -99,7 +99,7 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
 
 test("shows a generic error notice on any other failure", async () => {
   vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "failed" });
-  const screen = await render(<RecuperarScreen />);
+  const screen = await render(<AccountRecoveryScreen />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));

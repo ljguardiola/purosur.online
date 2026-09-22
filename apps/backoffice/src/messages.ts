@@ -7,14 +7,14 @@ export const messages = defineMessages("es-AR", (f) => ({
   },
   access: {
     brandCaption: "Backoffice",
-    ingresar: {
+    signIn: {
       eyebrow: "Puro Sur",
       heading: "Ingresar",
       description:
         "Con la passkey de este dispositivo: la huella, la cara o el PIN de la computadora o del teléfono.",
       recoverLink: "Perdí mis passkeys",
     },
-    recuperar: {
+    accountRecovery: {
       eyebrow: "Perdí mis passkeys",
       heading: "Recuperar el acceso",
       description: "Te mandamos un enlace al correo de tu cuenta para registrar una passkey nueva.",
@@ -34,7 +34,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       sentNoticeDetail:
         "Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado.",
     },
-    registrar: {
+    registerPasskey: {
       heading: "Registrá una passkey nueva",
       description: "Con ella vas a ingresar de ahora en adelante.",
       submit: "Registrar la passkey",

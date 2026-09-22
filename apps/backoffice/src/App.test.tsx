@@ -160,8 +160,8 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
     .toHaveFocus();
 });
 
-test("routes /ingresar to the sign-in screen, outside the Shell", async () => {
-  window.history.pushState(null, "", "/ingresar");
+test("routes /sign-in to the sign-in screen, outside the Shell", async () => {
+  window.history.pushState(null, "", "/sign-in");
 
   const screen = await render(<App help={emptyHelp} />);
 
@@ -169,8 +169,8 @@ test("routes /ingresar to the sign-in screen, outside the Shell", async () => {
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
-test("routes /recuperar to the recovery form, outside the Shell", async () => {
-  window.history.pushState(null, "", "/recuperar");
+test("routes /account-recovery to the recovery form, outside the Shell", async () => {
+  window.history.pushState(null, "", "/account-recovery");
 
   const screen = await render(<App help={emptyHelp} />);
 
@@ -180,8 +180,8 @@ test("routes /recuperar to the recovery form, outside the Shell", async () => {
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
 });
 
-test("routes /recuperar/enlace to the passkey registration screen, reading its token from the hash", async () => {
-  window.history.pushState(null, "", "/recuperar/enlace#the-token");
+test("routes /account-recovery/passkey to the passkey registration screen, reading its token from the hash", async () => {
+  window.history.pushState(null, "", "/account-recovery/passkey#the-token");
 
   const screen = await render(<App help={emptyHelp} />);
 

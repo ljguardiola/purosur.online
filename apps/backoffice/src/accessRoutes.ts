@@ -1,3 +1,3 @@
-export const INGRESAR_PATH = "/ingresar";
-export const RECUPERAR_PATH = "/recuperar";
-export const RECUPERAR_ENLACE_PATH = "/recuperar/enlace";
+export const SIGN_IN_PATH = "/sign-in";
+export const ACCOUNT_RECOVERY_PATH = "/account-recovery";
+export const REGISTER_PASSKEY_PATH = "/account-recovery/passkey";

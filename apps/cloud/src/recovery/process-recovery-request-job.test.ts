@@ -206,7 +206,7 @@ describe("processRecoveryRequestJob", () => {
 
     const send = mustExist(result.send, "a link to send");
     expect(send.to).toBe("ada@example.com");
-    expect(send.link).toMatch(/^https:\/\/staging\.purosur\.online\/recuperar\/enlace#.+$/);
+    expect(send.link).toMatch(/^https:\/\/staging\.purosur\.online\/account-recovery\/passkey#.+$/);
     const rawToken = mustExist(send.link.split("#")[1], "the link to carry a token fragment");
     // The link's fragment carries the raw token; the row only ever stores its hash.
     const expectedHash = createHash("sha256").update(rawToken).digest("base64url");

@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { IngresarScreen } from "./IngresarScreen";
+import { SignInScreen } from "./SignInScreen";
 
-test("shows the Ingresar heading, its passkey copy and the recovery link, without a passkey sign-in button", async () => {
-  const screen = await render(<IngresarScreen />);
+test("shows the sign-in heading, its passkey copy and the recovery link, without a passkey sign-in button", async () => {
+  const screen = await render(<SignInScreen />);
 
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
   await expect
@@ -16,7 +16,7 @@ test("shows the Ingresar heading, its passkey copy and the recovery link, withou
     .toBeVisible();
 
   const link = screen.getByRole("link", { name: "Perdí mis passkeys" }).element();
-  expect(link.getAttribute("href")).toBe("/recuperar");
+  expect(link.getAttribute("href")).toBe("/account-recovery");
 
   expect(screen.getByRole("button").query()).toBeNull();
 

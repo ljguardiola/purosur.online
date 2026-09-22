@@ -1,16 +1,16 @@
 import { AreaNavItem } from "@purosur/ui";
 import { LifeBuoy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
 import { AyudaContent, AyudaSectionColumn } from "./AyudaScreen";
-import { INGRESAR_PATH, RECUPERAR_ENLACE_PATH, RECUPERAR_PATH } from "./accessRoutes";
+import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { type AyudaHelpCatalog, type AyudaRoute, resolveAyudaPath } from "./ayudaRoutes";
-import { IngresarScreen } from "./IngresarScreen";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
-import { RecuperarScreen } from "./RecuperarScreen";
-import { RegistrarPasskeyScreen } from "./RegistrarPasskeyScreen";
+import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
+import { SignInScreen } from "./SignInScreen";
 
 export type AppProps = {
   help: AyudaHelpCatalog;
@@ -82,12 +82,12 @@ export function App({ help }: AppProps) {
   const route = useRoute();
 
   switch (route) {
-    case INGRESAR_PATH:
-      return <IngresarScreen />;
-    case RECUPERAR_PATH:
-      return <RecuperarScreen />;
-    case RECUPERAR_ENLACE_PATH:
-      return <RegistrarPasskeyScreen />;
+    case SIGN_IN_PATH:
+      return <SignInScreen />;
+    case ACCOUNT_RECOVERY_PATH:
+      return <AccountRecoveryScreen />;
+    case REGISTER_PASSKEY_PATH:
+      return <RegisterPasskeyScreen />;
     default:
       return <AyudaApp help={help} />;
   }

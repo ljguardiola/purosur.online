@@ -21,7 +21,7 @@ describe("createResendRecoveryEmailSender", () => {
 
     await sender.sendRecoveryLink({
       to: "ada@example.com",
-      link: "https://staging.purosur.online/recuperar/enlace#abc123",
+      link: "https://staging.purosur.online/account-recovery/passkey#abc123",
     });
 
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -39,8 +39,8 @@ describe("createResendRecoveryEmailSender", () => {
       reply_to: "purosur.comarca@gmail.com",
     });
     expect(body.subject).toEqual(expect.any(String));
-    expect(body.text).toContain("https://staging.purosur.online/recuperar/enlace#abc123");
-    expect(body.html).toContain("https://staging.purosur.online/recuperar/enlace#abc123");
+    expect(body.text).toContain("https://staging.purosur.online/account-recovery/passkey#abc123");
+    expect(body.html).toContain("https://staging.purosur.online/account-recovery/passkey#abc123");
   });
 
   it("never mentions auditing in the email copy", async () => {
@@ -54,7 +54,7 @@ describe("createResendRecoveryEmailSender", () => {
 
     await sender.sendRecoveryLink({
       to: "ada@example.com",
-      link: "https://staging.purosur.online/recuperar/enlace#abc123",
+      link: "https://staging.purosur.online/account-recovery/passkey#abc123",
     });
 
     const [, init] = fetch.mock.calls[0] as [string, RequestInit];

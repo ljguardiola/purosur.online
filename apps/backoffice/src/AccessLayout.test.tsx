@@ -94,10 +94,10 @@ test("AccessHeader renders with no eyebrow and no description", async () => {
 
 test("AccessFooterLink navigates through the router and shows its icon and label", async () => {
   const screen = await render(
-    <AccessFooterLink to="/recuperar" icon={<LifeBuoy />} label="Perdí mis passkeys" />,
+    <AccessFooterLink to="/account-recovery" icon={<LifeBuoy />} label="Perdí mis passkeys" />,
   );
 
   const link = screen.getByRole("link", { name: "Perdí mis passkeys" }).element();
-  expect(link.getAttribute("href")).toBe("/recuperar");
+  expect(link.getAttribute("href")).toBe("/account-recovery");
   await expectNoAccessibilityViolations(screen.container);
 });
