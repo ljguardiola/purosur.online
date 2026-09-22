@@ -278,6 +278,10 @@ describe("createRecoveryJobQueuePool", () => {
 });
 
 describe("shutdownServer", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("closes the app, then flushes Sentry, then exits 0", async () => {
     const calls: string[] = [];
     const close = vi.fn(async () => {
@@ -307,7 +311,6 @@ describe("shutdownServer", () => {
 
     expect(flush).toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(1);
-    vi.restoreAllMocks();
   });
 });
 
@@ -334,6 +337,10 @@ describe("registerShutdownHandlers", () => {
 });
 
 describe("reportStartupFailure", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("captures the error, flushes Sentry, then exits 1", async () => {
     const calls: string[] = [];
     const error = new Error("listen EADDRINUSE");
@@ -352,6 +359,5 @@ describe("reportStartupFailure", () => {
     await reportStartupFailure(error, { captureException, flush, exit });
 
     expect(calls).toEqual(["capture listen EADDRINUSE", "flush", "exit 1"]);
-    vi.restoreAllMocks();
   });
 });
