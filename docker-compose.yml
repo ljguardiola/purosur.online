@@ -1,0 +1,28 @@
+# Starts a local Postgres for development. Works with `docker compose up -d` and `podman compose
+# up -d` alike; see CONTRIBUTING.md's "Running it locally" for the full sequence.
+#
+# 18 (the current stable major as of this writing) isn't pinned anywhere in the deployed
+# pipeline (.railway/railway.ts's `postgres()` and the Dockerfile both leave the major
+# unspecified), so this is a choice made for local development rather than a match to a pinned
+# deployed version.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: purosur
+      POSTGRES_PASSWORD: purosur
+      POSTGRES_DB: purosur
+    ports:
+      - "5432:5432"
+    # Postgres 18's image expects a single mount at /var/lib/postgresql (not .../data): it now
+    # names its data directory after the major version underneath this mount.
+    volumes:
+      - purosur-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U purosur -d purosur"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  purosur-db:

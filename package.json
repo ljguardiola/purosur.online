@@ -12,7 +12,12 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.mjs",
-    "verify": "tsc --noEmit && biome ci . && pnpm depcruise && vitest run && node --test .github/scripts/*.test.mjs"
+    "verify": "tsc --noEmit && biome ci . && pnpm depcruise && vitest run && node --test .github/scripts/*.test.mjs",
+    "dev:db": "docker compose up -d",
+    "dev:migrate": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/migrate.js",
+    "dev:create-first-administrator": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/create-first-administrator.js",
+    "dev:cloud": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/server.js",
+    "dev:backoffice": "pnpm --filter @purosur/backoffice dev"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
