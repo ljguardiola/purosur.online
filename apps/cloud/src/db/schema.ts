@@ -183,6 +183,6 @@ export const recoveryRejectedAttemptAccumulator = pgTable(
       table.keyHash,
       table.windowStart,
     ),
-    index("recovery_rejected_attempt_accumulator_window_idx").on(table.windowStart),
+    index("recovery_rejected_attempt_accumulator_window_idx").on(table.windowStart, table.id),
   ],
 );

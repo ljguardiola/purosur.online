@@ -10,4 +10,4 @@ CREATE TABLE "recovery_rejected_attempt_accumulator" (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "recovery_rejected_attempt_accumulator_key" ON "recovery_rejected_attempt_accumulator" USING btree ("kind","key_hash","window_start");--> statement-breakpoint
-CREATE INDEX "recovery_rejected_attempt_accumulator_window_idx" ON "recovery_rejected_attempt_accumulator" USING btree ("window_start");
+CREATE INDEX "recovery_rejected_attempt_accumulator_window_idx" ON "recovery_rejected_attempt_accumulator" USING btree ("window_start","id");
