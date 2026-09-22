@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   auditLog,
   recoveryRejectedAttemptAccumulator,
@@ -54,6 +54,10 @@ afterAll(async () => {
   await integrationDb.close();
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 async function seedActiveUser(databaseUrl: string, email: string): Promise<string> {
   const sql = postgres(databaseUrl, { max: 1 });
   try {
@@ -88,6 +92,32 @@ async function countQueuedRecoveryJobs(databaseUrl: string): Promise<number> {
 interface StartedFixture {
   origin: string;
   close(): Promise<void>;
+}
+
+const JOB_QUEUE_FAILURE = /recovery job queue: (idle|active) database client failed/;
+const WORKER_FAILURE = /recovery worker: (idle|active) database client failed/;
+
+/** Cuts every connection both pools hold, the way a database restart or a failover does. */
+async function dropEveryConnection(databaseUrl: string): Promise<void> {
+  const sql = postgres(databaseUrl, { max: 1 });
+  try {
+    await sql`
+      select pg_terminate_backend(pid)
+      from pg_stat_activity
+      where datname = current_database() and pid <> pg_backend_pid()
+    `;
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
+}
+
+/** Shutting down over connections this test just cut is not what it asserts. */
+async function closeQuietly(server: StartedFixture): Promise<void> {
+  try {
+    await server.close();
+  } catch {
+    // The assertions above already reported what this test is about.
+  }
 }
 
 async function startRealServer(
@@ -125,6 +155,34 @@ function postRecoveryRequest(origin: string, email: string): Promise<Response> {
 }
 
 describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker run()", () => {
+  it("hands graphile-worker pools that report their own dropped connections, so graphile installs none of its own", async () => {
+    const warnings: string[] = [];
+    const reports: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    });
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      reports.push(args.map(String).join(" "));
+    });
+
+    const server = await startRealServer(integrationDb.databaseUrl, new FakeRecoveryEmailSender());
+
+    try {
+      // graphile-worker warns, and then installs (and on release removes) its own handlers, for
+      // every pool it is given that is missing an error or a connect listener.
+      expect(warnings.filter((warning) => /doesn't have|err\.red/.test(warning))).toEqual([]);
+
+      await dropEveryConnection(integrationDb.databaseUrl);
+
+      await vi.waitFor(() => {
+        expect(reports.filter((report) => JOB_QUEUE_FAILURE.test(report))).not.toEqual([]);
+        expect(reports.filter((report) => WORKER_FAILURE.test(report))).not.toEqual([]);
+      }, WAIT_OPTIONS);
+    } finally {
+      await closeQuietly(server);
+    }
+  });
+
   it("delivers exactly one recovery email whose link fragment hashes to the stored token, and audits it", async () => {
     const email = `ada-${randomUUID()}@example.com`;
     const userId = await seedActiveUser(integrationDb.databaseUrl, email);
