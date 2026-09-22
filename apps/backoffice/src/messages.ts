@@ -23,7 +23,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       emailInvalid: "Ingresá un correo válido.",
       submit: "Enviar el enlace",
       backLink: "Volver a ingresar",
-      rateLimitedTitle: "Demasiados pedidos desde esta conexión",
+      rateLimitedTitle: "Demasiados pedidos de recuperación",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       errorTitle: "No pudimos enviar el enlace",

@@ -80,7 +80,7 @@ test("shows Enlace enviado with its drawn copy after a successful submit", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a rate-limited notice naming when to retry", async () => {
+test("shows a rate-limited notice that does not blame the connection, naming when to retry", async () => {
   vi.mocked(requestRecoveryLink).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 3600,
@@ -90,7 +90,7 @@ test("shows a rate-limited notice naming when to retry", async () => {
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
-  await expect.element(screen.getByText("Demasiados pedidos desde esta conexión")).toBeVisible();
+  await expect.element(screen.getByText("Demasiados pedidos de recuperación")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
