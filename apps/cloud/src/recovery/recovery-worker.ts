@@ -2,6 +2,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
+import { reportEveryConnectionError } from "./pool-connection-error-handler.js";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
@@ -95,6 +96,7 @@ export async function startRecoveryWorker(
   pool.on("error", (error) => {
     console.error("recovery worker: idle database client failed", error);
   });
+  reportEveryConnectionError(pool, "recovery worker");
 
   const runner = await doRun({
     pgPool: pool as Pool,
