@@ -195,6 +195,10 @@ export async function startServer(
             jobQueue: recovery.jobQueue,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          session: {
+            db: recovery.db,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
         }
       : {}),
   });

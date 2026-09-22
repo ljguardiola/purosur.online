@@ -50,6 +50,13 @@
       "when": 1790086331610,
       "tag": "0006_recovery_rejected_attempt_accumulator",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790103771026,
+      "tag": "0007_sign_in_sessions",
+      "breakpoints": true
     }
   ]
 }

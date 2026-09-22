@@ -215,6 +215,10 @@ describe("startServer", () => {
         jobQueue: fakeRecovery.jobQueue,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      session: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);
