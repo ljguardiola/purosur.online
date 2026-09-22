@@ -3,7 +3,7 @@ import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, sessions } from "../db/schema.js";
+import { auditLog, passkeys, sessions, users } from "../db/schema.js";
 import { reportRecoveryBookkeepingError } from "../recovery/recovery-error-reporting.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
@@ -140,11 +140,20 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         publicKey: passkeys.publicKey,
         counter: passkeys.counter,
         transports: passkeys.transports,
+        active: users.active,
       })
       .from(passkeys)
+      .innerJoin(users, eq(users.id, passkeys.userId))
       .where(eq(passkeys.credentialId, assertion.id))
       .limit(1);
     if (!passkey) {
+      await rejectAuthentication(request, reply, startedAt);
+      return;
+    }
+    // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
+    // CA-ACC-19); the same rule blocks it from ever opening a new one. The rejection must not be
+    // distinguishable from an unknown credential, so it never runs signature verification either.
+    if (!passkey.active) {
       await rejectAuthentication(request, reply, startedAt);
       return;
     }

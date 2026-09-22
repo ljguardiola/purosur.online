@@ -224,6 +224,42 @@ describe("POST /users/session/authenticate", () => {
     });
   });
 
+  it("rejects a deactivated account's passkey as authentication_failed, identically to an unknown credential, and opens no session", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    await db.update(users).set({ active: false }).where(eq(users.id, userId));
+    const assertion = await getAuthenticationAssertion(emulator);
+
+    const response = await postAuthenticate({ assertion });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      code: "authentication_failed",
+      message: expect.any(String),
+    });
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    const rows = await db.select().from(sessions).where(eq(sessions.userId, userId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("counts a deactivated account's rejected attempt toward the per-source lockout", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    await db.update(users).set({ active: false }).where(eq(users.id, userId));
+
+    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
+      const assertion = await getAuthenticationAssertion(emulator);
+      const response = await postAuthenticate({ assertion });
+      expect(response.statusCode).toBe(401);
+    }
+
+    const assertion = await getAuthenticationAssertion(emulator);
+    const eleventh = await postAuthenticate({ assertion });
+
+    expect(eleventh.statusCode).toBe(429);
+    expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
+  });
+
   it("rejects a tampered signature as authentication_failed, identically to an unknown credential", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
