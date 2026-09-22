@@ -1,5 +1,5 @@
-import { Button, Modal } from "@purosur/ui";
-import { LogOut, X } from "lucide-react";
+import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { LogOut, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { messages } from "./messages";
 import { signOut } from "./sessionApi";
@@ -20,11 +20,24 @@ const railIconWrapperClassName =
 export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) {
   const [confirming, setConfirming] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  function openConfirm() {
+    setFailed(false);
+    setConfirming(true);
+  }
 
   async function handleConfirm() {
+    setFailed(false);
     setSigningOut(true);
-    await signOut();
+    const outcome = await signOut();
     setSigningOut(false);
+    // Leaving for the sign-in screen after a sign-out the cloud never heard would only look like
+    // one: the session and its cookie are still live, so the person stays where they are.
+    if (outcome.kind !== "ok") {
+      setFailed(true);
+      return;
+    }
     setConfirming(false);
     onSignedOut();
   }
@@ -34,7 +47,7 @@ export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) 
       <p className="w-full text-center text-xs font-semibold leading-[1.2] text-blue-soft">
         {displayName}
       </p>
-      <button type="button" className={railItemClassName} onClick={() => setConfirming(true)}>
+      <button type="button" className={railItemClassName} onClick={openConfirm}>
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />
         </span>
@@ -77,7 +90,14 @@ export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) 
           </>
         }
       >
-        {null}
+        {failed ? (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={messages.shell.signOut.failedTitle}
+            detail={messages.shell.signOut.failedDetail}
+          />
+        ) : null}
       </Modal>
     </>
   );

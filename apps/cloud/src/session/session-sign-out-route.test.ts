@@ -41,7 +41,11 @@ beforeEach(async () => {
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => currentTime,
   });
-  registerSessionReadRoute(app, { db, now: () => currentTime });
+  registerSessionReadRoute(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => currentTime,
+  });
 });
 
 afterEach(async () => {

@@ -10,6 +10,7 @@ import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
 
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
@@ -36,7 +37,11 @@ beforeEach(async () => {
 
   currentTime = NOON;
   app = Fastify();
-  registerSessionReadRoute(app, { db, now: () => currentTime });
+  registerSessionReadRoute(app, {
+    db,
+    backofficeOrigin: BACKOFFICE_ORIGIN,
+    now: () => currentTime,
+  });
 });
 
 afterEach(async () => {
@@ -167,5 +172,107 @@ describe("GET /users/session", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("expires and revokes the session of an account that was deactivated", async () => {
+    const rawSessionId = await insertSession();
+    await db.update(users).set({ active: false }).where(eq(users.id, userId));
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    const row = await sessionRow(rawSessionId);
+    expect(row?.revokedAt).not.toBeNull();
+  });
+
+  it("rejects an Origin that is not the backoffice's own, leaving last_seen_at untouched", async () => {
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+        origin: "https://attacker.example",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    const row = await sessionRow(rawSessionId);
+    expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("accepts the backoffice's own Origin", async () => {
+    const rawSessionId = await insertSession();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+        origin: BACKOFFICE_ORIGIN,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("rejects a request the browser reports as cross-site, leaving last_seen_at untouched", async () => {
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+        "sec-fetch-site": "cross-site",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    const row = await sessionRow(rawSessionId);
+    expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("rejects a request the browser reports as started by the person, revoking nothing", async () => {
+    const rawSessionId = await insertSession({ createdAt: NOON, lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+        "sec-fetch-site": "none",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+    const row = await sessionRow(rawSessionId);
+    expect(row?.revokedAt).toBeNull();
+  });
+
+  it("accepts the same-origin fetch the backoffice itself makes, and refreshes the session", async () => {
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/users/session",
+      headers: {
+        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+        "sec-fetch-site": "same-origin",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const row = await sessionRow(rawSessionId);
+    expect(row?.lastSeenAt.getTime()).toBe(currentTime.getTime());
   });
 });

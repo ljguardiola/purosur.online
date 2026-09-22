@@ -8,7 +8,7 @@ import { signOut } from "./sessionApi";
 vi.mock("./sessionApi", () => ({ signOut: vi.fn() }));
 
 beforeEach(async () => {
-  vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
+  vi.mocked(signOut).mockReset().mockResolvedValue({ kind: "ok" });
   await page.viewport(1280, 900);
 });
 
@@ -69,4 +69,37 @@ test("confirming signs out and calls onSignedOut", async () => {
 
   await expect.poll(() => vi.mocked(signOut).mock.calls.length).toBe(1);
   await expect.poll(() => onSignedOut.mock.calls.length).toBe(1);
+});
+
+test("keeps the person where they are, with a notice, when the cloud never ended the session", async () => {
+  vi.mocked(signOut).mockResolvedValue({ kind: "failed" });
+  const onSignedOut = vi.fn();
+  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut });
+
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
+
+  await expect.element(screen.getByText("No se pudo salir")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo.")).toBeVisible();
+  expect(onSignedOut).not.toHaveBeenCalled();
+  await expect.element(dialog.getByRole("button", { name: "Salir" })).not.toBeDisabled();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("does not carry a failure notice into the next time the modal is opened", async () => {
+  vi.mocked(signOut).mockResolvedValue({ kind: "failed" });
+  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut: () => {} });
+
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Salir" }));
+  await expect.element(screen.getByText("No se pudo salir")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  expect(screen.getByText("No se pudo salir").query()).toBeNull();
 });

@@ -110,14 +110,29 @@ test("authenticate reports failed on a rejected credential, an origin mismatch, 
   await expect(authenticate(assertion)).resolves.toEqual({ kind: "failed" });
 });
 
-test("signOut posts with no body and never throws, even on failure", async () => {
+test("signOut posts with no body and reports that the session was ended", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
-  await expect(signOut()).resolves.toBeUndefined();
+
+  await expect(signOut()).resolves.toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/session/sign-out",
     expect.objectContaining({ method: "POST" }),
   );
+});
+
+test("signOut reports ok on 401, where the cloud has no session left to end", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(signOut()).resolves.toEqual({ kind: "ok" });
+});
+
+test("signOut reports failed when the cloud never ended the session", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(signOut()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "origin_rejected" }));
+  await expect(signOut()).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
-  await expect(signOut()).resolves.toBeUndefined();
+  await expect(signOut()).resolves.toEqual({ kind: "failed" });
 });

@@ -11,7 +11,7 @@ import { messages } from "./messages";
 import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
-import { SignInScreen } from "./SignInScreen";
+import { type SignInOpeningNotice, SignInScreen } from "./SignInScreen";
 import { fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 
@@ -21,7 +21,7 @@ export type AppProps = {
 
 type SessionState =
   | { kind: "loading" }
-  | { kind: "signed-out"; expired: boolean }
+  | { kind: "signed-out"; notice: SignInOpeningNotice | undefined }
   | { kind: "signed-in"; displayName: string };
 
 function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
@@ -107,11 +107,18 @@ export function App({ help }: AppProps) {
       if (outcome.kind === "ok") {
         markSignedIn();
         setSession({ kind: "signed-in", displayName: outcome.displayName });
-      } else {
-        const expired = wasSignedIn();
-        clearSignedInMarker();
-        setSession({ kind: "signed-out", expired });
+        return;
       }
+      if (outcome.kind === "failed") {
+        // Nobody said the session ended — the question never got an answer. Clearing the marker
+        // here would turn the next attempt's honest "venció" into a lie, and the session itself
+        // may well still be live.
+        setSession({ kind: "signed-out", notice: "check_failed" });
+        return;
+      }
+      const expired = wasSignedIn();
+      clearSignedInMarker();
+      setSession({ kind: "signed-out", notice: expired ? "expired" : undefined });
     });
     return () => {
       cancelled = true;
@@ -139,14 +146,17 @@ export function App({ help }: AppProps) {
         markSignedIn();
         setSession({ kind: "signed-in", displayName: outcome.displayName });
       } else {
-        setSession({ kind: "signed-out", expired: false });
+        setSession({
+          kind: "signed-out",
+          notice: outcome.kind === "failed" ? "check_failed" : undefined,
+        });
       }
     });
   }
 
   function handleSignedOut() {
     clearSignedInMarker();
-    setSession({ kind: "signed-out", expired: false });
+    setSession({ kind: "signed-out", notice: undefined });
     navigate(SIGN_IN_PATH, { replace: true });
   }
 
@@ -157,7 +167,7 @@ export function App({ help }: AppProps) {
   switch (route) {
     case SIGN_IN_PATH:
       return session.kind === "signed-in" ? null : (
-        <SignInScreen expired={session.expired} onSignedIn={handleSignedIn} />
+        <SignInScreen openingNotice={session.notice} onSignedIn={handleSignedIn} />
       );
     case ACCOUNT_RECOVERY_PATH:
       return <AccountRecoveryScreen />;

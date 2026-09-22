@@ -4,9 +4,9 @@ import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  checkSignInLockout,
+  admitSignInAttempt,
+  discardSignInAttempt,
   hashSourceAddress,
-  recordSignInFailure,
   SIGN_IN_BLOCK_DURATION_MS,
   SIGN_IN_FAILURE_LIMIT,
 } from "./sign-in-lockout.js";
@@ -33,109 +33,134 @@ function minutesAfterNoon(minutes: number): Date {
   return new Date(NOON.getTime() + minutes * MINUTE_MS);
 }
 
-async function fail(sourceAddress: string, now: Date) {
-  return recordSignInFailure(db, { sourceAddress, now });
+function attempt(sourceAddress: string, now: Date) {
+  return admitSignInAttempt(db, { sourceAddress, now });
 }
 
-describe("checkSignInLockout", () => {
-  it("does not block a source address with no recorded failures", async () => {
-    const result = await checkSignInLockout(db, "203.0.113.10", NOON);
+/** An attempt that was admitted and then rejected by the credential check, so it stays counted. */
+async function rejectedAttempt(sourceAddress: string, now: Date): Promise<void> {
+  const admission = await attempt(sourceAddress, now);
+  if (!admission.admitted) {
+    throw new Error("test setup: expected this attempt to be admitted");
+  }
+}
 
-    expect(result).toEqual({ blocked: false });
+async function rejectedAttempts(sourceAddress: string, now: Date, count: number): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    await rejectedAttempt(sourceAddress, now);
+  }
+}
+
+describe("admitSignInAttempt", () => {
+  it("admits an attempt from a source address with nothing recorded against it", async () => {
+    const admission = await attempt("203.0.113.10", NOON);
+
+    expect(admission.admitted).toBe(true);
   });
 
-  it("blocks a source address whose block has not yet expired", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-      await fail("203.0.113.10", NOON);
-    }
+  it("admits attempts up to the limit and blocks the one that finds it reached", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
-    const result = await checkSignInLockout(db, "203.0.113.10", NOON);
+    const admission = await attempt("203.0.113.10", NOON);
 
-    expect(result).toEqual({
-      blocked: true,
+    expect(admission).toMatchObject({
+      admitted: false,
       blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
     });
   });
 
-  it("no longer blocks once the block duration has passed", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-      await fail("203.0.113.10", NOON);
-    }
+  it("reports the block it set, once, so each block is audited a single time", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
-    const result = await checkSignInLockout(
-      db,
+    const tripping = await attempt("203.0.113.10", NOON);
+    const next = await attempt("203.0.113.10", NOON);
+
+    if (tripping.admitted || next.admitted) {
+      throw new Error("test setup: expected both attempts to be blocked");
+    }
+    expect(tripping.trippedLockout).toMatchObject({
+      failureCount: SIGN_IN_FAILURE_LIMIT,
+      blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
+    });
+    expect(typeof tripping.trippedLockout?.id).toBe("string");
+    expect(next.trippedLockout).toBeNull();
+  });
+
+  it("keeps blocking for the whole 15 minutes", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
+    await attempt("203.0.113.10", NOON);
+
+    const admission = await attempt(
+      "203.0.113.10",
+      new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS - 1),
+    );
+
+    expect(admission.admitted).toBe(false);
+  });
+
+  it("admits again as soon as the 15 minutes are up, instead of blocking out the hour", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
+    await attempt("203.0.113.10", NOON);
+
+    const admission = await attempt(
       "203.0.113.10",
       new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
     );
 
-    expect(result).toEqual({ blocked: false });
+    expect(admission.admitted).toBe(true);
   });
 
-  it("never blocks a different source address", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-      await fail("203.0.113.10", NOON);
-    }
+  it("makes the next block need its own ten rejected attempts, not one more on top of the old ten", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
+    await attempt("203.0.113.10", NOON);
+    const afterBlock = new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS);
 
-    const result = await checkSignInLockout(db, "203.0.113.99", NOON);
+    await rejectedAttempts("203.0.113.10", afterBlock, SIGN_IN_FAILURE_LIMIT - 1);
+    const withinLimit = await attempt("203.0.113.10", afterBlock);
+    const overLimit = await attempt("203.0.113.10", afterBlock);
 
-    expect(result).toEqual({ blocked: false });
-  });
-});
-
-describe("recordSignInFailure", () => {
-  it("does not trip the lockout before the limit is reached", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
-      const result = await fail("203.0.113.10", NOON);
-      expect(result.tripped).toBe(false);
-    }
+    expect(withinLimit.admitted).toBe(true);
+    expect(overLimit.admitted).toBe(false);
   });
 
-  it("trips the lockout on the failure that reaches the limit, and sets the 15-minute block", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
-      await fail("203.0.113.10", NOON);
+  it("does not count an attempt that was discarded", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT - 1);
+    const discarded = await attempt("203.0.113.10", NOON);
+    if (!discarded.admitted) {
+      throw new Error("test setup: expected the attempt to be admitted");
     }
 
-    const result = await fail("203.0.113.10", NOON);
+    await discardSignInAttempt(db, discarded.attemptId);
+    const admission = await attempt("203.0.113.10", NOON);
 
-    if (!result.tripped) {
-      throw new Error("test setup: expected the limit-reaching failure to trip the lockout");
-    }
-    expect(result.lockout).toMatchObject({
-      failureCount: SIGN_IN_FAILURE_LIMIT,
-      blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
-    });
-    expect(typeof result.lockout.id).toBe("string");
+    expect(admission.admitted).toBe(true);
   });
 
-  it("does not let one source address's failures count against another", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
-      await fail("203.0.113.10", NOON);
-    }
+  it("does not let one source address's attempts count against another", async () => {
+    await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
-    const result = await fail("203.0.113.99", NOON);
+    const admission = await attempt("203.0.113.99", NOON);
 
-    expect(result.tripped).toBe(false);
+    expect(admission.admitted).toBe(true);
   });
 
   it("counts the last 60 minutes, not the current clock hour, so a lockout does not lift on the hour", async () => {
-    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
-      await fail("203.0.113.10", minutesAfterNoon(59));
-    }
+    await rejectedAttempts("203.0.113.10", minutesAfterNoon(59), SIGN_IN_FAILURE_LIMIT);
 
-    const result = await fail("203.0.113.10", minutesAfterNoon(61));
+    const admission = await attempt("203.0.113.10", minutesAfterNoon(61));
 
-    expect(result.tripped).toBe(true);
+    expect(admission.admitted).toBe(false);
   });
 
-  it("prunes failures that already left the window", async () => {
-    await fail("203.0.113.10", NOON);
+  it("prunes attempts that already left the window", async () => {
+    await rejectedAttempt("203.0.113.10", NOON);
 
     const rows = await client.query<{ source_address: string }>(
       "select source_address from sign_in_failures",
     );
     expect(rows.rows).toHaveLength(1);
 
-    await fail("203.0.113.20", minutesAfterNoon(90));
+    await rejectedAttempt("203.0.113.20", minutesAfterNoon(90));
 
     const rowsAfter = await client.query<{ source_address: string }>(
       "select source_address from sign_in_failures",

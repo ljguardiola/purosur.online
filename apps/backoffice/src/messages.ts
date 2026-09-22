@@ -10,6 +10,8 @@ export const messages = defineMessages("es-AR", (f) => ({
       closeLabel: "Cerrar",
       cancel: "Cancelar",
       confirm: "Salir",
+      failedTitle: "No se pudo salir",
+      failedDetail: "Probá de nuevo.",
     },
   },
   access: {
@@ -26,6 +28,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       expiredTitle: "Tu sesión venció",
       expiredDetail: "Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado.",
+      checkFailedTitle: "No pudimos verificar tu sesión",
+      checkFailedDetail: "Probá de nuevo en unos minutos.",
       attemptFailedTitle: "No se pudo ingresar",
       attemptFailedDetail: "Probá de nuevo.",
     },

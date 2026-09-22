@@ -22,6 +22,8 @@ export type AuthenticateOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type SignOutOutcome = { kind: "ok" } | { kind: "failed" };
+
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
@@ -90,12 +92,21 @@ export async function authenticate(
   return { kind: "failed" };
 }
 
-/** Ends the current session. Never throws: the caller always lands back on the sign-in screen regardless of whether the cloud actually heard it. */
-export async function signOut(): Promise<void> {
+/**
+ * Ends the current session, and reports whether the cloud actually ended it: a sign-out the cloud
+ * never heard leaves the session live and its cookie in the browser, so the caller must not act
+ * as though the person is out. A 401 is the cloud saying there is no session left to end, which
+ * is the same outcome the person asked for.
+ */
+export async function signOut(): Promise<SignOutOutcome> {
+  let response: Response;
   try {
-    await postJson("/users/session/sign-out");
+    response = await postJson("/users/session/sign-out");
   } catch {
-    // A network failure here just leaves the cookie for the browser to hold; the caller clears
-    // its own local state either way.
+    return { kind: "failed" };
   }
+  if (response.ok || response.status === 401) {
+    return { kind: "ok" };
+  }
+  return { kind: "failed" };
 }

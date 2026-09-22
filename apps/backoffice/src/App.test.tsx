@@ -47,7 +47,7 @@ beforeEach(() => {
     userId: "user-1",
     displayName: "Lucas Guardiola",
   });
-  vi.mocked(signOut).mockReset().mockResolvedValue(undefined);
+  vi.mocked(signOut).mockReset().mockResolvedValue({ kind: "ok" });
 });
 
 afterEach(() => {
@@ -237,6 +237,28 @@ test("shows the session-expired notice when a session was open in this browser b
   const screen = await render(<App help={emptyHelp} />);
 
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+});
+
+test("says the session could not be checked, instead of that it expired, when the check itself fails", async () => {
+  window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "failed" });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByText("No pudimos verificar tu sesión")).toBeVisible();
+  expect(screen.getByText("Tu sesión venció").query()).toBeNull();
+});
+
+test("keeps the signed-in marker when the session check fails, since the session may still be live", async () => {
+  window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "failed" });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+
+  expect(window.localStorage.getItem("purosur-backoffice-was-signed-in")).toBe("1");
 });
 
 test("redirects away from /sign-in to the shell when a session is already live", async () => {

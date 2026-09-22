@@ -8,14 +8,19 @@ import { ACCOUNT_RECOVERY_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 
+/**
+ * Why the app routed here: because the previous session ended (idle or absolute expiry), or
+ * because the check that would have told it never got an answer.
+ */
+export type SignInOpeningNotice = "expired" | "check_failed";
+
 export type SignInScreenProps = {
-  /** Set when the app routed here because the previous session ended (idle or absolute expiry). */
-  expired?: boolean;
+  openingNotice?: SignInOpeningNotice | undefined;
   onSignedIn: () => void;
 };
 
 type Notice =
-  | { kind: "expired" }
+  | { kind: SignInOpeningNotice }
   | { kind: "blocked"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -24,8 +29,10 @@ type Notice =
  * network error, and a cancelled or failed browser passkey prompt alike: nothing about it may
  * let someone infer which of those actually happened.
  */
-export function SignInScreen({ expired, onSignedIn }: SignInScreenProps) {
-  const [notice, setNotice] = useState<Notice | null>(expired ? { kind: "expired" } : null);
+export function SignInScreen({ openingNotice, onSignedIn }: SignInScreenProps) {
+  const [notice, setNotice] = useState<Notice | null>(
+    openingNotice ? { kind: openingNotice } : null,
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSignIn() {
@@ -84,6 +91,14 @@ export function SignInScreen({ expired, onSignedIn }: SignInScreenProps) {
           icon={<Clock />}
           title={messages.access.signIn.expiredTitle}
           detail={messages.access.signIn.expiredDetail}
+        />
+      )}
+      {notice?.kind === "check_failed" && (
+        <InlineNotice
+          tone="warning"
+          icon={<TriangleAlert />}
+          title={messages.access.signIn.checkFailedTitle}
+          detail={messages.access.signIn.checkFailedDetail}
         />
       )}
       {notice?.kind === "failed" && (

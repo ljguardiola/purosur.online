@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { signInFailures, signInLockouts } from "../db/schema.js";
 
@@ -11,9 +11,7 @@ export const SIGN_IN_FAILURE_LIMIT = 10;
 export const SIGN_IN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
-export type SignInLockoutStatus = { blocked: true; blockedUntil: Date } | { blocked: false };
-
-export interface RecordSignInFailureInput {
+export interface AdmitSignInAttemptInput {
   sourceAddress: string;
   now: Date;
 }
@@ -24,9 +22,14 @@ export interface TrippedSignInLockout {
   failureCount: number;
 }
 
-export type RecordSignInFailureResult =
-  | { tripped: true; lockout: TrippedSignInLockout }
-  | { tripped: false };
+export type SignInAttemptAdmission =
+  | { admitted: true; attemptId: string }
+  | {
+      admitted: false;
+      blockedUntil: Date;
+      /** Set only on the attempt whose admission set the block, so each block is audited once. */
+      trippedLockout: TrippedSignInLockout | null;
+    };
 
 /**
  * Hashes a source address for the audit log the same way #167 hashes its own rate-limit keys
@@ -35,23 +38,6 @@ export type RecordSignInFailureResult =
  */
 export function hashSourceAddress(sourceAddress: string): string {
   return createHash("sha256").update(sourceAddress).digest("hex");
-}
-
-/** Reports whether a source address is currently within its 15-minute block, if any. */
-export async function checkSignInLockout<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  sourceAddress: string,
-  now: Date,
-): Promise<SignInLockoutStatus> {
-  const [lockout] = await db
-    .select({ blockedUntil: signInLockouts.blockedUntil })
-    .from(signInLockouts)
-    .where(eq(signInLockouts.sourceAddress, sourceAddress))
-    .limit(1);
-  if (lockout && lockout.blockedUntil.getTime() > now.getTime()) {
-    return { blocked: true, blockedUntil: lockout.blockedUntil };
-  }
-  return { blocked: false };
 }
 
 async function pruneExpiredFailures<TQueryResult extends PgQueryResultHKT>(
@@ -68,15 +54,24 @@ async function pruneExpiredFailures<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Records one server-rejected sign-in attempt against its source address and reports whether this
- * attempt is the one that reaches the rolling one-hour limit. On the failure that reaches it, sets
- * (or extends) that address's 15-minute block. A source address is locked for the whole
- * transaction, so concurrent failures from the same address can never both trip the lockout.
+ * Decides whether a source address may attempt to sign in at all, and records the attempt against
+ * it in the same locked transaction, the way `recovery-rate-limiter.ts` records before admitting
+ * the work it guards. Recording first is what makes the limit bind: an attempt is counted from the
+ * moment it is admitted, so concurrent attempts from one address see each other and only
+ * `SIGN_IN_FAILURE_LIMIT` of them ever reach credential verification.
+ *
+ * The recorded attempt stands as a rejected one unless `discardSignInAttempt` takes it back, which
+ * is what a sign-in that succeeds — or a request too malformed to reach verification — does.
+ *
+ * The attempt that finds the limit already reached sets the address's 15-minute block and spends
+ * the failures the block was built from, so the block lasts the 15 minutes it says it does: the
+ * next one needs its own ten rejected attempts instead of the same ten re-arming it for the rest
+ * of the hour.
  */
-export async function recordSignInFailure<TQueryResult extends PgQueryResultHKT>(
+export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  input: RecordSignInFailureInput,
-): Promise<RecordSignInFailureResult> {
+  input: AdmitSignInAttemptInput,
+): Promise<SignInAttemptAdmission> {
   const windowStart = new Date(input.now.getTime() - SIGN_IN_LOCKOUT_WINDOW_MS);
   await pruneExpiredFailures(db, windowStart);
 
@@ -85,40 +80,67 @@ export async function recordSignInFailure<TQueryResult extends PgQueryResultHKT>
       sql`select pg_advisory_xact_lock(hashtextextended(${input.sourceAddress}, 0))`,
     );
 
-    await tx.insert(signInFailures).values({
-      sourceAddress: input.sourceAddress,
-      attemptedAt: input.now,
-    });
+    const [lockout] = await tx
+      .select({ blockedUntil: signInLockouts.blockedUntil })
+      .from(signInLockouts)
+      .where(eq(signInLockouts.sourceAddress, input.sourceAddress))
+      .limit(1);
+    if (lockout && lockout.blockedUntil.getTime() > input.now.getTime()) {
+      return {
+        admitted: false,
+        blockedUntil: lockout.blockedUntil,
+        trippedLockout: null,
+      } as const;
+    }
 
     const counted = await tx
-      .select({ attemptedAt: signInFailures.attemptedAt })
+      .select({ id: signInFailures.id })
       .from(signInFailures)
       .where(
         and(
           eq(signInFailures.sourceAddress, input.sourceAddress),
           gt(signInFailures.attemptedAt, windowStart),
         ),
-      )
-      .orderBy(desc(signInFailures.attemptedAt));
-    const failureCount = counted.length;
+      );
 
-    if (failureCount < SIGN_IN_FAILURE_LIMIT) {
-      return { tripped: false } as const;
+    if (counted.length >= SIGN_IN_FAILURE_LIMIT) {
+      const blockedUntil = new Date(input.now.getTime() + SIGN_IN_BLOCK_DURATION_MS);
+      const [blocked] = await tx
+        .insert(signInLockouts)
+        .values({ sourceAddress: input.sourceAddress, blockedUntil })
+        .onConflictDoUpdate({
+          target: signInLockouts.sourceAddress,
+          set: { blockedUntil },
+        })
+        .returning({ id: signInLockouts.id });
+      if (!blocked) {
+        throw new Error("sign-in lockout upsert returned no row");
+      }
+      await tx.delete(signInFailures).where(eq(signInFailures.sourceAddress, input.sourceAddress));
+
+      return {
+        admitted: false,
+        blockedUntil,
+        trippedLockout: { id: blocked.id, blockedUntil, failureCount: counted.length },
+      } as const;
     }
 
-    const blockedUntil = new Date(input.now.getTime() + SIGN_IN_BLOCK_DURATION_MS);
-    const [lockout] = await tx
-      .insert(signInLockouts)
-      .values({ sourceAddress: input.sourceAddress, blockedUntil })
-      .onConflictDoUpdate({
-        target: signInLockouts.sourceAddress,
-        set: { blockedUntil },
-      })
-      .returning({ id: signInLockouts.id });
-    if (!lockout) {
-      throw new Error("sign-in lockout upsert returned no row");
+    const [attempt] = await tx
+      .insert(signInFailures)
+      .values({ sourceAddress: input.sourceAddress, attemptedAt: input.now })
+      .returning({ id: signInFailures.id });
+    if (!attempt) {
+      throw new Error("sign-in attempt insert returned no row");
     }
 
-    return { tripped: true, lockout: { id: lockout.id, blockedUntil, failureCount } } as const;
+    return { admitted: true, attemptId: attempt.id } as const;
   });
+}
+
+/** Takes an admitted attempt back out of the count, for one that was never a rejected sign-in. */
+export async function discardSignInAttempt<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  attemptId: string,
+): Promise<void> {
+  await db.delete(signInFailures).where(eq(signInFailures.id, attemptId));
 }

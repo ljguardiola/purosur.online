@@ -77,7 +77,7 @@ test("shows a blocked notice, without navigating away, when the cloud reports th
 });
 
 test("shows the session-expired notice up front when the app opens it that way", async () => {
-  const screen = await render(<SignInScreen expired onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen openingNotice="expired" onSignedIn={() => {}} />);
 
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
   await expect
@@ -98,7 +98,7 @@ test("lets the person retry after the browser cancels the passkey prompt, cleari
   });
   vi.mocked(startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
 
-  const screen = await render(<SignInScreen expired onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen openingNotice="expired" onSignedIn={() => {}} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
@@ -107,6 +107,15 @@ test("lets the person retry after the browser cancels the passkey prompt, cleari
   await expect
     .element(screen.getByRole("button", { name: "Ingresar con passkey" }))
     .not.toBeDisabled();
+});
+
+test("shows that the session could not be checked when the app opens it that way", async () => {
+  const screen = await render(<SignInScreen openingNotice="check_failed" onSignedIn={() => {}} />);
+
+  await expect.element(screen.getByText("No pudimos verificar tu sesión")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a generic failure notice when fetching the authentication options fails", async () => {

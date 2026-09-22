@@ -5,7 +5,14 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator from "nid-webauthn-emulator";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
+import {
+  auditLog,
+  passkeys,
+  recoveryTokens,
+  sessions,
+  signInChallenges,
+  users,
+} from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
@@ -139,6 +146,22 @@ async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   }
 }
 
+/**
+ * An assertion the server can read and takes all the way to the credential check, and rejects
+ * there because no passkey was ever registered under that credential id — a genuine rejected
+ * sign-in attempt, without an authenticator's key material behind it.
+ */
+function rejectedAssertion() {
+  const clientDataJSON = Buffer.from(
+    JSON.stringify({
+      type: "webauthn.get",
+      challenge: "a-challenge-this-server-never-issued",
+      origin: BACKOFFICE_ORIGIN,
+    }),
+  ).toString("base64url");
+  return { id: "an-unregistered-credential-id", response: { clientDataJSON } };
+}
+
 async function getAuthenticationAssertion(emulator: WebAuthnEmulator) {
   const response = await postOptions();
   if (response.statusCode !== 200) {
@@ -196,6 +219,31 @@ describe("POST /users/session/authenticate", () => {
     expect(firstRow?.revokedAt).not.toBeNull();
   });
 
+  it("leaves the incoming session alone and opens none of its own when the sign-in cannot be stored", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    const first = await postAuthenticate({ assertion: await getAuthenticationAssertion(emulator) });
+    const firstRawId = String(first.headers["set-cookie"]).split(";")[0]?.split("=")[1];
+    // A column with no default fails exactly the INSERT of the new session, while the revoke of
+    // the incoming one — an UPDATE of a row already stored — still goes through on its own.
+    await client.exec(
+      "alter table sessions add column injected_failure text not null default 'x';" +
+        "alter table sessions alter column injected_failure drop default;",
+    );
+
+    const response = await postAuthenticate(
+      { assertion: await getAuthenticationAssertion(emulator) },
+      { cookie: `${SESSION_COOKIE_NAME}=${firstRawId}` },
+    );
+
+    expect(response.statusCode).toBe(500);
+    expect(response.headers["set-cookie"]).toBeUndefined();
+    const rows = await db.select().from(sessions);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.sessionIdHash).toBe(hashSessionId(String(firstRawId)));
+    expect(rows[0]?.revokedAt).toBeNull();
+  });
+
   it("rejects an unknown credential as authentication_failed", async () => {
     const registeredEmulator = new WebAuthnEmulator();
     await registerPasskey(userId, registeredEmulator);
@@ -222,6 +270,32 @@ describe("POST /users/session/authenticate", () => {
       code: "authentication_failed",
       message: expect.any(String),
     });
+  });
+
+  it("consumes the challenge of an attempt whose credential id is unknown, leaving nothing to retry with", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    const assertion = await getAuthenticationAssertion(emulator);
+    const probe = { ...assertion, id: "an-unregistered-credential-id" };
+    expect(await db.select().from(signInChallenges)).toHaveLength(1);
+
+    const response = await postAuthenticate({ assertion: probe });
+
+    expect(response.statusCode).toBe(401);
+    expect(await db.select().from(signInChallenges)).toHaveLength(0);
+  });
+
+  it("consumes the challenge of a deactivated account's attempt", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    await db.update(users).set({ active: false }).where(eq(users.id, userId));
+    const assertion = await getAuthenticationAssertion(emulator);
+    expect(await db.select().from(signInChallenges)).toHaveLength(1);
+
+    const response = await postAuthenticate({ assertion });
+
+    expect(response.statusCode).toBe(401);
+    expect(await db.select().from(signInChallenges)).toHaveLength(0);
   });
 
   it("rejects a deactivated account's passkey as authentication_failed, identically to an unknown credential, and opens no session", async () => {
@@ -346,11 +420,11 @@ describe("POST /users/session/authenticate", () => {
   describe("lockout", () => {
     it("blocks the 11th failed attempt from the same source address within an hour", async () => {
       for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        const response = await postAuthenticate({});
+        const response = await postAuthenticate({ assertion: rejectedAssertion() });
         expect(response.statusCode).toBe(401);
       }
 
-      const eleventh = await postAuthenticate({});
+      const eleventh = await postAuthenticate({ assertion: rejectedAssertion() });
 
       expect(eleventh.statusCode).toBe(429);
       expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
@@ -360,8 +434,8 @@ describe("POST /users/session/authenticate", () => {
     it("checks the lockout before ever looking up a credential, so a locked address cannot sign in even with a valid passkey", async () => {
       const emulator = new WebAuthnEmulator();
       await registerPasskey(userId, emulator);
-      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        await postAuthenticate({});
+      for (let i = 0; i <= SIGN_IN_FAILURE_LIMIT; i++) {
+        await postAuthenticate({ assertion: rejectedAssertion() });
       }
       const assertion = await getAuthenticationAssertion(emulator);
 
@@ -373,18 +447,48 @@ describe("POST /users/session/authenticate", () => {
     });
 
     it("never blocks a different source address", async () => {
-      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        await postAuthenticate({}, { "x-real-ip": "203.0.113.10" });
+      for (let i = 0; i <= SIGN_IN_FAILURE_LIMIT; i++) {
+        await postAuthenticate({ assertion: rejectedAssertion() }, { "x-real-ip": "203.0.113.10" });
       }
 
-      const response = await postAuthenticate({}, { "x-real-ip": "203.0.113.99" });
+      const response = await postAuthenticate(
+        { assertion: rejectedAssertion() },
+        { "x-real-ip": "203.0.113.99" },
+      );
 
       expect(response.statusCode).toBe(401);
     });
 
-    it("writes a backoffice_lockout audit row with no actor once the block is set", async () => {
-      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
-        await postAuthenticate({});
+    it("does not count a request carrying no assertion at all, so empty requests cannot burn an address's budget", async () => {
+      for (let i = 0; i <= SIGN_IN_FAILURE_LIMIT; i++) {
+        const response = await postAuthenticate({});
+        expect(response.statusCode).toBe(401);
+      }
+
+      const next = await postAuthenticate({});
+
+      expect(next.statusCode).toBe(401);
+    });
+
+    it("does not count a sign-in that succeeded", async () => {
+      const emulator = new WebAuthnEmulator();
+      await registerPasskey(userId, emulator);
+      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT - 1; i++) {
+        await postAuthenticate({ assertion: rejectedAssertion() });
+      }
+      const signedIn = await postAuthenticate({
+        assertion: await getAuthenticationAssertion(emulator),
+      });
+      expect(signedIn.statusCode).toBe(200);
+
+      const response = await postAuthenticate({ assertion: rejectedAssertion() });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it("writes one backoffice_lockout audit row with no actor per block, however many attempts follow it", async () => {
+      for (let i = 0; i < SIGN_IN_FAILURE_LIMIT + 3; i++) {
+        await postAuthenticate({ assertion: rejectedAssertion() });
       }
 
       const rows = await db
