@@ -12,8 +12,13 @@ import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
-import { createResendRecoveryEmailSender } from "./recovery/resend-email-sender.js";
+import {
+  type RecoveryEmailSenderEnv,
+  selectRecoveryEmailSender,
+} from "./recovery/select-recovery-email-sender.js";
 import { initSentry } from "./sentry.js";
+
+export type { RecoveryEmailSenderEnv };
 
 export interface ServerEnv {
   PORT?: string | undefined;
@@ -27,6 +32,8 @@ export interface ServerEnv {
   RECOVERY_EMAIL_FROM?: string | undefined;
   RECOVERY_EMAIL_REPLY_TO?: string | undefined;
   BACKOFFICE_ORIGIN?: string | undefined;
+  /** Opts into `resolveRecoveryEmailSenderEnv`'s logging transport on the exact value "log". */
+  RECOVERY_EMAIL_TRANSPORT?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -66,7 +73,7 @@ export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | u
 
 export interface RecoveryEnv {
   databaseUrl: string;
-  resendApiKey: string;
+  emailSender: RecoveryEmailSenderEnv;
   emailFrom: string;
   emailReplyTo: string;
   backofficeOrigin: string;
@@ -78,6 +85,45 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
     throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
   }
   return value;
+}
+
+const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
+const LOCAL_BACKOFFICE_ORIGIN_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
+
+/**
+ * True only for a `BACKOFFICE_ORIGIN` whose hostname is exactly "localhost" or "127.0.0.1" (any
+ * port); a malformed origin is never local.
+ */
+function isLocalBackofficeOrigin(backofficeOrigin: string | undefined): boolean {
+  if (!backofficeOrigin) {
+    return false;
+  }
+  try {
+    return LOCAL_BACKOFFICE_ORIGIN_HOSTNAMES.has(new URL(backofficeOrigin).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Fails closed to `resend`: only the exact value "log", together with a local `BACKOFFICE_ORIGIN`,
+ * opts into the logging transport, so an unset or misspelled `RECOVERY_EMAIL_TRANSPORT` can never
+ * silently stop sending real recovery email in a deployed environment, and a `log` value that
+ * reaches a deployed environment by mistake fails startup loudly instead of silently going dark —
+ * recovery is the only way back into an account, so a crash here is safer than a no-op. Deployed
+ * environments never set `RECOVERY_EMAIL_TRANSPORT` at all, so they always resolve to `resend`.
+ */
+export function resolveRecoveryEmailSenderEnv(env: ServerEnv): RecoveryEmailSenderEnv {
+  if (env.RECOVERY_EMAIL_TRANSPORT === LOG_RECOVERY_EMAIL_TRANSPORT_VALUE) {
+    if (!isLocalBackofficeOrigin(env.BACKOFFICE_ORIGIN)) {
+      throw new Error(
+        "RECOVERY_EMAIL_TRANSPORT=log requires a local BACKOFFICE_ORIGIN (localhost or " +
+          "127.0.0.1): the logging transport is for local development only",
+      );
+    }
+    return { transport: "log" };
+  }
+  return { transport: "resend", resendApiKey: requireRecoveryEnvVar(env, "RESEND_API_KEY") };
 }
 
 /**
@@ -92,7 +138,7 @@ export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
   }
   return {
     databaseUrl: env.DATABASE_URL,
-    resendApiKey: requireRecoveryEnvVar(env, "RESEND_API_KEY"),
+    emailSender: resolveRecoveryEmailSenderEnv(env),
     emailFrom: requireRecoveryEnvVar(env, "RECOVERY_EMAIL_FROM"),
     emailReplyTo: requireRecoveryEnvVar(env, "RECOVERY_EMAIL_REPLY_TO"),
     backofficeOrigin: requireRecoveryEnvVar(env, "BACKOFFICE_ORIGIN"),
@@ -112,7 +158,7 @@ export interface SetUpRecoveryDeps {
    * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
    * it can run this same function — a real postgres-js pool and graphile-worker's real `run()` —
    * against a real Testcontainers Postgres without sending a real email. Production never passes
-   * it, so `startServer` always gets the real Resend sender below.
+   * it, so `startServer` always gets the sender `resolveRecoveryEmailSenderEnv` selected.
    */
   emailSender?: RecoveryEmailSender;
 }
@@ -133,10 +179,10 @@ export async function setUpRecovery(
   const db = drizzle(sql);
   const emailSender =
     deps.emailSender ??
-    createResendRecoveryEmailSender({
-      apiKey: recoveryEnv.resendApiKey,
-      from: recoveryEnv.emailFrom,
-      replyTo: recoveryEnv.emailReplyTo,
+    selectRecoveryEmailSender({
+      emailSender: recoveryEnv.emailSender,
+      emailFrom: recoveryEnv.emailFrom,
+      emailReplyTo: recoveryEnv.emailReplyTo,
     });
   const worker = await startRecoveryWorker({
     databaseUrl: recoveryEnv.databaseUrl,

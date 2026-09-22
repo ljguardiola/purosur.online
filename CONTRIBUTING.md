@@ -7,6 +7,19 @@
 3. Install dependencies: `pnpm install`.
 4. Run the single gate before opening a pull request: `pnpm verify`. It runs the same checks locally and in CI: type checking, lint, tests, and the repository's own automation tests.
 
+## Running it locally
+
+Runs the cloud, its database, and the backoffice on one origin, with no real mail provider and no production or staging credential. Requires Docker or Podman (with the compose plugin) for the database.
+
+1. `cp .env.example .env`. The defaults need no real credential: `RECOVERY_EMAIL_TRANSPORT=log` writes the recovery link to the cloud's own log instead of sending mail.
+2. `pnpm dev:db` — starts Postgres (`docker-compose.yml`) in the background.
+3. `pnpm dev:migrate` — builds the cloud and applies its migrations against `DATABASE_URL`.
+4. `pnpm dev:create-first-administrator -- --name "Your Name" --email you@example.com` — creates the first Administrator.
+5. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
+6. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
+
+To register the first Administrator's passkey: open the backoffice, request an account-recovery link for that Administrator's email, and read the link from the cloud process's log (step 5's terminal) instead of an inbox. A real fingerprint reader or phone is not required: Chrome DevTools' WebAuthn panel (More tools → WebAuthn) can add a virtual authenticator that stands in for one.
+
 ## Pinned versions
 
 - TypeScript is pinned to exactly `6.0.3`. TypeScript 7 ships no JavaScript API, and dependency-cruiser declares support for `typescript >=2.0.0 <7.0.0`; under TypeScript 7 it would cruise zero modules and exit 0, so the architecture gate would pass without checking anything. Lift this pin once dependency-cruiser supports TypeScript 7.
