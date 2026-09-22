@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { FastifyInstance } from "fastify";
+import { makeWorkerUtils } from "graphile-worker";
+import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
@@ -131,7 +133,6 @@ export async function setUpRecovery(
 ): Promise<RecoveryInfrastructure> {
   const sql = postgres(recoveryEnv.databaseUrl);
   const db = drizzle(sql);
-  const jobQueue = createGraphileRecoveryJobQueue(recoveryEnv.databaseUrl);
   const emailSender =
     deps.emailSender ??
     createResendRecoveryEmailSender({
@@ -144,6 +145,14 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
   });
+  // Owned here rather than by graphile-worker, whose own `release()` ends a pool it created without
+  // waiting for it, and drops that pool's error handler first.
+  const jobQueuePool = new pg.Pool({ connectionString: recoveryEnv.databaseUrl });
+  jobQueuePool.on("error", (error) => {
+    console.error("recovery job queue: idle database client failed", error);
+  });
+  const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool });
+  const jobQueue = createGraphileRecoveryJobQueue(workerUtils);
 
   return {
     db,
@@ -152,6 +161,8 @@ export async function setUpRecovery(
     worker,
     async close() {
       await worker.stop();
+      await workerUtils.release();
+      await jobQueuePool.end();
       await sql.end({ timeout: 1 });
     },
   };

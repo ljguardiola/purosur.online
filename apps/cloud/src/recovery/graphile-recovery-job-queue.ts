@@ -1,22 +1,15 @@
-import { addJobAdhoc } from "graphile-worker";
+import type { WorkerUtils } from "graphile-worker";
 import type { RecoveryRequestJobPayload } from "./process-recovery-request-job.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
-export interface GraphileRecoveryJobQueueDeps {
-  /**
-   * Injected in tests; defaults to graphile-worker's own `addJobAdhoc`, which opens and closes
-   * its own short-lived database connection per call — acceptable at this endpoint's volume.
-   */
-  addJobAdhoc?: typeof addJobAdhoc;
-}
-
+/**
+ * Enqueues through one `WorkerUtils` the caller creates at startup and releases on shutdown, so
+ * every request reuses its connection pool instead of opening a connection of its own.
+ */
 export function createGraphileRecoveryJobQueue(
-  databaseUrl: string,
-  deps: GraphileRecoveryJobQueueDeps = {},
+  workerUtils: Pick<WorkerUtils, "addJob">,
 ): RecoveryJobQueue {
-  const doAddJob = deps.addJobAdhoc ?? addJobAdhoc;
-
   return {
     async enqueueRecoveryRequest(request) {
       const payload: RecoveryRequestJobPayload = {
@@ -24,7 +17,7 @@ export function createGraphileRecoveryJobQueue(
         requestedAt: request.requestedAt.toISOString(),
         admitted: request.admitted,
       };
-      await doAddJob({ connectionString: databaseUrl }, RECOVERY_REQUEST_TASK_IDENTIFIER, payload);
+      await workerUtils.addJob(RECOVERY_REQUEST_TASK_IDENTIFIER, payload);
     },
   };
 }
