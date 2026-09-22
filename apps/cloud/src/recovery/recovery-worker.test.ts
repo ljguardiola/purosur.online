@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
-import {
-  type DatabaseConnection,
-  RECOVERY_REQUEST_TASK_IDENTIFIER,
-  startRecoveryWorker,
-} from "./recovery-worker.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER, startRecoveryWorker } from "./recovery-worker.js";
 
 const emailSender: RecoveryEmailSender = { sendRecoveryLink: vi.fn() };
 
@@ -58,13 +54,30 @@ describe("startRecoveryWorker", () => {
     expect(runner.stop).toHaveBeenCalledTimes(1);
   });
 
-  it("processes an admitted job through a connection it opens and closes, even when processing fails", async () => {
+  it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
+    const runWorker = vi.fn().mockResolvedValue(fakeRunner());
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [{ concurrency?: number }];
+    expect(options.concurrency).toBeGreaterThan(1);
+  });
+
+  it("processes a job through a client borrowed from graphile-worker's own pool", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
+    const fakeClient = { marker: "fake-client" };
     const fakeDb = { marker: "fake-db" };
-    const close = vi.fn().mockResolvedValue(undefined);
-    const connectToDatabase = vi.fn(
-      (): DatabaseConnection => ({ db: fakeDb as unknown as DatabaseConnection["db"], close }),
+    const createDatabase = vi.fn().mockReturnValue(fakeDb);
+    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+      callback(fakeClient),
     );
     const processJob = vi.fn().mockRejectedValue(new Error("boom"));
 
@@ -75,11 +88,16 @@ describe("startRecoveryWorker", () => {
         emailSender,
         now: () => new Date("2026-01-05T12:00:00.000Z"),
       },
-      { runWorker, connectToDatabase, processJob },
+      { runWorker, createDatabase, processJob },
     );
 
     const [options] = runWorker.mock.calls[0] as [
-      { taskList: Record<string, (payload: unknown) => Promise<void>> },
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
     ];
     const task = mustExist(
       options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
@@ -92,9 +110,10 @@ describe("startRecoveryWorker", () => {
       admitted: true,
       requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
     };
-    await expect(task(payload)).rejects.toThrow("boom");
+    await expect(task(payload, { withPgClient })).rejects.toThrow("boom");
 
-    expect(connectToDatabase).toHaveBeenCalledWith("postgres://user:pass@db/purosur");
+    expect(withPgClient).toHaveBeenCalledTimes(1);
+    expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(processJob).toHaveBeenCalledWith(
       fakeDb,
       payload,
@@ -103,13 +122,12 @@ describe("startRecoveryWorker", () => {
         emailSender,
       }),
     );
-    expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects a malformed payload without ever opening a database connection", async () => {
+  it("rejects a malformed payload without ever borrowing a database client", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
-    const connectToDatabase = vi.fn();
+    const withPgClient = vi.fn();
 
     await startRecoveryWorker(
       {
@@ -117,35 +135,46 @@ describe("startRecoveryWorker", () => {
         backofficeOrigin: "https://staging.purosur.online",
         emailSender,
       },
-      { runWorker, connectToDatabase },
+      { runWorker },
     );
 
     const [options] = runWorker.mock.calls[0] as [
-      { taskList: Record<string, (payload: unknown) => Promise<void>> },
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
     ];
     const task = mustExist(
       options.taskList[RECOVERY_REQUEST_TASK_IDENTIFIER],
       "the registered recovery-request task",
     );
 
-    await expect(task({})).rejects.toThrow();
-    await expect(task({ email: "ada@example.com" })).rejects.toThrow();
+    await expect(task({}, { withPgClient })).rejects.toThrow();
+    await expect(task({ email: "ada@example.com" }, { withPgClient })).rejects.toThrow();
     await expect(
-      task({
-        email: "ada@example.com",
-        requestedAt: "not-a-date",
-        admitted: true,
-        requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
-      }),
+      task(
+        {
+          email: "ada@example.com",
+          requestedAt: "not-a-date",
+          admitted: true,
+          requestId: "0b8e5c2a-3f4d-4e6a-9b1c-2d3e4f5a6b7c",
+        },
+        { withPgClient },
+      ),
     ).rejects.toThrow();
     await expect(
-      task({
-        email: "ada@example.com",
-        requestedAt: "2026-01-05T12:00:00.000Z",
-        admitted: true,
-        requestId: "not-a-uuid",
-      }),
+      task(
+        {
+          email: "ada@example.com",
+          requestedAt: "2026-01-05T12:00:00.000Z",
+          admitted: true,
+          requestId: "not-a-uuid",
+        },
+        { withPgClient },
+      ),
     ).rejects.toThrow();
-    expect(connectToDatabase).not.toHaveBeenCalled();
+    expect(withPgClient).not.toHaveBeenCalled();
   });
 });

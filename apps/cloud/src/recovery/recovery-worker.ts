@@ -1,7 +1,7 @@
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
-import postgres from "postgres";
+import type { PoolClient } from "pg";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
@@ -10,18 +10,16 @@ import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 
+// A slow job, such as an admitted request waiting on its email, never holds up every other one;
+// jobs for the same account still serialize on their own lock.
+const WORKER_CONCURRENCY = 2;
+
 export interface RecoveryWorkerHandle {
   stop(): Promise<void>;
 }
 
-export interface DatabaseConnection {
-  db: PostgresJsDatabase<Record<string, never>>;
-  close(): Promise<void>;
-}
-
-function connectToDatabase(databaseUrl: string): DatabaseConnection {
-  const sql = postgres(databaseUrl, { max: 1 });
-  return { db: drizzle(sql), close: () => sql.end({ timeout: 1 }) };
+function createDatabase(client: PoolClient): NodePgDatabase<Record<string, never>> {
+  return drizzle(client);
 }
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,44 +49,41 @@ export interface StartRecoveryWorkerOptions {
 export interface StartRecoveryWorkerDeps {
   /** Injected in tests; defaults to graphile-worker's own `run`. */
   runWorker?: (options: RunnerOptions) => Promise<Runner>;
-  /** Injected in tests; defaults to a fresh single-connection postgres-js client per job. */
-  connectToDatabase?: (databaseUrl: string) => DatabaseConnection;
+  /** Injected in tests; defaults to drizzle over the client graphile-worker's own pool lends. */
+  createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   /** Injected in tests to observe the call without a real database. */
   processJob?: typeof processRecoveryRequestJob;
 }
 
 /**
  * Starts graphile-worker inside this process, so the cloud service processes its own
- * `recovery-request` jobs without a separate worker deployment. Each job opens its own
- * short-lived database connection, the same pattern `create-first-administrator.ts` already uses
- * for a single one-shot operation, rather than sharing a pool with the HTTP request path.
+ * `recovery-request` jobs without a separate worker deployment. Each job borrows a client from
+ * graphile-worker's own pool rather than sharing a pool with the HTTP request path.
  */
 export async function startRecoveryWorker(
   options: StartRecoveryWorkerOptions,
   deps: StartRecoveryWorkerDeps = {},
 ): Promise<RecoveryWorkerHandle> {
   const doRun = deps.runWorker ?? run;
-  const doConnect = deps.connectToDatabase ?? connectToDatabase;
+  const doCreateDatabase = deps.createDatabase ?? createDatabase;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
   const now = options.now ?? (() => new Date());
 
   const runner = await doRun({
     connectionString: options.databaseUrl,
+    concurrency: WORKER_CONCURRENCY,
     taskList: {
-      [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload) => {
+      [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload, helpers) => {
         if (!isRecoveryRequestJobPayload(payload)) {
           throw new Error(`${RECOVERY_REQUEST_TASK_IDENTIFIER}: malformed job payload`);
         }
-        const connection = doConnect(options.databaseUrl);
-        try {
-          await doProcessJob(connection.db, payload, {
+        await helpers.withPgClient((client) =>
+          doProcessJob(doCreateDatabase(client), payload, {
             now,
             backofficeOrigin: options.backofficeOrigin,
             emailSender: options.emailSender,
-          });
-        } finally {
-          await connection.close();
-        }
+          }),
+        );
       },
     },
   });

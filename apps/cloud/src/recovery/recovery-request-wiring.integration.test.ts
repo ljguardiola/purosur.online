@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import { makeWorkerUtils } from "graphile-worker";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
 import { setUpRecovery, startServer } from "../server.js";
 import { findFreePort } from "./find-free-port.js";
+import { createGraphileRecoveryJobQueue } from "./graphile-recovery-job-queue.js";
 import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
   createIntegrationDatabase,
@@ -20,6 +22,7 @@ import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 // other seam (job enqueue, job processing, token issuance, auditing) runs for real.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
+const REJECTED_BACKLOG = 60;
 
 class FakeRecoveryEmailSender implements RecoveryEmailSender {
   readonly sent: SendRecoveryLinkInput[] = [];
@@ -219,6 +222,53 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       } finally {
         await sql.end({ timeout: 1 });
       }
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("sends an admitted request's link before working through a backlog of rejected requests", async () => {
+    const floodedEmail = `ada-flooded-${randomUUID()}@example.com`;
+    await seedActiveUser(integrationDb.databaseUrl, floodedEmail);
+    const email = `grace-${randomUUID()}@example.com`;
+    await seedActiveUser(integrationDb.databaseUrl, email);
+
+    // Enqueued through the production queue before the worker starts, so the backlog is already
+    // waiting when the admitted request arrives behind it.
+    const workerUtils = await makeWorkerUtils({ connectionString: integrationDb.databaseUrl });
+    try {
+      await workerUtils.migrate();
+      const jobQueue = createGraphileRecoveryJobQueue(workerUtils);
+      for (let i = 0; i < REJECTED_BACKLOG; i++) {
+        await jobQueue.enqueueRecoveryRequest({
+          email: floodedEmail,
+          requestedAt: new Date(),
+          admitted: false,
+        });
+      }
+      await jobQueue.enqueueRecoveryRequest({ email, requestedAt: new Date(), admitted: true });
+    } finally {
+      await workerUtils.release();
+    }
+
+    // Counted while the admitted job is still running, so it includes that job itself.
+    const jobsLeftAtSend: number[] = [];
+    const sender: RecoveryEmailSender = {
+      async sendRecoveryLink() {
+        jobsLeftAtSend.push(await countQueuedRecoveryJobs(integrationDb.databaseUrl));
+      },
+    };
+    const server = await startRealServer(integrationDb.databaseUrl, sender);
+
+    try {
+      await vi.waitFor(() => {
+        expect(jobsLeftAtSend).toHaveLength(1);
+      }, WAIT_OPTIONS);
+      expect(jobsLeftAtSend[0]).toBeGreaterThan(REJECTED_BACKLOG / 2);
+
+      await vi.waitFor(async () => {
+        expect(await countQueuedRecoveryJobs(integrationDb.databaseUrl)).toBe(0);
+      }, WAIT_OPTIONS);
     } finally {
       await server.close();
     }
