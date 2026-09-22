@@ -23,7 +23,7 @@ test("sizes the brand panel at the design's 680px, at the design's own viewport"
   expect(panel.getBoundingClientRect().width).toBeCloseTo(680, 0);
 });
 
-test("places the Backoffice caption bottom-left in the panel, with the logo centered", async () => {
+test("aligns the logo and the Backoffice caption to the panel's left padding, as drawn", async () => {
   const screen = await render(
     <AccessLayout>
       <p>screen content</p>
@@ -35,14 +35,12 @@ test("places the Backoffice caption bottom-left in the panel, with the logo cent
   const captionRect = screen.getByText("Backoffice").element().getBoundingClientRect();
   const logoRect = screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect();
 
-  // The panel's own p-8 (32px) padding is the design's ≈32px offset from the left and bottom
-  // edges: the caption needs no extra margin, only to stop being centered like the logo above it.
+  // design.pen draws both at the panel's 32px padding: the 460x180 logo box on the left edge,
+  // vertically centered, and the caption in the bottom-left corner.
   expect(captionRect.left - panelRect.left).toBeCloseTo(32, 0);
   expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
-
-  const panelCenterX = panelRect.left + panelRect.width / 2;
-  const logoCenterX = logoRect.left + logoRect.width / 2;
-  expect(logoCenterX).toBeCloseTo(panelCenterX, 0);
+  expect(logoRect.left - panelRect.left).toBeCloseTo(32, 0);
+  expect(logoRect.width).toBeCloseTo(460, 0);
 });
 
 test("shows the brand panel with the logo and the Backoffice caption, before the content", async () => {

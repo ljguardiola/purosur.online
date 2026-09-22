@@ -7,7 +7,7 @@ export type AccessLayoutProps = {
   children: ReactNode;
 };
 
-/** The access screens' own frame, outside the Shell (design.pen's "Backoffice / Acceso" frames): a fixed brand panel beside the centered form content. */
+/** The access screens' own frame, outside the Shell (design.pen's "Backoffice / Acceso" frames): a brand panel, its logo and caption on the left padding, beside the centered form content. */
 export function AccessLayout({ children }: AccessLayoutProps) {
   return (
     <div className="flex h-screen w-screen bg-surface-white">
@@ -16,16 +16,14 @@ export function AccessLayout({ children }: AccessLayoutProps) {
           panel would force the same horizontal scroll BrandPanelScreen.tsx (the POS's own
           two-panel access layout) avoids. min-w-80 keeps the same usable floor at narrower
           widths. */}
-      <div className="flex w-[680px] min-w-80 flex-col items-center bg-surface-sand p-8">
+      <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
         <div className="flex-1" />
         <PuroSurLogo
           alt={messages.shell.brandName}
           className="h-auto max-h-[180px] w-full max-w-[460px] object-contain"
         />
         <div className="flex-1" />
-        <p className="self-start text-sm font-bold text-ink-secondary">
-          {messages.access.brandCaption}
-        </p>
+        <p className="text-sm font-bold text-ink-secondary">{messages.access.brandCaption}</p>
       </div>
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="flex w-full max-w-[440px] flex-col gap-4">{children}</div>
