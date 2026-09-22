@@ -652,7 +652,7 @@ describe("auditing rejected recovery redemptions", () => {
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
   });
 
-  describe("grouped audit of rate-limited rejections (H1)", () => {
+  describe("grouped audit of rate-limited rejections", () => {
     it("upserts the accumulator for a rate-limited registration-options/redeem attempt on a known token, without any individual audit row, token lookup or account lookup", async () => {
       const rawToken = await issueToken({ usedAt: NOON });
       for (let i = 0; i < 10; i++) {
@@ -771,7 +771,7 @@ describe("auditing rejected recovery redemptions", () => {
     });
   });
 
-  describe("bookkeeping failures never block the 429 response (H2)", () => {
+  describe("bookkeeping failures never block the 429 response", () => {
     it("still answers 429 with Retry-After when recording the rejected attempt fails", async () => {
       for (let i = 0; i < 10; i++) {
         await postOptions({ recovery_token: "an-unknown-raw-token" });

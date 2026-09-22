@@ -22,7 +22,7 @@ export interface ProcessRecoveryRequestJobDeps {
 
 export interface ProcessRecoveryRequestJobResult {
   /** Set only when a link was actually issued; the caller sends it after releasing the pool
-   * client this job borrowed, so a slow Resend call never holds it checked out (H3). */
+   * client this job borrowed, so a slow Resend call never holds it checked out. */
   send?: SendRecoveryLinkInput;
 }
 
@@ -44,11 +44,11 @@ function recoveryLink(backofficeOrigin: string, rawToken: string): string {
  * is never enqueued: see `recovery-rejected-attempt-accumulator.ts`). Resolves the account and,
  * for a deactivated one, only audits it against that account. Otherwise it issues a fresh token in
  * the same transaction that voids any live one for that account and audits the issuance, then
- * returns the link for the caller to send once it has released the pool client this job borrowed
- * (H3): the caller must propagate a send failure so graphile-worker's own retry applies, and that
+ * returns the link for the caller to send once it has released the pool client this job borrowed:
+ * the caller must propagate a send failure so graphile-worker's own retry applies, and that
  * retry replaces the link its own request already issued, but never one issued for a different
  * request made at the same time or later, which instead leaves the request audited as superseded.
- * Every audit row this job writes is stamped `at` the request's own time (H4), not whenever this
+ * Every audit row this job writes is stamped `at` the request's own time, not whenever this
  * job happens to run. Jobs for the same account are serialized, so concurrent ones can never both
  * leave a live link.
  */

@@ -67,7 +67,7 @@ export interface StartRecoveryWorkerDeps {
  * `recovery-request` jobs, and the `recovery-rejected-attempt-flush` cron task, without a
  * separate worker deployment. Each job borrows a client from graphile-worker's own pool rather
  * than sharing a pool with the HTTP request path, and releases it before this task does anything
- * else: `recovery-request`'s own send only ever runs once `withPgClient` has resolved (H3), so a
+ * else: `recovery-request`'s own send only ever runs once `withPgClient` has resolved, so a
  * slow Resend call never holds a pool client checked out.
  */
 export async function startRecoveryWorker(

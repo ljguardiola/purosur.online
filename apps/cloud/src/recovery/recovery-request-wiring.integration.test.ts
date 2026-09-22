@@ -216,7 +216,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       try {
         const db = drizzle(sql);
         // No individual audit row is written for the rejection: it is bookkept by the
-        // accumulator instead (issue #167 T5, H1) and only turned into an audit row once its
+        // accumulator instead and only turned into an audit row once its
         // hour window closes and the flush cron task runs.
         const auditRows = await db.select().from(auditLog).where(eq(auditLog.entity, "user"));
         expect(auditRows).toEqual([]);

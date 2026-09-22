@@ -78,7 +78,7 @@ describe("processRecoveryRequestJob", () => {
     });
   });
 
-  it("stamps a deactivated-account audit row with the request time, not the job's run time (H4)", async () => {
+  it("stamps a deactivated-account audit row with the request time, not the job's run time", async () => {
     const requestedAt = new Date(NOW.getTime() - 10 * 60 * 1000);
     await insertUser("ada@example.com", false);
 
@@ -131,7 +131,7 @@ describe("processRecoveryRequestJob", () => {
     });
   });
 
-  it("stamps a superseded audit row with the superseded request's own time, not the job's run time (H4)", async () => {
+  it("stamps a superseded audit row with the superseded request's own time, not the job's run time", async () => {
     await insertUser("ada@example.com");
     const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
     await processRecoveryRequestJob(
@@ -228,7 +228,7 @@ describe("processRecoveryRequestJob", () => {
     expect(JSON.stringify(auditRow.newValue)).not.toContain(token.tokenHash);
   });
 
-  it("stamps the token-issuance audit row with the request time, not the job's run time (H4)", async () => {
+  it("stamps the token-issuance audit row with the request time, not the job's run time", async () => {
     const requestedAt = new Date(NOW.getTime() - 3 * 60 * 1000);
     await insertUser("ada@example.com");
 

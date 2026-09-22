@@ -146,7 +146,7 @@ describe("startRecoveryWorker", () => {
     );
   });
 
-  it("releases the pool client before sending the email it issued a link for (H3)", async () => {
+  it("releases the pool client before sending the email it issued a link for", async () => {
     const runner = fakeRunner();
     const runWorker = vi.fn().mockResolvedValue(runner);
     const events: string[] = [];

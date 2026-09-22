@@ -22,7 +22,7 @@ export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResu
   backofficeOrigin: string;
   /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
-  /** Injected in tests to prove H2: a bookkeeping failure never turns the 429 into a 500. */
+  /** Injected in tests to prove a bookkeeping failure never turns the 429 into a 500. */
   recordRejectedAttempt?: typeof recordRejectedAttempt;
   /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
@@ -83,8 +83,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     if (!rateLimit.allowed) {
       // One synchronous upsert keyed by the token's own stored hash, never a lookup: known and
       // unknown tokens do identical work (issue #167, "rejected for exceeding the hourly limits
-      // are recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500
-      // (H2). A request that carries no token at all has nothing to key the accumulator by.
+      // are recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500.
+      // A request that carries no token at all has nothing to key the accumulator by.
       const rawToken = readRawToken(request.body);
       if (rawToken) {
         try {

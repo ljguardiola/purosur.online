@@ -8,7 +8,7 @@ export interface ReportRecoveryBookkeepingErrorDeps {
 /**
  * Reports a failure from recovery's own bookkeeping (the rejected-attempt accumulator upsert)
  * without throwing, so a request that must still answer with its 429 and `Retry-After` never
- * turns into a 500 just because that write failed (issue #167 T5, H2).
+ * turns into a 500 just because that write failed.
  */
 export function reportRecoveryBookkeepingError(
   error: unknown,

@@ -12,7 +12,7 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   backofficeOrigin: string;
   /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
-  /** Injected in tests to prove H2: a bookkeeping failure never turns the 429 into a 500. */
+  /** Injected in tests to prove a bookkeeping failure never turns the 429 into a 500. */
   recordRejectedAttempt?: typeof recordRejectedAttempt;
   /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
@@ -79,7 +79,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     if (!rateLimit.allowed) {
       // One synchronous upsert, never a lookup: the same work whether or not this address
       // belongs to a real account (issue #167, "rejected for exceeding the hourly limits are
-      // recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500 (H2).
+      // recorded grouped"). A bookkeeping failure here must never turn this 429 into a 500.
       try {
         await doRecordRejectedAttempt(options.db, {
           kind: "request",

@@ -205,7 +205,7 @@ describe("POST /users/recovery/request", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  describe("grouped audit of rate-limited rejections (H1)", () => {
+  describe("grouped audit of rate-limited rejections", () => {
     it("upserts the accumulator instead of enqueuing a job, without looking a registered address up", async () => {
       await db.insert(users).values({ firstName: "Ada", email: "ada@example.com" });
       for (let i = 0; i < 5; i++) {
@@ -278,7 +278,7 @@ describe("POST /users/recovery/request", () => {
     });
   });
 
-  describe("bookkeeping failures never block the 429 response (H2)", () => {
+  describe("bookkeeping failures never block the 429 response", () => {
     it("still answers 429 with Retry-After when recording the rejected attempt fails", async () => {
       for (let i = 0; i < 5; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
