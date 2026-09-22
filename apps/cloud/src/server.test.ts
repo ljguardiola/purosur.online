@@ -94,10 +94,10 @@ describe("resolveRecoveryEnv", () => {
     BACKOFFICE_ORIGIN: "https://staging.purosur.online",
   };
 
-  it("resolves every field once DATABASE_URL and the rest are all set", () => {
+  it("resolves every field once DATABASE_URL and the rest are all set, defaulting to the Resend transport", () => {
     expect(resolveRecoveryEnv(FULL_RECOVERY_ENV)).toEqual({
       databaseUrl: "postgres://user:pass@db/purosur",
-      resendApiKey: "re_test_key",
+      emailSender: { transport: "resend", resendApiKey: "re_test_key" },
       emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
       emailReplyTo: "purosur.comarca@gmail.com",
       backofficeOrigin: "https://staging.purosur.online",
@@ -113,6 +113,69 @@ describe("resolveRecoveryEnv", () => {
     const env = { ...FULL_RECOVERY_ENV, [missing]: undefined };
 
     expect(() => resolveRecoveryEnv(env)).toThrow(missing);
+  });
+
+  describe("RECOVERY_EMAIL_TRANSPORT", () => {
+    const { RESEND_API_KEY: _unused, ...ENV_WITHOUT_RESEND_API_KEY } = FULL_RECOVERY_ENV;
+
+    it("selects the log transport, without requiring RESEND_API_KEY, when set to exactly log with a localhost BACKOFFICE_ORIGIN", () => {
+      const env = {
+        ...ENV_WITHOUT_RESEND_API_KEY,
+        RECOVERY_EMAIL_TRANSPORT: "log",
+        BACKOFFICE_ORIGIN: "http://localhost:5173",
+      };
+
+      expect(resolveRecoveryEnv(env)).toEqual({
+        databaseUrl: "postgres://user:pass@db/purosur",
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "http://localhost:5173",
+      });
+    });
+
+    it("selects the log transport with a 127.0.0.1 BACKOFFICE_ORIGIN too", () => {
+      const env = {
+        ...ENV_WITHOUT_RESEND_API_KEY,
+        RECOVERY_EMAIL_TRANSPORT: "log",
+        BACKOFFICE_ORIGIN: "http://127.0.0.1:5173",
+      };
+
+      expect(resolveRecoveryEnv(env)).toEqual({
+        databaseUrl: "postgres://user:pass@db/purosur",
+        emailSender: { transport: "log" },
+        emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
+        emailReplyTo: "purosur.comarca@gmail.com",
+        backofficeOrigin: "http://127.0.0.1:5173",
+      });
+    });
+
+    it("refuses to start, naming RECOVERY_EMAIL_TRANSPORT and BACKOFFICE_ORIGIN, when log is selected with a deployed BACKOFFICE_ORIGIN", () => {
+      const env = {
+        ...ENV_WITHOUT_RESEND_API_KEY,
+        RECOVERY_EMAIL_TRANSPORT: "log",
+        BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      };
+
+      expect(() => resolveRecoveryEnv(env)).toThrow(/RECOVERY_EMAIL_TRANSPORT/);
+      expect(() => resolveRecoveryEnv(env)).toThrow(/BACKOFFICE_ORIGIN/);
+      expect(() => resolveRecoveryEnv(env)).toThrow(/local development only/);
+    });
+
+    it("falls back to the Resend transport, still requiring RESEND_API_KEY, when unset", () => {
+      const env = { ...ENV_WITHOUT_RESEND_API_KEY };
+
+      expect(() => resolveRecoveryEnv(env)).toThrow("RESEND_API_KEY");
+    });
+
+    it.each(["Log", "LOG", "true", "1", "resend-and-log"])(
+      "falls back to the Resend transport, still requiring RESEND_API_KEY, rather than logging on an unknown value %s",
+      (value) => {
+        const env = { ...ENV_WITHOUT_RESEND_API_KEY, RECOVERY_EMAIL_TRANSPORT: value };
+
+        expect(() => resolveRecoveryEnv(env)).toThrow("RESEND_API_KEY");
+      },
+    );
   });
 });
 
@@ -202,7 +265,7 @@ describe("startServer", () => {
 
     expect(setUpRecovery).toHaveBeenCalledWith({
       databaseUrl: "postgres://user:pass@db/purosur",
-      resendApiKey: "re_test_key",
+      emailSender: { transport: "resend", resendApiKey: "re_test_key" },
       emailFrom: "Puro Sur <acceso@mail.staging.purosur.online>",
       emailReplyTo: "purosur.comarca@gmail.com",
       backofficeOrigin: "https://staging.purosur.online",
