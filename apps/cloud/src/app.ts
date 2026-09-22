@@ -4,6 +4,7 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
 
@@ -23,8 +24,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   staticDir?: string | undefined;
   /**
-   * Registers `POST /users/recovery/request` when given. Left out, the service still starts
-   * (e.g. in a test that has no database), the same way `staticDir` is optional above.
+   * Registers every `POST /users/recovery/*` route (request, registration-options, redeem) when
+   * given. Left out, the service still starts (e.g. in a test that has no database), the same
+   * way `staticDir` is optional above.
    */
   recovery?: RecoveryRouteOptions<TQueryResult>;
 }
@@ -66,6 +68,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.recovery) {
     registerRecoveryRoutes(app, options.recovery);
+    registerRecoveryRedemptionRoutes(app, options.recovery);
   }
 
   const staticDir = options.staticDir;

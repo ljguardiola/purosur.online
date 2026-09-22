@@ -114,6 +114,9 @@ export const recoveryTokens = pgTable(
 export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
   "destination_address",
   "source_address",
+  // T2's registration-options and redeem endpoints share this one, keyed by source address only
+  // (there is no destination address once the recovery token itself identifies the account).
+  "redemption_source_address",
 ]);
 
 // A fixed hourly window, keyed by (kind, value, window start): the request handler upserts and

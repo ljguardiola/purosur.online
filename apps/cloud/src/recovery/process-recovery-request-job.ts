@@ -1,8 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
+import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 export interface RecoveryRequestJobPayload {
   email: string;
@@ -19,10 +20,6 @@ const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
   return randomBytes(TOKEN_BYTES).toString("base64url");
-}
-
-function hashToken(rawToken: string): string {
-  return createHash("sha256").update(rawToken).digest("base64url");
 }
 
 function recoveryLink(backofficeOrigin: string, rawToken: string): string {
@@ -71,7 +68,7 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
       .insert(recoveryTokens)
       .values({
         userId: account.id,
-        tokenHash: hashToken(rawToken),
+        tokenHash: hashRecoveryToken(rawToken),
         issuedAt: now,
         expiresAt: new Date(now.getTime() + TOKEN_LIFETIME_MS),
       })

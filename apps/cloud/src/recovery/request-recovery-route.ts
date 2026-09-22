@@ -2,6 +2,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
+import { resolveSourceAddress } from "./recovery-source-address.js";
 
 export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -59,10 +60,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
 
-    // Railway terminates TLS and sets X-Real-IP; request.ip is only a fallback for an
-    // environment without that proxy in front (e.g. running the service directly in tests).
-    const forwardedIp = request.headers["x-real-ip"];
-    const sourceAddress = typeof forwardedIp === "string" ? forwardedIp : request.ip;
+    const sourceAddress = resolveSourceAddress(request);
 
     const { allowed } = await recordRecoveryRequestAttempt(options.db, {
       destinationAddress: email,

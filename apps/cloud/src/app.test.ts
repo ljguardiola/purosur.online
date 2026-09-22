@@ -219,4 +219,51 @@ describe("wiring the recovery routes", () => {
 
     await client.close();
   });
+
+  it("does not register the redemption routes when no recovery option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const optionsResponse = await app.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      payload: { recovery_token: "a-raw-token" },
+    });
+    const redeemResponse = await app.inject({
+      method: "POST",
+      url: "/users/recovery/redeem",
+      payload: { recovery_token: "a-raw-token" },
+    });
+
+    expect(optionsResponse.statusCode).toBe(404);
+    expect(redeemResponse.statusCode).toBe(404);
+  });
+
+  it("registers the redemption routes when a recovery option is given", async () => {
+    const client = new PGlite();
+    const db = drizzle(client);
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const app = buildApp({
+      version: "abc1234",
+      recovery: {
+        db,
+        jobQueue: { async enqueueRecoveryRequest() {} },
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      headers: { origin: "https://staging.purosur.online", "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: "an-unknown-raw-token" },
+    });
+
+    // An unrecognized token still proves the route is wired: it reaches the redemption handler's
+    // own token-classification error instead of Fastify's generic 404 for an unregistered route.
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
+
+    await client.close();
+  });
 });

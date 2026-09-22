@@ -4,9 +4,18 @@ import { recoveryRateLimitCounters } from "../db/schema.js";
 
 const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
 const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
+// Not specified by the issue or the doc (T2 technical decision, see feature document): the same
+// tope-por-origen budget as the request endpoint's source-address limit, shared by both
+// `registration-options` and `redeem` so probing either one counts against it.
+const REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 
 export interface RecoveryRateLimitInput {
   destinationAddress: string;
+  sourceAddress: string;
+  now: Date;
+}
+
+export interface RedemptionRateLimitInput {
   sourceAddress: string;
   now: Date;
 }
@@ -21,9 +30,14 @@ function hourWindowStart(now: Date): Date {
   return windowStart;
 }
 
+type RecoveryRateLimitKeyKind =
+  | "destination_address"
+  | "source_address"
+  | "redemption_source_address";
+
 async function incrementCounter<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  keyKind: "destination_address" | "source_address",
+  keyKind: RecoveryRateLimitKeyKind,
   keyValue: string,
   windowStart: Date,
 ): Promise<number> {
@@ -68,4 +82,26 @@ export async function recordRecoveryRequestAttempt<TQueryResult extends PgQueryR
       destinationCount <= DESTINATION_ADDRESS_LIMIT_PER_HOUR &&
       sourceCount <= SOURCE_ADDRESS_LIMIT_PER_HOUR,
   };
+}
+
+/**
+ * Records one attempt against `POST /users/recovery/registration-options` or `POST
+ * /users/recovery/redeem` and reports whether the shared per-source-address redemption budget
+ * (10/h) was exceeded. Kept as its own counter kind so probing the redeem side never affects, or
+ * is affected by, the request endpoint's own source-address limit.
+ */
+export async function recordRedemptionAttempt<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: RedemptionRateLimitInput,
+): Promise<RecoveryRateLimitResult> {
+  const windowStart = hourWindowStart(input.now);
+
+  const count = await incrementCounter(
+    db,
+    "redemption_source_address",
+    input.sourceAddress,
+    windowStart,
+  );
+
+  return { allowed: count <= REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR };
 }

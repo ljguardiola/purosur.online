@@ -1,0 +1,1 @@
+ALTER TYPE "public"."recovery_rate_limit_key_kind" ADD VALUE 'redemption_source_address';

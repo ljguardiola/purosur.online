@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
+import { recordRecoveryRequestAttempt, recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
@@ -100,6 +100,64 @@ describe("recordRecoveryRequestAttempt", () => {
     const afterRollover = await recordRecoveryRequestAttempt(db, {
       destinationAddress: "ada@example.com",
       sourceAddress: "203.0.113.100",
+      now: nextHour,
+    });
+
+    expect(afterRollover.allowed).toBe(true);
+  });
+});
+
+describe("recordRedemptionAttempt", () => {
+  it("allows the first redemption attempt from a fresh source address", async () => {
+    const result = await recordRedemptionAttempt(db, { sourceAddress: "203.0.113.10", now: NOON });
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("allows up to 10 attempts per hour from the same source address, then rejects the 11th", async () => {
+    for (let i = 0; i < 10; i++) {
+      const result = await recordRedemptionAttempt(db, {
+        sourceAddress: "203.0.113.10",
+        now: NOON,
+      });
+      expect(result.allowed).toBe(true);
+    }
+
+    const eleventh = await recordRedemptionAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
+
+    expect(eleventh.allowed).toBe(false);
+  });
+
+  it("does not share its count with the recovery-request source-address limit", async () => {
+    for (let i = 0; i < 10; i++) {
+      await recordRecoveryRequestAttempt(db, {
+        destinationAddress: `user${i}@example.com`,
+        sourceAddress: "203.0.113.20",
+        now: NOON,
+      });
+    }
+
+    const result = await recordRedemptionAttempt(db, { sourceAddress: "203.0.113.20", now: NOON });
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it("resets the count once the hourly window rolls over", async () => {
+    for (let i = 0; i < 10; i++) {
+      await recordRedemptionAttempt(db, { sourceAddress: "203.0.113.10", now: NOON });
+    }
+    const withinTheSameHour = await recordRedemptionAttempt(db, {
+      sourceAddress: "203.0.113.10",
+      now: NOON,
+    });
+    expect(withinTheSameHour.allowed).toBe(false);
+
+    const nextHour = new Date(NOON.getTime() + 60 * 60 * 1000);
+    const afterRollover = await recordRedemptionAttempt(db, {
+      sourceAddress: "203.0.113.10",
       now: nextHour,
     });
 
