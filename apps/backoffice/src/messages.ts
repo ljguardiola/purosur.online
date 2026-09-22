@@ -60,7 +60,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       goToSignIn: "Ir a ingresar",
     },
   },
-  ayuda: {
+  help: {
     areaLabel: "Ayuda",
     documentTitle: "Ayuda · Puro Sur",
     pageDocumentTitle: (params: { page: string }) => `${params.page} · Ayuda · Puro Sur`,

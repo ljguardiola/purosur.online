@@ -40,44 +40,44 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("redirects the root path to /ayuda without leaving the root in the history", async () => {
+test("redirects the root path to /help without leaving the root in the history", async () => {
   const lengthBefore = window.history.length;
 
   await render(<App help={emptyHelp} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/ayuda");
+  await expect.poll(() => window.location.pathname).toBe("/help");
   expect(window.history.length).toBe(lengthBefore);
 });
 
-test("redirects a path outside Ayuda to /ayuda", async () => {
+test("redirects a path outside Help to /help", async () => {
   window.history.pushState(null, "", "/ventas");
 
   await render(<App help={help} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/ayuda");
+  await expect.poll(() => window.location.pathname).toBe("/help");
 });
 
 test("redirects an unknown category or article to the closest page that exists", async () => {
-  window.history.pushState(null, "", "/ayuda/x/constructor");
+  window.history.pushState(null, "", "/help/x/constructor");
   const screen = await render(<App help={help} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/ayuda");
+  await expect.poll(() => window.location.pathname).toBe("/help");
   await expect
     .element(screen.getByRole("heading", { name: "Elegí una sección", level: 1 }))
     .toBeInTheDocument();
 
-  window.history.pushState(null, "", "/ayuda/getting_started/unknown");
+  window.history.pushState(null, "", "/help/getting_started/unknown");
   window.dispatchEvent(new PopStateEvent("popstate"));
 
-  await expect.poll(() => window.location.pathname).toBe("/ayuda/getting_started");
+  await expect.poll(() => window.location.pathname).toBe("/help/getting_started");
 });
 
 test("moves an article reached under another category to its own category's URL", async () => {
-  window.history.pushState(null, "", "/ayuda/billing/intro");
+  window.history.pushState(null, "", "/help/billing/intro");
 
   const screen = await render(<App help={help} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/ayuda/getting_started/intro");
+  await expect.poll(() => window.location.pathname).toBe("/help/getting_started/intro");
   await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
 });
 
@@ -90,13 +90,13 @@ test("renders the shell's area rail and section column landmarks", async () => {
     .toBeVisible();
 });
 
-test("shows the active Ayuda item in the rail and the Ayuda screen's own content", async () => {
-  window.history.pushState(null, "", "/ayuda");
+test("shows the active Help item in the rail and the Help screen's own content", async () => {
+  window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} />);
 
-  const ayudaItem = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
-  expect(ayudaItem.getAttribute("aria-current")).toBe("page");
+  const helpItem = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
+  expect(helpItem.getAttribute("aria-current")).toBe("page");
 
   await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
@@ -104,7 +104,7 @@ test("shows the active Ayuda item in the rail and the Ayuda screen's own content
 });
 
 test("following a search result shows that article and clears the search", async () => {
-  window.history.pushState(null, "", "/ayuda");
+  window.history.pushState(null, "", "/help");
   const screen = await render(<App help={help} />);
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "factura");
@@ -120,7 +120,7 @@ test("following a search result shows that article and clears the search", async
 });
 
 test("following a section link to the current page while searching shows that section", async () => {
-  window.history.pushState(null, "", "/ayuda/billing");
+  window.history.pushState(null, "", "/help/billing");
   const screen = await render(<App help={help} />);
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "bienvenida");
@@ -133,7 +133,7 @@ test("following a section link to the current page while searching shows that se
 });
 
 test("titles the document after the page being shown", async () => {
-  window.history.pushState(null, "", "/ayuda");
+  window.history.pushState(null, "", "/help");
   const screen = await render(<App help={help} />);
 
   await expect.poll(() => document.title).toBe("Ayuda · Puro Sur");
@@ -146,7 +146,7 @@ test("titles the document after the page being shown", async () => {
 });
 
 test("moves focus to the page heading after an in-app navigation, not on the first load", async () => {
-  window.history.pushState(null, "", "/ayuda/getting_started/intro");
+  window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={help} />);
 
   const firstHeading = screen.getByRole("heading", { name: "Bienvenida", level: 1 });
@@ -191,7 +191,7 @@ test("routes /account-recovery/passkey to the passkey registration screen, readi
 });
 
 test("shows a focus ring on the page heading it focuses after a keyboard navigation", async () => {
-  window.history.pushState(null, "", "/ayuda/getting_started");
+  window.history.pushState(null, "", "/help/getting_started");
   const screen = await render(<App help={help} />);
 
   const link = screen
