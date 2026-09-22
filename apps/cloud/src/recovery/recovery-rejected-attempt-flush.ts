@@ -13,8 +13,11 @@ import type { RecoveryRejectedAttemptKind } from "./recovery-rejected-attempt-ac
 // waiting this long past the hour means the window is flushed only once nothing lands in it any
 // more, instead of a late upsert re-creating a row the flush already deleted.
 const CLOSE_GRACE_MS = 10 * 60 * 1000;
-// Bounds both the rows one transaction holds and the parameters any one statement binds, since the
-// number of keys a flood can create is chosen by whoever sends it.
+// Bounds the rows one batch selects and the parameters any one statement binds, since the number of
+// keys a flood can create is chosen by whoever sends it. A transaction also takes along every other
+// closed token-kind row of the accounts its batch resolved, so it can hold more rows than this: at
+// most one per kind, closed window and token of those accounts. Only a token some recovery link
+// actually carried matches one, so made-up keys never add to that number.
 const FLUSH_BATCH_SIZE = 500;
 const FLUSH_LOCK_KEY = "recovery-rejected-attempt-flush";
 
