@@ -6,8 +6,7 @@ import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/a
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 
 // Pins a desktop viewport instead of the default phone-sized one, the same way Modal.test.tsx and
-// DateField.test.tsx do, so the panel's fixed pixel width below is measured at a size it actually
-// fits.
+// DateField.test.tsx do: the panel's 680px basis only holds when the row is wide enough for it.
 beforeEach(async () => {
   await page.viewport(1440, 900);
 });

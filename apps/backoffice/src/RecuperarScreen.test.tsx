@@ -55,7 +55,7 @@ test("rejects a malformed email without calling the API", async () => {
   expect(requestRecoveryLink).not.toHaveBeenCalled();
 });
 
-test("shows Enlace enviado with its heading and body copy after a successful submit", async () => {
+test("confirms the link was sent, with the uniform notice, after a successful submit", async () => {
   vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "sent" });
   const screen = await render(<RecuperarScreen />);
 
@@ -92,6 +92,7 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
 
   await expect.element(screen.getByText("Demasiados pedidos de recuperación")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 60 minutos.")).toBeVisible();
+  expect(screen.getByText(/conexión/).query()).toBeNull();
 
   await expectNoAccessibilityViolations(screen.container);
 });

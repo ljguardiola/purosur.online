@@ -161,10 +161,11 @@ async function flushOneBatch<TQueryResult extends PgQueryResultHKT>(
     const requestKeyHashes = batch
       .filter((row) => row.kind === "request")
       .map((row) => row.keyHash);
-    const accountByDestinationHash =
-      requestKeyHashes.length > 0
-        ? await loadAccountsByDestinationHash(tx, requestKeyHashes, batchSize)
-        : new Map<string, string>();
+    const accountByDestinationHash = await loadAccountsByDestinationHash(
+      tx,
+      requestKeyHashes,
+      batchSize,
+    );
     const accountByTokenHash = await resolveTokenHashes(
       tx,
       batch.filter((row) => row.kind !== "request").map((row) => row.keyHash),

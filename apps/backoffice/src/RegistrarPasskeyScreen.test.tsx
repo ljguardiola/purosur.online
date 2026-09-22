@@ -81,7 +81,7 @@ test("shows a loading state before the registration options resolve", async () =
   await expect.element(screen.getByText("Abriendo el registro…")).toBeVisible();
 });
 
-test("shows the Registrar heading and copy with the account's display name, without the deferred sessions notice", async () => {
+test("shows the Registrar heading and copy with the account's display name, without claiming open sessions were closed", async () => {
   vi.mocked(fetchRegistrationOptions).mockResolvedValue({
     kind: "ok",
     value: { displayName: "Lucía Pérez", options: registrationOptions },
@@ -170,6 +170,7 @@ test("registers the passkey and shows the success state, without implying a sess
   expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
 
   await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
+  expect(screen.getByText(/sesi[oó]n/i).query()).toBeNull();
   const signInLink = screen.getByRole("link", { name: "Ir a ingresar" }).element();
   expect(signInLink.getAttribute("href")).toBe("/ingresar");
 
@@ -189,6 +190,7 @@ test("lets the person retry, without a new link, after the browser cancels regis
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   expect(redeemRecovery).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
 });
 
 test("lets the person retry, without a new link, after redeem rejects the registration", async () => {
@@ -204,6 +206,7 @@ test("lets the person retry, without a new link, after redeem rejects the regist
 
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
 });
 
 test("retries with fresh options after another tab replaced this link's challenge", async () => {
