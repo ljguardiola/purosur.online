@@ -13,12 +13,6 @@ describe("serializeSessionCookie", () => {
     expect(header.startsWith("__Host-backoffice_session=a-raw-session-id;")).toBe(true);
   });
 
-  it("carries the raw session id under the session cookie's own name", () => {
-    const header = serializeSessionCookie("a-raw-session-id");
-
-    expect(header.startsWith(`${SESSION_COOKIE_NAME}=a-raw-session-id;`)).toBe(true);
-  });
-
   it("is HttpOnly, Secure, SameSite=Lax and scoped to the whole origin", () => {
     const header = serializeSessionCookie("a-raw-session-id");
 
@@ -67,6 +61,14 @@ describe("readSessionCookie", () => {
     expect(
       readSessionCookie("__Host-backoffice_session=a-raw-session-id; backoffice_session=shadow"),
     ).toBe("a-raw-session-id");
+  });
+
+  it("returns undefined when the session cookie's name arrives twice", () => {
+    expect(
+      readSessionCookie(
+        "__Host-backoffice_session=planted; __Host-backoffice_session=a-raw-session-id",
+      ),
+    ).toBeUndefined();
   });
 
   it("returns undefined when only an unprefixed backoffice_session cookie was sent", () => {
