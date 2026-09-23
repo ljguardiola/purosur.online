@@ -35,8 +35,8 @@ jobs:
     runs-on: windows-latest
     # Only a merge to main packages the staging installer under the staging environment, which
     # admits nothing but main; pull requests package both channels with no credentials at all. The
-    # job builds the app code once and packages both channels from it, but only the package:staging
-    # step below reads the staging environment's Sentry DSN and update feed URL — package:production
+    # job builds the app code once and packages both channels from it, but only the pack:staging
+    # step below reads the staging environment's Sentry DSN and update feed URL — pack:production
     # never receives them, on a pull request or on main. The production installer that carries
     # credentials comes from the tag-bound release workflow.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
@@ -62,7 +62,7 @@ jobs:
       # update feed only reach each installer's resources/channel.json and app-update.yml, outside
       # app.asar. An unset variable leaves that feature off in the installer. The production
       # installer, on a pull request or on main, never gets a DSN or a feed here.
-      - run: pnpm --filter @purosur/pos package:production
+      - run: pnpm --filter @purosur/pos pack:production
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
@@ -70,7 +70,7 @@ jobs:
       # The staging feed is a separate artifact in the staging bucket. The DSN reaches only the job
       # running under the staging environment (a push to main), so no pull request installer ever
       # reports to Sentry.
-      - run: pnpm --filter @purosur/pos package:staging
+      - run: pnpm --filter @purosur/pos pack:staging
         env:
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
@@ -132,7 +132,7 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
-      - run: pnpm --filter @purosur/pos package:production --dir
+      - run: pnpm --filter @purosur/pos pack:production --dir
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
