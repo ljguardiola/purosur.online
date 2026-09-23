@@ -21,6 +21,29 @@ const ENV_ASSIGNMENT_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const RELEASE_TAG_PATTERN = /^(cloud|pos)-v/;
 const GIT_TAG_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-u", "--local-user"]);
 
+// Global git options that take a value as a separate following token when
+// not written as `--opt=value`. `-C`, `-c` and the undocumented
+// `--shallow-file` never accept `=value`; `--exec-path` and `--list-cmds`
+// only accept `=value`, so they are value-less flags here.
+const GIT_GLOBAL_VALUE_FLAGS = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--config-env",
+  "--attr-source",
+  "--shallow-file",
+]);
+
+// Global git options that also select which repository (and so which
+// branch) the command runs against.
+const GIT_LOCATION_FLAGS = new Set(["-C", "--git-dir", "--work-tree"]);
+
+// Env-assignment prefixes equivalent to a `--git-dir=`/`--work-tree=` global
+// option; `stripEnvAssignments` otherwise drops these silently.
+const ENV_LOCATION_OPTIONS = { GIT_DIR: "--git-dir", GIT_WORK_TREE: "--work-tree" };
+
 // --- tokenizing --------------------------------------------------------
 
 function tokenize(command) {
@@ -123,6 +146,83 @@ function stripEnvAssignments(tokens) {
   return tokens.slice(index);
 }
 
+// Reads the leading `NAME=value` prefix and returns any `GIT_DIR=`/
+// `GIT_WORK_TREE=` entries, normalized into `--git-dir=`/`--work-tree=`
+// global-option form, in the order they appeared.
+function collectEnvLocationArgs(tokens) {
+  const locationArgs = [];
+  let index = 0;
+  while (index < tokens.length && ENV_ASSIGNMENT_PATTERN.test(tokens[index])) {
+    const eq = tokens[index].indexOf("=");
+    const name = tokens[index].slice(0, eq);
+    const option = ENV_LOCATION_OPTIONS[name];
+    if (option) {
+      locationArgs.push(`${option}=${tokens[index].slice(eq + 1)}`);
+    }
+    index++;
+  }
+  return locationArgs;
+}
+
+// Skips git's global options to find the subcommand, collecting the
+// location-changing ones (`-C`, `--git-dir`, `--work-tree`) along the way.
+// A value flag consumes the next token unless its value is attached with
+// `=`; every other leading `-`/`--` token is a flag with no value.
+function parseGitGlobalOptions(rest) {
+  const locationArgs = [];
+  let index = 0;
+
+  while (index < rest.length && rest[index].startsWith("-")) {
+    const token = rest[index];
+    const eq = token.indexOf("=");
+    const name = eq === -1 ? token : token.slice(0, eq);
+    const isLocation = GIT_LOCATION_FLAGS.has(name);
+
+    if (eq !== -1) {
+      if (isLocation) {
+        locationArgs.push(token);
+      }
+      index++;
+      continue;
+    }
+
+    if (GIT_GLOBAL_VALUE_FLAGS.has(name)) {
+      const value = rest[index + 1];
+      if (isLocation) {
+        locationArgs.push(token);
+        if (value !== undefined) {
+          locationArgs.push(value);
+        }
+      }
+      index += 2;
+      continue;
+    }
+
+    index++;
+  }
+
+  return { sub: rest[index], args: rest.slice(index + 1), locationArgs };
+}
+
+// Resolves the branch the guard should judge: with no location args,
+// `context.branch` (the session cwd's branch); with location args,
+// `context.branchFor(locationArgs)`. A missing or failing resolver, or a
+// null result, means "branch unknown", which fails open on branch rules
+// without hiding the rules that do not depend on the branch.
+function resolveBranch(context, locationArgs) {
+  if (locationArgs.length === 0) {
+    return context.branch ?? null;
+  }
+  if (typeof context.branchFor !== "function") {
+    return null;
+  }
+  try {
+    return context.branchFor(locationArgs) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // --- flag parsing --------------------------------------------------------
 
 // Parses `tokens` (already past the subcommand) for a fixed set of flags.
@@ -167,11 +267,11 @@ function parseFlags(tokens, { valueFlags, boolFlags, aliases = {} }) {
 
 // --- git rules -------------------------------------------------------------
 
-function checkGitCommit(rest, context, problems) {
+function checkGitCommit(rest, branch, problems) {
   if (rest.includes("--no-verify")) {
     problems.push("Do not bypass hooks with --no-verify on git commit.");
   }
-  if (context.branch === "main") {
+  if (branch === "main") {
     problems.push("Do not commit directly on main; create a feature branch first.");
   }
 }
@@ -180,7 +280,7 @@ function isForceFlag(token) {
   return token === "--force" || token === "-f" || /^--force-with-lease(=.*)?$/.test(token);
 }
 
-function checkGitPush(rest, context, problems) {
+function checkGitPush(rest, branch, problems) {
   const positional = [];
   let hasNoVerify = false;
   let hasForce = false;
@@ -213,11 +313,11 @@ function checkGitPush(rest, context, problems) {
 
   let targetsMain = false;
   if (positional.length === 0) {
-    targetsMain = context.branch === "main";
+    targetsMain = branch === "main";
   } else {
     const refspecs = positional.slice(1);
     if (refspecs.length === 0) {
-      targetsMain = context.branch === "main";
+      targetsMain = branch === "main";
     } else {
       targetsMain = refspecs.some((spec) => {
         const parts = spec.split(":");
@@ -349,6 +449,7 @@ function checkGhIssue(tokens, verb, context, problems) {
 // --- dispatch --------------------------------------------------------------
 
 function checkSegment(tokens, context, problems) {
+  const envLocationArgs = collectEnvLocationArgs(tokens);
   const cmdTokens = stripEnvAssignments(tokens);
   if (cmdTokens.length === 0) {
     return;
@@ -357,11 +458,12 @@ function checkSegment(tokens, context, problems) {
   const [head, ...rest] = cmdTokens;
 
   if (head === "git") {
-    const [sub, ...args] = rest;
+    const { sub, args, locationArgs } = parseGitGlobalOptions(rest);
+    const allLocationArgs = [...envLocationArgs, ...locationArgs];
     if (sub === "commit") {
-      checkGitCommit(args, context, problems);
+      checkGitCommit(args, resolveBranch(context, allLocationArgs), problems);
     } else if (sub === "push") {
-      checkGitPush(args, context, problems);
+      checkGitPush(args, resolveBranch(context, allLocationArgs), problems);
     } else if (sub === "tag") {
       checkGitTag(args, problems);
     }
