@@ -1,12 +1,14 @@
 name: Deploy cloud to staging
 
 on:
-  push:
+  workflow_run:
+    workflows: [Verify]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 # One deploy at a time: `railway config apply` and the wait it triggers must never overlap with
-# another run's apply against the same environment.
+# another run's apply against the same environment. A pending run cancelled by a newer one loses
+# nothing, because every run deploys main's newest verified commit.
 concurrency:
   group: deploy-cloud-staging
   cancel-in-progress: false
@@ -17,15 +19,34 @@ permissions:
 jobs:
   build:
     name: build and push image
-    if: github.ref == 'refs/heads/main'
+    # Verify also runs on pull_request; only a passing push run on main may deploy. Both jobs
+    # carry this gate.
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-24.04
     permissions:
+      actions: read
       contents: read
       packages: write
     outputs:
       image_ref: ${{ steps.image-ref.outputs.value }}
+      sha: ${{ steps.target.outputs.sha }}
     steps:
+      # main's live tip, not the event's github.sha: a manual re-run of an old run keeps its
+      # original github.sha and would otherwise not see commits verified since.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve the newest verified commit on main
+        id: target
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRIGGERING_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node .github/scripts/newest-verified-commit.mjs
+
+      - name: Check out the commit to deploy
+        run: git checkout --detach "${{ steps.target.outputs.sha }}"
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -56,9 +77,9 @@ jobs:
           context: .
           file: apps/cloud/Dockerfile
           push: true
-          tags: ghcr.io/ljguardiola/purosur-cloud:${{ github.sha }}
+          tags: ghcr.io/ljguardiola/purosur-cloud:${{ steps.target.outputs.sha }}
           build-args: |
-            APP_VERSION=${{ github.sha }}
+            APP_VERSION=${{ steps.target.outputs.sha }}
 
       - name: Resolve the exact image reference
         id: image-ref
@@ -67,13 +88,15 @@ jobs:
   deploy:
     name: apply and deploy to staging
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-24.04
     environment: staging
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.sha }}
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -132,5 +155,5 @@ jobs:
       - name: Verify the deployed version on the staging domain
         env:
           CLOUD_HEALTH_DOMAIN: staging.purosur.online
-          CLOUD_HEALTH_EXPECTED_VERSION: ${{ github.sha }}
+          CLOUD_HEALTH_EXPECTED_VERSION: ${{ needs.build.outputs.sha }}
         run: node .github/scripts/verify-cloud-health.mjs
