@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
 import {
   buildRateLimitRules,
   buildRequestHeaderTransformRules,
   CLOUD_HOSTNAMES,
+  cloudHostnames,
   EDGE_ORIGIN_SECRET_HEADER,
   putRulesetPhase,
   runCli,
@@ -57,8 +59,19 @@ for (const hostname of [
   });
 }
 
-test("scopes the header transform rule to the cloud service's own hostnames", () => {
-  assert.deepEqual(CLOUD_HOSTNAMES, ["staging.purosur.online"]);
+test("scopes the header transform rule to the custom domains Railway serves the cloud service on", () => {
+  assert.deepEqual(CLOUD_HOSTNAMES, Object.values(customDomains).flat());
+  assert.ok(CLOUD_HOSTNAMES.includes("staging.purosur.online"));
+});
+
+test("collects the cloud service's hostnames from every environment's custom domains", () => {
+  assert.deepEqual(
+    cloudHostnames({
+      staging: ["staging.purosur.online"],
+      production: ["purosur.online", "www.purosur.online"],
+    }),
+    ["staging.purosur.online", "purosur.online", "www.purosur.online"],
+  );
 });
 
 test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", () => {

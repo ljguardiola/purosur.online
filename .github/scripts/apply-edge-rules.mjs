@@ -3,14 +3,16 @@
 // phase's rules, so anything added by hand outside this script is lost on the next run).
 //
 // http_request_late_transform sets a secret header on every request to the cloud service's
-// hostnames forwarded to the origin, which apps/cloud/src/edge-origin-guard.ts requires (its EDGE_ORIGIN_SECRET_HEADER must match
-// the constant below). http_ratelimit blocks a source address sending more than the configured
-// rate to any hostname on the zone.
+// hostnames forwarded to the origin, which apps/cloud/src/edge-origin-guard.ts requires (its
+// EDGE_ORIGIN_SECRET_HEADER must match the constant below). http_ratelimit blocks a source address
+// sending more than the configured rate to any hostname on the zone.
 //
 // API reference: https://developers.cloudflare.com/api/resources/rulesets/subresources/phases/methods/update/
 // Header operation and ratelimit field shapes:
 // https://github.com/cloudflare/cloudflare-typescript/blob/main/src/resources/rulesets/rules.ts
 // Rate limiting field values: https://developers.cloudflare.com/waf/rate-limiting-rules/parameters/
+
+import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
 
 const LOG_PREFIX = "apply-edge-rules";
 
@@ -20,12 +22,14 @@ const HTTP_RATELIMIT_PHASE = "http_ratelimit";
 /** Must match apps/cloud/src/edge-origin-guard.ts's EDGE_ORIGIN_SECRET_HEADER. */
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
-/**
- * The public hostnames the cloud service is served on; must match .railway/railway.ts's
- * CUSTOM_DOMAINS. Only requests to these hosts get the edge origin secret, so no other origin
- * behind this zone ever receives it.
- */
-export const CLOUD_HOSTNAMES = ["staging.purosur.online"];
+/** @param {Record<string, string[]>} domainsByEnvironment */
+export function cloudHostnames(domainsByEnvironment) {
+  return Object.values(domainsByEnvironment).flat();
+}
+
+// Only requests to these hosts get the edge origin secret, so no other origin behind this zone
+// ever receives it.
+export const CLOUD_HOSTNAMES = cloudHostnames(customDomains);
 
 const RATE_LIMIT_PERIOD_SECONDS = 10;
 const RATE_LIMIT_REQUESTS_PER_PERIOD = 300;
