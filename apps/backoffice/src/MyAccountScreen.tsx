@@ -42,6 +42,7 @@ type RegisterPasskeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onRegistered: () => void;
+  onNoPasskey: () => void;
   onSessionEnded: () => void;
 };
 
@@ -50,11 +51,13 @@ function RegisterPasskeyModal({
   isOpen,
   onClose,
   onRegistered,
+  onNoPasskey,
   onSessionEnded,
 }: RegisterPasskeyModalProps) {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [attemptFailed, setAttemptFailed] = useState(false);
+  const [noPasskey, setNoPasskey] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -62,6 +65,7 @@ function RegisterPasskeyModal({
       setName("");
       setNameError(undefined);
       setAttemptFailed(false);
+      setNoPasskey(false);
       setSubmitting(false);
     }
   }, [isOpen]);
@@ -80,11 +84,18 @@ function RegisterPasskeyModal({
       return;
     }
     setAttemptFailed(false);
+    setNoPasskey(false);
     setSubmitting(true);
 
     const challenge = await fetchPasskeyRegistrationChallenge();
     if (challenge.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (challenge.kind === "no_passkey") {
+      setNoPasskey(true);
+      setSubmitting(false);
+      onNoPasskey();
       return;
     }
     if (challenge.kind !== "ok") {
@@ -163,6 +174,13 @@ function RegisterPasskeyModal({
       }
     >
       <div className="flex flex-col gap-4">
+        {noPasskey && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            detail={passkeysMessages.noPasskeysWarning}
+          />
+        )}
         {attemptFailed && (
           <InlineNotice
             tone="error"
@@ -381,7 +399,7 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
             <Button
               variant="secondary"
               icon={<Plus />}
-              isDisabled={hasNoPasskeys}
+              isDisabled={list.kind === "loading" || hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
               {passkeysMessages.registerAnother}
@@ -451,6 +469,7 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
           setRegisterModalOpen(false);
           void refreshList();
         }}
+        onNoPasskey={() => void refreshList()}
         onSessionEnded={onSessionEnded}
       />
       <RemovePasskeyModal

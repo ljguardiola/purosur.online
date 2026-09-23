@@ -21,6 +21,7 @@ export type RegistrationChallenge = {
 
 export type FetchPasskeyRegistrationChallengeOutcome =
   | { kind: "ok"; value: RegistrationChallenge }
+  | { kind: "no_passkey" }
   | ErrorOutcome;
 
 export type RemovalChallenge = {
@@ -98,8 +99,13 @@ export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyR
   } catch {
     return { kind: "failed" };
   }
+  // The endpoint answers `authentication_failed` while the session is still open when the account
+  // has no passkey left to reauthenticate with (passkeys-registration-route.ts).
   if (response.status === 401) {
-    return { kind: "unauthenticated" };
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "authentication_failed"
+      ? { kind: "no_passkey" }
+      : { kind: "unauthenticated" };
   }
   if (!response.ok) {
     return { kind: "failed" };

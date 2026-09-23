@@ -107,6 +107,12 @@ test("fetchPasskeyRegistrationChallenge reports unauthenticated on 401 and faile
   await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchPasskeyRegistrationChallenge reports no_passkey when the account has no passkey to reauthenticate with", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "no_passkey" });
+});
+
 test("fetchPasskeyRemovalChallenge posts with no body and returns the reauthentication options", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, { reauthentication_options: reauthenticationOptions }),

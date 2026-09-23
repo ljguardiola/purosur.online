@@ -72,6 +72,17 @@ test("shows a loading state before the passkeys resolve", async () => {
   await expect.element(screen.getByRole("status")).toBeVisible();
 });
 
+test("offers no registration while the passkeys are loading", async () => {
+  vi.mocked(fetchPasskeys).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderScreen();
+
+  await expect.element(screen.getByRole("status")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
+    .toBeDisabled();
+});
+
 test("shows the breadcrumb, heading and each passkey with its registration and last-use detail", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
 
@@ -336,6 +347,36 @@ test("ends the session when the registration challenge finds the session already
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("keeps the session open and shows the no-passkey state when the account has no passkey left to reauthenticate with", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(onSessionEnded);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({ kind: "no_passkey" });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [] });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect
+    .element(
+      dialog
+        .getByText(
+          "No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
+        )
+        .first(),
+    )
+    .toBeVisible();
+  expect(startAuthentication).not.toHaveBeenCalled();
+  await expect.poll(() => vi.mocked(fetchPasskeys).mock.calls.length).toBe(2);
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
+    .toBeDisabled();
+  expect(onSessionEnded).not.toHaveBeenCalled();
 });
 
 test("ends the session when registering finds the session already ended", async () => {
