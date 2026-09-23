@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - apps/pos/**
-      - packages/**
+      - packages/contracts/**
+      - packages/ui/**
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -13,11 +14,14 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
+      - "!packages/**/*.test.*"
+      - "!packages/*/src/test/**"
   push:
     branches: [main]
     paths:
       - apps/pos/**
-      - packages/**
+      - packages/contracts/**
+      - packages/ui/**
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -26,6 +30,8 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
+      - "!packages/**/*.test.*"
+      - "!packages/*/src/test/**"
 
 permissions:
   contents: read
@@ -33,12 +39,12 @@ permissions:
 jobs:
   package:
     runs-on: windows-latest
-    # Only a merge to main packages the staging installer under the staging environment, which
-    # admits nothing but main; pull requests package both channels with no credentials at all. The
-    # job builds the app code once and packages both channels from it, but only the pack:staging
-    # step below reads the staging environment's Sentry DSN and update feed URL — pack:production
-    # never receives them, on a pull request or on main. The production installer that carries
-    # credentials comes from the tag-bound release workflow.
+    # Only a merge to main builds an installer: the staging one, under the staging environment,
+    # which admits nothing but main. Pull requests package both channels' app code with no
+    # credentials and no installer. The job builds the app code once and packages both channels
+    # from it, but only the pack:staging step below reads the staging environment's Sentry DSN and
+    # update feed URL — pack:production never receives them. The production installer comes from
+    # the tag-bound release workflow.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,37 +65,28 @@ jobs:
       - run: pnpm --filter @purosur/pos build
 
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
-      # update feed only reach each installer's resources/channel.json and app-update.yml, outside
-      # app.asar. An unset variable leaves that feature off in the installer. The production
-      # installer, on a pull request or on main, never gets a DSN or a feed here.
-      - run: pnpm --filter @purosur/pos pack:production
+      # update feed only reach each channel's resources/channel.json and app-update.yml, outside
+      # app.asar. An unset variable leaves that feature off. --dir stops at the unpacked app: the
+      # comparisons below and the end-to-end test read only that.
+      - run: pnpm --filter @purosur/pos pack:production --dir
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
 
       # The staging feed is a separate artifact in the staging bucket. The DSN reaches only the job
-      # running under the staging environment (a push to main), so no pull request installer ever
-      # reports to Sentry.
-      - run: pnpm --filter @purosur/pos pack:staging
+      # running under the staging environment (a push to main), which is also the only run that
+      # builds the staging installer.
+      - run: pnpm --filter @purosur/pos pack:staging ${{ github.event_name == 'pull_request' && '--dir' || '' }}
         env:
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
 
-      # electron-builder leaves the folder each installer was built from next to it, so both
-      # channels' app code can be compared directly without unpacking the installer.
+      # Each channel's unpacked folder holds its app code, so both can be compared directly.
       - name: Compare the two channels' app.asar
         run: >-
           node .github/scripts/same-app-code.mjs
           apps/pos/release/production/win-unpacked/resources/app.asar
           apps/pos/release/staging/win-unpacked/resources/app.asar
-
-      - if: github.event_name == 'push'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pos-production-installer
-          retention-days: 7
-          path: apps/pos/release/production/*.exe
-          if-no-files-found: error
 
       - if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -108,7 +105,7 @@ jobs:
           path: apps/pos/release/production/win-unpacked/resources/app.asar
           if-no-files-found: error
 
-      # Runs the unpacked app from the same out/ both installers packaged. It reads a channel file
+      # Runs the unpacked app from the same out/ both channels packaged. It reads a channel file
       # the test writes itself, with no DSN, so the deliberate core kill and invalid message never
       # reach Sentry.
       - run: pnpm --filter @purosur/pos test:e2e
