@@ -11,8 +11,8 @@ export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface BackofficeRateLimitInput {
-  /** Omitted for a request with no session cookie, which then counts only against its address. */
-  sessionKeyValue?: string;
+  /** The open session's own row id. */
+  sessionKeyValue: string;
   sourceAddress: string;
   now: Date;
 }
@@ -45,9 +45,9 @@ async function pruneExpiredAttempts<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Admits a backoffice API request only when every key (its session, when the request carries one,
- * and its source address) has fewer than its limit of requests in the last 60 minutes, and records
- * it against every key in that case. A rejected request records nothing, so the reported wait is
+ * Admits a backoffice API request only when its session and its source address each have fewer
+ * than their limit of requests in the last 60 minutes, and records it against both in that case.
+ * A rejected request records nothing, so the reported wait is
  * exactly when the oldest counted request leaves the window. Each key is locked for the
  * transaction, so concurrent requests can never both take the last slot.
  */
@@ -57,18 +57,16 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
 ): Promise<BackofficeRateLimitResult> {
   const keys: RateLimitedKey[] = [
     {
+      keyKind: "session",
+      keyValue: input.sessionKeyValue,
+      limit: BACKOFFICE_SESSION_LIMIT_PER_HOUR,
+    },
+    {
       keyKind: "source_address",
       keyValue: input.sourceAddress,
       limit: BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
     },
   ];
-  if (input.sessionKeyValue !== undefined) {
-    keys.push({
-      keyKind: "session",
-      keyValue: input.sessionKeyValue,
-      limit: BACKOFFICE_SESSION_LIMIT_PER_HOUR,
-    });
-  }
 
   const now = input.now;
   const windowStart = new Date(now.getTime() - BACKOFFICE_RATE_LIMIT_WINDOW_MS);

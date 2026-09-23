@@ -3,7 +3,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { passkeys, sessions, users } from "../db/schema.js";
-import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
+import {
+  exhaustSessionRateLimit,
+  exhaustSourceAddressRateLimit,
+  INJECTED_SOURCE_ADDRESS,
+} from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { registerPasskeysListRoute } from "./passkeys-list-route.js";
@@ -190,5 +194,14 @@ describe("GET /users/passkeys", () => {
       .from(sessions)
       .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("still answers 401 to a request with no open session while its source address is over its limit", async () => {
+    await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, NOON);
+
+    const response = await getPasskeys(generateSessionId());
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 });

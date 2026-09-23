@@ -71,8 +71,12 @@ describe("the backoffice rate limiter on concurrent connections", () => {
     );
 
     const results = await Promise.all(
-      Array.from({ length: 20 }, () =>
-        recordBackofficeRequest(db, { sourceAddress: "198.51.100.200", now: NOON }),
+      Array.from({ length: 20 }, (_, i) =>
+        recordBackofficeRequest(db, {
+          sessionKeyValue: `concurrent-session-${i}`,
+          sourceAddress: "198.51.100.200",
+          now: NOON,
+        }),
       ),
     );
 

@@ -2,8 +2,13 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { sessions, users } from "../db/schema.js";
-import { exhaustSessionRateLimit } from "./exhaust-backoffice-rate-limit.js";
+import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
+import { BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR } from "./backoffice-request-rate-limiter.js";
+import {
+  exhaustSessionRateLimit,
+  exhaustSourceAddressRateLimit,
+  INJECTED_SOURCE_ADDRESS,
+} from "./exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
@@ -11,6 +16,7 @@ import { registerSessionSignOutRoute } from "./session-sign-out-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -185,5 +191,38 @@ describe("POST /users/session/sign-out", () => {
       .from(sessions)
       .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
     expect(row?.revokedAt).toBeNull();
+  });
+
+  it("rejects a sign-out under an open session once its source address is over its limit", async () => {
+    await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, NOON);
+    const rawSessionId = await insertSession();
+
+    const response = await postSignOut(rawSessionId);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("3600");
+  });
+
+  it("answers a sign-out with no open session as before, uncounted, while its source address is over its limit", async () => {
+    const idle = await insertSession();
+    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, currentTime);
+
+    const withoutCookie = await postSignOut();
+    const withUnknownSession = await postSignOut(generateSessionId());
+    const withIdleSession = await postSignOut(idle);
+
+    expect(withoutCookie.statusCode).toBe(401);
+    expect(withUnknownSession.statusCode).toBe(200);
+    expect(withIdleSession.statusCode).toBe(200);
+    expect(String(withIdleSession.headers["set-cookie"])).toContain(`${SESSION_COOKIE_NAME}=;`);
+    const [row] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(idle)));
+    expect(row?.revokedAt?.getTime()).toBe(currentTime.getTime());
+    expect(await db.select().from(backofficeRateLimitAttempts)).toHaveLength(
+      BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+    );
   });
 });

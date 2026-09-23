@@ -28,21 +28,24 @@ export interface ResolveOpenSessionOptions<TQueryResult extends PgQueryResultHKT
   now: Date;
 }
 
+type SessionLookup =
+  | { state: "absent" }
+  | { state: "ended"; sessionIdHash: string }
+  | { state: "open"; sessionIdHash: string; session: OpenSession };
+
 /**
- * Resolves the session cookie on `request` to its open, still-live session: enforces idle (30
- * minutes without use) and absolute (12 hours since creation) expiry, touches `last_seen_at` on a
- * live session, and returns the signed-in user's identity. Returns `undefined` when the cookie is
- * missing, unknown, revoked, expired, or belongs to a deactivated account, revoking that session's
- * row instead of leaving it dangling. Shared by every route that requires an already-open session
- * (`GET /users/session` and the passkey self-management routes of issue #169).
+ * Reads the session cookie on `request` without changing anything: `open` for a live session,
+ * `ended` for a row past its idle (30 minutes without use) or absolute (12 hours since creation)
+ * expiry or whose account was deactivated, and `absent` for a missing, unknown, or already-revoked
+ * cookie.
  */
-export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
+async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   options: ResolveOpenSessionOptions<TQueryResult>,
-): Promise<OpenSession | undefined> {
+): Promise<SessionLookup> {
   const rawSessionId = readSessionCookie(request.headers.cookie);
   if (!rawSessionId) {
-    return undefined;
+    return { state: "absent" };
   }
   const sessionIdHash = hashSessionId(rawSessionId);
 
@@ -61,7 +64,7 @@ export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
     .where(eq(sessions.sessionIdHash, sessionIdHash))
     .limit(1);
   if (!session || session.revokedAt) {
-    return undefined;
+    return { state: "absent" };
   }
 
   const currentTime = options.now;
@@ -72,19 +75,46 @@ export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
   // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
   // CA-ACC-19), the same rule that keeps its passkey from opening a new one at sign-in.
   if (idleExpired || absoluteExpired || !session.active) {
+    return { state: "ended", sessionIdHash };
+  }
+
+  return {
+    state: "open",
+    sessionIdHash,
+    session: { sessionId: session.id, userId: session.userId, firstName: session.firstName },
+  };
+}
+
+/**
+ * Resolves the session cookie on `request` to its open, still-live session: enforces idle (30
+ * minutes without use) and absolute (12 hours since creation) expiry, touches `last_seen_at` on a
+ * live session, and returns the signed-in user's identity. Returns `undefined` when the cookie is
+ * missing, unknown, revoked, expired, or belongs to a deactivated account, revoking that session's
+ * row instead of leaving it dangling. Shared by every route that requires an already-open session
+ * (`GET /users/session` and the passkey self-management routes of issue #169).
+ */
+export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  options: ResolveOpenSessionOptions<TQueryResult>,
+): Promise<OpenSession | undefined> {
+  const lookup = await lookUpSession(request, options);
+  if (lookup.state === "absent") {
+    return undefined;
+  }
+  if (lookup.state === "ended") {
     await options.db
       .update(sessions)
-      .set({ revokedAt: currentTime })
-      .where(eq(sessions.sessionIdHash, sessionIdHash));
+      .set({ revokedAt: options.now })
+      .where(eq(sessions.sessionIdHash, lookup.sessionIdHash));
     return undefined;
   }
 
   await options.db
     .update(sessions)
-    .set({ lastSeenAt: currentTime })
-    .where(eq(sessions.sessionIdHash, sessionIdHash));
+    .set({ lastSeenAt: options.now })
+    .where(eq(sessions.sessionIdHash, lookup.sessionIdHash));
 
-  return { sessionId: session.id, userId: session.userId, firstName: session.firstName };
+  return lookup.session;
 }
 
 export interface BackofficeRateLimitCheckOptions<TQueryResult extends PgQueryResultHKT> {
@@ -95,24 +125,27 @@ export interface BackofficeRateLimitCheckOptions<TQueryResult extends PgQueryRes
 const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
 
 /**
- * Checks the shared backoffice API rate limiter (issue #205) before anything else about this
- * request is resolved (in particular, before `resolveOpenSession`), so a rejected request has no
- * effect: it never touches `last_seen_at`, revokes a session, or changes anything else. Keys by
- * the session cookie's hash, the same hash `sessions.session_id_hash` is looked up by, when the
- * request carries one, and always by its source address; a request with no session cookie counts
- * only against its address. On rejection, sends 429 `rate_limited` with `Retry-After` and returns
- * false so the caller stops; otherwise returns true. Shared by every route that reads the session
- * cookie, whether or not it also calls `resolveOpenSession` itself (e.g. sign-out reads the cookie
- * directly).
+ * Counts a request made under an open session against the backoffice API rate limiter, keyed by
+ * that session's row id and by the request's source address, before anything else about the
+ * request is resolved, so a rejected request has no effect: it never touches `last_seen_at`,
+ * revokes a session, or changes anything else. A request with no open session is not counted and
+ * passes through, so the route answers it exactly as it would without a limiter. On rejection,
+ * sends 429 `rate_limited` with `Retry-After` and returns false so the caller stops; otherwise
+ * returns true. Shared by every route that reads the session cookie, whether or not it also calls
+ * `resolveOpenSession` itself (e.g. sign-out reads the cookie directly).
  */
 export async function checkBackofficeRateLimit<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
   options: BackofficeRateLimitCheckOptions<TQueryResult>,
 ): Promise<boolean> {
-  const rawSessionId = readSessionCookie(request.headers.cookie);
+  const lookup = await lookUpSession(request, options);
+  if (lookup.state !== "open") {
+    return true;
+  }
+
   const result = await recordBackofficeRequest(options.db, {
-    ...(rawSessionId ? { sessionKeyValue: hashSessionId(rawSessionId) } : {}),
+    sessionKeyValue: lookup.session.sessionId,
     sourceAddress: resolveSourceAddress(request),
     now: options.now,
   });

@@ -42,7 +42,7 @@ async function storedRowCount(): Promise<number> {
 describe("recordBackofficeRequest", () => {
   it("allows the first request for a fresh session and source address", async () => {
     const result = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.10",
       now: NOON,
     });
@@ -50,19 +50,19 @@ describe("recordBackofficeRequest", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("allows a request with no session cookie, counting only against the source address", async () => {
-    const result = await recordBackofficeRequest(db, {
+  it("records an admitted request once against its session and once against its source address", async () => {
+    await recordBackofficeRequest(db, {
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.10",
       now: NOON,
     });
 
-    expect(result.allowed).toBe(true);
-    expect(await storedRowCount()).toBe(1);
+    expect(await storedRowCount()).toBe(2);
   });
 
   it("allows up to 600 requests per hour for the same session, then rejects the 601st", async () => {
     const attempt = (sourceAddress: string) =>
-      recordBackofficeRequest(db, { sessionKeyValue: "session-hash-1", sourceAddress, now: NOON });
+      recordBackofficeRequest(db, { sessionKeyValue: "session-1", sourceAddress, now: NOON });
 
     for (let i = 0; i < 600; i++) {
       // A different source address each time isolates the session limit from the address one.
@@ -77,23 +77,23 @@ describe("recordBackofficeRequest", () => {
       recordBackofficeRequest(db, { sessionKeyValue, sourceAddress: "203.0.113.10", now: NOON });
 
     for (let i = 0; i < 1800; i++) {
-      expect((await attempt(`session-hash-${i}`)).allowed).toBe(true);
+      expect((await attempt(`session-${i}`)).allowed).toBe(true);
     }
 
-    expect((await attempt("session-hash-one-too-many")).allowed).toBe(false);
+    expect((await attempt("session-one-too-many")).allowed).toBe(false);
   }, 30_000);
 
   it("does not let one session's count affect another", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: NOON,
       });
     }
 
     const result = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-2",
+      sessionKeyValue: "session-2",
       sourceAddress: "203.0.113.250",
       now: NOON,
     });
@@ -104,14 +104,14 @@ describe("recordBackofficeRequest", () => {
   it("applies the source-address limit across sessions, rejecting a fresh session from the same address", async () => {
     for (let i = 0; i < 1800; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: `session-hash-${i}`,
+        sessionKeyValue: `session-${i}`,
         sourceAddress: "203.0.113.10",
         now: NOON,
       });
     }
 
     const result = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-fresh",
+      sessionKeyValue: "session-fresh",
       sourceAddress: "203.0.113.10",
       now: NOON,
     });
@@ -122,7 +122,7 @@ describe("recordBackofficeRequest", () => {
   it("records nothing for a rejected request", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: NOON,
       });
@@ -130,7 +130,7 @@ describe("recordBackofficeRequest", () => {
     const beforeRejection = await storedRowCount();
 
     const rejected = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.99",
       now: NOON,
     });
@@ -142,13 +142,13 @@ describe("recordBackofficeRequest", () => {
   it("resets the session count once the hourly window rolls over", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: NOON,
       });
     }
     const withinTheSameHour = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.99",
       now: NOON,
     });
@@ -156,7 +156,7 @@ describe("recordBackofficeRequest", () => {
 
     const nextHour = new Date(NOON.getTime() + 60 * 60 * 1000);
     const afterRollover = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.100",
       now: nextHour,
     });
@@ -167,14 +167,14 @@ describe("recordBackofficeRequest", () => {
   it("counts the last 60 minutes, not the current clock hour, so a limit never doubles across the hour", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: minutesAfterNoon(59),
       });
     }
 
     const twoMinutesLater = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.200",
       now: minutesAfterNoon(61),
     });
@@ -185,14 +185,14 @@ describe("recordBackofficeRequest", () => {
   it("reports the seconds until the session's oldest counted request leaves the window", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: minutesAfterNoon(i % 50),
       });
     }
 
     const rejected = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.200",
       now: minutesAfterNoon(50),
     });
@@ -204,13 +204,13 @@ describe("recordBackofficeRequest", () => {
   it("admits a request made exactly when the reported wait runs out", async () => {
     for (let i = 0; i < 600; i++) {
       await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-hash-1",
+        sessionKeyValue: "session-1",
         sourceAddress: `203.0.113.${i % 250}`,
         now: minutesAfterNoon(i % 50),
       });
     }
     const rejected = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.200",
       now: minutesAfterNoon(50),
     });
@@ -219,7 +219,7 @@ describe("recordBackofficeRequest", () => {
     }
 
     const retried = await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.201",
       now: new Date(minutesAfterNoon(50).getTime() + rejected.retryAfterSeconds * 1000),
     });
@@ -229,13 +229,13 @@ describe("recordBackofficeRequest", () => {
 
   it("prunes attempts that already left the window when a later attempt is recorded", async () => {
     await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-1",
+      sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.10",
       now: NOON,
     });
 
     await recordBackofficeRequest(db, {
-      sessionKeyValue: "session-hash-2",
+      sessionKeyValue: "session-2",
       sourceAddress: "203.0.113.20",
       now: minutesAfterNoon(90),
     });
