@@ -2,14 +2,7 @@ import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { messages } from "../src/messages";
-import {
-  APP_DIR,
-  appEnv,
-  E2E_CHANNEL_FILE,
-  platformArgs,
-  sleep,
-  writeChannelFile,
-} from "./launch-app";
+import { APP_DIR, appEnv, E2E_CHANNEL_FILE, platformArgs, writeChannelFile } from "./launch-app";
 
 // Electron's own name for a Node.js utility process (see apps/pos/src/main/index.ts's
 // `utilityProcess.fork`), robust against other utility processes (network, audio, storage...)
@@ -36,12 +29,25 @@ async function coreProcesses(app: ElectronApplication): Promise<UtilityProcessIn
   return utilityProcesses.filter((process) => process.serviceName === CORE_SERVICE_NAME);
 }
 
-async function killTheRunningCore(app: ElectronApplication): Promise<void> {
+async function killTheRunningCore(app: ElectronApplication): Promise<number> {
   const current = (await coreProcesses(app)).at(-1);
   if (current === undefined) {
     throw new Error("expected a core process to kill");
   }
   process.kill(current.pid, "SIGKILL");
+  return current.pid;
+}
+
+// Waits for the restart policy's next core instead of a fixed time: how long a core takes to come
+// up after its backoff depends on the machine, and a slow one would otherwise find none to kill.
+async function waitForANewCore(app: ElectronApplication, killedPid: number): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await coreProcesses(app)).some((core) => core.pid !== killedPid && isAlive(core.pid)),
+      { timeout: 30_000, interval: 250 },
+    )
+    .toBe(true);
 }
 
 function isAlive(pid: number): boolean {
@@ -54,11 +60,11 @@ function isAlive(pid: number): boolean {
 }
 
 // The register's own bounded restart policy (apps/pos/src/main/index.ts's RESTART_POLICY):
-// maxAttempts 5 with this exact backoff. It is not test-injectable (only the periodic retry
-// interval after exhaustion is, via POS_CORE_RETRY_INTERVAL_MS below), so reaching exhaustion in
-// this test takes as long as it would for real: six crashes, one per bounded attempt plus the one
-// that finds none left.
-const BOUNDED_BACKOFF_DELAYS_MS = [500, 1000, 2000, 4000, 8000];
+// maxAttempts 5, with a backoff of 0.5 s doubling to 8 s. It is not test-injectable (only the
+// periodic retry interval after exhaustion is, via POS_CORE_RETRY_INTERVAL_MS below), so reaching
+// exhaustion in this test takes as long as it would for real: six crashes, one per bounded attempt
+// plus the one that finds none left.
+const BOUNDED_RESTART_ATTEMPTS = 5;
 
 describe("the register's own recovery once the core's bounded restarts run out", () => {
   let app: ElectronApplication;
@@ -95,9 +101,8 @@ describe("the register's own recovery once the core's bounded restarts run out",
   });
 
   it("shows the blocking notice once bounded restarts are exhausted, and clears it once a periodic retry's core is up", async () => {
-    for (const delayMs of BOUNDED_BACKOFF_DELAYS_MS) {
-      await killTheRunningCore(app);
-      await sleep(delayMs + 1000);
+    for (let attempt = 0; attempt < BOUNDED_RESTART_ATTEMPTS; attempt++) {
+      await waitForANewCore(app, await killTheRunningCore(app));
     }
 
     // Recorded by the page itself the moment the notice renders, however briefly it stays up
