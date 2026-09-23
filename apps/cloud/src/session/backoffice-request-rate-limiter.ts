@@ -5,7 +5,7 @@ import { backofficeRateLimitAttempts } from "../db/schema.js";
 /** The hour every backoffice API limit counts over (issue #205). */
 export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 // Sized well above normal use: 10/min sustained per session, and per-address well above that
-// since a whole store's staff shares one public address.
+// since several people can use the backoffice at once from one connection, such as a location's.
 export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
 export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
