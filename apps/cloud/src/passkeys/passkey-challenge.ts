@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeyChallenges } from "../db/schema.js";
 
@@ -9,6 +9,7 @@ import { passkeyChallenges } from "../db/schema.js";
  * to server-side expiry.
  */
 export const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const PRUNE_BATCH_SIZE = 100;
 
 export type PasskeyChallengeKind = "registration" | "removal";
 
@@ -84,4 +85,19 @@ export async function consumePendingPasskeyChallenge<TQueryResult extends PgQuer
     reauthenticationChallenge: row.reauthenticationChallenge,
     registrationChallenge: row.registrationChallenge,
   };
+}
+
+/** Deletes passkey challenges nobody ever redeemed once they've aged past their lifetime. */
+export async function pruneExpiredPasskeyChallenges<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  now: Date,
+): Promise<void> {
+  const windowStart = new Date(now.getTime() - PASSKEY_CHALLENGE_TTL_MS);
+  const expired = db
+    .select({ id: passkeyChallenges.id })
+    .from(passkeyChallenges)
+    .where(lte(passkeyChallenges.createdAt, windowStart))
+    .limit(PRUNE_BATCH_SIZE)
+    .for("update", { skipLocked: true });
+  await db.delete(passkeyChallenges).where(inArray(passkeyChallenges.id, expired));
 }

@@ -6,7 +6,14 @@ import WebAuthnEmulator, {
 } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
+import {
+  auditLog,
+  passkeyChallenges,
+  passkeys,
+  recoveryTokens,
+  sessions,
+  users,
+} from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
@@ -186,6 +193,31 @@ describe("POST /users/passkeys/removal-options", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("prunes other sessions' passkey challenges that aged past their lifetime", async () => {
+    const emulator = newDeviceEmulator();
+    await registerPasskey(userId, emulator);
+    const staleSessionId = await insertSession(userId);
+    const [staleSession] = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(staleSessionId)));
+    if (!staleSession) throw new Error("test setup: stale session not found");
+    await db.insert(passkeyChallenges).values({
+      sessionId: staleSession.id,
+      kind: "removal",
+      reauthenticationChallenge: "stale-challenge",
+      createdAt: new Date(NOON.getTime() - PASSKEY_CHALLENGE_TTL_MS),
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const options = await requestRemovalOptions(rawSessionId);
+
+    const rows = await db.select().from(passkeyChallenges);
+    expect(rows.map((row) => row.reauthenticationChallenge)).toEqual([
+      options.reauthentication_options.challenge,
+    ]);
   });
 
   it("returns reauthentication options allowing only the account's own passkeys", async () => {

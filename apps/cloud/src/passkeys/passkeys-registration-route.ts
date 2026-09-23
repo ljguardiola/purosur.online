@@ -13,6 +13,7 @@ import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
 import { resolveOpenSession, UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
 import {
   consumePendingPasskeyChallenge,
+  pruneExpiredPasskeyChallenges,
   storePendingPasskeyChallenge,
 } from "./passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "./passkey-reauthentication.js";
@@ -129,6 +130,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       })),
     });
 
+    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
     await storePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
       kind: "registration",

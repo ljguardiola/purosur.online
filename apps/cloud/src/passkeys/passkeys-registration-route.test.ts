@@ -222,6 +222,31 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(allowCredentials.map((c) => c.id)).toEqual([ownPasskey?.credentialId]);
   });
 
+  it("prunes other sessions' passkey challenges that aged past their lifetime", async () => {
+    const emulator = newDeviceEmulator();
+    await registerFirstPasskey(userId, emulator);
+    const staleSessionId = await insertSession(userId);
+    const [staleSession] = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(staleSessionId)));
+    if (!staleSession) throw new Error("test setup: stale session not found");
+    await db.insert(passkeyChallenges).values({
+      sessionId: staleSession.id,
+      kind: "removal",
+      reauthenticationChallenge: "stale-challenge",
+      createdAt: new Date(NOON.getTime() - PASSKEY_CHALLENGE_TTL_MS),
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const options = await requestOptions(rawSessionId);
+
+    const rows = await db.select().from(passkeyChallenges);
+    expect(rows.map((row) => row.reauthenticationChallenge)).toEqual([
+      options.reauthentication_options.challenge,
+    ]);
+  });
+
   it("replaces a previously pending challenge with a fresh one", async () => {
     const emulator = new WebAuthnEmulator();
     await registerFirstPasskey(userId, emulator);
