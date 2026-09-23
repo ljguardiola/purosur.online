@@ -41,6 +41,25 @@ function currentBranch(cwd) {
   }
 }
 
+// Resolves the branch of the repository a `-C`/`--git-dir`/`--work-tree`
+// invocation actually targets, for the guard's branch-dependent rules.
+// `locationArgs` (built by guard-command.mjs) only ever holds those
+// location options, never `-c`/`--config-env`: forwarding those could run
+// arbitrary configured commands (e.g. a configured alias or hook path)
+// before the guarded command has even been approved.
+function branchFor(cwd, locationArgs) {
+  try {
+    const branch = execFileSync("git", [...locationArgs, "branch", "--show-current"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return branch === "" ? null : branch;
+  } catch {
+    return null;
+  }
+}
+
 function readFile(cwd, filePath) {
   try {
     const resolved = path.isAbsolute(filePath) ? filePath : path.resolve(cwd, filePath);
@@ -73,6 +92,7 @@ function main() {
   try {
     problems = checkCommand(command, {
       branch: currentBranch(cwd),
+      branchFor: (locationArgs) => branchFor(cwd, locationArgs),
       readFile: (filePath) => readFile(cwd, filePath),
     });
   } catch {
