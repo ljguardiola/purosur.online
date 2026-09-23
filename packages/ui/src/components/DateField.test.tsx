@@ -888,7 +888,6 @@ test("refuses a date outside the caller's allowed range, showing its message und
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
-  const style = getComputedStyle(group);
 
   expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("status-error-ui", "2px")]);
   const message = screen.getByText("The date must be 28/02/2027 or earlier.");
@@ -952,7 +951,6 @@ for (const [edge, accepted] of [
   test(`accepts ${edge}, keeping the resting box and the helper line`, async () => {
     const screen = await render(<BoundedHarness value={accepted} />);
     const group = fieldGroup(screen, "Expiry");
-    const style = getComputedStyle(group);
 
     expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
     expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
