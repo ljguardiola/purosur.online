@@ -11,6 +11,7 @@ import {
 } from "../db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
+import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { findFreePort } from "./find-free-port.js";
 import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
@@ -169,8 +170,6 @@ async function startRealServer(
     },
   };
 }
-
-const TEST_EDGE_ORIGIN_SECRET = "edge-secret";
 
 function postRecoveryRequest(origin: string, email: string): Promise<Response> {
   return fetch(`${origin}/users/recovery/request`, {

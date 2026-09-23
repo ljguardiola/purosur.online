@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { startServer } from "../server.js";
+import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { findFreePort } from "./find-free-port.js";
 import {
   createIntegrationDatabase,
@@ -22,7 +23,6 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 // HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
-const TEST_EDGE_ORIGIN_SECRET = "edge-secret";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
