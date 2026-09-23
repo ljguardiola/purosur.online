@@ -151,9 +151,24 @@ test("skips when staging already serves the target commit, with nothing changed"
 
 const CURRENT_RUN_ID = 900;
 
-function run(id, conclusion, createdAt) {
-  return { id, conclusion, created_at: createdAt };
+function run(id, conclusion, createdAt, runStartedAt = createdAt) {
+  return { id, conclusion, created_at: createdAt, run_started_at: runStartedAt };
 }
+
+test("judges an older run re-run after a newer one by its latest attempt", () => {
+  const verdict = previousRunVerdict({
+    body: {
+      workflow_runs: [
+        run(820, "success", "2026-09-01T12:00:00Z"),
+        run(800, "failure", "2026-09-01T10:00:00Z", "2026-09-01T13:00:00Z"),
+      ],
+    },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /800.*failure/);
+});
 
 test("lets staging's version decide when the previous run succeeded", () => {
   const verdict = previousRunVerdict({
@@ -200,7 +215,7 @@ test("deploys when the previous run did not end well, naming that run", () => {
   }
 });
 
-test("judges the most recently created run, whatever the listing order", () => {
+test("judges the most recently started run, whatever the listing order", () => {
   const verdict = previousRunVerdict({
     body: {
       workflow_runs: [
@@ -262,7 +277,9 @@ test("fetchPreviousRunVerdict lists this workflow's completed runs with the toke
   const url = new URL(requests[0].url);
   assert.equal(url.pathname, "/repos/owner/repo/actions/workflows/deploy-cloud-staging.yml/runs");
   assert.equal(url.searchParams.get("status"), "completed");
+  assert.equal(url.searchParams.get("per_page"), "30");
   assert.equal(requests[0].init.headers.Authorization, "Bearer secret");
+  assert.ok(requests[0].init.signal instanceof AbortSignal);
 });
 
 test("fetchPreviousRunVerdict deploys when the runs listing answers with an error status", async () => {

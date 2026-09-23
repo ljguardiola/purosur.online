@@ -33,6 +33,12 @@ export function isIrrelevantToCloud(path) {
 
 const WELL_ENDED_CONCLUSIONS = new Set(["success"]);
 
+// A re-run keeps the run's created_at; run_started_at moves to the latest attempt, which is the
+// one whose conclusion the listing reports.
+function latestAttemptStart(run) {
+  return Date.parse(run.run_started_at ?? run.created_at);
+}
+
 /**
  * Whether the previous completed run of this workflow forces a deploy, whatever staging
  * reports: a run that failed after rolling out its image, or a pending run cancelled before it
@@ -45,7 +51,7 @@ export function previousRunVerdict({ body, currentRunId }) {
   const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
   const previous = runs
     .filter((run) => run.id !== currentRunId && run.conclusion !== "skipped")
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+    .sort((a, b) => latestAttemptStart(b) - latestAttemptStart(a))[0];
 
   if (previous === undefined) {
     return { deploy: true, reason: "no previous completed run of this workflow was found" };
@@ -75,7 +81,7 @@ export async function fetchPreviousRunVerdict({
   const url = new URL(
     `https://api.github.com/repos/${repository}/actions/workflows/deploy-cloud-staging.yml/runs`,
   );
-  url.search = new URLSearchParams({ status: "completed", per_page: "10" }).toString();
+  url.search = new URLSearchParams({ status: "completed", per_page: "30" }).toString();
 
   try {
     const response = await fetchImpl(url.toString(), {
@@ -84,6 +90,7 @@ export async function fetchPreviousRunVerdict({
         Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
+      signal: AbortSignal.timeout(MAX_REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
       return {
