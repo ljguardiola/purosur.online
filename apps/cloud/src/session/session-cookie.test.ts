@@ -7,6 +7,12 @@ import {
 } from "./session-cookie.js";
 
 describe("serializeSessionCookie", () => {
+  it("names the cookie with the __Host- prefix, which a browser only accepts from this host", () => {
+    const header = serializeSessionCookie("a-raw-session-id");
+
+    expect(header.startsWith("__Host-backoffice_session=a-raw-session-id;")).toBe(true);
+  });
+
   it("carries the raw session id under the session cookie's own name", () => {
     const header = serializeSessionCookie("a-raw-session-id");
 
@@ -45,13 +51,26 @@ describe("clearSessionCookie", () => {
 
 describe("readSessionCookie", () => {
   it("reads the raw session id back out of a Cookie header", () => {
-    expect(readSessionCookie("backoffice_session=a-raw-session-id")).toBe("a-raw-session-id");
+    expect(readSessionCookie(`${SESSION_COOKIE_NAME}=a-raw-session-id`)).toBe("a-raw-session-id");
   });
 
   it("finds the session cookie among several other cookies", () => {
     expect(readSessionCookie(`other=1; ${SESSION_COOKIE_NAME}=a-raw-session-id; another=2`)).toBe(
       "a-raw-session-id",
     );
+  });
+
+  it("ignores a same-named cookie without the __Host- prefix, whichever order the two arrive in", () => {
+    expect(
+      readSessionCookie("backoffice_session=shadow; __Host-backoffice_session=a-raw-session-id"),
+    ).toBe("a-raw-session-id");
+    expect(
+      readSessionCookie("__Host-backoffice_session=a-raw-session-id; backoffice_session=shadow"),
+    ).toBe("a-raw-session-id");
+  });
+
+  it("returns undefined when only an unprefixed backoffice_session cookie was sent", () => {
+    expect(readSessionCookie("backoffice_session=shadow")).toBeUndefined();
   });
 
   it("returns undefined when no Cookie header was sent", () => {

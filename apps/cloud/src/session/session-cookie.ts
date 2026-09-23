@@ -1,4 +1,6 @@
-export const SESSION_COOKIE_NAME = "backoffice_session";
+// The `__Host-` prefix makes a browser reject any cookie of this name that carries a `Domain`
+// attribute, so a sibling subdomain cannot plant one that would shadow this service's own.
+export const SESSION_COOKIE_NAME = "__Host-backoffice_session";
 
 /**
  * The session cookie's `Set-Cookie` value: `HttpOnly` (never readable by script, unlike
