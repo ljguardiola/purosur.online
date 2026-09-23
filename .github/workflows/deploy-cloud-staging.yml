@@ -31,8 +31,11 @@ jobs:
       image_ref: ${{ steps.image-ref.outputs.value }}
       sha: ${{ steps.target.outputs.sha }}
     steps:
+      # main's live tip, not the event's github.sha: a manual re-run of an old run keeps its
+      # original github.sha and would otherwise not see commits verified since.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Resolve the newest verified commit on main
