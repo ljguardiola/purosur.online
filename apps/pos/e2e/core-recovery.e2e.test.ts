@@ -29,25 +29,28 @@ async function coreProcesses(app: ElectronApplication): Promise<UtilityProcessIn
   return utilityProcesses.filter((process) => process.serviceName === CORE_SERVICE_NAME);
 }
 
-async function killTheRunningCore(app: ElectronApplication): Promise<number> {
-  const current = (await coreProcesses(app)).at(-1);
+async function killTheRunningCore(app: ElectronApplication): Promise<void> {
+  // A killed core can linger in the metrics for a moment, so only a live one is a target.
+  const current = (await coreProcesses(app)).filter((core) => isAlive(core.pid)).at(-1);
   if (current === undefined) {
     throw new Error("expected a core process to kill");
   }
   process.kill(current.pid, "SIGKILL");
-  return current.pid;
+}
+
+function portsReceived(page: Page): Promise<number> {
+  return page.evaluate(() => (window as unknown as NoticeProbe).__ports.length);
 }
 
 // Waits for the restart policy's next core instead of a fixed time: how long a core takes to come
-// up after its backoff depends on the machine, and a slow one would otherwise find none to kill.
-async function waitForANewCore(app: ElectronApplication, killedPid: number): Promise<void> {
+// up after its backoff depends on the machine. Every core hands the window a port of its own, which
+// marks a new core even when Windows gives it the killed core's freed process id.
+async function killAndWaitForTheNextCore(app: ElectronApplication, page: Page): Promise<void> {
+  const portsBefore = await portsReceived(page);
+  await killTheRunningCore(app);
   await expect
-    .poll(
-      async () =>
-        (await coreProcesses(app)).some((core) => core.pid !== killedPid && isAlive(core.pid)),
-      { timeout: 30_000, interval: 250 },
-    )
-    .toBe(true);
+    .poll(() => portsReceived(page), { timeout: 20_000, interval: 250 })
+    .toBeGreaterThan(portsBefore);
 }
 
 function isAlive(pid: number): boolean {
@@ -102,7 +105,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
 
   it("shows the blocking notice once bounded restarts are exhausted, and clears it once a periodic retry's core is up", async () => {
     for (let attempt = 0; attempt < BOUNDED_RESTART_ATTEMPTS; attempt++) {
-      await waitForANewCore(app, await killTheRunningCore(app));
+      await killAndWaitForTheNextCore(app, page);
     }
 
     // Recorded by the page itself the moment the notice renders, however briefly it stays up
@@ -152,5 +155,6 @@ describe("the register's own recovery once the core's bounded restarts run out",
     await expect
       .poll(() => logs.join("").includes("core: rejected message"), { timeout: 5_000 })
       .toBe(true);
-  }, 60_000);
+    // Five waits of up to 20 s each fit, so a stuck restart reports its own wait, not this limit.
+  }, 180_000);
 });
