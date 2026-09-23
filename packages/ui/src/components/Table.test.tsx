@@ -1884,6 +1884,13 @@ test("does not intercept a click landing on the header underneath the loading ba
 // positive z-10 always paints above, or its own sand hover fill would cover the bar's band instead
 // of sitting under it. setup-browser.ts parks the pointer off-screen after every test, so nothing
 // before this test leaves a stray hover behind.
+//
+// The pixel read below comes from a screenshot, so the bar's segment must not be moving at all:
+// its slide is a transform animation Chromium runs on the compositor, and pausing it from script
+// does not reliably reach the painted frame - under a loaded machine the screenshot still caught
+// the segment mid-sweep over the probe while the DOM reported it paused off-screen. Under reduced
+// motion the segment never animates, so it rests in the bar's left third, and the probe reads the
+// Stock header, which sits entirely to the right of it.
 test("keeps a hovered, unfocused header's own hover fill under the updating bar", async () => {
   interface DispatchableCdpSession {
     send(
@@ -1891,53 +1898,59 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
       params: { type: "mouseMoved"; x: number; y: number },
     ): Promise<unknown>;
   }
-  const screen = await render(
-    <Table
-      {...commonProps}
-      columns={sortableColumns}
-      sort={{ column: "stock", direction: "descending" }}
-      onSortChange={() => {}}
-      loading="updating"
-    />,
-  );
-  await settleScroll();
-  const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
-  const segment = bar.firstElementChild as HTMLElement;
-  const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
-  const buttonRect = button.getBoundingClientRect();
-  const barRect = bar.getBoundingClientRect();
-  const x = buttonRect.left + buttonRect.width / 2;
-
-  // Paused at 0, the segment's own right edge sits exactly at the bar's own left edge (see the
-  // segment's own sweep test below) - off-screen, nowhere near this probe's x - so the probe
-  // below always lands on the bar's plain, static background, never the segment mid-sweep. Left
-  // running, the segment's own edge crosses this exact x at some point in every loop, and a
-  // screenshot taken right then reads an antialiased blend of the segment and the background
-  // that matches neither's exact color, which is exactly what made this test flake before.
-  const [animation] = segment.getAnimations();
-  if (!animation) {
-    throw new Error("Expected the updating bar's segment to have a running CSS animation.");
-  }
-  animation.pause();
-  animation.currentTime = 0;
-
-  const session = cdp() as unknown as DispatchableCdpSession;
-  await session.send("Input.dispatchMouseEvent", {
-    type: "mouseMoved",
-    x,
-    y: buttonRect.top + buttonRect.height / 2,
+  const session = cdp();
+  await session.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
   });
-  await settleScroll();
 
-  expect(button.getAttribute("data-hovered")).toBe("true");
-  expect(button.getAttribute("data-focus-visible")).toBeNull();
+  try {
+    const screen = await render(
+      <Table
+        {...commonProps}
+        columns={sortableColumns}
+        sort={{ column: "stock", direction: "descending" }}
+        onSortChange={() => {}}
+        loading="updating"
+      />,
+    );
+    await settleScroll();
+    const table = screen.getByRole("table").element() as HTMLElement;
+    const bar = table.previousElementSibling as HTMLElement;
+    const segment = bar.firstElementChild as HTMLElement;
+    const button = screen.getByRole("button", { name: "Stock" }).element() as HTMLElement;
+    const buttonRect = button.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+    const x = buttonRect.left + buttonRect.width / 2;
 
-  const pixel = await pixelAt(x, barRect.top + 1);
+    await expect.poll(() => segment.getAnimations()).toHaveLength(0);
+    expect(segment.getBoundingClientRect().right).toBeLessThan(x);
 
-  expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
+    await (session as unknown as DispatchableCdpSession).send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x,
+      y: buttonRect.top + buttonRect.height / 2,
+    });
+    await settleScroll();
 
-  await expectNoAccessibilityViolations(screen.container);
+    expect(button.getAttribute("data-hovered")).toBe("true");
+    expect(button.getAttribute("data-focus-visible")).toBeNull();
+
+    const pixel = await pixelAt(x, barRect.top + 1);
+    // Just below the bar's band, the same hovered button shows through: without this, a hover
+    // fill that never painted would leave the band's own pixel exactly as blue and still pass.
+    const control = await pixelAt(x, barRect.bottom + 1);
+
+    expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
+    expect(control.slice(0, 3)).toEqual(rgbTuple(tokenRgb("surface-sand")));
+
+    await expectNoAccessibilityViolations(screen.container);
+  } finally {
+    await session.send("Emulation.setEmulatedMedia", { features: [] });
+  }
+
+  await expect
+    .poll(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    .toBe(false);
 });
 
 test("keeps the header's own title text below the loading bar's 3px band", async () => {
