@@ -184,6 +184,7 @@ describe("POST /users/recovery/registration-options", () => {
       counter: 0,
       deviceType: "singleDevice",
       backedUp: false,
+      name: "Passkey",
     });
     const rawToken = await issueToken();
 
@@ -298,6 +299,7 @@ describe("POST /users/recovery/redeem", () => {
     const response = await postRedeem({
       recovery_token: rawToken,
       passkey_registration: credential,
+      passkey_name: "Notebook del local",
     });
 
     expect(response.statusCode).toBe(200);
@@ -307,6 +309,7 @@ describe("POST /users/recovery/redeem", () => {
     const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskeys).toHaveLength(1);
     expect(insertedPasskeys[0]?.credentialId).toBe(credential.id);
+    expect(insertedPasskeys[0]?.name).toBe("Notebook del local");
 
     const [tokenRow] = await db
       .select({ usedAt: recoveryTokens.usedAt })
@@ -348,6 +351,7 @@ describe("POST /users/recovery/redeem", () => {
     const response = await postRedeem({
       recovery_token: rawToken,
       passkey_registration: credential,
+      passkey_name: "Notebook del local",
     });
 
     expect(response.statusCode).toBe(200);
@@ -378,7 +382,11 @@ describe("POST /users/recovery/redeem", () => {
     const emulator = new WebAuthnEmulator();
     const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
 
-    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+    await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
 
     const [otherRow] = await db.select().from(sessions).where(eq(sessions.userId, otherUser.id));
     expect(otherRow?.revokedAt).toBeNull();
@@ -389,9 +397,17 @@ describe("POST /users/recovery/redeem", () => {
     const options = await getRegistrationOptions(rawToken);
     const emulator = new WebAuthnEmulator();
     const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
-    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+    await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
 
-    const second = await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+    const second = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
 
     expect(second.statusCode).toBe(410);
     expect(second.json()).toMatchObject({ code: "recovery_token_burned" });
@@ -406,8 +422,16 @@ describe("POST /users/recovery/redeem", () => {
     const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
 
     const [first, second] = await Promise.all([
-      postRedeem({ recovery_token: rawToken, passkey_registration: credential }),
-      postRedeem({ recovery_token: rawToken, passkey_registration: credential }),
+      postRedeem({
+        recovery_token: rawToken,
+        passkey_registration: credential,
+        passkey_name: "Notebook del local",
+      }),
+      postRedeem({
+        recovery_token: rawToken,
+        passkey_registration: credential,
+        passkey_name: "Notebook del local",
+      }),
     ]);
 
     expect([first.statusCode, second.statusCode].sort()).toEqual([200, 410]);
@@ -431,6 +455,7 @@ describe("POST /users/recovery/redeem", () => {
     const response = await postRedeem({
       recovery_token: rawToken,
       passkey_registration: tamperedCredential,
+      passkey_name: "Notebook del local",
     });
 
     expect(response.statusCode).toBe(400);
@@ -456,6 +481,7 @@ describe("POST /users/recovery/redeem", () => {
     const response = await postRedeem({
       recovery_token: rawTokenB,
       passkey_registration: credentialA,
+      passkey_name: "Notebook del local",
     });
 
     expect(response.statusCode).toBe(400);
@@ -546,6 +572,88 @@ describe("POST /users/recovery/redeem", () => {
   });
 });
 
+describe("POST /users/recovery/redeem passkey_name", () => {
+  async function redeemWithName(passkeyName: unknown) {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      ...(passkeyName === undefined ? {} : { passkey_name: passkeyName }),
+    });
+    return { rawToken, response };
+  }
+
+  it("rejects a redeem with no passkey_name as validation_failed, storing nothing and not burning the token", async () => {
+    const { rawToken, response } = await redeemWithName(undefined);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(await tokenUsedAt(rawToken)).toBeNull();
+    const insertedPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(insertedPasskeys).toHaveLength(0);
+  });
+
+  it("rejects a passkey_name that is only whitespace, without burning the token", async () => {
+    const { rawToken, response } = await redeemWithName("   ");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(await tokenUsedAt(rawToken)).toBeNull();
+  });
+
+  it("rejects a passkey_name over 40 characters once trimmed, without burning the token", async () => {
+    const { rawToken, response } = await redeemWithName(`  ${"a".repeat(41)}  `);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(await tokenUsedAt(rawToken)).toBeNull();
+  });
+
+  it("accepts a passkey_name at exactly 40 characters once trimmed", async () => {
+    const { response } = await redeemWithName(`  ${"a".repeat(40)}  `);
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("trims the stored passkey_name", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "  Notebook del local  ",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [insertedPasskey] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(insertedPasskey?.name).toBe("Notebook del local");
+  });
+
+  it("rejects a non-string passkey_name as validation_failed", async () => {
+    const { response } = await redeemWithName(40);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("audits a redeem rejected for a missing passkey_name", async () => {
+    await redeemWithName(undefined);
+
+    const rows = await rejectedAttemptAuditRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      actorId: userId,
+      newValue: { attempt: "redeem", rejectedWith: "validation_failed" },
+    });
+  });
+});
+
 async function rejectedAttemptAuditRows() {
   const rows = await db.select().from(auditLog).where(eq(auditLog.entity, "recovery_token"));
   return rows.filter((row) => (row.newValue as { rejectedWith?: string } | null)?.rejectedWith);
@@ -563,6 +671,7 @@ async function registerCredentialAlready(credentialId: string) {
     counter: 0,
     deviceType: "singleDevice",
     backedUp: false,
+    name: "Passkey",
   });
 }
 
@@ -614,6 +723,7 @@ describe("recovery redemption with a credential that is already registered", () 
     const response = await postRedeem({
       recovery_token: rawToken,
       passkey_registration: credential,
+      passkey_name: "Notebook del local",
     });
 
     expect(response.statusCode).toBe(400);
@@ -654,7 +764,11 @@ describe("auditing rejected recovery redemptions", () => {
     await getRegistrationOptions(rawTokenB);
     const credentialForA = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, optionsA);
 
-    await postRedeem({ recovery_token: rawTokenB, passkey_registration: credentialForA });
+    await postRedeem({
+      recovery_token: rawTokenB,
+      passkey_registration: credentialForA,
+      passkey_name: "Notebook del local",
+    });
 
     const rows = await rejectedAttemptAuditRows();
     expect(rows).toHaveLength(1);
@@ -691,7 +805,11 @@ describe("auditing rejected recovery redemptions", () => {
     const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
     await registerCredentialAlready(credential.id);
 
-    await postRedeem({ recovery_token: rawToken, passkey_registration: credential });
+    await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
 
     const rows = await rejectedAttemptAuditRows();
     expect(rows).toHaveLength(1);

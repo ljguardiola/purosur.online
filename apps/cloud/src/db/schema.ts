@@ -87,6 +87,8 @@ export const passkeys = pgTable(
     transports: jsonb("transports").$type<string[]>(),
     deviceType: text("device_type").notNull(),
     backedUp: boolean("backed_up").notNull(),
+    name: text("name").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],

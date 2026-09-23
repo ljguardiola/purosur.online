@@ -104,12 +104,14 @@ export async function fetchRegistrationOptions(
 export async function redeemRecovery(
   recoveryToken: string,
   passkeyRegistration: RegistrationResponseJSON,
+  passkeyName: string,
 ): Promise<RecoveryTokenOutcome<{ userId: string }>> {
   let response: Response;
   try {
     response = await postJson("/users/recovery/redeem", {
       recovery_token: recoveryToken,
       passkey_registration: passkeyRegistration,
+      passkey_name: passkeyName,
     });
   } catch {
     return { kind: "failed" };

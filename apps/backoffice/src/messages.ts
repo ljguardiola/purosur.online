@@ -56,6 +56,10 @@ export const messages = defineMessages("es-AR", (f) => ({
     registerPasskey: {
       heading: "Registrá una passkey nueva",
       description: "Con ella vas a ingresar de ahora en adelante.",
+      nameLabel: "Nombre de la passkey",
+      nameHelper: "Por ejemplo, Notebook del local.",
+      nameRequired: "Ingresá un nombre para la passkey.",
+      nameTooLong: "El nombre no puede superar los 40 caracteres.",
       submit: "Registrar la passkey",
       footerHint:
         "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Usuarios.",

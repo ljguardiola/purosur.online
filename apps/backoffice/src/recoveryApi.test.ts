@@ -130,17 +130,21 @@ test("fetchRegistrationOptions maps an unexpected status or network failure to f
 
 const registration = { id: "cred-id" } as unknown as RegistrationResponseJSON;
 
-test("redeemRecovery sends the token and the passkey registration, returning the user id", async () => {
+test("redeemRecovery sends the token, the passkey registration and its name, returning the user id", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { user_id: "user-1" }));
 
-  const outcome = await redeemRecovery("the-token", registration);
+  const outcome = await redeemRecovery("the-token", registration, "Notebook del local");
 
   expect(outcome).toEqual({ kind: "ok", value: { userId: "user-1" } });
   expect(fetch).toHaveBeenCalledWith(
     "/users/recovery/redeem",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ recovery_token: "the-token", passkey_registration: registration }),
+      body: JSON.stringify({
+        recovery_token: "the-token",
+        passkey_registration: registration,
+        passkey_name: "Notebook del local",
+      }),
     }),
   );
 });
@@ -155,14 +159,18 @@ test.each([
   async (status, code, kind) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code }));
 
-    await expect(redeemRecovery("the-token", registration)).resolves.toEqual({ kind });
+    await expect(redeemRecovery("the-token", registration, "Notebook del local")).resolves.toEqual({
+      kind,
+    });
   },
 );
 
 test("redeemRecovery maps an unrecognized code at a known status to failed", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "something_unexpected" }));
 
-  await expect(redeemRecovery("the-token", registration)).resolves.toEqual({ kind: "failed" });
+  await expect(redeemRecovery("the-token", registration, "Notebook del local")).resolves.toEqual({
+    kind: "failed",
+  });
 });
 
 test("redeemRecovery maps 429 to rate_limited with the Retry-After seconds", async () => {
@@ -170,7 +178,7 @@ test("redeemRecovery maps 429 to rate_limited with the Retry-After seconds", asy
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "3600" }),
   );
 
-  await expect(redeemRecovery("the-token", registration)).resolves.toEqual({
+  await expect(redeemRecovery("the-token", registration, "Notebook del local")).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 3600,
   });

@@ -90,6 +90,7 @@ describe("buildTestDatabase", () => {
       counter: 0,
       deviceType: "singleDevice",
       backedUp: false,
+      name: "Passkey",
     });
     await db.insert(recoveryTokens).values({
       userId: user.id,

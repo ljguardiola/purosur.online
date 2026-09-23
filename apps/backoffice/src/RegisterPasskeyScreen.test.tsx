@@ -15,6 +15,12 @@ vi.mock("@simplewebauthn/browser", () => ({ startRegistration: vi.fn() }));
 
 const registrationOptions = { challenge: "abc", rp: { id: "purosur.online" } } as never;
 const registrationResponse = { id: "cred-1" } as never;
+const PASSKEY_NAME = "Notebook del local";
+
+// The only textbox on this screen is the passkey name field.
+async function fillName(screen: Awaited<ReturnType<typeof render>>, value: string) {
+  await userEvent.fill(screen.getByRole("textbox"), value);
+}
 
 beforeEach(() => {
   vi.mocked(fetchRegistrationOptions).mockReset();
@@ -58,10 +64,11 @@ test("keeps the token across React StrictMode's double-mount effects, in dev", a
     .toBeVisible();
   expect(fetchRegistrationOptions).toHaveBeenCalledWith("the-token");
 
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.poll(() => vi.mocked(redeemRecovery).mock.calls.length).toBe(1);
-  expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
+  expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse, PASSKEY_NAME);
 });
 
 test("shows the invalid-link state without calling the API when there is no token", async () => {
@@ -96,6 +103,9 @@ test("shows the register-passkey heading and copy with the account's display nam
     .element(screen.getByText("Con ella vas a ingresar de ahora en adelante."))
     .toBeVisible();
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  await expect.element(screen.getByText("Nombre de la passkey")).toBeVisible();
+  await expect.element(screen.getByRole("textbox")).toBeVisible();
+  await expect.element(screen.getByText("Por ejemplo, Notebook del local.")).toBeVisible();
   await expect
     .element(
       screen.getByText(
@@ -163,11 +173,12 @@ test("registers the passkey and shows the success state, naming that open sessio
   vi.mocked(redeemRecovery).mockResolvedValue({ kind: "ok", value: { userId: "user-1" } });
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   expect(startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
   await expect.poll(() => vi.mocked(redeemRecovery).mock.calls.length).toBe(1);
-  expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse);
+  expect(redeemRecovery).toHaveBeenCalledWith("the-token", registrationResponse, PASSKEY_NAME);
 
   await expect.element(screen.getByText("Registraste la passkey")).toBeVisible();
   await expect
@@ -190,6 +201,7 @@ test("lets the person retry, without a new link, after the browser cancels regis
   vi.mocked(startRegistration).mockRejectedValue(new Error("NotAllowedError"));
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
@@ -207,6 +219,7 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   vi.mocked(redeemRecovery).mockResolvedValue({ kind: "validation_failed" });
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
@@ -237,6 +250,7 @@ test("retries with fresh options after another tab replaced this link's challeng
     .mockResolvedValueOnce({ kind: "ok", value: { userId: "user-1" } });
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect.poll(() => vi.mocked(fetchRegistrationOptions).mock.calls.length).toBe(2);
@@ -263,6 +277,7 @@ test("keeps the current options after the browser cancels, without fetching them
   vi.mocked(redeemRecovery).mockResolvedValue({ kind: "ok", value: { userId: "user-1" } });
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect
@@ -285,7 +300,58 @@ test("moves to the burned state when redeem discovers the token was consumed mea
   vi.mocked(redeemRecovery).mockResolvedValue({ kind: "burned" });
 
   const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, PASSKEY_NAME);
   await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(screen.getByText("Este enlace ya no se puede usar")).toBeVisible();
+});
+
+test("requires the passkey name before registering, without calling WebAuthn or the API", async () => {
+  vi.mocked(fetchRegistrationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+
+  const screen = await render(<RegisterPasskeyScreen />);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  expect(startRegistration).not.toHaveBeenCalled();
+  expect(redeemRecovery).not.toHaveBeenCalled();
+});
+
+test("rejects a passkey name over 40 characters once trimmed, without calling the API", async () => {
+  vi.mocked(fetchRegistrationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+
+  const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, `  ${"a".repeat(41)}  `);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect
+    .element(screen.getByText("El nombre no puede superar los 40 caracteres."))
+    .toBeVisible();
+  expect(redeemRecovery).not.toHaveBeenCalled();
+});
+
+test("sends the trimmed passkey name", async () => {
+  vi.mocked(fetchRegistrationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { displayName: "Lucía Pérez", options: registrationOptions },
+  });
+  vi.mocked(startRegistration).mockResolvedValue(registrationResponse);
+  vi.mocked(redeemRecovery).mockResolvedValue({ kind: "ok", value: { userId: "user-1" } });
+
+  const screen = await render(<RegisterPasskeyScreen />);
+  await fillName(screen, "  Notebook del local  ");
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.poll(() => vi.mocked(redeemRecovery).mock.calls.length).toBe(1);
+  expect(redeemRecovery).toHaveBeenCalledWith(
+    "the-token",
+    registrationResponse,
+    "Notebook del local",
+  );
 });
