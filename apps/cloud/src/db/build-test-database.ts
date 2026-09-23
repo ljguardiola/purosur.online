@@ -83,7 +83,8 @@ export async function buildTestDatabase({
     // seeded Administrator role) rather than anything a test goes on to add.
     migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
   } catch (error) {
-    await client.close();
+    // A failure to close must not replace the migration error, which is the one worth reporting.
+    await client.close().catch(() => undefined);
     throw error;
   }
 

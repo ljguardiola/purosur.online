@@ -173,12 +173,44 @@ describe("buildTestDatabase", () => {
     const query = vi.spyOn(PGlite.prototype, "query");
     onTestFinished(() => query.mockRestore());
 
-    await expect(buildTestDatabase({ migrationsFolder })).rejects.toThrow(/missing_table/);
+    const attempt = buildTestDatabase({ migrationsFolder }).then((database) => {
+      onTestFinished(() => database.close());
+      return database;
+    });
+    await expect(attempt).rejects.toThrow(/missing_table/);
 
     const queried = new Set(query.mock.contexts);
     expect(queried.size).toBeGreaterThan(0);
     for (const database of queried) {
       expect(database).toHaveProperty("closed", true);
     }
+  });
+
+  it("rejects with the migration's own error even when closing its database also fails", async () => {
+    const migrationsFolder = await migrationsFolderWith(["select * from missing_table"]);
+    // PGlite also closes a throwaway instance of its own while starting up; only the database the
+    // migration queried is made to fail on close.
+    const query = vi.spyOn(PGlite.prototype, "query");
+    onTestFinished(() => query.mockRestore());
+    const realClose = PGlite.prototype.close;
+    const close = vi.spyOn(PGlite.prototype, "close").mockImplementation(async function (
+      this: PGlite,
+    ) {
+      await realClose.call(this);
+      if (query.mock.contexts.includes(this)) {
+        throw new Error("close failed");
+      }
+    });
+    onTestFinished(() => close.mockRestore());
+
+    const attempt = buildTestDatabase({ migrationsFolder }).then((database) => {
+      onTestFinished(() => database.close());
+      return database;
+    });
+    await expect(attempt).rejects.toThrow(/missing_table/);
+    // The rejected close really was attempted: the error it raised was the one swallowed.
+    expect(query.mock.contexts.some((database) => close.mock.contexts.includes(database))).toBe(
+      true,
+    );
   });
 });
