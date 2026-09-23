@@ -1,10 +1,8 @@
-import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator from "nid-webauthn-emulator";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
   passkeys,
@@ -22,14 +20,14 @@ import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 import { SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 const SOURCE_ADDRESS = "203.0.113.10";
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
+let client: TestDatabase["client"];
 let app: FastifyInstance;
 let recoveryApp: FastifyInstance;
 let userId: string;
@@ -52,10 +50,18 @@ async function buildApp() {
   return built;
 }
 
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+  client = testDatabase.client;
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
 beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await testDatabase.clear();
 
   const [user] = await db
     .insert(users)
@@ -80,7 +86,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await app.close();
   await recoveryApp.close();
-  await client.close();
 });
 
 function postOptions(headers: Record<string, string> = {}) {
@@ -243,6 +248,10 @@ describe("POST /users/session/authenticate", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.sessionIdHash).toBe(hashSessionId(String(firstRawId)));
     expect(rows[0]?.revokedAt).toBeNull();
+
+    // The database is shared across this file's tests: undo the injected schema break instead of
+    // leaving every later test's session insert failing against a column it knows nothing about.
+    await client.exec("alter table sessions drop column injected_failure");
   });
 
   it("rejects an unknown credential as authentication_failed", async () => {

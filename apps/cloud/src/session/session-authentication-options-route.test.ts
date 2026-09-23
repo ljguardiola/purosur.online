@@ -1,23 +1,27 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { signInChallenges } from "../db/schema.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
 let app: FastifyInstance;
 
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
 beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await testDatabase.clear();
 
   app = Fastify();
   registerSessionAuthenticationOptionsRoute(app, {
@@ -29,7 +33,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
-  await client.close();
 });
 
 function post(headers: Record<string, string> = {}) {
