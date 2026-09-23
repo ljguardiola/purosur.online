@@ -18,7 +18,7 @@ import {
 } from "./recovery-integration-database.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
-import { RECOVERY_REQUEST_TASK_IDENTIFIER, type RecoveryWorkerHandle } from "./recovery-worker.js";
+import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 // Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
 // pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
@@ -114,27 +114,6 @@ async function dropEveryConnection(databaseUrl: string): Promise<void> {
   }
 }
 
-// graphile-worker's runner stops itself once its worker pool gives up, which cutting every
-// connection can do, and stopping an already stopped runner rejects with this.
-const RUNNER_ALREADY_STOPPED = "Runner is already stopped";
-
-function isRunnerAlreadyStopped(error: unknown): boolean {
-  return error instanceof Error && error.message.includes(RUNNER_ALREADY_STOPPED);
-}
-
-async function stopWorker(worker: RecoveryWorkerHandle | undefined): Promise<void> {
-  if (!worker) {
-    return;
-  }
-  try {
-    await worker.stop();
-  } catch (error) {
-    if (!isRunnerAlreadyStopped(error)) {
-      throw error;
-    }
-  }
-}
-
 /**
  * Runs `cleanup` after `error` so a failure never leaves a leak behind it, then reports the
  * failure that triggered it: both, joined, if `cleanup` itself throws, so neither is lost — or
@@ -147,21 +126,6 @@ async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promi
     throw new AggregateError([error, cleanupError], "cleanup after failure also failed");
   }
   throw error;
-}
-
-/**
- * Shutting down over the connections this test just cut is not what it asserts: the cut can stop
- * graphile-worker's runner by itself, which makes the shutdown reject on its first step. Any other
- * failure still fails this test, and the worker is already stopped either way.
- */
-async function closeAfterCuttingConnections(server: StartedFixture): Promise<void> {
-  try {
-    await server.close();
-  } catch (error) {
-    if (!isRunnerAlreadyStopped(error)) {
-      throw error;
-    }
-  }
 }
 
 async function startRealServer(
@@ -198,20 +162,8 @@ async function startRealServer(
   }
   return {
     origin: `http://127.0.0.1:${port}`,
-    /**
-     * Only runs `stopWorker` when `app.close()` itself fails: a resolved `app.close()` already
-     * ran `setUpRecovery`'s own shutdown (which stops the worker first) to completion through
-     * Fastify's `onClose` hook, so stopping the worker again would just be a second `stop()` on
-     * one already stopped. Every test in this file shares one database, where a worker a failed
-     * shutdown left behind would take a later test's job and deliver it through that test's
-     * sender, so a failed close still stops it explicitly.
-     */
-    async close() {
-      try {
-        await app.close();
-      } catch (error) {
-        await rethrowAfter(error, () => stopWorker(recovery?.worker));
-      }
+    close() {
+      return app.close();
     },
   };
 }
@@ -263,7 +215,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
         expect(reports.filter((report) => WORKER_FAILURE.test(report))).not.toEqual([]);
       }, WAIT_OPTIONS);
     } finally {
-      await closeAfterCuttingConnections(server);
+      await server.close();
     }
   });
 
