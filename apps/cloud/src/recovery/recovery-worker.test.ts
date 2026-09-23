@@ -251,6 +251,36 @@ describe("startRecoveryWorker", () => {
     expect(pool.end).toHaveBeenCalledTimes(1);
   });
 
+  it("reports both failures when stopping the runner fails and ending the pool fails too", async () => {
+    const runner = {
+      stop: vi.fn().mockRejectedValue(new Error("stop failed: connection reset")),
+      promise: Promise.resolve(),
+    };
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const pool = new FakePool();
+    pool.end.mockRejectedValue(new Error("pool end failed: socket closed"));
+    const createPool = vi.fn().mockReturnValue(pool);
+
+    const handle = await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+    const failure = await handle.stop().then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors.map((error: Error) => error.message)).toEqual([
+      expect.stringContaining("stop failed: connection reset"),
+      expect.stringContaining("pool end failed: socket closed"),
+    ]);
+  });
+
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
     const runWorker = vi.fn().mockResolvedValue(fakeRunner());
 

@@ -10,6 +10,7 @@ import {
 } from "./process-recovery-request-job.js";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
+import { runShutdownSteps } from "./run-shutdown-steps.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
@@ -135,17 +136,21 @@ export async function startRecoveryWorker(
 
   return {
     async stop() {
-      try {
-        if (!stoppedItself) {
-          await runner.stop();
-        }
-        // Whether we asked for it or the runner stopped itself, `promise` only settles once its
-        // release has actually finished, so a job it is still draining never sees the pool close
-        // from under it.
-        await runner.promise;
-      } finally {
-        await pool.end();
-      }
+      await runShutdownSteps([
+        {
+          label: "recovery runner",
+          run: async () => {
+            if (!stoppedItself) {
+              await runner.stop();
+            }
+            // Whether we asked for it or the runner stopped itself, `promise` only settles once its
+            // release has actually finished, so a job it is still draining never sees the pool
+            // close from under it.
+            await runner.promise;
+          },
+        },
+        { label: "recovery worker pool", run: () => pool.end() },
+      ]);
     },
   };
 }
