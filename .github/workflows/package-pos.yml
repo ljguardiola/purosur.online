@@ -4,8 +4,7 @@ on:
   pull_request:
     paths:
       - apps/pos/**
-      - packages/contracts/**
-      - packages/ui/**
+      - packages/**
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -14,14 +13,11 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
-      - "!packages/**/*.test.*"
-      - "!packages/*/src/test/**"
   push:
     branches: [main]
     paths:
       - apps/pos/**
-      - packages/contracts/**
-      - packages/ui/**
+      - packages/**
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
@@ -30,8 +26,6 @@ on:
       - .github/workflows/package-pos.yml
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
-      - "!packages/**/*.test.*"
-      - "!packages/*/src/test/**"
 
 permissions:
   contents: read
@@ -66,8 +60,8 @@ jobs:
 
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
       # update feed only reach each channel's resources/channel.json and app-update.yml, outside
-      # app.asar. An unset variable leaves that feature off. --dir stops at the unpacked app: the
-      # comparisons below and the end-to-end test read only that.
+      # app.asar. An unset variable leaves that feature off. --dir stops at the unpacked app, which
+      # is all the app code comparisons below read.
       - run: pnpm --filter @purosur/pos pack:production --dir
         env:
           POS_SENTRY_DSN: ""
