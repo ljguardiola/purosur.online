@@ -1,10 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { inject } from "vitest";
-
-export const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
 
 export interface TestDatabase {
   client: PGlite;
@@ -63,25 +61,6 @@ async function restoreSeedRows(
       }
     }
   });
-}
-
-/**
- * Creates a fresh PGlite instance and runs the given migrations against it. Used both by
- * `buildTestDatabase` (when it has no matching snapshot to load) and by the "node" project's
- * global setup, which builds the one snapshot every test file starts from.
- */
-export async function migrateFreshDatabase(
-  migrationsFolder: string = MIGRATIONS_FOLDER,
-): Promise<PGlite> {
-  const client = new PGlite();
-  try {
-    await migrate(drizzle(client), { migrationsFolder });
-    return client;
-  } catch (error) {
-    // A failure to close must not replace the migration error, which is the one worth reporting.
-    await client.close().catch(() => undefined);
-    throw error;
-  }
 }
 
 /**

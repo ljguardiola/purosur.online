@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
-import { migrateFreshDatabase } from "./src/db/build-test-database.js";
+import { provideTestDatabaseSnapshot } from "./src/db/test-database-snapshot.js";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -22,24 +22,6 @@ declare module "vitest" {
 
 const CLOUD_DIR = fileURLToPath(new URL("./", import.meta.url));
 const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
-
-/**
- * Migrates one PGlite database with the default migrations and dumps it to `buildRoot`, so every
- * test file can load that snapshot instead of migrating its own database from scratch. Compression
- * is skipped: the dump only ever moves across the local filesystem, and every test file pays to
- * decompress it once loading its own copy.
- */
-async function buildTestDatabaseSnapshot(buildRoot: string): Promise<string> {
-  const client = await migrateFreshDatabase();
-  try {
-    const dump = await client.dumpDataDir("none");
-    const snapshotPath = join(buildRoot, "test-database-snapshot.tar");
-    writeFileSync(snapshotPath, Buffer.from(await dump.arrayBuffer()));
-    return snapshotPath;
-  } finally {
-    await client.close();
-  }
-}
 
 // The command entrypoints import sibling modules, which Node's type stripping cannot resolve from
 // a raw .ts file, so tests that spawn a command run the compiled JavaScript instead. It is built
@@ -60,7 +42,7 @@ export default async function setup(project: TestProject): Promise<() => void> {
     symlinkSync(join(CLOUD_DIR, "node_modules"), join(buildRoot, "node_modules"), "dir");
 
     project.provide("cloudBuildDir", join(buildRoot, "dist"));
-    project.provide("testDatabaseSnapshotPath", await buildTestDatabaseSnapshot(buildRoot));
+    await provideTestDatabaseSnapshot(project, join(buildRoot, "test-database-snapshot.tar"));
   } catch (error) {
     rmSync(buildRoot, { recursive: true, force: true });
     throw error;
