@@ -1,10 +1,5 @@
 import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
-import type {
-  AuthenticationResponseJSON,
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-  RegistrationResponseJSON,
-} from "@simplewebauthn/browser";
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -43,20 +38,6 @@ function passkeyRowDetail(passkey: Passkey, now: Date): string {
   });
 }
 
-type RegistrationChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-  registrationOptions: PublicKeyCredentialCreationOptionsJSON;
-};
-
-type RegisterReadyPhase = {
-  kind: "ready";
-  challenge: RegistrationChallenge;
-  attemptFailed: boolean;
-  submitting: boolean;
-};
-
-type RegisterModalPhase = { kind: "loading" } | { kind: "loadError" } | RegisterReadyPhase;
-
 type RegisterPasskeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -71,53 +52,25 @@ function RegisterPasskeyModal({
   onRegistered,
   onSessionEnded,
 }: RegisterPasskeyModalProps) {
-  const [phase, setPhase] = useState<RegisterModalPhase>({ kind: "loading" });
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
-
-  const load = useCallback(async () => {
-    setPhase({ kind: "loading" });
-    const outcome = await fetchPasskeyRegistrationChallenge();
-    if (outcome.kind === "ok") {
-      setPhase({
-        kind: "ready",
-        challenge: outcome.value,
-        attemptFailed: false,
-        submitting: false,
-      });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else {
-      setPhase({ kind: "loadError" });
-    }
-  }, [onSessionEnded]);
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setName("");
       setNameError(undefined);
-      void load();
+      setAttemptFailed(false);
+      setSubmitting(false);
     }
-  }, [isOpen, load]);
+  }, [isOpen]);
 
-  // Any submitted attempt that actually reached the cloud (a failed reauthentication or a
-  // rejected registration) already consumed its one-time challenge there
-  // (passkeys-registration-route.ts's consumePendingPasskeyChallenge), so a retry needs fresh
-  // options. A browser-cancelled prompt never reaches the cloud, so the current options stay
-  // valid and are kept as-is.
-  async function refreshAfterRejectedAttempt() {
-    setPhase({ kind: "loading" });
-    const outcome = await fetchPasskeyRegistrationChallenge();
-    if (outcome.kind === "ok") {
-      setPhase({ kind: "ready", challenge: outcome.value, attemptFailed: true, submitting: false });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else {
-      setPhase({ kind: "loadError" });
-    }
-  }
-
-  async function handleSubmit(readyPhase: RegisterReadyPhase) {
+  // Fetched fresh on every attempt, right before it's used: a submitted attempt that actually
+  // reached the cloud (a failed reauthentication or a rejected registration) already consumed its
+  // one-time challenge there (passkeys-registration-route.ts's consumePendingPasskeyChallenge), so
+  // reusing stored options across attempts would only work for the first one.
+  async function handleSubmit() {
     const validationError = validatePasskeyName(name, {
       required: registerMessages.nameRequired,
       tooLong: registerMessages.nameTooLong,
@@ -126,20 +79,34 @@ function RegisterPasskeyModal({
     if (validationError) {
       return;
     }
-    setPhase({ ...readyPhase, attemptFailed: false, submitting: true });
+    setAttemptFailed(false);
+    setSubmitting(true);
+
+    const challenge = await fetchPasskeyRegistrationChallenge();
+    if (challenge.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (challenge.kind !== "ok") {
+      setAttemptFailed(true);
+      setSubmitting(false);
+      return;
+    }
 
     const reauthentication = await startAuthentication({
-      optionsJSON: readyPhase.challenge.reauthenticationOptions,
+      optionsJSON: challenge.value.reauthenticationOptions,
     }).catch((): AuthenticationResponseJSON | null => null);
     if (!reauthentication) {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      setAttemptFailed(true);
+      setSubmitting(false);
       return;
     }
     const passkeyRegistration = await startRegistration({
-      optionsJSON: readyPhase.challenge.registrationOptions,
+      optionsJSON: challenge.value.registrationOptions,
     }).catch((): RegistrationResponseJSON | null => null);
     if (!passkeyRegistration) {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      setAttemptFailed(true);
+      setSubmitting(false);
       return;
     }
 
@@ -152,10 +119,9 @@ function RegisterPasskeyModal({
       onSessionEnded();
       return;
     }
-    await refreshAfterRejectedAttempt();
+    setAttemptFailed(true);
+    setSubmitting(false);
   }
-
-  const ready = phase.kind === "ready" ? phase : undefined;
 
   return (
     <Modal
@@ -178,7 +144,7 @@ function RegisterPasskeyModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={ready ? ready.submitting : false}
+            isDisabled={submitting}
             onPress={onClose}
           >
             {registerMessages.cancel}
@@ -188,73 +154,46 @@ function RegisterPasskeyModal({
             size="large"
             icon={<KeyRound />}
             fullWidth
-            isDisabled={!ready || ready.submitting}
-            onPress={() => ready && void handleSubmit(ready)}
+            isDisabled={submitting}
+            onPress={() => void handleSubmit()}
           >
             {registerMessages.submit}
           </Button>
         </>
       }
     >
-      {phase.kind === "loading" && <p role="status">{passkeysMessages.loading}</p>}
-      {phase.kind === "loadError" && (
-        <>
+      <div className="flex flex-col gap-4">
+        {attemptFailed && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={passkeysMessages.loadErrorTitle}
-            detail={passkeysMessages.loadErrorDetail}
+            title={registerMessages.attemptFailedTitle}
+            detail={registerMessages.attemptFailedDetail}
           />
-          <Button variant="secondary" onPress={() => void load()}>
-            {passkeysMessages.retry}
-          </Button>
-        </>
-      )}
-      {ready && (
-        <div className="flex flex-col gap-4">
-          {ready.attemptFailed && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={registerMessages.attemptFailedTitle}
-              detail={registerMessages.attemptFailedDetail}
-            />
-          )}
-          <TextField
-            kind="plain-text"
-            label={registerMessages.nameLabel}
-            value={name}
-            onChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(
-                  validatePasskeyName(value, {
-                    required: registerMessages.nameRequired,
-                    tooLong: registerMessages.nameTooLong,
-                  }),
-                );
-              }
-            }}
-            helperText={registerMessages.nameHelper}
-            required
-            {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
-          />
-        </div>
-      )}
+        )}
+        <TextField
+          kind="plain-text"
+          label={registerMessages.nameLabel}
+          value={name}
+          onChange={(value) => {
+            setName(value);
+            if (nameError) {
+              setNameError(
+                validatePasskeyName(value, {
+                  required: registerMessages.nameRequired,
+                  tooLong: registerMessages.nameTooLong,
+                }),
+              );
+            }
+          }}
+          helperText={registerMessages.nameHelper}
+          required
+          {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+        />
+      </div>
     </Modal>
   );
 }
-
-type RemovalChallenge = { reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON };
-
-type RemoveReadyPhase = {
-  kind: "ready";
-  challenge: RemovalChallenge;
-  attemptFailed: boolean;
-  submitting: boolean;
-};
-
-type RemoveModalPhase = { kind: "loading" } | { kind: "loadError" } | RemoveReadyPhase;
 
 type RemovePasskeyModalProps = {
   target: Passkey | null;
@@ -272,58 +211,43 @@ function RemovePasskeyModal({
   onRemoved,
   onSessionEnded,
 }: RemovePasskeyModalProps) {
-  const [phase, setPhase] = useState<RemoveModalPhase>({ kind: "loading" });
   const isOpen = target !== null;
-
-  const load = useCallback(async () => {
-    setPhase({ kind: "loading" });
-    const outcome = await fetchPasskeyRemovalChallenge();
-    if (outcome.kind === "ok") {
-      setPhase({
-        kind: "ready",
-        challenge: outcome.value,
-        attemptFailed: false,
-        submitting: false,
-      });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else {
-      setPhase({ kind: "loadError" });
-    }
-  }, [onSessionEnded]);
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      void load();
+      setAttemptFailed(false);
+      setSubmitting(false);
     }
-  }, [isOpen, load]);
+  }, [isOpen]);
 
-  // See RegisterPasskeyModal's refreshAfterRejectedAttempt: the removal challenge is consumed the
-  // same way (passkeys-removal-route.ts), so only an attempt that actually reached the cloud needs
-  // fresh options before a retry.
-  async function refreshAfterRejectedAttempt() {
-    setPhase({ kind: "loading" });
-    const outcome = await fetchPasskeyRemovalChallenge();
-    if (outcome.kind === "ok") {
-      setPhase({ kind: "ready", challenge: outcome.value, attemptFailed: true, submitting: false });
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else {
-      setPhase({ kind: "loadError" });
-    }
-  }
-
-  async function handleConfirm(readyPhase: RemoveReadyPhase) {
+  // See RegisterPasskeyModal's handleSubmit: the removal challenge is consumed the same way
+  // (passkeys-removal-route.ts), so every attempt fetches its own fresh one.
+  async function handleConfirm() {
     if (!target) {
       return;
     }
-    setPhase({ ...readyPhase, attemptFailed: false, submitting: true });
+    setAttemptFailed(false);
+    setSubmitting(true);
+
+    const challenge = await fetchPasskeyRemovalChallenge();
+    if (challenge.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (challenge.kind !== "ok") {
+      setAttemptFailed(true);
+      setSubmitting(false);
+      return;
+    }
 
     const reauthentication = await startAuthentication({
-      optionsJSON: readyPhase.challenge.reauthenticationOptions,
+      optionsJSON: challenge.value.reauthenticationOptions,
     }).catch((): AuthenticationResponseJSON | null => null);
     if (!reauthentication) {
-      setPhase({ ...readyPhase, attemptFailed: true, submitting: false });
+      setAttemptFailed(true);
+      setSubmitting(false);
       return;
     }
 
@@ -337,10 +261,9 @@ function RemovePasskeyModal({
       onSessionEnded();
       return;
     }
-    await refreshAfterRejectedAttempt();
+    setAttemptFailed(true);
+    setSubmitting(false);
   }
-
-  const ready = phase.kind === "ready" ? phase : undefined;
 
   return (
     <Modal
@@ -362,7 +285,7 @@ function RemovePasskeyModal({
             variant="secondary"
             size="large"
             icon={<X />}
-            isDisabled={ready ? ready.submitting : false}
+            isDisabled={submitting}
             onPress={onClose}
           >
             {removeMessages.cancel}
@@ -373,39 +296,21 @@ function RemovePasskeyModal({
             size="large"
             icon={<Trash2 />}
             fullWidth
-            isDisabled={!ready || ready.submitting}
-            onPress={() => ready && void handleConfirm(ready)}
+            isDisabled={submitting}
+            onPress={() => void handleConfirm()}
           >
             {removeMessages.confirm}
           </Button>
         </>
       }
     >
-      {phase.kind === "loading" && <p role="status">{passkeysMessages.loading}</p>}
-      {phase.kind === "loadError" && (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={passkeysMessages.loadErrorTitle}
-            detail={passkeysMessages.loadErrorDetail}
-          />
-          <Button variant="secondary" onPress={() => void load()}>
-            {passkeysMessages.retry}
-          </Button>
-        </>
-      )}
-      {ready && target && (
+      {target && (
         <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">{removeMessages.body({ name: target.name })}</p>
-          {isOnlyPasskey && (
-            <InlineNotice
-              tone="warning"
-              icon={<TriangleAlert />}
-              detail={removeMessages.onlyPasskeyWarning}
-            />
-          )}
-          {ready.attemptFailed && (
+          <p className="text-base text-ink">
+            {removeMessages.body({ name: target.name })}
+            {isOnlyPasskey ? ` ${removeMessages.onlyPasskeyWarning}` : ""}
+          </p>
+          {attemptFailed && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
@@ -465,7 +370,7 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-lg text-brand-earth-ui">
+            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
               {passkeysMessages.title}
             </h2>
             <Button variant="secondary" icon={<Plus />} onPress={() => setRegisterModalOpen(true)}>

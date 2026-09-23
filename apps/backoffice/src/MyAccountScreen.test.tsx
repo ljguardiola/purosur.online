@@ -144,6 +144,22 @@ async function openRegisterModal(screen: Awaited<ReturnType<typeof renderScreen>
   return screen.getByRole("dialog");
 }
 
+test("opens the register modal ready, with the name field visible without waiting on a challenge fetch", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockReturnValue(new Promise(() => {}));
+
+  const dialog = await openRegisterModal(screen);
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Registrar una passkey" }))
+    .toBeVisible();
+  await expect.element(dialog.getByRole("textbox")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Registrar la passkey" })).toBeEnabled();
+  expect(fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
+});
+
 test("opens the register modal and submits a new passkey, refreshing the list on success", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
@@ -166,6 +182,7 @@ test("opens the register modal and submits a new passkey, refreshing the list on
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
+  expect(fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(1);
   expect(startAuthentication).toHaveBeenCalledWith({ optionsJSON: reauthenticationOptions });
   expect(startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
   await expect.poll(() => vi.mocked(registerPasskey).mock.calls.length).toBe(1);
@@ -179,19 +196,16 @@ test("opens the register modal and submits a new passkey, refreshing the list on
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 });
 
-test("requires a passkey name before registering, without calling WebAuthn or the API", async () => {
+test("requires a passkey name before registering, without fetching a challenge or calling the API", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(dialog.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
+  expect(fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
   expect(startAuthentication).not.toHaveBeenCalled();
   expect(registerPasskey).not.toHaveBeenCalled();
 });
@@ -200,10 +214,6 @@ test("rejects a passkey name over 40 characters once trimmed", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox"), "a".repeat(41));
@@ -212,10 +222,40 @@ test("rejects a passkey name over 40 characters once trimmed", async () => {
   await expect
     .element(dialog.getByText("El nombre no puede superar los 40 caracteres."))
     .toBeVisible();
+  expect(fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
   expect(registerPasskey).not.toHaveBeenCalled();
 });
 
-test("lets the person retry, keeping the same options, after the browser cancels a registration step", async () => {
+test("shows an attempt-failed notice when the registration challenge fails to fetch, then lets the person retry", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({ kind: "failed" });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(startAuthentication).not.toHaveBeenCalled();
+  expect(registerPasskey).not.toHaveBeenCalled();
+
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+    kind: "ok",
+    value: { reauthenticationOptions, registrationOptions },
+  });
+  vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.poll(() => vi.mocked(fetchPasskeyRegistrationChallenge).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("lets the person retry, keeping the same challenge, after the browser cancels a registration step", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
@@ -234,7 +274,10 @@ test("lets the person retry, keeping the same options, after the browser cancels
   expect(registerPasskey).not.toHaveBeenCalled();
 });
 
-test("fetches fresh options after the reauthentication fails to verify, then lets the person retry", async () => {
+// Every attempt fetches its own challenge (passkeys-registration-route.ts consumes it once it
+// reaches the cloud), so a retry after a rejected attempt needs no separate refresh path: the
+// next press just fetches another one, the same way the first press did.
+test("fetches a fresh challenge on every registration attempt, including a retry after the reauthentication fails to verify", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
@@ -244,14 +287,36 @@ test("fetches fresh options after the reauthentication fails to verify, then let
   });
   vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(registerPasskey).mockResolvedValue({ kind: "authentication_failed" });
+  vi.mocked(registerPasskey).mockResolvedValueOnce({ kind: "authentication_failed" });
+  const dialog = await openRegisterModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(1);
+
+  vi.mocked(registerPasskey).mockResolvedValueOnce({ kind: "ok", value: phone });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.poll(() => vi.mocked(fetchPasskeyRegistrationChallenge).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("ends the session when the registration challenge finds the session already ended", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(onSessionEnded);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({ kind: "unauthenticated" });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
-  await expect.poll(() => vi.mocked(fetchPasskeyRegistrationChallenge).mock.calls.length).toBe(2);
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("ends the session when registering finds the session already ended", async () => {
@@ -278,44 +343,19 @@ test("closes the register modal without calling the API on cancel", async () => 
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
   expect(registerPasskey).not.toHaveBeenCalled();
-});
-
-test("shows a load error with a retry action when the register modal's options fail to load", async () => {
-  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  const screen = await renderScreen();
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({ kind: "failed" });
-  const dialog = await openRegisterModal(screen);
-
-  await expect.element(dialog.getByText("No pudimos abrir tus passkeys")).toBeVisible();
-
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
-  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
-
-  await expect.element(dialog.getByRole("textbox")).toBeVisible();
 });
 
 test("has no accessibility violations with the register modal open", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
   await openRegisterModal(screen);
 
   await expectNoAccessibilityViolations(document.body);
@@ -325,6 +365,24 @@ async function openRemoveModal(screen: Awaited<ReturnType<typeof renderScreen>>,
   await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
   return screen.getByRole("dialog");
 }
+
+test("opens the remove modal ready, with the confirmation text visible without waiting on a challenge fetch", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockReturnValue(new Promise(() => {}));
+
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "¿Dar de baja la passkey?" }))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByText("«Notebook del local» deja de servir para entrar."))
+    .toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Dar de baja" })).toBeEnabled();
+  expect(fetchPasskeyRemovalChallenge).not.toHaveBeenCalled();
+});
 
 test("opens the remove modal naming the passkey and confirms the removal, refreshing the list on success", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
@@ -349,6 +407,7 @@ test("opens the remove modal naming the passkey and confirms the removal, refres
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
+  expect(fetchPasskeyRemovalChallenge).toHaveBeenCalledTimes(1);
   expect(startAuthentication).toHaveBeenCalledWith({ optionsJSON: reauthenticationOptions });
   await expect.poll(() => vi.mocked(removePasskey).mock.calls.length).toBe(1);
   expect(removePasskey).toHaveBeenCalledWith("pk-1", reauthAssertion);
@@ -360,20 +419,14 @@ test("warns in the remove modal when it is the account's only passkey", async ()
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
 
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await expect
     .element(
-      dialog
-        .getByText(
-          "Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo.",
-        )
-        .first(),
+      dialog.getByText(
+        "«Notebook del local» deja de servir para entrar. Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo.",
+      ),
     )
     .toBeVisible();
 });
@@ -382,10 +435,6 @@ test("does not warn in the remove modal when it is not the only passkey", async 
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
 
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
@@ -411,7 +460,7 @@ test("treats a not_found removal as already done and refreshes the list", async 
   expect(screen.getByText("Notebook del local").query()).toBeNull();
 });
 
-test("lets the person retry the removal, keeping the same options, after the browser cancels", async () => {
+test("lets the person retry the removal, keeping the same challenge, after the browser cancels", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
@@ -429,7 +478,37 @@ test("lets the person retry the removal, keeping the same options, after the bro
   expect(removePasskey).not.toHaveBeenCalled();
 });
 
-test("fetches a fresh challenge after removal's reauthentication fails to verify", async () => {
+test("shows an attempt-failed notice when the removal challenge fails to fetch, then lets the person retry", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValueOnce({ kind: "failed" });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
+  expect(startAuthentication).not.toHaveBeenCalled();
+  expect(removePasskey).not.toHaveBeenCalled();
+
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValueOnce({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(removePasskey).mockResolvedValue({ kind: "ok" });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => vi.mocked(fetchPasskeyRemovalChallenge).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+// Every attempt fetches its own challenge (passkeys-removal-route.ts consumes it once it reaches
+// the cloud), so a retry after a rejected attempt needs no separate refresh path: the next press
+// just fetches another one, the same way the first press did.
+test("fetches a fresh challenge on every removal attempt, including a retry after the reauthentication fails to verify", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
@@ -438,13 +517,34 @@ test("fetches a fresh challenge after removal's reauthentication fails to verify
     value: { reauthenticationOptions },
   });
   vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(removePasskey).mockResolvedValue({ kind: "authentication_failed" });
+  vi.mocked(removePasskey).mockResolvedValueOnce({ kind: "authentication_failed" });
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
   await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
+  expect(fetchPasskeyRemovalChallenge).toHaveBeenCalledTimes(1);
+
+  vi.mocked(removePasskey).mockResolvedValueOnce({ kind: "ok" });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
   await expect.poll(() => vi.mocked(fetchPasskeyRemovalChallenge).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("ends the session when the removal challenge finds the session already ended", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(onSessionEnded);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({ kind: "unauthenticated" });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("ends the session when removing finds the session already ended", async () => {
@@ -469,10 +569,6 @@ test("has no accessibility violations with the remove modal open", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
   await openRemoveModal(screen, "Notebook del local");
 
   await expectNoAccessibilityViolations(document.body);
