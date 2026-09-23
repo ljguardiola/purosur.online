@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "package:production": "electron-vite build && cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
-    "package:staging": "electron-vite build && cross-env POS_CHANNEL=staging electron-builder --config electron-builder.config.mjs --win",
+    "package:production": "electron-vite build && pnpm run pack:production",
+    "package:staging": "electron-vite build && pnpm run pack:staging",
+    "pack:production": "cross-env POS_CHANNEL=production electron-builder --config electron-builder.config.mjs --win",
+    "pack:staging": "cross-env POS_CHANNEL=staging electron-builder --config electron-builder.config.mjs --win",
     "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "devDependencies": {

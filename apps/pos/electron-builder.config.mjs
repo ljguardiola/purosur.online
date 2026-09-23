@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { CHANNELS, serializeChannelFile } from "./src/shared/channel.ts";
 
 // The production and staging installers are chosen via POS_CHANNEL (see package.json's
-// package:production/package:staging scripts). They differ in appId and productName so NSIS
+// pack:production/pack:staging scripts). They differ in appId and productName so NSIS
 // installs each one to its own directory, Start Menu shortcut and uninstall registry key, letting
 // both be installed side by side on the same machine.
 const channel = process.env.POS_CHANNEL;
