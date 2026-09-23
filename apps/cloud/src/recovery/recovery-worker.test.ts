@@ -165,6 +165,73 @@ describe("startRecoveryWorker", () => {
     expect(events).toEqual(["runner stopped", "pool ended"]);
   });
 
+  it("never asks an already self-stopped runner to stop again, and ends the pool only once its own drain has finished", async () => {
+    const events: string[] = [];
+    let capturedEvents: EventEmitter | undefined;
+    const runner = {
+      // A second stop() on a runner that already stopped itself rejects with "Runner is already
+      // stopped" (graphile-worker 0.18); this must never be called in that case.
+      stop: vi.fn().mockRejectedValue(new Error("Runner is already stopped")),
+      promise: new Promise<void>((resolve) => {
+        queueMicrotask(() => {
+          events.push("self-stop drain finished");
+          resolve();
+        });
+      }),
+    };
+    const runWorker = vi.fn().mockImplementation(async (options) => {
+      capturedEvents = (options as { events?: EventEmitter }).events;
+      return runner;
+    });
+    const pool = new FakePool();
+    pool.end.mockImplementation(async () => {
+      events.push("pool ended");
+    });
+    const createPool = vi.fn().mockReturnValue(pool);
+
+    const handle = await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+
+    // Stands in for the runner's own worker pool or cron exiting on its own (e.g. its database
+    // connections were dropped), which emits "stop" on the events emitter passed to run().
+    mustExist(capturedEvents, "the events emitter passed to graphile-worker's run()").emit("stop", {
+      ctx: {},
+    });
+
+    await handle.stop();
+
+    expect(runner.stop).not.toHaveBeenCalled();
+    expect(events).toEqual(["self-stop drain finished", "pool ended"]);
+  });
+
+  it("still ends the pool when actually stopping the runner fails, and rejects with that failure", async () => {
+    const runner = {
+      stop: vi.fn().mockRejectedValue(new Error("stop failed: connection reset")),
+      promise: Promise.resolve(),
+    };
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+
+    const handle = await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+
+    await expect(handle.stop()).rejects.toThrow("stop failed: connection reset");
+    expect(pool.end).toHaveBeenCalledTimes(1);
+  });
+
   it("runs more than one job at a time, so one slow job never holds up every other one", async () => {
     const runWorker = vi.fn().mockResolvedValue(fakeRunner());
 
