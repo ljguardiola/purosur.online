@@ -64,7 +64,7 @@ test("keeps the full verification when git could not produce the diff", () => {
 
 // diffChangedPaths -----------------------------------------------------------------------
 
-test("diffChangedPaths passes --no-renames to git", async () => {
+test("diffChangedPaths lists every path changed from the first commit to the second, renames split", async () => {
   const requested = [];
   await diffChangedPaths({
     fromSha: FROM_SHA,
@@ -75,7 +75,7 @@ test("diffChangedPaths passes --no-renames to git", async () => {
     },
   });
 
-  assert.ok(requested[0].includes("--no-renames"));
+  assert.deepEqual(requested[0], ["diff", "--name-only", "--no-renames", FROM_SHA, TO_SHA]);
 });
 
 test("diffChangedPaths lists the changed paths git reports", async () => {
@@ -147,16 +147,6 @@ test("runs the full verification without calling git when SCOPE_FROM is missing"
 
 test("runs the full verification without calling git when SCOPE_TO is missing", async () => {
   const { deps, calls } = fakeCli({ env: { SCOPE_TO: "" } });
-
-  const exitCode = await runCli(deps);
-
-  assert.equal(exitCode, 0);
-  assert.deepEqual(calls.git, []);
-  assert.deepEqual(calls.outputs, [{ path: "/output", line: "docs_only=false\n" }]);
-});
-
-test("runs the full verification without calling git when SCOPE_FROM is all zeros", async () => {
-  const { deps, calls } = fakeCli({ env: { SCOPE_FROM: "0".repeat(40) } });
 
   const exitCode = await runCli(deps);
 

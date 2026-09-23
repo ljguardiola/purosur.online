@@ -7,11 +7,12 @@ import { appendFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const LOG_PREFIX = "change-scope";
-const ALL_ZEROS_RE = /^0+$/;
 
-// Tailwind scans every non-CSS file under its source roots, Markdown included, and
-// `.github/pull_request_template.md` feeds the pull request contract, so a `.md` file under any
-// of these roots still needs the full verification.
+// Tailwind generates CSS from class names in any file under a source root, Markdown included:
+// under apps/ and packages/ that CSS ships and is asserted on; `.github/pull_request_template.md`
+// feeds the pull request contract. The browser tests' Tailwind also scans Markdown at the root,
+// but only a class that exists nowhere else in the code could come from there, and no component
+// renders a class the code does not name.
 const NON_DOCS_ROOTS = ["apps/", "packages/", ".github/"];
 
 /** @returns {boolean} whether path is a Markdown file outside every root the full verification still reads. */
@@ -70,9 +71,8 @@ export async function runCli({
     return 1;
   }
 
-  // A push that created the branch has no earlier commit: GitHub reports `before` as 40 zeros.
-  if (!SCOPE_FROM || !SCOPE_TO || ALL_ZEROS_RE.test(SCOPE_FROM)) {
-    log(`${LOG_PREFIX}: SCOPE_FROM or SCOPE_TO is missing, or this push created the branch`);
+  if (!SCOPE_FROM || !SCOPE_TO) {
+    log(`${LOG_PREFIX}: SCOPE_FROM or SCOPE_TO is missing`);
     await appendOutput(GITHUB_OUTPUT, "docs_only=false\n");
     return 0;
   }
