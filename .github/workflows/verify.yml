@@ -28,19 +28,33 @@ jobs:
         run: pnpm audit
         continue-on-error: true
 
-      - name: Cache Playwright browsers
+      - name: Read the Playwright version
+        id: playwright-version
+        run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
+      # main saves the cache, which every pull request can read; a copy saved from a pull request
+      # would serve only that pull request.
+      - name: Restore Playwright browsers
         id: playwright-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.value }}
 
       # A cache hit still needs the OS packages Playwright's browsers link against,
-      # just not another download of the (unchanged, lockfile-keyed) browser binary.
+      # just not another download of the (unchanged) browser binary.
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
       - if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
+
+      - name: Save Playwright browsers
+        if: github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
       - run: pnpm verify

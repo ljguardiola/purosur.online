@@ -83,15 +83,19 @@ jobs:
           apps/pos/release/production/win-unpacked/resources/app.asar
           apps/pos/release/staging/win-unpacked/resources/app.asar
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pos-production-installer
+          retention-days: 7
           path: apps/pos/release/production/*.exe
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pos-staging-installer
+          retention-days: 7
           path: apps/pos/release/staging/*.exe
           if-no-files-found: error
 
@@ -100,6 +104,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pos-production-app-asar
+          retention-days: 1
           path: apps/pos/release/production/win-unpacked/resources/app.asar
           if-no-files-found: error
 
@@ -136,6 +141,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pos-independent-production-app-asar
+          retention-days: 1
           path: apps/pos/release/production/win-unpacked/resources/app.asar
           if-no-files-found: error
 
