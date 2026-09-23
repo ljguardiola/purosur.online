@@ -47,7 +47,7 @@ describe("provideTestDatabaseSnapshot", () => {
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     const migrationsFolder = join(folder, "migrations");
     await writeMigrations(migrationsFolder, ["first_table"]);
-    const provided: string[] = [];
+    const provided: (string | undefined)[] = [];
     const rerunHandlers: (() => Promise<void>)[] = [];
 
     await provideTestDatabaseSnapshot(
