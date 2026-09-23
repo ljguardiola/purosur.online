@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { FastifyInstance } from "fastify";
-import { makeWorkerUtils } from "graphile-worker";
+import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
@@ -174,6 +174,27 @@ export function createRecoveryJobQueuePool(
   return pool;
 }
 
+export interface RecoveryResources {
+  worker: Pick<RecoveryWorkerHandle, "stop">;
+  workerUtils: Pick<WorkerUtils, "release">;
+  jobQueuePool: Pick<pg.Pool, "end">;
+  sql: Pick<postgres.Sql, "end">;
+}
+
+export async function closeRecoveryResources({
+  worker,
+  workerUtils,
+  jobQueuePool,
+  sql,
+}: RecoveryResources): Promise<void> {
+  await runShutdownSteps([
+    { label: "recovery worker", run: () => worker.stop() },
+    { label: "job-queue utilities", run: async () => void (await workerUtils.release()) },
+    { label: "job-queue pool", run: () => jobQueuePool.end() },
+    { label: "database client", run: () => sql.end({ timeout: 1 }) },
+  ]);
+}
+
 export interface SetUpRecoveryDeps {
   /**
    * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
@@ -219,14 +240,7 @@ export async function setUpRecovery(
     jobQueue,
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     worker,
-    async close() {
-      await runShutdownSteps([
-        { label: "recovery worker", run: () => worker.stop() },
-        { label: "job-queue utilities", run: async () => void (await workerUtils.release()) },
-        { label: "job-queue pool", run: () => jobQueuePool.end() },
-        { label: "database client", run: () => sql.end({ timeout: 1 }) },
-      ]);
-    },
+    close: () => closeRecoveryResources({ worker, workerUtils, jobQueuePool, sql }),
   };
 }
 
