@@ -11,6 +11,7 @@ import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemptio
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
 import { registerPasskeyRemovalRoutes } from "./passkeys-removal-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -430,6 +431,29 @@ describe("POST /users/passkeys/:id/remove", () => {
       ...options.reauthentication_options,
       allowCredentials: [],
     });
+
+    const response = await postJson(
+      `/users/passkeys/${target.id}/remove`,
+      { reauthentication },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(rows).toHaveLength(2);
+  });
+
+  it("rejects a challenge that aged past its lifetime, deleting nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+    const [target] = await db
+      .select()
+      .from(passkeys)
+      .where(eq(passkeys.name, "Teléfono del local"));
+    if (!target) throw new Error("test setup: target passkey not found");
+    const options = await requestRemovalOptions(rawSessionId);
+    const reauthentication = emulatorA.getJSON(BACKOFFICE_ORIGIN, options.reauthentication_options);
+    currentTime = new Date(NOON.getTime() + PASSKEY_CHALLENGE_TTL_MS);
 
     const response = await postJson(
       `/users/passkeys/${target.id}/remove`,

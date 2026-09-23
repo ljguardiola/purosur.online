@@ -18,6 +18,7 @@ import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemptio
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys-registration-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -358,6 +359,32 @@ describe("POST /users/passkeys", () => {
     expect(second.json()).toMatchObject({ code: "authentication_failed" });
     const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(rows).toHaveLength(2);
+  });
+
+  it("rejects a challenge that aged past its lifetime, storing nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+    const options = await requestOptions(rawSessionId);
+    const reauthentication = registeredEmulator.getJSON(
+      BACKOFFICE_ORIGIN,
+      options.reauthentication_options,
+    );
+    const newEmulator = newDeviceEmulator();
+    const passkeyRegistration = newEmulator.createJSON(
+      BACKOFFICE_ORIGIN,
+      options.passkey_registration_options,
+    );
+    currentTime = new Date(NOON.getTime() + PASSKEY_CHALLENGE_TTL_MS);
+
+    const response = await postJson(
+      "/users/passkeys",
+      { reauthentication, passkey_registration: passkeyRegistration, passkey_name: "Teléfono" },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(rows).toHaveLength(1);
   });
 
   it("rejects registering with no prior options request, storing nothing", async () => {
