@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
@@ -20,6 +20,12 @@ import {
   userRoles,
   users,
 } from "./schema.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
+
+vi.mock(import("./test-database-snapshot.js"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, migrateFreshDatabase: vi.fn(actual.migrateFreshDatabase) };
+});
 
 async function countsByTable(client: PGlite): Promise<Map<string, number>> {
   const { rows } = await client.query<{ tablename: string }>(
@@ -31,6 +37,21 @@ async function countsByTable(client: PGlite): Promise<Map<string, number>> {
     counts.set(tablename, result.rows[0]?.count ?? 0);
   }
   return counts;
+}
+
+async function snapshotPathWithMarkerRole(): Promise<string> {
+  const seed = await buildTestDatabase();
+  onTestFinished(() => seed.close());
+  await seed.client.query(
+    `insert into "roles" ("name", "is_administrator") values ('marker-role', false)`,
+  );
+
+  const dump = await seed.client.dumpDataDir("none");
+  const folder = await mkdtemp(join(tmpdir(), "build-test-database-snapshot-"));
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+  const path = join(folder, "snapshot.tar");
+  await writeFile(path, Buffer.from(await dump.arrayBuffer()));
+  return path;
 }
 
 async function migrationsFolderWith(statements: string[]): Promise<string> {
@@ -231,5 +252,52 @@ describe("buildTestDatabase", () => {
     expect(query.mock.contexts.some((database) => close.mock.contexts.includes(database))).toBe(
       true,
     );
+  });
+
+  it("starts from the snapshot this test run provides, without migrating again, when given no arguments", async () => {
+    expect(
+      inject("testDatabaseSnapshotPath"),
+      "the node project's global setup provided no database snapshot",
+    ).toBeDefined();
+    vi.mocked(migrateFreshDatabase).mockClear();
+
+    const database = await buildTestDatabase();
+    onTestFinished(() => database.close());
+
+    expect(migrateFreshDatabase).not.toHaveBeenCalled();
+    const { rows } = await database.client.query<{ name: string }>(
+      'select "name" from "roles" where "is_administrator"',
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("starts from a provided snapshot instead of migrating, when the default migrations folder is used", async () => {
+    const snapshotPath = await snapshotPathWithMarkerRole();
+
+    const database = await buildTestDatabase({ snapshotPath });
+    onTestFinished(() => database.close());
+
+    const { rows } = await database.client.query<{ name: string | null }>(
+      'select "name" from "roles" where "name" = $1',
+      ["marker-role"],
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("ignores a snapshot path when a custom migrations folder is given, since the snapshot only matches the default migrations", async () => {
+    const snapshotPath = await snapshotPathWithMarkerRole();
+    const migrationsFolder = await migrationsFolderWith([
+      'create table "only_here" ("id" integer primary key)',
+    ]);
+
+    vi.mocked(migrateFreshDatabase).mockClear();
+
+    const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
+    onTestFinished(() => database.close());
+
+    // Also shows the spy the run-once test relies on sees calls made from inside buildTestDatabase.
+    expect(migrateFreshDatabase).toHaveBeenCalledWith(migrationsFolder);
+    const { rows } = await database.client.query('select * from "only_here"');
+    expect(rows).toEqual([]);
   });
 });
