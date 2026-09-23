@@ -13,12 +13,15 @@ export const DIRECT_ACCESS_REJECTED_RESPONSE = {
   message: "this request did not come through the edge",
 } as const;
 
-const HEALTH_CHECK_PATH = "/health";
+const HEALTH_CHECK_ROUTE = "/health";
 
-/** Railway's own healthcheck reaches the container directly, bypassing Cloudflare. */
+/**
+ * Railway's own healthcheck reaches the container directly, bypassing Cloudflare. Routing runs
+ * before `onRequest`, so the matched route (undefined when nothing matched) is compared instead
+ * of the raw URL, in which the router does not resolve dot segments.
+ */
 function isExemptHealthCheck(request: FastifyRequest): boolean {
-  const pathname = new URL(request.url, "http://localhost").pathname;
-  return request.method === "GET" && pathname === HEALTH_CHECK_PATH;
+  return request.method === "GET" && request.routeOptions.url === HEALTH_CHECK_ROUTE;
 }
 
 function readEdgeOriginSecretHeader(request: FastifyRequest): string | undefined {

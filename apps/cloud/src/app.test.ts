@@ -1,4 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +81,78 @@ describe("the edge origin guard", () => {
     const response = await app.inject({ method: "GET", url: "/health" });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("exempts GET /health with a query string even with no edge secret header", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({ method: "GET", url: "/health?probe=1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+
+  // `inject()` resolves dot segments before routing, which a real socket does not, so these
+  // requests go over an actual listener.
+  describe("over a real connection, with the backoffice's static build served for unknown paths", () => {
+    let staticDir: string;
+    let app: ReturnType<typeof buildRealApp>;
+    let port: number;
+
+    beforeEach(async () => {
+      staticDir = mkdtempSync(join(tmpdir(), "cloud-edge-static-"));
+      writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
+      app = buildRealApp({
+        version: "abc1234",
+        edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+        staticDir,
+      });
+      await app.listen({ host: "127.0.0.1", port: 0 });
+      port = (app.server.address() as AddressInfo).port;
+    });
+
+    afterEach(async () => {
+      await app.close();
+      rmSync(staticDir, { recursive: true, force: true });
+    });
+
+    function getRawPath(path: string): Promise<{ statusCode: number; body: string }> {
+      return new Promise((resolve, reject) => {
+        const request = httpRequest(
+          { host: "127.0.0.1", port, path, method: "GET" },
+          (response) => {
+            let body = "";
+            response.setEncoding("utf8");
+            response.on("data", (chunk: string) => {
+              body += chunk;
+            });
+            response.on("end", () => resolve({ statusCode: response.statusCode ?? 0, body }));
+          },
+        );
+        request.on("error", reject);
+        request.end();
+      });
+    }
+
+    it("exempts GET /health with no edge secret header", async () => {
+      const response = await getRawPath("/health");
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual({ status: "ok", version: "abc1234" });
+    });
+
+    it.each(["/./health", "/x/../health", "/%2e%2e/health", "/health/"])(
+      "refuses GET %s with no edge secret header because it is not the /health route",
+      async (path) => {
+        const response = await getRawPath(path);
+
+        expect(response.statusCode).toBe(403);
+        expect(JSON.parse(response.body)).toEqual({
+          code: "direct_access_rejected",
+          message: "this request did not come through the edge",
+        });
+      },
+    );
   });
 });
 
