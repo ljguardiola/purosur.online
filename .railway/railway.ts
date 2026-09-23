@@ -53,6 +53,7 @@ export default defineRailway((ctx) => {
   const ghcrPullToken = requireEnv("GHCR_PULL_TOKEN");
   const sentryDsn = requireEnv("CLOUD_SENTRY_DSN");
   const resendApiKey = requireEnv("RESEND_API_KEY");
+  const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -85,6 +86,7 @@ export default defineRailway((ctx) => {
       RECOVERY_EMAIL_FROM: requireRecoveryEmailFrom(environment),
       RECOVERY_EMAIL_REPLY_TO,
       BACKOFFICE_ORIGIN: backofficeOrigin,
+      EDGE_ORIGIN_SECRET: edgeOriginSecret,
     },
   });
 

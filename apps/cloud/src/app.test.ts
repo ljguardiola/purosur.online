@@ -2,8 +2,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildApp } from "./app.js";
+import { buildApp as buildRealApp } from "./app.js";
 import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
+import {
+  buildTestApp as buildApp,
+  TEST_EDGE_ORIGIN_SECRET,
+} from "./test-support/build-test-app.js";
 
 let testDatabase: TestDatabase;
 
@@ -27,6 +31,54 @@ describe("GET /health", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: "ok", version: "abc1234" });
+  });
+});
+
+describe("the edge origin guard", () => {
+  it("refuses a request with no edge secret header with 403 direct_access_rejected", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({ method: "GET", url: "/some-route" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      code: "direct_access_rejected",
+      message: "this request did not come through the edge",
+    });
+  });
+
+  it("refuses a request whose edge secret header does not match", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/some-route",
+      headers: { "x-edge-origin-secret": "not-the-real-secret" },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("lets a request with the correct edge secret header reach routing", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/some-route",
+      headers: { "x-edge-origin-secret": TEST_EDGE_ORIGIN_SECRET },
+    });
+
+    // No route is registered at /some-route: reaching Fastify's own 404 (instead of the guard's
+    // 403) proves the request passed the guard and reached routing.
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("exempts GET /health even with no edge secret header", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({ method: "GET", url: "/health" });
+
+    expect(response.statusCode).toBe(200);
   });
 });
 

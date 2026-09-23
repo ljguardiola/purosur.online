@@ -5,6 +5,7 @@ import WebAuthnEmulator from "nid-webauthn-emulator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
+import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { startServer } from "../server.js";
 import { findFreePort } from "./find-free-port.js";
 import {
@@ -21,6 +22,7 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 // HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+const TEST_EDGE_ORIGIN_SECRET = "edge-secret";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
@@ -51,6 +53,7 @@ async function startRealServer(): Promise<StartedFixture> {
     RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
     RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
     BACKOFFICE_ORIGIN,
+    EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
   });
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }
@@ -81,7 +84,11 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
 
       const optionsResponse = await fetch(`${server.origin}/users/recovery/registration-options`, {
         method: "POST",
-        headers: { "content-type": "application/json", origin: BACKOFFICE_ORIGIN },
+        headers: {
+          "content-type": "application/json",
+          origin: BACKOFFICE_ORIGIN,
+          [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
+        },
         body: JSON.stringify({ recovery_token: rawToken }),
       });
       expect(optionsResponse.status).toBe(200);
@@ -93,7 +100,11 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
       const redeem = () =>
         fetch(`${server.origin}/users/recovery/redeem`, {
           method: "POST",
-          headers: { "content-type": "application/json", origin: BACKOFFICE_ORIGIN },
+          headers: {
+            "content-type": "application/json",
+            origin: BACKOFFICE_ORIGIN,
+            [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
+          },
           body: JSON.stringify({
             recovery_token: rawToken,
             passkey_registration: credential,

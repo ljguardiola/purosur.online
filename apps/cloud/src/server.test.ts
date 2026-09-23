@@ -197,6 +197,7 @@ describe("startServer", () => {
       SENTRY_DSN: "https://public@sentry.example/1",
       SENTRY_ENVIRONMENT: "staging",
       BACKOFFICE_STATIC_DIR: staticDir,
+      EDGE_ORIGIN_SECRET: "edge-secret",
     };
 
     const app = await startServer(env, { initSentry, buildApp }).finally(() =>
@@ -207,7 +208,11 @@ describe("startServer", () => {
       dsn: "https://public@sentry.example/1",
       environment: "staging",
     });
-    expect(buildApp).toHaveBeenCalledWith({ version: "sha123", staticDir });
+    expect(buildApp).toHaveBeenCalledWith({
+      version: "sha123",
+      edgeOriginSecret: "edge-secret",
+      staticDir,
+    });
     expect(listen).toHaveBeenCalledWith({ port: 4000, host: "0.0.0.0" });
     expect(app).toBe(fakeApp);
   });
@@ -217,9 +222,13 @@ describe("startServer", () => {
     const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
     const buildApp = vi.fn().mockReturnValue(fakeApp);
 
-    await startServer({}, { initSentry: vi.fn(), buildApp });
+    await startServer({ EDGE_ORIGIN_SECRET: "edge-secret" }, { initSentry: vi.fn(), buildApp });
 
-    expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
+    expect(buildApp).toHaveBeenCalledWith({
+      version: "unknown",
+      edgeOriginSecret: "edge-secret",
+      staticDir: undefined,
+    });
   });
 
   it("builds the app with no recovery option when DATABASE_URL is not set", async () => {
@@ -228,10 +237,26 @@ describe("startServer", () => {
     const buildApp = vi.fn().mockReturnValue(fakeApp);
     const setUpRecovery = vi.fn();
 
-    await startServer({}, { initSentry: vi.fn(), buildApp, setUpRecovery });
+    await startServer(
+      { EDGE_ORIGIN_SECRET: "edge-secret" },
+      { initSentry: vi.fn(), buildApp, setUpRecovery },
+    );
 
     expect(setUpRecovery).not.toHaveBeenCalled();
-    expect(buildApp).toHaveBeenCalledWith({ version: "unknown", staticDir: undefined });
+    expect(buildApp).toHaveBeenCalledWith({
+      version: "unknown",
+      edgeOriginSecret: "edge-secret",
+      staticDir: undefined,
+    });
+  });
+
+  it("refuses to start when EDGE_ORIGIN_SECRET is not set", async () => {
+    const buildApp = vi.fn();
+
+    await expect(startServer({}, { initSentry: vi.fn(), buildApp })).rejects.toThrow(
+      "EDGE_ORIGIN_SECRET",
+    );
+    expect(buildApp).not.toHaveBeenCalled();
   });
 
   it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
@@ -262,6 +287,7 @@ describe("startServer", () => {
       RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
       RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      EDGE_ORIGIN_SECRET: "edge-secret",
     };
 
     await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
@@ -275,6 +301,7 @@ describe("startServer", () => {
     });
     expect(buildApp).toHaveBeenCalledWith({
       version: "unknown",
+      edgeOriginSecret: "edge-secret",
       staticDir: undefined,
       recovery: {
         db: fakeRecovery.db,
