@@ -64,9 +64,13 @@ export async function provideTestDatabaseSnapshot(
     try {
       await writeSnapshot(snapshotPath, migrationsFolder);
       project.provide("testDatabaseSnapshotPath", snapshotPath);
-    } catch {
+    } catch (error) {
       // A migration mid-edit must not end the watch session, which is what a rejected rerun hook
       // does. With no snapshot, every file migrates on its own and reports the migration's error.
+      console.warn(
+        "could not rebuild the test database snapshot; files migrate on their own",
+        error,
+      );
       project.provide("testDatabaseSnapshotPath", undefined);
     }
   });

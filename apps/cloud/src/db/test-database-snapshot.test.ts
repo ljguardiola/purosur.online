@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { provideTestDatabaseSnapshot } from "./test-database-snapshot.js";
 
 async function writeMigrations(folder: string, tables: string[]): Promise<void> {
@@ -41,7 +41,9 @@ async function tablesInSnapshot(snapshotPath: string | undefined): Promise<strin
   }
 }
 
-describe("provideTestDatabaseSnapshot", () => {
+// Each test starts up to four embedded Postgres databases, about a second apiece on a fast machine
+// and several on a busy CI one, which the default five-second test limit does not cover.
+describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
   it("rebuilds the provided snapshot from the migrations as they are when tests rerun", async () => {
     const folder = await mkdtemp(join(tmpdir(), "test-database-snapshot-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
@@ -93,11 +95,17 @@ describe("provideTestDatabaseSnapshot", () => {
       migrationsFolder,
     );
     await writeFile(join(migrationsFolder, "0000_first_table.sql"), "this is not sql");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    onTestFinished(() => warn.mockRestore());
 
     for (const rerun of rerunHandlers) {
       await expect(rerun()).resolves.toBeUndefined();
     }
 
     expect(provided.at(-1)).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("could not rebuild the test database snapshot"),
+      expect.anything(),
+    );
   });
 });
