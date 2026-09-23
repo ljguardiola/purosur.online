@@ -13,6 +13,7 @@ import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
 import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
 import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
+import { runShutdownSteps } from "./recovery/run-shutdown-steps.js";
 import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
@@ -219,10 +220,12 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     worker,
     async close() {
-      await worker.stop();
-      await workerUtils.release();
-      await jobQueuePool.end();
-      await sql.end({ timeout: 1 });
+      await runShutdownSteps([
+        { label: "recovery worker", run: () => worker.stop() },
+        { label: "job-queue utilities", run: async () => void (await workerUtils.release()) },
+        { label: "job-queue pool", run: () => jobQueuePool.end() },
+        { label: "database client", run: () => sql.end({ timeout: 1 }) },
+      ]);
     },
   };
 }
