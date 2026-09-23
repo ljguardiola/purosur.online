@@ -1,19 +1,17 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
-import { requestRecoveryLink } from "./recoveryApi";
+import { AccountRecoveryScreen, type AccountRecoveryScreenServices } from "./AccountRecoveryScreen";
 
-vi.mock("./recoveryApi", () => ({ requestRecoveryLink: vi.fn() }));
-
-beforeEach(() => {
-  vi.mocked(requestRecoveryLink).mockReset();
-});
-
-afterEach(() => {
-  vi.mocked(requestRecoveryLink).mockReset();
-});
+function createServices(
+  overrides: Partial<AccountRecoveryScreenServices> = {},
+): AccountRecoveryScreenServices {
+  return {
+    requestRecoveryLink: vi.fn(),
+    ...overrides,
+  };
+}
 
 // The required asterisk folds into the input's accessible name in Chromium (see
 // TextField.test.tsx's own "marks a required field with an asterisk" test), so this queries by
@@ -37,27 +35,31 @@ test("shows the recovery form with its heading, email field, submit button and b
 });
 
 test("rejects an empty email without calling the API", async () => {
-  const screen = await render(<AccountRecoveryScreen />);
+  const services = createServices();
+  const screen = await render(<AccountRecoveryScreen services={services} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("Ingresá tu correo.")).toBeVisible();
-  expect(requestRecoveryLink).not.toHaveBeenCalled();
+  expect(services.requestRecoveryLink).not.toHaveBeenCalled();
 });
 
 test("rejects a malformed email without calling the API", async () => {
-  const screen = await render(<AccountRecoveryScreen />);
+  const services = createServices();
+  const screen = await render(<AccountRecoveryScreen services={services} />);
 
   await fillEmail(screen, "not-an-email");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
 
   await expect.element(screen.getByText("Ingresá un correo válido.")).toBeVisible();
-  expect(requestRecoveryLink).not.toHaveBeenCalled();
+  expect(services.requestRecoveryLink).not.toHaveBeenCalled();
 });
 
 test("confirms the link was sent, with the uniform notice, after a successful submit", async () => {
-  vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "sent" });
-  const screen = await render(<AccountRecoveryScreen />);
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "sent" }),
+  });
+  const screen = await render(<AccountRecoveryScreen services={services} />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
@@ -75,17 +77,19 @@ test("confirms the link was sent, with the uniform notice, after a successful su
       ),
     )
     .toBeVisible();
-  expect(requestRecoveryLink).toHaveBeenCalledWith("lucia.perez@purosur.online");
+  expect(services.requestRecoveryLink).toHaveBeenCalledWith("lucia.perez@purosur.online");
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a rate-limited notice that does not blame the connection, naming when to retry", async () => {
-  vi.mocked(requestRecoveryLink).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 3600,
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({
+      kind: "rate_limited",
+      retryAfterSeconds: 3600,
+    }),
   });
-  const screen = await render(<AccountRecoveryScreen />);
+  const screen = await render(<AccountRecoveryScreen services={services} />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
@@ -98,8 +102,10 @@ test("shows a rate-limited notice that does not blame the connection, naming whe
 });
 
 test("shows a generic error notice on any other failure", async () => {
-  vi.mocked(requestRecoveryLink).mockResolvedValue({ kind: "failed" });
-  const screen = await render(<AccountRecoveryScreen />);
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
+  const screen = await render(<AccountRecoveryScreen services={services} />);
 
   await fillEmail(screen, "lucia.perez@purosur.online");
   await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));

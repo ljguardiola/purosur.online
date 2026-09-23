@@ -10,6 +10,19 @@ const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
+export type AccountRecoveryScreenServices = {
+  requestRecoveryLink: typeof requestRecoveryLink;
+};
+
+const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
+  requestRecoveryLink,
+};
+
+export type AccountRecoveryScreenProps = {
+  /** Injected in tests so submitting the form doesn't call the real recovery API. */
+  services?: AccountRecoveryScreenServices;
+};
+
 function validateEmail(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -22,7 +35,8 @@ function validateEmail(value: string): string | undefined {
  * The 429 and generic-failure states share the notice-above-the-action pattern used for other
  * blocked-by-attempts states in the product.
  */
-export function AccountRecoveryScreen() {
+export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps = {}) {
+  const { requestRecoveryLink } = services ?? defaultAccountRecoveryScreenServices;
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
