@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   admitSignInAttempt,
   confirmRejectedSignInAttempt,
@@ -13,19 +11,22 @@ import {
   type TrippedSignInLockout,
 } from "./sign-in-lockout.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
+let client: TestDatabase["client"];
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
-
-beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+  client = testDatabase.client;
 });
 
-afterEach(async () => {
-  await client.close();
+afterAll(async () => {
+  await testDatabase.close();
+});
+
+beforeEach(async () => {
+  await testDatabase.clear();
 });
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");

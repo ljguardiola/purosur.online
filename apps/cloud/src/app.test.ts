@@ -1,13 +1,23 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
+import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
 
-const MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
+let testDatabase: TestDatabase;
+
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
+beforeEach(async () => {
+  await testDatabase.clear();
+});
 
 describe("GET /health", () => {
   it("responds 200 with status ok and the given version", async () => {
@@ -189,15 +199,12 @@ describe("wiring the recovery routes", () => {
   });
 
   it("registers POST /users/recovery/request when a recovery option is given", async () => {
-    const client = new PGlite();
-    const db = drizzle(client);
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
     const enqueued: string[] = [];
 
     const app = buildApp({
       version: "abc1234",
       recovery: {
-        db,
+        db: testDatabase.db,
         jobQueue: {
           async enqueueRecoveryRequest(request) {
             enqueued.push(request.email);
@@ -216,8 +223,6 @@ describe("wiring the recovery routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enqueued).toEqual(["ada@example.com"]);
-
-    await client.close();
   });
 
   it("does not register the redemption routes when no recovery option is given", async () => {
@@ -239,14 +244,10 @@ describe("wiring the recovery routes", () => {
   });
 
   it("registers the redemption routes when a recovery option is given", async () => {
-    const client = new PGlite();
-    const db = drizzle(client);
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-
     const app = buildApp({
       version: "abc1234",
       recovery: {
-        db,
+        db: testDatabase.db,
         jobQueue: { async enqueueRecoveryRequest() {} },
         backofficeOrigin: "https://staging.purosur.online",
       },
@@ -264,8 +265,6 @@ describe("wiring the recovery routes", () => {
     // unregistered route.
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "recovery_token_invalid" });
-
-    await client.close();
   });
 });
 
@@ -285,13 +284,9 @@ describe("wiring the session routes", () => {
   });
 
   it("registers GET /users/session and POST /users/session/sign-out when a session option is given", async () => {
-    const client = new PGlite();
-    const db = drizzle(client);
-    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-
     const app = buildApp({
       version: "abc1234",
-      session: { db, backofficeOrigin: "https://staging.purosur.online" },
+      session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
     });
 
     const readResponse = await app.inject({ method: "GET", url: "/users/session" });
@@ -307,7 +302,5 @@ describe("wiring the session routes", () => {
     expect(readResponse.json()).toMatchObject({ code: "unauthenticated" });
     expect(signOutResponse.statusCode).toBe(401);
     expect(signOutResponse.json()).toMatchObject({ code: "unauthenticated" });
-
-    await client.close();
   });
 });

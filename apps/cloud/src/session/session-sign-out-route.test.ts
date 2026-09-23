@@ -1,29 +1,33 @@
-import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { sessions, users } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
 import { registerSessionSignOutRoute } from "./session-sign-out-route.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
 let app: FastifyInstance;
 let userId: string;
 let currentTime: Date;
 
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
 beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await testDatabase.clear();
 
   const [user] = await db
     .insert(users)
@@ -50,7 +54,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
-  await client.close();
 });
 
 async function insertSession(): Promise<string> {

@@ -1,8 +1,6 @@
-import { PGlite } from "@electric-sql/pglite";
 import { eq, sql } from "drizzle-orm";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { auditLog, roles, userRoles, users } from "../db/schema.js";
 import {
   createFirstAdministrator,
@@ -10,19 +8,20 @@ import {
   InvalidFirstAdministratorInputError,
 } from "./create-first-administrator.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
-
-beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
 });
 
-afterEach(async () => {
-  await client.close();
+afterAll(async () => {
+  await testDatabase.close();
+});
+
+beforeEach(async () => {
+  await testDatabase.clear();
 });
 
 async function administratorRoleId(): Promise<string> {
@@ -143,6 +142,7 @@ describe("createFirstAdministrator", () => {
     ["a malformed email", { name: "Ada Lovelace", email: "not-an-email" }],
   ])("rejects %s without opening a transaction", async (_, input) => {
     const transaction = vi.spyOn(db, "transaction");
+    onTestFinished(() => transaction.mockRestore());
 
     await expect(createFirstAdministrator(db, input)).rejects.toBeInstanceOf(
       InvalidFirstAdministratorInputError,

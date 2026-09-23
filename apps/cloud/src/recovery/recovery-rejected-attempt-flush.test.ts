@@ -1,7 +1,6 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { drizzle } from "drizzle-orm/pglite";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
   recoveryRejectedAttemptAccumulator,
@@ -13,19 +12,22 @@ import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.j
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
+let client: TestDatabase["client"];
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
-
-beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+  client = testDatabase.client;
 });
 
-afterEach(async () => {
-  await client.close();
+afterAll(async () => {
+  await testDatabase.close();
+});
+
+beforeEach(async () => {
+  await testDatabase.clear();
 });
 
 function mustExist<T>(value: T | undefined | null, description: string): T {
@@ -222,16 +224,19 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     // Grace's account is created only once the first batch (ada's older window) has already
     // committed, so it exists before the second batch (grace's window) runs, but did not exist
     // when the run started.
-    db.transaction = ((callback: Parameters<typeof db.transaction>[0]) => {
-      batchCount += 1;
-      if (batchCount === 2) {
-        return insertUser("grace@example.com").then((id) => {
-          graceId = id;
-          return originalTransaction(callback);
-        });
-      }
-      return originalTransaction(callback);
-    }) as typeof db.transaction;
+    const transaction = vi
+      .spyOn(db, "transaction")
+      .mockImplementation((callback: Parameters<typeof db.transaction>[0]) => {
+        batchCount += 1;
+        if (batchCount === 2) {
+          return insertUser("grace@example.com").then((id) => {
+            graceId = id;
+            return originalTransaction(callback);
+          });
+        }
+        return originalTransaction(callback);
+      });
+    onTestFinished(() => transaction.mockRestore());
 
     const flushed = await flushClosedRecoveryRejectedAttemptWindows(db, {
       now: () => CLOSED_NOW,

@@ -1,22 +1,26 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { recoveryTokens, users } from "../db/schema.js";
 import { classifyRecoveryToken } from "./recovery-token-lookup.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
 let userId: string;
 
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
 beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await testDatabase.clear();
 
   const [user] = await db
     .insert(users)
@@ -26,10 +30,6 @@ beforeEach(async () => {
     throw new Error("seeding the test user returned no row");
   }
   userId = user.id;
-});
-
-afterEach(async () => {
-  await client.close();
 });
 
 describe("classifyRecoveryToken", () => {

@@ -1,18 +1,17 @@
-import { PGlite } from "@electric-sql/pglite";
-import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
+import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { recoveryRejectedAttemptAccumulator, users } from "../db/schema.js";
 import type { RecoveryJobQueue, RecoveryRequest } from "./recovery-job-queue.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { registerRecoveryRoutes } from "./request-recovery-route.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
-let client: PGlite;
-let db: PgliteDatabase<Record<string, never>>;
+let testDatabase: TestDatabase;
+let db: TestDatabase["db"];
+let client: TestDatabase["client"];
 let app: FastifyInstance;
 let jobQueue: RecoveryJobQueue & { requests: RecoveryRequest[] };
 let currentTime: Date;
@@ -33,10 +32,18 @@ function buildApp(overrides: RecoveryRouteOverrides = {}) {
   return built;
 }
 
+beforeAll(async () => {
+  testDatabase = await buildTestDatabase();
+  db = testDatabase.db;
+  client = testDatabase.client;
+});
+
+afterAll(async () => {
+  await testDatabase.close();
+});
+
 beforeEach(async () => {
-  client = new PGlite();
-  db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await testDatabase.clear();
 
   const requests: RecoveryRequest[] = [];
   jobQueue = {
@@ -52,7 +59,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
-  await client.close();
 });
 
 function post(body: Record<string, unknown>, headers: Record<string, string> = {}) {
