@@ -62,12 +62,12 @@ jobs:
         if: steps.scope.outputs.docs_only != 'true'
         run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
-      # main saves the cache, which every pull request can read; a copy saved from a pull request
-      # would serve only that pull request.
+      # GitHub-hosted runners start empty: keyed on the Playwright version, not the lockfile, since
+      # the browser only changes with it. Only main saves the cache, which every pull request can
+      # read; a copy saved from a pull request would serve only that pull request.
       - name: Restore Playwright browsers
         id: playwright-cache
-        if: steps.scope.outputs.docs_only != 'true'
+        if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
@@ -75,18 +75,23 @@ jobs:
 
       # A cache hit still needs the OS packages Playwright's browsers link against,
       # just not another download of the (unchanged) browser binary.
-      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Save Playwright browsers
-        if: steps.scope.outputs.docs_only != 'true' && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
+
+      # The project's own runners keep their browsers and already have the OS packages, so no job
+      # runs apt there, and nothing a pull request downloads reaches the shared cache above.
+      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'self-hosted'
+        run: pnpm exec playwright install chromium
 
       - if: steps.scope.outputs.docs_only != 'true'
         run: pnpm verify

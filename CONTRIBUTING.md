@@ -79,5 +79,5 @@ These settings live in GitHub's UI and are not expressed by `.github/rulesets/ma
 
 - Default squash commit message: use the pull request title.
 - Automatically delete head branches after merge.
-- Actions variable `LINUX_RUNNER`: where the Linux jobs run, as a JSON `runs-on` value. `["self-hosted","purosur-linux"]` sends them to the project's own runners; deleting the variable sends them back to GitHub-hosted `ubuntu-24.04`, for example while those runners are down. The Windows jobs always run on GitHub-hosted runners.
+- Actions variable `LINUX_RUNNER`: where the Linux jobs run, as a JSON `runs-on` value; a value that is not valid JSON stops every Linux job, required checks included. `["self-hosted","purosur-linux"]` sends them to the project's own runners; deleting the variable sends them back to GitHub-hosted `ubuntu-24.04`, for example while those runners are down. The staging deploy and the Windows jobs always run on GitHub-hosted runners. The own runners execute pull request code on a persistent machine, which is acceptable only while the repository is private; they need Docker and Playwright's system libraries installed.
 - First run: apply the repository's labels once with `gh workflow run sync-labels.yml`, so the labels declared in `.github/labels.json` (the four `type:` labels and `invalid-format`) exist before the first issue is filed.

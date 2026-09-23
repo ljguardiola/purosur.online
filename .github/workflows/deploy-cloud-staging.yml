@@ -11,6 +11,9 @@ on:
 # another run's apply against the same environment. A pending run cancelled by a newer one loses
 # nothing, because every run deploys main's newest verified commit and deploys whenever the
 # previous run did not succeed.
+#
+# Both jobs stay on GitHub-hosted runners: they hold the staging credentials, and the project's
+# own runners also run pull request code.
 concurrency:
   group: deploy-cloud-staging
   cancel-in-progress: false
@@ -26,7 +29,7 @@ jobs:
     # with no new push to react to) and is safe because the target is always a verified commit.
     # Both jobs carry this gate.
     if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
-    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: read
@@ -99,7 +102,7 @@ jobs:
     name: apply and deploy to staging
     needs: build
     if: ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && needs.build.outputs.deploy == 'true'
-    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ubuntu-24.04
     environment: staging
     permissions:
       contents: read
