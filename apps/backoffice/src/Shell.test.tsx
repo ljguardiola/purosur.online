@@ -8,6 +8,7 @@ function renderShell() {
       brandName="Puro Sur"
       areaRailLabel="Áreas"
       sectionColumnLabel="Secciones"
+      railAreas={<p>rail areas</p>}
       railFooter={<p>rail footer</p>}
       sectionColumn={<p>section content</p>}
     >
@@ -21,6 +22,7 @@ test("lays out the area rail, section column and content as three landmark regio
 
   const rail = screen.getByRole("navigation", { name: "Áreas" });
   await expect.element(rail).toBeVisible();
+  await expect.element(rail.getByText("rail areas")).toBeVisible();
   await expect.element(rail.getByText("rail footer")).toBeVisible();
 
   const sections = screen.getByRole("navigation", { name: "Secciones" });
@@ -39,7 +41,7 @@ test("renders the rail before the section column and the section column before t
     (element) => element.textContent,
   );
 
-  expect(texts).toEqual(["rail footer", "section content", "main content"]);
+  expect(texts).toEqual(["rail areas", "rail footer", "section content", "main content"]);
 });
 
 test("heads the rail with the brand-named 40px isotype inside the rail's 16px top padding", async () => {
@@ -58,6 +60,40 @@ test("heads the rail with the brand-named 40px isotype inside the rail's 16px to
   expect(isotypeRect.height).toBeCloseTo(40, 0);
   expect(isotypeRect.top - railRect.top).toBeCloseTo(16, 0);
   expect(isotypeRect.left - railRect.left).toBeCloseTo(20, 0);
+});
+
+test("separates the isotype from the rail's main areas with a thin line", async () => {
+  const screen = await renderShell();
+
+  const rail = screen.getByRole("navigation", { name: "Áreas" }).element();
+  const isotype = rail.querySelector("img") as HTMLImageElement;
+  const areas = screen.getByText("rail areas").element();
+  const separator = isotype.nextElementSibling as HTMLElement;
+
+  expect(separator).not.toBeNull();
+  expect(separator).not.toBe(areas);
+  expect(separator.getAttribute("aria-hidden")).toBe("true");
+  // The rail's own translucent-white token (--color-surface-white-veil, #ffffff26): white at
+  // ~15% opacity, painted over the rail's dark blue-strong background.
+  const [r, g, b, a] = getComputedStyle(separator)
+    .backgroundColor.replace(/rgba?\(|\)/g, "")
+    .split(",")
+    .map(Number);
+  expect([r, g, b]).toEqual([255, 255, 255]);
+  expect(a).toBeCloseTo(0x26 / 255, 2);
+
+  const separatorRect = separator.getBoundingClientRect();
+  expect(separatorRect.top).toBeGreaterThanOrEqual(isotype.getBoundingClientRect().bottom);
+  expect(areas.getBoundingClientRect().top).toBeGreaterThanOrEqual(separatorRect.bottom);
+});
+
+test("places the rail's main areas below the isotype's separator and above its pinned footer", async () => {
+  const screen = await renderShell();
+
+  const areas = screen.getByText("rail areas").element();
+  const footer = screen.getByText("rail footer").element();
+
+  expect(footer.getBoundingClientRect().top).toBeGreaterThan(areas.getBoundingClientRect().bottom);
 });
 
 test("pins the rail footer to the rail's foot, above its 16px bottom padding", async () => {

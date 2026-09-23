@@ -33,6 +33,36 @@ function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: H
   return page ? messages.help.pageDocumentTitle({ page }) : messages.help.documentTitle;
 }
 
+/**
+ * Puro Sur's Config area item — the single shared definition of its label, icon and link, so
+ * Help's rail and Config's own rail can't drift on it: each only sets which one is active.
+ */
+function ConfigAreaItem({ active }: { active: boolean }) {
+  return (
+    <AreaNavItem
+      label={messages.settings.areaLabel}
+      icon={<Settings />}
+      active={active}
+      {...linkProps(MY_ACCOUNT_PATH)}
+    />
+  );
+}
+
+/**
+ * Puro Sur's Ayuda area item, pinned in the rail footer — the single shared definition of its
+ * label, icon and link, so Config's rail and Help's own rail can't drift on it.
+ */
+function HelpAreaItem({ active }: { active: boolean }) {
+  return (
+    <AreaNavItem
+      label={messages.help.areaLabel}
+      icon={<LifeBuoy />}
+      active={active}
+      {...linkProps("/help")}
+    />
+  );
+}
+
 type HelpAppProps = AppProps & {
   displayName: string;
   onSignedOut: () => void;
@@ -71,14 +101,10 @@ function HelpApp({ help, displayName, onSignedOut }: HelpAppProps) {
       brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.help.sectionsNavLabel}
+      railAreas={<ConfigAreaItem active={false} />}
       railFooter={
         <>
-          <AreaNavItem
-            label={messages.help.areaLabel}
-            icon={<LifeBuoy />}
-            active
-            {...linkProps("/help")}
-          />
+          <HelpAreaItem active />
           <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
         </>
       }
@@ -113,14 +139,10 @@ function SettingsApp({ displayName, onSignedOut, onSessionEnded }: SettingsAppPr
       brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.settings.sectionsNavLabel}
+      railAreas={<ConfigAreaItem active />}
       railFooter={
         <>
-          <AreaNavItem
-            label={messages.settings.areaLabel}
-            icon={<Settings />}
-            active
-            {...linkProps(MY_ACCOUNT_PATH)}
-          />
+          <HelpAreaItem active={false} />
           <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
         </>
       }

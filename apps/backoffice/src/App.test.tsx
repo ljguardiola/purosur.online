@@ -2,6 +2,7 @@ import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { App } from "./App";
 import { fetchPasskeys } from "./passkeyApi";
 import { fetchRegistrationOptions } from "./recoveryApi";
@@ -126,9 +127,17 @@ test("shows the active Help item in the rail and the Help screen's own content",
   const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBe("page");
 
+  // Every existing area stays in the rail on every page; only the active one is highlighted.
+  const configItemLocator = screen.getByRole("link", { name: "Config" });
+  await expect.element(configItemLocator).toBeVisible();
+  const configItem = configItemLocator.element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBeNull();
+
   await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
   await expect.element(screen.getByText("Todavía no hay contenido de ayuda")).toBeVisible();
+
+  await expectNoAccessibilityViolations(document.body);
 });
 
 test("following a search result shows that article and clears the search", async () => {
@@ -331,6 +340,14 @@ test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and U
   expect(usersItem.getAttribute("aria-current")).toBe("page");
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   await expect.poll(() => document.title).toBe("Mi cuenta · Puro Sur");
+
+  // Every existing area stays in the rail on every page; only the active one is highlighted.
+  const helpItemLocator = screen.getByRole("link", { name: "Ayuda" });
+  await expect.element(helpItemLocator).toBeVisible();
+  const helpItem = helpItemLocator.element() as HTMLAnchorElement;
+  expect(helpItem.getAttribute("aria-current")).toBeNull();
+  // No axe check here: this route's <main> already fails axe's pre-existing, unrelated
+  // scrollable-region-focusable rule at this viewport (tracked separately, not this bug's scope).
 });
 
 test("following the account name link from Help shows Mi cuenta", async () => {
