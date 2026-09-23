@@ -1,8 +1,10 @@
+import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import { inject } from "vitest";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+export const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
 export interface TestDatabase {
   client: PGlite;
@@ -64,26 +66,59 @@ async function restoreSeedRows(
 }
 
 /**
+ * Creates a fresh PGlite instance and runs the given migrations against it. Used both by
+ * `buildTestDatabase` (when it has no matching snapshot to load) and by the "node" project's
+ * global setup, which builds the one snapshot every test file starts from.
+ */
+export async function migrateFreshDatabase(
+  migrationsFolder: string = MIGRATIONS_FOLDER,
+): Promise<PGlite> {
+  const client = new PGlite();
+  try {
+    await migrate(drizzle(client), { migrationsFolder });
+    return client;
+  } catch (error) {
+    // A failure to close must not replace the migration error, which is the one worth reporting.
+    await client.close().catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
  * Builds one migrated PGlite database. Meant to be created once per test file (`beforeAll`) and
  * closed once (`afterAll`); call `clear()` in `beforeEach` instead of rebuilding the database, so
  * each test still starts from an empty, freshly-migrated schema without paying the migration cost
  * per test.
+ *
+ * When the default migrations folder is used and the "node" project's global setup provided a
+ * data-dir snapshot of an already-migrated database, this loads that snapshot instead of running
+ * the migrations again: `apps/cloud/vitest.global-setup.ts` migrates once per test run rather than
+ * once per file. A custom `migrationsFolder` never uses the snapshot, since it only matches the
+ * default migrations; outside that project (no snapshot provided), this migrates from scratch.
  */
 export async function buildTestDatabase({
   migrationsFolder = MIGRATIONS_FOLDER,
+  snapshotPath = migrationsFolder === MIGRATIONS_FOLDER
+    ? inject("testDatabaseSnapshotPath")
+    : undefined,
 }: {
   migrationsFolder?: string;
+  snapshotPath?: string;
 } = {}): Promise<TestDatabase> {
-  const client = new PGlite();
+  const usableSnapshotPath = migrationsFolder === MIGRATIONS_FOLDER ? snapshotPath : undefined;
+  const client = usableSnapshotPath
+    ? new PGlite({ loadDataDir: new Blob([await readFile(usableSnapshotPath)]) })
+    : await migrateFreshDatabase(migrationsFolder);
   const db = drizzle(client);
   let migrationSeedRows: Map<string, Record<string, unknown>[]>;
   try {
-    await migrate(db, { migrationsFolder });
-    // Captured once, right after migrating: whatever a migration itself inserted (e.g. the single
-    // seeded Administrator role) rather than anything a test goes on to add.
+    // Captured once, right after migrating (or after loading an already-migrated snapshot):
+    // whatever a migration itself inserted (e.g. the single seeded Administrator role) rather than
+    // anything a test goes on to add.
     migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
   } catch (error) {
-    // A failure to close must not replace the migration error, which is the one worth reporting.
+    // A failure to close must not replace the seed-row-capture error, which is the one worth
+    // reporting.
     await client.close().catch(() => undefined);
     throw error;
   }

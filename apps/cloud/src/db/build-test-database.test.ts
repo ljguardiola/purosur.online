@@ -33,6 +33,21 @@ async function countsByTable(client: PGlite): Promise<Map<string, number>> {
   return counts;
 }
 
+async function snapshotPathWithMarkerRole(): Promise<string> {
+  const seed = await buildTestDatabase();
+  onTestFinished(() => seed.close());
+  await seed.client.query(
+    `insert into "roles" ("name", "is_administrator") values ('marker-role', false)`,
+  );
+
+  const dump = await seed.client.dumpDataDir("none");
+  const folder = await mkdtemp(join(tmpdir(), "build-test-database-snapshot-"));
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+  const path = join(folder, "snapshot.tar");
+  await writeFile(path, Buffer.from(await dump.arrayBuffer()));
+  return path;
+}
+
 async function migrationsFolderWith(statements: string[]): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), "build-test-database-"));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
@@ -231,5 +246,31 @@ describe("buildTestDatabase", () => {
     expect(query.mock.contexts.some((database) => close.mock.contexts.includes(database))).toBe(
       true,
     );
+  });
+
+  it("starts from a provided snapshot instead of migrating, when the default migrations folder is used", async () => {
+    const snapshotPath = await snapshotPathWithMarkerRole();
+
+    const database = await buildTestDatabase({ snapshotPath });
+    onTestFinished(() => database.close());
+
+    const { rows } = await database.client.query<{ name: string | null }>(
+      'select "name" from "roles" where "name" = $1',
+      ["marker-role"],
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("ignores a snapshot path when a custom migrations folder is given, since the snapshot only matches the default migrations", async () => {
+    const snapshotPath = await snapshotPathWithMarkerRole();
+    const migrationsFolder = await migrationsFolderWith([
+      'create table "only_here" ("id" integer primary key)',
+    ]);
+
+    const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
+    onTestFinished(() => database.close());
+
+    const { rows } = await database.client.query('select * from "only_here"');
+    expect(rows).toEqual([]);
   });
 });

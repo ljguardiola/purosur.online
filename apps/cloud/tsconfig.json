@@ -10,6 +10,7 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/**/*.test.ts",
+    "src/db/build-test-database.ts",
     "src/recovery/recovery-integration-database.ts",
     "src/recovery/find-free-port.ts"
   ]
