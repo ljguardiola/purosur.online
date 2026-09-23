@@ -33,7 +33,7 @@ export type RegisterPasskeyScreenServices = {
   startRegistration: typeof startRegistration;
 };
 
-const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
+export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
   fetchRegistrationOptions,
   redeemRecovery,
   startRegistration,

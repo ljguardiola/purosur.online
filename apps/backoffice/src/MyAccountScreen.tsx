@@ -14,11 +14,33 @@ import {
 } from "./passkeyApi";
 import { validatePasskeyName } from "./passkeyName";
 
+export type MyAccountScreenServices = {
+  fetchPasskeys: typeof fetchPasskeys;
+  fetchPasskeyRegistrationChallenge: typeof fetchPasskeyRegistrationChallenge;
+  fetchPasskeyRemovalChallenge: typeof fetchPasskeyRemovalChallenge;
+  registerPasskey: typeof registerPasskey;
+  removePasskey: typeof removePasskey;
+  startAuthentication: typeof startAuthentication;
+  startRegistration: typeof startRegistration;
+};
+
+export const defaultMyAccountScreenServices: MyAccountScreenServices = {
+  fetchPasskeys,
+  fetchPasskeyRegistrationChallenge,
+  fetchPasskeyRemovalChallenge,
+  registerPasskey,
+  removePasskey,
+  startAuthentication,
+  startRegistration,
+};
+
 export type MyAccountScreenProps = {
   displayName: string;
   onSessionEnded: () => void;
   /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
   now?: () => Date;
+  /** Injected in tests so passkey management doesn't call the real API or WebAuthn. */
+  services?: MyAccountScreenServices;
 };
 
 type ListState =
@@ -45,6 +67,10 @@ type RegisterPasskeyModalProps = {
   onRegistered: () => void;
   onNoPasskey: () => void;
   onSessionEnded: () => void;
+  fetchPasskeyRegistrationChallenge: typeof fetchPasskeyRegistrationChallenge;
+  startAuthentication: typeof startAuthentication;
+  startRegistration: typeof startRegistration;
+  registerPasskey: typeof registerPasskey;
 };
 
 /** Registers another passkey for the signed-in account, reauthenticating with an existing one first (issue #169). */
@@ -54,6 +80,10 @@ function RegisterPasskeyModal({
   onRegistered,
   onNoPasskey,
   onSessionEnded,
+  fetchPasskeyRegistrationChallenge,
+  startAuthentication,
+  startRegistration,
+  registerPasskey,
 }: RegisterPasskeyModalProps) {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -243,6 +273,9 @@ type RemovePasskeyModalProps = {
   onClose: () => void;
   onRemoved: () => void;
   onSessionEnded: () => void;
+  fetchPasskeyRemovalChallenge: typeof fetchPasskeyRemovalChallenge;
+  startAuthentication: typeof startAuthentication;
+  removePasskey: typeof removePasskey;
 };
 
 /** Removes one of the signed-in account's own passkeys, reauthenticating with an existing one first (issue #169). */
@@ -252,6 +285,9 @@ function RemovePasskeyModal({
   onClose,
   onRemoved,
   onSessionEnded,
+  fetchPasskeyRemovalChallenge,
+  startAuthentication,
+  removePasskey,
 }: RemovePasskeyModalProps) {
   const isOpen = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
@@ -390,7 +426,21 @@ function RemovePasskeyModal({
 }
 
 /** "Mi cuenta": the signed-in account's own Passkeys section, for Shell's children slot (issue #169). */
-export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountScreenProps) {
+export function MyAccountScreen({
+  displayName,
+  onSessionEnded,
+  now,
+  services,
+}: MyAccountScreenProps) {
+  const {
+    fetchPasskeys,
+    fetchPasskeyRegistrationChallenge,
+    fetchPasskeyRemovalChallenge,
+    registerPasskey,
+    removePasskey,
+    startAuthentication,
+    startRegistration,
+  } = services ?? defaultMyAccountScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [registerModalOpen, setRegisterModalOpen] = useState(false);
@@ -408,7 +458,7 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [onSessionEnded]);
+  }, [onSessionEnded, fetchPasskeys]);
 
   useEffect(() => {
     void load();
@@ -537,6 +587,10 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
         }}
         onNoPasskey={() => void refreshList()}
         onSessionEnded={onSessionEnded}
+        fetchPasskeyRegistrationChallenge={fetchPasskeyRegistrationChallenge}
+        startAuthentication={startAuthentication}
+        startRegistration={startRegistration}
+        registerPasskey={registerPasskey}
       />
       <RemovePasskeyModal
         target={removeTarget}
@@ -547,6 +601,9 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
           void refreshList();
         }}
         onSessionEnded={onSessionEnded}
+        fetchPasskeyRemovalChallenge={fetchPasskeyRemovalChallenge}
+        startAuthentication={startAuthentication}
+        removePasskey={removePasskey}
       />
     </>
   );

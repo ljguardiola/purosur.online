@@ -24,7 +24,7 @@ export type SignInScreenServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-const defaultSignInScreenServices: SignInScreenServices = {
+export const defaultSignInScreenServices: SignInScreenServices = {
   fetchAuthenticationOptions,
   authenticate,
   startAuthentication,

@@ -6,9 +6,17 @@ import { messages } from "./messages";
 import { signOut } from "./sessionApi";
 import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
+export type AccountFooterServices = {
+  signOut: typeof signOut;
+};
+
+export const defaultAccountFooterServices: AccountFooterServices = { signOut };
+
 export type AccountFooterProps = {
   displayName: string;
   onSignedOut: () => void;
+  /** Injected in tests so signing out doesn't call the real session API. */
+  services?: AccountFooterServices;
 };
 
 const railItemClassName =
@@ -25,7 +33,8 @@ const nameLinkClassName =
 type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
 
 /** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
-export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) {
+export function AccountFooter({ displayName, onSignedOut, services }: AccountFooterProps) {
+  const { signOut } = services ?? defaultAccountFooterServices;
   const [confirming, setConfirming] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);

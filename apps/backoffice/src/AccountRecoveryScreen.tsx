@@ -14,7 +14,7 @@ export type AccountRecoveryScreenServices = {
   requestRecoveryLink: typeof requestRecoveryLink;
 };
 
-const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
+export const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices = {
   requestRecoveryLink,
 };
 
