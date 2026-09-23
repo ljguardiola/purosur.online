@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "v
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
+  backofficeRateLimitAttempts,
   passkeyChallenges,
   passkeys,
   recoveryRateLimitAttempts,
@@ -129,6 +130,11 @@ describe("buildTestDatabase", () => {
     await db.insert(signInLockouts).values({
       sourceAddress: "203.0.113.10",
       blockedUntil: new Date("2026-01-05T12:15:00.000Z"),
+    });
+    await db.insert(backofficeRateLimitAttempts).values({
+      keyKind: "source_address",
+      keyValue: "203.0.113.10",
+      attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
 
     const afterSeeding = await countsByTable(client);

@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { sessions, users } from "../db/schema.js";
+import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
+import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
@@ -83,6 +85,46 @@ export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
     .where(eq(sessions.sessionIdHash, sessionIdHash));
 
   return { sessionId: session.id, userId: session.userId, firstName: session.firstName };
+}
+
+export interface BackofficeRateLimitCheckOptions<TQueryResult extends PgQueryResultHKT> {
+  db: PgDatabase<TQueryResult>;
+  now: Date;
+}
+
+const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
+
+/**
+ * Checks the shared backoffice API rate limiter (issue #205) before anything else about this
+ * request is resolved (in particular, before `resolveOpenSession`), so a rejected request has no
+ * effect: it never touches `last_seen_at`, revokes a session, or changes anything else. Keys by
+ * the session cookie's hash, the same hash `sessions.session_id_hash` is looked up by, when the
+ * request carries one, and always by its source address; a request with no session cookie counts
+ * only against its address. On rejection, sends 429 `rate_limited` with `Retry-After` and returns
+ * false so the caller stops; otherwise returns true. Shared by every route that reads the session
+ * cookie, whether or not it also calls `resolveOpenSession` itself (e.g. sign-out reads the cookie
+ * directly).
+ */
+export async function checkBackofficeRateLimit<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: BackofficeRateLimitCheckOptions<TQueryResult>,
+): Promise<boolean> {
+  const rawSessionId = readSessionCookie(request.headers.cookie);
+  const result = await recordBackofficeRequest(options.db, {
+    ...(rawSessionId ? { sessionKeyValue: hashSessionId(rawSessionId) } : {}),
+    sourceAddress: resolveSourceAddress(request),
+    now: options.now,
+  });
+  if (result.allowed) {
+    return true;
+  }
+
+  await reply
+    .header("Retry-After", String(result.retryAfterSeconds))
+    .code(429)
+    .send({ code: RATE_LIMITED_RESPONSE_CODE, message: "too many backoffice API requests" });
+  return false;
 }
 
 function rejectAsCrossSite(reply: FastifyReply, message: string): false {

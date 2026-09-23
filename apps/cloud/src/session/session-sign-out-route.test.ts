@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { sessions, users } from "../db/schema.js";
+import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
@@ -87,6 +87,17 @@ function getSession(rawSessionId: string) {
   });
 }
 
+/** Puts a session's own backoffice API rate limit (issue #205) already at its hourly cap. */
+async function exhaustSessionRateLimit(rawSessionId: string): Promise<void> {
+  await db.insert(backofficeRateLimitAttempts).values(
+    Array.from({ length: 600 }, () => ({
+      keyKind: "session" as const,
+      keyValue: hashSessionId(rawSessionId),
+      attemptedAt: NOON,
+    })),
+  );
+}
+
 describe("POST /users/session/sign-out", () => {
   it("revokes the session and clears the cookie", async () => {
     const rawSessionId = await insertSession();
@@ -168,5 +179,21 @@ describe("POST /users/session/sign-out", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving the session unrevoked", async () => {
+    const rawSessionId = await insertSession();
+    await exhaustSessionRateLimit(rawSessionId);
+
+    const response = await postSignOut(rawSessionId);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBeDefined();
+    const [row] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    expect(row?.revokedAt).toBeNull();
   });
 });

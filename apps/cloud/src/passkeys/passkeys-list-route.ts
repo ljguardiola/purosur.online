@@ -3,6 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../db/schema.js";
 import {
+  checkBackofficeRateLimit,
   checkRequestIsSameOrigin,
   resolveOpenSession,
   UNAUTHENTICATED_RESPONSE,
@@ -31,8 +32,12 @@ export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>
     if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
       return;
     }
+    const checkedAt = now();
+    if (!(await checkBackofficeRateLimit(request, reply, { db: options.db, now: checkedAt }))) {
+      return;
+    }
 
-    const openSession = await resolveOpenSession(request, { db: options.db, now: now() });
+    const openSession = await resolveOpenSession(request, { db: options.db, now: checkedAt });
     if (!openSession) {
       await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;

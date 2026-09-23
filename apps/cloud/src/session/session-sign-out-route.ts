@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { sessions } from "../db/schema.js";
+import { checkBackofficeRateLimit } from "./open-session.js";
 import { clearSessionCookie, readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
@@ -42,6 +43,9 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
 
   app.post("/users/session/sign-out", async (request, reply) => {
     if (!checkOrigin(request, reply)) {
+      return;
+    }
+    if (!(await checkBackofficeRateLimit(request, reply, { db: options.db, now: now() }))) {
       return;
     }
 

@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
+  backofficeRateLimitAttempts,
   passkeyChallenges,
   passkeys,
   recoveryTokens,
@@ -79,6 +80,17 @@ afterEach(async () => {
 });
 
 let tokenSequence = 0;
+
+/** Puts a session's own backoffice API rate limit (issue #205) already at its hourly cap. */
+async function exhaustSessionRateLimit(rawSessionId: string): Promise<void> {
+  await db.insert(backofficeRateLimitAttempts).values(
+    Array.from({ length: 600 }, () => ({
+      keyKind: "session" as const,
+      keyValue: hashSessionId(rawSessionId),
+      attemptedAt: currentTime,
+    })),
+  );
+}
 
 /**
  * A `WebAuthnEmulator` backed by its own isolated credential store, standing in for a genuinely
@@ -209,6 +221,29 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, storing no challenge", async () => {
+    const rawSessionId = await insertSession(userId);
+    await exhaustSessionRateLimit(rawSessionId);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBeDefined();
+    const [session] = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    const challenges = session
+      ? await db.select().from(passkeyChallenges).where(eq(passkeyChallenges.sessionId, session.id))
+      : [];
+    expect(challenges).toHaveLength(0);
+  });
+
   it("returns reauthentication options allowing only the account's own passkeys", async () => {
     const emulator = new WebAuthnEmulator();
     await registerFirstPasskey(userId, emulator);
@@ -323,6 +358,19 @@ describe("POST /users/passkeys", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, registering nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+    const beforeCount = (await db.select().from(passkeys)).length;
+    await exhaustSessionRateLimit(rawSessionId);
+
+    const response = await postJson("/users/passkeys", {}, cookieHeader(rawSessionId));
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBeDefined();
+    expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 
   it("registers a second passkey with a valid reauthentication, writing an audit row", async () => {
