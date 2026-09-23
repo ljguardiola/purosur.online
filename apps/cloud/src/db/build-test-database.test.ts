@@ -1,3 +1,4 @@
+import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
@@ -15,6 +16,18 @@ import {
   users,
 } from "./schema.js";
 
+async function countsByTable(client: PGlite): Promise<Map<string, number>> {
+  const { rows } = await client.query<{ tablename: string }>(
+    "select tablename from pg_tables where schemaname = 'public'",
+  );
+  const counts = new Map<string, number>();
+  for (const { tablename } of rows) {
+    const result = await client.query<{ count: number }>(`select count(*) from "${tablename}"`);
+    counts.set(tablename, result.rows[0]?.count ?? 0);
+  }
+  return counts;
+}
+
 describe("buildTestDatabase", () => {
   let testDatabase: TestDatabase;
 
@@ -26,8 +39,12 @@ describe("buildTestDatabase", () => {
     await testDatabase.close();
   });
 
-  it("empties every application table on clear(), after every one of them holds a row", async () => {
+  it("empties every application table on clear(), restoring only what the migrations themselves seeded", async () => {
     const { db, client, clear } = testDatabase;
+
+    const baseline = await countsByTable(client);
+    // Fails loudly instead of vacuously passing if the schema ever loses every table.
+    expect(baseline.size).toBeGreaterThanOrEqual(12);
 
     const [user] = await db
       .insert(users)
@@ -73,31 +90,21 @@ describe("buildTestDatabase", () => {
     await db
       .insert(signInFailures)
       .values({ sourceAddress: "203.0.113.10", attemptedAt: new Date("2026-01-05T12:00:00.000Z") });
-    await db
-      .insert(signInLockouts)
-      .values({
-        sourceAddress: "203.0.113.10",
-        blockedUntil: new Date("2026-01-05T12:15:00.000Z"),
-      });
+    await db.insert(signInLockouts).values({
+      sourceAddress: "203.0.113.10",
+      blockedUntil: new Date("2026-01-05T12:15:00.000Z"),
+    });
 
-    const applicationTables = await client.query<{ tablename: string }>(
-      "select tablename from pg_tables where schemaname = 'public'",
-    );
-    // Fails loudly instead of vacuously passing if the seeding above ever drifts from the schema.
-    expect(applicationTables.rows.length).toBeGreaterThanOrEqual(12);
-    for (const { tablename } of applicationTables.rows) {
-      const seeded = await client.query<{ count: number }>(`select count(*) from "${tablename}"`);
-      expect(seeded.rows[0]?.count, `table ${tablename} was not seeded before clear()`).not.toBe(0);
+    const afterSeeding = await countsByTable(client);
+    for (const [tablename, count] of afterSeeding) {
+      expect(count, `table ${tablename} was not seeded before clear()`).toBeGreaterThan(
+        baseline.get(tablename) ?? 0,
+      );
     }
 
     await clear();
 
-    for (const { tablename } of applicationTables.rows) {
-      const remaining = await client.query<{ count: number }>(
-        `select count(*) from "${tablename}"`,
-      );
-      expect(remaining.rows[0]?.count, `table ${tablename} still has rows after clear()`).toBe(0);
-    }
+    expect(await countsByTable(client)).toEqual(baseline);
   });
 
   it("leaves the schema usable for the next test, with no leftover row from the previous one", async () => {
