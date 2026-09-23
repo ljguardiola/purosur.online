@@ -95,16 +95,13 @@ jobs:
           path: apps/pos/release/staging/*.exe
           if-no-files-found: error
 
-      # Feeds the independent-build job below, which only runs on push: a second, independent build
-      # of this same commit needs this exact app.asar to compare itself against.
-      - name: Upload the production app.asar for the independent-build check
+      - name: Upload the production app.asar
         if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pos-production-app-asar
           path: apps/pos/release/production/win-unpacked/resources/app.asar
           if-no-files-found: error
-          retention-days: 1
 
       # Runs the unpacked app from the same out/ both installers packaged. It reads a channel file
       # the test writes itself, with no DSN, so the deliberate core kill and invalid message never
@@ -112,8 +109,7 @@ jobs:
       - run: pnpm --filter @purosur/pos test:e2e
 
   independent-build:
-    name: independent build agrees on app code
-    needs: package
+    name: independent build of the production app.asar
     if: github.event_name == 'push'
     runs-on: windows-latest
     permissions:
@@ -137,13 +133,38 @@ jobs:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
 
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pos-independent-production-app-asar
+          path: apps/pos/release/production/win-unpacked/resources/app.asar
+          if-no-files-found: error
+
+  independent-build-agrees:
+    name: independent build agrees on app code
+    needs: [package, independent-build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: pos-production-app-asar
+          path: package-build
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pos-independent-production-app-asar
           path: independent-build
 
-      - name: Compare against the package job's production app.asar
+      - name: Compare the two builds' production app.asar
         run: >-
           node .github/scripts/same-app-code.mjs
-          apps/pos/release/production/win-unpacked/resources/app.asar
+          package-build/app.asar
           independent-build/app.asar
