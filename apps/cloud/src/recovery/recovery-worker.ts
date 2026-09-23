@@ -99,9 +99,7 @@ export async function startRecoveryWorker(
 
   // graphile-worker 0.18 rejects a second `stop()` with "Runner is already stopped" once its
   // worker pool or cron exited on its own (e.g. its database connections were dropped), and it
-  // emits "stop" on this emitter synchronously the moment that happens — before this process ever
-  // calls `stop()` itself, so the listener is attached here rather than read off the returned
-  // runner, closing the race where a self-stop lands before that read would happen.
+  // emits "stop" synchronously on the emitter passed as `events` the moment that happens.
   const events = new EventEmitter();
   let stoppedItself = false;
   events.once("stop", () => {
