@@ -290,9 +290,13 @@ describe("buildTestDatabase", () => {
       'create table "only_here" ("id" integer primary key)',
     ]);
 
+    vi.mocked(migrateFreshDatabase).mockClear();
+
     const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
     onTestFinished(() => database.close());
 
+    // Also shows the spy the run-once test relies on sees calls made from inside buildTestDatabase.
+    expect(migrateFreshDatabase).toHaveBeenCalledWith(migrationsFolder);
     const { rows } = await database.client.query('select * from "only_here"');
     expect(rows).toEqual([]);
   });

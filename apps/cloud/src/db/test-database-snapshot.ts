@@ -29,7 +29,7 @@ export async function migrateFreshDatabase(
 
 /** The part of Vitest's `TestProject` the snapshot needs: providing it and hearing about reruns. */
 export interface SnapshotConsumer {
-  provide(key: "testDatabaseSnapshotPath", snapshotPath: string): void;
+  provide(key: "testDatabaseSnapshotPath", snapshotPath: string | undefined): void;
   onTestsRerun(handler: () => Promise<void>): void;
 }
 
@@ -58,10 +58,16 @@ export async function provideTestDatabaseSnapshot(
   snapshotPath: string,
   migrationsFolder: string = MIGRATIONS_FOLDER,
 ): Promise<void> {
-  const rebuild = async () => {
-    await writeSnapshot(snapshotPath, migrationsFolder);
-    project.provide("testDatabaseSnapshotPath", snapshotPath);
-  };
-  await rebuild();
-  project.onTestsRerun(rebuild);
+  await writeSnapshot(snapshotPath, migrationsFolder);
+  project.provide("testDatabaseSnapshotPath", snapshotPath);
+  project.onTestsRerun(async () => {
+    try {
+      await writeSnapshot(snapshotPath, migrationsFolder);
+      project.provide("testDatabaseSnapshotPath", snapshotPath);
+    } catch {
+      // A migration mid-edit must not end the watch session, which is what a rejected rerun hook
+      // does. With no snapshot, every file migrates on its own and reports the migration's error.
+      project.provide("testDatabaseSnapshotPath", undefined);
+    }
+  });
 }

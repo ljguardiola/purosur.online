@@ -71,4 +71,33 @@ describe("provideTestDatabaseSnapshot", () => {
 
     expect(await tablesInSnapshot(provided.at(-1))).toEqual(["first_table", "second_table"]);
   });
+
+  it("provides no snapshot, rather than stopping the rerun, when the migrations break mid-session", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "test-database-snapshot-"));
+    onTestFinished(() => rm(folder, { recursive: true, force: true }));
+    const migrationsFolder = join(folder, "migrations");
+    await writeMigrations(migrationsFolder, ["first_table"]);
+    const provided: (string | undefined)[] = [];
+    const rerunHandlers: (() => Promise<void>)[] = [];
+
+    await provideTestDatabaseSnapshot(
+      {
+        provide: (_key, snapshotPath) => {
+          provided.push(snapshotPath);
+        },
+        onTestsRerun: (handler) => {
+          rerunHandlers.push(handler);
+        },
+      },
+      join(folder, "snapshot.tar"),
+      migrationsFolder,
+    );
+    await writeFile(join(migrationsFolder, "0000_first_table.sql"), "this is not sql");
+
+    for (const rerun of rerunHandlers) {
+      await expect(rerun()).resolves.toBeUndefined();
+    }
+
+    expect(provided.at(-1)).toBeUndefined();
+  });
 });
