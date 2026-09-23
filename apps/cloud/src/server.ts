@@ -274,12 +274,13 @@ export async function startServer(
 
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
 
+  const edgeOriginSecret = requireEdgeOriginSecret(env);
   const recoveryEnv = resolveRecoveryEnv(env);
   const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
 
   const app = doBuildApp({
     version: resolveVersion(env),
-    edgeOriginSecret: requireEdgeOriginSecret(env),
+    edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
     ...(recovery
       ? {

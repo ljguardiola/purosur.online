@@ -259,6 +259,24 @@ describe("startServer", () => {
     expect(buildApp).not.toHaveBeenCalled();
   });
 
+  it("refuses to start without EDGE_ORIGIN_SECRET before opening any database or job-queue resource", async () => {
+    const buildApp = vi.fn();
+    const setUpRecovery = vi.fn();
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    };
+
+    await expect(
+      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+    ).rejects.toThrow("EDGE_ORIGIN_SECRET");
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).not.toHaveBeenCalled();
+  });
+
   it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const onCloseHooks: Array<() => Promise<void>> = [];
