@@ -433,6 +433,53 @@ test("normalizes a GIT_DIR= env-assignment prefix into the locationArgs passed t
   assert.deepEqual(received, ["--work-tree=/wt", "--git-dir=/repo/.git", "-C", "sub"]);
 });
 
+test("finds the subcommand behind every global option that takes a separate value", () => {
+  const spellings = [
+    "--git-dir .git",
+    "--work-tree .",
+    "--namespace ns",
+    "--config-env user.name=NAME",
+    "--attr-source HEAD",
+    "--shallow-file /dev/null",
+  ];
+  for (const spelling of spellings) {
+    const problems = checkCommand(
+      `git ${spelling} commit --no-verify -m x`,
+      ctx({ branchFor: () => "feature/x" }),
+    );
+    assert.ok(
+      problems.some((p) => p.includes("--no-verify")),
+      `expected --no-verify to be caught after "${spelling}"`,
+    );
+  }
+});
+
+test("passes separate-value --git-dir and --work-tree to branchFor", () => {
+  let received;
+  checkCommand(
+    "git --git-dir /repo/.git --work-tree /wt commit -m x",
+    ctx({
+      branchFor: (locationArgs) => {
+        received = locationArgs;
+        return "feature/x";
+      },
+    }),
+  );
+  assert.deepEqual(received, ["--git-dir", "/repo/.git", "--work-tree", "/wt"]);
+});
+
+test("still reports --no-verify when branchFor throws", () => {
+  const problems = checkCommand(
+    "git -C . commit --no-verify -m x",
+    ctx({
+      branchFor: () => {
+        throw new Error("resolver failed");
+      },
+    }),
+  );
+  assert.ok(problems.some((p) => p.includes("--no-verify")));
+});
+
 // --- chaining ---------------------------------------------------------
 
 test("catches a denied command chained after another with &&", () => {

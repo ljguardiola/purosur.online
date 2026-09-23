@@ -22,10 +22,9 @@ const RELEASE_TAG_PATTERN = /^(cloud|pos)-v/;
 const GIT_TAG_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-u", "--local-user"]);
 
 // Global git options that take a value as a separate following token when
-// not written as `--opt=value` (verified against `git help git` and this
-// machine's git 2.55.0: `-C` and `-c` never accept `=value`; `--exec-path`
-// and `--list-cmds` only accept `=value` and are treated below as ordinary
-// value-less flags instead).
+// not written as `--opt=value`. `-C`, `-c` and the undocumented
+// `--shallow-file` never accept `=value`; `--exec-path` and `--list-cmds`
+// only accept `=value`, so they are value-less flags here.
 const GIT_GLOBAL_VALUE_FLAGS = new Set([
   "-C",
   "-c",
@@ -34,6 +33,7 @@ const GIT_GLOBAL_VALUE_FLAGS = new Set([
   "--namespace",
   "--config-env",
   "--attr-source",
+  "--shallow-file",
 ]);
 
 // Global git options that also select which repository (and so which
@@ -204,10 +204,11 @@ function parseGitGlobalOptions(rest) {
   return { sub: rest[index], args: rest.slice(index + 1), locationArgs };
 }
 
-// Resolves the branch the guard should judge, per `context`'s API: with no
-// location args, today's `context.branch` (the session cwd's branch); with
-// location args, `context.branchFor(locationArgs)`. A missing resolver or a
-// null result means "branch unknown", which fails open on branch rules.
+// Resolves the branch the guard should judge: with no location args,
+// `context.branch` (the session cwd's branch); with location args,
+// `context.branchFor(locationArgs)`. A missing or failing resolver, or a
+// null result, means "branch unknown", which fails open on branch rules
+// without hiding the rules that do not depend on the branch.
 function resolveBranch(context, locationArgs) {
   if (locationArgs.length === 0) {
     return context.branch ?? null;
@@ -215,7 +216,11 @@ function resolveBranch(context, locationArgs) {
   if (typeof context.branchFor !== "function") {
     return null;
   }
-  return context.branchFor(locationArgs) ?? null;
+  try {
+    return context.branchFor(locationArgs) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // --- flag parsing --------------------------------------------------------
