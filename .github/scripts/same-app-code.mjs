@@ -6,7 +6,7 @@ async function main() {
   const countCheck = validatePathCount(paths);
   if (!countCheck.ok) {
     console.error(`::error::${countCheck.reason}`);
-    process.exit(1);
+    process.exitCode = 1;
     return;
   }
 
@@ -15,7 +15,7 @@ async function main() {
     const result = await hashAsarFile(filePath);
     if (!result.ok) {
       console.error(`::error::${result.reason}`);
-      process.exit(1);
+      process.exitCode = 1;
       return;
     }
     console.log(`${filePath}  ${result.hash}`);
@@ -25,7 +25,7 @@ async function main() {
   const comparison = compareHashes(entries);
   if (!comparison.ok) {
     console.error(`::error::${comparison.reason}`);
-    process.exit(1);
+    process.exitCode = 1;
     return;
   }
 
@@ -34,5 +34,5 @@ async function main() {
 
 main().catch((error) => {
   console.error(error);
-  process.exit(1);
+  process.exitCode = 1;
 });
