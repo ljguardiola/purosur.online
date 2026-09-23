@@ -65,7 +65,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       errorDetail: "Probá de nuevo en unos minutos.",
       sentEyebrow: "Recuperar el acceso",
       sentHeading: "Revisá tu correo",
-      sentNoticeTitle: "Si el correo es de una cuenta, ya llegó el enlace",
+      sentNoticeTitle: "Si el correo es de una cuenta, te enviamos el enlace",
       sentNoticeDetail:
         "Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado.",
     },
@@ -78,7 +78,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       nameTooLong: "El nombre no puede superar los 40 caracteres.",
       submit: "Registrar la passkey",
       footerHint:
-        "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Usuarios.",
+        "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.",
       loading: "Abriendo el registro…",
       invalidTitle: "Este enlace no es válido",
       invalidDetail: "Revisá que el enlace esté completo.",
