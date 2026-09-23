@@ -115,6 +115,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         registerAnother: "Registrar otra passkey",
         singlePasskeyWarning:
           "Tenés una sola passkey. Si perdés este dispositivo no podés entrar al backoffice: conviene registrar otra, por ejemplo en el teléfono.",
+        noPasskeysWarning:
+          "No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
         rowDetail: (params: { registeredOn: Date; lastUsedAt?: Date; now: Date }) => {
           const registered = `Registrada el ${f.date(params.registeredOn, PASSKEY_DATE_OPTIONS)}`;
           if (!params.lastUsedAt) {

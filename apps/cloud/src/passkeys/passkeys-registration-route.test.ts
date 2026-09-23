@@ -247,6 +247,20 @@ describe("POST /users/passkeys/registration-options", () => {
     ]);
   });
 
+  it("rejects an account with no passkey to reauthenticate with, storing no challenge", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    await expect(db.select().from(passkeyChallenges)).resolves.toEqual([]);
+  });
+
   it("replaces a previously pending challenge with a fresh one", async () => {
     const emulator = new WebAuthnEmulator();
     await registerFirstPasskey(userId, emulator);

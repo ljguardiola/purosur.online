@@ -105,6 +105,10 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
       .from(passkeys)
       .where(eq(passkeys.userId, openSession.userId));
+    if (existingPasskeys.length === 0) {
+      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      return;
+    }
 
     const reauthenticationOptions = await generateAuthenticationOptions({
       rpID: webAuthnConfig.rpID,

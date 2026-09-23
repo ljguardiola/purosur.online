@@ -110,6 +110,25 @@ test("does not flag the account when it has two or more passkeys", async () => {
   expect(screen.getByText(/Tenés una sola passkey/).query()).toBeNull();
 });
 
+test("warns an account with no passkey that only a recovery link lets it back in, and offers no registration", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await renderScreen();
+
+  await expect
+    .element(
+      screen
+        .getByText(
+          "No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
+        )
+        .first(),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
+    .toBeDisabled();
+  expect(screen.getByText(/Tenés una sola passkey/).query()).toBeNull();
+});
+
 test("shows a load error with a retry action when the passkeys fail to load", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "failed" });
   const screen = await renderScreen();

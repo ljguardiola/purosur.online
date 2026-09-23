@@ -356,6 +356,7 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
 
   const passkeys = list.kind === "loaded" ? list.passkeys : [];
   const isOnlyPasskey = passkeys.length === 1;
+  const hasNoPasskeys = list.kind === "loaded" && passkeys.length === 0;
 
   return (
     <>
@@ -373,7 +374,12 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
             <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
               {passkeysMessages.title}
             </h2>
-            <Button variant="secondary" icon={<Plus />} onPress={() => setRegisterModalOpen(true)}>
+            <Button
+              variant="secondary"
+              icon={<Plus />}
+              isDisabled={hasNoPasskeys}
+              onPress={() => setRegisterModalOpen(true)}
+            >
               {passkeysMessages.registerAnother}
             </Button>
           </div>
@@ -398,6 +404,13 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
                   tone="warning"
                   icon={<TriangleAlert />}
                   detail={passkeysMessages.singlePasskeyWarning}
+                />
+              )}
+              {hasNoPasskeys && (
+                <InlineNotice
+                  tone="warning"
+                  icon={<TriangleAlert />}
+                  detail={passkeysMessages.noPasskeysWarning}
                 />
               )}
               <ul className="flex flex-col gap-2">
