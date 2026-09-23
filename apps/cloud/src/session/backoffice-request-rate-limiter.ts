@@ -29,10 +29,6 @@ interface RateLimitedKey {
   limit: number;
 }
 
-// Mirrors recovery-rate-limiter.ts's own pruning, locking, and counting shape against this
-// module's own table, kept as a separate copy rather than a shared generic: the two limiters key
-// different Postgres enum columns, and duplicating this well-tested shape is safer than reworking
-// the already-tested recovery limiter to share it.
 async function pruneExpiredAttempts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   windowStart: Date,
@@ -79,14 +75,15 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
   await pruneExpiredAttempts(db, windowStart);
 
   return db.transaction(async (tx) => {
-    const lockOrder = keys.map((key) => `${key.keyKind}:${key.keyValue}`).sort();
+    // Prefixed so this limiter never waits on the recovery limiter's lock for the same address.
+    const lockOrder = keys.map((key) => `backoffice:${key.keyKind}:${key.keyValue}`).sort();
     for (const lockKey of lockOrder) {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
     }
 
     let retryAfterMs = 0;
     for (const key of keys) {
-      const counted = await tx
+      const [oldestCounted] = await tx
         .select({ attemptedAt: backofficeRateLimitAttempts.attemptedAt })
         .from(backofficeRateLimitAttempts)
         .where(
@@ -97,8 +94,8 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
           ),
         )
         .orderBy(desc(backofficeRateLimitAttempts.attemptedAt))
-        .limit(key.limit);
-      const oldestCounted = counted[key.limit - 1];
+        .offset(key.limit - 1)
+        .limit(1);
       if (oldestCounted) {
         const slotFreesAt = oldestCounted.attemptedAt.getTime() + BACKOFFICE_RATE_LIMIT_WINDOW_MS;
         retryAfterMs = Math.max(retryAfterMs, slotFreesAt - now.getTime());

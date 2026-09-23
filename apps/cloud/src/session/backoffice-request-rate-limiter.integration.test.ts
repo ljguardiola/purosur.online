@@ -72,4 +72,36 @@ describe("the backoffice rate limiter on concurrent connections", () => {
 
     expect(results.filter((result) => result.allowed)).toHaveLength(5);
   });
+
+  it("is not held up while the recovery limiter holds its own lock for the same source address", async () => {
+    const db = drizzle(sql);
+    let recoveryLockTaken!: () => void;
+    const recoveryLockHeld = new Promise<void>((resolve) => {
+      recoveryLockTaken = resolve;
+    });
+    let releaseRecoveryLock!: () => void;
+    const recoveryLockReleased = new Promise<void>((resolve) => {
+      releaseRecoveryLock = resolve;
+    });
+    // The recovery limiter locks each of its keys as `<key kind>:<key value>`.
+    const recoveryTransaction = sql.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(hashtextextended(${"source_address:198.51.100.77"}, 0))`;
+      recoveryLockTaken();
+      await recoveryLockReleased;
+    });
+    await recoveryLockHeld;
+
+    const outcome = await Promise.race([
+      recordBackofficeRequest(db, {
+        sessionKeyValue: "unrelated-session",
+        sourceAddress: "198.51.100.77",
+        now: NOON,
+      }).then(() => "completed" as const),
+      new Promise<"held up">((resolve) => setTimeout(() => resolve("held up"), 2_000)),
+    ]);
+    releaseRecoveryLock();
+    await recoveryTransaction;
+
+    expect(outcome).toBe("completed");
+  });
 });
