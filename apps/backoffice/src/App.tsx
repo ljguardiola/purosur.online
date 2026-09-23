@@ -185,16 +185,24 @@ export function App({ help }: AppProps) {
         setSession({ kind: "signed-in", displayName: outcome.displayName });
         return;
       }
+      if (outcome.kind === "rate_limited") {
+        // Same reasoning as "failed" below: nobody said the session ended, so the marker stays.
+        setSession({
+          kind: "signed-out",
+          notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
+        });
+        return;
+      }
       if (outcome.kind === "failed") {
         // Nobody said the session ended — the question never got an answer. Clearing the marker
         // here would turn the next attempt's honest "venció" into a lie, and the session itself
         // may well still be live.
-        setSession({ kind: "signed-out", notice: "check_failed" });
+        setSession({ kind: "signed-out", notice: { kind: "check_failed" } });
         return;
       }
       const expired = wasSignedIn();
       clearSignedInMarker();
-      setSession({ kind: "signed-out", notice: expired ? "expired" : undefined });
+      setSession({ kind: "signed-out", notice: expired ? { kind: "expired" } : undefined });
     });
     return () => {
       cancelled = true;
@@ -221,12 +229,19 @@ export function App({ help }: AppProps) {
       if (outcome.kind === "ok") {
         markSignedIn();
         setSession({ kind: "signed-in", displayName: outcome.displayName });
-      } else {
+        return;
+      }
+      if (outcome.kind === "rate_limited") {
         setSession({
           kind: "signed-out",
-          notice: outcome.kind === "failed" ? "check_failed" : undefined,
+          notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
         });
+        return;
       }
+      setSession({
+        kind: "signed-out",
+        notice: outcome.kind === "failed" ? { kind: "check_failed" } : undefined,
+      });
     });
   }
 
@@ -241,7 +256,7 @@ export function App({ help }: AppProps) {
   // as that check finding none, so it gets the same expired notice.
   function handleSessionEnded() {
     clearSignedInMarker();
-    setSession({ kind: "signed-out", notice: "expired" });
+    setSession({ kind: "signed-out", notice: { kind: "expired" } });
     navigate(SIGN_IN_PATH, { replace: true });
   }
 

@@ -1,6 +1,11 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
+
+// These limits (600/h, 1800/h) are far larger than recovery-rate-limiter.test.ts's own (5/10 per
+// hour), so several tests here drive hundreds of sequential PGlite requests; the default 5s
+// timeout is too tight for that under load.
+vi.setConfig({ testTimeout: 20_000 });
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
