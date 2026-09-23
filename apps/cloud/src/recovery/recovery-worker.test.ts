@@ -251,6 +251,40 @@ describe("startRecoveryWorker", () => {
     expect(pool.end).toHaveBeenCalledTimes(1);
   });
 
+  it("still waits for the runner's drain before ending the pool when stopping the runner fails", async () => {
+    const drain = deferred();
+    const runner = {
+      stop: vi.fn().mockRejectedValue(new Error("stop failed: connection reset")),
+      promise: drain.promise,
+    };
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const pool = new FakePool();
+    const createPool = vi.fn().mockReturnValue(pool);
+
+    const handle = await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker, createPool },
+    );
+    const stopping = handle.stop().then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    await flushPendingWork();
+
+    expect(pool.end).not.toHaveBeenCalled();
+
+    drain.settle();
+    const failure = await stopping;
+
+    expect(pool.end).toHaveBeenCalledTimes(1);
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain("stop failed: connection reset");
+  });
+
   it("reports both failures when stopping the runner fails and ending the pool fails too", async () => {
     const runner = {
       stop: vi.fn().mockRejectedValue(new Error("stop failed: connection reset")),
