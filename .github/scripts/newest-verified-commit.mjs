@@ -81,10 +81,8 @@ export async function runCli({
   logError = console.error,
 } = {}) {
   const { GITHUB_TOKEN, GITHUB_REPOSITORY, TRIGGERING_SHA, GITHUB_OUTPUT } = env;
-  if (!GITHUB_TOKEN || !GITHUB_REPOSITORY || !TRIGGERING_SHA || !GITHUB_OUTPUT) {
-    logError(
-      `${LOG_PREFIX}: GITHUB_TOKEN, GITHUB_REPOSITORY, TRIGGERING_SHA and GITHUB_OUTPUT are required`,
-    );
+  if (!GITHUB_TOKEN || !GITHUB_REPOSITORY || !GITHUB_OUTPUT) {
+    logError(`${LOG_PREFIX}: GITHUB_TOKEN, GITHUB_REPOSITORY and GITHUB_OUTPUT are required`);
     return 1;
   }
 
@@ -94,20 +92,23 @@ export async function runCli({
     token: GITHUB_TOKEN,
     fetchImpl,
   });
-  // The triggering run's payload already proves this commit passed; the runs listing may lag.
-  verifiedShas.add(TRIGGERING_SHA);
+  // workflow_dispatch carries no triggering run, so nothing to add here; the runs listing alone
+  // decides. Otherwise, the triggering run's payload already proves this commit passed, and the
+  // runs listing may lag.
+  if (TRIGGERING_SHA) {
+    verifiedShas.add(TRIGGERING_SHA);
+  }
 
   const target = newestVerifiedCommit({ history, verifiedShas });
+  const trigger = TRIGGERING_SHA ? `triggered by ${TRIGGERING_SHA}` : "manual dispatch";
   if (target === null) {
     logError(
-      `${LOG_PREFIX}: no commit on main's first-parent history passed verification (triggered by ${TRIGGERING_SHA})`,
+      `${LOG_PREFIX}: no commit on main's first-parent history passed verification (${trigger})`,
     );
     return 1;
   }
 
-  log(
-    `${LOG_PREFIX}: newest verified commit on main is ${target} (triggered by ${TRIGGERING_SHA})`,
-  );
+  log(`${LOG_PREFIX}: newest verified commit on main is ${target} (${trigger})`);
   await appendOutput(GITHUB_OUTPUT, `sha=${target}\n`);
   return 0;
 }

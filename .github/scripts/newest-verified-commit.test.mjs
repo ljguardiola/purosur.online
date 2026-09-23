@@ -202,3 +202,16 @@ test("fails before any request when a required variable is missing", async () =>
   assert.deepEqual(calls.git, []);
   assert.match(calls.errors.join("\n"), /GITHUB_TOKEN/);
 });
+
+test("resolves the target from the runs listing alone when TRIGGERING_SHA is missing", async () => {
+  const { deps, calls } = fakeCli({
+    runs: [run({ sha: MIDDLE })],
+    env: { TRIGGERING_SHA: "" },
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: `sha=${MIDDLE}\n` }]);
+  assert.match(calls.logs.join("\n"), new RegExp(`${MIDDLE}.*manual dispatch`));
+});
