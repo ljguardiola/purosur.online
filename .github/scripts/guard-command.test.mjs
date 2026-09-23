@@ -53,8 +53,12 @@ function readerFor(files) {
   return (path) => (path in files ? files[path] : null);
 }
 
-function ctx({ branch = "feature/x", files = {} } = {}) {
-  return { branch, readFile: readerFor(files) };
+function ctx({ branch = "feature/x", files = {}, branchFor } = {}) {
+  const context = { branch, readFile: readerFor(files) };
+  if (branchFor !== undefined) {
+    context.branchFor = branchFor;
+  }
+  return context;
 }
 
 // --- git commit on main ---------------------------------------------------
@@ -328,6 +332,152 @@ test("denies gh issue edit with --add-label type and an incomplete body", () => 
 test("allows gh issue edit with no label change and any body (cannot be decided locally)", () => {
   const problems = checkCommand('gh issue edit 5 --body "some update"', ctx());
   assert.deepEqual(problems, []);
+});
+
+// --- git global options before the subcommand ---------------------------
+
+test("denies git -C . commit --no-verify regardless of branch", () => {
+  const problems = checkCommand(
+    "git -C . commit --no-verify -m x",
+    ctx({ branch: "feature/x", branchFor: () => "feature/x" }),
+  );
+  assert.ok(problems.some((p) => p.includes("--no-verify")));
+});
+
+test("denies git -c user.name=x commit on main, using context.branch since -c is not a location option", () => {
+  const problems = checkCommand("git -c user.name=x commit", ctx({ branch: "main" }));
+  assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
+});
+
+test("denies git --git-dir=.git push --force", () => {
+  const problems = checkCommand(
+    "git --git-dir=.git push --force",
+    ctx({ branch: "feature/x", branchFor: () => "feature/x" }),
+  );
+  assert.ok(problems.some((p) => p.toLowerCase().includes("force")));
+});
+
+test("denies a bare git -C . push when branchFor resolves the target repository to main", () => {
+  const problems = checkCommand(
+    "git -C . push",
+    ctx({ branch: "feature/x", branchFor: () => "main" }),
+  );
+  assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
+});
+
+test("allows a bare git -C . push when branchFor resolves the target repository to a feature branch", () => {
+  const problems = checkCommand(
+    "git -C . push",
+    ctx({ branch: "main", branchFor: () => "feature/x" }),
+  );
+  assert.deepEqual(problems, []);
+});
+
+test("denies git -c x=y tag cloud-v1 regardless of the global option", () => {
+  const problems = checkCommand("git -c x=y tag cloud-v1", ctx());
+  assert.ok(problems.some((p) => p.toLowerCase().includes("release")));
+});
+
+test("denies git --no-pager commit on main, skipping a boolean global option", () => {
+  const problems = checkCommand("git --no-pager commit", ctx({ branch: "main" }));
+  assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
+});
+
+test("uses branchFor for a GIT_DIR= env-assignment prefix", () => {
+  const problems = checkCommand(
+    "GIT_DIR=x git commit",
+    ctx({ branch: "feature/x", branchFor: () => "main" }),
+  );
+  assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
+});
+
+test("does not deny the branch rule when a location option is present but branchFor is missing, still denies --no-verify", () => {
+  const problems = checkCommand("git -C . commit --no-verify", ctx({ branch: "main" }));
+  assert.ok(!problems.some((p) => p.toLowerCase().includes("main")));
+  assert.ok(problems.some((p) => p.includes("--no-verify")));
+});
+
+test("does not deny the branch rule when branchFor itself returns an unknown branch", () => {
+  const problems = checkCommand("git -C . commit", ctx({ branch: "main", branchFor: () => null }));
+  assert.deepEqual(problems, []);
+});
+
+test("passes locationArgs to branchFor in order, with -c excluded", () => {
+  let received;
+  const problems = checkCommand(
+    "git -c x=y -C . --git-dir=sub/.git commit",
+    ctx({
+      branch: "feature/x",
+      branchFor: (locationArgs) => {
+        received = locationArgs;
+        return "feature/x";
+      },
+    }),
+  );
+  assert.deepEqual(received, ["-C", ".", "--git-dir=sub/.git"]);
+  assert.deepEqual(problems, []);
+});
+
+test("normalizes a GIT_DIR= env-assignment prefix into the locationArgs passed to branchFor", () => {
+  let received;
+  checkCommand(
+    "GIT_WORK_TREE=/wt GIT_DIR=/repo/.git git -C sub commit",
+    ctx({
+      branch: "feature/x",
+      branchFor: (locationArgs) => {
+        received = locationArgs;
+        return "feature/x";
+      },
+    }),
+  );
+  assert.deepEqual(received, ["--work-tree=/wt", "--git-dir=/repo/.git", "-C", "sub"]);
+});
+
+test("finds the subcommand behind every global option that takes a separate value", () => {
+  const spellings = [
+    "--git-dir .git",
+    "--work-tree .",
+    "--namespace ns",
+    "--config-env user.name=NAME",
+    "--attr-source HEAD",
+    "--shallow-file /dev/null",
+  ];
+  for (const spelling of spellings) {
+    const problems = checkCommand(
+      `git ${spelling} commit --no-verify -m x`,
+      ctx({ branchFor: () => "feature/x" }),
+    );
+    assert.ok(
+      problems.some((p) => p.includes("--no-verify")),
+      `expected --no-verify to be caught after "${spelling}"`,
+    );
+  }
+});
+
+test("passes separate-value --git-dir and --work-tree to branchFor", () => {
+  let received;
+  checkCommand(
+    "git --git-dir /repo/.git --work-tree /wt commit -m x",
+    ctx({
+      branchFor: (locationArgs) => {
+        received = locationArgs;
+        return "feature/x";
+      },
+    }),
+  );
+  assert.deepEqual(received, ["--git-dir", "/repo/.git", "--work-tree", "/wt"]);
+});
+
+test("still reports --no-verify when branchFor throws", () => {
+  const problems = checkCommand(
+    "git -C . commit --no-verify -m x",
+    ctx({
+      branchFor: () => {
+        throw new Error("resolver failed");
+      },
+    }),
+  );
+  assert.ok(problems.some((p) => p.includes("--no-verify")));
 });
 
 // --- chaining ---------------------------------------------------------

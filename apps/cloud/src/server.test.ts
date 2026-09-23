@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  closeRecoveryResources,
   createRecoveryJobQueuePool,
   registerShutdownHandlers,
   reportStartupFailure,
@@ -345,6 +346,68 @@ describe("createRecoveryJobQueuePool", () => {
       "recovery job queue: active database client failed",
       error,
     );
+  });
+});
+
+describe("closeRecoveryResources", () => {
+  function recoveryResources(events: string[]) {
+    return {
+      worker: {
+        stop: vi.fn().mockImplementation(async () => {
+          events.push("worker stopped");
+        }),
+      },
+      workerUtils: {
+        release: vi.fn().mockImplementation(async () => {
+          events.push("utilities released");
+        }),
+      },
+      jobQueuePool: {
+        end: vi.fn().mockImplementation(async () => {
+          events.push("job-queue pool ended");
+        }),
+      },
+      sql: {
+        end: vi.fn().mockImplementation(async () => {
+          events.push("database client ended");
+        }),
+      },
+    };
+  }
+
+  it("releases the job-queue utilities before ending the pool they use, the worker first and the database client last", async () => {
+    const events: string[] = [];
+
+    await closeRecoveryResources(recoveryResources(events));
+
+    expect(events).toEqual([
+      "worker stopped",
+      "utilities released",
+      "job-queue pool ended",
+      "database client ended",
+    ]);
+  });
+
+  it("still closes every later resource when two of them fail, then rejects with both failures", async () => {
+    const events: string[] = [];
+    const resources = recoveryResources(events);
+    resources.worker.stop.mockRejectedValue(new Error("worker stop failed"));
+    resources.jobQueuePool.end.mockImplementation(async () => {
+      events.push("job-queue pool ended");
+      throw new Error("pool end failed");
+    });
+
+    const failure = await closeRecoveryResources(resources).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(events).toEqual(["utilities released", "job-queue pool ended", "database client ended"]);
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors.map((error: Error) => error.message)).toEqual([
+      expect.stringContaining("worker stop failed"),
+      expect.stringContaining("pool end failed"),
+    ]);
   });
 });
 

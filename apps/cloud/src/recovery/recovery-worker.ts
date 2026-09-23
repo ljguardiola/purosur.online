@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
@@ -9,6 +10,7 @@ import {
 } from "./process-recovery-request-job.js";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
+import { runShutdownSteps } from "./run-shutdown-steps.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
@@ -95,10 +97,20 @@ export async function startRecoveryWorker(
   const pool = doCreatePool(options.databaseUrl);
   reportPoolErrors(pool, "recovery worker");
 
+  // graphile-worker 0.18 rejects a second `stop()` with "Runner is already stopped" once its
+  // worker pool or cron exited on its own (e.g. its database connections were dropped), and it
+  // emits "stop" synchronously on the emitter passed as `events` the moment that happens.
+  const events = new EventEmitter();
+  let stoppedItself = false;
+  events.once("stop", () => {
+    stoppedItself = true;
+  });
+
   const runner = await doRun({
     pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
     crontab: RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB,
+    events,
     taskList: {
       [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload, helpers) => {
         if (!isRecoveryRequestJobPayload(payload)) {
@@ -122,8 +134,24 @@ export async function startRecoveryWorker(
 
   return {
     async stop() {
-      await runner.stop();
-      await pool.end();
+      await runShutdownSteps([
+        {
+          label: "recovery runner",
+          run: async () => {
+            // In graphile-worker 0.18, `promise` settles once its worker pool and cron have exited,
+            // so a job it is still draining never sees the pool close from under it, and it never
+            // rejects.
+            try {
+              if (!stoppedItself) {
+                await runner.stop();
+              }
+            } finally {
+              await runner.promise;
+            }
+          },
+        },
+        { label: "recovery worker pool", run: () => pool.end() },
+      ]);
     },
   };
 }
