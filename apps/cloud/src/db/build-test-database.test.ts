@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "v
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
+  passkeyChallenges,
   passkeys,
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
@@ -90,6 +91,7 @@ describe("buildTestDatabase", () => {
       counter: 0,
       deviceType: "singleDevice",
       backedUp: false,
+      name: "Passkey",
     });
     await db.insert(recoveryTokens).values({
       userId: user.id,
@@ -108,7 +110,18 @@ describe("buildTestDatabase", () => {
       firstAt: new Date("2026-01-05T12:00:00.000Z"),
       lastAt: new Date("2026-01-05T12:00:00.000Z"),
     });
-    await db.insert(sessions).values({ userId: user.id, sessionIdHash: "session-hash" });
+    const [session] = await db
+      .insert(sessions)
+      .values({ userId: user.id, sessionIdHash: "session-hash" })
+      .returning({ id: sessions.id });
+    if (!session) {
+      throw new Error("seeding the session returned no row");
+    }
+    await db.insert(passkeyChallenges).values({
+      sessionId: session.id,
+      kind: "registration",
+      reauthenticationChallenge: "reauthentication-challenge-1",
+    });
     await db.insert(signInChallenges).values({ challenge: "challenge-1" });
     await db
       .insert(signInFailures)

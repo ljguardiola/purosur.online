@@ -34,6 +34,13 @@ test("shows the display name and the Salir item, with no modal open yet", async 
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("links the display name to the signed-in account's own Mi cuenta page", async () => {
+  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut: () => {} });
+
+  const link = screen.getByRole("link", { name: "Lucas Guardiola" }).element() as HTMLAnchorElement;
+  expect(link.getAttribute("href")).toBe("/settings/users/me");
+});
+
 test("opens the confirm modal naming the account and asking to confirm", async () => {
   const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut: () => {} });
 

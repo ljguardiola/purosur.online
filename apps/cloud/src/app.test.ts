@@ -304,3 +304,74 @@ describe("wiring the session routes", () => {
     expect(signOutResponse.json()).toMatchObject({ code: "unauthenticated" });
   });
 });
+
+describe("wiring the passkeys routes", () => {
+  it("does not register GET /users/passkeys when no passkeys option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /users/passkeys when a passkeys option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("does not register the registration or removal routes when no passkeys option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const registrationOptions = await app.inject({
+      method: "POST",
+      url: "/users/passkeys/registration-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const removalOptions = await app.inject({
+      method: "POST",
+      url: "/users/passkeys/removal-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(registrationOptions.statusCode).toBe(404);
+    expect(removalOptions.statusCode).toBe(404);
+  });
+
+  it("registers the registration and removal routes when a passkeys option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const registrationOptions = await app.inject({
+      method: "POST",
+      url: "/users/passkeys/registration-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const removalOptions = await app.inject({
+      method: "POST",
+      url: "/users/passkeys/removal-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const remove = await app.inject({
+      method: "POST",
+      url: "/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401
+    // instead of Fastify's generic not-found response for an unregistered route.
+    expect(registrationOptions.statusCode).toBe(401);
+    expect(removalOptions.statusCode).toBe(401);
+    expect(remove.statusCode).toBe(401);
+  });
+});

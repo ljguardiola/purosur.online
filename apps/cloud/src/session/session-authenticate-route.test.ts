@@ -155,7 +155,11 @@ async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
     method: "POST",
     url: "/users/recovery/redeem",
     headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": SOURCE_ADDRESS },
-    payload: { recovery_token: rawToken, passkey_registration: credential },
+    payload: {
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    },
   });
   if (response.statusCode !== 200) {
     throw new Error(`test setup: redeem failed: ${response.statusCode} ${response.body}`);
@@ -208,6 +212,19 @@ describe("POST /users/session/authenticate", () => {
     const rows = await db.select().from(sessions).where(eq(sessions.userId, userId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.revokedAt).toBeNull();
+  });
+
+  it("stamps the used passkey's last_used_at with the injected clock", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    const assertion = await getAuthenticationAssertion(emulator);
+    currentTime = new Date(NOON.getTime() + 60 * 1000);
+
+    const response = await postAuthenticate({ assertion });
+
+    expect(response.statusCode).toBe(200);
+    const [passkey] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(passkey?.lastUsedAt).toEqual(currentTime);
   });
 
   it("issues a brand-new session id and ends whatever session cookie arrived", async () => {

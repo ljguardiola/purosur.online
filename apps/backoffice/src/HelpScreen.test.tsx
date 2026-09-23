@@ -336,6 +336,7 @@ test("stretches the article card to the foot of the content area, sizing the rel
       brandName="Puro Sur"
       areaRailLabel="Áreas"
       sectionColumnLabel="Secciones"
+      railAreas={null}
       railFooter={null}
       sectionColumn={null}
     >

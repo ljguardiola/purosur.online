@@ -87,6 +87,8 @@ export const passkeys = pgTable(
     transports: jsonb("transports").$type<string[]>(),
     deviceType: text("device_type").notNull(),
     backedUp: boolean("backed_up").notNull(),
+    name: text("name").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("passkeys_credential_id_key").on(table.credentialId)],
@@ -204,6 +206,35 @@ export const sessions = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (table) => [uniqueIndex("sessions_session_id_hash_key").on(table.sessionIdHash)],
+);
+
+export const passkeyManagementChallengeKind = pgEnum("passkey_management_challenge_kind", [
+  "registration",
+  "removal",
+]);
+
+// One row per open session with a pending passkey self-management challenge (issue #169):
+// registering or removing a passkey always requires a fresh reauthentication with one of the
+// account's existing passkeys, so `reauthentication_challenge` is always set; `registration`
+// additionally stores `registration_challenge` for the new credential itself, which stays null for
+// a `removal` row. Keyed by `session_id` rather than by challenge value the way
+// `sign_in_challenges` is, because these options requests are never discoverable (an open session
+// already identifies the account): `passkey_challenges_session_id_key` allows only one live row
+// per session, so a fresh options request replaces whatever that session had pending. A row is
+// deleted once consumed (or once it has aged past its short lifetime).
+export const passkeyChallenges = pgTable(
+  "passkey_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => sessions.id),
+    kind: passkeyManagementChallengeKind("kind").notNull(),
+    reauthenticationChallenge: text("reauthentication_challenge").notNull(),
+    registrationChallenge: text("registration_challenge"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("passkey_challenges_session_id_key").on(table.sessionId)],
 );
 
 // One row per short-lived WebAuthn authentication challenge `POST

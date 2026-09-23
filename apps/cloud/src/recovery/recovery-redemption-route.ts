@@ -42,6 +42,18 @@ function readRawToken(body: unknown): string | undefined {
   return typeof recoveryToken === "string" && recoveryToken !== "" ? recoveryToken : undefined;
 }
 
+const PASSKEY_NAME_MAX_LENGTH = 40;
+
+/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed (issue #169). */
+function readPasskeyName(body: unknown): string | undefined {
+  const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;
+  if (typeof rawName !== "string") {
+    return undefined;
+  }
+  const trimmed = rawName.trim();
+  return trimmed.length >= 1 && trimmed.length <= PASSKEY_NAME_MAX_LENGTH ? trimmed : undefined;
+}
+
 /**
  * Registers the two WebAuthn-facing endpoints that complete recovery-by-email:
  * `registration-options` hands back creation options for a still-live token without touching it,
@@ -272,6 +284,15 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       return;
     }
 
+    const passkeyName = readPasskeyName(request.body);
+    if (!passkeyName) {
+      await rejectRedemptionAsInvalid(reply, token, {
+        message: "passkey_name is required and must be 1-40 characters once trimmed",
+        details: [{ field: "passkey_name" }],
+      });
+      return;
+    }
+
     const verification = await verifyRegistrationResponse({
       response: passkeyRegistration,
       expectedChallenge: token.registrationChallenge,
@@ -314,6 +335,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           transports: registrationInfo.credential.transports ?? null,
           deviceType: registrationInfo.credentialDeviceType,
           backedUp: registrationInfo.credentialBackedUp,
+          name: passkeyName,
         })
         .onConflictDoNothing({ target: passkeys.credentialId })
         .returning({ id: passkeys.id });
@@ -335,6 +357,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         actorId: account.id,
         previousValue: null,
         newValue: {
+          id: newPasskey.id,
+          name: passkeyName,
           credentialId: registrationInfo.credential.id,
           deviceType: registrationInfo.credentialDeviceType,
           backedUp: registrationInfo.credentialBackedUp,

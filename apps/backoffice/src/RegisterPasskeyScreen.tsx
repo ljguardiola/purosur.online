@@ -1,4 +1,4 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
+import { validatePasskeyName } from "./passkeyName";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 
 type ReadyPhase = {
@@ -70,6 +71,8 @@ export function RegisterPasskeyScreen() {
   // same token and the state keeps it even when that effect runs twice.
   const [token] = useState<string | null>(() => readToken());
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -143,6 +146,14 @@ export function RegisterPasskeyScreen() {
       setPhase({ kind: "invalid" });
       return;
     }
+    const validationError = validatePasskeyName(name, {
+      required: messages.access.registerPasskey.nameRequired,
+      tooLong: messages.access.registerPasskey.nameTooLong,
+    });
+    setNameError(validationError);
+    if (validationError) {
+      return;
+    }
     setPhase({ ...readyPhase, attemptFailed: false, submitting: true });
 
     const registration = await startRegistration({ optionsJSON: readyPhase.options }).catch(
@@ -153,7 +164,7 @@ export function RegisterPasskeyScreen() {
       return;
     }
 
-    const outcome = await redeemRecovery(token, registration);
+    const outcome = await redeemRecovery(token, registration, name.trim());
     if (outcome.kind === "ok") {
       setPhase({ kind: "registered" });
     } else if (
@@ -270,6 +281,25 @@ export function RegisterPasskeyScreen() {
           detail={messages.access.registerPasskey.attemptFailedDetail}
         />
       )}
+      <TextField
+        kind="plain-text"
+        label={messages.access.registerPasskey.nameLabel}
+        value={name}
+        onChange={(value) => {
+          setName(value);
+          if (nameError) {
+            setNameError(
+              validatePasskeyName(value, {
+                required: messages.access.registerPasskey.nameRequired,
+                tooLong: messages.access.registerPasskey.nameTooLong,
+              }),
+            );
+          }
+        }}
+        helperText={messages.access.registerPasskey.nameHelper}
+        required
+        {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
+      />
       <Button
         variant="primary"
         size="large"

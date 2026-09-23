@@ -267,12 +267,15 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         lastSeenAt: attemptedAt,
       });
 
-      if (authenticationInfo.newCounter !== passkey.counter) {
-        await tx
-          .update(passkeys)
-          .set({ counter: authenticationInfo.newCounter })
-          .where(eq(passkeys.id, passkey.id));
-      }
+      await tx
+        .update(passkeys)
+        .set({
+          lastUsedAt: attemptedAt,
+          ...(authenticationInfo.newCounter !== passkey.counter
+            ? { counter: authenticationInfo.newCounter }
+            : {}),
+        })
+        .where(eq(passkeys.id, passkey.id));
 
       // This attempt was no rejected sign-in, so it gives its slot of the address's lockout
       // budget back: only server-rejected attempts count toward the block.

@@ -4,6 +4,10 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
+import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
+import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
+import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
@@ -40,6 +44,12 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * optional-feature-wiring shape `recovery` uses above.
    */
   session?: SessionAuthenticateRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /users/passkeys` and every `/users/passkeys/*` self-management route
+   * (registration and removal, each gated by a fresh reauthentication) for the session account's
+   * own passkeys (issue #169), the same optional-feature-wiring shape `session` uses above.
+   */
+  passkeys?: PasskeysListRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -87,6 +97,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerSessionAuthenticateRoute(app, options.session);
     registerSessionReadRoute(app, options.session);
     registerSessionSignOutRoute(app, options.session);
+  }
+
+  if (options.passkeys) {
+    registerPasskeysListRoute(app, options.passkeys);
+    registerPasskeyRegistrationRoutes(app, options.passkeys);
+    registerPasskeyRemovalRoutes(app, options.passkeys);
   }
 
   const staticDir = options.staticDir;

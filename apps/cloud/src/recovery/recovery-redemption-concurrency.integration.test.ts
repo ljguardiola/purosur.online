@@ -94,7 +94,11 @@ describe("redeeming the same recovery token over two concurrent HTTP requests ag
         fetch(`${server.origin}/users/recovery/redeem`, {
           method: "POST",
           headers: { "content-type": "application/json", origin: BACKOFFICE_ORIGIN },
-          body: JSON.stringify({ recovery_token: rawToken, passkey_registration: credential }),
+          body: JSON.stringify({
+            recovery_token: rawToken,
+            passkey_registration: credential,
+            passkey_name: "Notebook del local",
+          }),
         });
 
       const [first, second] = await Promise.all([redeem(), redeem()]);

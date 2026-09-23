@@ -5,16 +5,18 @@ export type ShellProps = {
   brandName: string;
   areaRailLabel: string;
   sectionColumnLabel: string;
+  railAreas: ReactNode;
   railFooter: ReactNode;
   sectionColumn: ReactNode;
   children: ReactNode;
 };
 
-/** The backoffice's three-column frame: an area rail headed by the isotype with its footer pinned to the foot, a section column, and the active screen's content. */
+/** The backoffice's three-column frame: an area rail headed by the isotype, then every existing area under a thin separator, with its footer pinned to the foot, a section column, and the active screen's content. */
 export function Shell({
   brandName,
   areaRailLabel,
   sectionColumnLabel,
+  railAreas,
   railFooter,
   sectionColumn,
   children,
@@ -26,6 +28,8 @@ export function Shell({
         className="flex w-20 shrink-0 flex-col items-center gap-1.5 bg-brand-blue-strong px-3 py-4"
       >
         <PuroSurIsotype alt={brandName} className="size-10 object-contain" />
+        <div aria-hidden="true" className="h-px w-full bg-surface-white-veil" />
+        <div className="flex flex-col items-center gap-1.5">{railAreas}</div>
         <div className="mt-auto flex flex-col items-center gap-1.5">{railFooter}</div>
       </nav>
       <nav

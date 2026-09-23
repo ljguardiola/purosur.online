@@ -2,7 +2,9 @@ import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { App } from "./App";
+import { fetchPasskeys } from "./passkeyApi";
 import { fetchRegistrationOptions } from "./recoveryApi";
 import { fetchSession, signOut } from "./sessionApi";
 
@@ -16,6 +18,13 @@ vi.mock("./sessionApi", () => ({
   fetchAuthenticationOptions: vi.fn(),
   authenticate: vi.fn(),
   signOut: vi.fn(),
+}));
+vi.mock("./passkeyApi", () => ({
+  fetchPasskeys: vi.fn(() => new Promise(() => {})),
+  fetchPasskeyRegistrationChallenge: vi.fn(),
+  fetchPasskeyRemovalChallenge: vi.fn(),
+  registerPasskey: vi.fn(),
+  removePasskey: vi.fn(),
 }));
 
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
@@ -48,6 +57,9 @@ beforeEach(() => {
     displayName: "Lucas Guardiola",
   });
   vi.mocked(signOut).mockReset().mockResolvedValue({ kind: "ok" });
+  vi.mocked(fetchPasskeys)
+    .mockReset()
+    .mockReturnValue(new Promise(() => {}));
 });
 
 afterEach(() => {
@@ -115,9 +127,17 @@ test("shows the active Help item in the rail and the Help screen's own content",
   const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBe("page");
 
+  // Every existing area stays in the rail on every page; only the active one is highlighted.
+  const configItemLocator = screen.getByRole("link", { name: "Config" });
+  await expect.element(configItemLocator).toBeVisible();
+  const configItem = configItemLocator.element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBeNull();
+
   await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
   await expect.element(screen.getByText("Todavía no hay contenido de ayuda")).toBeVisible();
+
+  await expectNoAccessibilityViolations(document.body);
 });
 
 test("following a search result shows that article and clears the search", async () => {
@@ -306,4 +326,48 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
   await expect.poll(() => style.outlineStyle).toBe("solid");
   expect(style.outlineWidth).toBe("3px");
   expect(style.outlineColor).toBe(style.color);
+});
+
+test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const usersItem = screen.getByRole("link", { name: "Usuarios" }).element() as HTMLAnchorElement;
+  expect(usersItem.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.poll(() => document.title).toBe("Mi cuenta · Puro Sur");
+
+  // Every existing area stays in the rail on every page; only the active one is highlighted.
+  const helpItemLocator = screen.getByRole("link", { name: "Ayuda" });
+  await expect.element(helpItemLocator).toBeVisible();
+  const helpItem = helpItemLocator.element() as HTMLAnchorElement;
+  expect(helpItem.getAttribute("aria-current")).toBeNull();
+  // No axe check here: this route's <main> already fails axe's pre-existing, unrelated
+  // scrollable-region-focusable rule at this viewport (tracked separately, not this bug's scope).
+});
+
+test("following the account name link from Help shows Mi cuenta", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} />);
+
+  await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+});
+
+test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "unauthenticated" });
+  window.history.pushState(null, "", "/settings/users/me");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
 });

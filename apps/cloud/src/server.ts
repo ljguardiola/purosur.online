@@ -277,6 +277,10 @@ export async function startServer(
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          passkeys: {
+            db: recovery.db,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
         }
       : {}),
   });
