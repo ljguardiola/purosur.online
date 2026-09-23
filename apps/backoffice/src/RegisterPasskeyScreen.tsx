@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
+import { validatePasskeyName } from "./passkeyName";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 
 type ReadyPhase = {
@@ -29,18 +30,6 @@ type Phase =
 function readToken(): string | null {
   const hash = window.location.hash;
   return hash.length > 1 ? hash.slice(1) : null;
-}
-
-const PASSKEY_NAME_MAX_LENGTH = 40;
-
-function validatePasskeyName(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return messages.access.registerPasskey.nameRequired;
-  }
-  return trimmed.length <= PASSKEY_NAME_MAX_LENGTH
-    ? undefined
-    : messages.access.registerPasskey.nameTooLong;
 }
 
 function TokenErrorNotice({
@@ -157,7 +146,10 @@ export function RegisterPasskeyScreen() {
       setPhase({ kind: "invalid" });
       return;
     }
-    const validationError = validatePasskeyName(name);
+    const validationError = validatePasskeyName(name, {
+      required: messages.access.registerPasskey.nameRequired,
+      tooLong: messages.access.registerPasskey.nameTooLong,
+    });
     setNameError(validationError);
     if (validationError) {
       return;
@@ -296,7 +288,12 @@ export function RegisterPasskeyScreen() {
         onChange={(value) => {
           setName(value);
           if (nameError) {
-            setNameError(validatePasskeyName(value));
+            setNameError(
+              validatePasskeyName(value, {
+                required: messages.access.registerPasskey.nameRequired,
+                tooLong: messages.access.registerPasskey.nameTooLong,
+              }),
+            );
           }
         }}
         helperText={messages.access.registerPasskey.nameHelper}

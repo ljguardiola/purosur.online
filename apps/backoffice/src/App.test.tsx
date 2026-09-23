@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./App";
+import { fetchPasskeys } from "./passkeyApi";
 import { fetchRegistrationOptions } from "./recoveryApi";
 import { fetchSession, signOut } from "./sessionApi";
 
@@ -16,6 +17,13 @@ vi.mock("./sessionApi", () => ({
   fetchAuthenticationOptions: vi.fn(),
   authenticate: vi.fn(),
   signOut: vi.fn(),
+}));
+vi.mock("./passkeyApi", () => ({
+  fetchPasskeys: vi.fn(() => new Promise(() => {})),
+  fetchPasskeyRegistrationChallenge: vi.fn(),
+  fetchPasskeyRemovalChallenge: vi.fn(),
+  registerPasskey: vi.fn(),
+  removePasskey: vi.fn(),
 }));
 
 const emptyHelp = defineHelp("es-AR", { categories: {}, articles: {} });
@@ -48,6 +56,9 @@ beforeEach(() => {
     displayName: "Lucas Guardiola",
   });
   vi.mocked(signOut).mockReset().mockResolvedValue({ kind: "ok" });
+  vi.mocked(fetchPasskeys)
+    .mockReset()
+    .mockReturnValue(new Promise(() => {}));
 });
 
 afterEach(() => {
@@ -306,4 +317,40 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
   await expect.poll(() => style.outlineStyle).toBe("solid");
   expect(style.outlineWidth).toBe("3px");
   expect(style.outlineColor).toBe(style.color);
+});
+
+test("routes /settings/users/me to Mi cuenta inside the Shell, with Config and Usuarios active", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const usersItem = screen.getByRole("link", { name: "Usuarios" }).element() as HTMLAnchorElement;
+  expect(usersItem.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.poll(() => document.title).toBe("Mi cuenta · Puro Sur");
+});
+
+test("following the account name link from Help shows Mi cuenta", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} />);
+
+  await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+});
+
+test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "unauthenticated" });
+  window.history.pushState(null, "", "/settings/users/me");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
 });

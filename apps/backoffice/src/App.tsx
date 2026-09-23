@@ -1,5 +1,5 @@
-import { AreaNavItem } from "@purosur/ui";
-import { LifeBuoy } from "lucide-react";
+import { AreaNavItem, SectionNavItem } from "@purosur/ui";
+import { LifeBuoy, Settings, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AccountFooter } from "./AccountFooter";
 import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
@@ -7,6 +7,7 @@ import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./ac
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
 import { linkProps } from "./linkProps";
+import { MyAccountScreen } from "./MyAccountScreen";
 import { messages } from "./messages";
 import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
@@ -14,6 +15,7 @@ import { Shell } from "./Shell";
 import { type SignInOpeningNotice, SignInScreen } from "./SignInScreen";
 import { fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
+import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
 export type AppProps = {
   help: BackofficeHelpCatalog;
@@ -94,6 +96,58 @@ function HelpApp({ help, displayName, onSignedOut }: HelpAppProps) {
   );
 }
 
+type SettingsAppProps = {
+  displayName: string;
+  onSignedOut: () => void;
+  onSessionEnded: () => void;
+};
+
+/** The Config-in-Shell part of the app: today, just "Mi cuenta" under its single "Usuarios" section. */
+function SettingsApp({ displayName, onSignedOut, onSessionEnded }: SettingsAppProps) {
+  useEffect(() => {
+    document.title = messages.settings.myAccount.documentTitle;
+  }, []);
+
+  return (
+    <Shell
+      brandName={messages.shell.brandName}
+      areaRailLabel={messages.shell.areaRailLabel}
+      sectionColumnLabel={messages.settings.sectionsNavLabel}
+      railFooter={
+        <>
+          <AreaNavItem
+            label={messages.settings.areaLabel}
+            icon={<Settings />}
+            active
+            {...linkProps(MY_ACCOUNT_PATH)}
+          />
+          <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
+        </>
+      }
+      sectionColumn={
+        <>
+          <h2 className="font-bold text-brand-blue-strong text-xl">
+            {messages.settings.sectionsHeading}
+          </h2>
+          <div className="h-2.5" />
+          <ul className="flex flex-col gap-1">
+            <li>
+              <SectionNavItem
+                label={messages.settings.usersSectionLabel}
+                icon={<Users />}
+                active
+                {...linkProps(MY_ACCOUNT_PATH)}
+              />
+            </li>
+          </ul>
+        </>
+      }
+    >
+      <MyAccountScreen displayName={displayName} onSessionEnded={onSessionEnded} />
+    </Shell>
+  );
+}
+
 export function App({ help }: AppProps) {
   const route = useRoute();
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
@@ -160,6 +214,15 @@ export function App({ help }: AppProps) {
     navigate(SIGN_IN_PATH, { replace: true });
   }
 
+  // A signed-in screen's own API call can find the session already ended (idle/absolute expiry,
+  // or signed out from elsewhere) after the mount check above already found it open: same outcome
+  // as that check finding none, so it gets the same expired notice.
+  function handleSessionEnded() {
+    clearSignedInMarker();
+    setSession({ kind: "signed-out", notice: "expired" });
+    navigate(SIGN_IN_PATH, { replace: true });
+  }
+
   if (session.kind === "loading") {
     return null;
   }
@@ -173,6 +236,14 @@ export function App({ help }: AppProps) {
       return <AccountRecoveryScreen />;
     case REGISTER_PASSKEY_PATH:
       return <RegisterPasskeyScreen />;
+    case MY_ACCOUNT_PATH:
+      return session.kind === "signed-in" ? (
+        <SettingsApp
+          displayName={session.displayName}
+          onSignedOut={handleSignedOut}
+          onSessionEnded={handleSessionEnded}
+        />
+      ) : null;
     default:
       return session.kind === "signed-in" ? (
         <HelpApp help={help} displayName={session.displayName} onSignedOut={handleSignedOut} />

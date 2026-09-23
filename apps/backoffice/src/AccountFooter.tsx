@@ -1,8 +1,10 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { LogOut, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { linkProps } from "./linkProps";
 import { messages } from "./messages";
 import { signOut } from "./sessionApi";
+import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
 export type AccountFooterProps = {
   displayName: string;
@@ -15,6 +17,10 @@ const railItemClassName =
   "focus-visible:outline-surface-white";
 const railIconWrapperClassName =
   "inline-flex size-5 shrink-0 text-blue-soft [&>svg]:h-full [&>svg]:w-full";
+const nameLinkClassName =
+  "w-full rounded px-1 text-center text-xs font-semibold leading-[1.2] text-blue-soft outline-none " +
+  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
+  "focus-visible:outline-surface-white";
 
 /** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
 export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) {
@@ -44,9 +50,9 @@ export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) 
 
   return (
     <>
-      <p className="w-full text-center text-xs font-semibold leading-[1.2] text-blue-soft">
+      <a {...linkProps(MY_ACCOUNT_PATH)} className={nameLinkClassName}>
         {displayName}
-      </p>
+      </a>
       <button type="button" className={railItemClassName} onClick={openConfirm}>
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />

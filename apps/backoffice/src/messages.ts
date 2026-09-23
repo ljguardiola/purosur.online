@@ -1,5 +1,21 @@
 import { defineMessages } from "@purosur/ui";
 
+// Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
+// browser's own clock, instead of drifting with wherever a device happens to be set to.
+const PASSKEY_TIME_ZONE = "America/Argentina/Buenos_Aires";
+const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: PASSKEY_TIME_ZONE,
+};
+const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: PASSKEY_TIME_ZONE,
+};
+
 export const messages = defineMessages("es-AR", (f) => ({
   shell: {
     brandName: "Puro Sur",
@@ -83,6 +99,65 @@ export const messages = defineMessages("es-AR", (f) => ({
       goToSignIn: "Ir a ingresar",
       sessionsClosedTitle: "Se cerraron las sesiones abiertas de tu cuenta",
       sessionsClosedDetail: "Si alguien más estaba adentro con tu cuenta, ya no lo está.",
+    },
+  },
+  settings: {
+    areaLabel: "Config",
+    sectionsHeading: "Configuración",
+    sectionsNavLabel: "Configuración",
+    usersSectionLabel: "Usuarios",
+    myAccount: {
+      documentTitle: "Mi cuenta · Puro Sur",
+      breadcrumb: (params: { name: string }) => `Configuración · ${params.name}`,
+      heading: "Mi cuenta",
+      passkeys: {
+        title: "Passkeys",
+        registerAnother: "Registrar otra passkey",
+        singlePasskeyWarning:
+          "Tenés una sola passkey. Si perdés este dispositivo no podés entrar al backoffice: conviene registrar otra, por ejemplo en el teléfono.",
+        rowDetail: (params: { registeredOn: Date; lastUsedAt?: Date; now: Date }) => {
+          const registered = `Registrada el ${f.date(params.registeredOn, PASSKEY_DATE_OPTIONS)}`;
+          if (!params.lastUsedAt) {
+            return registered;
+          }
+          const time = f.date(params.lastUsedAt, PASSKEY_TIME_OPTIONS);
+          const lastUsedDate = f.date(params.lastUsedAt, PASSKEY_DATE_OPTIONS);
+          const sameDay = lastUsedDate === f.date(params.now, PASSKEY_DATE_OPTIONS);
+          const lastUsed = sameDay
+            ? `último uso hoy ${time}`
+            : `último uso el ${lastUsedDate} ${time}`;
+          return `${registered} · ${lastUsed}`;
+        },
+        remove: (params: { name: string }) => `Dar de baja la passkey «${params.name}»`,
+        loading: "Cargando tus passkeys…",
+        loadErrorTitle: "No pudimos abrir tus passkeys",
+        loadErrorDetail: "Probá de nuevo en unos minutos.",
+        retry: "Reintentar",
+        register: {
+          eyebrow: "Mi cuenta · Passkeys",
+          heading: "Registrar una passkey",
+          nameLabel: "Nombre de la passkey",
+          nameHelper: "Por ejemplo, Teléfono de Lucía.",
+          nameRequired: "Ingresá un nombre para la passkey.",
+          nameTooLong: "El nombre no puede superar los 40 caracteres.",
+          cancel: "Cancelar",
+          submit: "Registrar la passkey",
+          closeLabel: "Cerrar",
+          attemptFailedTitle: "No se pudo registrar la passkey",
+          attemptFailedDetail: "Probá de nuevo.",
+        },
+        removeModal: {
+          title: "¿Dar de baja la passkey?",
+          body: (params: { name: string }) => `«${params.name}» deja de servir para entrar.`,
+          onlyPasskeyWarning:
+            "Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo.",
+          cancel: "Cancelar",
+          confirm: "Dar de baja",
+          closeLabel: "Cerrar",
+          attemptFailedTitle: "No se pudo dar de baja la passkey",
+          attemptFailedDetail: "Probá de nuevo.",
+        },
+      },
     },
   },
   help: {
