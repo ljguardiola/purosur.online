@@ -304,3 +304,27 @@ describe("wiring the session routes", () => {
     expect(signOutResponse.json()).toMatchObject({ code: "unauthenticated" });
   });
 });
+
+describe("wiring the passkeys routes", () => {
+  it("does not register GET /users/passkeys when no passkeys option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /users/passkeys when a passkeys option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      passkeys: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/users/passkeys" });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+});
