@@ -351,6 +351,10 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
     const outcome = await fetchPasskeys();
     if (outcome.kind === "ok") {
       setList({ kind: "loaded", passkeys: outcome.value });
+    } else if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+    } else {
+      setList({ kind: "loadError" });
     }
   }
 

@@ -460,6 +460,47 @@ test("does not warn in the remove modal when it is not the only passkey", async 
   expect(dialog.getByText(/única passkey/).query()).toBeNull();
 });
 
+async function removeNotebookThenRefresh(
+  refreshOutcome: Awaited<ReturnType<typeof fetchPasskeys>>,
+  onSessionEnded: () => void = () => {},
+) {
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen(onSessionEnded);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(removePasskey).mockResolvedValue({ kind: "ok" });
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce(refreshOutcome);
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  return screen;
+}
+
+test("ends the session when refreshing the list after a removal finds no open session", async () => {
+  const onSessionEnded = vi.fn();
+
+  await removeNotebookThenRefresh({ kind: "unauthenticated" }, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("shows the load error with a retry action when refreshing the list after a removal fails", async () => {
+  const screen = await removeNotebookThenRefresh({ kind: "failed" });
+
+  await expect.element(screen.getByText("No pudimos abrir tus passkeys")).toBeVisible();
+  expect(screen.getByText("Notebook del local").query()).toBeNull();
+
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+});
+
 test("treats a not_found removal as already done and refreshes the list", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen();
