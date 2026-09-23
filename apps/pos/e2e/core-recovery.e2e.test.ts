@@ -29,9 +29,22 @@ async function coreProcesses(app: ElectronApplication): Promise<UtilityProcessIn
   return utilityProcesses.filter((process) => process.serviceName === CORE_SERVICE_NAME);
 }
 
+async function liveCore(app: ElectronApplication): Promise<UtilityProcessInfo | undefined> {
+  // A killed core can linger in the metrics for a moment, so only a live one counts.
+  return (await coreProcesses(app)).filter((core) => isAlive(core.pid)).at(-1);
+}
+
 async function killTheRunningCore(app: ElectronApplication): Promise<void> {
-  // A killed core can linger in the metrics for a moment, so only a live one is a target.
-  const current = (await coreProcesses(app)).filter((core) => isAlive(core.pid)).at(-1);
+  // A new core hands the window its port as soon as it is forked, before it shows up in the
+  // metrics, so the next kill waits for it to be listed.
+  await expect
+    .poll(() => liveCore(app), {
+      timeout: 20_000,
+      interval: 100,
+      message: "expected a core process to kill",
+    })
+    .toBeDefined();
+  const current = await liveCore(app);
   if (current === undefined) {
     throw new Error("expected a core process to kill");
   }
