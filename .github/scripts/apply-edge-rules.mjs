@@ -2,8 +2,8 @@
 // idempotently: this script owns both phase entrypoints entirely (each PUT replaces the whole
 // phase's rules, so anything added by hand outside this script is lost on the next run).
 //
-// http_request_late_transform sets a secret header on every request forwarded to the origin,
-// which apps/cloud/src/edge-origin-guard.ts requires (its EDGE_ORIGIN_SECRET_HEADER must match
+// http_request_late_transform sets a secret header on every request to the cloud service's
+// hostnames forwarded to the origin, which apps/cloud/src/edge-origin-guard.ts requires (its EDGE_ORIGIN_SECRET_HEADER must match
 // the constant below). http_ratelimit blocks a source address sending more than the configured
 // rate to any hostname on the zone.
 //
@@ -20,19 +20,46 @@ const HTTP_RATELIMIT_PHASE = "http_ratelimit";
 /** Must match apps/cloud/src/edge-origin-guard.ts's EDGE_ORIGIN_SECRET_HEADER. */
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
+/**
+ * The public hostnames the cloud service is served on; must match .railway/railway.ts's
+ * CUSTOM_DOMAINS. Only requests to these hosts get the edge origin secret, so no other origin
+ * behind this zone ever receives it.
+ */
+export const CLOUD_HOSTNAMES = ["staging.purosur.online"];
+
 const RATE_LIMIT_PERIOD_SECONDS = 10;
 const RATE_LIMIT_REQUESTS_PER_PERIOD = 300;
 const RATE_LIMIT_MITIGATION_TIMEOUT_SECONDS = 10;
 
-/** @param {string} edgeOriginSecret */
-export function buildRequestHeaderTransformRules(edgeOriginSecret) {
+// Lowercase dot-separated DNS labels with at least two labels: nothing that could close the
+// expression's quoted string or set.
+const HOSTNAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+
+/** @param {string[]} hostnames */
+function hostInExpression(hostnames) {
+  if (hostnames.length === 0) {
+    throw new Error(`${LOG_PREFIX}: at least one cloud hostname is required`);
+  }
+  for (const hostname of hostnames) {
+    if (!HOSTNAME_PATTERN.test(hostname)) {
+      throw new Error(`${LOG_PREFIX}: invalid cloud hostname ${JSON.stringify(hostname)}`);
+    }
+  }
+  return `http.host in {${hostnames.map((hostname) => `"${hostname}"`).join(" ")}}`;
+}
+
+/**
+ * @param {string} edgeOriginSecret
+ * @param {string[]} hostnames
+ */
+export function buildRequestHeaderTransformRules(edgeOriginSecret, hostnames) {
   return {
     rules: [
       {
         action: "rewrite",
-        expression: "true",
+        expression: hostInExpression(hostnames),
         description:
-          "Set the edge origin secret header the cloud app requires on every request forwarded to the origin.",
+          "Set the edge origin secret header the cloud app requires on every request forwarded to its origin.",
         action_parameters: {
           headers: {
             [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: edgeOriginSecret },
@@ -114,7 +141,7 @@ export async function runCli({
       zoneId: CLOUDFLARE_ZONE_ID,
       token: CLOUDFLARE_API_TOKEN,
       phase: HTTP_REQUEST_LATE_TRANSFORM_PHASE,
-      body: buildRequestHeaderTransformRules(EDGE_ORIGIN_SECRET),
+      body: buildRequestHeaderTransformRules(EDGE_ORIGIN_SECRET, CLOUD_HOSTNAMES),
       fetchImpl,
     });
     log(`${LOG_PREFIX}: applied ${HTTP_REQUEST_LATE_TRANSFORM_PHASE}`);

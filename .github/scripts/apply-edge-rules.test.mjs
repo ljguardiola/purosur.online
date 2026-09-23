@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   buildRateLimitRules,
   buildRequestHeaderTransformRules,
+  CLOUD_HOSTNAMES,
   EDGE_ORIGIN_SECRET_HEADER,
   putRulesetPhase,
   runCli,
@@ -10,13 +11,13 @@ import {
 
 // buildRequestHeaderTransformRules -------------------------------------------------
 
-test("builds one rewrite rule that sets the edge origin secret header on every request", () => {
-  const body = buildRequestHeaderTransformRules("a-secret-value");
+test("builds one rewrite rule that sets the edge origin secret header only for the given hostnames", () => {
+  const body = buildRequestHeaderTransformRules("a-secret-value", ["staging.purosur.online"]);
 
   assert.equal(body.rules.length, 1);
   const [rule] = body.rules;
   assert.equal(rule.action, "rewrite");
-  assert.equal(rule.expression, "true");
+  assert.equal(rule.expression, 'http.host in {"staging.purosur.online"}');
   assert.equal(typeof rule.description, "string");
   assert.ok(rule.description.length > 0);
   assert.deepEqual(rule.action_parameters, {
@@ -24,6 +25,40 @@ test("builds one rewrite rule that sets the edge origin secret header on every r
       [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "a-secret-value" },
     },
   });
+});
+
+test("lists every given hostname in the header transform rule's expression", () => {
+  const body = buildRequestHeaderTransformRules("a-secret-value", [
+    "staging.purosur.online",
+    "purosur.online",
+  ]);
+
+  assert.equal(
+    body.rules[0].expression,
+    'http.host in {"staging.purosur.online" "purosur.online"}',
+  );
+});
+
+test("refuses to build the header transform rule for an empty hostname list", () => {
+  assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", []), /hostname/);
+});
+
+for (const hostname of [
+  "",
+  'staging.purosur.online"} or true or {"',
+  "staging purosur.online",
+  "staging.purosur.online ",
+  "localhost",
+  "Staging.purosur.online",
+  "-staging.purosur.online",
+]) {
+  test(`refuses to build the header transform rule for the hostname ${JSON.stringify(hostname)}`, () => {
+    assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", [hostname]), /hostname/);
+  });
+}
+
+test("scopes the header transform rule to the cloud service's own hostnames", () => {
+  assert.deepEqual(CLOUD_HOSTNAMES, ["staging.purosur.online"]);
 });
 
 test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", () => {
@@ -159,6 +194,17 @@ test("runCli PUTs the header transform rules, then the rate limit rules", async 
   assert.equal(calls.fetch.length, 2);
   assert.match(calls.fetch[0].url, /http_request_late_transform/);
   assert.match(calls.fetch[1].url, /http_ratelimit/);
+});
+
+test("runCli sends the header only to the cloud service's hostnames and rate-limits the whole zone", async () => {
+  const { deps, calls } = fakeCli();
+
+  await runCli(deps);
+
+  const [transformRule] = JSON.parse(calls.fetch[0].options.body).rules;
+  assert.equal(transformRule.expression, 'http.host in {"staging.purosur.online"}');
+  const [rateLimitRule] = JSON.parse(calls.fetch[1].options.body).rules;
+  assert.equal(rateLimitRule.expression, "true");
 });
 
 test("runCli exits non-zero and reports Cloudflare's errors when a PUT fails", async () => {
