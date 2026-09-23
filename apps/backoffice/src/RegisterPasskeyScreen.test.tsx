@@ -109,7 +109,7 @@ test("shows the register-passkey heading and copy with the account's display nam
   await expect
     .element(
       screen.getByText(
-        "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Usuarios.",
+        "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.",
       ),
     )
     .toBeVisible();

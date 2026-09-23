@@ -66,7 +66,7 @@ test("confirms the link was sent, with the uniform notice, after a successful su
     .element(screen.getByRole("heading", { name: "Revisá tu correo", level: 1 }))
     .toBeVisible();
   await expect
-    .element(screen.getByText("Si el correo es de una cuenta, ya llegó el enlace"))
+    .element(screen.getByText("Si el correo es de una cuenta, te enviamos el enlace"))
     .toBeVisible();
   await expect
     .element(
