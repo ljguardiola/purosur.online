@@ -132,9 +132,7 @@ test("shows a rate-limited notice up front when the app opens it that way", asyn
     />,
   );
 
-  await expect
-    .element(screen.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);

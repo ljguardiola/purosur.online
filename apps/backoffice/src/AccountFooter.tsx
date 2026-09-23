@@ -22,9 +22,9 @@ const nameLinkClassName =
   "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
   "focus-visible:outline-surface-white";
 
-/** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
 type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
 
+/** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
 export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) {
   const [confirming, setConfirming] = useState(false);
   const [signingOut, setSigningOut] = useState(false);

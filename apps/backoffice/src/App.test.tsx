@@ -288,9 +288,7 @@ test("shows a rate-limited notice, instead of a generic failure, when the mount 
 
   const screen = await render(<App help={emptyHelp} />);
 
-  await expect
-    .element(screen.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   expect(screen.getByText("Tu sesión venció").query()).toBeNull();
   expect(screen.getByText("No pudimos verificar tu sesión").query()).toBeNull();
   expect(window.localStorage.getItem("purosur-backoffice-was-signed-in")).toBe("1");

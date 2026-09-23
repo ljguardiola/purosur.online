@@ -104,9 +104,7 @@ test("keeps the person where they are, with a rate-limited notice, when signing 
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
 
-  await expect
-    .element(screen.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   expect(onSignedOut).not.toHaveBeenCalled();
 

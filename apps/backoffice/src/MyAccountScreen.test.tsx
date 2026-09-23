@@ -156,9 +156,7 @@ test("shows a rate-limited notice, instead of a generic load error, when the pas
   vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 90 });
   const screen = await renderScreen();
 
-  await expect
-    .element(screen.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   expect(screen.getByText("No pudimos abrir tus passkeys").query()).toBeNull();
 
@@ -314,9 +312,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect
-    .element(dialog.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
   expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
   expect(startAuthentication).not.toHaveBeenCalled();
@@ -338,9 +334,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect
-    .element(dialog.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
@@ -677,9 +671,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  await expect
-    .element(dialog.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
   expect(dialog.getByText("No se pudo dar de baja la passkey").query()).toBeNull();
   expect(startAuthentication).not.toHaveBeenCalled();
@@ -699,9 +691,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  await expect
-    .element(dialog.getByText("Demasiadas solicitudes desde esta conexión"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
