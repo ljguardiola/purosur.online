@@ -344,8 +344,14 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
     const server = await startRealServer(integrationDb.databaseUrl, sender);
 
     try {
+      // Each link is waited out before the next request: the worker runs two jobs at once, and a
+      // newer request's job that commits its token first supersedes an older one, which then
+      // sends nothing — correct behavior, but not the over-limit case this test is about.
       for (let i = 0; i < 5; i++) {
         expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
+        await vi.waitFor(() => {
+          expect(sender.sent).toHaveLength(i + 1);
+        }, WAIT_OPTIONS);
       }
       expect((await postRecoveryRequest(server.origin, email)).status).toBe(429);
 
