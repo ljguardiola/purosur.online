@@ -9,7 +9,8 @@ on:
 
 # One deploy at a time: `railway config apply` and the wait it triggers must never overlap with
 # another run's apply against the same environment. A pending run cancelled by a newer one loses
-# nothing, because every run deploys main's newest verified commit.
+# nothing, because every run deploys main's newest verified commit and deploys whenever the
+# previous run did not succeed.
 concurrency:
   group: deploy-cloud-staging
   cancel-in-progress: false
@@ -42,6 +43,10 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
       - name: Resolve the newest verified commit on main
         id: target
         env:
@@ -58,6 +63,8 @@ jobs:
           CLOUD_HEALTH_DOMAIN: staging.purosur.online
           TARGET_SHA: ${{ steps.target.outputs.sha }}
           FORCE_DEPLOY: ${{ github.event_name == 'workflow_dispatch' }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .github/scripts/cloud-changed.mjs
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

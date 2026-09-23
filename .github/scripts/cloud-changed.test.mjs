@@ -3,9 +3,11 @@ import { test } from "node:test";
 import {
   decideDeploy,
   diffChangedPaths,
+  fetchPreviousRunVerdict,
   fetchStagingVersion,
   isAncestor,
   isIrrelevantToCloud,
+  previousRunVerdict,
   runCli,
 } from "./cloud-changed.mjs";
 
@@ -18,8 +20,14 @@ test("treats a register-app file as irrelevant", () => {
   assert.equal(isIrrelevantToCloud("apps/pos/src/register.ts"), true);
 });
 
-test("treats any markdown file as irrelevant", () => {
+test("treats a markdown file outside the cloud's source roots as irrelevant", () => {
   assert.equal(isIrrelevantToCloud("drafts/odd/tasks/deploy-only-cloud-changes.md"), true);
+});
+
+test("treats a markdown file under the cloud app, the backoffice or a shared package as relevant", () => {
+  assert.equal(isIrrelevantToCloud("apps/cloud/README.md"), false);
+  assert.equal(isIrrelevantToCloud("apps/backoffice/src/help/intro.md"), false);
+  assert.equal(isIrrelevantToCloud("packages/ui/src/components/notes.md"), false);
 });
 
 test("treats a Claude config file as irrelevant", () => {
@@ -42,8 +50,16 @@ test("treats an automation script's own test file as irrelevant", () => {
   assert.equal(isIrrelevantToCloud(".github/scripts/verify-cloud-health.test.mjs"), true);
 });
 
-test("treats a file nested under .github/scripts as irrelevant, not a direct-child exception", () => {
-  assert.equal(isIrrelevantToCloud(".github/scripts/lib/helper.mjs"), true);
+test("treats a helper nested at any depth under .github/scripts as relevant", () => {
+  assert.equal(isIrrelevantToCloud(".github/scripts/lib/helper.mjs"), false);
+});
+
+test("treats a non-script data file under .github/scripts as relevant", () => {
+  assert.equal(isIrrelevantToCloud(".github/scripts/lib/fixtures.json"), false);
+});
+
+test("treats a nested automation helper's own test file as irrelevant", () => {
+  assert.equal(isIrrelevantToCloud(".github/scripts/lib/helper.test.mjs"), true);
 });
 
 test("treats a cloud app file as relevant", () => {
@@ -131,6 +147,150 @@ test("skips when staging already serves the target commit, with nothing changed"
   assert.equal(decision.deploy, false);
 });
 
+// previousRunVerdict ------------------------------------------------------------------
+
+const CURRENT_RUN_ID = 900;
+
+function run(id, conclusion, createdAt) {
+  return { id, conclusion, created_at: createdAt };
+}
+
+test("lets staging's version decide when the previous run succeeded", () => {
+  const verdict = previousRunVerdict({
+    body: { workflow_runs: [run(800, "success", "2026-09-01T10:00:00Z")] },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, false);
+});
+
+test("looks past skipped runs to the last run that did something", () => {
+  const verdict = previousRunVerdict({
+    body: {
+      workflow_runs: [
+        run(810, "skipped", "2026-09-01T11:00:00Z"),
+        run(800, "failure", "2026-09-01T10:00:00Z"),
+      ],
+    },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /800.*failure/);
+});
+
+test("deploys when every previous run was skipped", () => {
+  const verdict = previousRunVerdict({
+    body: { workflow_runs: [run(810, "skipped", "2026-09-01T11:00:00Z")] },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+});
+
+test("deploys when the previous run did not end well, naming that run", () => {
+  for (const conclusion of ["failure", "cancelled", "timed_out"]) {
+    const verdict = previousRunVerdict({
+      body: { workflow_runs: [run(800, conclusion, "2026-09-01T10:00:00Z")] },
+      currentRunId: CURRENT_RUN_ID,
+    });
+
+    assert.equal(verdict.deploy, true);
+    assert.match(verdict.reason, new RegExp(`800.*${conclusion}`));
+  }
+});
+
+test("judges the most recently created run, whatever the listing order", () => {
+  const verdict = previousRunVerdict({
+    body: {
+      workflow_runs: [
+        run(700, "success", "2026-09-01T09:00:00Z"),
+        run(800, "cancelled", "2026-09-01T10:00:00Z"),
+        run(600, "success", "2026-09-01T08:00:00Z"),
+      ],
+    },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /800/);
+});
+
+test("ignores the current run when looking for the previous one", () => {
+  const verdict = previousRunVerdict({
+    body: {
+      workflow_runs: [
+        run(CURRENT_RUN_ID, "success", "2026-09-01T11:00:00Z"),
+        run(800, "failure", "2026-09-01T10:00:00Z"),
+      ],
+    },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /800/);
+});
+
+test("deploys when there is no previous completed run", () => {
+  const verdict = previousRunVerdict({
+    body: { workflow_runs: [] },
+    currentRunId: CURRENT_RUN_ID,
+  });
+
+  assert.equal(verdict.deploy, true);
+});
+
+// fetchPreviousRunVerdict --------------------------------------------------------------
+
+test("fetchPreviousRunVerdict lists this workflow's completed runs with the token", async () => {
+  const requests = [];
+  const fetchImpl = async (url, init) => {
+    requests.push({ url, init });
+    return new Response(
+      JSON.stringify({ workflow_runs: [run(800, "success", "2026-09-01T10:00:00Z")] }),
+    );
+  };
+
+  const verdict = await fetchPreviousRunVerdict({
+    repository: "owner/repo",
+    token: "secret",
+    currentRunId: CURRENT_RUN_ID,
+    fetchImpl,
+  });
+
+  assert.equal(verdict.deploy, false);
+  const url = new URL(requests[0].url);
+  assert.equal(url.pathname, "/repos/owner/repo/actions/workflows/deploy-cloud-staging.yml/runs");
+  assert.equal(url.searchParams.get("status"), "completed");
+  assert.equal(requests[0].init.headers.Authorization, "Bearer secret");
+});
+
+test("fetchPreviousRunVerdict deploys when the runs listing answers with an error status", async () => {
+  const verdict = await fetchPreviousRunVerdict({
+    repository: "owner/repo",
+    token: "secret",
+    currentRunId: CURRENT_RUN_ID,
+    fetchImpl: async () => new Response("{}", { status: 403 }),
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /403/);
+});
+
+test("fetchPreviousRunVerdict deploys when the runs listing cannot be reached", async () => {
+  const verdict = await fetchPreviousRunVerdict({
+    repository: "owner/repo",
+    token: "secret",
+    currentRunId: CURRENT_RUN_ID,
+    fetchImpl: async () => {
+      throw new TypeError("fetch failed");
+    },
+  });
+
+  assert.equal(verdict.deploy, true);
+  assert.match(verdict.reason, /fetch failed/);
+});
+
 // fetchStagingVersion ----------------------------------------------------------------
 
 test("fetchStagingVersion reads the commit SHA out of a successful /health response", async () => {
@@ -149,6 +309,20 @@ test("fetchStagingVersion reads the commit SHA out of a successful /health respo
 test("fetchStagingVersion returns null when /health does not answer with status 200", async () => {
   const fetchImpl = async () =>
     new Response(JSON.stringify({ status: "ok", version: STAGING_SHA }), { status: 503 });
+
+  const version = await fetchStagingVersion({
+    domain: "staging.purosur.online",
+    fetchImpl,
+    log: () => {},
+  });
+
+  assert.equal(version, null);
+});
+
+test("fetchStagingVersion returns null when staging cannot be reached", async () => {
+  const fetchImpl = async () => {
+    throw new TypeError("fetch failed");
+  };
 
   const version = await fetchStagingVersion({
     domain: "staging.purosur.online",
@@ -207,6 +381,20 @@ test("diffChangedPaths lists the paths git reports as changed", async () => {
   assert.deepEqual(paths, ["README.md", "apps/cloud/src/server.ts"]);
 });
 
+test("diffChangedPaths lists both ends of a move instead of collapsing it into a rename", async () => {
+  const requested = [];
+  await diffChangedPaths({
+    fromSha: STAGING_SHA,
+    toSha: TARGET_SHA,
+    runGit: async (args) => {
+      requested.push(args);
+      return "";
+    },
+  });
+
+  assert.ok(requested[0].includes("--no-renames"));
+});
+
 test("diffChangedPaths returns an empty list when nothing changed", async () => {
   const paths = await diffChangedPaths({
     fromSha: STAGING_SHA,
@@ -231,13 +419,19 @@ test("diffChangedPaths returns null when git could not produce the diff", async 
 
 // runCli ----------------------------------------------------------------------------
 
-function fakeCli({ env = {}, fetchResponse, gitBehavior = {} } = {}) {
-  const calls = { git: [], fetch: 0, outputs: [], logs: [], errors: [] };
+const SUCCESSFUL_PREVIOUS_RUN = { workflow_runs: [run(800, "success", "2026-09-01T10:00:00Z")] };
+
+function fakeCli({ env = {}, fetchResponse, runsResponse, gitBehavior = {} } = {}) {
+  const calls = { git: [], fetch: 0, runsListings: 0, outputs: [], logs: [], errors: [] };
   const deps = {
     env: {
       CLOUD_HEALTH_DOMAIN: "staging.purosur.online",
       TARGET_SHA,
       GITHUB_OUTPUT: "/output",
+      GITHUB_TOKEN: "secret",
+      GITHUB_REPOSITORY: "owner/repo",
+      GITHUB_RUN_ID: String(CURRENT_RUN_ID),
+      RUN_ATTEMPT: "1",
       ...env,
     },
     runGit: async (args) => {
@@ -248,8 +442,18 @@ function fakeCli({ env = {}, fetchResponse, gitBehavior = {} } = {}) {
       }
       return gitBehavior[command] ?? "";
     },
-    fetchImpl: async () => {
+    fetchImpl: async (url) => {
+      if (new URL(url).hostname === "api.github.com") {
+        calls.runsListings += 1;
+        if (runsResponse instanceof Error) {
+          throw runsResponse;
+        }
+        return runsResponse ?? new Response(JSON.stringify(SUCCESSFUL_PREVIOUS_RUN));
+      }
       calls.fetch += 1;
+      if (fetchResponse instanceof Error) {
+        throw fetchResponse;
+      }
       return fetchResponse ?? new Response(JSON.stringify({ status: "ok", version: STAGING_SHA }));
     },
     appendOutput: async (path, line) => {
@@ -268,9 +472,21 @@ test("fails before any IO when a required variable is missing", async () => {
 
   assert.equal(exitCode, 1);
   assert.equal(calls.fetch, 0);
+  assert.equal(calls.runsListings, 0);
   assert.deepEqual(calls.git, []);
   assert.deepEqual(calls.outputs, []);
   assert.match(calls.errors.join("\n"), /CLOUD_HEALTH_DOMAIN/);
+});
+
+test("fails before any IO when the GitHub API variables are missing", async () => {
+  const { deps, calls } = fakeCli({ env: { GITHUB_RUN_ID: "" } });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.runsListings, 0);
+  assert.deepEqual(calls.outputs, []);
+  assert.match(calls.errors.join("\n"), /GITHUB_RUN_ID/);
 });
 
 test("FORCE_DEPLOY deploys without any network or git call", async () => {
@@ -280,6 +496,60 @@ test("FORCE_DEPLOY deploys without any network or git call", async () => {
 
   assert.equal(exitCode, 0);
   assert.equal(calls.fetch, 0);
+  assert.equal(calls.runsListings, 0);
+  assert.deepEqual(calls.git, []);
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "deploy=true\n" }]);
+});
+
+test("a re-run deploys without any network or git call", async () => {
+  const { deps, calls } = fakeCli({ env: { RUN_ATTEMPT: "2" } });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.equal(calls.fetch, 0);
+  assert.equal(calls.runsListings, 0);
+  assert.deepEqual(calls.git, []);
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "deploy=true\n" }]);
+  assert.match(calls.logs.join("\n"), /attempt 2/);
+});
+
+test("deploys without asking staging when the previous run did not succeed", async () => {
+  const { deps, calls } = fakeCli({
+    runsResponse: new Response(
+      JSON.stringify({ workflow_runs: [run(800, "failure", "2026-09-01T10:00:00Z")] }),
+    ),
+    gitBehavior: { "merge-base": "", diff: "README.md\n" },
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.equal(calls.fetch, 0);
+  assert.deepEqual(calls.git, []);
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "deploy=true\n" }]);
+  assert.match(calls.logs.join("\n"), /800/);
+});
+
+test("deploys when the previous run cannot be looked up", async () => {
+  const { deps, calls } = fakeCli({
+    runsResponse: new TypeError("fetch failed"),
+    gitBehavior: { "merge-base": "", diff: "README.md\n" },
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(calls.outputs, [{ path: "/output", line: "deploy=true\n" }]);
+});
+
+test("deploys and skips git when staging cannot be reached", async () => {
+  const { deps, calls } = fakeCli({ fetchResponse: new TypeError("fetch failed") });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.equal(calls.fetch, 1);
   assert.deepEqual(calls.git, []);
   assert.deepEqual(calls.outputs, [{ path: "/output", line: "deploy=true\n" }]);
 });

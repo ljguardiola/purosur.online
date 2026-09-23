@@ -1,7 +1,8 @@
 // Decides whether a push to main changed anything the cloud image or the staging
 // infrastructure is built from. When it did not, the build and deploy jobs skip their work;
-// when in doubt (an unrecognized path, an unreachable staging domain, an unusable diff), it
-// deploys — a missed skip costs one pipeline run, a wrongful skip leaves staging stale.
+// when in doubt (a re-run, a previous run that did not succeed, an unrecognized path, an
+// unreachable staging domain or GitHub API, an unusable diff), it deploys — a missed skip costs
+// one pipeline run, a wrongful skip leaves staging stale.
 
 import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";
@@ -11,27 +12,92 @@ import { buildHealthUrl, fetchHealth, MAX_REQUEST_TIMEOUT_MS } from "./verify-cl
 const LOG_PREFIX = "cloud-changed";
 const SHA_RE = /^[0-9a-f]{40}$/i;
 
-function isDirectChildOf(path, dir) {
-  return path.startsWith(dir) && !path.slice(dir.length).includes("/");
-}
+// Tailwind scans every non-CSS file under its source roots, Markdown included, so a `.md` file
+// there can change the CSS the cloud image serves.
+const CLOUD_SOURCE_ROOTS = ["apps/cloud/", "apps/backoffice/", "packages/"];
 
 /** Denylist, conservative: a path this does not recognize is treated as relevant. */
 export function isIrrelevantToCloud(path) {
   if (path.startsWith("apps/pos/")) return true;
-  if (path.endsWith(".md")) return true;
+  if (path.endsWith(".md") && !CLOUD_SOURCE_ROOTS.some((root) => path.startsWith(root))) {
+    return true;
+  }
   if (path === ".claude" || path.startsWith(".claude/")) return true;
   if (path.startsWith(".github/")) {
     if (path === ".github/workflows/deploy-cloud-staging.yml") return false;
-    if (
-      isDirectChildOf(path, ".github/scripts/") &&
-      path.endsWith(".mjs") &&
-      !path.endsWith(".test.mjs")
-    ) {
-      return false;
-    }
+    if (path.startsWith(".github/scripts/") && !path.endsWith(".test.mjs")) return false;
     return true;
   }
   return false;
+}
+
+const WELL_ENDED_CONCLUSIONS = new Set(["success"]);
+
+/**
+ * Whether the previous completed run of this workflow forces a deploy, whatever staging
+ * reports: a run that failed after rolling out its image, or a pending run cancelled before it
+ * applied, leaves staging's version unreliable as proof that everything since was applied.
+ * Skipped runs (a failed Verify push) did nothing, so they can neither prove nor hide that.
+ * @param {{ body: unknown, currentRunId: number }} input - body is a "list workflow runs" response.
+ * @returns {{ deploy: boolean, reason: string }}
+ */
+export function previousRunVerdict({ body, currentRunId }) {
+  const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
+  const previous = runs
+    .filter((run) => run.id !== currentRunId && run.conclusion !== "skipped")
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+
+  if (previous === undefined) {
+    return { deploy: true, reason: "no previous completed run of this workflow was found" };
+  }
+  if (!WELL_ENDED_CONCLUSIONS.has(previous.conclusion)) {
+    return {
+      deploy: true,
+      reason: `previous run ${previous.id} ended in ${previous.conclusion}`,
+    };
+  }
+  return {
+    deploy: false,
+    reason: `previous run ${previous.id} ended in ${previous.conclusion}`,
+  };
+}
+
+/**
+ * @param {{ repository: string, token: string, currentRunId: number, fetchImpl?: typeof fetch }} options
+ * @returns {Promise<{ deploy: boolean, reason: string }>} a deploy verdict when the lookup fails.
+ */
+export async function fetchPreviousRunVerdict({
+  repository,
+  token,
+  currentRunId,
+  fetchImpl = fetch,
+}) {
+  const url = new URL(
+    `https://api.github.com/repos/${repository}/actions/workflows/deploy-cloud-staging.yml/runs`,
+  );
+  url.search = new URLSearchParams({ status: "completed", per_page: "10" }).toString();
+
+  try {
+    const response = await fetchImpl(url.toString(), {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    if (!response.ok) {
+      return {
+        deploy: true,
+        reason: `listing this workflow's runs returned status ${response.status}`,
+      };
+    }
+    return previousRunVerdict({ body: await response.json(), currentRunId });
+  } catch (error) {
+    return {
+      deploy: true,
+      reason: `listing this workflow's runs failed: ${error instanceof Error ? error.message : error}`,
+    };
+  }
 }
 
 /**
@@ -113,7 +179,7 @@ export async function isAncestor({ ancestorSha, targetSha, runGit }) {
  */
 export async function diffChangedPaths({ fromSha, toSha, runGit }) {
   try {
-    const stdout = await runGit(["diff", "--name-only", fromSha, toSha]);
+    const stdout = await runGit(["diff", "--name-only", "--no-renames", fromSha, toSha]);
     return stdout.split("\n").filter((line) => line !== "");
   } catch {
     return null;
@@ -134,14 +200,50 @@ export async function runCli({
   log = console.log,
   logError = console.error,
 } = {}) {
-  const { CLOUD_HEALTH_DOMAIN, TARGET_SHA, FORCE_DEPLOY, GITHUB_OUTPUT } = env;
-  if (!CLOUD_HEALTH_DOMAIN || !TARGET_SHA || !GITHUB_OUTPUT) {
-    logError(`${LOG_PREFIX}: CLOUD_HEALTH_DOMAIN, TARGET_SHA and GITHUB_OUTPUT are required`);
+  const {
+    CLOUD_HEALTH_DOMAIN,
+    TARGET_SHA,
+    FORCE_DEPLOY,
+    RUN_ATTEMPT,
+    GITHUB_OUTPUT,
+    GITHUB_TOKEN,
+    GITHUB_REPOSITORY,
+    GITHUB_RUN_ID,
+  } = env;
+  if (
+    !CLOUD_HEALTH_DOMAIN ||
+    !TARGET_SHA ||
+    !GITHUB_OUTPUT ||
+    !GITHUB_TOKEN ||
+    !GITHUB_REPOSITORY ||
+    !GITHUB_RUN_ID
+  ) {
+    logError(
+      `${LOG_PREFIX}: CLOUD_HEALTH_DOMAIN, TARGET_SHA, GITHUB_OUTPUT, GITHUB_TOKEN, GITHUB_REPOSITORY and GITHUB_RUN_ID are required`,
+    );
     return 1;
   }
 
   if (FORCE_DEPLOY === "true") {
     log(`${LOG_PREFIX}: forced deploy of ${TARGET_SHA}`);
+    await appendOutput(GITHUB_OUTPUT, "deploy=true\n");
+    return 0;
+  }
+  // A re-run is how a failed deploy is retried, and staging may already report its commit.
+  if (Number(RUN_ATTEMPT) > 1) {
+    log(`${LOG_PREFIX}: re-run (attempt ${RUN_ATTEMPT}) deploys ${TARGET_SHA}`);
+    await appendOutput(GITHUB_OUTPUT, "deploy=true\n");
+    return 0;
+  }
+
+  const previousRun = await fetchPreviousRunVerdict({
+    repository: GITHUB_REPOSITORY,
+    token: GITHUB_TOKEN,
+    currentRunId: Number(GITHUB_RUN_ID),
+    fetchImpl,
+  });
+  if (previousRun.deploy) {
+    log(`${LOG_PREFIX}: ${previousRun.reason}`);
     await appendOutput(GITHUB_OUTPUT, "deploy=true\n");
     return 0;
   }
