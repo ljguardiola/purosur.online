@@ -384,7 +384,7 @@ describe("closeRecoveryResources", () => {
     ]);
   });
 
-  it("still closes every later resource when an earlier one fails, then rejects with that failure", async () => {
+  it("still closes every later resource when two of them fail, then rejects with both failures", async () => {
     const events: string[] = [];
     const resources = recoveryResources(events);
     resources.worker.stop.mockRejectedValue(new Error("worker stop failed"));
