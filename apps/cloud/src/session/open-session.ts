@@ -23,7 +23,7 @@ export interface OpenSession {
   firstName: string;
 }
 
-export interface ResolveOpenSessionOptions<TQueryResult extends PgQueryResultHKT> {
+export interface BackofficeSessionCheckOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   now: Date;
 }
@@ -41,7 +41,7 @@ type SessionLookup =
  */
 async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
-  options: ResolveOpenSessionOptions<TQueryResult>,
+  options: BackofficeSessionCheckOptions<TQueryResult>,
 ): Promise<SessionLookup> {
   const rawSessionId = readSessionCookie(request.headers.cookie);
   if (!rawSessionId) {
@@ -85,63 +85,27 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   };
 }
 
-/**
- * Resolves the session cookie on `request` to its open, still-live session: enforces idle (30
- * minutes without use) and absolute (12 hours since creation) expiry, touches `last_seen_at` on a
- * live session, and returns the signed-in user's identity. Returns `undefined` when the cookie is
- * missing, unknown, revoked, expired, or belongs to a deactivated account, revoking that session's
- * row instead of leaving it dangling. Shared by every route that requires an already-open session
- * (`GET /users/session` and the passkey self-management routes of issue #169).
- */
-export async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
-  request: FastifyRequest,
-  options: ResolveOpenSessionOptions<TQueryResult>,
-): Promise<OpenSession | undefined> {
-  const lookup = await lookUpSession(request, options);
-  if (lookup.state === "absent") {
-    return undefined;
-  }
-  if (lookup.state === "ended") {
-    await options.db
-      .update(sessions)
-      .set({ revokedAt: options.now })
-      .where(eq(sessions.sessionIdHash, lookup.sessionIdHash));
-    return undefined;
-  }
-
-  await options.db
-    .update(sessions)
-    .set({ lastSeenAt: options.now })
-    .where(eq(sessions.sessionIdHash, lookup.sessionIdHash));
-
-  return lookup.session;
-}
-
-export interface BackofficeRateLimitCheckOptions<TQueryResult extends PgQueryResultHKT> {
-  db: PgDatabase<TQueryResult>;
-  now: Date;
-}
-
 const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
 
+export type BackofficeSessionCheck = SessionLookup | { state: "rate_limited" };
+
 /**
- * Counts a request made under an open session against the backoffice API rate limiter, keyed by
- * that session's row id and by the request's source address, before anything else about the
- * request is resolved, so a rejected request has no effect: it never touches `last_seen_at`,
- * revokes a session, or changes anything else. A request with no open session is not counted and
- * passes through, so the route answers it exactly as it would without a limiter. On rejection,
- * sends 429 `rate_limited` with `Retry-After` and returns false so the caller stops; otherwise
- * returns true. Shared by every route that reads the session cookie, whether or not it also calls
- * `resolveOpenSession` itself (e.g. sign-out reads the cookie directly).
+ * Reads the session cookie on `request` once and, only when that read finds an open session,
+ * counts the request against the backoffice API rate limiter, keyed by the session's row id and by
+ * the request's source address. The single read decides both whether the request counts and how
+ * the caller proceeds, so a request is never counted as one state and served as another. Changes
+ * nothing else: on rejection it sends 429 `rate_limited` with `Retry-After` and returns
+ * `rate_limited`, touching no session; otherwise it returns the lookup (`absent`, `ended`, or an
+ * admitted `open`) for the caller to act on. A request with no open session is not counted.
  */
-export async function checkBackofficeRateLimit<TQueryResult extends PgQueryResultHKT>(
+export async function checkBackofficeSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
-  options: BackofficeRateLimitCheckOptions<TQueryResult>,
-): Promise<boolean> {
+  options: BackofficeSessionCheckOptions<TQueryResult>,
+): Promise<BackofficeSessionCheck> {
   const lookup = await lookUpSession(request, options);
   if (lookup.state !== "open") {
-    return true;
+    return lookup;
   }
 
   const result = await recordBackofficeRequest(options.db, {
@@ -150,14 +114,50 @@ export async function checkBackofficeRateLimit<TQueryResult extends PgQueryResul
     now: options.now,
   });
   if (result.allowed) {
-    return true;
+    return lookup;
   }
 
   await reply
     .header("Retry-After", String(result.retryAfterSeconds))
     .code(429)
     .send({ code: RATE_LIMITED_RESPONSE_CODE, message: "too many backoffice API requests" });
-  return false;
+  return { state: "rate_limited" };
+}
+
+/**
+ * Requires an open, still-live session for a backoffice route, from the single read
+ * `checkBackofficeSession` makes: touches `last_seen_at` on an admitted open session and returns
+ * the signed-in user's identity. Otherwise the reply is already sent and it returns `undefined`:
+ * 429 when the request is over its limits, or 401 `unauthenticated` when the cookie is missing,
+ * unknown, revoked, expired (30 minutes idle or 12 hours since creation), or belongs to a
+ * deactivated account, revoking an ended session's row instead of leaving it dangling.
+ */
+export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: BackofficeSessionCheckOptions<TQueryResult>,
+): Promise<OpenSession | undefined> {
+  const check = await checkBackofficeSession(request, reply, options);
+  if (check.state === "rate_limited") {
+    return undefined;
+  }
+  if (check.state === "ended") {
+    await options.db
+      .update(sessions)
+      .set({ revokedAt: options.now })
+      .where(eq(sessions.sessionIdHash, check.sessionIdHash));
+  }
+  if (check.state !== "open") {
+    await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
+    return undefined;
+  }
+
+  await options.db
+    .update(sessions)
+    .set({ lastSeenAt: options.now })
+    .where(eq(sessions.sessionIdHash, check.sessionIdHash));
+
+  return check.session;
 }
 
 function rejectAsCrossSite(reply: FastifyReply, message: string): false {
@@ -173,7 +173,7 @@ function rejectAsCrossSite(reply: FastifyReply, message: string): false {
  * (`same-origin`) from a cross-site top-level navigation (`cross-site`) — which `SameSite=Lax`
  * still hands the session cookie — and from someone opening the URL themselves (`none`). Shared by
  * every open-session GET route, since each one writes `last_seen_at` (or revokes a row) through
- * `resolveOpenSession` above and none of that may happen for a request the browser already said
+ * `requireOpenSession` above and none of that may happen for a request the browser already said
  * did not come from the backoffice.
  *
  * Known limitation: a request carrying neither header still reaches that write path. A browser

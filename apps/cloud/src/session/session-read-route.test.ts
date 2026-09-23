@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
@@ -339,6 +340,39 @@ describe("GET /users/session", () => {
     expect(response.headers["retry-after"]).toBe(String(55 * 60));
     const row = await sessionRow(rawSessionId);
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("reads the session once per request, so the same read decides both counting and service", async () => {
+    const rawSessionId = await insertSession();
+    const sessionReads: string[] = [];
+    const observedDb = drizzle(testDatabase.client, {
+      logger: {
+        logQuery(query) {
+          if (/^select\b[\s\S]*\bfrom "sessions"/i.test(query)) {
+            sessionReads.push(query);
+          }
+        },
+      },
+    });
+    const observedApp = Fastify();
+    registerSessionReadRoute(observedApp, {
+      db: observedDb,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+    });
+
+    try {
+      const response = await observedApp.inject({
+        method: "GET",
+        url: "/users/session",
+        headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await observedApp.close();
+    }
+    expect(sessionReads).toHaveLength(1);
   });
 
   it("accepts the same-origin fetch the backoffice itself makes, and refreshes the session", async () => {

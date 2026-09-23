@@ -2,12 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../db/schema.js";
-import {
-  checkBackofficeRateLimit,
-  checkRequestIsSameOrigin,
-  resolveOpenSession,
-  UNAUTHENTICATED_RESPONSE,
-} from "../session/open-session.js";
+import { checkRequestIsSameOrigin, requireOpenSession } from "../session/open-session.js";
 
 export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -18,7 +13,7 @@ export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT>
 
 /**
  * Registers `GET /users/passkeys`: requires an already-open session (the same
- * `resolveOpenSession` check `GET /users/session` uses, including its same-origin guard) and
+ * `requireOpenSession` check `GET /users/session` uses, including its same-origin guard) and
  * returns only that session's own account passkeys, oldest first, so the backoffice can list them
  * by name with registration date and last use (issue #169).
  */
@@ -33,13 +28,11 @@ export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>
       return;
     }
     const checkedAt = now();
-    if (!(await checkBackofficeRateLimit(request, reply, { db: options.db, now: checkedAt }))) {
-      return;
-    }
-
-    const openSession = await resolveOpenSession(request, { db: options.db, now: checkedAt });
+    const openSession = await requireOpenSession(request, reply, {
+      db: options.db,
+      now: checkedAt,
+    });
     if (!openSession) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;
     }
 

@@ -10,11 +10,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, users } from "../db/schema.js";
 import { deriveUserHandle } from "../recovery/recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import {
-  checkBackofficeRateLimit,
-  resolveOpenSession,
-  UNAUTHENTICATED_RESPONSE,
-} from "../session/open-session.js";
+import { requireOpenSession, UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -89,12 +85,8 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       return;
     }
     const issuedAt = now();
-    if (!(await checkBackofficeRateLimit(request, reply, { db: options.db, now: issuedAt }))) {
-      return;
-    }
-    const openSession = await resolveOpenSession(request, { db: options.db, now: issuedAt });
+    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
     if (!openSession) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;
     }
 
@@ -161,12 +153,11 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       return;
     }
     const attemptedAt = now();
-    if (!(await checkBackofficeRateLimit(request, reply, { db: options.db, now: attemptedAt }))) {
-      return;
-    }
-    const openSession = await resolveOpenSession(request, { db: options.db, now: attemptedAt });
+    const openSession = await requireOpenSession(request, reply, {
+      db: options.db,
+      now: attemptedAt,
+    });
     if (!openSession) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;
     }
 
