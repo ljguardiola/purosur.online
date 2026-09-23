@@ -181,12 +181,17 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       return;
     }
 
+    const assertion = readAssertion(request.body);
+    if (!assertion) {
+      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      return;
+    }
+
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
       now: attemptedAt,
     });
-    const assertion = readAssertion(request.body);
-    if (pending?.kind !== "registration" || !pending.registrationChallenge || !assertion) {
+    if (pending?.kind !== "registration" || !pending.registrationChallenge) {
       await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
       return;
     }

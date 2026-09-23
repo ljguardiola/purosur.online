@@ -120,12 +120,17 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       return;
     }
 
+    const assertion = readAssertion(request.body);
+    if (!assertion) {
+      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      return;
+    }
+
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
       now: attemptedAt,
     });
-    const assertion = readAssertion(request.body);
-    if (pending?.kind !== "removal" || !assertion) {
+    if (pending?.kind !== "removal") {
       await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
       return;
     }

@@ -581,6 +581,49 @@ describe("POST /users/passkeys", () => {
       expect(response.statusCode).toBe(200);
     });
 
+    it("keeps the pending challenge redeemable after a request with a missing or malformed reauthentication", async () => {
+      const rawSessionId = await insertSession(userId);
+      const options = await requestOptions(rawSessionId);
+      const reauthentication = registeredEmulator.getJSON(
+        BACKOFFICE_ORIGIN,
+        options.reauthentication_options,
+      );
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+      const missingReauthentication = await postJson(
+        "/users/passkeys",
+        { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+        cookieHeader(rawSessionId),
+      );
+      expect(missingReauthentication.statusCode).toBe(401);
+      expect(missingReauthentication.json()).toMatchObject({ code: "authentication_failed" });
+      const malformedReauthentication = await postJson(
+        "/users/passkeys",
+        {
+          reauthentication: { id: 42 },
+          passkey_registration: passkeyRegistration,
+          passkey_name: "Teléfono del local",
+        },
+        cookieHeader(rawSessionId),
+      );
+      expect(malformedReauthentication.statusCode).toBe(401);
+
+      const response = await postJson(
+        "/users/passkeys",
+        {
+          reauthentication,
+          passkey_registration: passkeyRegistration,
+          passkey_name: "Teléfono del local",
+        },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(200);
+    });
+
     it("rejects a passkey_name over 40 characters once trimmed", async () => {
       const rawSessionId = await insertSession(userId);
       const { response } = await registerSecondPasskey(rawSessionId, `  ${"a".repeat(41)}  `);
