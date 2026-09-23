@@ -112,7 +112,10 @@ export function checkRequestIsSameOrigin(
 ): boolean {
   const origin = request.headers.origin;
   if (origin !== undefined && origin !== backofficeOrigin) {
-    return rejectAsCrossSite(reply, "the request's Origin does not match the backoffice's own origin");
+    return rejectAsCrossSite(
+      reply,
+      "the request's Origin does not match the backoffice's own origin",
+    );
   }
 
   const fetchSite = request.headers["sec-fetch-site"];
