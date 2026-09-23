@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { compareHashes, hashAsarFile, validatePathCount } from "./same-app-code.mjs";
+import { fileURLToPath } from "node:url";
+
+const cliPath = fileURLToPath(new URL("./same-app-code.mjs", import.meta.url));
 
 async function withTempDir(run) {
-  const dir = await mkdtemp(join(tmpdir(), "same-app-code-"));
+  const dir = await mkdtemp(join(tmpdir(), "same-app-code-cli-"));
   try {
     await run(dir);
   } finally {
@@ -15,86 +17,49 @@ async function withTempDir(run) {
   }
 }
 
-function sha256Of(content) {
-  return createHash("sha256").update(content).digest("hex");
+function runCli(scriptPath, args) {
+  return spawnSync(process.execPath, [scriptPath, ...args], { encoding: "utf8" });
 }
 
-// validatePathCount -------------------------------------------------------------
-
-test("validatePathCount rejects zero paths", () => {
-  assert.deepEqual(validatePathCount([]), {
-    ok: false,
-    reason: "at least two app.asar paths are required, got 0",
-  });
-});
-
-test("validatePathCount rejects a single path", () => {
-  assert.deepEqual(validatePathCount(["only.asar"]), {
-    ok: false,
-    reason: "at least two app.asar paths are required, got 1",
-  });
-});
-
-test("validatePathCount accepts two or more paths", () => {
-  assert.deepEqual(validatePathCount(["a.asar", "b.asar"]), { ok: true });
-  assert.deepEqual(validatePathCount(["a.asar", "b.asar", "c.asar"]), { ok: true });
-});
-
-// hashAsarFile -------------------------------------------------------------
-
-test("hashAsarFile hashes a file's content with sha256", async () => {
+test("the CLI exits 0 when two app.asar files carry the same code", async () => {
   await withTempDir(async (dir) => {
-    const filePath = join(dir, "app.asar");
-    const content = "some packaged app code";
-    await writeFile(filePath, content);
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, "same app code");
+    await writeFile(second, "same app code");
 
-    const result = await hashAsarFile(filePath);
+    const result = runCli(cliPath, [first, second]);
 
-    assert.deepEqual(result, { ok: true, hash: sha256Of(content) });
+    assert.equal(result.status, 0, result.stderr);
   });
 });
 
-test("hashAsarFile reports a missing file", async () => {
+test("the CLI exits non-zero when two app.asar files differ", async () => {
   await withTempDir(async (dir) => {
-    const filePath = join(dir, "missing.asar");
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, "app code");
+    await writeFile(second, "other app code");
 
-    const result = await hashAsarFile(filePath);
+    const result = runCli(cliPath, [first, second]);
 
-    assert.deepEqual(result, { ok: false, reason: `${filePath} does not exist` });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /app\.asar differs/);
   });
 });
 
-test("hashAsarFile reports an empty file", async () => {
+test("the CLI still compares when it is run through a symlink", async () => {
   await withTempDir(async (dir) => {
-    const filePath = join(dir, "empty.asar");
-    await writeFile(filePath, "");
+    const first = join(dir, "first.asar");
+    const second = join(dir, "second.asar");
+    await writeFile(first, "app code");
+    await writeFile(second, "other app code");
+    const linkedCli = join(dir, "same-app-code.mjs");
+    await symlink(cliPath, linkedCli);
 
-    const result = await hashAsarFile(filePath);
+    const result = runCli(linkedCli, [first, second]);
 
-    assert.deepEqual(result, { ok: false, reason: `${filePath} is empty` });
-  });
-});
-
-// compareHashes -------------------------------------------------------------
-
-test("compareHashes accepts when every entry shares the same hash", () => {
-  const entries = [
-    { path: "a.asar", hash: "same" },
-    { path: "b.asar", hash: "same" },
-    { path: "c.asar", hash: "same" },
-  ];
-
-  assert.deepEqual(compareHashes(entries), { ok: true });
-});
-
-test("compareHashes rejects the first entry that differs from the first hash", () => {
-  const entries = [
-    { path: "a.asar", hash: "aaa" },
-    { path: "b.asar", hash: "bbb" },
-  ];
-
-  assert.deepEqual(compareHashes(entries), {
-    ok: false,
-    reason: "app.asar differs: a.asar (aaa) vs b.asar (bbb)",
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /app\.asar differs/);
   });
 });
