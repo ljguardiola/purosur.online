@@ -71,6 +71,13 @@
       "when": 1790132827268,
       "tag": "0009_passkey_management_challenges",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790187840269,
+      "tag": "0010_backoffice_rate_limit_attempts",
+      "breakpoints": true
     }
   ]
 }
