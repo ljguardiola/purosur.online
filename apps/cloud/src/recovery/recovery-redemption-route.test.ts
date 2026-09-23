@@ -321,6 +321,34 @@ describe("POST /users/recovery/redeem", () => {
     expect(auditRows.map((row) => row.entity).sort()).toEqual(["passkey", "recovery_token"]);
   });
 
+  it("audits the registered passkey by its id, name and credential", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+
+    await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
+
+    const [inserted] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    const [passkeyAudit] = await db.select().from(auditLog).where(eq(auditLog.entity, "passkey"));
+    expect(passkeyAudit).toMatchObject({
+      entityId: inserted?.id,
+      actorId: userId,
+      previousValue: null,
+      newValue: {
+        id: inserted?.id,
+        name: "Notebook del local",
+        credentialId: credential.id,
+        deviceType: inserted?.deviceType,
+        backedUp: inserted?.backedUp,
+      },
+    });
+  });
+
   it("revokes every open session of the account, and opens no new one", async () => {
     await db.insert(sessions).values([
       {

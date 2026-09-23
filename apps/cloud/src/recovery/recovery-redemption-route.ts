@@ -357,6 +357,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         actorId: account.id,
         previousValue: null,
         newValue: {
+          id: newPasskey.id,
+          name: passkeyName,
           credentialId: registrationInfo.credential.id,
           deviceType: registrationInfo.credentialDeviceType,
           backedUp: registrationInfo.credentialBackedUp,
