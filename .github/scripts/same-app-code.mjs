@@ -1,7 +1,3 @@
-// Proves two or more app.asar files carry identical app code by comparing their sha256 hashes.
-// Used both to compare the production and staging installers built from the same out/, and to
-// compare two independent builds of one commit (see package-pos.yml's independent-build job).
-
 import { compareHashes, hashAsarFile, validatePathCount } from "./app-code-hash.mjs";
 
 async function main() {

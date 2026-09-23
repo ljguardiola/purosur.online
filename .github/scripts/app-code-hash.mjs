@@ -14,8 +14,6 @@ export function validatePathCount(paths) {
 }
 
 /**
- * Streams the file instead of reading it whole, since app.asar can be sizable.
- *
  * @param {string} filePath
  * @returns {Promise<{ ok: true, hash: string } | { ok: false, reason: string }>}
  */

@@ -111,8 +111,6 @@ jobs:
       # reach Sentry.
       - run: pnpm --filter @purosur/pos test:e2e
 
-  # Two independent builds of the same commit must produce the same app code. Pull requests skip
-  # this second build to stay cheap; every change that reaches main still gets it.
   independent-build:
     name: independent build agrees on app code
     needs: package
@@ -134,7 +132,6 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
-      # Unpacked only: no installer, no credentials, this only needs the app code inside app.asar.
       - run: pnpm --filter @purosur/pos package:production --dir
         env:
           POS_SENTRY_DSN: ""
