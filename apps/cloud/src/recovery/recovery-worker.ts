@@ -140,8 +140,7 @@ export async function startRecoveryWorker(
           run: async () => {
             // In graphile-worker 0.18, `promise` settles once its worker pool and cron have exited,
             // so a job it is still draining never sees the pool close from under it, and it never
-            // rejects. A requested `stop()` resolves only after the runner's release; `promise`
-            // waits for that release only when the runner stopped itself.
+            // rejects.
             try {
               if (!stoppedItself) {
                 await runner.stop();
