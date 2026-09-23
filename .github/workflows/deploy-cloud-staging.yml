@@ -11,6 +11,9 @@ on:
 # another run's apply against the same environment. A pending run cancelled by a newer one loses
 # nothing, because every run deploys main's newest verified commit and deploys whenever the
 # previous run did not succeed.
+#
+# Both jobs stay on GitHub-hosted runners: they hold the staging credentials, and the project's
+# own runners also run pull request code.
 concurrency:
   group: deploy-cloud-staging
   cancel-in-progress: false
