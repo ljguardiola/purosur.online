@@ -1936,8 +1936,12 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     expect(button.getAttribute("data-focus-visible")).toBeNull();
 
     const pixel = await pixelAt(x, barRect.top + 1);
+    // Just below the bar's band, the same hovered button shows through: without this, a hover
+    // fill that never painted would leave the band's own pixel exactly as blue and still pass.
+    const control = await pixelAt(x, barRect.bottom + 1);
 
     expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
+    expect(control.slice(0, 3)).toEqual(rgbTuple(tokenRgb("surface-sand")));
 
     await expectNoAccessibilityViolations(screen.container);
   } finally {
