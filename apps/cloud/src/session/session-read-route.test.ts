@@ -1,8 +1,14 @@
 import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { sessions, users } from "../db/schema.js";
+import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
+import {
+  exhaustSessionRateLimit,
+  exhaustSourceAddressRateLimit,
+  INJECTED_SOURCE_ADDRESS,
+} from "./exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
@@ -259,6 +265,114 @@ describe("GET /users/session", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
     const row = await sessionRow(rawSessionId);
     expect(row?.revokedAt).toBeNull();
+  });
+
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving last_seen_at untouched", async () => {
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    await exhaustSessionRateLimit(db, rawSessionId, NOON);
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe("3600");
+    const row = await sessionRow(rawSessionId);
+    expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("counts a request under an open session once against that session and once against its source address", async () => {
+    const rawSessionId = await insertSession();
+    const openSession = await sessionRow(rawSessionId);
+
+    await getSession(rawSessionId);
+
+    const counted = await db
+      .select({
+        keyKind: backofficeRateLimitAttempts.keyKind,
+        keyValue: backofficeRateLimitAttempts.keyValue,
+      })
+      .from(backofficeRateLimitAttempts);
+    expect(counted).toHaveLength(2);
+    expect(counted).toEqual(
+      expect.arrayContaining([
+        { keyKind: "session", keyValue: openSession?.id },
+        { keyKind: "source_address", keyValue: INJECTED_SOURCE_ADDRESS },
+      ]),
+    );
+  });
+
+  it("does not count a request with no open session against any limit", async () => {
+    const revoked = await insertSession({ revokedAt: NOON });
+    const idle = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+
+    for (const rawSessionId of [undefined, generateSessionId(), revoked, idle]) {
+      expect((await getSession(rawSessionId)).statusCode).toBe(401);
+    }
+
+    expect(await db.select().from(backofficeRateLimitAttempts)).toHaveLength(0);
+  });
+
+  it("still answers a request with no open session as before while its source address is over its limit", async () => {
+    const idle = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + THIRTY_MINUTES_MS);
+    await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, currentTime);
+
+    const withoutCookie = await getSession();
+    const withIdleSession = await getSession(idle);
+
+    expect(withoutCookie.statusCode).toBe(401);
+    expect(withoutCookie.json()).toMatchObject({ code: "unauthenticated" });
+    expect(withIdleSession.statusCode).toBe(401);
+    const row = await sessionRow(idle);
+    expect(row?.revokedAt?.getTime()).toBe(currentTime.getTime());
+  });
+
+  it("applies the source-address limit across open sessions, rejecting a fresh one from the same address", async () => {
+    await exhaustSourceAddressRateLimit(db, INJECTED_SOURCE_ADDRESS, NOON);
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe(String(55 * 60));
+    const row = await sessionRow(rawSessionId);
+    expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
+  });
+
+  it("reads the session once per request, so the same read decides both counting and service", async () => {
+    const rawSessionId = await insertSession();
+    const sessionReads: string[] = [];
+    const observedDb = drizzle(testDatabase.client, {
+      logger: {
+        logQuery(query) {
+          if (/^select\b[\s\S]*\bfrom "sessions"/i.test(query)) {
+            sessionReads.push(query);
+          }
+        },
+      },
+    });
+    const observedApp = Fastify();
+    registerSessionReadRoute(observedApp, {
+      db: observedDb,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+    });
+
+    try {
+      const response = await observedApp.inject({
+        method: "GET",
+        url: "/users/session",
+        headers: { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+    } finally {
+      await observedApp.close();
+    }
+    expect(sessionReads).toHaveLength(1);
   });
 
   it("accepts the same-origin fetch the backoffice itself makes, and refreshes the session", async () => {

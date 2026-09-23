@@ -1,5 +1,5 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
-import { LogOut, TriangleAlert, X } from "lucide-react";
+import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
@@ -22,26 +22,32 @@ const nameLinkClassName =
   "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
   "focus-visible:outline-surface-white";
 
+type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
+
 /** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
 export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) {
   const [confirming, setConfirming] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   function openConfirm() {
-    setFailed(false);
+    setNotice(null);
     setConfirming(true);
   }
 
   async function handleConfirm() {
-    setFailed(false);
+    setNotice(null);
     setSigningOut(true);
     const outcome = await signOut();
     setSigningOut(false);
     // Leaving for the sign-in screen after a sign-out the cloud never heard would only look like
     // one: the session and its cookie are still live, so the person stays where they are.
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+      return;
+    }
     if (outcome.kind !== "ok") {
-      setFailed(true);
+      setNotice({ kind: "failed" });
       return;
     }
     setConfirming(false);
@@ -96,7 +102,17 @@ export function AccountFooter({ displayName, onSignedOut }: AccountFooterProps) 
           </>
         }
       >
-        {failed ? (
+        {notice?.kind === "rate_limited" ? (
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title={messages.shell.signOut.rateLimitedTitle}
+            detail={messages.shell.signOut.rateLimitedDetail({
+              minutes: Math.ceil(notice.retryAfterSeconds / 60),
+            })}
+          />
+        ) : null}
+        {notice?.kind === "failed" ? (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}

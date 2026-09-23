@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { sessions } from "../db/schema.js";
+import { checkBackofficeSession } from "./open-session.js";
 import { clearSessionCookie, readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
@@ -44,10 +45,13 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
     if (!checkOrigin(request, reply)) {
       return;
     }
-
     const rawSessionId = readSessionCookie(request.headers.cookie);
     if (!rawSessionId) {
       await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
+      return;
+    }
+    const check = await checkBackofficeSession(request, reply, { db: options.db, now: now() });
+    if (check.state === "rate_limited") {
       return;
     }
 

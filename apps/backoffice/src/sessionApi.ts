@@ -7,10 +7,14 @@ import type {
 // limiter's rolling one-hour window), so this is the fallback a missing `Retry-After` header
 // gets.
 const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
+// The backoffice API rate limiter (issue #205) counts a rolling one-hour window, the same
+// fallback recoveryApi.ts's own rate-limited outcomes fall back to.
+const BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =
   | { kind: "ok"; userId: string; displayName: string }
   | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
 export type AuthenticationOptionsOutcome =
@@ -22,12 +26,15 @@ export type AuthenticateOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type SignOutOutcome = { kind: "ok" } | { kind: "failed" };
+export type SignOutOutcome =
+  | { kind: "ok" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
 
-function retryAfterSeconds(response: Response): number {
+function retryAfterSeconds(response: Response, fallbackSeconds: number): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : LOCKOUT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : fallbackSeconds;
 }
 
 function postJson(path: string, body?: unknown): Promise<Response> {
@@ -48,6 +55,12 @@ export async function fetchSession(): Promise<SessionOutcome> {
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
+  }
+  if (response.status === 429) {
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+    };
   }
   if (!response.ok) {
     return { kind: "failed" };
@@ -87,7 +100,10 @@ export async function authenticate(
     return { kind: "ok" };
   }
   if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, LOCKOUT_FALLBACK_SECONDS),
+    };
   }
   return { kind: "failed" };
 }
@@ -107,6 +123,12 @@ export async function signOut(): Promise<SignOutOutcome> {
   }
   if (response.ok || response.status === 401) {
     return { kind: "ok" };
+  }
+  if (response.status === 429) {
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+    };
   }
   return { kind: "failed" };
 }

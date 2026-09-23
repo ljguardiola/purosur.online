@@ -8,8 +8,11 @@ import {
   removePasskey,
 } from "./passkeyApi";
 
-function jsonResponse(status: number, body?: unknown): Response {
-  return new Response(body === undefined ? null : JSON.stringify(body), { status });
+function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
+  return new Response(
+    body === undefined ? null : JSON.stringify(body),
+    headers ? { status, headers } : { status },
+  );
 }
 
 beforeEach(() => {
@@ -73,6 +76,14 @@ test("fetchPasskeys reports failed on any other status or a network failure", as
   await expect(fetchPasskeys()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchPasskeys reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "180" }),
+  );
+
+  await expect(fetchPasskeys()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 180 });
+});
+
 const reauthenticationOptions = { challenge: "reauth", rpId: "purosur.online" };
 const registrationOptions = { challenge: "reg", rp: { id: "purosur.online" } };
 
@@ -113,6 +124,17 @@ test("fetchPasskeyRegistrationChallenge reports no_passkey when the account has 
   await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "no_passkey" });
 });
 
+test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "45" }),
+  );
+
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
+});
+
 test("fetchPasskeyRemovalChallenge posts with no body and returns the reauthentication options", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, { reauthentication_options: reauthenticationOptions }),
@@ -133,6 +155,17 @@ test("fetchPasskeyRemovalChallenge reports unauthenticated on 401 and failed oth
 
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
   await expect(fetchPasskeyRemovalChallenge()).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchPasskeyRemovalChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "60" }),
+  );
+
+  await expect(fetchPasskeyRemovalChallenge()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 60,
+  });
 });
 
 const reauthentication = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
@@ -205,6 +238,17 @@ test("registerPasskey reports failed on any other status or a network failure", 
   });
 });
 
+test("registerPasskey reports rate_limited with the Retry-After seconds on 429, registering nothing", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
+  );
+
+  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 30,
+  });
+});
+
 test("removePasskey posts the reauthentication to the passkey's own removal endpoint", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
@@ -242,4 +286,15 @@ test("removePasskey reports failed on any other status or a network failure", as
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
   await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({ kind: "failed" });
+});
+
+test("removePasskey reports rate_limited with the Retry-After seconds on 429, removing nothing", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "90" }),
+  );
+
+  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
 });

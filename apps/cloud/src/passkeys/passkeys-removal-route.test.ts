@@ -16,6 +16,7 @@ import {
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
+import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
@@ -195,6 +196,22 @@ describe("POST /users/passkeys/removal-options", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, storing no challenge", async () => {
+    const rawSessionId = await insertSession(userId);
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
+
+    const response = await postJson(
+      "/users/passkeys/removal-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe("3600");
+    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
+  });
+
   it("prunes other sessions' passkey challenges that aged past their lifetime", async () => {
     const emulator = newDeviceEmulator();
     await registerPasskey(userId, emulator);
@@ -283,6 +300,25 @@ describe("POST /users/passkeys/:id/remove", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, removing nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+    const [target] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    if (!target) throw new Error("test setup: target passkey not found");
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
+
+    const response = await postJson(
+      `/users/passkeys/${target.id}/remove`,
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe("3600");
+    const [stillThere] = await db.select().from(passkeys).where(eq(passkeys.id, target.id));
+    expect(stillThere).toBeDefined();
   });
 
   it("removes the named passkey with a valid reauthentication, writing an audit row", async () => {

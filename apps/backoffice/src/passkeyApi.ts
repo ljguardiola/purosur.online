@@ -5,6 +5,10 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
+// The backoffice API rate limiter (issue #205) counts a rolling one-hour window, the same
+// fallback sessionApi.ts's own backoffice-rate-limited outcomes fall back to.
+const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+
 export type Passkey = {
   id: string;
   name: string;
@@ -35,10 +39,14 @@ export type FetchPasskeyRemovalChallengeOutcome =
 // Both the registration and removal endpoints answer 401 with either code, depending on whether
 // the session itself ended or the reauthentication just failed to verify (passkeys-registration-route.ts,
 // passkeys-removal-route.ts).
-type ErrorOutcome = { kind: "unauthenticated" } | { kind: "failed" };
+type ErrorOutcome =
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
 type ReauthenticatedActionErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "authentication_failed" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
 export type RegisterPasskeyOutcome =
@@ -50,6 +58,12 @@ export type RemovePasskeyOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
   | ReauthenticatedActionErrorOutcome;
+
+function retryAfterSeconds(response: Response): number {
+  const header = response.headers.get("Retry-After");
+  const seconds = header ? Number(header) : Number.NaN;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+}
 
 function postJson(path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
@@ -79,6 +93,9 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   if (response.status === 401) {
     return { kind: "unauthenticated" };
   }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
   if (!response.ok) {
     return { kind: "failed" };
   }
@@ -107,6 +124,9 @@ export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyR
       ? { kind: "no_passkey" }
       : { kind: "unauthenticated" };
   }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
   if (!response.ok) {
     return { kind: "failed" };
   }
@@ -134,6 +154,9 @@ export async function fetchPasskeyRemovalChallenge(): Promise<FetchPasskeyRemova
   if (response.status === 401) {
     return { kind: "unauthenticated" };
   }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
   if (!response.ok) {
     return { kind: "failed" };
   }
@@ -151,6 +174,9 @@ async function reauthenticatedActionErrorOutcome(
     return body?.code === "authentication_failed"
       ? { kind: "authentication_failed" }
       : { kind: "unauthenticated" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
   return { kind: "failed" };
 }

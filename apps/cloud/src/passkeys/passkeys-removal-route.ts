@@ -5,7 +5,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys } from "../db/schema.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { resolveOpenSession, UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
+import { requireOpenSession } from "../session/open-session.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -71,9 +71,8 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       return;
     }
     const issuedAt = now();
-    const openSession = await resolveOpenSession(request, { db: options.db, now: issuedAt });
+    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
     if (!openSession) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;
     }
 
@@ -108,9 +107,11 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       return;
     }
     const attemptedAt = now();
-    const openSession = await resolveOpenSession(request, { db: options.db, now: attemptedAt });
+    const openSession = await requireOpenSession(request, reply, {
+      db: options.db,
+      now: attemptedAt,
+    });
     if (!openSession) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
       return;
     }
 

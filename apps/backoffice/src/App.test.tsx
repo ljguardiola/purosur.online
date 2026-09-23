@@ -281,6 +281,19 @@ test("keeps the signed-in marker when the session check fails, since the session
   expect(window.localStorage.getItem("purosur-backoffice-was-signed-in")).toBe("1");
 });
 
+test("shows a rate-limited notice, instead of a generic failure, when the mount check is rate limited", async () => {
+  window.localStorage.setItem("purosur-backoffice-was-signed-in", "1");
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} />);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  expect(screen.getByText("Tu sesión venció").query()).toBeNull();
+  expect(screen.getByText("No pudimos verificar tu sesión").query()).toBeNull();
+  expect(window.localStorage.getItem("purosur-backoffice-was-signed-in")).toBe("1");
+});
+
 test("redirects away from /sign-in to the shell when a session is already live", async () => {
   window.history.pushState(null, "", "/sign-in");
 

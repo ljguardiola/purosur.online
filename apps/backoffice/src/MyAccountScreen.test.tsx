@@ -152,6 +152,20 @@ test("shows a load error with a retry action when the passkeys fail to load", as
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
 });
 
+test("shows a rate-limited notice, instead of a generic load error, when the passkeys request is rate limited", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 90 });
+  const screen = await renderScreen();
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  expect(screen.getByText("No pudimos abrir tus passkeys").query()).toBeNull();
+
+  vi.mocked(fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+});
+
 test("ends the session when the passkeys request finds no open session", async () => {
   vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
@@ -283,6 +297,45 @@ test("shows an attempt-failed notice when the registration challenge fails to fe
 
   await expect.poll(() => vi.mocked(fetchPasskeyRegistrationChallenge).mock.calls.length).toBe(2);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when the registration challenge is rate limited", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 60,
+  });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
+  expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  expect(startAuthentication).not.toHaveBeenCalled();
+});
+
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions, registrationOptions },
+  });
+  vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(registerPasskey).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
 test("lets the person retry, keeping the same challenge, after the browser cancels a registration step", async () => {
@@ -604,6 +657,42 @@ test("shows an attempt-failed notice when the removal challenge fails to fetch, 
 
   await expect.poll(() => vi.mocked(fetchPasskeyRemovalChallenge).mock.calls.length).toBe(2);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when the removal challenge is rate limited", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 60,
+  });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
+  expect(dialog.getByText("No se pudo dar de baja la passkey").query()).toBeNull();
+  expect(startAuthentication).not.toHaveBeenCalled();
+});
+
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when removing itself is rate limited", async () => {
+  vi.mocked(fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen();
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(fetchPasskeyRemovalChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(removePasskey).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
 // Every attempt fetches its own challenge (passkeys-removal-route.ts consumes it once it reaches

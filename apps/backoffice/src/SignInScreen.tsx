@@ -9,10 +9,14 @@ import { messages } from "./messages";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 
 /**
- * Why the app routed here: because the previous session ended (idle or absolute expiry), or
- * because the check that would have told it never got an answer.
+ * Why the app routed here: because the previous session ended (idle or absolute expiry), because
+ * the check that would have told it never got an answer, or because the check itself was rate
+ * limited (issue #205).
  */
-export type SignInOpeningNotice = "expired" | "check_failed";
+export type SignInOpeningNotice =
+  | { kind: "expired" }
+  | { kind: "check_failed" }
+  | { kind: "rate_limited"; retryAfterSeconds: number };
 
 export type SignInScreenProps = {
   openingNotice?: SignInOpeningNotice | undefined;
@@ -20,7 +24,8 @@ export type SignInScreenProps = {
 };
 
 type Notice =
-  | { kind: SignInOpeningNotice }
+  | SignInOpeningNotice
+  // From a failed sign-in attempt itself (the sign-in lockout), not the opening session check.
   | { kind: "blocked"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -30,9 +35,7 @@ type Notice =
  * let someone infer which of those actually happened.
  */
 export function SignInScreen({ openingNotice, onSignedIn }: SignInScreenProps) {
-  const [notice, setNotice] = useState<Notice | null>(
-    openingNotice ? { kind: openingNotice } : null,
-  );
+  const [notice, setNotice] = useState<Notice | null>(openingNotice ?? null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSignIn() {
@@ -99,6 +102,16 @@ export function SignInScreen({ openingNotice, onSignedIn }: SignInScreenProps) {
           icon={<TriangleAlert />}
           title={messages.access.signIn.checkFailedTitle}
           detail={messages.access.signIn.checkFailedDetail}
+        />
+      )}
+      {notice?.kind === "rate_limited" && (
+        <InlineNotice
+          tone="error"
+          icon={<ShieldX />}
+          title={messages.access.signIn.checkRateLimitedTitle}
+          detail={messages.access.signIn.checkRateLimitedDetail({
+            minutes: Math.ceil(notice.retryAfterSeconds / 60),
+          })}
         />
       )}
       {notice?.kind === "failed" && (

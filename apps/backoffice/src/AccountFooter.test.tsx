@@ -95,6 +95,22 @@ test("keeps the person where they are, with a notice, when the cloud never ended
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("keeps the person where they are, with a rate-limited notice, when signing out is rate limited", async () => {
+  vi.mocked(signOut).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
+  const onSignedOut = vi.fn();
+  const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut });
+
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  expect(onSignedOut).not.toHaveBeenCalled();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("does not carry a failure notice into the next time the modal is opened", async () => {
   vi.mocked(signOut).mockResolvedValue({ kind: "failed" });
   const screen = await renderInRail({ displayName: "Lucas Guardiola", onSignedOut: () => {} });

@@ -16,6 +16,7 @@ import {
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
+import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
@@ -209,6 +210,29 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, storing no challenge", async () => {
+    const rawSessionId = await insertSession(userId);
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe("3600");
+    const [session] = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    const challenges = session
+      ? await db.select().from(passkeyChallenges).where(eq(passkeyChallenges.sessionId, session.id))
+      : [];
+    expect(challenges).toHaveLength(0);
+  });
+
   it("returns reauthentication options allowing only the account's own passkeys", async () => {
     const emulator = new WebAuthnEmulator();
     await registerFirstPasskey(userId, emulator);
@@ -323,6 +347,19 @@ describe("POST /users/passkeys", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, registering nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+    const beforeCount = (await db.select().from(passkeys)).length;
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
+
+    const response = await postJson("/users/passkeys", {}, cookieHeader(rawSessionId));
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "rate_limited" });
+    expect(response.headers["retry-after"]).toBe("3600");
+    expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 
   it("registers a second passkey with a valid reauthentication, writing an audit row", async () => {

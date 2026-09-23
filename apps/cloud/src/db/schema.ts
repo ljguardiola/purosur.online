@@ -284,3 +284,31 @@ export const signInLockouts = pgTable(
   },
   (table) => [uniqueIndex("sign_in_lockouts_source_address_key").on(table.sourceAddress)],
 );
+
+export const backofficeRateLimitKeyKind = pgEnum("backoffice_rate_limit_key_kind", [
+  "session",
+  "source_address",
+]);
+
+// One row per admitted backoffice API request (issue #205), counting every request made under an
+// open session's cookie against both a per-session and a per-source-address rolling one-hour
+// limit. Same rolling-window shape as `recovery_rate_limit_attempts`: one row per event, pruned as
+// later requests are recorded, so a limit never doubles across a clock hour and storage stays
+// bounded to the last hour's admitted requests.
+export const backofficeRateLimitAttempts = pgTable(
+  "backoffice_rate_limit_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyKind: backofficeRateLimitKeyKind("key_kind").notNull(),
+    keyValue: text("key_value").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("backoffice_rate_limit_attempts_key_idx").on(
+      table.keyKind,
+      table.keyValue,
+      table.attemptedAt,
+    ),
+    index("backoffice_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);

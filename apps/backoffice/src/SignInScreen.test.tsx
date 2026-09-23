@@ -77,7 +77,9 @@ test("shows a blocked notice, without navigating away, when the cloud reports th
 });
 
 test("shows the session-expired notice up front when the app opens it that way", async () => {
-  const screen = await render(<SignInScreen openingNotice="expired" onSignedIn={() => {}} />);
+  const screen = await render(
+    <SignInScreen openingNotice={{ kind: "expired" }} onSignedIn={() => {}} />,
+  );
 
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
   await expect
@@ -98,7 +100,9 @@ test("lets the person retry after the browser cancels the passkey prompt, cleari
   });
   vi.mocked(startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
 
-  const screen = await render(<SignInScreen openingNotice="expired" onSignedIn={() => {}} />);
+  const screen = await render(
+    <SignInScreen openingNotice={{ kind: "expired" }} onSignedIn={() => {}} />,
+  );
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
@@ -110,10 +114,26 @@ test("lets the person retry after the browser cancels the passkey prompt, cleari
 });
 
 test("shows that the session could not be checked when the app opens it that way", async () => {
-  const screen = await render(<SignInScreen openingNotice="check_failed" onSignedIn={() => {}} />);
+  const screen = await render(
+    <SignInScreen openingNotice={{ kind: "check_failed" }} onSignedIn={() => {}} />,
+  );
 
   await expect.element(screen.getByText("No pudimos verificar tu sesión")).toBeVisible();
   await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a rate-limited notice up front when the app opens it that way", async () => {
+  const screen = await render(
+    <SignInScreen
+      openingNotice={{ kind: "rate_limited", retryAfterSeconds: 120 }}
+      onSignedIn={() => {}}
+    />,
+  );
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
 });

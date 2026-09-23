@@ -28,6 +28,9 @@ export const messages = defineMessages("es-AR", (f) => ({
       confirm: "Salir",
       failedTitle: "No se pudo salir",
       failedDetail: "Probá de nuevo.",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
     },
   },
   access: {
@@ -46,6 +49,9 @@ export const messages = defineMessages("es-AR", (f) => ({
       expiredDetail: "Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado.",
       checkFailedTitle: "No pudimos verificar tu sesión",
       checkFailedDetail: "Probá de nuevo en unos minutos.",
+      checkRateLimitedTitle: "Demasiadas solicitudes",
+      checkRateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       attemptFailedTitle: "No se pudo ingresar",
       attemptFailedDetail: "Probá de nuevo.",
     },
@@ -134,6 +140,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         loading: "Cargando tus passkeys…",
         loadErrorTitle: "No pudimos abrir tus passkeys",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
         retry: "Reintentar",
         register: {
           eyebrow: "Mi cuenta · Passkeys",
@@ -147,6 +156,9 @@ export const messages = defineMessages("es-AR", (f) => ({
           closeLabel: "Cerrar",
           attemptFailedTitle: "No se pudo registrar la passkey",
           attemptFailedDetail: "Probá de nuevo.",
+          rateLimitedTitle: "Demasiadas solicitudes",
+          rateLimitedDetail: (params: { minutes: number }) =>
+            `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
         },
         removeModal: {
           title: "¿Dar de baja la passkey?",
@@ -158,6 +170,9 @@ export const messages = defineMessages("es-AR", (f) => ({
           closeLabel: "Cerrar",
           attemptFailedTitle: "No se pudo dar de baja la passkey",
           attemptFailedDetail: "Probá de nuevo.",
+          rateLimitedTitle: "Demasiadas solicitudes",
+          rateLimitedDetail: (params: { minutes: number }) =>
+            `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
         },
       },
     },

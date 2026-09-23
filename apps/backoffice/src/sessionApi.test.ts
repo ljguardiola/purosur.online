@@ -42,6 +42,23 @@ test("fetchSession reports failed on any other status or a network failure", asy
   await expect(fetchSession()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchSession reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "120" }),
+  );
+
+  await expect(fetchSession()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 120 });
+});
+
+test("fetchSession falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
+
+  await expect(fetchSession()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 60 * 60,
+  });
+});
+
 test("fetchAuthenticationOptions posts with no body and returns the WebAuthn options", async () => {
   const options = { challenge: "abc", rpId: "purosur.online" };
   vi.mocked(fetch).mockResolvedValue(
@@ -135,4 +152,12 @@ test("signOut reports failed when the cloud never ended the session", async () =
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
   await expect(signOut()).resolves.toEqual({ kind: "failed" });
+});
+
+test("signOut reports rate_limited with the Retry-After seconds on 429, leaving the session live", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "300" }),
+  );
+
+  await expect(signOut()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 300 });
 });

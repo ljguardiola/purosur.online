@@ -1,7 +1,7 @@
 import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import { KeyRound, Laptop, Plus, Trash2, TriangleAlert, X } from "lucide-react";
+import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { messages } from "./messages";
 import {
@@ -24,6 +24,7 @@ export type MyAccountScreenProps = {
 type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: Passkey[] };
 
 const passkeysMessages = messages.settings.myAccount.passkeys;
@@ -57,6 +58,7 @@ function RegisterPasskeyModal({
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [attemptFailed, setAttemptFailed] = useState(false);
+  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [noPasskey, setNoPasskey] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,6 +67,7 @@ function RegisterPasskeyModal({
       setName("");
       setNameError(undefined);
       setAttemptFailed(false);
+      setRateLimitedSeconds(null);
       setNoPasskey(false);
       setSubmitting(false);
     }
@@ -84,6 +87,7 @@ function RegisterPasskeyModal({
       return;
     }
     setAttemptFailed(false);
+    setRateLimitedSeconds(null);
     setNoPasskey(false);
     setSubmitting(true);
 
@@ -96,6 +100,11 @@ function RegisterPasskeyModal({
       setNoPasskey(true);
       setSubmitting(false);
       onNoPasskey();
+      return;
+    }
+    if (challenge.kind === "rate_limited") {
+      setRateLimitedSeconds(challenge.retryAfterSeconds);
+      setSubmitting(false);
       return;
     }
     if (challenge.kind !== "ok") {
@@ -128,6 +137,11 @@ function RegisterPasskeyModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setRateLimitedSeconds(outcome.retryAfterSeconds);
+      setSubmitting(false);
       return;
     }
     setAttemptFailed(true);
@@ -189,6 +203,16 @@ function RegisterPasskeyModal({
             detail={registerMessages.attemptFailedDetail}
           />
         )}
+        {rateLimitedSeconds !== null && (
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title={registerMessages.rateLimitedTitle}
+            detail={registerMessages.rateLimitedDetail({
+              minutes: Math.ceil(rateLimitedSeconds / 60),
+            })}
+          />
+        )}
         <TextField
           kind="plain-text"
           label={registerMessages.nameLabel}
@@ -231,11 +255,13 @@ function RemovePasskeyModal({
 }: RemovePasskeyModalProps) {
   const isOpen = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
+  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setAttemptFailed(false);
+      setRateLimitedSeconds(null);
       setSubmitting(false);
     }
   }, [isOpen]);
@@ -247,11 +273,17 @@ function RemovePasskeyModal({
       return;
     }
     setAttemptFailed(false);
+    setRateLimitedSeconds(null);
     setSubmitting(true);
 
     const challenge = await fetchPasskeyRemovalChallenge();
     if (challenge.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (challenge.kind === "rate_limited") {
+      setRateLimitedSeconds(challenge.retryAfterSeconds);
+      setSubmitting(false);
       return;
     }
     if (challenge.kind !== "ok") {
@@ -277,6 +309,11 @@ function RemovePasskeyModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setRateLimitedSeconds(outcome.retryAfterSeconds);
+      setSubmitting(false);
       return;
     }
     setAttemptFailed(true);
@@ -336,6 +373,16 @@ function RemovePasskeyModal({
               detail={removeMessages.attemptFailedDetail}
             />
           )}
+          {rateLimitedSeconds !== null && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={removeMessages.rateLimitedTitle}
+              detail={removeMessages.rateLimitedDetail({
+                minutes: Math.ceil(rateLimitedSeconds / 60),
+              })}
+            />
+          )}
         </div>
       )}
     </Modal>
@@ -356,6 +403,8 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
       setList({ kind: "loaded", passkeys: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+    } else if (outcome.kind === "rate_limited") {
+      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
       setList({ kind: "loadError" });
     }
@@ -371,6 +420,8 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
       setList({ kind: "loaded", passkeys: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+    } else if (outcome.kind === "rate_limited") {
+      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
       setList({ kind: "loadError" });
     }
@@ -413,6 +464,21 @@ export function MyAccountScreen({ displayName, onSessionEnded, now }: MyAccountS
                 icon={<TriangleAlert />}
                 title={passkeysMessages.loadErrorTitle}
                 detail={passkeysMessages.loadErrorDetail}
+              />
+              <Button variant="secondary" onPress={() => void load()}>
+                {passkeysMessages.retry}
+              </Button>
+            </>
+          )}
+          {list.kind === "rate_limited" && (
+            <>
+              <InlineNotice
+                tone="error"
+                icon={<ShieldX />}
+                title={passkeysMessages.rateLimitedTitle}
+                detail={passkeysMessages.rateLimitedDetail({
+                  minutes: Math.ceil(list.retryAfterSeconds / 60),
+                })}
               />
               <Button variant="secondary" onPress={() => void load()}>
                 {passkeysMessages.retry}
