@@ -197,12 +197,8 @@ describe("recordBackofficeRequest", () => {
       now: minutesAfterNoon(50),
     });
 
-    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: expect.any(Number) });
-    if (rejected.allowed) {
-      throw new Error("test setup: expected the 601st request to be rejected");
-    }
-    expect(rejected.retryAfterSeconds).toBeGreaterThan(0);
-    expect(rejected.retryAfterSeconds).toBeLessThanOrEqual(60 * 60);
+    // The oldest counted request was made at noon, so its slot frees at 13:00, ten minutes on.
+    expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 10 * 60 });
   });
 
   it("admits a request made exactly when the reported wait runs out", async () => {

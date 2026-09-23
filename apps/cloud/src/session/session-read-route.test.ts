@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
+import { sessions, users } from "../db/schema.js";
+import { exhaustSessionRateLimit } from "./exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { registerSessionReadRoute } from "./session-read-route.js";
@@ -84,17 +85,6 @@ async function sessionRow(rawSessionId: string) {
     .from(sessions)
     .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
   return row;
-}
-
-/** Puts a session's own backoffice API rate limit (issue #205) already at its hourly cap. */
-async function exhaustSessionRateLimit(rawSessionId: string): Promise<void> {
-  await db.insert(backofficeRateLimitAttempts).values(
-    Array.from({ length: 600 }, () => ({
-      keyKind: "session" as const,
-      keyValue: hashSessionId(rawSessionId),
-      attemptedAt: NOON,
-    })),
-  );
 }
 
 describe("GET /users/session", () => {
@@ -274,13 +264,13 @@ describe("GET /users/session", () => {
 
   it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving last_seen_at untouched", async () => {
     const rawSessionId = await insertSession({ lastSeenAt: NOON });
-    await exhaustSessionRateLimit(rawSessionId);
+    await exhaustSessionRateLimit(db, rawSessionId, NOON);
 
     const response = await getSession(rawSessionId);
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBeDefined();
+    expect(response.headers["retry-after"]).toBe("3600");
     const row = await sessionRow(rawSessionId);
     expect(row?.lastSeenAt.getTime()).toBe(NOON.getTime());
   });

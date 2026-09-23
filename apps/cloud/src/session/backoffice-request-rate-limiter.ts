@@ -6,8 +6,8 @@ import { backofficeRateLimitAttempts } from "../db/schema.js";
 export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 // Sized well above normal use: 10/min sustained per session, and per-address well above that
 // since a whole store's staff shares one public address.
-const SESSION_LIMIT_PER_HOUR = 600;
-const SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
+export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
+export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface BackofficeRateLimitInput {
@@ -59,14 +59,14 @@ export async function recordBackofficeRequest<TQueryResult extends PgQueryResult
     {
       keyKind: "source_address",
       keyValue: input.sourceAddress,
-      limit: SOURCE_ADDRESS_LIMIT_PER_HOUR,
+      limit: BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
     },
   ];
   if (input.sessionKeyValue !== undefined) {
     keys.push({
       keyKind: "session",
       keyValue: input.sessionKeyValue,
-      limit: SESSION_LIMIT_PER_HOUR,
+      limit: BACKOFFICE_SESSION_LIMIT_PER_HOUR,
     });
   }
 

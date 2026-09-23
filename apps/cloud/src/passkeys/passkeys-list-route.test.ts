@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { backofficeRateLimitAttempts, passkeys, sessions, users } from "../db/schema.js";
+import { passkeys, sessions, users } from "../db/schema.js";
+import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { registerPasskeysListRoute } from "./passkeys-list-route.js";
@@ -95,17 +96,6 @@ function getPasskeys(rawSessionId?: string) {
   });
 }
 
-/** Puts a session's own backoffice API rate limit (issue #205) already at its hourly cap. */
-async function exhaustSessionRateLimit(rawSessionId: string): Promise<void> {
-  await db.insert(backofficeRateLimitAttempts).values(
-    Array.from({ length: 600 }, () => ({
-      keyKind: "session" as const,
-      keyValue: hashSessionId(rawSessionId),
-      attemptedAt: NOON,
-    })),
-  );
-}
-
 describe("GET /users/passkeys", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getPasskeys();
@@ -188,13 +178,13 @@ describe("GET /users/passkeys", () => {
 
   it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, leaving last_seen_at untouched", async () => {
     const rawSessionId = await insertSession();
-    await exhaustSessionRateLimit(rawSessionId);
+    await exhaustSessionRateLimit(db, rawSessionId, NOON);
 
     const response = await getPasskeys(rawSessionId);
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBeDefined();
+    expect(response.headers["retry-after"]).toBe("3600");
     const [row] = await db
       .select()
       .from(sessions)

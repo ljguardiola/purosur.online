@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
-  backofficeRateLimitAttempts,
   passkeyChallenges,
   passkeys,
   recoveryTokens,
@@ -17,6 +16,7 @@ import {
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
+import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
@@ -80,17 +80,6 @@ afterEach(async () => {
 });
 
 let tokenSequence = 0;
-
-/** Puts a session's own backoffice API rate limit (issue #205) already at its hourly cap. */
-async function exhaustSessionRateLimit(rawSessionId: string): Promise<void> {
-  await db.insert(backofficeRateLimitAttempts).values(
-    Array.from({ length: 600 }, () => ({
-      keyKind: "session" as const,
-      keyValue: hashSessionId(rawSessionId),
-      attemptedAt: currentTime,
-    })),
-  );
-}
 
 /**
  * A `WebAuthnEmulator` backed by its own isolated credential store, standing in for a genuinely
@@ -223,7 +212,7 @@ describe("POST /users/passkeys/registration-options", () => {
 
   it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, storing no challenge", async () => {
     const rawSessionId = await insertSession(userId);
-    await exhaustSessionRateLimit(rawSessionId);
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
 
     const response = await postJson(
       "/users/passkeys/registration-options",
@@ -233,7 +222,7 @@ describe("POST /users/passkeys/registration-options", () => {
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBeDefined();
+    expect(response.headers["retry-after"]).toBe("3600");
     const [session] = await db
       .select({ id: sessions.id })
       .from(sessions)
@@ -363,13 +352,13 @@ describe("POST /users/passkeys", () => {
   it("returns 429 rate_limited with Retry-After once the session is over its backoffice request limit, registering nothing", async () => {
     const rawSessionId = await insertSession(userId);
     const beforeCount = (await db.select().from(passkeys)).length;
-    await exhaustSessionRateLimit(rawSessionId);
+    await exhaustSessionRateLimit(db, rawSessionId, currentTime);
 
     const response = await postJson("/users/passkeys", {}, cookieHeader(rawSessionId));
 
     expect(response.statusCode).toBe(429);
     expect(response.json()).toMatchObject({ code: "rate_limited" });
-    expect(response.headers["retry-after"]).toBeDefined();
+    expect(response.headers["retry-after"]).toBe("3600");
     expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 
