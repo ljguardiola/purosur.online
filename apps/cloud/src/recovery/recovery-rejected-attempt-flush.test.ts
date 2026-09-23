@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/pglite";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
@@ -224,16 +224,19 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     // Grace's account is created only once the first batch (ada's older window) has already
     // committed, so it exists before the second batch (grace's window) runs, but did not exist
     // when the run started.
-    db.transaction = ((callback: Parameters<typeof db.transaction>[0]) => {
-      batchCount += 1;
-      if (batchCount === 2) {
-        return insertUser("grace@example.com").then((id) => {
-          graceId = id;
-          return originalTransaction(callback);
-        });
-      }
-      return originalTransaction(callback);
-    }) as typeof db.transaction;
+    const transaction = vi
+      .spyOn(db, "transaction")
+      .mockImplementation((callback: Parameters<typeof db.transaction>[0]) => {
+        batchCount += 1;
+        if (batchCount === 2) {
+          return insertUser("grace@example.com").then((id) => {
+            graceId = id;
+            return originalTransaction(callback);
+          });
+        }
+        return originalTransaction(callback);
+      });
+    onTestFinished(() => transaction.mockRestore());
 
     const flushed = await flushClosedRecoveryRejectedAttemptWindows(db, {
       now: () => CLOSED_NOW,

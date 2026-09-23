@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { auditLog, roles, userRoles, users } from "../db/schema.js";
 import {
@@ -142,6 +142,7 @@ describe("createFirstAdministrator", () => {
     ["a malformed email", { name: "Ada Lovelace", email: "not-an-email" }],
   ])("rejects %s without opening a transaction", async (_, input) => {
     const transaction = vi.spyOn(db, "transaction");
+    onTestFinished(() => transaction.mockRestore());
 
     await expect(createFirstAdministrator(db, input)).rejects.toBeInstanceOf(
       InvalidFirstAdministratorInputError,

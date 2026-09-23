@@ -1,7 +1,17 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator from "nid-webauthn-emulator";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
@@ -230,6 +240,11 @@ describe("POST /users/session/authenticate", () => {
     await registerPasskey(userId, emulator);
     const first = await postAuthenticate({ assertion: await getAuthenticationAssertion(emulator) });
     const firstRawId = String(first.headers["set-cookie"]).split(";")[0]?.split("=")[1];
+    // The database is shared across this file's tests: the injected schema break is undone however
+    // this test ends, or every later test's session insert would fail against it.
+    onTestFinished(async () => {
+      await client.exec("alter table sessions drop column if exists injected_failure");
+    });
     // A column with no default fails exactly the INSERT of the new session, while the revoke of
     // the incoming one — an UPDATE of a row already stored — still goes through on its own.
     await client.exec(
@@ -248,10 +263,6 @@ describe("POST /users/session/authenticate", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.sessionIdHash).toBe(hashSessionId(String(firstRawId)));
     expect(rows[0]?.revokedAt).toBeNull();
-
-    // The database is shared across this file's tests: undo the injected schema break instead of
-    // leaving every later test's session insert failing against a column it knows nothing about.
-    await client.exec("alter table sessions drop column injected_failure");
   });
 
   it("rejects an unknown credential as authentication_failed", async () => {
