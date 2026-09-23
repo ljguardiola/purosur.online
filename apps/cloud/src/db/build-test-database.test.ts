@@ -1,5 +1,8 @@
-import type { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
@@ -28,6 +31,22 @@ async function countsByTable(client: PGlite): Promise<Map<string, number>> {
   return counts;
 }
 
+async function migrationsFolderWith(statements: string[]): Promise<string> {
+  const folder = await mkdtemp(join(tmpdir(), "build-test-database-"));
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+  await mkdir(join(folder, "meta"));
+  await writeFile(
+    join(folder, "meta", "_journal.json"),
+    JSON.stringify({
+      version: "7",
+      dialect: "postgresql",
+      entries: [{ idx: 0, version: "7", when: 0, tag: "0000_only", breakpoints: true }],
+    }),
+  );
+  await writeFile(join(folder, "0000_only.sql"), statements.join("\n--> statement-breakpoint\n"));
+  return folder;
+}
+
 describe("buildTestDatabase", () => {
   let testDatabase: TestDatabase;
 
@@ -41,10 +60,14 @@ describe("buildTestDatabase", () => {
 
   it("empties every application table on clear(), restoring only what the migrations themselves seeded", async () => {
     const { db, client, clear } = testDatabase;
+    onTestFinished(clear);
 
     const baseline = await countsByTable(client);
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
+    // The migrations seed the single Administrator role; the baseline must hold it for the
+    // comparison below to prove clear() restores it.
+    expect(baseline.get("roles")).toBe(1);
 
     const [user] = await db
       .insert(users)
@@ -107,16 +130,55 @@ describe("buildTestDatabase", () => {
     expect(await countsByTable(client)).toEqual(baseline);
   });
 
-  it("leaves the schema usable for the next test, with no leftover row from the previous one", async () => {
-    // Reinserts the exact same unique email the previous test used: this only succeeds because
-    // clear() actually removed that row instead of merely appearing to.
-    const [user] = await testDatabase.db
+  it("removes a row on clear(), so its unique values can be inserted again", async () => {
+    const { db, clear } = testDatabase;
+    onTestFinished(clear);
+    await db.insert(users).values({ firstName: "Grace", email: "grace@example.com" });
+
+    await clear();
+
+    // The email is unique: reinserting it only succeeds because clear() actually removed the row.
+    const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada", email: "ada@example.com" })
+      .values({ firstName: "Grace", email: "grace@example.com" })
       .returning({ id: users.id });
-
     expect(user).toBeDefined();
+  });
 
-    await testDatabase.clear();
+  it("restores seeded rows on clear() whatever order their tables reference each other in", async () => {
+    // Each table references the other, so no insertion order of the two seeded rows satisfies
+    // both foreign keys at once.
+    const migrationsFolder = await migrationsFolderWith([
+      'create table "seed_a" ("id" integer primary key, "b_id" integer)',
+      'create table "seed_b" ("id" integer primary key, "a_id" integer not null references "seed_a" ("id"))',
+      'alter table "seed_a" add foreign key ("b_id") references "seed_b" ("id")',
+      'insert into "seed_a" ("id") values (1)',
+      'insert into "seed_b" ("id", "a_id") values (1, 1)',
+      'update "seed_a" set "b_id" = 1',
+    ]);
+    const ownDatabase = await buildTestDatabase({ migrationsFolder });
+    onTestFinished(() => ownDatabase.close());
+
+    await ownDatabase.clear();
+
+    const { rows } = await ownDatabase.client.query(
+      'select "seed_a"."b_id", "seed_b"."a_id" from "seed_a", "seed_b"',
+    );
+    expect(rows).toEqual([{ b_id: 1, a_id: 1 }]);
+  });
+
+  it("closes its database and rejects with the migration's own error when migrating fails", async () => {
+    const migrationsFolder = await migrationsFolderWith(["select * from missing_table"]);
+    // The database the migration ran against is the one that received queries.
+    const query = vi.spyOn(PGlite.prototype, "query");
+    onTestFinished(() => query.mockRestore());
+
+    await expect(buildTestDatabase({ migrationsFolder })).rejects.toThrow(/missing_table/);
+
+    const queried = new Set(query.mock.contexts);
+    expect(queried.size).toBeGreaterThan(0);
+    for (const database of queried) {
+      expect(database).toHaveProperty("closed", true);
+    }
   });
 });

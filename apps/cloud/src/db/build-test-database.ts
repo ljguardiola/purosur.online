@@ -44,17 +44,23 @@ async function restoreSeedRows(
   client: PGlite,
   seeded: Map<string, Record<string, unknown>[]>,
 ): Promise<void> {
-  for (const [table, rows] of seeded) {
-    for (const row of rows) {
-      const columns = Object.keys(row);
-      const columnList = columns.map((column) => `"${column}"`).join(", ");
-      const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
-      await client.query(
-        `insert into "${table}" (${columnList}) values (${placeholders})`,
-        columns.map((column) => row[column]),
-      );
+  await client.transaction(async (tx) => {
+    // Foreign keys are enforced by triggers, which the "replica" role skips: the rows go back in
+    // catalog order, not dependency order, and they are an exact copy of an already-consistent
+    // snapshot. `set local` confines this to the transaction.
+    await tx.query("set local session_replication_role = replica");
+    for (const [table, rows] of seeded) {
+      for (const row of rows) {
+        const columns = Object.keys(row);
+        const columnList = columns.map((column) => `"${column}"`).join(", ");
+        const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
+        await tx.query(
+          `insert into "${table}" (${columnList}) values (${placeholders})`,
+          columns.map((column) => row[column]),
+        );
+      }
     }
-  }
+  });
 }
 
 /**
@@ -63,14 +69,23 @@ async function restoreSeedRows(
  * each test still starts from an empty, freshly-migrated schema without paying the migration cost
  * per test.
  */
-export async function buildTestDatabase(): Promise<TestDatabase> {
+export async function buildTestDatabase({
+  migrationsFolder = MIGRATIONS_FOLDER,
+}: {
+  migrationsFolder?: string;
+} = {}): Promise<TestDatabase> {
   const client = new PGlite();
   const db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-
-  // Captured once, right after migrating: whatever a migration itself inserted (e.g. the single
-  // seeded Administrator role) rather than anything a test goes on to add.
-  const migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
+  let migrationSeedRows: Map<string, Record<string, unknown>[]>;
+  try {
+    await migrate(db, { migrationsFolder });
+    // Captured once, right after migrating: whatever a migration itself inserted (e.g. the single
+    // seeded Administrator role) rather than anything a test goes on to add.
+    migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
+  } catch (error) {
+    await client.close();
+    throw error;
+  }
 
   async function clear(): Promise<void> {
     const tables = await applicationTables(client);
