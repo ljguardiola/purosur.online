@@ -152,6 +152,7 @@ jobs:
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           CLOUD_SENTRY_DSN: ${{ vars.CLOUD_SENTRY_DSN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EDGE_ORIGIN_SECRET: ${{ secrets.EDGE_ORIGIN_SECRET }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 

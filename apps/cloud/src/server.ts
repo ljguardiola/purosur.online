@@ -36,6 +36,8 @@ export interface ServerEnv {
   BACKOFFICE_ORIGIN?: string | undefined;
   /** Opts into `resolveRecoveryEmailSenderEnv`'s logging transport on the exact value "log". */
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
+  /** The value Cloudflare's edge sets on every request it forwards; see `edge-origin-guard.ts`. */
+  EDGE_ORIGIN_SECRET?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -85,6 +87,18 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
   const value = env[name];
   if (!value) {
     throw new Error(`${name} must be set once DATABASE_URL is configured (recovery-by-email)`);
+  }
+  return value;
+}
+
+/**
+ * Required on every start, not only once a database is configured: the edge guard applies to
+ * every route (`GET /health` excepted) regardless of which optional features are wired up.
+ */
+export function requireEdgeOriginSecret(env: ServerEnv): string {
+  const value = env.EDGE_ORIGIN_SECRET;
+  if (!value) {
+    throw new Error("EDGE_ORIGIN_SECRET must be set");
   }
   return value;
 }
@@ -260,11 +274,13 @@ export async function startServer(
 
   doInitSentry({ dsn: env.SENTRY_DSN, environment: env.SENTRY_ENVIRONMENT });
 
+  const edgeOriginSecret = requireEdgeOriginSecret(env);
   const recoveryEnv = resolveRecoveryEnv(env);
   const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
 
   const app = doBuildApp({
     version: resolveVersion(env),
+    edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
     ...(recovery
       ? {

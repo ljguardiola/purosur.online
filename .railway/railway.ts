@@ -4,17 +4,17 @@
 // `bucket()` exposes no `.env` accessor in this SDK version, so the bucket's credentials cannot be
 // referenced from the cloud service here.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
+// Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
+// `railway domain <domain> --service cloud`, and only then declared in this file.
+// .github/scripts/apply-edge-rules.mjs reads the same file to scope the edge origin secret.
+import customDomains from "./custom-domains.json" with { type: "json" };
 
 // Bucket regions and service/database regions are different code sets: "iad" is valid only for a
 // bucket, and a database given "iad" is placed in "us-east4-eqdc4a".
 const SERVICE_REGION = "us-east4-eqdc4a";
 const BUCKET_REGION = "iad";
 
-// Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
-// `railway domain <domain> --service cloud`, and only then declared here.
-const CUSTOM_DOMAINS: Record<string, string[]> = {
-  staging: ["staging.purosur.online"],
-};
+const CUSTOM_DOMAINS: Record<string, string[]> = customDomains;
 
 // The recovery-request email's sender is per environment, but its reply-to address is the same
 // across every environment, so it is a plain constant rather than a per-environment map.
@@ -53,6 +53,7 @@ export default defineRailway((ctx) => {
   const ghcrPullToken = requireEnv("GHCR_PULL_TOKEN");
   const sentryDsn = requireEnv("CLOUD_SENTRY_DSN");
   const resendApiKey = requireEnv("RESEND_API_KEY");
+  const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -85,6 +86,7 @@ export default defineRailway((ctx) => {
       RECOVERY_EMAIL_FROM: requireRecoveryEmailFrom(environment),
       RECOVERY_EMAIL_REPLY_TO,
       BACKOFFICE_ORIGIN: backofficeOrigin,
+      EDGE_ORIGIN_SECRET: edgeOriginSecret,
     },
   });
 

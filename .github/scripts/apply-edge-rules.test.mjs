@@ -1,0 +1,232 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import customDomains from "../../.railway/custom-domains.json" with { type: "json" };
+import {
+  buildRateLimitRules,
+  buildRequestHeaderTransformRules,
+  CLOUD_HOSTNAMES,
+  cloudHostnames,
+  EDGE_ORIGIN_SECRET_HEADER,
+  putRulesetPhase,
+  runCli,
+} from "./apply-edge-rules.mjs";
+
+// buildRequestHeaderTransformRules -------------------------------------------------
+
+test("builds one rewrite rule that sets the edge origin secret header only for the given hostnames", () => {
+  const body = buildRequestHeaderTransformRules("a-secret-value", ["staging.purosur.online"]);
+
+  assert.equal(body.rules.length, 1);
+  const [rule] = body.rules;
+  assert.equal(rule.action, "rewrite");
+  assert.equal(rule.expression, 'http.host in {"staging.purosur.online"}');
+  assert.equal(typeof rule.description, "string");
+  assert.ok(rule.description.length > 0);
+  assert.deepEqual(rule.action_parameters, {
+    headers: {
+      [EDGE_ORIGIN_SECRET_HEADER]: { operation: "set", value: "a-secret-value" },
+    },
+  });
+});
+
+test("lists every given hostname in the header transform rule's expression", () => {
+  const body = buildRequestHeaderTransformRules("a-secret-value", [
+    "staging.purosur.online",
+    "purosur.online",
+  ]);
+
+  assert.equal(
+    body.rules[0].expression,
+    'http.host in {"staging.purosur.online" "purosur.online"}',
+  );
+});
+
+test("refuses to build the header transform rule for an empty hostname list", () => {
+  assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", []), /hostname/);
+});
+
+for (const hostname of [
+  "",
+  'staging.purosur.online"} or true or {"',
+  "staging purosur.online",
+  "staging.purosur.online ",
+  "localhost",
+  "Staging.purosur.online",
+  "-staging.purosur.online",
+]) {
+  test(`refuses to build the header transform rule for the hostname ${JSON.stringify(hostname)}`, () => {
+    assert.throws(() => buildRequestHeaderTransformRules("a-secret-value", [hostname]), /hostname/);
+  });
+}
+
+test("scopes the header transform rule to the custom domains Railway serves the cloud service on", () => {
+  assert.deepEqual(CLOUD_HOSTNAMES, Object.values(customDomains).flat());
+  assert.ok(CLOUD_HOSTNAMES.includes("staging.purosur.online"));
+});
+
+test("collects the cloud service's hostnames from every environment's custom domains", () => {
+  assert.deepEqual(
+    cloudHostnames({
+      staging: ["staging.purosur.online"],
+      production: ["purosur.online", "www.purosur.online"],
+    }),
+    ["staging.purosur.online", "purosur.online", "www.purosur.online"],
+  );
+});
+
+test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", () => {
+  assert.equal(EDGE_ORIGIN_SECRET_HEADER, EDGE_ORIGIN_SECRET_HEADER.toLowerCase());
+  assert.ok(!EDGE_ORIGIN_SECRET_HEADER.startsWith("cf-"));
+  assert.ok(!EDGE_ORIGIN_SECRET_HEADER.startsWith("x-cf-"));
+});
+
+// buildRateLimitRules ---------------------------------------------------------------
+
+test("builds one block rule rate-limited by source address and colo", () => {
+  const body = buildRateLimitRules();
+
+  assert.equal(body.rules.length, 1);
+  const [rule] = body.rules;
+  assert.equal(rule.action, "block");
+  assert.equal(rule.expression, "true");
+  assert.ok(rule.description.length > 0);
+  assert.deepEqual(rule.ratelimit, {
+    characteristics: ["ip.src", "cf.colo.id"],
+    period: 10,
+    requests_per_period: 300,
+    mitigation_timeout: 10,
+  });
+});
+
+// putRulesetPhase ---------------------------------------------------------------------
+
+function jsonResponse(body, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => body };
+}
+
+test("PUTs the ruleset phase entrypoint with a bearer token and the given body", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return jsonResponse({ success: true, result: {} });
+  };
+
+  await putRulesetPhase({
+    zoneId: "zone-123",
+    token: "cf-token",
+    phase: "http_ratelimit",
+    body: { rules: [] },
+    fetchImpl,
+  });
+
+  assert.equal(calls.length, 1);
+  const [call] = calls;
+  assert.equal(
+    call.url,
+    "https://api.cloudflare.com/client/v4/zones/zone-123/rulesets/phases/http_ratelimit/entrypoint",
+  );
+  assert.equal(call.options.method, "PUT");
+  assert.equal(call.options.headers.Authorization, "Bearer cf-token");
+  assert.equal(call.options.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(call.options.body), { rules: [] });
+});
+
+test("throws without ever including the token when Cloudflare reports success: false", async () => {
+  const fetchImpl = async () =>
+    jsonResponse({ success: false, errors: [{ code: 1000, message: "bad rule" }] });
+
+  await assert.rejects(
+    putRulesetPhase({
+      zoneId: "zone-123",
+      token: "cf-token-should-never-appear",
+      phase: "http_ratelimit",
+      body: { rules: [] },
+      fetchImpl,
+    }),
+    (error) => {
+      assert.match(error.message, /bad rule/);
+      assert.ok(!error.message.includes("cf-token-should-never-appear"));
+      return true;
+    },
+  );
+});
+
+test("throws on a non-ok HTTP response", async () => {
+  const fetchImpl = async () => jsonResponse({ errors: [{ message: "forbidden" }] }, 403);
+
+  await assert.rejects(
+    putRulesetPhase({
+      zoneId: "zone-123",
+      token: "cf-token",
+      phase: "http_request_late_transform",
+      body: { rules: [] },
+      fetchImpl,
+    }),
+    /forbidden/,
+  );
+});
+
+// runCli ------------------------------------------------------------------------------
+
+function fakeCli({ env = {}, responses } = {}) {
+  const calls = { fetch: [], logs: [], errors: [] };
+  const deps = {
+    env: {
+      CLOUDFLARE_API_TOKEN: "cf-token",
+      CLOUDFLARE_ZONE_ID: "zone-123",
+      EDGE_ORIGIN_SECRET: "edge-secret",
+      ...env,
+    },
+    fetchImpl: async (url, options) => {
+      calls.fetch.push({ url, options });
+      const response = responses?.[calls.fetch.length - 1] ?? { success: true, result: {} };
+      return jsonResponse(response);
+    },
+    log: (message) => calls.logs.push(message),
+    logError: (message) => calls.errors.push(message),
+  };
+  return { deps, calls };
+}
+
+test("runCli refuses clearly when a required env var is missing, making no request", async () => {
+  const { deps, calls } = fakeCli({ env: { CLOUDFLARE_API_TOKEN: undefined } });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.equal(calls.fetch.length, 0);
+  assert.ok(calls.errors.some((message) => message.includes("CLOUDFLARE_API_TOKEN")));
+});
+
+test("runCli PUTs the header transform rules, then the rate limit rules", async () => {
+  const { deps, calls } = fakeCli();
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 0);
+  assert.equal(calls.fetch.length, 2);
+  assert.match(calls.fetch[0].url, /http_request_late_transform/);
+  assert.match(calls.fetch[1].url, /http_ratelimit/);
+});
+
+test("runCli sends the header only to the cloud service's hostnames and rate-limits the whole zone", async () => {
+  const { deps, calls } = fakeCli();
+
+  await runCli(deps);
+
+  const [transformRule] = JSON.parse(calls.fetch[0].options.body).rules;
+  assert.equal(transformRule.expression, 'http.host in {"staging.purosur.online"}');
+  const [rateLimitRule] = JSON.parse(calls.fetch[1].options.body).rules;
+  assert.equal(rateLimitRule.expression, "true");
+});
+
+test("runCli exits non-zero and reports Cloudflare's errors when a PUT fails", async () => {
+  const { deps, calls } = fakeCli({
+    responses: [{ success: false, errors: [{ message: "invalid expression" }] }],
+  });
+
+  const exitCode = await runCli(deps);
+
+  assert.equal(exitCode, 1);
+  assert.ok(calls.errors.some((message) => message.includes("invalid expression")));
+});

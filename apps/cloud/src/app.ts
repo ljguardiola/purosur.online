@@ -4,6 +4,7 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
 import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
@@ -20,6 +21,11 @@ import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   /** The deployed version (commit SHA), reported by `GET /health`. */
   version: string;
+  /**
+   * The value Cloudflare's edge sets on every request it forwards (see `edge-origin-guard.ts`).
+   * Required so a missing secret can never leave the guard silently open.
+   */
+  edgeOriginSecret: string;
   /**
    * Wires unhandled route errors to Sentry. Defaults to `@sentry/node`'s own
    * `setupFastifyErrorHandler`; a caller injects a fake to prove the wiring in a test without a
@@ -84,6 +90,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   const setupFastifyErrorHandler =
     options.setupFastifyErrorHandler ?? defaultSetupFastifyErrorHandler;
   setupFastifyErrorHandler(app);
+
+  registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
   app.get("/health", async () => ({ status: "ok", version: options.version }));
 

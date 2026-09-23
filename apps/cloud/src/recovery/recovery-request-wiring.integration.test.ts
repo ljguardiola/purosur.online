@@ -9,7 +9,9 @@ import {
   recoveryTokens,
   users,
 } from "../db/schema.js";
+import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
+import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { findFreePort } from "./find-free-port.js";
 import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
@@ -144,6 +146,7 @@ async function startRealServer(
         RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
         RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
         BACKOFFICE_ORIGIN,
+        EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
       },
       {
         // The only seam this test touches: everything else (the pool, graphile-worker's run(),
@@ -171,7 +174,11 @@ async function startRealServer(
 function postRecoveryRequest(origin: string, email: string): Promise<Response> {
   return fetch(`${origin}/users/recovery/request`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: BACKOFFICE_ORIGIN },
+    headers: {
+      "content-type": "application/json",
+      origin: BACKOFFICE_ORIGIN,
+      [EDGE_ORIGIN_SECRET_HEADER]: TEST_EDGE_ORIGIN_SECRET,
+    },
     body: JSON.stringify({ email }),
   });
 }
