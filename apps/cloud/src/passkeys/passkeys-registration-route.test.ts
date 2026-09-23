@@ -529,6 +529,44 @@ describe("POST /users/passkeys", () => {
       },
     );
 
+    it("keeps the pending challenge redeemable after a request rejected for its body", async () => {
+      const rawSessionId = await insertSession(userId);
+      const options = await requestOptions(rawSessionId);
+      const reauthentication = registeredEmulator.getJSON(
+        BACKOFFICE_ORIGIN,
+        options.reauthentication_options,
+      );
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+      const missingRegistration = await postJson(
+        "/users/passkeys",
+        { reauthentication, passkey_name: "Teléfono del local" },
+        cookieHeader(rawSessionId),
+      );
+      expect(missingRegistration.statusCode).toBe(400);
+      const blankName = await postJson(
+        "/users/passkeys",
+        { reauthentication, passkey_registration: passkeyRegistration, passkey_name: " " },
+        cookieHeader(rawSessionId),
+      );
+      expect(blankName.statusCode).toBe(400);
+
+      const response = await postJson(
+        "/users/passkeys",
+        {
+          reauthentication,
+          passkey_registration: passkeyRegistration,
+          passkey_name: "Teléfono del local",
+        },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(200);
+    });
+
     it("rejects a passkey_name over 40 characters once trimmed", async () => {
       const rawSessionId = await insertSession(userId);
       const { response } = await registerSecondPasskey(rawSessionId, `  ${"a".repeat(41)}  `);

@@ -415,6 +415,31 @@ describe("POST /users/passkeys/:id/remove", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it("keeps the pending challenge redeemable after a request rejected for a malformed id", async () => {
+    const rawSessionId = await insertSession(userId);
+    const [target] = await db
+      .select()
+      .from(passkeys)
+      .where(eq(passkeys.name, "Teléfono del local"));
+    if (!target) throw new Error("test setup: target passkey not found");
+    const options = await requestRemovalOptions(rawSessionId);
+    const reauthentication = emulatorA.getJSON(BACKOFFICE_ORIGIN, options.reauthentication_options);
+    const malformed = await postJson(
+      "/users/passkeys/not-a-uuid/remove",
+      { reauthentication },
+      cookieHeader(rawSessionId),
+    );
+    expect(malformed.statusCode).toBe(404);
+
+    const response = await postJson(
+      `/users/passkeys/${target.id}/remove`,
+      { reauthentication },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(200);
+  });
+
   it("rejects a reauthentication whose signature was tampered with, deleting nothing", async () => {
     const rawSessionId = await insertSession(userId);
     const [target] = await db

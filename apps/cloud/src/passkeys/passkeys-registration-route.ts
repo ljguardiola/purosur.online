@@ -156,6 +156,27 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       return;
     }
 
+    const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
+      ?.passkey_registration as RegistrationResponseJSON | undefined;
+    if (!passkeyRegistration) {
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: "passkey_registration is required",
+        details: [{ field: "passkey_registration" }],
+      });
+      return;
+    }
+
+    const passkeyName = readPasskeyName(request.body);
+    if (!passkeyName) {
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: "passkey_name is required and must be 1-40 characters once trimmed",
+        details: [{ field: "passkey_name" }],
+      });
+      return;
+    }
+
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
       now: attemptedAt,
@@ -175,27 +196,6 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
     });
     if (!reauthentication.verified) {
       await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
-      ?.passkey_registration as RegistrationResponseJSON | undefined;
-    if (!passkeyRegistration) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "passkey_registration is required",
-        details: [{ field: "passkey_registration" }],
-      });
-      return;
-    }
-
-    const passkeyName = readPasskeyName(request.body);
-    if (!passkeyName) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "passkey_name is required and must be 1-40 characters once trimmed",
-        details: [{ field: "passkey_name" }],
-      });
       return;
     }
 

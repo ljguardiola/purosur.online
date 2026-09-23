@@ -114,6 +114,12 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
       return;
     }
 
+    const targetId = (request.params as { id: string }).id;
+    if (!UUID_PATTERN.test(targetId)) {
+      await reply.code(404).send(NOT_FOUND_RESPONSE);
+      return;
+    }
+
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
       now: attemptedAt,
@@ -133,12 +139,6 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
     });
     if (!reauthentication.verified) {
       await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const targetId = (request.params as { id: string }).id;
-    if (!UUID_PATTERN.test(targetId)) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
       return;
     }
 
