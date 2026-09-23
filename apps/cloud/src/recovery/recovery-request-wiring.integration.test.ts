@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -339,13 +339,20 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
 
   it("sends no link for an over-limit request, enqueues no job for it, and upserts the rejected-attempt accumulator instead", async () => {
     const email = `ada-limit-${randomUUID()}@example.com`;
-    await seedActiveUser(integrationDb.databaseUrl, email);
+    const userId = await seedActiveUser(integrationDb.databaseUrl, email);
     const sender = new FakeRecoveryEmailSender();
     const server = await startRealServer(integrationDb.databaseUrl, sender);
 
     try {
+      // Each link is waited out before the next request: the worker runs two jobs at once, and a
+      // newer request's job that commits its token first supersedes an older one, which then
+      // sends nothing and audits the supersession — correct behavior, but not the over-limit
+      // case this test is about.
       for (let i = 0; i < 5; i++) {
         expect((await postRecoveryRequest(server.origin, email)).status).toBe(200);
+        await vi.waitFor(() => {
+          expect(sender.sent).toHaveLength(i + 1);
+        }, WAIT_OPTIONS);
       }
       expect((await postRecoveryRequest(server.origin, email)).status).toBe(429);
 
@@ -360,7 +367,10 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
         // No individual audit row is written for the rejection: it is bookkept by the
         // accumulator instead and only turned into an audit row once its
         // hour window closes and the flush cron task runs.
-        const auditRows = await db.select().from(auditLog).where(eq(auditLog.entity, "user"));
+        const auditRows = await db
+          .select()
+          .from(auditLog)
+          .where(and(eq(auditLog.entity, "user"), eq(auditLog.actorId, userId)));
         expect(auditRows).toEqual([]);
 
         const accumulatorRows = await db
