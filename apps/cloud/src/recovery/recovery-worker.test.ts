@@ -23,6 +23,19 @@ class FakePool extends EventEmitter {
   readonly end = vi.fn().mockResolvedValue(undefined);
 }
 
+function deferred(): { promise: Promise<void>; settle: () => void } {
+  let settle: () => void = () => {};
+  const promise = new Promise<void>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
+/** Lets every pending microtask and the timers queued before it run. */
+function flushPendingWork(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function mustExist<T>(value: T | undefined, description: string): T {
   if (value === undefined) {
     throw new Error(`test setup: expected ${description}`);
@@ -136,10 +149,12 @@ describe("startRecoveryWorker", () => {
 
   it("delegates stop() to the runner returned by graphile-worker, then awaits closing the pool it owns", async () => {
     const events: string[] = [];
+    const drain = deferred();
     const runner = {
       stop: vi.fn().mockImplementation(async () => {
         events.push("runner stopped");
       }),
+      promise: drain.promise,
     };
     const runWorker = vi.fn().mockResolvedValue(runner);
     const pool = new FakePool();
@@ -156,37 +171,35 @@ describe("startRecoveryWorker", () => {
       },
       { runWorker, createPool },
     );
-    await handle.stop();
+    const stopping = handle.stop();
+    await flushPendingWork();
 
     expect(runner.stop).toHaveBeenCalledTimes(1);
-    expect(pool.end).toHaveBeenCalledTimes(1);
     // The runner must fully stop using the pool before we close it, so a job the runner is still
     // draining never sees its connection cut from under it.
+    expect(pool.end).not.toHaveBeenCalled();
+
+    drain.settle();
+    await stopping;
+
+    expect(pool.end).toHaveBeenCalledTimes(1);
     expect(events).toEqual(["runner stopped", "pool ended"]);
   });
 
   it("never asks an already self-stopped runner to stop again, and ends the pool only once its own drain has finished", async () => {
-    const events: string[] = [];
     let capturedEvents: EventEmitter | undefined;
+    const drain = deferred();
     const runner = {
       // A second stop() on a runner that already stopped itself rejects with "Runner is already
       // stopped" (graphile-worker 0.18); this must never be called in that case.
       stop: vi.fn().mockRejectedValue(new Error("Runner is already stopped")),
-      promise: new Promise<void>((resolve) => {
-        queueMicrotask(() => {
-          events.push("self-stop drain finished");
-          resolve();
-        });
-      }),
+      promise: drain.promise,
     };
     const runWorker = vi.fn().mockImplementation(async (options) => {
       capturedEvents = (options as { events?: EventEmitter }).events;
       return runner;
     });
     const pool = new FakePool();
-    pool.end.mockImplementation(async () => {
-      events.push("pool ended");
-    });
     const createPool = vi.fn().mockReturnValue(pool);
 
     const handle = await startRecoveryWorker(
@@ -204,10 +217,16 @@ describe("startRecoveryWorker", () => {
       ctx: {},
     });
 
-    await handle.stop();
+    const stopping = handle.stop();
+    await flushPendingWork();
+
+    expect(pool.end).not.toHaveBeenCalled();
+
+    drain.settle();
+    await stopping;
 
     expect(runner.stop).not.toHaveBeenCalled();
-    expect(events).toEqual(["self-stop drain finished", "pool ended"]);
+    expect(pool.end).toHaveBeenCalledTimes(1);
   });
 
   it("still ends the pool when actually stopping the runner fails, and rejects with that failure", async () => {
