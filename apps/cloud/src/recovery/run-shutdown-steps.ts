@@ -1,7 +1,7 @@
 export interface ShutdownStep {
   /** Identifies the step in a failure's message, e.g. "recovery worker". */
   readonly label: string;
-  run(): Promise<void>;
+  readonly run: () => Promise<void>;
 }
 
 function describeError(error: unknown): string {
