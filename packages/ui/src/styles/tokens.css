@@ -113,10 +113,10 @@
     background-color: var(--color-surface-bone);
   }
 
-  /* Tailwind's preflight resets every <button> to cursor: default, and a react-aria control that
-     renders a plain role="button" element instead of a native one (a calendar day cell, see
-     DateField.tsx) draws no cursor at all — both leave a clickable control showing the arrow
-     instead of the hand it promises. A control that can't respond keeps the arrow; react-aria
+  /* Tailwind v4's preflight no longer gives <button> the hand cursor, so the browser's own arrow
+     shows on every button, and on a react-aria control that renders a plain role="button" element
+     instead of a native one (a calendar day cell, see DateField.tsx) — a clickable control showing
+     the arrow instead of the hand it promises. A control that can't respond keeps the arrow; react-aria
      marks that three different ways depending on what it renders: the real `disabled` attribute on
      a native button, `aria-disabled` on a button kept focusable at a boundary (see Pagination.tsx's
      Previous/Next), or `aria-disabled`/`data-disabled` on a non-native role="button" element. */
