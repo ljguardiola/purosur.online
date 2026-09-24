@@ -6,6 +6,7 @@ export interface BranchUserRow {
   id: string;
   firstName: string;
   email: string;
+  version: number;
   roleId: string;
   roleName: string | null;
   roleIsAdministrator: boolean;
@@ -15,6 +16,7 @@ export interface BranchUserWire {
   id: string;
   first_name: string;
   email: string;
+  version: number;
   role: { id: string; is_administrator: boolean; name: string | null };
 }
 
@@ -23,6 +25,7 @@ export function toBranchUserWire(row: BranchUserRow): BranchUserWire {
     id: row.id,
     first_name: row.firstName,
     email: row.email,
+    version: row.version,
     role: { id: row.roleId, is_administrator: row.roleIsAdministrator, name: row.roleName },
   };
 }
@@ -31,6 +34,7 @@ const BRANCH_USER_SELECTION = {
   id: users.id,
   firstName: users.firstName,
   email: users.email,
+  version: users.version,
   roleId: roles.id,
   roleName: roles.name,
   roleIsAdministrator: roles.isAdministrator,

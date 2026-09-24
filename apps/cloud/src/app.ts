@@ -19,6 +19,7 @@ import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
+import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
 import { registerUserReadRoute } from "./users/user-read-route.js";
 import type { UsersRouteOptions } from "./users/users-list-route.js";
 import { registerUsersListRoute } from "./users/users-list-route.js";
@@ -62,8 +63,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, and `POST /users`,
-   * the backoffice Users screen's read and create sides (issue #247): every one is
+   * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, `POST /users`,
+   * `POST /users/:id/email-change-options`, and `POST /users/:id/email`, the backoffice Users
+   * screen's read, create, and email-edit sides (issues #247 and #248): every one is
    * Administrator-only and scoped to the session's own branch, the same optional-feature-wiring
    * shape `session` uses above.
    */
@@ -130,6 +132,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUsersListRoute(app, options.users);
     registerUserReadRoute(app, options.users);
     registerUserCreationRoutes(app, options.users);
+    registerUserEmailChangeRoutes(app, options.users);
   }
 
   const staticDir = options.staticDir;

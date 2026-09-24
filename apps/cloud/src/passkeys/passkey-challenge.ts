@@ -11,7 +11,11 @@ import { passkeyChallenges } from "../db/schema.js";
 export const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
-export type PasskeyChallengeKind = "registration" | "removal" | "user_creation";
+export type PasskeyChallengeKind =
+  | "registration"
+  | "removal"
+  | "user_creation"
+  | "user_email_change";
 
 export interface StorePendingPasskeyChallengeInput {
   sessionId: string;
