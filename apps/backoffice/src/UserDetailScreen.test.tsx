@@ -59,7 +59,6 @@ function renderScreen(
       <UserDetailScreen
         userId={userId}
         signedInUserId={signedInUserId}
-        isAdministrator
         now={NOW}
         services={services}
         onSessionEnded={onSessionEnded}
@@ -91,23 +90,15 @@ test("shows a not-found state for a missing or other-branch id, without calling 
   expect(services.fetchUser).toHaveBeenCalledTimes(1);
 });
 
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
+test("navigates to Mi cuenta when the user read comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
   const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "forbidden" });
 
-  const screen = await render(
-    <main>
-      <UserDetailScreen
-        userId="user-1"
-        signedInUserId="admin-1"
-        isAdministrator={false}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
-  );
+  await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
-  expect(services.fetchUser).not.toHaveBeenCalled();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("shows a load error, and Reintentar loads the user again", async () => {
@@ -423,7 +414,8 @@ test("shows the screen's not-found state when Recargar finds the user gone", asy
   await expect.element(screen.getByRole("alert")).toHaveTextContent("No encontramos este usuario");
 });
 
-test("shows the screen's forbidden state when Recargar is forbidden", async () => {
+test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
   const services = createServices();
   const { screen, dialog } = await openStaleModal(services);
 
@@ -431,7 +423,8 @@ test("shows the screen's forbidden state when Recargar is forbidden", async () =
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("disables Recargar and Guardar while the reload is pending", async () => {
@@ -513,7 +506,6 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
       <UserDetailScreen
         userId="user-1"
         signedInUserId="admin-1"
-        isAdministrator
         services={services}
         onSessionEnded={() => {}}
       />

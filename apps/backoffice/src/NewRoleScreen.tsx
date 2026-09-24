@@ -4,7 +4,6 @@ import { Check, X } from "lucide-react";
 import { messages } from "./messages";
 import { RoleCreationNoticeView, type RoleCreationServices, useRoleCreation } from "./RoleCreation";
 import { RoleForm } from "./RoleForm";
-import { RolesForbiddenNotice } from "./RoleLoadStatus";
 import { createRole, fetchRoleCreationChallenge } from "./rolesApi";
 import { navigate } from "./router";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
@@ -18,8 +17,6 @@ export const defaultNewRoleScreenServices: NewRoleScreenServices = {
 };
 
 export type NewRoleScreenProps = {
-  /** From the session: only an Administrator can reach this page at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: NewRoleScreenServices;
@@ -27,16 +24,16 @@ export type NewRoleScreenProps = {
 
 const rolesMessages = messages.settings.roles;
 
-/** "Nuevo rol": names a role and hand-picks its permissions, confirming with a passkey to save it. */
-export function NewRoleScreen({ isAdministrator, onSessionEnded, services }: NewRoleScreenProps) {
+/**
+ * "Nuevo rol": names a role and hand-picks its permissions, confirming with a passkey to save it.
+ * Reserved to the Administrator: App.tsx only ever routes here for one, and a non-Administrator
+ * reaching `POST /roles` any other way is rejected by the server.
+ */
+export function NewRoleScreen({ onSessionEnded, services }: NewRoleScreenProps) {
   const creation = useRoleCreation({
     services: services ?? defaultNewRoleScreenServices,
     onSessionEnded,
   });
-
-  if (!isAdministrator) {
-    return <RolesForbiddenNotice />;
-  }
 
   return (
     <>

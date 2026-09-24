@@ -6,15 +6,10 @@ import { Check, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { RoleForm, roleFieldErrorMessage, validateRoleName } from "./RoleForm";
-import {
-  failedRoleLoadStatus,
-  type RoleLoadStatus,
-  RoleLoadStatusView,
-  RolesForbiddenNotice,
-} from "./RoleLoadStatus";
+import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from "./RoleLoadStatus";
 import { editRole, fetchRole, fetchRoleEditChallenge, type RoleDetail } from "./rolesApi";
 import { navigate } from "./router";
-import { ROLES_LIST_PATH } from "./settingsRoutes";
+import { MY_ACCOUNT_PATH, ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type EditRoleScreenServices = {
   fetchRole: typeof fetchRole;
@@ -32,8 +27,6 @@ export const defaultEditRoleScreenServices: EditRoleScreenServices = {
 
 export type EditRoleScreenProps = {
   roleId: string;
-  /** From the session: only an Administrator can reach this page at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: EditRoleScreenServices;
@@ -51,18 +44,16 @@ const rolesMessages = messages.settings.roles;
 const pageMessages = rolesMessages.editRole;
 const formMessages = rolesMessages.form;
 
-/** "Editar rol": pre-filled with a hand-made role's current name and permissions, confirming with a passkey to save. */
-export function EditRoleScreen({
-  roleId,
-  isAdministrator,
-  onSessionEnded,
-  services,
-}: EditRoleScreenProps) {
+/**
+ * "Editar rol": pre-filled with a hand-made role's current name and permissions, confirming with a
+ * passkey to save. Reserved to the Administrator: App.tsx only ever routes here for one, and a
+ * `forbidden` read or save (a role change mid-session) sends the browser to Mi cuenta instead of
+ * showing a notice.
+ */
+export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScreenProps) {
   const { fetchRole, fetchRoleEditChallenge, editRole, startAuthentication } =
     services ?? defaultEditRoleScreenServices;
-  const [state, setState] = useState<LoadState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<PermissionKey>>(new Set());
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -92,20 +83,16 @@ export function EditRoleScreen({
       setNotice(null);
     } else if (outcome.kind === "unauthenticated") {
       endSession();
+    } else if (outcome.kind === "forbidden") {
+      navigate(MY_ACCOUNT_PATH, { replace: true });
     } else {
       setState(failedRoleLoadStatus(outcome));
     }
   }, [roleId, endSession, fetchRole, fillFrom]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
-
-  if (state.kind === "forbidden") {
-    return <RolesForbiddenNotice />;
-  }
+    void load();
+  }, [load]);
 
   async function handleReload() {
     setSubmitting(true);
@@ -127,8 +114,7 @@ export function EditRoleScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      setState({ kind: "forbidden" });
-      setSubmitting(false);
+      navigate(MY_ACCOUNT_PATH, { replace: true });
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -167,8 +153,7 @@ export function EditRoleScreen({
       return;
     }
     if (challenge.kind === "forbidden") {
-      setState({ kind: "forbidden" });
-      setSubmitting(false);
+      navigate(MY_ACCOUNT_PATH, { replace: true });
       return;
     }
     if (challenge.kind === "rate_limited") {
@@ -211,6 +196,10 @@ export function EditRoleScreen({
     if (outcome.kind === "not_found") {
       setState({ kind: "notFound" });
       setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      navigate(MY_ACCOUNT_PATH, { replace: true });
       return;
     }
     if (outcome.kind === "name_taken") {

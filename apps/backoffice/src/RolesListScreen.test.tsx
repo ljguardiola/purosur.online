@@ -36,7 +36,7 @@ const cashier: RoleSummary = {
 function renderScreen(services: RolesListScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
-      <RolesListScreen isAdministrator services={services} onSessionEnded={onSessionEnded} />
+      <RolesListScreen services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
@@ -161,7 +161,7 @@ test("keeps the loaded list without refetching when the parent re-renders with a
 
   await screen.rerender(
     <main>
-      <RolesListScreen isAdministrator services={services} onSessionEnded={() => {}} />
+      <RolesListScreen services={services} onSessionEnded={() => {}} />
     </main>,
   );
 
@@ -221,17 +221,15 @@ test("ends the session when the roles request finds no open session", async () =
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
+test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles");
   const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "forbidden" });
 
-  const screen = await render(
-    <main>
-      <RolesListScreen isAdministrator={false} services={services} onSessionEnded={() => {}} />
-    </main>,
-  );
+  await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRoles).not.toHaveBeenCalled();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations once loaded", async () => {

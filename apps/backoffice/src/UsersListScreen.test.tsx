@@ -60,7 +60,7 @@ const reauthAssertion = { id: "existing-cred" } as never;
 function renderScreen(services: UsersListScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
-      <UsersListScreen isAdministrator services={services} onSessionEnded={onSessionEnded} />
+      <UsersListScreen services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
@@ -169,14 +169,17 @@ test("shows the rate-limited notice with a retry action when the roles request i
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("shows the forbidden notice when the roles request is forbidden", async () => {
+test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the users request finds no open session", async () => {
@@ -187,20 +190,6 @@ test("ends the session when the users request finds no open session", async () =
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
-  const services = createServices();
-
-  const screen = await render(
-    <main>
-      <UsersListScreen isAdministrator={false} services={services} onSessionEnded={() => {}} />
-    </main>,
-  );
-
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
-  expect(services.fetchUsers).not.toHaveBeenCalled();
-  expect(services.fetchRoles).not.toHaveBeenCalled();
 });
 
 async function openNewUserModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -379,7 +368,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 
   await screen.rerender(
     <main>
-      <UsersListScreen isAdministrator services={services} onSessionEnded={() => {}} />
+      <UsersListScreen services={services} onSessionEnded={() => {}} />
     </main>,
   );
 

@@ -27,23 +27,10 @@ const createdRole = {
 function renderScreen(services: NewRoleScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
-      <NewRoleScreen isAdministrator services={services} onSessionEnded={onSessionEnded} />
+      <NewRoleScreen services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
-
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
-  const services = createServices();
-
-  const screen = await render(
-    <main>
-      <NewRoleScreen isAdministrator={false} services={services} onSessionEnded={() => {}} />
-    </main>,
-  );
-
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRoleCreationChallenge).not.toHaveBeenCalled();
-});
 
 test("shows the breadcrumb, heading, name field, and every permission area with a starting 0 count", async () => {
   const services = createServices();

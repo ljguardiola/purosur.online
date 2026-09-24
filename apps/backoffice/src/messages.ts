@@ -203,6 +203,9 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
     rolesSectionLabel: "Roles",
+    // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
+    // always has at least one sidebar entry.
+    myAccountSectionLabel: "Mi cuenta",
     myAccount: {
       documentTitle: "Mi cuenta · Puro Sur",
       breadcrumb: (params: { name: string }) => `Configuración · ${params.name}`,
@@ -284,8 +287,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      forbiddenTitle: "No tenés acceso a Usuarios",
-      forbiddenDetail: "Esta sección es solo para Administradores.",
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar a ${params.name}`,
       newUserModal: {
@@ -377,8 +378,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      forbiddenTitle: "No tenés acceso a Roles",
-      forbiddenDetail: "Esta sección es solo para Administradores.",
       cashRegisterBadgeLabel: "Caja",
       pinBadgeLabel: "Caja · con PIN de otra persona",
       areaLabels: AREA_LABELS,

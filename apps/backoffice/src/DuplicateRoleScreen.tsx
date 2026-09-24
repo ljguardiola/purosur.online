@@ -6,16 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { RoleCreationNoticeView, type RoleCreationServices, useRoleCreation } from "./RoleCreation";
 import { RoleForm } from "./RoleForm";
-import {
-  failedRoleLoadStatus,
-  type RoleLoadStatus,
-  RoleLoadStatusView,
-  RolesForbiddenNotice,
-} from "./RoleLoadStatus";
+import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from "./RoleLoadStatus";
 import { withOneAlertView } from "./rolePermissions";
 import { createRole, fetchRoleCreationChallenge, fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { ROLES_LIST_PATH } from "./settingsRoutes";
+import { MY_ACCOUNT_PATH, ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type DuplicateRoleScreenServices = RoleCreationServices & {
   fetchRoles: typeof fetchRoles;
@@ -31,8 +26,6 @@ export const defaultDuplicateRoleScreenServices: DuplicateRoleScreenServices = {
 export type DuplicateRoleScreenProps = {
   /** The role this page pre-fills its name and permissions from. */
   roleId: string;
-  /** From the session: only an Administrator can reach this page at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: DuplicateRoleScreenServices;
@@ -51,19 +44,18 @@ function sourceDisplayName(role: RoleSummary): string {
  * existing role (found by scanning `GET /roles`'s own list, the only read that also carries the
  * Administrator role, which `GET /roles/:id` answers 404 for — see rolesApi.ts's fetchRole).
  * Saving goes through the exact same passkey step-up and `POST /roles` creation New role uses: the
- * duplicate is a brand-new role, never linked back to the one it started from.
+ * duplicate is a brand-new role, never linked back to the one it started from. Reserved to the
+ * Administrator: App.tsx only ever routes here for one, and a `forbidden` read sends the browser
+ * to Mi cuenta instead of showing a notice.
  */
 export function DuplicateRoleScreen({
   roleId,
-  isAdministrator,
   onSessionEnded,
   services,
 }: DuplicateRoleScreenProps) {
   const resolvedServices = services ?? defaultDuplicateRoleScreenServices;
   const { fetchRoles } = resolvedServices;
-  const [state, setState] = useState<LoadState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [state, setState] = useState<LoadState>({ kind: "loading" });
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the source role and
   // discard whatever the Administrator has typed so far.
@@ -89,20 +81,16 @@ export function DuplicateRoleScreen({
       setState({ kind: "loaded" });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
+    } else if (outcome.kind === "forbidden") {
+      navigate(MY_ACCOUNT_PATH, { replace: true });
     } else {
       setState(failedRoleLoadStatus(outcome));
     }
   }, [roleId, endSession, fetchRoles, fill]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
-
-  if (state.kind === "forbidden") {
-    return <RolesForbiddenNotice />;
-  }
+    void load();
+  }, [load]);
 
   return (
     <>

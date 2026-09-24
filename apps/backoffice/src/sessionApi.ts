@@ -18,6 +18,8 @@ export type SessionOutcome =
       displayName: string;
       isAdministrator: boolean;
       expiresAt?: string;
+      /** The signed-in user's permission keys, in catalog order; an Administrator holds every key. */
+      permissions?: string[];
     }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -82,6 +84,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
     display_name: string;
     is_administrator: boolean;
     expires_at?: string;
+    permissions?: string[];
   };
   return {
     kind: "ok",
@@ -89,6 +92,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
     displayName: body.display_name,
     isAdministrator: body.is_administrator,
     ...(body.expires_at !== undefined ? { expiresAt: body.expires_at } : {}),
+    ...(body.permissions !== undefined ? { permissions: body.permissions } : {}),
   };
 }
 

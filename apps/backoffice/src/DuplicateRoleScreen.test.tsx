@@ -55,32 +55,20 @@ function renderScreen(
 ) {
   return render(
     <main>
-      <DuplicateRoleScreen
-        roleId={roleId}
-        isAdministrator
-        services={services}
-        onSessionEnded={onSessionEnded}
-      />
+      <DuplicateRoleScreen roleId={roleId} services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
 
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
+test("navigates to Mi cuenta when the source roles read comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
   const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "forbidden" });
 
-  const screen = await render(
-    <main>
-      <DuplicateRoleScreen
-        roleId="role-stock"
-        isAdministrator={false}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
-  );
+  await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRoles).not.toHaveBeenCalled();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("pre-fills the name and permissions from a hand-made source role", async () => {

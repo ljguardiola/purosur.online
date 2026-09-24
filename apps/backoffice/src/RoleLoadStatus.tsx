@@ -5,19 +5,23 @@ import { messages } from "./messages";
 const rolesMessages = messages.settings.roles;
 const loadMessages = rolesMessages.roleLoad;
 
-/** Every state a page that loads a role before showing its form can be in, short of loaded. */
+/** Every state a page that loads a role before showing its form can be in, short of loaded. A
+ * forbidden read is never one of them: the caller redirects to Mi cuenta instead (see
+ * `settingsRoutes.ts`'s `MY_ACCOUNT_PATH`), since a screen offers only what its permissions unlock. */
 export type RoleLoadStatus =
   | { kind: "loading" }
   | { kind: "notFound" }
-  | { kind: "forbidden" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number };
 
-/** The status a role read's failure leaves the page in; an ended session is the caller's to handle. */
+/**
+ * The status a role read's failure leaves the page in; an ended session and a forbidden read are
+ * the caller's to handle (the caller checks `outcome.kind === "forbidden"` itself, before this, and
+ * redirects instead of calling this function).
+ */
 export function failedRoleLoadStatus(
   outcome:
     | { kind: "not_found" }
-    | { kind: "forbidden" }
     | { kind: "rate_limited"; retryAfterSeconds: number }
     | { kind: "failed" },
 ): RoleLoadStatus {
@@ -27,30 +31,12 @@ export function failedRoleLoadStatus(
   if (outcome.kind === "rate_limited") {
     return { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds };
   }
-  if (outcome.kind === "forbidden") {
-    return { kind: "forbidden" };
-  }
   return { kind: "loadError" };
-}
-
-/** The whole page a non-Administrator sees instead of a role page. */
-export function RolesForbiddenNotice() {
-  return (
-    <div className="flex flex-1 flex-col gap-4 p-6">
-      <InlineNotice
-        tone="error"
-        icon={<TriangleAlert />}
-        title={rolesMessages.forbiddenTitle}
-        detail={rolesMessages.forbiddenDetail}
-      />
-    </div>
-  );
 }
 
 /**
  * The loading, not-found, load-error and rate-limited states, the last two offering to load again;
- * nothing once loaded (the page renders its form then) or forbidden (the page renders
- * `RolesForbiddenNotice` instead).
+ * nothing once loaded (the page renders its form then).
  */
 export function RoleLoadStatusView({
   state,
