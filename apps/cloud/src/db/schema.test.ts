@@ -81,17 +81,27 @@ describe("user_roles", () => {
 });
 
 describe("migrating a database that already has users", () => {
+  // Drops the `0011_locations` migration and every migration after it (not just that one), so a
+  // migration added later still leaves this folder ending exactly where locations did not exist
+  // yet, instead of applying a later migration out of order while 0011 itself stays missing.
   async function migrationsFolderWithoutLocations(): Promise<string> {
     const folder = await mkdtemp(join(tmpdir(), "migrations-without-locations-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
-    await rm(join(folder, "0011_locations.sql"));
-    await rm(join(folder, "meta", "0011_snapshot.json"));
     const journalPath = join(folder, "meta", "_journal.json");
     const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
-      entries: { tag: string }[];
+      entries: { idx: number; tag: string }[];
     };
-    journal.entries = journal.entries.filter((entry) => entry.tag !== "0011_locations");
+    const locationsEntry = journal.entries.find((entry) => entry.tag === "0011_locations");
+    if (!locationsEntry) {
+      throw new Error("test setup: 0011_locations migration not found in the journal");
+    }
+    const droppedEntries = journal.entries.filter((entry) => entry.idx >= locationsEntry.idx);
+    for (const entry of droppedEntries) {
+      await rm(join(folder, `${entry.tag}.sql`));
+      await rm(join(folder, "meta", `${String(entry.idx).padStart(4, "0")}_snapshot.json`));
+    }
+    journal.entries = journal.entries.filter((entry) => entry.idx < locationsEntry.idx);
     await writeFile(journalPath, JSON.stringify(journal, null, 2));
     return folder;
   }

@@ -224,13 +224,18 @@ export const sessions = pgTable(
 export const passkeyManagementChallengeKind = pgEnum("passkey_management_challenge_kind", [
   "registration",
   "removal",
+  // Step-up reauthentication an Administrator must pass before `POST /users` creates a new
+  // backoffice user (issue #247): challenged against the Administrator's own passkeys, exactly
+  // like `removal`, never against the user being created (who has none yet).
+  "user_creation",
 ]);
 
-// One row per open session with a pending passkey self-management challenge (issue #169):
-// registering or removing a passkey always requires a fresh reauthentication with one of the
-// account's existing passkeys, so `reauthentication_challenge` is always set; `registration`
-// additionally stores `registration_challenge` for the new credential itself, which stays null for
-// a `removal` row. Keyed by `session_id` rather than by challenge value the way
+// One row per open session with a pending passkey self-management (or step-up) challenge (issue
+// #169, extended by #247): registering or removing a passkey, or creating a new backoffice user,
+// always requires a fresh reauthentication with one of the account's existing passkeys, so
+// `reauthentication_challenge` is always set; `registration` additionally stores
+// `registration_challenge` for the new credential itself, which stays null for a `removal` or
+// `user_creation` row. Keyed by `session_id` rather than by challenge value the way
 // `sign_in_challenges` is, because these options requests are never discoverable (an open session
 // already identifies the account): `passkey_challenges_session_id_key` allows only one live row
 // per session, so a fresh options request replaces whatever that session had pending. A row is
