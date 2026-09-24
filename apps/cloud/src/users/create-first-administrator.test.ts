@@ -1,7 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { auditLog, roles, userRoles, users } from "../db/schema.js";
+import { auditLog, locations, roles, userRoles, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   createFirstAdministrator,
   FirstAdministratorAlreadyBootstrappedError,
@@ -68,6 +69,21 @@ describe("createFirstAdministrator", () => {
     });
   });
 
+  it("assigns the created Administrator to the seeded location", async () => {
+    const [seededLocation] = await db.select({ id: locations.id }).from(locations);
+    if (!seededLocation) {
+      throw new Error("test setup: no location seeded");
+    }
+
+    const result = await createFirstAdministrator(db, {
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    const [createdUser] = await db.select().from(users).where(eq(users.id, result.id));
+    expect(createdUser).toMatchObject({ locationId: seededLocation.id });
+  });
+
   it("trims the name and trims and lowercases the email", async () => {
     const result = await createFirstAdministrator(db, {
       name: "  Ada Lovelace  ",
@@ -100,7 +116,11 @@ describe("createFirstAdministrator", () => {
   });
 
   it("refuses when any user already exists, even one without a role", async () => {
-    await db.insert(users).values({ firstName: "Plain Cashier", email: "cashier@example.com" });
+    await db.insert(users).values({
+      firstName: "Plain Cashier",
+      email: "cashier@example.com",
+      locationId: await seededLocationId(db),
+    });
 
     await expect(
       createFirstAdministrator(db, { name: "Ada Lovelace", email: "ada@example.com" }),

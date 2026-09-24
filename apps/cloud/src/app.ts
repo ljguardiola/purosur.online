@@ -18,6 +18,10 @@ import { registerSessionAuthenticationOptionsRoute } from "./session/session-aut
 import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
+import { registerUserCreationRoutes } from "./users/user-creation-route.js";
+import { registerUserReadRoute } from "./users/user-read-route.js";
+import type { UsersRouteOptions } from "./users/users-list-route.js";
+import { registerUsersListRoute } from "./users/users-list-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   /** The deployed version (commit SHA), reported by `GET /health`. */
@@ -57,6 +61,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * own passkeys (issue #169), the same optional-feature-wiring shape `session` uses above.
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, and `POST /users`,
+   * the backoffice Users screen's read and create sides (issue #247): every one is
+   * Administrator-only and scoped to the session's own branch, the same optional-feature-wiring
+   * shape `session` uses above.
+   */
+  users?: UsersRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -113,6 +124,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerPasskeysListRoute(app, options.passkeys);
     registerPasskeyRegistrationRoutes(app, options.passkeys);
     registerPasskeyRemovalRoutes(app, options.passkeys);
+  }
+
+  if (options.users) {
+    registerUsersListRoute(app, options.users);
+    registerUserReadRoute(app, options.users);
+    registerUserCreationRoutes(app, options.users);
   }
 
   const staticDir = options.staticDir;

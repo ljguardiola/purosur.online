@@ -63,6 +63,8 @@ export type {
   SegmentedControlSize,
 } from "./components/SegmentedControl";
 export { SegmentedControl } from "./components/SegmentedControl";
+export type { SelectOption, SelectProps } from "./components/Select";
+export { Select } from "./components/Select";
 export type { StatusIndicatorProps, StatusIndicatorTone } from "./components/StatusIndicator";
 export { StatusIndicator } from "./components/StatusIndicator";
 export type { SummaryRowProps } from "./components/SummaryRow";

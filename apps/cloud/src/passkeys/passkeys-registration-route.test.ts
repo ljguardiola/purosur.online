@@ -19,6 +19,7 @@ import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { PASSKEY_CHALLENGE_TTL_MS } from "./passkey-challenge.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys-registration-route.js";
 
@@ -57,7 +58,11 @@ beforeEach(async () => {
 
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com" })
+    .values({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      locationId: await seededLocationId(db),
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("seeding the test user returned no row");
@@ -513,7 +518,11 @@ describe("POST /users/passkeys", () => {
   it("rejects a reauthentication carrying another account's credential, storing nothing", async () => {
     const [strangerUser] = await db
       .insert(users)
-      .values({ firstName: "Grace Hopper", email: "grace@example.com" })
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
       .returning({ id: users.id });
     if (!strangerUser) {
       throw new Error("test setup: seeding the stranger user returned no row");

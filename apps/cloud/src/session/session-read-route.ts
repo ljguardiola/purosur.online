@@ -13,8 +13,9 @@ export interface SessionReadRouteOptions<TQueryResult extends PgQueryResultHKT> 
  * Registers `GET /users/session`: resolves the session cookie through the shared
  * `requireOpenSession` helper (idle/absolute expiry, `last_seen_at` touch, deactivated-account
  * check) and returns the signed-in user's identity, plus the session's deadline (computed after
- * the touch) so the client can schedule its next status probe. Answers 401 `unauthenticated` when
- * no open session is found.
+ * the touch) so the client can schedule its next status probe, and whether they're an
+ * Administrator, so the backoffice's Users screen shows its no-access notice without a request
+ * that would only answer 403. Answers 401 `unauthenticated` when no open session is found.
  */
 export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -39,6 +40,7 @@ export function registerSessionReadRoute<TQueryResult extends PgQueryResultHKT>(
       user_id: openSession.userId,
       display_name: openSession.firstName,
       expires_at: sessionExpiresAt(openSession).toISOString(),
+      is_administrator: openSession.isAdministrator,
     });
   });
 }

@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { recoveryRejectedAttemptAccumulator, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import type { RecoveryJobQueue, RecoveryRequest } from "./recovery-job-queue.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { registerRecoveryRoutes } from "./request-recovery-route.js";
@@ -213,7 +214,11 @@ describe("POST /users/recovery/request", () => {
 
   describe("grouped audit of rate-limited rejections", () => {
     it("upserts the accumulator instead of enqueuing a job, without looking a registered address up", async () => {
-      await db.insert(users).values({ firstName: "Ada", email: "ada@example.com" });
+      await db.insert(users).values({
+        firstName: "Ada",
+        email: "ada@example.com",
+        locationId: await seededLocationId(db),
+      });
       for (let i = 0; i < 5; i++) {
         await post({ email: "ada@example.com" }, { "x-real-ip": `203.0.113.${i}` });
       }

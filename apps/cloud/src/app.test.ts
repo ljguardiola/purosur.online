@@ -436,6 +436,63 @@ describe("wiring the session routes", () => {
   });
 });
 
+describe("wiring the users routes", () => {
+  it("does not register the users routes when no users option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/users" });
+    const read = await app.inject({
+      method: "GET",
+      url: "/users/00000000-0000-0000-0000-000000000000",
+    });
+    const creationOptions = await app.inject({
+      method: "POST",
+      url: "/users/creation-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const create = await app.inject({
+      method: "POST",
+      url: "/users",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(read.statusCode).toBe(404);
+    expect(creationOptions.statusCode).toBe(404);
+    expect(create.statusCode).toBe(404);
+  });
+
+  it("registers the users routes when a users option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      users: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/users" });
+    const read = await app.inject({
+      method: "GET",
+      url: "/users/00000000-0000-0000-0000-000000000000",
+    });
+    const creationOptions = await app.inject({
+      method: "POST",
+      url: "/users/creation-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const create = await app.inject({
+      method: "POST",
+      url: "/users",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401
+    // instead of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(read.statusCode).toBe(401);
+    expect(creationOptions.statusCode).toBe(401);
+    expect(create.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /users/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });

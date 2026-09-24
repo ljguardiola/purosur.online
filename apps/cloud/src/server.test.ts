@@ -2,7 +2,9 @@ import { EventEmitter } from "node:events";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import {
   closeRecoveryResources,
   createRecoveryJobQueuePool,
@@ -334,6 +336,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      users: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
     });
 
     expect(onCloseHooks).toHaveLength(1);
@@ -343,6 +349,64 @@ describe("startServer", () => {
     }
     await onClose();
     expect(close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("startServer with the real app", () => {
+  const dirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("serves the Users API routes, not the backoffice's index.html, once a database is configured", async () => {
+    const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-users-"));
+    dirs.push(staticDir);
+    writeFileSync(join(staticDir, "index.html"), "<!doctype html>");
+    const builtApps: FastifyInstance[] = [];
+    const buildAppWithoutListening = (options: BuildAppOptions): FastifyInstance => {
+      const app = buildRealApp(options);
+      app.listen = vi.fn().mockResolvedValue("") as unknown as FastifyInstance["listen"];
+      builtApps.push(app);
+      return app;
+    };
+    const setUpRecovery = vi.fn().mockResolvedValue({
+      db: {},
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      close: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const app = await startServer(
+      {
+        DATABASE_URL: "postgres://user:pass@db/purosur",
+        RESEND_API_KEY: "re_test_key",
+        RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+        RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+        BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+        EDGE_ORIGIN_SECRET: "edge-secret",
+        BACKOFFICE_STATIC_DIR: staticDir,
+      },
+      { initSentry: vi.fn(), buildApp: buildAppWithoutListening, setUpRecovery },
+    );
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/users",
+        headers: { "x-edge-origin-secret": "edge-secret" },
+      });
+
+      // No session cookie was sent, so the route's own 401 answers before any database read.
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "unauthenticated" });
+      expect(builtApps).toEqual([app]);
+    } finally {
+      await app.close();
+    }
   });
 });
 

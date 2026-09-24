@@ -24,6 +24,7 @@ import {
 } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session-authentication-options-route.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
@@ -75,7 +76,11 @@ beforeEach(async () => {
 
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com" })
+    .values({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      locationId: await seededLocationId(db),
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("seeding the test user returned no row");
@@ -289,7 +294,11 @@ describe("POST /users/session/authenticate", () => {
     // real, valid credential that the `passkeys` table simply has no row for.
     const [strangerUser] = await db
       .insert(users)
-      .values({ firstName: "Grace Hopper", email: "grace@example.com" })
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
       .returning({ id: users.id });
     if (!strangerUser) {
       throw new Error("test setup: seeding the stranger user returned no row");

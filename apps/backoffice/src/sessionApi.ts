@@ -12,7 +12,13 @@ const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
 const BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =
-  | { kind: "ok"; userId: string; displayName: string; expiresAt?: string }
+  | {
+      kind: "ok";
+      userId: string;
+      displayName: string;
+      isAdministrator: boolean;
+      expiresAt?: string;
+    }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
@@ -74,12 +80,14 @@ export async function fetchSession(): Promise<SessionOutcome> {
   const body = (await response.json()) as {
     user_id: string;
     display_name: string;
+    is_administrator: boolean;
     expires_at?: string;
   };
   return {
     kind: "ok",
     userId: body.user_id,
     displayName: body.display_name,
+    isAdministrator: body.is_administrator,
     ...(body.expires_at !== undefined ? { expiresAt: body.expires_at } : {}),
   };
 }

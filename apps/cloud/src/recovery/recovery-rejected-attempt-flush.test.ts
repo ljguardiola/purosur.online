@@ -7,6 +7,7 @@ import {
   recoveryTokens,
   users,
 } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";
@@ -40,7 +41,7 @@ function mustExist<T>(value: T | undefined | null, description: string): T {
 async function insertUser(email: string): Promise<string> {
   const [row] = await db
     .insert(users)
-    .values({ firstName: "Ada", email })
+    .values({ firstName: "Ada", email, locationId: await seededLocationId(db) })
     .returning({ id: users.id });
   return mustExist(row, "inserting the user to return a row").id;
 }

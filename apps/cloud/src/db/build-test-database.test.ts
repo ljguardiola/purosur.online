@@ -3,10 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
   backofficeRateLimitAttempts,
+  locations,
   passkeyChallenges,
   passkeys,
   recoveryRateLimitAttempts,
@@ -107,18 +109,24 @@ describe("buildTestDatabase", () => {
     const baseline = await countsByTable(client);
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
-    // The migrations seed the single Administrator role; the baseline must hold it for the
-    // comparison below to prove clear() restores it.
+    // The migrations seed the single Administrator role and the single location; the baseline
+    // must hold both for the comparison below to prove clear() restores them.
     expect(baseline.get("roles")).toBe(1);
+    expect(baseline.get("locations")).toBe(1);
 
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada", email: "ada@example.com" })
+      .values({
+        firstName: "Ada",
+        email: "ada@example.com",
+        locationId: await seededLocationId(db),
+      })
       .returning({ id: users.id });
     const [role] = await db
       .insert(roles)
       .values({ name: "Cashier", isAdministrator: false })
       .returning({ id: roles.id });
+    await db.insert(locations).values({});
     if (!user || !role) {
       throw new Error("seeding users/roles returned no row");
     }
@@ -192,14 +200,15 @@ describe("buildTestDatabase", () => {
   it("removes a row on clear(), so its unique values can be inserted again", async () => {
     const { db, clear } = testDatabase;
     onTestFinished(clear);
-    await db.insert(users).values({ firstName: "Grace", email: "grace@example.com" });
+    const locationId = await seededLocationId(db);
+    await db.insert(users).values({ firstName: "Grace", email: "grace@example.com", locationId });
 
     await clear();
 
     // The email is unique: reinserting it only succeeds because clear() actually removed the row.
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Grace", email: "grace@example.com" })
+      .values({ firstName: "Grace", email: "grace@example.com", locationId })
       .returning({ id: users.id });
     expect(user).toBeDefined();
   });

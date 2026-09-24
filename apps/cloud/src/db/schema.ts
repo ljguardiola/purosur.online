@@ -14,6 +14,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+// The business runs a single branch today; every user belongs to it. The migration seeds this
+// table's one row (like the Administrator role below) and backfills every existing user onto it.
+export const locations = pgTable("locations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+});
+
 export const users = pgTable(
   "users",
   {
@@ -21,6 +27,9 @@ export const users = pgTable(
     firstName: text("first_name").notNull(),
     email: text("email").notNull(),
     active: boolean("active").notNull().default(true),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],
 );
@@ -56,7 +65,11 @@ export const userRoles = pgTable(
       .notNull()
       .references(() => roles.id),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.roleId] })],
+  (table) => [
+    primaryKey({ columns: [table.userId, table.roleId] }),
+    // A user holds exactly one role.
+    uniqueIndex("user_roles_user_id_key").on(table.userId),
+  ],
 );
 
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
@@ -211,13 +224,18 @@ export const sessions = pgTable(
 export const passkeyManagementChallengeKind = pgEnum("passkey_management_challenge_kind", [
   "registration",
   "removal",
+  // Step-up reauthentication an Administrator must pass before `POST /users` creates a new
+  // backoffice user (issue #247): challenged against the Administrator's own passkeys, exactly
+  // like `removal`, never against the user being created (who has none yet).
+  "user_creation",
 ]);
 
-// One row per open session with a pending passkey self-management challenge (issue #169):
-// registering or removing a passkey always requires a fresh reauthentication with one of the
-// account's existing passkeys, so `reauthentication_challenge` is always set; `registration`
-// additionally stores `registration_challenge` for the new credential itself, which stays null for
-// a `removal` row. Keyed by `session_id` rather than by challenge value the way
+// One row per open session with a pending passkey self-management (or step-up) challenge (issue
+// #169, extended by #247): registering or removing a passkey, or creating a new backoffice user,
+// always requires a fresh reauthentication with one of the account's existing passkeys, so
+// `reauthentication_challenge` is always set; `registration` additionally stores
+// `registration_challenge` for the new credential itself, which stays null for a `removal` or
+// `user_creation` row. Keyed by `session_id` rather than by challenge value the way
 // `sign_in_challenges` is, because these options requests are never discoverable (an open session
 // already identifies the account): `passkey_challenges_session_id_key` allows only one live row
 // per session, so a fresh options request replaces whatever that session had pending. A row is

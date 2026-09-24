@@ -12,6 +12,7 @@ import {
 import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { type RecoveryInfrastructure, setUpRecovery, startServer } from "../server.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { findFreePort } from "./find-free-port.js";
 import type { RecoveryEmailSender, SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import {
@@ -69,7 +70,7 @@ async function seedActiveUser(databaseUrl: string, email: string): Promise<strin
     const db = drizzle(sql);
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email })
+      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the active user returned no row");

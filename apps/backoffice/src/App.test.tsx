@@ -11,6 +11,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       kind: "ok",
       userId: "user-1",
       displayName: "Lucas Guardiola",
+      isAdministrator: true,
     }),
     // Never resolves by default: most tests here are about something else, and run well under the
     // watcher's interval anyway.
@@ -34,6 +35,12 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       removePasskey: vi.fn(),
       startAuthentication: vi.fn(),
       startRegistration: vi.fn(),
+    },
+    usersListScreen: {
+      fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchUserCreationChallenge: vi.fn(),
+      createUser: vi.fn(),
+      startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     ...overrides,
@@ -391,6 +398,43 @@ test("following the account name link from Help shows Mi cuenta", async () => {
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/users/me");
+});
+
+test("following the sidebar's Usuarios item from Mi cuenta opens the Users list, with Mi cuenta still reachable from the account name", async () => {
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  await userEvent.click(screen.getByRole("link", { name: "Usuarios" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users");
+  expect(services.usersListScreen.fetchUsers).toHaveBeenCalled();
+
+  await userEvent.click(screen.getByRole("link", { name: "Lucas Guardiola" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+});
+
+test("shows a forbidden notice, without listing users, for a signed-in non-Administrator", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+    }),
+  });
+  window.history.pushState(null, "", "/settings/users");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+  expect(services.usersListScreen.fetchUsers).not.toHaveBeenCalled();
 });
 
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {

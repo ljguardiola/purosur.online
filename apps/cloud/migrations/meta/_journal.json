@@ -78,6 +78,20 @@
       "when": 1790187840269,
       "tag": "0010_backoffice_rate_limit_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790255033872,
+      "tag": "0011_locations",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790256402941,
+      "tag": "0012_passkey_challenge_user_creation_kind",
+      "breakpoints": true
     }
   ]
 }

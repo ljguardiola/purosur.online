@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { recoveryTokens, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { processRecoveryRequestJob } from "./process-recovery-request-job.js";
 import {
   createIntegrationDatabase,
@@ -35,7 +36,7 @@ describe("recovery-request jobs for the same account running concurrently agains
     const email = `ada-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email })
+      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");
