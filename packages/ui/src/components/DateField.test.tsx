@@ -211,6 +211,23 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  test(`shows the hand cursor on the calendar toggle button, and the arrow once the field is disabled, in the ${variant} variant`, async () => {
+    const enabledScreen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const enabledToggle = fieldGroup(enabledScreen, "Expiry").querySelector(
+      "button",
+    ) as HTMLElement;
+    expect(getComputedStyle(enabledToggle).cursor).toBe("pointer");
+    await enabledScreen.unmount();
+
+    const disabledScreen = await render(
+      <DateFieldHarness variant={variant} label="Expiry" disabled />,
+    );
+    const disabledToggle = fieldGroup(disabledScreen, "Expiry").querySelector(
+      "button",
+    ) as HTMLElement;
+    expect(getComputedStyle(disabledToggle).cursor).toBe("default");
+  });
 }
 
 test("marks the helper line as disabled too when the field itself is disabled", async () => {
@@ -569,9 +586,25 @@ test("dims the calendar's month controls once the allowed range reaches no furth
   // controls that silently do nothing.
   expect(getComputedStyle(previous).opacity).toBe("0.45");
   expect(getComputedStyle(next).opacity).toBe("0.45");
+  // The hand cursor promises a control that responds; neither one does here.
+  expect(getComputedStyle(previous).cursor).toBe("default");
+  expect(getComputedStyle(next).cursor).toBe("default");
 
   await userEvent.hover(previous);
   expect(getComputedStyle(previous).backgroundColor).not.toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the hand cursor on the calendar's month controls while the range still reaches further", async () => {
+  const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const previous = dialog.querySelector('[slot="previous"]') as HTMLElement;
+  const next = dialog.querySelector('[slot="next"]') as HTMLElement;
+
+  expect(getComputedStyle(previous).cursor).toBe("pointer");
+  expect(getComputedStyle(next).cursor).toBe("pointer");
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -613,6 +646,34 @@ test("shows an unchosen day in ink that turns bone on hover", async () => {
   await expect
     .poll(() => getComputedStyle(unchosen).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the hand cursor on a selectable day and the arrow on a day outside the allowed range", async () => {
+  function ControlledHarness() {
+    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+    return (
+      <DateField
+        variant="register"
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={new CalendarDate(2027, 2, 10)}
+        maxValue={new CalendarDate(2027, 2, 20)}
+        rangeMessage="The date must be between 10/02/2027 and 20/02/2027."
+      />
+    );
+  }
+  const screen = await render(<ControlledHarness />);
+  const dialog = await openCalendar(screen, "Expiry");
+
+  const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
+  const selectable = cells.find((cell) => cell.textContent?.trim() === "15") as HTMLElement;
+  const outOfRange = cells.find((cell) => cell.textContent?.trim() === "5") as HTMLElement;
+
+  expect(getComputedStyle(selectable).cursor).toBe("pointer");
+  expect(getComputedStyle(outOfRange).cursor).toBe("default");
 
   await expectNoAccessibilityViolations(document.body);
 });

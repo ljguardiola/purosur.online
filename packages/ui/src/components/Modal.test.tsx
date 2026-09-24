@@ -421,6 +421,15 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("shows the hand cursor on the close button", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
+  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+
+  expect(getComputedStyle(closeButton).cursor).toBe("pointer");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("turns the close button's background sand on hover", async () => {
   const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
   const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;

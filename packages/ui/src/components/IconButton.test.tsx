@@ -137,6 +137,23 @@ test("dims to the design's 45% opacity when disabled", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the hand cursor when enabled and the arrow cursor when disabled", async () => {
+  const enabledScreen = await render(<IconButton aria-label="Delete row" icon={<Trash2 />} />);
+  const enabledButton = enabledScreen
+    .getByRole("button", { name: "Delete row" })
+    .element() as HTMLElement;
+  expect(getComputedStyle(enabledButton).cursor).toBe("pointer");
+  await enabledScreen.unmount();
+
+  const disabledScreen = await render(
+    <IconButton aria-label="Delete row" icon={<Trash2 />} isDisabled />,
+  );
+  const disabledButton = disabledScreen
+    .getByRole("button", { name: "Delete row" })
+    .element() as HTMLElement;
+  expect(getComputedStyle(disabledButton).cursor).toBe("default");
+});
+
 test("does not accept an icon button without an accessible name", () => {
   expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<IconButtonProps>();
 });

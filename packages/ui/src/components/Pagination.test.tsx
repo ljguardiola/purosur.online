@@ -350,6 +350,19 @@ test("keeps Next focusable, tab-reachable, dimmed and marked unavailable on the 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the hand cursor on a page button and an available nav button, the arrow on an unavailable one", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
+  const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
+  const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
+  const page = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(previous).cursor).toBe("default");
+  expect(getComputedStyle(next).cursor).toBe("pointer");
+  expect(getComputedStyle(page).cursor).toBe("pointer");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not paint the hover background while Previous is unavailable at page 1, unlike an available Next", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
   const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
