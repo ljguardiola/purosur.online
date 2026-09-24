@@ -252,7 +252,24 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     // failed write can never leave behind a live session whose cookie nobody ever received.
     const previousRawSessionId = readSessionCookie(request.headers.cookie);
     const rawSessionId = generateSessionId();
-    await options.db.transaction(async (tx) => {
+    const opened = await options.db.transaction(async (tx) => {
+      // Updated first, taking the passkey's row lock before any session exists: a removal that
+      // committed in the meantime leaves nothing to update and no session is opened, and one still
+      // waiting for the lock ends the session opened here once this commits.
+      const [usedPasskey] = await tx
+        .update(passkeys)
+        .set({
+          lastUsedAt: attemptedAt,
+          ...(authenticationInfo.newCounter !== passkey.counter
+            ? { counter: authenticationInfo.newCounter }
+            : {}),
+        })
+        .where(eq(passkeys.id, passkey.id))
+        .returning({ id: passkeys.id });
+      if (!usedPasskey) {
+        return false;
+      }
+
       if (previousRawSessionId) {
         await tx
           .update(sessions)
@@ -267,20 +284,15 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         lastSeenAt: attemptedAt,
       });
 
-      await tx
-        .update(passkeys)
-        .set({
-          lastUsedAt: attemptedAt,
-          ...(authenticationInfo.newCounter !== passkey.counter
-            ? { counter: authenticationInfo.newCounter }
-            : {}),
-        })
-        .where(eq(passkeys.id, passkey.id));
-
       // This attempt was no rejected sign-in, so it gives its slot of the address's lockout
       // budget back: only server-rejected attempts count toward the block.
       await discardSignInAttempt(tx, admission.attemptId);
+      return true;
     });
+    if (!opened) {
+      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+      return;
+    }
 
     await reply.header("Set-Cookie", serializeSessionCookie(rawSessionId)).code(200).send();
   });

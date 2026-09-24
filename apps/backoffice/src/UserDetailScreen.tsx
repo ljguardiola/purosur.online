@@ -619,7 +619,9 @@ export function UserDetailScreen({
   }, [isAdministrator, load]);
 
   const heading = state.kind === "loaded" ? state.user.firstName : detailMessages.heading;
-  const isOwnAccount = signedInUserId === userId;
+  // The cloud accepts a user id in any letter case, so the id in the URL may differ in case
+  // from the session's own.
+  const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
 
   return (
     <>

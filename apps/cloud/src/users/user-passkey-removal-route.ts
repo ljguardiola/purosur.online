@@ -207,22 +207,22 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       }
 
       const passkeyId = request.params.passkeyId;
-      const targetPasskey = UUID_PATTERN.test(passkeyId)
-        ? (
-            await options.db
-              .select({ id: passkeys.id, name: passkeys.name })
-              .from(passkeys)
-              .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, target.id)))
-              .limit(1)
-          )[0]
-        : undefined;
-      if (!targetPasskey) {
+      if (!UUID_PATTERN.test(passkeyId)) {
         await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
         return;
       }
 
-      await options.db.transaction(async (tx) => {
-        await tx.delete(passkeys).where(eq(passkeys.id, targetPasskey.id));
+      const removed = await options.db.transaction(async (tx) => {
+        // Deleting first takes the passkey's row lock before anything else: a concurrent removal
+        // of the same passkey then deletes nothing and answers not_found, and a sign-in with it
+        // that got the lock first has committed its session before the sessions below are ended.
+        const [removedPasskey] = await tx
+          .delete(passkeys)
+          .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, target.id)))
+          .returning({ id: passkeys.id, name: passkeys.name });
+        if (!removedPasskey) {
+          return undefined;
+        }
 
         // A session already open on a lost device must not outlive its passkey, so every session
         // of the target ends here, the same way a redeemed recovery link ends every session on the
@@ -234,12 +234,17 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
 
         await tx.insert(auditLog).values({
           entity: "passkey",
-          entityId: targetPasskey.id,
+          entityId: removedPasskey.id,
           actorId: openSession.userId,
-          previousValue: { id: targetPasskey.id, name: targetPasskey.name, userId: target.id },
+          previousValue: { id: removedPasskey.id, name: removedPasskey.name, userId: target.id },
           newValue: null,
         });
+        return removedPasskey;
       });
+      if (!removed) {
+        await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
+        return;
+      }
 
       await reply.code(200).send();
     },

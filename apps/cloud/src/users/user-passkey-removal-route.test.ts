@@ -742,6 +742,34 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     expect(authenticateResponse.json()).toMatchObject({ code: "authentication_failed" });
   });
 
+  it("answers not_found to a second removal of an already removed passkey, auditing only the first", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const firstReauthentication = await reauthenticationFor(targetId, rawSessionId, adminEmulator);
+    const first = await removePasskey(targetId, targetPasskeyAId, rawSessionId, {
+      reauthentication: firstReauthentication,
+    });
+    expect(first.statusCode).toBe(200);
+    const secondReauthentication = await reauthenticationFor(targetId, rawSessionId, adminEmulator);
+
+    const second = await removePasskey(targetId, targetPasskeyAId, rawSessionId, {
+      reauthentication: secondReauthentication,
+    });
+
+    expect(second.statusCode).toBe(404);
+    expect(second.json()).toMatchObject({ code: "not_found" });
+    const audited = await db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entity, "passkey"),
+          eq(auditLog.entityId, targetPasskeyAId),
+          isNull(auditLog.newValue),
+        ),
+      );
+    expect(audited).toHaveLength(1);
+  });
+
   it("allows removing the target's only remaining passkey", async () => {
     const rawSessionId = await insertSession(administratorId);
     const firstReauthentication = await reauthenticationFor(targetId, rawSessionId, adminEmulator);

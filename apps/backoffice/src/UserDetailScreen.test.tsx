@@ -614,6 +614,31 @@ test("shows no remove button on the signed-in Administrator's own passkeys", asy
   ).toBeNull();
 });
 
+test("shows no remove button on the Administrator's own passkeys when the id arrives in another case", async () => {
+  const signedInUserId = "3f2b8c1e-9d4a-4e6b-8a7c-1b2d3e4f5a6b";
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, id: signedInUserId },
+  });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [notebook, phone],
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    signedInUserId.toUpperCase(),
+    signedInUserId,
+  );
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
+  ).toBeNull();
+});
+
 async function openRemoveModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
   return screen.getByRole("dialog");
