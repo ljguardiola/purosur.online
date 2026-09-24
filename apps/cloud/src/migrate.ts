@@ -62,17 +62,25 @@ export interface WaitForDatabaseOptions {
   sleep: (ms: number) => Promise<void>;
   now: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
+  /**
+   * Which errors from `probe` mean "not ready yet" rather than fatal. Defaults to
+   * `isRetryableConnectionError`; `wait-for-ready.ts` widens this to also retry the schema not
+   * being at the expected version yet, and the app role's own connection not being ready yet.
+   */
+  isRetryable?: (error: unknown) => boolean;
 }
 
 /**
- * Calls `probe` until it resolves, retrying only retryable connection failures on `intervalMs`
- * until `budgetSeconds` has elapsed, then rejects with the last such error. Any non-retryable
- * error from `probe` is rethrown immediately, without waiting.
+ * Calls `probe` until it resolves, retrying only retryable failures (`isRetryable`, defaulting to
+ * `isRetryableConnectionError`) on `intervalMs` until `budgetSeconds` has elapsed, then rejects
+ * with the last such error. Any non-retryable error from `probe` is rethrown immediately, without
+ * waiting.
  */
 export async function waitForDatabase(
   probe: (remainingMs: number) => Promise<unknown>,
   options: WaitForDatabaseOptions,
 ): Promise<void> {
+  const isRetryable = options.isRetryable ?? isRetryableConnectionError;
   const start = options.now();
   const deadline = start + options.budgetSeconds * 1000;
 
@@ -81,7 +89,7 @@ export async function waitForDatabase(
       await probe(Math.max(deadline - options.now(), 0));
       return;
     } catch (error) {
-      if (!isRetryableConnectionError(error)) {
+      if (!isRetryable(error)) {
         throw error;
       }
       const remainingMs = deadline - options.now();
@@ -120,6 +128,29 @@ function logWaiting(error: unknown, elapsedMs: number): void {
 }
 
 /**
+ * Grants `cloud_app` a policy matching the unrestricted access its owner already has on every one
+ * of graphile-worker's own tables that has row-level security enabled (its job, queue, task, and
+ * cron bookkeeping tables). graphile-worker enables row-level security on these with no policy of
+ * its own, which Postgres reads as deny-all for every role except the table's owner: without this,
+ * `cloud_app` would hold the table grants below yet still be refused every row by row-level
+ * security itself, the moment it is not also the owning (migrating) role.
+ */
+async function grantCloudAppGraphileWorkerRowSecurityAccess(sql: postgres.Sql): Promise<void> {
+  const rowSecurityTables = await sql<{ tablename: string }[]>`
+    select tablename from pg_tables
+    where schemaname = ${GRAPHILE_WORKER_SCHEMA} and rowsecurity
+  `;
+  for (const { tablename } of rowSecurityTables) {
+    await sql.unsafe(
+      `drop policy if exists cloud_app_full_access on ${GRAPHILE_WORKER_SCHEMA}.${tablename}`,
+    );
+    await sql.unsafe(
+      `create policy cloud_app_full_access on ${GRAPHILE_WORKER_SCHEMA}.${tablename} for all to ${CLOUD_APP_ROLE} using (true) with check (true)`,
+    );
+  }
+}
+
+/**
  * Grants `cloud_app` ordinary read/write on graphile-worker's own schema: unlike `audit_log`,
  * nothing here needs to be append-only, since it is job-queue bookkeeping, not an audit trail.
  */
@@ -134,6 +165,42 @@ async function grantCloudAppGraphileWorkerAccess(sql: postgres.Sql): Promise<voi
   await sql.unsafe(
     `grant execute on all functions in schema ${GRAPHILE_WORKER_SCHEMA} to ${CLOUD_APP_ROLE}`,
   );
+  await grantCloudAppGraphileWorkerRowSecurityAccess(sql);
+}
+
+// `ALTER ROLE` updates a row in the cluster-wide (shared across every database) `pg_authid`
+// catalog with a plain, non-blocking catalog write: two databases racing to migrate at once (the
+// integration test suite migrates several databases concurrently, each setting this same
+// cluster-wide role's password) can both attempt that write for `cloud_app` at once, and the
+// loser gets this internal, code-less "tuple concurrently updated" failure instead of waiting for
+// a lock. It is safe to just retry: by the next attempt, the winner's write has already committed.
+const CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS = 5;
+
+export function isConcurrentCatalogUpdateError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  return (
+    code === "XX000" &&
+    typeof message === "string" &&
+    message.includes("tuple concurrently updated")
+  );
+}
+
+async function retryOnConcurrentCatalogUpdate<T>(run: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run();
+    } catch (error) {
+      if (
+        attempt >= CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS ||
+        !isConcurrentCatalogUpdateError(error)
+      ) {
+        throw error;
+      }
+    }
+  }
 }
 
 /**
@@ -151,7 +218,7 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
   if (!row) {
     throw new Error("migrate: building the cloud_app password statement returned no row");
   }
-  await sql.unsafe(row.statement);
+  await retryOnConcurrentCatalogUpdate(() => sql.unsafe(row.statement));
 }
 
 /**

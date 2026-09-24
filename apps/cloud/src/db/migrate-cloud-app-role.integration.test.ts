@@ -1,15 +1,20 @@
 import { randomUUID } from "node:crypto";
+import { makeWorkerUtils } from "graphile-worker";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { runMigrations } from "../migrate.js";
+import { CLOUD_APP_PASSWORD } from "../recovery/recovery-integration-database.js";
 
 // Proves the real production wiring `runMigrations` sets up against a real Postgres: the
 // `cloud_app` role its migration creates can insert and read `audit_log`, but the database
 // itself refuses every attempt to rewrite or erase a row already written there, even one that
 // tries to grant itself that power back. PGlite's own tests cover that the migration SQL applies
 // cleanly; this suite covers what the role can and cannot do against a real Postgres.
+//
+// Shares its password with `recovery-integration-database.ts`: `cloud_app` is one cluster-wide
+// role, and this suite's own migrations race that helper's across every other integration test
+// file's database, so both must agree on the exact same password (see that constant's comment).
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
-const CLOUD_APP_PASSWORD = "cloud-app-role-integration-test-password";
 const PERMISSION_DENIED = "42501";
 
 function databaseUrlFor(adminUrl: string, databaseName: string): string {
@@ -32,6 +37,7 @@ async function expectPermissionDenied(promise: Promise<unknown>): Promise<void> 
 describe("the cloud_app role runMigrations creates", () => {
   let adminUrl: string;
   let databaseName: string;
+  let cloudAppUrl: string;
   let cloudApp: postgres.Sql;
 
   beforeAll(async () => {
@@ -48,7 +54,8 @@ describe("the cloud_app role runMigrations creates", () => {
     const databaseUrl = databaseUrlFor(adminUrl, databaseName);
     await runMigrations(databaseUrl, CLOUD_APP_PASSWORD, { migrationsFolder: MIGRATIONS_FOLDER });
 
-    cloudApp = postgres(asCloudApp(databaseUrl), { max: 1 });
+    cloudAppUrl = asCloudApp(databaseUrl);
+    cloudApp = postgres(cloudAppUrl, { max: 1 });
   }, 60_000);
 
   afterAll(async () => {
@@ -136,5 +143,14 @@ describe("the cloud_app role runMigrations creates", () => {
   it("reads drizzle's own migrations bookkeeping table", async () => {
     const rows = await cloudApp<{ hash: string }[]>`select hash from drizzle.__drizzle_migrations`;
     expect(rows.length).toBeGreaterThan(0);
+  });
+
+  // graphile-worker checks its own schema is current every time it starts (`makeWorkerUtils`,
+  // `run()`), which `server.ts` does as `cloud_app` at runtime. `runMigrations` already applied
+  // graphile-worker's migrations as the admin role above, so this check finds nothing left to
+  // install and never needs to run any DDL as `cloud_app` (which it has no privilege for).
+  it("starts graphile-worker as cloud_app without it needing any DDL privilege", async () => {
+    const workerUtils = await makeWorkerUtils({ connectionString: cloudAppUrl });
+    await workerUtils.release();
   });
 });

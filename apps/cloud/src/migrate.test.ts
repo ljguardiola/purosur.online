@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, inject, it, vi } from "vitest";
 import {
+  isConcurrentCatalogUpdateError,
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
   runMigrations,
@@ -317,5 +318,35 @@ describe("isRetryableConnectionError", () => {
 
   it("does not treat a non-error value as retryable", () => {
     expect(isRetryableConnectionError("boom")).toBe(false);
+  });
+});
+
+describe("isConcurrentCatalogUpdateError", () => {
+  it("treats Postgres's own code-less concurrent catalog write conflict as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("tuple concurrently updated"), { code: "XX000" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not treat another XX000 internal error as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("unexpected internal error"), { code: "XX000" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not treat the same message under a different code as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("tuple concurrently updated"), { code: "40001" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not treat a non-error value as one", () => {
+    expect(isConcurrentCatalogUpdateError("boom")).toBe(false);
   });
 });

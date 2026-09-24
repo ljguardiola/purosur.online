@@ -1,12 +1,14 @@
 -- Roles are cluster-wide in Postgres, and the integration test suite creates many databases in
 -- one container, migrating several of them at once, so two migrations can both see the role
--- missing and race to create it; the nested block catches the loser's "role already exists"
--- (duplicate_object) instead of failing the migration.
+-- missing and race to create it. The loser normally fails with "role already exists"
+-- (duplicate_object, 42710) once it looks the name up again, but a tight enough race instead
+-- surfaces as the underlying catalog index rejecting the second physical insert
+-- (unique_violation, 23505); the nested block catches both instead of failing the migration.
 DO $$
 BEGIN
   BEGIN
     CREATE ROLE cloud_app NOLOGIN;
-  EXCEPTION WHEN duplicate_object THEN
+  EXCEPTION WHEN duplicate_object OR unique_violation THEN
     NULL;
   END;
 END
