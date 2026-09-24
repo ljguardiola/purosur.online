@@ -1,9 +1,8 @@
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { rgbToHex, tokenRgb } from "../test/token-colors";
+import { tokenRgb } from "../test/token-colors";
 import { Select, type SelectOption, type SelectProps } from "./Select";
 
 type Role = "administrator" | "shift-lead" | "cashier";
@@ -188,42 +187,120 @@ test("dims the field and blocks focus when disabled", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a visible focus outline in strong blue when reached by keyboard", async () => {
+// The trigger is a real <button>, so its boundary is a real border rather than TextField's inset
+// shadow; these read the border every state paints and prove no outline ring is ever drawn.
+function borderOf(trigger: HTMLElement) {
+  const style = getComputedStyle(trigger);
+  return { width: style.borderWidth, color: style.borderColor };
+}
+
+test("draws a white trigger with a 2px line border at rest, like every other field", async () => {
+  const screen = await render(<Select {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("turns the trigger bone on hover, keeping the same 2px line border", async () => {
+  const screen = await render(<Select {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.hover(trigger);
+
+  await expect.poll(() => getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
+});
+
+test("draws a 2px brand-blue-ui border and no outline ring when reached by keyboard", async () => {
   const screen = await render(<Select {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
   await userEvent.tab();
 
-  await expect.poll(() => getComputedStyle(trigger).outlineWidth).toBe("3px");
-  await expect.poll(() => getComputedStyle(trigger).outlineOffset).toBe("3px");
+  expect(document.activeElement).toBe(trigger);
   await expect
-    .poll(() => getComputedStyle(trigger).outlineColor)
-    .toBe(tokenRgb("brand-blue-strong"));
+    .poll(() => borderOf(trigger))
+    .toEqual({
+      width: "2px",
+      color: tokenRgb("brand-blue-ui"),
+    });
+  expect(getComputedStyle(trigger).outlineStyle).toBe("none");
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("draws the trigger's border at a real 3:1 non-text contrast against its white fill", async () => {
+test("keeps the focused border and white fill instead of the hovered bone one when both apply at once", async () => {
   const screen = await render(<Select {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
-  const style = getComputedStyle(trigger);
 
-  expect(style.borderWidth).toBe("2px");
-  expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(
-    contrastRatio(rgbToHex(style.borderColor), rgbToHex(style.backgroundColor)),
-  ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  await userEvent.tab();
+  await userEvent.hover(trigger);
+  // Both assertions below also hold for a focused trigger the pointer never reached, so the hover
+  // itself is proven first; otherwise a dropped hover would leave this test green.
+  await expect.poll(() => trigger.hasAttribute("data-hovered")).toBe(true);
 
-  await expectNoAccessibilityViolations(screen.container);
+  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));
+  expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
+});
+
+test("keeps the focused border while its menu is open", async () => {
+  const screen = await render(<Select {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.click(trigger);
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  expect(document.activeElement).not.toBe(trigger);
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("brand-blue-ui") });
 });
 
 test("switches the border to the error tone while invalid", async () => {
   const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
   const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
 
-  expect(getComputedStyle(trigger).borderColor).toBe(tokenRgb("status-error-ui"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("turns an invalid trigger bone on hover, keeping its error border", async () => {
+  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.hover(trigger);
+
+  await expect.poll(() => getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
+});
+
+test("shows the focused border instead of the error one while an invalid select's menu is open", async () => {
+  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.click(trigger);
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("brand-blue-ui") });
+});
+
+test("shows the focused border instead of the error one once an invalid select is focused", async () => {
+  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.tab();
+
+  await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));
+});
+
+test("keeps the 2px line border while disabled", async () => {
+  const screen = await render(<Select {...baseProps({ disabled: true })} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("line") });
 });
 
 test("paints its open popover above a surrounding stacking context that sets a lower positive z-index, the way Modal.tsx's own overlay does", async () => {

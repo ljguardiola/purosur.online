@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "migrate": "node dist/migrate.js",
+    "wait-for-ready": "node dist/wait-for-ready.js",
     "create-first-administrator": "node dist/create-first-administrator.js"
   },
   "dependencies": {

@@ -39,8 +39,11 @@ beforeAll(async () => {
   db = drizzle(sql);
 }, 60_000);
 
-function connectAs(applicationName: string): ReturnType<typeof postgres> {
-  return postgres(integrationDb.databaseUrl, {
+function connectAs(
+  applicationName: string,
+  databaseUrl: string = integrationDb.databaseUrl,
+): ReturnType<typeof postgres> {
+  return postgres(databaseUrl, {
     max: 1,
     connection: { application_name: applicationName },
   });
@@ -160,7 +163,11 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
       firstAt: new Date("2026-01-05T12:05:00.000Z"),
       lastAt: new Date("2026-01-05T12:50:00.000Z"),
     });
-    const holder = connectAs("audit-log-holder");
+    // `cloud_app` cannot take this lock itself (LOCK TABLE ... IN SHARE MODE needs write
+    // privilege on audit_log, which it does not have), so the holder connects as the admin role
+    // instead: it only stands in for an unrelated transaction that momentarily blocks the write
+    // the flush is about to make, which is not something the code under test ever does itself.
+    const holder = connectAs("audit-log-holder", integrationDb.adminDatabaseUrl);
     const firstFlusher = connectAs("first-flush");
     const secondFlusher = connectAs("second-flush");
     let releaseAuditLog = () => {};

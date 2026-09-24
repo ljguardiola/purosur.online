@@ -34,6 +34,13 @@ export default defineConfig({
       },
       {
         test: {
+          name: "railway-iac",
+          include: [".railway/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        test: {
           name: "cloud-integration",
           include: ["apps/cloud/src/*/*.integration.test.ts"],
           environment: "node",

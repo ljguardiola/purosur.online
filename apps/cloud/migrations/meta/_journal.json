@@ -117,8 +117,15 @@
     {
       "idx": 16,
       "version": "7",
-      "when": 1790273140074,
-      "tag": "0016_role_permissions",
+      "when": 1790272501450,
+      "tag": "0016_cloud_app_role_and_audit_log_append_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790278851649,
+      "tag": "0017_role_permissions",
       "breakpoints": true
     }
   ]

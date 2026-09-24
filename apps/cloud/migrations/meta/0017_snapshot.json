@@ -1,6 +1,6 @@
 {
-  "id": "6edd9d4d-32db-40b4-b096-3cd8947fbe92",
-  "prevId": "2a0986a8-39c1-4c72-904d-a5457b87a735",
+  "id": "10fec3d2-164a-46d3-a5b3-71435c9ca5ce",
+  "prevId": "6edd9d4d-32db-40b4-b096-3cd8947fbe92",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -58,11 +58,15 @@
         "audit_log_actor_id_users_id_fk": {
           "name": "audit_log_actor_id_users_id_fk",
           "tableFrom": "audit_log",
-          "columnsFrom": ["actor_id"],
           "tableTo": "users",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -126,9 +130,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "backoffice_rate_limit_attempts_attempted_at_idx": {
           "name": "backoffice_rate_limit_attempts_attempted_at_idx",
@@ -141,9 +145,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -229,20 +233,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "passkey_challenges_session_id_sessions_id_fk": {
           "name": "passkey_challenges_session_id_sessions_id_fk",
           "tableFrom": "passkey_challenges",
-          "columnsFrom": ["session_id"],
           "tableTo": "sessions",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -336,20 +344,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "passkeys_user_id_users_id_fk": {
           "name": "passkeys_user_id_users_id_fk",
           "tableFrom": "passkeys",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -413,9 +425,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "recovery_rate_limit_attempts_attempted_at_idx": {
           "name": "recovery_rate_limit_attempts_attempted_at_idx",
@@ -428,9 +440,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -514,9 +526,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "recovery_rejected_attempt_accumulator_window_idx": {
           "name": "recovery_rejected_attempt_accumulator_window_idx",
@@ -535,9 +547,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -628,9 +640,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "recovery_tokens_one_live_per_user": {
           "name": "recovery_tokens_one_live_per_user",
@@ -643,24 +655,75 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"recovery_tokens\".\"used_at\" IS NULL AND \"recovery_tokens\".\"voided_at\" IS NULL",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
         "recovery_tokens_user_id_users_id_fk": {
           "name": "recovery_tokens_user_id_users_id_fk",
           "tableFrom": "recovery_tokens",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.role_permissions": {
+      "name": "role_permissions",
+      "schema": "",
+      "columns": {
+        "role_id": {
+          "name": "role_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "permission_key": {
+          "name": "permission_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "role_permissions_role_id_roles_id_fk": {
+          "name": "role_permissions_role_id_roles_id_fk",
+          "tableFrom": "role_permissions",
+          "tableTo": "roles",
+          "columnsFrom": [
+            "role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "role_permissions_role_id_permission_key_pk": {
+          "name": "role_permissions_role_id_permission_key_pk",
+          "columns": [
+            "role_id",
+            "permission_key"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -703,10 +766,25 @@
             }
           ],
           "isUnique": true,
-          "with": {},
-          "method": "btree",
           "where": "\"roles\".\"is_administrator\" = true",
-          "concurrently": false
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "roles_name_lower_key": {
+          "name": "roles_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -777,20 +855,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "sessions_user_id_users_id_fk": {
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -836,9 +918,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -890,9 +972,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "sign_in_failures_attempted_at_idx": {
           "name": "sign_in_failures_attempted_at_idx",
@@ -905,9 +987,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -953,9 +1035,9 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -994,35 +1076,46 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "user_roles_user_id_users_id_fk": {
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
-          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "user_roles_role_id_roles_id_fk": {
           "name": "user_roles_role_id_roles_id_fk",
           "tableFrom": "user_roles",
-          "columnsFrom": ["role_id"],
           "tableTo": "roles",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "user_roles_user_id_role_id_pk": {
           "name": "user_roles_user_id_role_id_pk",
-          "columns": ["user_id", "role_id"]
+          "columns": [
+            "user_id",
+            "role_id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1086,20 +1179,24 @@
             }
           ],
           "isUnique": true,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "users_location_id_locations_id_fk": {
           "name": "users_location_id_locations_id_fk",
           "tableFrom": "users",
-          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": ["id"],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1113,7 +1210,10 @@
     "public.backoffice_rate_limit_key_kind": {
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
-      "values": ["session", "source_address"]
+      "values": [
+        "session",
+        "source_address"
+      ]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",
@@ -1123,25 +1223,34 @@
         "removal",
         "user_creation",
         "user_email_change",
-        "user_passkey_removal"
+        "user_passkey_removal",
+        "role_creation"
       ]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",
       "schema": "public",
-      "values": ["destination_address", "source_address", "redemption_source_address"]
+      "values": [
+        "destination_address",
+        "source_address",
+        "redemption_source_address"
+      ]
     },
     "public.recovery_rejected_attempt_kind": {
       "name": "recovery_rejected_attempt_kind",
       "schema": "public",
-      "values": ["request", "registration_options", "redeem"]
+      "values": [
+        "request",
+        "registration_options",
+        "redeem"
+      ]
     }
   },
   "schemas": {},
-  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
