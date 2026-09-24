@@ -242,7 +242,7 @@ describe("serving the backoffice's static build", () => {
     expect(response.headers["content-type"]).toContain("text/html");
   });
 
-  it.each(["/assets/old-hash.js", "/favicon.ico", "/help/getting_started.png"])(
+  it.each(["/assets/old-hash.js", "/robots.txt", "/help/getting_started.png"])(
     "answers 404 instead of index.html for a missing file like %s",
     async (url) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
@@ -291,6 +291,24 @@ describe("serving the backoffice's static build", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.headers["cache-control"]).toBe("no-cache");
+    },
+  );
+
+  it.each([
+    ["favicon.ico", "image/vnd.microsoft.icon"],
+    ["favicon.svg", "image/svg+xml"],
+  ])(
+    "serves /%s as a real static file with its icon content type, not the SPA fallback",
+    async (file, contentType) => {
+      const dir = backofficeBuild();
+      writeFileSync(join(dir, file), "isotype-bytes");
+      const app = buildApp({ version: "abc1234", staticDir: dir });
+
+      const response = await app.inject({ method: "GET", url: `/${file}` });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toContain(contentType);
+      expect(response.body).toBe("isotype-bytes");
     },
   );
 
