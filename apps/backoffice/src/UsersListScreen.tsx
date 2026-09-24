@@ -335,7 +335,6 @@ function NewUserModal({
               );
             }
           }}
-          helperText={modalMessages.emailHelper}
           required
           {...(fieldErrors.email ? { invalid: true, errorMessage: fieldErrors.email } : {})}
         />
