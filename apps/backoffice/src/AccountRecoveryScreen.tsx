@@ -3,10 +3,9 @@ import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react
 import { type FormEvent, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { SIGN_IN_PATH } from "./accessRoutes";
+import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { requestRecoveryLink } from "./recoveryApi";
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
@@ -23,13 +22,10 @@ export type AccountRecoveryScreenProps = {
   services?: AccountRecoveryScreenServices;
 };
 
-function validateEmail(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return messages.access.accountRecovery.emailRequired;
-  }
-  return EMAIL_SHAPE.test(trimmed) ? undefined : messages.access.accountRecovery.emailInvalid;
-}
+const EMAIL_ERRORS = {
+  required: messages.access.accountRecovery.emailRequired,
+  invalid: messages.access.accountRecovery.emailInvalid,
+};
 
 /**
  * The 429 and generic-failure states share the notice-above-the-action pattern used for other
@@ -45,7 +41,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const validationError = validateEmail(email);
+    const validationError = validateEmail(email, EMAIL_ERRORS);
     setFieldError(validationError);
     if (validationError) {
       return;
@@ -118,7 +114,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
           onChange={(value) => {
             setEmail(value);
             if (fieldError) {
-              setFieldError(validateEmail(value));
+              setFieldError(validateEmail(value, EMAIL_ERRORS));
             }
           }}
           required
