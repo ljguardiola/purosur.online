@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { recoveryTokens, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { classifyRecoveryToken } from "./recovery-token-lookup.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -24,7 +25,7 @@ beforeEach(async () => {
 
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada", email: "ada@example.com" })
+    .values({ firstName: "Ada", email: "ada@example.com", locationId: await seededLocationId(db) })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("seeding the test user returned no row");

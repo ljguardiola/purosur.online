@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   exhaustSessionRateLimit,
   exhaustSourceAddressRateLimit,
@@ -38,7 +39,11 @@ beforeEach(async () => {
 
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com" })
+    .values({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      locationId: await seededLocationId(db),
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("seeding the test user returned no row");

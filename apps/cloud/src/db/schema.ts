@@ -14,6 +14,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+// The business runs a single branch today; every user belongs to it. The migration seeds this
+// table's one row (like the Administrator role below) and backfills every existing user onto it.
+export const locations = pgTable("locations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+});
+
 export const users = pgTable(
   "users",
   {
@@ -21,6 +27,9 @@ export const users = pgTable(
     firstName: text("first_name").notNull(),
     email: text("email").notNull(),
     active: boolean("active").notNull().default(true),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],
 );
@@ -56,7 +65,11 @@ export const userRoles = pgTable(
       .notNull()
       .references(() => roles.id),
   },
-  (table) => [primaryKey({ columns: [table.userId, table.roleId] })],
+  (table) => [
+    primaryKey({ columns: [table.userId, table.roleId] }),
+    // A user holds exactly one role.
+    uniqueIndex("user_roles_user_id_key").on(table.userId),
+  ],
 );
 
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in

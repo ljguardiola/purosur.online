@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, roles, userRoles, users } from "../db/schema.js";
+import { auditLog, locations, roles, userRoles, users } from "../db/schema.js";
 
 export interface CreateFirstAdministratorInput {
   name: string;
@@ -78,9 +78,14 @@ export async function createFirstAdministrator<TQueryResult extends PgQueryResul
       throw new Error("no Administrator role is seeded in the database");
     }
 
+    const [location] = await tx.select({ id: locations.id }).from(locations).limit(1);
+    if (!location) {
+      throw new Error("no location is seeded in the database");
+    }
+
     const [createdUser] = await tx
       .insert(users)
-      .values({ firstName: name, email })
+      .values({ firstName: name, email, locationId: location.id })
       .returning({ id: users.id });
     if (!createdUser) {
       throw new Error("inserting the first administrator returned no row");

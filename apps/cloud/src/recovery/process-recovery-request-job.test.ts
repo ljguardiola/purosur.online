@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   processRecoveryRequestJob,
   type RecoveryRequestJobPayload,
@@ -32,9 +33,10 @@ function mustExist<T>(value: T | undefined | null, description: string): T {
 }
 
 async function insertUser(email: string, active = true): Promise<string> {
-  const [row] = await db.insert(users).values({ firstName: "Ada", email, active }).returning({
-    id: users.id,
-  });
+  const [row] = await db
+    .insert(users)
+    .values({ firstName: "Ada", email, active, locationId: await seededLocationId(db) })
+    .returning({ id: users.id });
   return mustExist(row, "inserting the user to return a row").id;
 }
 

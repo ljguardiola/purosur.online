@@ -8,6 +8,7 @@ import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { startServer } from "../server.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { findFreePort } from "./find-free-port.js";
 import {
   createIntegrationDatabase,
@@ -61,7 +62,11 @@ async function startRealServer(): Promise<StartedFixture> {
 async function seedUserAndToken(): Promise<{ userId: string; rawToken: string }> {
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: `ada-${randomUUID()}@example.com` })
+    .values({
+      firstName: "Ada Lovelace",
+      email: `ada-${randomUUID()}@example.com`,
+      locationId: await seededLocationId(db),
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: seeding the user returned no row");

@@ -9,6 +9,7 @@ import {
   recoveryTokens,
   users,
 } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -71,7 +72,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const email = `ada-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Ada Lovelace", email })
+      .values({ firstName: "Ada Lovelace", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");
@@ -101,7 +102,11 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
   it("writes one audit row for an account whose several tokens are split across overlapping flushes", async () => {
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Grace Hopper", email: `grace-${randomUUID()}@example.com` })
+      .values({
+        firstName: "Grace Hopper",
+        email: `grace-${randomUUID()}@example.com`,
+        locationId: await seededLocationId(db),
+      })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");
@@ -142,7 +147,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const email = `margaret-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Margaret Hamilton", email })
+      .values({ firstName: "Margaret Hamilton", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");
@@ -225,7 +230,7 @@ describe("flushClosedRecoveryRejectedAttemptWindows against a real pool", () => 
     const email = `linus-${randomUUID()}@example.com`;
     const [user] = await db
       .insert(users)
-      .values({ firstName: "Linus", email })
+      .values({ firstName: "Linus", email, locationId: await seededLocationId(db) })
       .returning({ id: users.id });
     if (!user) {
       throw new Error("test setup: seeding the user returned no row");

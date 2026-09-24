@@ -12,6 +12,7 @@ import {
   sessions,
   users,
 } from "../db/schema.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery-redemption-route.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
@@ -43,7 +44,11 @@ beforeEach(async () => {
 
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada Lovelace", email: "ada@example.com" })
+    .values({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      locationId: await seededLocationId(db),
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("seeding the test user returned no row");
@@ -394,7 +399,11 @@ describe("POST /users/recovery/redeem", () => {
   it("does not touch another account's open sessions", async () => {
     const [otherUser] = await db
       .insert(users)
-      .values({ firstName: "Grace Hopper", email: "grace@example.com" })
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
       .returning({ id: users.id });
     if (!otherUser) {
       throw new Error("test setup: seeding the other user returned no row");
