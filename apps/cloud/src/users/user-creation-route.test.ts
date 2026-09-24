@@ -428,6 +428,64 @@ describe("POST /users", () => {
     expect(created).toHaveLength(0);
   });
 
+  it("rejects a reauthentication whose signature was tampered with, creating nothing", async () => {
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const rawSessionId = await insertSession(administratorId);
+    const reauthentication = await reauthenticationFor(rawSessionId, emulator);
+    const tampered = {
+      ...reauthentication,
+      response: {
+        ...reauthentication.response,
+        signature: `${reauthentication.response.signature.slice(0, -4)}AAAA`,
+      },
+    };
+
+    const response = await createUser(rawSessionId, {
+      first_name: "New Hire",
+      email: "newhire@example.com",
+      role_id: cashierRoleId,
+      reauthentication: tampered,
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const created = await db.select().from(users).where(eq(users.email, "newhire@example.com"));
+    expect(created).toHaveLength(0);
+  });
+
+  it("rejects a reauthentication carrying another account's credential, creating nothing", async () => {
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const [strangerUser] = await db
+      .insert(users)
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!strangerUser) throw new Error("test setup: seeding the stranger user returned no row");
+    const strangerEmulator = newDeviceEmulator();
+    await registerPasskey(strangerUser.id, strangerEmulator, "Passkey de Grace");
+    const rawSessionId = await insertSession(administratorId);
+    const options = await requestCreationOptionsOrThrow(rawSessionId);
+    const reauthentication = strangerEmulator.getJSON(BACKOFFICE_ORIGIN, {
+      ...options.reauthentication_options,
+      allowCredentials: [],
+    });
+
+    const response = await createUser(rawSessionId, {
+      first_name: "New Hire",
+      email: "newhire@example.com",
+      role_id: cashierRoleId,
+      reauthentication,
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const created = await db.select().from(users).where(eq(users.email, "newhire@example.com"));
+    expect(created).toHaveLength(0);
+  });
+
   it("rejects a replayed reauthentication (consumes the challenge on first use), creating only one user", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const rawSessionId = await insertSession(administratorId);
