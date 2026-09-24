@@ -20,7 +20,6 @@ const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
 // Shared across the Users area's screens and modals, so the same copy is never typed twice.
 const USERS_EYEBROW = "Configuración · Usuarios";
 const EMAIL_LABEL = "Correo";
-const EMAIL_HELPER = "Con este correo recupera el acceso al backoffice si pierde sus passkeys.";
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
 const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
@@ -295,7 +294,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameRequired: "Ingresá el nombre.",
         roleLabel: "Rol",
         emailLabel: EMAIL_LABEL,
-        emailHelper: EMAIL_HELPER,
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
@@ -339,7 +337,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       editEmailModal: {
         eyebrow: USERS_EYEBROW,
         emailLabel: EMAIL_LABEL,
-        emailHelper: EMAIL_HELPER,
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
         emailTaken: EMAIL_TAKEN,

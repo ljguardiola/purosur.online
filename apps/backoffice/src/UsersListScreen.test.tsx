@@ -227,6 +227,19 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
   expect(services.createUser).not.toHaveBeenCalled();
 });
 
+test("shows no helper line under Correo in the create modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  const dialog = await openNewUserModal(screen);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Correo/ }))
+    .not.toHaveAccessibleDescription();
+});
+
 test("offers a role held by no users yet in the create-user selector", async () => {
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({
