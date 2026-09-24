@@ -136,6 +136,27 @@ describe("the cloud_app role runMigrations creates", () => {
     expect(remaining).toEqual([]);
   });
 
+  it("writes a table created by a later migration", async () => {
+    const [role] = await cloudApp<{ id: string }[]>`
+      insert into roles (name, is_administrator) values ('cloud_app_role_permissions_test', false)
+      returning id
+    `;
+    if (!role) {
+      throw new Error("test setup: inserting the test role returned no row");
+    }
+
+    await cloudApp`
+      insert into role_permissions (role_id, permission_key) values (${role.id}, 'view_reports')
+    `;
+    await cloudApp`delete from role_permissions where role_id = ${role.id}`;
+    await cloudApp`delete from roles where id = ${role.id}`;
+
+    const remaining = await cloudApp<{ roleId: string }[]>`
+      select role_id from role_permissions where role_id = ${role.id}
+    `;
+    expect(remaining).toEqual([]);
+  });
+
   it("cannot create a table in the public schema", async () => {
     await expectPermissionDenied(cloudApp`create table cloud_app_role_test_table (id int)`);
   });
