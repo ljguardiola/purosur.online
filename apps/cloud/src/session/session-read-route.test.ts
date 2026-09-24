@@ -122,7 +122,22 @@ describe("GET /users/session", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ user_id: userId, display_name: "Ada Lovelace" });
+    expect(response.json()).toEqual({
+      user_id: userId,
+      display_name: "Ada Lovelace",
+      expires_at: new Date(NOON.getTime() + THIRTY_MINUTES_MS).toISOString(),
+    });
+  });
+
+  it("returns expires_at computed from the touched last_seen_at, not the stale one", async () => {
+    const rawSessionId = await insertSession({ lastSeenAt: NOON });
+    currentTime = new Date(NOON.getTime() + 5 * 60 * 1000);
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      expires_at: new Date(currentTime.getTime() + THIRTY_MINUTES_MS).toISOString(),
+    });
   });
 
   it("touches last_seen_at on a live session", async () => {

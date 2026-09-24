@@ -17,6 +17,7 @@ import { registerSessionAuthenticateRoute } from "./session/session-authenticate
 import { registerSessionAuthenticationOptionsRoute } from "./session/session-authentication-options-route.js";
 import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
+import { registerSessionStatusRoute } from "./session/session-status-route.js";
 
 export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT> {
   /** The deployed version (commit SHA), reported by `GET /health`. */
@@ -45,9 +46,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   recovery?: RecoveryRouteOptions<TQueryResult>;
   /**
-   * Registers all four `/users/session/*` routes (`authentication-options`, `authenticate`, the
-   * session-read `GET /users/session`, and `sign-out`) when given, the same
-   * optional-feature-wiring shape `recovery` uses above.
+   * Registers all five `/users/session/*` routes (`authentication-options`, `authenticate`, the
+   * session-read `GET /users/session`, its non-touching `status`, and `sign-out`) when given, the
+   * same optional-feature-wiring shape `recovery` uses above.
    */
   session?: SessionAuthenticateRouteOptions<TQueryResult>;
   /**
@@ -104,6 +105,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerSessionAuthenticationOptionsRoute(app, options.session);
     registerSessionAuthenticateRoute(app, options.session);
     registerSessionReadRoute(app, options.session);
+    registerSessionStatusRoute(app, options.session);
     registerSessionSignOutRoute(app, options.session);
   }
 

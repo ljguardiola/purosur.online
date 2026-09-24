@@ -21,6 +21,15 @@ export interface OpenSession {
   sessionId: string;
   userId: string;
   firstName: string;
+  createdAt: Date;
+  lastSeenAt: Date;
+}
+
+/** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
+export function sessionExpiresAt(session: Pick<OpenSession, "createdAt" | "lastSeenAt">): Date {
+  const idleDeadline = session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS;
+  const absoluteDeadline = session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS;
+  return new Date(Math.min(idleDeadline, absoluteDeadline));
 }
 
 export interface BackofficeSessionCheckOptions<TQueryResult extends PgQueryResultHKT> {
@@ -81,7 +90,13 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   return {
     state: "open",
     sessionIdHash,
-    session: { sessionId: session.id, userId: session.userId, firstName: session.firstName },
+    session: {
+      sessionId: session.id,
+      userId: session.userId,
+      firstName: session.firstName,
+      createdAt: session.createdAt,
+      lastSeenAt: session.lastSeenAt,
+    },
   };
 }
 
@@ -125,18 +140,18 @@ export async function checkBackofficeSession<TQueryResult extends PgQueryResultH
 }
 
 /**
- * Requires an open, still-live session for a backoffice route, from the single read
- * `checkBackofficeSession` makes: touches `last_seen_at` on an admitted open session and returns
- * the signed-in user's identity. Otherwise the reply is already sent and it returns `undefined`:
- * 429 when the request is over its limits, or 401 `unauthenticated` when the cookie is missing,
- * unknown, revoked, expired (30 minutes idle or 12 hours since creation), or belongs to a
- * deactivated account, revoking an ended session's row instead of leaving it dangling.
+ * Resolves an open, still-live session for a backoffice route, from the single read
+ * `checkBackofficeSession` makes, without touching `last_seen_at`. Otherwise the reply is already
+ * sent and it returns `undefined`: 429 when the request is over its limits, or 401
+ * `unauthenticated` when the cookie is missing, unknown, revoked, expired (30 minutes idle or 12
+ * hours since creation), or belongs to a deactivated account, revoking an ended session's row
+ * instead of leaving it dangling.
  */
-export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
+async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
   options: BackofficeSessionCheckOptions<TQueryResult>,
-): Promise<OpenSession | undefined> {
+): Promise<{ sessionIdHash: string; session: OpenSession } | undefined> {
   const check = await checkBackofficeSession(request, reply, options);
   if (check.state === "rate_limited") {
     return undefined;
@@ -152,12 +167,45 @@ export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
     return undefined;
   }
 
+  return { sessionIdHash: check.sessionIdHash, session: check.session };
+}
+
+/**
+ * Requires an open, still-live session for a backoffice route: touches `last_seen_at` on an
+ * admitted open session and returns the signed-in user's identity (with `lastSeenAt` reflecting
+ * that touch). See `resolveOpenSession` for how the session is resolved and what ends a request
+ * early.
+ */
+export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: BackofficeSessionCheckOptions<TQueryResult>,
+): Promise<OpenSession | undefined> {
+  const resolved = await resolveOpenSession(request, reply, options);
+  if (!resolved) {
+    return undefined;
+  }
+
   await options.db
     .update(sessions)
     .set({ lastSeenAt: options.now })
-    .where(eq(sessions.sessionIdHash, check.sessionIdHash));
+    .where(eq(sessions.sessionIdHash, resolved.sessionIdHash));
 
-  return check.session;
+  return { ...resolved.session, lastSeenAt: options.now };
+}
+
+/**
+ * Looks up an open, still-live session for a backoffice route without touching `last_seen_at`, so
+ * a caller can report the session's status without keeping an idle tab alive. See
+ * `resolveOpenSession` for how the session is resolved and what ends a request early.
+ */
+export async function peekOpenSession<TQueryResult extends PgQueryResultHKT>(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: BackofficeSessionCheckOptions<TQueryResult>,
+): Promise<OpenSession | undefined> {
+  const resolved = await resolveOpenSession(request, reply, options);
+  return resolved?.session;
 }
 
 function rejectAsCrossSite(reply: FastifyReply, message: string): false {

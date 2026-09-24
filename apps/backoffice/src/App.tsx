@@ -34,12 +34,15 @@ import {
   SignInScreen,
   type SignInScreenServices,
 } from "./SignInScreen";
-import { fetchSession } from "./sessionApi";
+import { useSessionActivityReporter } from "./sessionActivityReporter";
+import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
+import { useSessionWatcher } from "./sessionWatcher";
 import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
 export type AppServices = {
   fetchSession: typeof fetchSession;
+  checkSessionStatus: typeof checkSessionStatus;
   signInScreen: SignInScreenServices;
   accountRecoveryScreen: AccountRecoveryScreenServices;
   registerPasskeyScreen: RegisterPasskeyScreenServices;
@@ -49,6 +52,7 @@ export type AppServices = {
 
 const defaultAppServices: AppServices = {
   fetchSession,
+  checkSessionStatus,
   signInScreen: defaultSignInScreenServices,
   accountRecoveryScreen: defaultAccountRecoveryScreenServices,
   registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
@@ -65,7 +69,7 @@ export type AppProps = {
 type SessionState =
   | { kind: "loading" }
   | { kind: "signed-out"; notice: SignInOpeningNotice | undefined }
-  | { kind: "signed-in"; displayName: string };
+  | { kind: "signed-in"; displayName: string; expiresAt?: string };
 
 function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
   const page =
@@ -236,6 +240,7 @@ function SettingsApp({
 export function App({ help, services }: AppProps) {
   const {
     fetchSession,
+    checkSessionStatus,
     signInScreen,
     accountRecoveryScreen,
     registerPasskeyScreen,
@@ -253,7 +258,11 @@ export function App({ help, services }: AppProps) {
       }
       if (outcome.kind === "ok") {
         markSignedIn();
-        setSession({ kind: "signed-in", displayName: outcome.displayName });
+        setSession({
+          kind: "signed-in",
+          displayName: outcome.displayName,
+          ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
+        });
         return;
       }
       if (outcome.kind === "rate_limited") {
@@ -299,7 +308,11 @@ export function App({ help, services }: AppProps) {
     void fetchSession().then((outcome) => {
       if (outcome.kind === "ok") {
         markSignedIn();
-        setSession({ kind: "signed-in", displayName: outcome.displayName });
+        setSession({
+          kind: "signed-in",
+          displayName: outcome.displayName,
+          ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
+        });
         return;
       }
       if (outcome.kind === "rate_limited") {
@@ -330,6 +343,28 @@ export function App({ help, services }: AppProps) {
     setSession({ kind: "signed-out", notice: { kind: "expired" } });
     navigate(SIGN_IN_PATH, { replace: true });
   }
+
+  // Notices the session ending without a reload — idle/absolute expiry, revocation, deactivation
+  // — while this tab stays open and nobody's own screen happens to make a call that would catch it.
+  useSessionWatcher({
+    active: session.kind === "signed-in",
+    checkStatus: checkSessionStatus,
+    onEnded: handleSessionEnded,
+    ...(session.kind === "signed-in" && session.expiresAt !== undefined
+      ? { initialExpiresAt: session.expiresAt }
+      : {}),
+  });
+
+  // Keeps a continuously worked tab from going idle: real use (not merely an open tab) touches
+  // the session, and the watcher above follows the fresher deadline that comes back.
+  useSessionActivityReporter({
+    active: session.kind === "signed-in",
+    touchSession: fetchSession,
+    onTouched: (expiresAt) => {
+      setSession((current) => (current.kind === "signed-in" ? { ...current, expiresAt } : current));
+    },
+    onEnded: handleSessionEnded,
+  });
 
   if (session.kind === "loading") {
     return null;

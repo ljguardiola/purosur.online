@@ -12,6 +12,9 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       userId: "user-1",
       displayName: "Lucas Guardiola",
     }),
+    // Never resolves by default: most tests here are about something else, and run well under the
+    // watcher's interval anyway.
+    checkSessionStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     signInScreen: {
       fetchAuthenticationOptions: vi.fn(),
       authenticate: vi.fn(),
@@ -402,4 +405,36 @@ test("ends the session with the expired notice when Mi cuenta's passkeys request
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
   expect(window.location.pathname).toBe("/sign-in");
+});
+
+test("ends the session with the expired notice when the open tab's status check finds it already ended", async () => {
+  const services = createServices();
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+
+  vi.mocked(services.checkSessionStatus).mockResolvedValue({ kind: "unauthenticated" });
+  document.dispatchEvent(new Event("visibilitychange"));
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
+});
+
+test("ends the session with the expired notice when real use of the open tab finds it already ended", async () => {
+  const services = createServices();
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({ kind: "unauthenticated" });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    await userEvent.click(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+    await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+    expect(window.location.pathname).toBe("/sign-in");
+  } finally {
+    vi.useRealTimers();
+  }
 });
