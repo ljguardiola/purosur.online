@@ -17,6 +17,11 @@ import { registerRoleEditRoutes } from "./roles/role-edit-route.js";
 import { registerRoleReadRoute } from "./roles/role-read-route.js";
 import type { RolesRouteOptions } from "./roles/roles-list-route.js";
 import { registerRolesListRoute } from "./roles/roles-list-route.js";
+import {
+  declarePluginRoutesAccess,
+  PUBLIC_ACCESS,
+  registerRouteAccess,
+} from "./session/route-access.js";
 import type { SessionAuthenticateRouteOptions } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticateRoute } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session/session-authentication-options-route.js";
@@ -115,6 +120,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   options: BuildAppOptions<TQueryResult>,
 ): FastifyInstance {
   const app = Fastify();
+  registerRouteAccess(app);
 
   const setupFastifyErrorHandler =
     options.setupFastifyErrorHandler ?? defaultSetupFastifyErrorHandler;
@@ -122,7 +128,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
-  app.get("/health", async () => ({ status: "ok", version: options.version }));
+  app.get("/health", { config: { access: PUBLIC_ACCESS } }, async () => ({
+    status: "ok",
+    version: options.version,
+  }));
 
   if (options.recovery) {
     registerRecoveryRoutes(app, options.recovery);
@@ -161,12 +170,15 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   const staticDir = options.staticDir;
   if (staticDir) {
-    app.register(fastifyStatic, {
-      root: staticDir,
-      setHeaders: (reply, filePath) => {
-        reply.headers(backofficeSecurityHeaders);
-        reply.header("Cache-Control", cacheControlFor(staticDir, filePath));
-      },
+    app.register(async (staticScope) => {
+      declarePluginRoutesAccess(staticScope, PUBLIC_ACCESS);
+      await staticScope.register(fastifyStatic, {
+        root: staticDir,
+        setHeaders: (reply, filePath) => {
+          reply.headers(backofficeSecurityHeaders);
+          reply.header("Cache-Control", cacheControlFor(staticDir, filePath));
+        },
+      });
     });
     app.setNotFoundHandler((request, reply) => {
       const isClientRoute = extname(new URL(request.url, "http://localhost").pathname) === "";

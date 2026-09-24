@@ -7,6 +7,7 @@ import { auditLog, passkeys, sessions, users } from "../db/schema.js";
 import { reportRecoveryBookkeepingError } from "../recovery/recovery-error-reporting.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { readSessionCookie, serializeSessionCookie } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { consumeSignInChallenge } from "./sign-in-challenge.js";
@@ -72,6 +73,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   options: SessionAuthenticateRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const delay = options.delay ?? defaultDelay;
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doConfirmRejectedSignInAttempt =
@@ -145,155 +147,159 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     }
   }
 
-  app.post("/users/session/authenticate", async (request, reply) => {
-    const startedAt = performance.now();
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-
-    // Read entirely in process, before anything is recorded anywhere: a request with no assertion
-    // to verify is not an authentication attempt, so it must never take a slot of the address's
-    // lockout budget. Taking one and handing it back afterwards leaves a window in which enough
-    // requests carrying nothing at all can still block the address they came from.
-    const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
-      | AuthenticationResponseJSON
-      | undefined;
-    if (!assertion || typeof assertion.id !== "string") {
-      await rejectAuthentication(reply, startedAt);
-      return;
-    }
-    const challenge = readAssertionChallenge(assertion);
-    if (challenge === undefined) {
-      await rejectAuthentication(reply, startedAt);
-      return;
-    }
-
-    const sourceAddress = resolveSourceAddress(request);
-    const attemptedAt = now();
-    const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
-    if (!admission.admitted) {
-      if (admission.trippedLockout) {
-        await auditLockout(sourceAddress, admission.trippedLockout);
-      }
-      const retryAfterSeconds = Math.ceil(
-        (admission.blockedUntil.getTime() - attemptedAt.getTime()) / 1000,
-      );
-      await reply
-        .header("Retry-After", String(retryAfterSeconds))
-        .code(429)
-        .send({ code: "rate_limited", message: "too many sign-in attempts" });
-      return;
-    }
-
-    // Spent before the credential is even looked up, so an assertion naming a registered
-    // credential id and one naming an unregistered id leave exactly the same behind: whether a
-    // challenge survives a rejection must not tell anyone which credentials exist.
-    const challengeIsLive = await consumeSignInChallenge(options.db, {
-      challenge,
-      now: attemptedAt,
-    });
-
-    const [passkey] = await options.db
-      .select({
-        id: passkeys.id,
-        userId: passkeys.userId,
-        credentialId: passkeys.credentialId,
-        publicKey: passkeys.publicKey,
-        counter: passkeys.counter,
-        transports: passkeys.transports,
-        active: users.active,
-      })
-      .from(passkeys)
-      .innerJoin(users, eq(users.id, passkeys.userId))
-      .where(eq(passkeys.credentialId, assertion.id))
-      .limit(1);
-    if (!passkey) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-    // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
-    // CA-ACC-19); the same rule blocks it from ever opening a new one. The rejection must not be
-    // distinguishable from an unknown credential, so it never runs signature verification either.
-    if (!passkey.active) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-
-    const verification = await verifyAuthenticationResponse({
-      response: assertion,
-      expectedChallenge: () => challengeIsLive,
-      expectedOrigin: webAuthnConfig.expectedOrigin,
-      expectedRPID: webAuthnConfig.rpID,
-      credential: {
-        id: passkey.credentialId,
-        publicKey: Buffer.from(passkey.publicKey, "base64url"),
-        counter: passkey.counter,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      },
-      requireUserVerification: true,
-    }).catch(() => ({ verified: false as const }));
-    if (!verification.verified) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-    const { authenticationInfo } = verification;
-
-    // An authenticator's counter is optional; many platform authenticators always report 0. Once
-    // it has ever been non-zero, an assertion whose counter does not exceed the stored one is a
-    // clone signal and is rejected like any other failed attempt.
-    const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
-    if (isCloneSignal) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
-
-    // Sign-in always ends whatever session cookie arrived and issues a brand-new id, whether or
-    // not that previous session even belonged to this account. All of it in one transaction, so a
-    // failed write can never leave behind a live session whose cookie nobody ever received.
-    const previousRawSessionId = readSessionCookie(request.headers.cookie);
-    const rawSessionId = generateSessionId();
-    const opened = await options.db.transaction(async (tx) => {
-      // Updated first, taking the passkey's row lock before any session exists: a removal that
-      // committed in the meantime leaves nothing to update and no session is opened, and one still
-      // waiting for the lock ends the session opened here once this commits.
-      const [usedPasskey] = await tx
-        .update(passkeys)
-        .set({
-          lastUsedAt: attemptedAt,
-          ...(authenticationInfo.newCounter !== passkey.counter
-            ? { counter: authenticationInfo.newCounter }
-            : {}),
-        })
-        .where(eq(passkeys.id, passkey.id))
-        .returning({ id: passkeys.id });
-      if (!usedPasskey) {
-        return false;
+  app.post(
+    "/users/session/authenticate",
+    { config: { access: PUBLIC_ACCESS } },
+    async (request, reply) => {
+      const startedAt = performance.now();
+      if (!checkOrigin(request, reply)) {
+        return;
       }
 
-      if (previousRawSessionId) {
-        await tx
-          .update(sessions)
-          .set({ revokedAt: attemptedAt })
-          .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
+      // Read entirely in process, before anything is recorded anywhere: a request with no assertion
+      // to verify is not an authentication attempt, so it must never take a slot of the address's
+      // lockout budget. Taking one and handing it back afterwards leaves a window in which enough
+      // requests carrying nothing at all can still block the address they came from.
+      const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
+        | AuthenticationResponseJSON
+        | undefined;
+      if (!assertion || typeof assertion.id !== "string") {
+        await rejectAuthentication(reply, startedAt);
+        return;
+      }
+      const challenge = readAssertionChallenge(assertion);
+      if (challenge === undefined) {
+        await rejectAuthentication(reply, startedAt);
+        return;
       }
 
-      await tx.insert(sessions).values({
-        userId: passkey.userId,
-        sessionIdHash: hashSessionId(rawSessionId),
-        createdAt: attemptedAt,
-        lastSeenAt: attemptedAt,
+      const sourceAddress = resolveSourceAddress(request);
+      const attemptedAt = now();
+      const admission = await admitSignInAttempt(options.db, { sourceAddress, now: attemptedAt });
+      if (!admission.admitted) {
+        if (admission.trippedLockout) {
+          await auditLockout(sourceAddress, admission.trippedLockout);
+        }
+        const retryAfterSeconds = Math.ceil(
+          (admission.blockedUntil.getTime() - attemptedAt.getTime()) / 1000,
+        );
+        await reply
+          .header("Retry-After", String(retryAfterSeconds))
+          .code(429)
+          .send({ code: "rate_limited", message: "too many sign-in attempts" });
+        return;
+      }
+
+      // Spent before the credential is even looked up, so an assertion naming a registered
+      // credential id and one naming an unregistered id leave exactly the same behind: whether a
+      // challenge survives a rejection must not tell anyone which credentials exist.
+      const challengeIsLive = await consumeSignInChallenge(options.db, {
+        challenge,
+        now: attemptedAt,
       });
 
-      // This attempt was no rejected sign-in, so it gives its slot of the address's lockout
-      // budget back: only server-rejected attempts count toward the block.
-      await discardSignInAttempt(tx, admission.attemptId);
-      return true;
-    });
-    if (!opened) {
-      await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
-      return;
-    }
+      const [passkey] = await options.db
+        .select({
+          id: passkeys.id,
+          userId: passkeys.userId,
+          credentialId: passkeys.credentialId,
+          publicKey: passkeys.publicKey,
+          counter: passkeys.counter,
+          transports: passkeys.transports,
+          active: users.active,
+        })
+        .from(passkeys)
+        .innerJoin(users, eq(users.id, passkeys.userId))
+        .where(eq(passkeys.credentialId, assertion.id))
+        .limit(1);
+      if (!passkey) {
+        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        return;
+      }
+      // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
+      // CA-ACC-19); the same rule blocks it from ever opening a new one. The rejection must not be
+      // distinguishable from an unknown credential, so it never runs signature verification either.
+      if (!passkey.active) {
+        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        return;
+      }
 
-    await reply.header("Set-Cookie", serializeSessionCookie(rawSessionId)).code(200).send();
-  });
+      const verification = await verifyAuthenticationResponse({
+        response: assertion,
+        expectedChallenge: () => challengeIsLive,
+        expectedOrigin: webAuthnConfig.expectedOrigin,
+        expectedRPID: webAuthnConfig.rpID,
+        credential: {
+          id: passkey.credentialId,
+          publicKey: Buffer.from(passkey.publicKey, "base64url"),
+          counter: passkey.counter,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        },
+        requireUserVerification: true,
+      }).catch(() => ({ verified: false as const }));
+      if (!verification.verified) {
+        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        return;
+      }
+      const { authenticationInfo } = verification;
+
+      // An authenticator's counter is optional; many platform authenticators always report 0. Once
+      // it has ever been non-zero, an assertion whose counter does not exceed the stored one is a
+      // clone signal and is rejected like any other failed attempt.
+      const isCloneSignal = passkey.counter > 0 && authenticationInfo.newCounter <= passkey.counter;
+      if (isCloneSignal) {
+        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        return;
+      }
+
+      // Sign-in always ends whatever session cookie arrived and issues a brand-new id, whether or
+      // not that previous session even belonged to this account. All of it in one transaction, so a
+      // failed write can never leave behind a live session whose cookie nobody ever received.
+      const previousRawSessionId = readSessionCookie(request.headers.cookie);
+      const rawSessionId = generateSessionId();
+      const opened = await options.db.transaction(async (tx) => {
+        // Updated first, taking the passkey's row lock before any session exists: a removal that
+        // committed in the meantime leaves nothing to update and no session is opened, and one still
+        // waiting for the lock ends the session opened here once this commits.
+        const [usedPasskey] = await tx
+          .update(passkeys)
+          .set({
+            lastUsedAt: attemptedAt,
+            ...(authenticationInfo.newCounter !== passkey.counter
+              ? { counter: authenticationInfo.newCounter }
+              : {}),
+          })
+          .where(eq(passkeys.id, passkey.id))
+          .returning({ id: passkeys.id });
+        if (!usedPasskey) {
+          return false;
+        }
+
+        if (previousRawSessionId) {
+          await tx
+            .update(sessions)
+            .set({ revokedAt: attemptedAt })
+            .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
+        }
+
+        await tx.insert(sessions).values({
+          userId: passkey.userId,
+          sessionIdHash: hashSessionId(rawSessionId),
+          createdAt: attemptedAt,
+          lastSeenAt: attemptedAt,
+        });
+
+        // This attempt was no rejected sign-in, so it gives its slot of the address's lockout
+        // budget back: only server-rejected attempts count toward the block.
+        await discardSignInAttempt(tx, admission.attemptId);
+        return true;
+      });
+      if (!opened) {
+        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        return;
+      }
+
+      await reply.header("Set-Cookie", serializeSessionCookie(rawSessionId)).code(200).send();
+    },
+  );
 }

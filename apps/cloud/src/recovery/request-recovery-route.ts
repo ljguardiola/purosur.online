@@ -1,5 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
@@ -40,62 +41,67 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   options: RecoveryRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 
-  app.post("/users/recovery/request", async (request, reply) => {
-    // No session exists on this path, so cross-site request forgery is checked the same way
-    // `recovery-redemption-route.ts`'s own endpoints check it: the Origin header verified against
-    // the backoffice's own origin. `origin_rejected` follows the shared
-    // `{ code, message, details }` envelope.
-    if (request.headers.origin !== options.backofficeOrigin) {
-      await reply.code(403).send({
-        code: "origin_rejected",
-        message: "the request's Origin does not match the backoffice's own origin",
-      });
-      return;
-    }
-
-    const body = request.body as { email?: unknown } | undefined;
-    const email = normalizeEmail(body?.email);
-    if (!email) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "email must look like local@domain",
-        details: [{ field: "email" }],
-      });
-      return;
-    }
-
-    const sourceAddress = resolveSourceAddress(request);
-    const requestedAt = now();
-
-    const rateLimit = await recordRecoveryRequestAttempt(options.db, {
-      destinationAddress: email,
-      sourceAddress,
-      now: requestedAt,
-    });
-    if (!rateLimit.allowed) {
-      // One synchronous upsert, never a lookup: the same work whether or not this address
-      // belongs to a real account. A bookkeeping failure here must never turn this 429 into a
-      // 500.
-      try {
-        await doRecordRejectedAttempt(options.db, {
-          kind: "request",
-          keyHash: hashDestinationAddress(email),
-          now: requestedAt,
+  app.post(
+    "/users/recovery/request",
+    { config: { access: PUBLIC_ACCESS } },
+    async (request, reply) => {
+      // No session exists on this path, so cross-site request forgery is checked the same way
+      // `recovery-redemption-route.ts`'s own endpoints check it: the Origin header verified against
+      // the backoffice's own origin. `origin_rejected` follows the shared
+      // `{ code, message, details }` envelope.
+      if (request.headers.origin !== options.backofficeOrigin) {
+        await reply.code(403).send({
+          code: "origin_rejected",
+          message: "the request's Origin does not match the backoffice's own origin",
         });
-      } catch (error) {
-        reportError(error);
+        return;
       }
-      await reply
-        .header("Retry-After", String(rateLimit.retryAfterSeconds))
-        .code(429)
-        .send({ code: "rate_limited", message: "too many recovery-link requests" });
-      return;
-    }
 
-    await options.jobQueue.enqueueRecoveryRequest({ email, requestedAt });
-    await reply.code(200).send();
-  });
+      const body = request.body as { email?: unknown } | undefined;
+      const email = normalizeEmail(body?.email);
+      if (!email) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "email must look like local@domain",
+          details: [{ field: "email" }],
+        });
+        return;
+      }
+
+      const sourceAddress = resolveSourceAddress(request);
+      const requestedAt = now();
+
+      const rateLimit = await recordRecoveryRequestAttempt(options.db, {
+        destinationAddress: email,
+        sourceAddress,
+        now: requestedAt,
+      });
+      if (!rateLimit.allowed) {
+        // One synchronous upsert, never a lookup: the same work whether or not this address
+        // belongs to a real account. A bookkeeping failure here must never turn this 429 into a
+        // 500.
+        try {
+          await doRecordRejectedAttempt(options.db, {
+            kind: "request",
+            keyHash: hashDestinationAddress(email),
+            now: requestedAt,
+          });
+        } catch (error) {
+          reportError(error);
+        }
+        await reply
+          .header("Retry-After", String(rateLimit.retryAfterSeconds))
+          .code(429)
+          .send({ code: "rate_limited", message: "too many recovery-link requests" });
+        return;
+      }
+
+      await options.jobQueue.enqueueRecoveryRequest({ email, requestedAt });
+      await reply.code(200).send();
+    },
+  );
 }

@@ -55,32 +55,20 @@ function renderScreen(
 ) {
   return render(
     <main>
-      <DuplicateRoleScreen
-        roleId={roleId}
-        isAdministrator
-        services={services}
-        onSessionEnded={onSessionEnded}
-      />
+      <DuplicateRoleScreen roleId={roleId} services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
 
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
+test("navigates to Mi cuenta when the source roles read comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
   const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "forbidden" });
 
-  const screen = await render(
-    <main>
-      <DuplicateRoleScreen
-        roleId="role-stock"
-        isAdministrator={false}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
-  );
+  await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRoles).not.toHaveBeenCalled();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("pre-fills the name and permissions from a hand-made source role", async () => {
@@ -316,6 +304,44 @@ test("ends the session when creation-options finds the session already ended", a
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when creation-options comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator, stock] });
+  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.createRole).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when saving the duplicate comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator, stock] });
+  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations once loaded", async () => {

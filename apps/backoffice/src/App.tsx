@@ -11,6 +11,7 @@ import {
   type AccountRecoveryScreenServices,
   defaultAccountRecoveryScreenServices,
 } from "./AccountRecoveryScreen";
+import { type BackofficeAccess, canSeeRolesArea, canSeeUsersArea } from "./access";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import {
   DuplicateRoleScreen,
@@ -65,6 +66,7 @@ import {
   matchUserDetailPath,
   NEW_ROLE_PATH,
   ROLES_LIST_PATH,
+  sendToMyAccount,
   USERS_LIST_PATH,
 } from "./settingsRoutes";
 import {
@@ -124,8 +126,13 @@ type SessionState =
       userId: string;
       displayName: string;
       isAdministrator: boolean;
+      permissions: string[];
       expiresAt?: string;
     };
+
+function accessOf(session: Extract<SessionState, { kind: "signed-in" }>): BackofficeAccess {
+  return { isAdministrator: session.isAdministrator, permissions: session.permissions };
+}
 
 function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
   const page =
@@ -248,7 +255,8 @@ type SettingsAppProps = {
   duplicateRoleId?: string;
   signedInUserId: string;
   displayName: string;
-  isAdministrator: boolean;
+  canSeeUsers: boolean;
+  canSeeRoles: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
@@ -269,7 +277,8 @@ function SettingsApp({
   duplicateRoleId,
   signedInUserId,
   displayName,
-  isAdministrator,
+  canSeeUsers,
+  canSeeRoles,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
@@ -316,17 +325,30 @@ function SettingsApp({
           </h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
-            <li>
-              <SectionNavItem
-                label={messages.settings.usersSectionLabel}
-                icon={<Users />}
-                active={
-                  section === "usersList" || section === "userDetail" || section === "myAccount"
-                }
-                {...linkProps(USERS_LIST_PATH)}
-              />
-            </li>
-            {isAdministrator && (
+            {canSeeUsers ? (
+              <li>
+                <SectionNavItem
+                  label={messages.settings.usersSectionLabel}
+                  icon={<Users />}
+                  active={
+                    section === "usersList" || section === "userDetail" || section === "myAccount"
+                  }
+                  {...linkProps(USERS_LIST_PATH)}
+                />
+              </li>
+            ) : (
+              // Usuarios isn't unlocked: Mi cuenta gets its own entry instead, so Configuración
+              // always has at least one.
+              <li>
+                <SectionNavItem
+                  label={messages.settings.myAccountSectionLabel}
+                  icon={<Users />}
+                  active={section === "myAccount"}
+                  {...linkProps(MY_ACCOUNT_PATH)}
+                />
+              </li>
+            )}
+            {canSeeRoles && (
               <li>
                 <SectionNavItem
                   label={messages.settings.rolesSectionLabel}
@@ -346,17 +368,12 @@ function SettingsApp({
       }
     >
       {section === "usersList" && (
-        <UsersListScreen
-          isAdministrator={isAdministrator}
-          onSessionEnded={onSessionEnded}
-          services={usersListScreenServices}
-        />
+        <UsersListScreen onSessionEnded={onSessionEnded} services={usersListScreenServices} />
       )}
       {section === "userDetail" && userDetailId !== undefined && (
         <UserDetailScreen
           userId={userDetailId}
           signedInUserId={signedInUserId}
-          isAdministrator={isAdministrator}
           onSessionEnded={onSessionEnded}
           services={userDetailScreenServices}
         />
@@ -369,23 +386,14 @@ function SettingsApp({
         />
       )}
       {section === "rolesList" && (
-        <RolesListScreen
-          isAdministrator={isAdministrator}
-          onSessionEnded={onSessionEnded}
-          services={rolesListScreenServices}
-        />
+        <RolesListScreen onSessionEnded={onSessionEnded} services={rolesListScreenServices} />
       )}
       {section === "newRole" && (
-        <NewRoleScreen
-          isAdministrator={isAdministrator}
-          onSessionEnded={onSessionEnded}
-          services={newRoleScreenServices}
-        />
+        <NewRoleScreen onSessionEnded={onSessionEnded} services={newRoleScreenServices} />
       )}
       {section === "editRole" && editRoleId !== undefined && (
         <EditRoleScreen
           roleId={editRoleId}
-          isAdministrator={isAdministrator}
           onSessionEnded={onSessionEnded}
           services={editRoleScreenServices}
         />
@@ -393,7 +401,6 @@ function SettingsApp({
       {section === "duplicateRole" && duplicateRoleId !== undefined && (
         <DuplicateRoleScreen
           roleId={duplicateRoleId}
-          isAdministrator={isAdministrator}
           onSessionEnded={onSessionEnded}
           services={duplicateRoleScreenServices}
         />
@@ -434,6 +441,7 @@ export function App({ help, services }: AppProps) {
           userId: outcome.userId,
           displayName: outcome.displayName,
           isAdministrator: outcome.isAdministrator,
+          permissions: outcome.permissions ?? [],
           ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
         });
         return;
@@ -465,6 +473,31 @@ export function App({ help, services }: AppProps) {
   const isAccessRoute =
     route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
 
+  const userDetailId = matchUserDetailPath(route);
+  const editRoleId = matchRoleEditPath(route);
+  const duplicateRoleId = matchRoleDuplicatePath(route);
+  const isSettingsRoute =
+    route === MY_ACCOUNT_PATH ||
+    route === USERS_LIST_PATH ||
+    userDetailId !== undefined ||
+    route === ROLES_LIST_PATH ||
+    route === NEW_ROLE_PATH ||
+    editRoleId !== undefined ||
+    duplicateRoleId !== undefined;
+  // "Usuarios" and "Roles" are only reachable through their own URLs; Mi cuenta (self-service)
+  // never depends on either.
+  const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
+  const wantsRoles =
+    route === ROLES_LIST_PATH ||
+    route === NEW_ROLE_PATH ||
+    editRoleId !== undefined ||
+    duplicateRoleId !== undefined;
+  const access: BackofficeAccess =
+    session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
+  const canSeeUsers = canSeeUsersArea(access);
+  const canSeeRoles = canSeeRolesArea(access);
+  const wantsUnlockedSection = (wantsUsers && !canSeeUsers) || (wantsRoles && !canSeeRoles);
+
   useEffect(() => {
     if (session.kind === "loading") {
       return;
@@ -473,8 +506,12 @@ export function App({ help, services }: AppProps) {
       navigate("/", { replace: true });
     } else if (session.kind !== "signed-in" && !isAccessRoute) {
       navigate(SIGN_IN_PATH, { replace: true });
+    } else if (session.kind === "signed-in" && wantsUnlockedSection) {
+      // A typed, stale, or now-forbidden settings URL (e.g. the role changed mid-session) never
+      // shows a forbidden notice: it lands on Mi cuenta instead, the one screen everyone keeps.
+      sendToMyAccount();
     }
-  }, [session.kind, route, isAccessRoute]);
+  }, [session.kind, route, isAccessRoute, wantsUnlockedSection]);
 
   function handleSignedIn() {
     setSession({ kind: "loading" });
@@ -486,6 +523,7 @@ export function App({ help, services }: AppProps) {
           userId: outcome.userId,
           displayName: outcome.displayName,
           isAdministrator: outcome.isAdministrator,
+          permissions: outcome.permissions ?? [],
           ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
         });
         return;
@@ -531,12 +569,22 @@ export function App({ help, services }: AppProps) {
   });
 
   // Keeps a continuously worked tab from going idle: real use (not merely an open tab) touches
-  // the session, and the watcher above follows the fresher deadline that comes back.
+  // the session, the watcher above follows the fresher deadline that comes back, and the rail and
+  // route gating follow the role's current access.
   useSessionActivityReporter({
     active: session.kind === "signed-in",
     touchSession: fetchSession,
-    onTouched: (expiresAt) => {
-      setSession((current) => (current.kind === "signed-in" ? { ...current, expiresAt } : current));
+    onTouched: (touched) => {
+      setSession((current) =>
+        current.kind === "signed-in"
+          ? {
+              ...current,
+              isAdministrator: touched.isAdministrator,
+              permissions: touched.permissions ?? [],
+              ...(touched.expiresAt !== undefined ? { expiresAt: touched.expiresAt } : {}),
+            }
+          : current,
+      );
     },
     onEnded: handleSessionEnded,
   });
@@ -545,20 +593,16 @@ export function App({ help, services }: AppProps) {
     return null;
   }
 
-  const userDetailId = matchUserDetailPath(route);
-  const editRoleId = matchRoleEditPath(route);
-  const duplicateRoleId = matchRoleDuplicatePath(route);
-  const isSettingsRoute =
-    route === MY_ACCOUNT_PATH ||
-    route === USERS_LIST_PATH ||
-    userDetailId !== undefined ||
-    route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH ||
-    editRoleId !== undefined ||
-    duplicateRoleId !== undefined;
-
   if (isSettingsRoute) {
-    return session.kind === "signed-in" ? (
+    if (session.kind !== "signed-in") {
+      return null;
+    }
+    if (wantsUnlockedSection) {
+      // The effect above is already redirecting to Mi cuenta: never render the section itself,
+      // not even for one frame.
+      return null;
+    }
+    return (
       <SettingsApp
         section={
           route === USERS_LIST_PATH
@@ -580,7 +624,8 @@ export function App({ help, services }: AppProps) {
         {...(duplicateRoleId !== undefined ? { duplicateRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
-        isAdministrator={session.isAdministrator}
+        canSeeUsers={canSeeUsers}
+        canSeeRoles={canSeeRoles}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
@@ -592,7 +637,7 @@ export function App({ help, services }: AppProps) {
         editRoleScreenServices={editRoleScreen}
         duplicateRoleScreenServices={duplicateRoleScreen}
       />
-    ) : null;
+    );
   }
 
   switch (route) {

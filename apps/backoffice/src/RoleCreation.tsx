@@ -7,7 +7,7 @@ import { messages } from "./messages";
 import { roleFieldErrorMessage, validateRoleName } from "./RoleForm";
 import type { createRole, fetchRoleCreationChallenge } from "./rolesApi";
 import { navigate } from "./router";
-import { ROLES_LIST_PATH } from "./settingsRoutes";
+import { ROLES_LIST_PATH, sendToMyAccount } from "./settingsRoutes";
 
 const rolesMessages = messages.settings.roles;
 
@@ -69,6 +69,10 @@ export function useRoleCreation({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
       setSubmitting(false);
@@ -99,6 +103,10 @@ export function useRoleCreation({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "name_taken") {

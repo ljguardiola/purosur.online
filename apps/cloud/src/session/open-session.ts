@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { roles, sessions, userRoles, users } from "../db/schema.js";
+import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
+import { PERMISSION_KEYS, type PermissionKey } from "../roles/permission-catalog.js";
 import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
@@ -27,6 +28,12 @@ export interface OpenSession {
   locationId: string;
   /** Whether the signed-in user's role has `roles.is_administrator` set. */
   isAdministrator: boolean;
+  /**
+   * The permission keys the signed-in user's role currently holds, in catalog order. An
+   * Administrator holds every catalog key implicitly (its role stores no `role_permissions` rows),
+   * and a user with no role yet holds none.
+   */
+  permissionKeys: readonly PermissionKey[];
 }
 
 /** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
@@ -75,6 +82,10 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       // Left-joined: a user with no `user_roles` row yet (some existing tests seed one that way)
       // resolves to "not an Administrator" rather than making the session unresolvable.
       isAdministrator: roles.isAdministrator,
+      // Read in this same query, so the role's current permissions cost no extra round trip.
+      grantedPermissionKeys: sql<
+        string[]
+      >`array(select ${rolePermissions.permissionKey} from ${rolePermissions} where ${rolePermissions.roleId} = ${roles.id})`,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -97,6 +108,12 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
     return { state: "ended", sessionIdHash };
   }
 
+  const isAdministrator = session.isAdministrator ?? false;
+  const granted = new Set(session.grantedPermissionKeys);
+  const permissionKeys: PermissionKey[] = isAdministrator
+    ? [...PERMISSION_KEYS]
+    : PERMISSION_KEYS.filter((key) => granted.has(key));
+
   return {
     state: "open",
     sessionIdHash,
@@ -107,7 +124,8 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       createdAt: session.createdAt,
       lastSeenAt: session.lastSeenAt,
       locationId: session.locationId,
-      isAdministrator: session.isAdministrator ?? false,
+      isAdministrator,
+      permissionKeys,
     },
   };
 }

@@ -3,7 +3,15 @@ import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { backofficeRateLimitAttempts, roles, sessions, userRoles, users } from "../db/schema.js";
+import {
+  backofficeRateLimitAttempts,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "../db/schema.js";
+import { PERMISSION_KEYS } from "../roles/permission-catalog.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   exhaustSessionRateLimit,
@@ -143,6 +151,7 @@ describe("GET /users/session", () => {
       display_name: "Ada Lovelace",
       expires_at: new Date(NOON.getTime() + THIRTY_MINUTES_MS).toISOString(),
       is_administrator: false,
+      permissions: [],
     });
   });
 
@@ -154,6 +163,58 @@ describe("GET /users/session", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({ is_administrator: true });
+  });
+
+  it("returns the whole permission catalog for a user holding the Administrator role", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({ permissions: [...PERMISSION_KEYS] });
+  });
+
+  it("returns the permission keys held by the user's role, in catalog order", async () => {
+    const [cashierRole] = await db
+      .insert(roles)
+      .values({ name: "Cajera", isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!cashierRole) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db.insert(userRoles).values({ userId, roleId: cashierRole.id });
+    // Inserted out of catalog order, to prove the response re-sorts them.
+    await db.insert(rolePermissions).values([
+      { roleId: cashierRole.id, permissionKey: "void_sale" },
+      { roleId: cashierRole.id, permissionKey: "sell_and_charge" },
+    ]);
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      permissions: ["sell_and_charge", "void_sale"],
+    });
+  });
+
+  it("reflects a permission granted to the user's role without signing in again", async () => {
+    const [cashierRole] = await db
+      .insert(roles)
+      .values({ name: "Cajera", isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!cashierRole) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db.insert(userRoles).values({ userId, roleId: cashierRole.id });
+    const rawSessionId = await insertSession();
+
+    const before = await getSession(rawSessionId);
+    await db.insert(rolePermissions).values({ roleId: cashierRole.id, permissionKey: "void_sale" });
+    const after = await getSession(rawSessionId);
+
+    expect(before.json()).toMatchObject({ permissions: [] });
+    expect(after.json()).toMatchObject({ permissions: ["void_sale"] });
   });
 
   it("returns expires_at computed from the touched last_seen_at, not the stale one", async () => {

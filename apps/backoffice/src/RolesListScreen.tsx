@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath } from "./settingsRoutes";
+import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath, sendToMyAccount } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -15,8 +15,6 @@ export const defaultRolesListScreenServices: RolesListScreenServices = {
 };
 
 export type RolesListScreenProps = {
-  /** From the session: only an Administrator sees the list at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API. */
   services?: RolesListScreenServices;
@@ -26,7 +24,6 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "forbidden" }
   | { kind: "loaded"; roles: RoleSummary[] };
 
 const rolesMessages = messages.settings.roles;
@@ -90,16 +87,14 @@ const columns = [
   },
 ] as const;
 
-/** "Roles": every role the branch has, with its permission and user counts, Administrator only. */
-export function RolesListScreen({
-  isAdministrator,
-  onSessionEnded,
-  services,
-}: RolesListScreenProps) {
+/**
+ * "Roles": every role the branch has, with its permission and user counts. Reserved to the
+ * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change mid-
+ * session) sends the browser to Mi cuenta instead of showing a notice.
+ */
+export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles } = services ?? defaultRolesListScreenServices;
-  const [list, setList] = useState<ListState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [list, setList] = useState<ListState>({ kind: "loading" });
 
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the list.
@@ -116,17 +111,15 @@ export function RolesListScreen({
     } else if (outcome.kind === "rate_limited") {
       setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
-      setList({ kind: "forbidden" });
+      sendToMyAccount();
     } else {
       setList({ kind: "loadError" });
     }
   }, [fetchRoles]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
+    void load();
+  }, [load]);
 
   const roles = list.kind === "loaded" ? list.roles : [];
 
@@ -142,14 +135,6 @@ export function RolesListScreen({
         </Button>
       </div>
       <div className="flex flex-1 flex-col gap-4 p-6">
-        {list.kind === "forbidden" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={rolesMessages.forbiddenTitle}
-            detail={rolesMessages.forbiddenDetail}
-          />
-        )}
         {list.kind === "loadError" && (
           <>
             <InlineNotice

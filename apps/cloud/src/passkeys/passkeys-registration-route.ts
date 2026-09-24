@@ -10,7 +10,14 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, users } from "../db/schema.js";
 import { deriveUserHandle } from "../recovery/recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession, UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
+import { UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -67,6 +74,8 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -80,209 +89,208 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
     return true;
   }
 
-  app.post("/users/passkeys/registration-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
+  app.post(
+    "/users/passkeys/registration-options",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const issuedAt = now();
+      const openSession = openSessionOf(request);
 
-    const [account] = await options.db
-      .select({ firstName: users.firstName, email: users.email })
-      .from(users)
-      .where(eq(users.id, openSession.userId))
-      .limit(1);
-    if (!account) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
-      return;
-    }
+      const [account] = await options.db
+        .select({ firstName: users.firstName, email: users.email })
+        .from(users)
+        .where(eq(users.id, openSession.userId))
+        .limit(1);
+      if (!account) {
+        await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
+        return;
+      }
 
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
-    if (existingPasskeys.length === 0) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, openSession.userId));
+      if (existingPasskeys.length === 0) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    const registrationOptions = await generateRegistrationOptions({
-      rpName: webAuthnConfig.rpName,
-      rpID: webAuthnConfig.rpID,
-      userName: account.email,
-      userDisplayName: account.firstName,
-      userID: deriveUserHandle(openSession.userId),
-      attestationType: "none",
-      authenticatorSelection: { residentKey: "required", userVerification: "required" },
-      excludeCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "registration",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      registrationChallenge: registrationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({
-      reauthentication_options: reauthenticationOptions,
-      passkey_registration_options: registrationOptions,
-    });
-  });
-
-  app.post("/users/passkeys", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-
-    const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
-      ?.passkey_registration as RegistrationResponseJSON | undefined;
-    if (!passkeyRegistration) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "passkey_registration is required",
-        details: [{ field: "passkey_registration" }],
+      const reauthenticationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
       });
-      return;
-    }
 
-    const passkeyName = readPasskeyName(request.body);
-    if (!passkeyName) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "passkey_name is required and must be 1-40 characters once trimmed",
-        details: [{ field: "passkey_name" }],
+      const registrationOptions = await generateRegistrationOptions({
+        rpName: webAuthnConfig.rpName,
+        rpID: webAuthnConfig.rpID,
+        userName: account.email,
+        userDisplayName: account.firstName,
+        userID: deriveUserHandle(openSession.userId),
+        attestationType: "none",
+        authenticatorSelection: { residentKey: "required", userVerification: "required" },
+        excludeCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
       });
-      return;
-    }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "registration" || !pending.registrationChallenge) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const verification = await verifyRegistrationResponse({
-      response: passkeyRegistration,
-      expectedChallenge: pending.registrationChallenge,
-      expectedOrigin: webAuthnConfig.expectedOrigin,
-      expectedRPID: webAuthnConfig.rpID,
-      requireUserVerification: true,
-    }).catch(() => ({ verified: false as const }));
-    if (!verification.verified) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "the passkey registration did not verify against the backoffice's origin",
-        details: [{ field: "passkey_registration" }],
+      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
+      await storePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "registration",
+        reauthenticationChallenge: reauthenticationOptions.challenge,
+        registrationChallenge: registrationOptions.challenge,
+        now: issuedAt,
       });
-      return;
-    }
-    const { registrationInfo } = verification;
 
-    const inserted = await options.db
-      .transaction(async (tx) => {
-        const [newPasskey] = await tx
-          .insert(passkeys)
-          .values({
-            userId: openSession.userId,
-            credentialId: registrationInfo.credential.id,
-            publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
-            counter: registrationInfo.credential.counter,
-            transports: registrationInfo.credential.transports ?? null,
-            deviceType: registrationInfo.credentialDeviceType,
-            backedUp: registrationInfo.credentialBackedUp,
-            name: passkeyName,
-          })
-          .onConflictDoNothing({ target: passkeys.credentialId })
-          .returning({ id: passkeys.id, createdAt: passkeys.createdAt });
-        if (!newPasskey) {
-          throw new CredentialAlreadyRegistered();
-        }
+      await reply.code(200).send({
+        reauthentication_options: reauthenticationOptions,
+        passkey_registration_options: registrationOptions,
+      });
+    },
+  );
 
-        await tx.insert(auditLog).values({
-          entity: "passkey",
-          entityId: newPasskey.id,
-          actorId: openSession.userId,
-          previousValue: null,
-          newValue: {
-            id: newPasskey.id,
-            name: passkeyName,
-            credentialId: registrationInfo.credential.id,
-            deviceType: registrationInfo.credentialDeviceType,
-            backedUp: registrationInfo.credentialBackedUp,
-          },
+  app.post(
+    "/users/passkeys",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
+
+      const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
+        ?.passkey_registration as RegistrationResponseJSON | undefined;
+      if (!passkeyRegistration) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "passkey_registration is required",
+          details: [{ field: "passkey_registration" }],
+        });
+        return;
+      }
+
+      const passkeyName = readPasskeyName(request.body);
+      if (!passkeyName) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "passkey_name is required and must be 1-40 characters once trimmed",
+          details: [{ field: "passkey_name" }],
+        });
+        return;
+      }
+
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        now: attemptedAt,
+      });
+      if (pending?.kind !== "registration" || !pending.registrationChallenge) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const reauthentication = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!reauthentication.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const verification = await verifyRegistrationResponse({
+        response: passkeyRegistration,
+        expectedChallenge: pending.registrationChallenge,
+        expectedOrigin: webAuthnConfig.expectedOrigin,
+        expectedRPID: webAuthnConfig.rpID,
+        requireUserVerification: true,
+      }).catch(() => ({ verified: false as const }));
+      if (!verification.verified) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "the passkey registration did not verify against the backoffice's origin",
+          details: [{ field: "passkey_registration" }],
+        });
+        return;
+      }
+      const { registrationInfo } = verification;
+
+      const inserted = await options.db
+        .transaction(async (tx) => {
+          const [newPasskey] = await tx
+            .insert(passkeys)
+            .values({
+              userId: openSession.userId,
+              credentialId: registrationInfo.credential.id,
+              publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
+              counter: registrationInfo.credential.counter,
+              transports: registrationInfo.credential.transports ?? null,
+              deviceType: registrationInfo.credentialDeviceType,
+              backedUp: registrationInfo.credentialBackedUp,
+              name: passkeyName,
+            })
+            .onConflictDoNothing({ target: passkeys.credentialId })
+            .returning({ id: passkeys.id, createdAt: passkeys.createdAt });
+          if (!newPasskey) {
+            throw new CredentialAlreadyRegistered();
+          }
+
+          await tx.insert(auditLog).values({
+            entity: "passkey",
+            entityId: newPasskey.id,
+            actorId: openSession.userId,
+            previousValue: null,
+            newValue: {
+              id: newPasskey.id,
+              name: passkeyName,
+              credentialId: registrationInfo.credential.id,
+              deviceType: registrationInfo.credentialDeviceType,
+              backedUp: registrationInfo.credentialBackedUp,
+            },
+          });
+
+          return newPasskey;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof CredentialAlreadyRegistered) {
+            return undefined;
+          }
+          throw error;
         });
 
-        return newPasskey;
-      })
-      .catch((error: unknown) => {
-        if (error instanceof CredentialAlreadyRegistered) {
-          return undefined;
-        }
-        throw error;
-      });
+      if (!inserted) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "this passkey is already registered",
+          details: [{ field: "passkey_registration" }],
+        });
+        return;
+      }
 
-    if (!inserted) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "this passkey is already registered",
-        details: [{ field: "passkey_registration" }],
+      await reply.code(200).send({
+        id: inserted.id,
+        name: passkeyName,
+        created_at: inserted.createdAt.toISOString(),
+        last_used_at: null,
       });
-      return;
-    }
-
-    await reply.code(200).send({
-      id: inserted.id,
-      name: passkeyName,
-      created_at: inserted.createdAt.toISOString(),
-      last_used_at: null,
-    });
-  });
+    },
+  );
 }

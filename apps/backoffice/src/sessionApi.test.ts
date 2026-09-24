@@ -43,6 +43,21 @@ test("fetchSession returns the signed-in user's identity on 200", async () => {
   expect(fetch).toHaveBeenCalledWith("/users/session");
 });
 
+test("fetchSession returns the signed-in user's permission keys when the server sends them", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      user_id: "user-1",
+      display_name: "Lucas Guardiola",
+      is_administrator: false,
+      permissions: ["void_sale", "sell_and_charge"],
+    }),
+  );
+
+  const outcome = await fetchSession();
+
+  expect(outcome).toMatchObject({ permissions: ["void_sale", "sell_and_charge"] });
+});
+
 test("fetchSession reports isAdministrator true for an Administrator session", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, {

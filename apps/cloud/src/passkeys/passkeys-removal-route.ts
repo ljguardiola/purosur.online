@@ -5,7 +5,13 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys } from "../db/schema.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "../session/open-session.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -53,6 +59,8 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   options: PasskeyRemovalRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -66,109 +74,108 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
     return true;
   }
 
-  app.post("/users/passkeys/removal-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
+  app.post(
+    "/users/passkeys/removal-options",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const issuedAt = now();
+      const openSession = openSessionOf(request);
 
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, openSession.userId));
 
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "removal",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-  });
-
-  app.post("/users/passkeys/:id/remove", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-
-    const targetId = (request.params as { id: string }).id;
-    if (!UUID_PATTERN.test(targetId)) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
-
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "removal") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const [target] = await options.db
-      .select({ id: passkeys.id, name: passkeys.name })
-      .from(passkeys)
-      .where(and(eq(passkeys.id, targetId), eq(passkeys.userId, openSession.userId)))
-      .limit(1);
-    if (!target) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
-
-    await options.db.transaction(async (tx) => {
-      await tx.delete(passkeys).where(eq(passkeys.id, target.id));
-      await tx.insert(auditLog).values({
-        entity: "passkey",
-        entityId: target.id,
-        actorId: openSession.userId,
-        previousValue: { id: target.id, name: target.name },
-        newValue: null,
+      const reauthenticationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
       });
-    });
 
-    await reply.code(200).send();
-  });
+      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
+      await storePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "removal",
+        reauthenticationChallenge: reauthenticationOptions.challenge,
+        now: issuedAt,
+      });
+
+      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
+    },
+  );
+
+  app.post(
+    "/users/passkeys/:id/remove",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
+
+      const targetId = (request.params as { id: string }).id;
+      if (!UUID_PATTERN.test(targetId)) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
+
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        now: attemptedAt,
+      });
+      if (pending?.kind !== "removal") {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const reauthentication = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!reauthentication.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const [target] = await options.db
+        .select({ id: passkeys.id, name: passkeys.name })
+        .from(passkeys)
+        .where(and(eq(passkeys.id, targetId), eq(passkeys.userId, openSession.userId)))
+        .limit(1);
+      if (!target) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
+
+      await options.db.transaction(async (tx) => {
+        await tx.delete(passkeys).where(eq(passkeys.id, target.id));
+        await tx.insert(auditLog).values({
+          entity: "passkey",
+          entityId: target.id,
+          actorId: openSession.userId,
+          previousValue: { id: target.id, name: target.name },
+          newValue: null,
+        });
+      });
+
+      await reply.code(200).send();
+    },
+  );
 }

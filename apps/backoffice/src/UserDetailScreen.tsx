@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
-import { USERS_LIST_PATH } from "./settingsRoutes";
+import { sendToMyAccount, USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -55,8 +55,6 @@ export type UserDetailScreenProps = {
   userId: string;
   /** From the session: hides this user's own remove buttons, which Mi cuenta manages instead. */
   signedInUserId: string;
-  /** From the session: only an Administrator sees this screen at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
   now?: () => Date;
@@ -67,7 +65,6 @@ export type UserDetailScreenProps = {
 type DetailState =
   | { kind: "loading" }
   | { kind: "notFound" }
-  | { kind: "forbidden" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; user: BranchUser };
@@ -114,7 +111,7 @@ type EditEmailModalProps = {
   onClose: () => void;
   onSaved: (user: BranchUser) => void;
   onReloaded: (user: BranchUser) => void;
-  onReloadRejected: (state: "notFound" | "forbidden") => void;
+  onReloadRejected: (state: "notFound") => void;
   onSessionEnded: () => void;
   fetchUser: typeof fetchUser;
   fetchEmailChangeChallenge: typeof fetchEmailChangeChallenge;
@@ -170,6 +167,10 @@ function EditEmailModal({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setNotice({
         kind: "rateLimited",
@@ -205,6 +206,10 @@ function EditEmailModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "validation_failed") {
@@ -259,7 +264,8 @@ function EditEmailModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      onReloadRejected("forbidden");
+      onClose();
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -434,6 +440,10 @@ function RemoveUserPasskeyModal({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setRateLimitedSeconds(challenge.retryAfterSeconds);
       setSubmitting(false);
@@ -464,6 +474,10 @@ function RemoveUserPasskeyModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -546,11 +560,15 @@ function RemoveUserPasskeyModal({
   );
 }
 
-/** "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email edit and passkey removal. */
+/**
+ * "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email
+ * edit and passkey removal. Reserved to the Administrator: App.tsx only ever routes here for one,
+ * and a `forbidden` read (a role change mid-session) sends the browser to Mi cuenta instead of
+ * showing a notice.
+ */
 export function UserDetailScreen({
   userId,
   signedInUserId,
-  isAdministrator,
   onSessionEnded,
   now,
   services,
@@ -565,9 +583,7 @@ export function UserDetailScreen({
     startAuthentication,
   } = services ?? defaultUserDetailScreenServices;
   const clock = now ?? (() => new Date());
-  const [state, setState] = useState<DetailState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [state, setState] = useState<DetailState>({ kind: "loading" });
   const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
   const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -585,6 +601,8 @@ export function UserDetailScreen({
       setPasskeysState({ kind: "loaded", passkeys: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
     } else if (outcome.kind === "rate_limited") {
       setPasskeysState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
@@ -605,17 +623,15 @@ export function UserDetailScreen({
     } else if (outcome.kind === "rate_limited") {
       setState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
-      setState({ kind: "forbidden" });
+      sendToMyAccount();
     } else {
       setState({ kind: "loadError" });
     }
   }, [userId, endSession, fetchUser, loadPasskeys]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
+    void load();
+  }, [load]);
 
   const heading = state.kind === "loaded" ? state.user.firstName : detailMessages.heading;
   // The cloud accepts a user id in any letter case, so the id in the URL may differ in case
@@ -639,14 +655,6 @@ export function UserDetailScreen({
               {detailMessages.backToList}
             </Button>
           </>
-        )}
-        {state.kind === "forbidden" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={usersMessages.forbiddenTitle}
-            detail={usersMessages.forbiddenDetail}
-          />
         )}
         {state.kind === "loadError" && (
           <>

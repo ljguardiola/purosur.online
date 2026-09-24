@@ -11,10 +11,15 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "../session/open-session.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
-import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
@@ -106,6 +111,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -119,160 +126,151 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
     return true;
   }
 
-  app.post("/users/creation-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
+  app.post(
+    "/users/creation-options",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const issuedAt = now();
+      const openSession = openSessionOf(request);
 
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, openSession.userId));
 
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "user_creation",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-  });
-
-  app.post("/users", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const parsedBody = readCreationBody(request.body);
-    if (isValidationFailure(parsedBody)) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: parsedBody.message,
-        details: [{ field: parsedBody.field }],
+      const reauthenticationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
       });
-      return;
-    }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
+      await storePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "user_creation",
+        reauthenticationChallenge: reauthenticationOptions.challenge,
+        now: issuedAt,
+      });
 
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "user_creation") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
+    },
+  );
 
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+  app.post(
+    "/users",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
 
-    const [role] = await options.db
-      .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-      .from(roles)
-      .where(eq(roles.id, parsedBody.roleId))
-      .limit(1);
-    if (!role) {
-      await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);
-      return;
-    }
+      const parsedBody = readCreationBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
 
-    const created = await options.db
-      .transaction(async (tx) => {
-        const [newUser] = await tx
-          .insert(users)
-          .values({
-            firstName: parsedBody.firstName,
-            email: parsedBody.email,
-            locationId: openSession.locationId,
-          })
-          .onConflictDoNothing({ target: users.email })
-          .returning({ id: users.id });
-        if (!newUser) {
-          throw new EmailAlreadyTaken();
-        }
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-        await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        now: attemptedAt,
+      });
+      if (pending?.kind !== "user_creation") {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-        await tx.insert(auditLog).values({
-          entity: "user",
-          entityId: newUser.id,
-          actorId: openSession.userId,
-          previousValue: null,
-          newValue: { firstName: parsedBody.firstName, email: parsedBody.email, roleId: role.id },
+      const reauthentication = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!reauthentication.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const [role] = await options.db
+        .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
+        .from(roles)
+        .where(eq(roles.id, parsedBody.roleId))
+        .limit(1);
+      if (!role) {
+        await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);
+        return;
+      }
+
+      const created = await options.db
+        .transaction(async (tx) => {
+          const [newUser] = await tx
+            .insert(users)
+            .values({
+              firstName: parsedBody.firstName,
+              email: parsedBody.email,
+              locationId: openSession.locationId,
+            })
+            .onConflictDoNothing({ target: users.email })
+            .returning({ id: users.id });
+          if (!newUser) {
+            throw new EmailAlreadyTaken();
+          }
+
+          await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
+
+          await tx.insert(auditLog).values({
+            entity: "user",
+            entityId: newUser.id,
+            actorId: openSession.userId,
+            previousValue: null,
+            newValue: { firstName: parsedBody.firstName, email: parsedBody.email, roleId: role.id },
+          });
+
+          return newUser;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof EmailAlreadyTaken) {
+            return undefined;
+          }
+          throw error;
         });
 
-        return newUser;
-      })
-      .catch((error: unknown) => {
-        if (error instanceof EmailAlreadyTaken) {
-          return undefined;
-        }
-        throw error;
-      });
+      if (!created) {
+        await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
+        return;
+      }
 
-    if (!created) {
-      await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
-      return;
-    }
-
-    await reply.code(201).send(
-      toBranchUserWire({
-        id: created.id,
-        firstName: parsedBody.firstName,
-        email: parsedBody.email,
-        version: 1,
-        roleId: role.id,
-        roleName: role.name,
-        roleIsAdministrator: role.isAdministrator,
-        passkeyCount: 0,
-      }),
-    );
-  });
+      await reply.code(201).send(
+        toBranchUserWire({
+          id: created.id,
+          firstName: parsedBody.firstName,
+          email: parsedBody.email,
+          version: 1,
+          roleId: role.id,
+          roleName: role.name,
+          roleIsAdministrator: role.isAdministrator,
+          passkeyCount: 0,
+        }),
+      );
+    },
+  );
 }
