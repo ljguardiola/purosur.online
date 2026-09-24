@@ -89,29 +89,13 @@ test("shows the breadcrumb, heading and each passkey with its registration and l
   await expect.element(screen.getByText("Registrada el 10/08/2026")).toBeVisible();
 });
 
-test("flags the account when it has only one passkey", async () => {
+test("lists a single passkey without flagging the account", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
 
-  await expect
-    .element(
-      screen
-        .getByText(
-          "Tenés una sola passkey. Si perdés este dispositivo no podés entrar al backoffice: conviene registrar otra, por ejemplo en el teléfono.",
-        )
-        .first(),
-    )
-    .toBeVisible();
-});
-
-test("does not flag the account when it has two or more passkeys", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  expect(screen.getByText(/Tenés una sola passkey/).query()).toBeNull();
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(screen.getByRole("status").query()).toBeNull();
 });
 
 test("warns an account with no passkey that only a recovery link lets it back in, and offers no registration", async () => {
@@ -131,7 +115,6 @@ test("warns an account with no passkey that only a recovery link lets it back in
   await expect
     .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
     .toBeDisabled();
-  expect(screen.getByText(/Tenés una sola passkey/).query()).toBeNull();
 });
 
 test("shows a load error with a retry action when the passkeys fail to load", async () => {
@@ -175,7 +158,7 @@ test("ends the session when the passkeys request finds no open session", async (
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("has no accessibility violations once the passkeys are loaded, with the single-passkey warning shown", async () => {
+test("has no accessibility violations once the passkeys are loaded", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);

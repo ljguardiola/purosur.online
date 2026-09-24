@@ -537,13 +537,6 @@ export function MyAccountScreen({
           )}
           {list.kind === "loaded" && (
             <>
-              {isOnlyPasskey && (
-                <InlineNotice
-                  tone="warning"
-                  icon={<TriangleAlert />}
-                  detail={passkeysMessages.singlePasskeyWarning}
-                />
-              )}
               {hasNoPasskeys && (
                 <InlineNotice
                   tone="warning"
