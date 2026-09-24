@@ -1,10 +1,10 @@
 import { Button, InlineNotice, Table } from "@purosur/ui";
-import { Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
+import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { NEW_ROLE_PATH, roleEditPath } from "./settingsRoutes";
+import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -70,6 +70,13 @@ const columns = [
     kind: "actions",
     srLabel: rolesMessages.rowActionsLabel,
     actions: [
+      // Every row gets this one, Administrator included: duplicating it is how an ordinary role
+      // starts from every permission in the catalog.
+      (item: RoleSummary) => ({
+        icon: <Copy />,
+        "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
+        onPress: () => navigate(roleDuplicatePath(item.id)),
+      }),
       // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
       (item: RoleSummary) =>
         item.isAdministrator

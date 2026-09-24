@@ -73,6 +73,41 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });
 
+test("shows a duplicate action on every row, including Administrator, navigating to that role's duplicate page", async () => {
+  window.history.pushState(null, "", "/settings/roles");
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [administrator, stock],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: /^Duplicar el rol/ }).elements()).toHaveLength(2);
+  await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
+
+  expect(window.location.pathname).toBe("/settings/roles/role-stock/duplicate");
+  window.history.pushState(null, "", "/");
+});
+
+test("shows the duplicate action before the pencil action, on a hand-made role row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [stock],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 rol")).toBeVisible();
+
+  const rowActionNames = screen
+    .getByRole("button", { name: /^(Duplicar|Editar) el rol/ })
+    .elements()
+    .map((button) => button.getAttribute("aria-label"));
+  expect(rowActionNames).toEqual(["Duplicar el rol Depósito", "Editar el rol Depósito"]);
+});
+
 test("shows the Rol, Permisos, Usuarios, and Acciones columns", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });

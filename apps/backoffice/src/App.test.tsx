@@ -57,6 +57,12 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       editRole: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    duplicateRoleScreen: {
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRoleCreationChallenge: vi.fn(),
+      createRole: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchEmailChangeChallenge: vi.fn(),
@@ -583,6 +589,42 @@ test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the
 
   await expect.element(screen.getByRole("heading", { name: "Editar rol", level: 1 })).toBeVisible();
   expect(services.editRoleScreen.fetchRole).toHaveBeenCalledWith("role-stock");
+  const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
+  expect(rolesItem.getAttribute("aria-current")).toBe("page");
+
+  window.history.back();
+
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+});
+
+test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled from the source role", async () => {
+  // Routing/wiring only, the same way the edit page's own wiring test above navigates by URL:
+  // DuplicateRoleScreen.test.tsx already covers the full pre-fill, passkey step-up, and error
+  // states in isolation, and RolesListScreen.test.tsx already covers the copy action's own click.
+  const services = createServices();
+  vi.mocked(services.duplicateRoleScreen.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "role-stock",
+        name: "Depósito",
+        isAdministrator: false,
+        permissionKeys: [],
+        userCount: 0,
+      },
+    ],
+  });
+  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Duplicar rol", level: 1 }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
 

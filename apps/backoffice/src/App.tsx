@@ -13,6 +13,11 @@ import {
 } from "./AccountRecoveryScreen";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import {
+  DuplicateRoleScreen,
+  type DuplicateRoleScreenServices,
+  defaultDuplicateRoleScreenServices,
+} from "./DuplicateRoleScreen";
+import {
   defaultEditRoleScreenServices,
   EditRoleScreen,
   type EditRoleScreenServices,
@@ -55,6 +60,7 @@ import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker"
 import { useSessionWatcher } from "./sessionWatcher";
 import {
   MY_ACCOUNT_PATH,
+  matchRoleDuplicatePath,
   matchRoleEditPath,
   matchUserDetailPath,
   NEW_ROLE_PATH,
@@ -84,6 +90,7 @@ export type AppServices = {
   rolesListScreen: RolesListScreenServices;
   newRoleScreen: NewRoleScreenServices;
   editRoleScreen: EditRoleScreenServices;
+  duplicateRoleScreen: DuplicateRoleScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -99,6 +106,7 @@ const defaultAppServices: AppServices = {
   rolesListScreen: defaultRolesListScreenServices,
   newRoleScreen: defaultNewRoleScreenServices,
   editRoleScreen: defaultEditRoleScreenServices,
+  duplicateRoleScreen: defaultDuplicateRoleScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -227,7 +235,8 @@ type SettingsAppSection =
   | "userDetail"
   | "rolesList"
   | "newRole"
-  | "editRole";
+  | "editRole"
+  | "duplicateRole";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
@@ -235,6 +244,8 @@ type SettingsAppProps = {
   userDetailId?: string;
   /** Only set for `section: "editRole"`. */
   editRoleId?: string;
+  /** Only set for `section: "duplicateRole"`. */
+  duplicateRoleId?: string;
   signedInUserId: string;
   displayName: string;
   isAdministrator: boolean;
@@ -247,13 +258,15 @@ type SettingsAppProps = {
   rolesListScreenServices: RolesListScreenServices;
   newRoleScreenServices: NewRoleScreenServices;
   editRoleScreenServices: EditRoleScreenServices;
+  duplicateRoleScreenServices: DuplicateRoleScreenServices;
 };
 
-/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new role, edit role). */
+/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new/edit/duplicate role). */
 function SettingsApp({
   section,
   userDetailId,
   editRoleId,
+  duplicateRoleId,
   signedInUserId,
   displayName,
   isAdministrator,
@@ -266,12 +279,16 @@ function SettingsApp({
   rolesListScreenServices,
   newRoleScreenServices,
   editRoleScreenServices,
+  duplicateRoleScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
-        : section === "rolesList" || section === "newRole" || section === "editRole"
+        : section === "rolesList" ||
+            section === "newRole" ||
+            section === "editRole" ||
+            section === "duplicateRole"
           ? messages.settings.roles.documentTitle
           : messages.settings.myAccount.documentTitle;
   }, [section]);
@@ -315,7 +332,10 @@ function SettingsApp({
                   label={messages.settings.rolesSectionLabel}
                   icon={<Shield />}
                   active={
-                    section === "rolesList" || section === "newRole" || section === "editRole"
+                    section === "rolesList" ||
+                    section === "newRole" ||
+                    section === "editRole" ||
+                    section === "duplicateRole"
                   }
                   {...linkProps(ROLES_LIST_PATH)}
                 />
@@ -370,6 +390,14 @@ function SettingsApp({
           services={editRoleScreenServices}
         />
       )}
+      {section === "duplicateRole" && duplicateRoleId !== undefined && (
+        <DuplicateRoleScreen
+          roleId={duplicateRoleId}
+          isAdministrator={isAdministrator}
+          onSessionEnded={onSessionEnded}
+          services={duplicateRoleScreenServices}
+        />
+      )}
     </Shell>
   );
 }
@@ -387,6 +415,7 @@ export function App({ help, services }: AppProps) {
     rolesListScreen,
     newRoleScreen,
     editRoleScreen,
+    duplicateRoleScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -518,13 +547,15 @@ export function App({ help, services }: AppProps) {
 
   const userDetailId = matchUserDetailPath(route);
   const editRoleId = matchRoleEditPath(route);
+  const duplicateRoleId = matchRoleDuplicatePath(route);
   const isSettingsRoute =
     route === MY_ACCOUNT_PATH ||
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
     route === NEW_ROLE_PATH ||
-    editRoleId !== undefined;
+    editRoleId !== undefined ||
+    duplicateRoleId !== undefined;
 
   if (isSettingsRoute) {
     return session.kind === "signed-in" ? (
@@ -540,10 +571,13 @@ export function App({ help, services }: AppProps) {
                   ? "newRole"
                   : editRoleId !== undefined
                     ? "editRole"
-                    : "myAccount"
+                    : duplicateRoleId !== undefined
+                      ? "duplicateRole"
+                      : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
         {...(editRoleId !== undefined ? { editRoleId } : {})}
+        {...(duplicateRoleId !== undefined ? { duplicateRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
         isAdministrator={session.isAdministrator}
@@ -556,6 +590,7 @@ export function App({ help, services }: AppProps) {
         rolesListScreenServices={rolesListScreen}
         newRoleScreenServices={newRoleScreen}
         editRoleScreenServices={editRoleScreen}
+        duplicateRoleScreenServices={duplicateRoleScreen}
       />
     ) : null;
   }

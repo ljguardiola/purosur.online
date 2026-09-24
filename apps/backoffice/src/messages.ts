@@ -385,6 +385,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       permissionLabels: PERMISSION_LABELS,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
+      duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
       // Shared by the New and Edit role pages: the one role form they both render.
       form: {
         nameLabel: "Nombre del rol",
@@ -433,6 +434,22 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
+      },
+      duplicateRole: {
+        breadcrumb: "Configuración · Roles",
+        heading: "Duplicar rol",
+        nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
+        loading: "Cargando…",
+        notFoundTitle: "No encontramos este rol",
+        loadErrorTitle: "No pudimos abrir este rol",
+        loadErrorDetail: "Probá de nuevo en unos minutos.",
+        cancel: CANCEL_LABEL,
+        save: "Guardar el rol",
+        attemptFailedTitle: "No se pudo crear el rol",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
   },
