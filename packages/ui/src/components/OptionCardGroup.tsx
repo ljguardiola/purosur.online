@@ -41,7 +41,7 @@ const helpTextClassName = "text-xs font-normal text-ink-secondary";
 // border going from 1px to 2px on choosing a card would add 1px to its rendered size, but a
 // box-shadow never participates in layout, so the ring can grow without shifting the card.
 const cardClassName =
-  "group flex min-w-0 flex-1 items-center gap-3 rounded-lg px-4 py-3 outline-none " +
+  "group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg px-4 py-3 outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_1px_var(--color-line)] " +
   "data-[hovered]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg data-[selected]:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +

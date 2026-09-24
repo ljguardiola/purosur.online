@@ -83,6 +83,16 @@ test("renders each option's label, and its icon when given one", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the hand cursor on each option", async () => {
+  const screen = await render(<SegmentedControl {...baseProps()} />);
+
+  for (const option of options) {
+    expect(getComputedStyle(segmentOption(screen, option.label)).cursor).toBe("pointer");
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("renders an option with no icon", async () => {
   const noIconOptions: [SegmentedControlOption<EntryMode>, SegmentedControlOption<EntryMode>] = [
     { value: "discount", label: "Discount" },

@@ -261,6 +261,22 @@ test("gives the footer a bone background, its padding, top border and 12px gap",
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("rounds the footer's bottom corners like the panel's so its bone fill keeps them rounded", async () => {
+  const screen = await render(<Modal {...baseProps({ footer: <Button>Confirm</Button> })} />);
+  const footerButton = screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement;
+  const footer = footerButton.parentElement as HTMLElement;
+  const panel = (footer.closest('[role="dialog"]') as HTMLElement).parentElement as HTMLElement;
+  const footerStyle = getComputedStyle(footer);
+  const panelStyle = getComputedStyle(panel);
+
+  expect(panelStyle.borderBottomLeftRadius).toBe("12px");
+  expect(panelStyle.borderBottomRightRadius).toBe("12px");
+  expect(footerStyle.borderBottomLeftRadius).toBe(panelStyle.borderBottomLeftRadius);
+  expect(footerStyle.borderBottomRightRadius).toBe(panelStyle.borderBottomRightRadius);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("caps the panel below the viewport and lets only the body scroll when content overflows", async () => {
   await page.viewport(900, 500);
   try {
@@ -417,6 +433,15 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   expect(iconRect.width).toBeGreaterThan(19);
   expect(iconRect.width).toBeLessThan(21);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the hand cursor on the close button", async () => {
+  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
+  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+
+  expect(getComputedStyle(closeButton).cursor).toBe("pointer");
 
   await expectNoAccessibilityViolations(document.body);
 });

@@ -523,6 +523,18 @@ test("truncates a long option label instead of wrapping it over its own 40px row
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("shows the hand cursor on the trigger and on each option", async () => {
+  const screen = await render(<ListFilter {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
+  expect(getComputedStyle(trigger).cursor).toBe("pointer");
+
+  await screen.getByRole("button", { name: /Estado/ }).click();
+  const option = screen.getByRole("option", { name: "Abiertas" }).element() as HTMLElement;
+  expect(getComputedStyle(option).cursor).toBe("pointer");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("renders each option at 40px with a 6px radius and 14px semibold ink", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   await screen.getByRole("button", { name: /Estado/ }).click();

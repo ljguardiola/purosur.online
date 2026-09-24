@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
@@ -52,6 +52,25 @@ async function snapshotPathWithMarkerRole(): Promise<string> {
   const folder = await mkdtemp(join(tmpdir(), "build-test-database-snapshot-"));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
   const path = join(folder, "snapshot.tar");
+  await writeFile(path, Buffer.from(await dump.arrayBuffer()));
+  return path;
+}
+
+async function clusterDumpPathWithMarkerTable(): Promise<string> {
+  // Starts from the run's own cluster dump, so building the marker dump pays no initdb either.
+  const runClusterDumpPath = inject("testDatabaseClusterDumpPath");
+  if (!runClusterDumpPath) {
+    throw new Error("the node project's global setup provided no cluster dump");
+  }
+  const client = new PGlite({ loadDataDir: new Blob([await readFile(runClusterDumpPath)]) });
+  onTestFinished(() => client.close());
+  await client.query('create table "cluster_dump_marker" ("id" integer primary key)');
+  await client.query('insert into "cluster_dump_marker" ("id") values (1)');
+
+  const dump = await client.dumpDataDir("none");
+  const folder = await mkdtemp(join(tmpdir(), "build-test-database-cluster-dump-"));
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+  const path = join(folder, "cluster-dump.tar");
   await writeFile(path, Buffer.from(await dump.arrayBuffer()));
   return path;
 }
@@ -304,9 +323,33 @@ describe("buildTestDatabase", () => {
     const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
     onTestFinished(() => database.close());
 
-    // Also shows the spy the run-once test relies on sees calls made from inside buildTestDatabase.
-    expect(migrateFreshDatabase).toHaveBeenCalledWith(migrationsFolder);
+    // Also shows the spy the run-once test relies on sees calls made from inside buildTestDatabase,
+    // and that it defaults to the "node" project's own cluster dump rather than running initdb.
+    expect(migrateFreshDatabase).toHaveBeenCalledWith(
+      migrationsFolder,
+      inject("testDatabaseClusterDumpPath"),
+    );
     const { rows } = await database.client.query('select * from "only_here"');
     expect(rows).toEqual([]);
+  });
+
+  it("starts a custom migrations folder from the given cluster dump instead of running initdb", async () => {
+    const clusterDumpPath = await clusterDumpPathWithMarkerTable();
+    const migrationsFolder = await migrationsFolderWith([
+      'create table "only_here" ("id" integer primary key)',
+    ]);
+
+    const database = await buildTestDatabase({ migrationsFolder, clusterDumpPath });
+    onTestFinished(() => database.close());
+
+    const { rows } = await database.client.query('select "id" from "cluster_dump_marker"');
+    expect(rows).toEqual([{ id: 1 }]);
+  });
+
+  it("injects the empty cluster dump the node project's global setup provided, for a custom migrations folder", async () => {
+    expect(
+      inject("testDatabaseClusterDumpPath"),
+      "the node project's global setup provided no cluster dump",
+    ).toBeDefined();
   });
 });

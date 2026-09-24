@@ -48,7 +48,7 @@ const iconWrapperClassName: Record<SegmentedControlSize, string> = {
 };
 
 const optionClassName =
-  "group flex items-center justify-center rounded-md px-4 outline-none " +
+  "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
   "data-[hovered]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg " +
   // Two attribute selectors outrank the single-attribute hover rule above regardless of

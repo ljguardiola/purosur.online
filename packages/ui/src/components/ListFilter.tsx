@@ -45,7 +45,7 @@ const popoverClassName =
   "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
 
 const optionClassName =
-  "flex h-10 cursor-default items-center justify-between rounded-md px-3 text-sm font-semibold " +
+  "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone";
 
 // react-aria-components' onSelectionChange reports a plain Key (string | number), since it

@@ -46,6 +46,18 @@ test("shows the display name and the Salir item, with no modal open yet", async 
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("shows the hand cursor on the Salir item", async () => {
+  const services = createServices();
+  const screen = await renderInRail({
+    displayName: "Lucas Guardiola",
+    onSignedOut: () => {},
+    services,
+  });
+
+  const salir = screen.getByRole("button", { name: "Salir" }).element() as HTMLElement;
+  expect(getComputedStyle(salir).cursor).toBe("pointer");
+});
+
 test("links the display name to the signed-in account's own Mi cuenta page", async () => {
   const services = createServices();
   const screen = await renderInRail({

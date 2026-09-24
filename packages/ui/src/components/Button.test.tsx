@@ -231,6 +231,14 @@ test("dims a disabled button to the design's 45% opacity, on the primary and sec
   expect(primaryWithIcon.opacity).toBe("0.45");
 });
 
+test("shows the hand cursor when enabled and the arrow cursor when disabled", async () => {
+  const enabled = await buttonStyle("Enabled");
+  const disabled = await buttonStyle("Disabled", { isDisabled: true });
+
+  expect(enabled.cursor).toBe("pointer");
+  expect(disabled.cursor).toBe("default");
+});
+
 test("keeps the primary variant's base text readable against its background", async () => {
   const primary = await buttonStyle("Primary");
 

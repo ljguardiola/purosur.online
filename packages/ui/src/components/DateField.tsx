@@ -161,7 +161,7 @@ const calendarGridClassName = "border-separate border-spacing-1.5";
 // instead of inheriting whatever typography the surrounding page happens to set.
 const calendarWeekdayClassName = "size-9 text-sm font-normal text-ink-secondary";
 const calendarCellClassName =
-  "size-9 cursor-default rounded-md text-center align-middle text-base text-ink outline-none " +
+  "size-9 rounded-md text-center align-middle text-base text-ink outline-none " +
   "data-[hovered]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-ui data-[selected]:text-surface-white data-[selected]:font-bold " +
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-[0.45] " +
