@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -247,6 +247,37 @@ describe("the declared access, enforced before every handler", () => {
 
     expect(before.statusCode).toBe(403);
     expect(after.statusCode).toBe(200);
+  });
+
+  it("reflects a permission removed from the user's role on the very next request", async () => {
+    const roleId = await insertRole("Cajera", ["void_sale"]);
+    const userId = await insertUser(roleId, "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const before = await callRoute("/test-only/void-sale", rawSessionId);
+    await db.delete(rolePermissions).where(eq(rolePermissions.roleId, roleId));
+    const after = await callRoute("/test-only/void-sale", rawSessionId);
+
+    expect(before.statusCode).toBe(200);
+    expect(after.statusCode).toBe(403);
+  });
+
+  it("reads the session and its role's permissions in one database read", async () => {
+    const roleId = await insertRole("Cajera", ["void_sale"]);
+    const userId = await insertUser(roleId, "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+    const query = vi.spyOn(testDatabase.client, "query");
+
+    const response = await callRoute("/test-only/void-sale", rawSessionId);
+    const statements = query.mock.calls.map(([statement]) => String(statement));
+    query.mockRestore();
+
+    expect(response.statusCode).toBe(200);
+    const permissionReads = statements.filter((statement) =>
+      statement.includes('"role_permissions"'),
+    );
+    expect(permissionReads).toHaveLength(1);
+    expect(permissionReads[0]).toContain('"sessions"');
   });
 
   it("hands the handler the session it resolved, so the handler never resolves it again", async () => {

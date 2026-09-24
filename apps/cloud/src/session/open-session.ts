@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
@@ -34,19 +34,6 @@ export interface OpenSession {
    * and a user with no role yet holds none.
    */
   permissionKeys: readonly PermissionKey[];
-}
-
-/** Reads one role's currently granted permission keys, in catalog order, fresh on every call. */
-async function loadRolePermissionKeys<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  roleId: string,
-): Promise<PermissionKey[]> {
-  const grantedRows = await db
-    .select({ permissionKey: rolePermissions.permissionKey })
-    .from(rolePermissions)
-    .where(eq(rolePermissions.roleId, roleId));
-  const granted = new Set(grantedRows.map((row) => row.permissionKey));
-  return PERMISSION_KEYS.filter((key) => granted.has(key));
 }
 
 /** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
@@ -95,7 +82,10 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       // Left-joined: a user with no `user_roles` row yet (some existing tests seed one that way)
       // resolves to "not an Administrator" rather than making the session unresolvable.
       isAdministrator: roles.isAdministrator,
-      roleId: roles.id,
+      // Read in this same query, so the role's current permissions cost no extra round trip.
+      grantedPermissionKeys: sql<
+        string[]
+      >`array(select ${rolePermissions.permissionKey} from ${rolePermissions} where ${rolePermissions.roleId} = ${roles.id})`,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -119,11 +109,10 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
   }
 
   const isAdministrator = session.isAdministrator ?? false;
-  const permissionKeys = isAdministrator
+  const granted = new Set(session.grantedPermissionKeys);
+  const permissionKeys: PermissionKey[] = isAdministrator
     ? [...PERMISSION_KEYS]
-    : session.roleId
-      ? await loadRolePermissionKeys(options.db, session.roleId)
-      : [];
+    : PERMISSION_KEYS.filter((key) => granted.has(key));
 
   return {
     state: "open",
