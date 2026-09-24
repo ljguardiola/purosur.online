@@ -455,17 +455,14 @@ describe("POST /users", () => {
 
   it("rejects a reauthentication carrying another account's credential, creating nothing", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
-    const [strangerUser] = await db
-      .insert(users)
-      .values({
-        firstName: "Grace Hopper",
-        email: "grace@example.com",
-        locationId: await seededLocationId(db),
-      })
-      .returning({ id: users.id });
-    if (!strangerUser) throw new Error("test setup: seeding the stranger user returned no row");
+    const strangerId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: cashierRoleId,
+      locationId: await seededLocationId(db),
+    });
     const strangerEmulator = newDeviceEmulator();
-    await registerPasskey(strangerUser.id, strangerEmulator, "Passkey de Grace");
+    await registerPasskey(strangerId, strangerEmulator, "Passkey de Grace");
     const rawSessionId = await insertSession(administratorId);
     const options = await requestCreationOptionsOrThrow(rawSessionId);
     const reauthentication = strangerEmulator.getJSON(BACKOFFICE_ORIGIN, {
