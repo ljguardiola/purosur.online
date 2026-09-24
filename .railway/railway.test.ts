@@ -53,6 +53,22 @@ describe("the cloud service's environment", () => {
     }
   });
 
+  it("embeds only the postgres host, port and database name in its literal values, never a credential", async () => {
+    const cloud = findService(await compile(), "cloud");
+    const allowedFields = ["PGHOST", "PGPORT", "PGDATABASE"];
+
+    for (const [key, value] of Object.entries(cloud.variables ?? {})) {
+      if (value.type !== "literal") {
+        continue;
+      }
+      for (const [, field] of (value.value ?? "").matchAll(
+        /\$\{\{\s*postgres\.([^}\s]+)\s*\}\}/g,
+      )) {
+        expect(allowedFields, `${key} embeds postgres.${field}`).toContain(field);
+      }
+    }
+  });
+
   it("builds cloud_app's DATABASE_URL as a literal string, never a stringified reference object", async () => {
     const cloud = findService(await compile(), "cloud");
     const databaseUrl = cloud.variables?.DATABASE_URL;

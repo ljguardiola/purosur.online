@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { describe, expect, inject, it } from "vitest";
-import { isNotMigratedYetError } from "./wait-for-ready.js";
+import { describe, expect, inject, it, vi } from "vitest";
+import { isNotMigratedYetError, waitForReady } from "./wait-for-ready.js";
 
 function envWithout(...names: string[]): NodeJS.ProcessEnv {
   const env = { ...process.env };
@@ -41,6 +41,27 @@ describe("the wait-for-ready command", () => {
 
     expect(result.status).toBe(1);
     expect(`${result.stdout}${result.stderr}`).not.toContain("s3cret-password");
+  });
+});
+
+describe("waitForReady", () => {
+  it("waits eight minutes by default before giving up on a database that never becomes ready", async () => {
+    let current = 0;
+    const onWaiting = vi.fn();
+
+    await expect(
+      waitForReady("postgres://cloud_app:pass@127.0.0.1:1/nonexistent", {
+        connectTimeoutSeconds: 1,
+        waitIntervalMs: 1000,
+        sleep: async (ms) => {
+          current += ms;
+        },
+        now: () => current,
+        onWaiting,
+      }),
+    ).rejects.toMatchObject({ code: "ECONNREFUSED" });
+
+    expect(current).toBe(480_000);
   });
 });
 

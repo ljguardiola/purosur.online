@@ -177,4 +177,65 @@ describe("waitForReady", () => {
       extra.cleanup();
     }
   }, 30_000);
+
+  describe("once runMigrations has run but its graphile-worker setup is incomplete", () => {
+    async function migratedDatabaseAfter(
+      namePrefix: string,
+      undoAsAdmin: (admin: postgres.Sql) => Promise<unknown>,
+    ): Promise<string> {
+      const created = await createUnmigratedDatabase(namePrefix);
+      adminUrl = created.adminUrl;
+      databaseName = created.databaseName;
+      await runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
+        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+      });
+      const admin = postgres(created.databaseUrl, { max: 1 });
+      try {
+        await undoAsAdmin(admin);
+      } finally {
+        await admin.end({ timeout: 1 });
+      }
+      return created.databaseUrl;
+    }
+
+    async function expectNotReady(databaseUrl: string): Promise<void> {
+      const clock = fakeClock();
+      await expect(
+        waitForReady(asCloudApp(databaseUrl), {
+          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          connectTimeoutSeconds: 5,
+          waitForReadySeconds: 3,
+          waitIntervalMs: 500,
+          sleep: clock.sleep,
+          now: clock.now,
+        }),
+      ).rejects.toMatchObject({ code: "SCHEMA_NOT_READY" });
+    }
+
+    it("is not ready while graphile-worker's schema is behind the bundled graphile-worker", async () => {
+      const databaseUrl = await migratedDatabaseAfter(
+        "wait_for_ready_worker_behind",
+        (admin) =>
+          admin`delete from graphile_worker.migrations where id = (select max(id) from graphile_worker.migrations)`,
+      );
+
+      await expectNotReady(databaseUrl);
+    }, 30_000);
+
+    it("is not ready while cloud_app lacks a privilege on a graphile-worker table", async () => {
+      const databaseUrl = await migratedDatabaseAfter("wait_for_ready_worker_grant", (admin) =>
+        admin.unsafe("revoke update on graphile_worker._private_jobs from cloud_app"),
+      );
+
+      await expectNotReady(databaseUrl);
+    }, 30_000);
+
+    it("is not ready while a graphile-worker row-security table has no policy for cloud_app", async () => {
+      const databaseUrl = await migratedDatabaseAfter("wait_for_ready_worker_policy", (admin) =>
+        admin.unsafe("drop policy cloud_app_full_access on graphile_worker._private_jobs"),
+      );
+
+      await expectNotReady(databaseUrl);
+    }, 30_000);
+  });
 });

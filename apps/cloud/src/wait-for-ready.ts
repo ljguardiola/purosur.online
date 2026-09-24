@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import postgres from "postgres";
 import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
 import {
@@ -24,7 +25,9 @@ export interface WaitForReadyOptions {
 }
 
 const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
-const DEFAULT_WAIT_FOR_READY_SECONDS = 60;
+// Above the migrate service's own worst case (a fresh image pull, its 60 s wait for the database,
+// then every migration), yet under the 600 s the deploy workflow allows the whole deploy.
+const DEFAULT_WAIT_FOR_READY_SECONDS = 480;
 const DEFAULT_WAIT_INTERVAL_MS = 1000;
 const GRAPHILE_WORKER_SCHEMA = "graphile_worker";
 
@@ -110,32 +113,75 @@ async function checkDrizzleMigrationsApplied(
   }
 }
 
+// graphile-worker's package exports only its entry point, so the migration list it bundles is
+// loaded by file URL from next to that entry point, which package exports do not restrict.
+async function bundledGraphileWorkerMigration(): Promise<number> {
+  const entryPoint = createRequire(import.meta.url).resolve("graphile-worker");
+  const generatedSql = new URL("./generated/sql.js", pathToFileURL(entryPoint));
+  const { migrations } = (await import(generatedSql.href)) as {
+    migrations: Record<string, string>;
+  };
+  return Math.max(...Object.keys(migrations).map((file) => Number.parseInt(file.slice(0, 6), 10)));
+}
+
 async function checkGraphileWorkerMigrated(sql: postgres.Sql): Promise<void> {
-  let rows: { count: number }[];
+  const expected = await bundledGraphileWorkerMigration();
+  let rows: { latest: number | null }[];
   try {
-    rows = await sql`select count(*)::int as count from ${sql(GRAPHILE_WORKER_SCHEMA)}.migrations`;
+    rows = await sql`select max(id)::int as latest from ${sql(GRAPHILE_WORKER_SCHEMA)}.migrations`;
   } catch (error) {
     if (isNotMigratedYetError(error)) {
       throw notReadyError("graphile-worker's schema is not installed yet");
     }
     throw error;
   }
-  if ((rows[0]?.count ?? 0) === 0) {
-    throw notReadyError("graphile-worker's migrations are not installed yet");
+  const latest = rows[0]?.latest ?? null;
+  if (latest === null || latest < expected) {
+    throw notReadyError(
+      `graphile-worker's schema is at migration ${latest ?? "none"}, not yet ${expected}`,
+    );
+  }
+}
+
+// A table with row-level security enabled refuses every row to a role no policy names, even one
+// holding every table privilege, so both are required.
+async function checkGraphileWorkerUsable(sql: postgres.Sql): Promise<void> {
+  const tables = await sql<{ tablename: string; usable: boolean }[]>`
+    select t.tablename,
+      has_table_privilege(format('%I.%I', t.schemaname, t.tablename), 'select')
+        and has_table_privilege(format('%I.%I', t.schemaname, t.tablename), 'insert')
+        and has_table_privilege(format('%I.%I', t.schemaname, t.tablename), 'update')
+        and has_table_privilege(format('%I.%I', t.schemaname, t.tablename), 'delete')
+        and (
+          not t.rowsecurity
+          or exists (
+            select 1 from pg_policies p
+            where p.schemaname = t.schemaname and p.tablename = t.tablename
+              and current_user = any(p.roles)
+          )
+        ) as usable
+    from pg_tables t
+    where t.schemaname = ${GRAPHILE_WORKER_SCHEMA}
+  `;
+  const unusable = tables.find((table) => !table.usable);
+  if (unusable) {
+    throw notReadyError(`cloud_app cannot use ${GRAPHILE_WORKER_SCHEMA}.${unusable.tablename} yet`);
   }
 }
 
 async function checkSchemaReady(sql: postgres.Sql, migrationsFolder: string): Promise<void> {
   await checkDrizzleMigrationsApplied(sql, migrationsFolder);
   await checkGraphileWorkerMigrated(sql);
+  await checkGraphileWorkerUsable(sql);
 }
 
 /**
  * Waits, within a bounded budget, until `databaseUrl` (the cloud's own `cloud_app` connection) is
  * ready to take traffic: every migration bundled in this image's `migrationsFolder` is recorded in
- * `drizzle.__drizzle_migrations`, and graphile-worker's own schema is installed. This is a
- * read-only check — `cloud_app` has no privilege to apply any of it — meant to run before the
- * deploy takes traffic, while a separate one-shot service migrates the database as the admin role.
+ * `drizzle.__drizzle_migrations`, graphile-worker's own schema is at the migration its bundled
+ * package ships, and `cloud_app` can use every one of its tables. This is a read-only check —
+ * `cloud_app` has no privilege to apply any of it — meant to run before the deploy takes traffic,
+ * while a separate one-shot service migrates the database as the admin role.
  *
  * A connection failure that means "not created or not ready yet" (the role or its password not
  * set up yet, the schema not there yet) is retried instead of failing the deploy immediately; any

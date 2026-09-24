@@ -145,6 +145,32 @@ describe("the cloud_app role runMigrations creates", () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
+  // The previous deployment keeps serving as cloud_app while the next deploy migrates, so a
+  // policy dropped and re-created would leave it refused every graphile-worker row in between.
+  it("keeps its graphile-worker row-security policies in place when migrations run again", async () => {
+    const admin = postgres(databaseUrlFor(adminUrl, databaseName), { max: 1 });
+    try {
+      const policyIds = () =>
+        admin<{ oid: number }[]>`
+          select p.oid::int as oid from pg_policy p
+          join pg_class c on c.oid = p.polrelid
+          join pg_namespace n on n.oid = c.relnamespace
+          where n.nspname = 'graphile_worker' and p.polname = 'cloud_app_full_access'
+          order by p.oid
+        `;
+      const before = await policyIds();
+
+      await runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
+        migrationsFolder: MIGRATIONS_FOLDER,
+      });
+
+      expect(before.length).toBeGreaterThan(0);
+      expect(await policyIds()).toEqual(before);
+    } finally {
+      await admin.end({ timeout: 1 });
+    }
+  }, 60_000);
+
   // graphile-worker checks its own schema is current every time it starts (`makeWorkerUtils`,
   // `run()`), which `server.ts` does as `cloud_app` at runtime. `runMigrations` already applied
   // graphile-worker's migrations as the admin role above, so this check finds nothing left to

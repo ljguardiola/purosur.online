@@ -6,6 +6,7 @@ import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
   runMigrations,
+  scramSha256Verifier,
   waitForDatabase,
 } from "./migrate.js";
 
@@ -318,6 +319,31 @@ describe("isRetryableConnectionError", () => {
 
   it("does not treat a non-error value as retryable", () => {
     expect(isRetryableConnectionError("boom")).toBe(false);
+  });
+});
+
+describe("scramSha256Verifier", () => {
+  const VERIFIER_FORMAT =
+    /^SCRAM-SHA-256\$4096:([A-Za-z0-9+/=]+)\$([A-Za-z0-9+/=]+):([A-Za-z0-9+/=]+)$/;
+
+  it("builds a SCRAM-SHA-256 verifier with a 16-byte salt and 32-byte keys", () => {
+    const match = VERIFIER_FORMAT.exec(scramSha256Verifier("s3cret-password"));
+    if (!match) {
+      throw new Error("the verifier does not have the SCRAM-SHA-256 format");
+    }
+    const [, salt = "", storedKey = "", serverKey = ""] = match;
+
+    expect(Buffer.from(salt, "base64")).toHaveLength(16);
+    expect(Buffer.from(storedKey, "base64")).toHaveLength(32);
+    expect(Buffer.from(serverKey, "base64")).toHaveLength(32);
+  });
+
+  it("never contains the password itself", () => {
+    expect(scramSha256Verifier("s3cret-password")).not.toContain("s3cret-password");
+  });
+
+  it("uses a fresh salt every time", () => {
+    expect(scramSha256Verifier("s3cret-password")).not.toBe(scramSha256Verifier("s3cret-password"));
   });
 });
 

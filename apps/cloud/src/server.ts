@@ -223,9 +223,9 @@ export interface SetUpRecoveryDeps {
  * Connects to the database for the HTTP request path, and separately starts graphile-worker
  * (`recovery-worker.ts`) so this same process also processes the jobs `POST
  * /users/recovery/request` enqueues. Covered by apps/cloud/src/recovery/*.integration.test.ts
- * against a real Testcontainers Postgres: graphile-worker's `run()` installs its own schema and
- * needs a real Postgres connection with LISTEN/NOTIFY, which this repository's PGlite-based test
- * database does not provide.
+ * against a real Testcontainers Postgres: graphile-worker's `run()` expects its schema already
+ * installed by `migrate.ts` and needs a real Postgres connection with LISTEN/NOTIFY, which this
+ * repository's PGlite-based test database does not provide.
  */
 export async function setUpRecovery(
   recoveryEnv: RecoveryEnv,

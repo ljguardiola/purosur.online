@@ -1,3 +1,4 @@
+import { createHash, createHmac, pbkdf2Sync, randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -27,6 +28,7 @@ const DEFAULT_WAIT_INTERVAL_MS = 1000;
 // under its own default schema name.
 const GRAPHILE_WORKER_SCHEMA = "graphile_worker";
 const CLOUD_APP_ROLE = "cloud_app";
+const CLOUD_APP_POLICY = "cloud_app_full_access";
 
 // A connection can fail either as a native Node socket error (ECONNREFUSED, ENOTFOUND, ...) or as
 // a postgres.js protocol-level error (CONNECT_TIMEOUT, CONNECTION_CLOSED, ...); both expose the
@@ -136,16 +138,21 @@ function logWaiting(error: unknown, elapsedMs: number): void {
  * security itself, the moment it is not also the owning (migrating) role.
  */
 async function grantCloudAppGraphileWorkerRowSecurityAccess(sql: postgres.Sql): Promise<void> {
-  const rowSecurityTables = await sql<{ tablename: string }[]>`
-    select tablename from pg_tables
-    where schemaname = ${GRAPHILE_WORKER_SCHEMA} and rowsecurity
+  // Only a missing policy is created, never an existing one dropped and re-created: the previous
+  // deployment keeps serving as `cloud_app` while this runs, and would be refused every row in
+  // between.
+  const tablesWithoutPolicy = await sql<{ tablename: string }[]>`
+    select t.tablename from pg_tables t
+    where t.schemaname = ${GRAPHILE_WORKER_SCHEMA} and t.rowsecurity
+      and not exists (
+        select 1 from pg_policies p
+        where p.schemaname = t.schemaname and p.tablename = t.tablename
+          and p.policyname = ${CLOUD_APP_POLICY}
+      )
   `;
-  for (const { tablename } of rowSecurityTables) {
+  for (const { tablename } of tablesWithoutPolicy) {
     await sql.unsafe(
-      `drop policy if exists cloud_app_full_access on ${GRAPHILE_WORKER_SCHEMA}.${tablename}`,
-    );
-    await sql.unsafe(
-      `create policy cloud_app_full_access on ${GRAPHILE_WORKER_SCHEMA}.${tablename} for all to ${CLOUD_APP_ROLE} using (true) with check (true)`,
+      `create policy ${CLOUD_APP_POLICY} on ${GRAPHILE_WORKER_SCHEMA}.${tablename} for all to ${CLOUD_APP_ROLE} using (true) with check (true)`,
     );
   }
 }
@@ -203,17 +210,36 @@ async function retryOnConcurrentCatalogUpdate<T>(run: () => Promise<T>): Promise
   }
 }
 
+const SCRAM_ITERATIONS = 4096;
+const SCRAM_SALT_BYTES = 16;
+const SCRAM_KEY_BYTES = 32;
+
 /**
- * `ALTER ROLE ... PASSWORD` takes a plain string constant, not a bind parameter, so the password
+ * Builds the same SCRAM-SHA-256 verifier Postgres itself stores for a password (RFC 5802, RFC
+ * 7677), so `ALTER ROLE` only ever receives the verifier: Postgres writes a failing statement's
+ * text to its log, and a plaintext password there would outlive the statement. The password's
+ * UTF-8 bytes are used as they are, without SASLprep, the same way postgres.js computes its side
+ * of the exchange when the cloud logs in.
+ */
+export function scramSha256Verifier(password: string): string {
+  const salt = randomBytes(SCRAM_SALT_BYTES);
+  const saltedPassword = pbkdf2Sync(password, salt, SCRAM_ITERATIONS, SCRAM_KEY_BYTES, "sha256");
+  const clientKey = createHmac("sha256", saltedPassword).update("Client Key").digest();
+  const storedKey = createHash("sha256").update(clientKey).digest();
+  const serverKey = createHmac("sha256", saltedPassword).update("Server Key").digest();
+  return `SCRAM-SHA-256$${SCRAM_ITERATIONS}:${salt.toString("base64")}$${storedKey.toString("base64")}:${serverKey.toString("base64")}`;
+}
+
+/**
+ * `ALTER ROLE ... PASSWORD` takes a plain string constant, not a bind parameter, so the verifier
  * cannot be substituted directly into that statement the way every other value here is. Instead,
  * `format('%L', ...)` — an ordinary function call, which does accept a bind parameter — builds an
- * already safely quoted statement, and only that finished statement is executed. The password
- * itself is never logged.
+ * already safely quoted statement, and only that finished statement is executed.
  */
 async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise<void> {
   const formatString = `alter role ${CLOUD_APP_ROLE} login password %L`;
   const [row] = await sql<{ statement: string }[]>`
-    select format(${formatString}::text, ${password}::text) as statement
+    select format(${formatString}::text, ${scramSha256Verifier(password)}::text) as statement
   `;
   if (!row) {
     throw new Error("migrate: building the cloud_app password statement returned no row");
@@ -232,9 +258,9 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
  *
  * Runs as the role that owns the schema (never `cloud_app`): besides the drizzle migrations
  * (which create `cloud_app` and its grants, see migrations/0016), this also runs
- * graphile-worker's own schema migrations — graphile-worker otherwise installs its schema lazily
- * at runtime (see server.ts), which would require the running application to hold DDL privileges
- * — grants `cloud_app` what it needs on that schema, and sets `cloud_app`'s login password so the
+ * graphile-worker's own schema migrations — graphile-worker would otherwise install its schema
+ * lazily when it starts, which would require the running application to hold DDL privileges —
+ * grants `cloud_app` what it needs on that schema, and sets `cloud_app`'s login password so the
  * application can connect as it afterward.
  */
 export async function runMigrations(
