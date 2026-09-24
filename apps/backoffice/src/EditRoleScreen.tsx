@@ -2,17 +2,17 @@ import type { PermissionKey } from "@purosur/contracts";
 import { Button, InlineNotice } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { Check, RotateCcw, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
-import { RoleForm, validateRoleName } from "./RoleForm";
+import { RoleForm, roleFieldErrorMessage, validateRoleName } from "./RoleForm";
 import {
-  type EditRoleFieldError,
-  editRole,
-  fetchRole,
-  fetchRoleEditChallenge,
-  type RoleDetail,
-} from "./rolesApi";
+  failedRoleLoadStatus,
+  type RoleLoadStatus,
+  RoleLoadStatusView,
+  RolesForbiddenNotice,
+} from "./RoleLoadStatus";
+import { editRole, fetchRole, fetchRoleEditChallenge, type RoleDetail } from "./rolesApi";
 import { navigate } from "./router";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
@@ -39,13 +39,7 @@ export type EditRoleScreenProps = {
   services?: EditRoleScreenServices;
 };
 
-type LoadState =
-  | { kind: "loading" }
-  | { kind: "notFound" }
-  | { kind: "forbidden" }
-  | { kind: "loadError" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; role: RoleDetail };
+type LoadState = RoleLoadStatus | { kind: "loaded"; role: RoleDetail };
 
 type FormNotice =
   | { kind: "attemptFailed" }
@@ -56,10 +50,6 @@ type FormNotice =
 const rolesMessages = messages.settings.roles;
 const pageMessages = rolesMessages.editRole;
 const formMessages = rolesMessages.form;
-
-function fieldErrorMessage(field: EditRoleFieldError): string | undefined {
-  return field === "name" ? formMessages.nameFieldError : undefined;
-}
 
 /** "Editar rol": pre-filled with a hand-made role's current name and permissions, confirming with a passkey to save. */
 export function EditRoleScreen({
@@ -100,16 +90,10 @@ export function EditRoleScreen({
       setState({ kind: "loaded", role: outcome.value });
       fillFrom(outcome.value);
       setNotice(null);
-    } else if (outcome.kind === "not_found") {
-      setState({ kind: "notFound" });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
-    } else if (outcome.kind === "rate_limited") {
-      setState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      setState({ kind: "forbidden" });
     } else {
-      setState({ kind: "loadError" });
+      setState(failedRoleLoadStatus(outcome));
     }
   }, [roleId, endSession, fetchRole, fillFrom]);
 
@@ -120,16 +104,7 @@ export function EditRoleScreen({
   }, [isAdministrator, load]);
 
   if (state.kind === "forbidden") {
-    return (
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title={rolesMessages.forbiddenTitle}
-          detail={rolesMessages.forbiddenDetail}
-        />
-      </div>
-    );
+    return <RolesForbiddenNotice />;
   }
 
   async function handleReload() {
@@ -249,8 +224,8 @@ export function EditRoleScreen({
       return;
     }
     if (outcome.kind === "validation_failed") {
-      setNameError(fieldErrorMessage(outcome.field));
-      if (fieldErrorMessage(outcome.field) === undefined) {
+      setNameError(roleFieldErrorMessage(outcome.field));
+      if (roleFieldErrorMessage(outcome.field) === undefined) {
         setNotice({ kind: "attemptFailed" });
       }
       setSubmitting(false);
@@ -278,7 +253,7 @@ export function EditRoleScreen({
     <>
       <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
         <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{pageMessages.breadcrumb}</p>
+          <p className="text-ink-secondary text-sm">{rolesMessages.rolePage.breadcrumb}</p>
           <h1 className="font-bold text-2xl text-brand-blue-strong">{pageMessages.heading}</h1>
         </div>
       </div>
@@ -288,15 +263,15 @@ export function EditRoleScreen({
             tone="error"
             icon={<TriangleAlert />}
             title={pageMessages.attemptFailedTitle}
-            detail={pageMessages.attemptFailedDetail}
+            detail={rolesMessages.rolePage.attemptFailedDetail}
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={pageMessages.rateLimitedTitle}
-            detail={pageMessages.rateLimitedDetail({
+            title={rolesMessages.rateLimitedTitle}
+            detail={rolesMessages.rateLimitedDetail({
               minutes: Math.ceil(notice.retryAfterSeconds / 60),
             })}
           />
@@ -314,7 +289,7 @@ export function EditRoleScreen({
             tone="error"
             icon={<TriangleAlert />}
             title={pageMessages.reloadFailedTitle}
-            detail={pageMessages.attemptFailedDetail}
+            detail={rolesMessages.rolePage.attemptFailedDetail}
           />
         )}
         {offersReload && (
@@ -327,38 +302,7 @@ export function EditRoleScreen({
             {pageMessages.reload}
           </Button>
         )}
-        {state.kind === "loading" && <p role="status">{pageMessages.loading}</p>}
-        {state.kind === "notFound" && (
-          <InlineNotice tone="error" icon={<ShieldOff />} title={pageMessages.notFoundTitle} />
-        )}
-        {state.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={pageMessages.loadErrorTitle}
-              detail={pageMessages.loadErrorDetail}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              {rolesMessages.retry}
-            </Button>
-          </>
-        )}
-        {state.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title={rolesMessages.rateLimitedTitle}
-              detail={rolesMessages.rateLimitedDetail({
-                minutes: Math.ceil(state.retryAfterSeconds / 60),
-              })}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              {rolesMessages.retry}
-            </Button>
-          </>
-        )}
+        <RoleLoadStatusView state={state} onRetry={() => void load()} />
         {state.kind === "loaded" && (
           <RoleForm
             name={name}
@@ -381,7 +325,7 @@ export function EditRoleScreen({
           isDisabled={submitting}
           onPress={() => navigate(ROLES_LIST_PATH)}
         >
-          {pageMessages.cancel}
+          {rolesMessages.rolePage.cancel}
         </Button>
         <Button
           variant="primary"

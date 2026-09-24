@@ -38,9 +38,11 @@ type TableUnsortableDataColumn<T> = TableColumnCommon<T> & {
 type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn<T>;
 
 // The same shape IconButtonProps takes, minus the parts Table already owns (size, background).
-// Returning undefined for a specific item renders no button at all in that row's slot (not a
-// disabled one), for an action that does not apply to every row (e.g. no edit action on a fixed,
-// uneditable row).
+// Returning undefined for a specific item renders no button in that row's slot (not a disabled
+// one), for an action that does not apply to every row (e.g. no edit action on a fixed,
+// uneditable row) — an invisible, non-focusable placeholder fills that same slot instead of
+// collapsing it, so any other action in the same column still lands in the same horizontal
+// position on every row.
 export type TableAction<T> = (item: T) =>
   | {
       icon: ButtonIcon;
@@ -422,7 +424,11 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
 function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: T }) {
   const descriptor = action(item);
   if (!descriptor) {
-    return null;
+    // Same footprint as IconButton's own 38x38px box (see IconButton.tsx's className), so this
+    // row's other action doesn't shift into the space a visible action would have taken here.
+    // A plain, non-interactive <span> is already outside the accessibility tree on its own;
+    // aria-hidden is added to say so explicitly rather than rely on that default.
+    return <span aria-hidden="true" className="size-[2.375rem] shrink-0" />;
   }
   const { icon, "aria-label": ariaLabel, onPress } = descriptor;
   return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;

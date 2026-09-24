@@ -1113,6 +1113,93 @@ test("renders no button at all for a row whose action reports undefined, keeping
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The Administrator row hides its own edit action (see the test above), leaving only one visible
+// button there; without a placeholder holding that hidden slot's own footprint, the first action
+// (never hidden here) would sit further right on that row than it does on every other row.
+test("keeps the first action in the same column position across rows even when the second action is hidden on one of them", async () => {
+  type Item = { id: string; isAdministrator: boolean };
+  const itemRows: TableRow<Item>[] = [
+    { id: "1", item: { id: "1", isAdministrator: true } },
+    { id: "2", item: { id: "2", isAdministrator: false } },
+  ];
+  const twoActionColumns = [
+    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (item: Item) => ({
+          icon: <PackageSearch />,
+          "aria-label": `Copy ${item.id}`,
+          onPress: () => {},
+        }),
+        (item: Item) =>
+          item.isAdministrator
+            ? undefined
+            : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
+      ],
+    },
+  ] as const;
+
+  const screen = await render(
+    <Table aria-label="Roles" columns={twoActionColumns} rows={itemRows} />,
+  );
+
+  const copyOnAdminRow = screen.getByRole("button", { name: "Copy 1" }).element() as HTMLElement;
+  const copyOnOtherRow = screen.getByRole("button", { name: "Copy 2" }).element() as HTMLElement;
+
+  expect(copyOnAdminRow.getBoundingClientRect().left).toBeCloseTo(
+    copyOnOtherRow.getBoundingClientRect().left,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("hides a missing action behind an invisible, non-focusable placeholder instead of collapsing its slot", async () => {
+  type Item = { id: string; isAdministrator: boolean };
+  const itemRows: TableRow<Item>[] = [{ id: "1", item: { id: "1", isAdministrator: true } }];
+  const twoActionColumns = [
+    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (item: Item) => ({
+          icon: <PackageSearch />,
+          "aria-label": `Copy ${item.id}`,
+          onPress: () => {},
+        }),
+        (item: Item) =>
+          item.isAdministrator
+            ? undefined
+            : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
+      ],
+    },
+  ] as const;
+
+  const screen = await render(
+    <Table aria-label="Roles" columns={twoActionColumns} rows={itemRows} />,
+  );
+
+  const copyButton = screen.getByRole("button", { name: "Copy 1" }).element() as HTMLElement;
+  const actionsCell = copyButton.closest("td") as HTMLElement;
+  const actionsWrapper = actionsCell.firstElementChild as HTMLElement;
+  const placeholder = actionsWrapper.lastElementChild as HTMLElement;
+
+  expect(placeholder.tagName).not.toBe("BUTTON");
+  expect(placeholder.getAttribute("aria-hidden")).toBe("true");
+  expect(placeholder.tabIndex).toBeLessThan(0);
+  const placeholderRect = placeholder.getBoundingClientRect();
+  const copyRect = copyButton.getBoundingClientRect();
+  expect(placeholderRect.width).toBeCloseTo(copyRect.width, 0);
+  expect(placeholderRect.height).toBeCloseTo(copyRect.height, 0);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a column without a title, or an actions column without its own fields", () => {
   expectTypeOf<{ key: string; render: (item: Product) => string }>().not.toExtend<
     TableColumn<Product>
