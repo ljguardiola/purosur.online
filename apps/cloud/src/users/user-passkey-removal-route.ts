@@ -11,9 +11,8 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "../session/open-session.js";
+import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
 import { findBranchUser } from "./branch-users.js";
-import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
@@ -94,20 +93,17 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
 
   app.post<{ Params: { id: string } }>(
     "/users/:id/passkeys/removal-options",
+    { config: { access: ADMINISTRATOR_ACCESS } },
     async (request, reply) => {
       if (!checkOrigin(request, reply)) {
         return;
       }
       const issuedAt = now();
-      const openSession = await requireOpenSession(request, reply, {
+      const openSession = await enforceRouteAccess(request, reply, {
         db: options.db,
         now: issuedAt,
       });
       if (!openSession) {
-        return;
-      }
-      if (!openSession.isAdministrator) {
-        await reply.code(403).send(FORBIDDEN_RESPONSE);
         return;
       }
 
@@ -150,20 +146,17 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
 
   app.post<{ Params: { id: string; passkeyId: string } }>(
     "/users/:id/passkeys/:passkeyId/remove",
+    { config: { access: ADMINISTRATOR_ACCESS } },
     async (request, reply) => {
       if (!checkOrigin(request, reply)) {
         return;
       }
       const attemptedAt = now();
-      const openSession = await requireOpenSession(request, reply, {
+      const openSession = await enforceRouteAccess(request, reply, {
         db: options.db,
         now: attemptedAt,
       });
       if (!openSession) {
-        return;
-      }
-      if (!openSession.isAdministrator) {
-        await reply.code(403).send(FORBIDDEN_RESPONSE);
         return;
       }
 

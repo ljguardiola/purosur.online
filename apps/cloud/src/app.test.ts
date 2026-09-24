@@ -6,10 +6,20 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp as buildRealApp } from "./app.js";
 import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
+import { rolePermissions, roles, sessions, userRoles, users } from "./db/schema.js";
+import { PERMISSION_KEYS } from "./roles/permission-catalog.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  OPEN_SESSION_ACCESS,
+  PUBLIC_ACCESS,
+} from "./session/route-access.js";
+import { SESSION_COOKIE_NAME } from "./session/session-cookie.js";
+import { generateSessionId, hashSessionId } from "./session/session-id.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
 } from "./test-support/build-test-app.js";
+import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;
 
@@ -719,5 +729,140 @@ describe("wiring the passkeys routes", () => {
     expect(registrationOptions.statusCode).toBe(401);
     expect(removalOptions.statusCode).toBe(401);
     expect(remove.statusCode).toBe(401);
+  });
+});
+
+const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+
+function fullyWiredApp() {
+  return buildApp({
+    version: "abc1234",
+    recovery: {
+      db: testDatabase.db,
+      jobQueue: { async enqueueRecoveryRequest() {} },
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+    },
+    session: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+  });
+}
+
+describe("the route access inventory", () => {
+  it("declares exactly one access level for every registered route", () => {
+    const app = fullyWiredApp();
+
+    expect(app.routeAccessInventory()).toEqual([
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/redeem", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/session/authentication-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/session/authenticate", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/users/session", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users/session/status", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/session/sign-out", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys/removal-options", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/users/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users/creation-options", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users/:id/email-change-options", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users/:id/email", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
+      {
+        method: "POST",
+        url: "/users/:id/passkeys/removal-options",
+        access: ADMINISTRATOR_ACCESS,
+      },
+      {
+        method: "POST",
+        url: "/users/:id/passkeys/:passkeyId/remove",
+        access: ADMINISTRATOR_ACCESS,
+      },
+      { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles/creation-options", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles/:id/edit-options", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+    ]);
+  });
+
+  it("never registers a route with no declared access", () => {
+    const app = fullyWiredApp();
+
+    for (const route of app.routeAccessInventory()) {
+      expect(route.access, `${route.method} ${route.url} has no declared access`).toBeDefined();
+    }
+  });
+});
+
+describe("Administrator-only routes reject a non-Administrator holding every permission", () => {
+  function resolvedPath(url: string): string {
+    return url.replace(/:\w+/g, "00000000-0000-0000-0000-000000000000");
+  }
+
+  it("answers 403 forbidden on every route declared Administrator-only", async () => {
+    const app = fullyWiredApp();
+    const db = testDatabase.db;
+    const [fullyPermittedRole] = await db
+      .insert(roles)
+      .values({ name: "Con todos los permisos", isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!fullyPermittedRole) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    await db
+      .insert(rolePermissions)
+      .values(
+        PERMISSION_KEYS.map((permissionKey) => ({ roleId: fullyPermittedRole.id, permissionKey })),
+      );
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: user.id, roleId: fullyPermittedRole.id });
+    const rawSessionId = generateSessionId();
+    await db.insert(sessions).values({
+      userId: user.id,
+      sessionIdHash: hashSessionId(rawSessionId),
+      createdAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+
+    const administratorOnlyRoutes = app
+      .routeAccessInventory()
+      .filter((route) => route.access === ADMINISTRATOR_ACCESS);
+    expect(administratorOnlyRoutes.length).toBeGreaterThan(0);
+
+    for (const route of administratorOnlyRoutes) {
+      const response = await app.inject({
+        method: route.method as "GET" | "POST",
+        url: resolvedPath(route.url),
+        headers: {
+          cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
+          origin: BACKOFFICE_ORIGIN,
+        },
+      });
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(403);
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+    }
   });
 });

@@ -11,10 +11,9 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "../session/open-session.js";
+import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
 import { findBranchUser, toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
-import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
@@ -154,20 +153,17 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
 
   app.post<{ Params: { id: string } }>(
     "/users/:id/email-change-options",
+    { config: { access: ADMINISTRATOR_ACCESS } },
     async (request, reply) => {
       if (!checkOrigin(request, reply)) {
         return;
       }
       const issuedAt = now();
-      const openSession = await requireOpenSession(request, reply, {
+      const openSession = await enforceRouteAccess(request, reply, {
         db: options.db,
         now: issuedAt,
       });
       if (!openSession) {
-        return;
-      }
-      if (!openSession.isAdministrator) {
-        await reply.code(403).send(FORBIDDEN_RESPONSE);
         return;
       }
 
@@ -204,140 +200,140 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
     },
   );
 
-  app.post<{ Params: { id: string } }>("/users/:id/email", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const target = await findTarget(openSession.locationId, request.params.id);
-    if (!target) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
-
-    const parsedBody = readEmailChangeBody(request.body);
-    if (isValidationFailure(parsedBody)) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: parsedBody.message,
-        details: [{ field: parsedBody.field }],
+  app.post<{ Params: { id: string } }>(
+    "/users/:id/email",
+    { config: { access: ADMINISTRATOR_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
+      const attemptedAt = now();
+      const openSession = await enforceRouteAccess(request, reply, {
+        db: options.db,
+        now: attemptedAt,
       });
-      return;
-    }
+      if (!openSession) {
+        return;
+      }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const target = await findTarget(openSession.locationId, request.params.id);
+      if (!target) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "user_email_change") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const parsedBody = readEmailChangeBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
 
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-    const outcome = await options.db
-      .transaction<EmailChangeOutcome>(async (tx) => {
-        // Locks this one row so a concurrent request against the same user waits instead of
-        // racing: the version check below and the write it may lead to happen against a value that
-        // cannot change out from under this transaction while it holds the lock.
-        const [current] = await tx
-          .select({ email: users.email, version: users.version })
-          .from(users)
-          .where(eq(users.id, target.id))
-          .for("update");
-        if (!current) {
-          // The branch check above already confirmed this id exists; nothing in this codebase
-          // deletes a user, so this is unreachable in practice.
-          return { kind: "stale_version" };
-        }
-        if (current.version !== parsedBody.version) {
-          return { kind: "stale_version" };
-        }
-        if (current.email === parsedBody.email) {
-          return { kind: "applied", email: current.email, version: current.version };
-        }
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        now: attemptedAt,
+      });
+      if (pending?.kind !== "user_email_change") {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-        // The unique index on `users.email` decides whether the address is taken: a read before
-        // this write could miss another request writing the same address concurrently.
-        const nextVersion = current.version + 1;
-        await tx
-          .update(users)
-          .set({ email: parsedBody.email, version: nextVersion })
-          .where(eq(users.id, target.id));
+      const reauthentication = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!reauthentication.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-        // A recovery link already sent to the previous address must not outlive the change.
-        await tx
-          .update(recoveryTokens)
-          .set({ voidedAt: attemptedAt })
-          .where(
-            and(
-              eq(recoveryTokens.userId, target.id),
-              isNull(recoveryTokens.usedAt),
-              isNull(recoveryTokens.voidedAt),
-            ),
-          );
+      const outcome = await options.db
+        .transaction<EmailChangeOutcome>(async (tx) => {
+          // Locks this one row so a concurrent request against the same user waits instead of
+          // racing: the version check below and the write it may lead to happen against a value that
+          // cannot change out from under this transaction while it holds the lock.
+          const [current] = await tx
+            .select({ email: users.email, version: users.version })
+            .from(users)
+            .where(eq(users.id, target.id))
+            .for("update");
+          if (!current) {
+            // The branch check above already confirmed this id exists; nothing in this codebase
+            // deletes a user, so this is unreachable in practice.
+            return { kind: "stale_version" };
+          }
+          if (current.version !== parsedBody.version) {
+            return { kind: "stale_version" };
+          }
+          if (current.email === parsedBody.email) {
+            return { kind: "applied", email: current.email, version: current.version };
+          }
 
-        await tx.insert(auditLog).values({
-          entity: "user",
-          entityId: target.id,
-          actorId: openSession.userId,
-          previousValue: { email: current.email },
-          newValue: { email: parsedBody.email },
+          // The unique index on `users.email` decides whether the address is taken: a read before
+          // this write could miss another request writing the same address concurrently.
+          const nextVersion = current.version + 1;
+          await tx
+            .update(users)
+            .set({ email: parsedBody.email, version: nextVersion })
+            .where(eq(users.id, target.id));
+
+          // A recovery link already sent to the previous address must not outlive the change.
+          await tx
+            .update(recoveryTokens)
+            .set({ voidedAt: attemptedAt })
+            .where(
+              and(
+                eq(recoveryTokens.userId, target.id),
+                isNull(recoveryTokens.usedAt),
+                isNull(recoveryTokens.voidedAt),
+              ),
+            );
+
+          await tx.insert(auditLog).values({
+            entity: "user",
+            entityId: target.id,
+            actorId: openSession.userId,
+            previousValue: { email: current.email },
+            newValue: { email: parsedBody.email },
+          });
+
+          return { kind: "applied", email: parsedBody.email, version: nextVersion };
+        })
+        .catch((error: unknown): EmailChangeOutcome => {
+          if (isEmailUniqueViolation(error)) {
+            return { kind: "email_taken" };
+          }
+          throw error;
         });
 
-        return { kind: "applied", email: parsedBody.email, version: nextVersion };
-      })
-      .catch((error: unknown): EmailChangeOutcome => {
-        if (isEmailUniqueViolation(error)) {
-          return { kind: "email_taken" };
-        }
-        throw error;
-      });
+      if (outcome.kind === "stale_version") {
+        await reply.code(409).send(STALE_VERSION_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "email_taken") {
+        await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
+        return;
+      }
 
-    if (outcome.kind === "stale_version") {
-      await reply.code(409).send(STALE_VERSION_RESPONSE);
-      return;
-    }
-    if (outcome.kind === "email_taken") {
-      await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
-      return;
-    }
-
-    await reply.code(200).send(
-      toBranchUserWire({
-        ...target,
-        email: outcome.email,
-        version: outcome.version,
-      }),
-    );
-  });
+      await reply.code(200).send(
+        toBranchUserWire({
+          ...target,
+          email: outcome.email,
+          version: outcome.version,
+        }),
+      );
+    },
+  );
 }

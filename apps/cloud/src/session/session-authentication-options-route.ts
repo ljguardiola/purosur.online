@@ -2,6 +2,7 @@ import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { PUBLIC_ACCESS } from "./route-access.js";
 import { pruneExpiredSignInChallenges, storeSignInChallenge } from "./sign-in-challenge.js";
 
 export interface SessionAuthenticationOptionsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -37,25 +38,29 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
     return true;
   }
 
-  app.post("/users/session/authentication-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
+  app.post(
+    "/users/session/authentication-options",
+    { config: { access: PUBLIC_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
 
-    const issuedAt = now();
-    await pruneExpiredSignInChallenges(options.db, issuedAt);
+      const issuedAt = now();
+      await pruneExpiredSignInChallenges(options.db, issuedAt);
 
-    const authenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: [],
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-    await storeSignInChallenge(options.db, {
-      challenge: authenticationOptions.challenge,
-      now: issuedAt,
-    });
+      const authenticationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: [],
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
+      });
+      await storeSignInChallenge(options.db, {
+        challenge: authenticationOptions.challenge,
+        now: issuedAt,
+      });
 
-    await reply.code(200).send({ passkey_authentication_options: authenticationOptions });
-  });
+      await reply.code(200).send({ passkey_authentication_options: authenticationOptions });
+    },
+  );
 }

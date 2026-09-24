@@ -1,8 +1,8 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin, requireOpenSession } from "../session/open-session.js";
+import { checkRequestIsSameOrigin } from "../session/open-session.js";
+import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
 import { findBranchUser, toBranchUserWire } from "./branch-users.js";
-import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,20 +26,16 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const now = options.now ?? (() => new Date());
 
-  app.get("/users/:id", async (request, reply) => {
+  app.get("/users/:id", { config: { access: ADMINISTRATOR_ACCESS } }, async (request, reply) => {
     if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
       return;
     }
     const checkedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
+    const openSession = await enforceRouteAccess(request, reply, {
       db: options.db,
       now: checkedAt,
     });
     if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
       return;
     }
 

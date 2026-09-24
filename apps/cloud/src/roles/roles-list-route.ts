@@ -2,8 +2,8 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
-import { checkRequestIsSameOrigin, requireOpenSession } from "../session/open-session.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+import { checkRequestIsSameOrigin } from "../session/open-session.js";
+import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -91,20 +91,16 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
 ): void {
   const now = options.now ?? (() => new Date());
 
-  app.get("/roles", async (request, reply) => {
+  app.get("/roles", { config: { access: ADMINISTRATOR_ACCESS } }, async (request, reply) => {
     if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
       return;
     }
     const checkedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
+    const openSession = await enforceRouteAccess(request, reply, {
       db: options.db,
       now: checkedAt,
     });
     if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
       return;
     }
 

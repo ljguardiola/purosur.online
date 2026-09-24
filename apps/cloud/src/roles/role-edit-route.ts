@@ -11,8 +11,7 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "../session/open-session.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
 import {
   isRoleNameUniqueViolation,
@@ -269,130 +268,133 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
     return true;
   }
 
-  app.post<{ Params: { id: string } }>("/roles/:id/edit-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const target = await findEditableRole(options.db, request.params.id);
-    if (!target) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
-
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
-
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "role_edit",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-  });
-
-  app.post<{ Params: { id: string } }>("/roles/:id/edit", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const target = await findEditableRole(options.db, request.params.id);
-    if (!target) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
-
-    const parsedBody = readEditBody(request.body);
-    if (isValidationFailure(parsedBody)) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: parsedBody.message,
-        details: [{ field: parsedBody.field }],
+  app.post<{ Params: { id: string } }>(
+    "/roles/:id/edit-options",
+    { config: { access: ADMINISTRATOR_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
+      const issuedAt = now();
+      const openSession = await enforceRouteAccess(request, reply, {
+        db: options.db,
+        now: issuedAt,
       });
-      return;
-    }
+      if (!openSession) {
+        return;
+      }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const target = await findEditableRole(options.db, request.params.id);
+      if (!target) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "role_edit") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, openSession.userId));
 
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const reauthenticationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
+      });
 
-    const outcome = await editRole(options.db, {
-      id: target.id,
-      name: parsedBody.name,
-      permissionKeys: parsedBody.permissionKeys,
-      version: parsedBody.version,
-      actorId: openSession.userId,
-      locationId: openSession.locationId,
-    });
+      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
+      await storePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "role_edit",
+        reauthenticationChallenge: reauthenticationOptions.challenge,
+        now: issuedAt,
+      });
 
-    if (outcome.kind === "stale_version") {
-      await reply.code(409).send(STALE_VERSION_RESPONSE);
-      return;
-    }
-    if (outcome.kind === "name_taken") {
-      await reply.code(409).send(ROLE_NAME_TAKEN_RESPONSE);
-      return;
-    }
+      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
+    },
+  );
 
-    await reply.code(200).send(toRoleDetailWire(outcome.role));
-  });
+  app.post<{ Params: { id: string } }>(
+    "/roles/:id/edit",
+    { config: { access: ADMINISTRATOR_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
+      const attemptedAt = now();
+      const openSession = await enforceRouteAccess(request, reply, {
+        db: options.db,
+        now: attemptedAt,
+      });
+      if (!openSession) {
+        return;
+      }
+
+      const target = await findEditableRole(options.db, request.params.id);
+      if (!target) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
+
+      const parsedBody = readEditBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
+
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        now: attemptedAt,
+      });
+      if (pending?.kind !== "role_edit") {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const reauthentication = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!reauthentication.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
+
+      const outcome = await editRole(options.db, {
+        id: target.id,
+        name: parsedBody.name,
+        permissionKeys: parsedBody.permissionKeys,
+        version: parsedBody.version,
+        actorId: openSession.userId,
+        locationId: openSession.locationId,
+      });
+
+      if (outcome.kind === "stale_version") {
+        await reply.code(409).send(STALE_VERSION_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "name_taken") {
+        await reply.code(409).send(ROLE_NAME_TAKEN_RESPONSE);
+        return;
+      }
+
+      await reply.code(200).send(toRoleDetailWire(outcome.role));
+    },
+  );
 }

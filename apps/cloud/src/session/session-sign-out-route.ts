@@ -3,6 +3,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { sessions } from "../db/schema.js";
 import { checkBackofficeSession } from "./open-session.js";
+import { OPEN_SESSION_ACCESS } from "./route-access.js";
 import { clearSessionCookie, readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
@@ -22,7 +23,10 @@ const UNAUTHENTICATED_RESPONSE = {
  * Registers `POST /users/session/sign-out`: requires the session cookie, revokes that session,
  * and clears the cookie. Revoking only a still-live row (`revokedAt is null`) makes a repeated
  * call idempotent, and a cookie whose session is already gone or unknown still succeeds and still
- * clears the cookie, since there is nothing left to sign out of.
+ * clears the cookie, since there is nothing left to sign out of. Declared `open_session` for the
+ * route inventory, but this is looser than the shared `enforceRouteAccess` helper enforces: signing
+ * out a cookie whose session has already ended must still succeed, so this route keeps checking the
+ * cookie itself through `checkBackofficeSession` rather than requiring a currently-open one.
  */
 export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -41,27 +45,31 @@ export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHK
     return true;
   }
 
-  app.post("/users/session/sign-out", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const rawSessionId = readSessionCookie(request.headers.cookie);
-    if (!rawSessionId) {
-      await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
-      return;
-    }
-    const check = await checkBackofficeSession(request, reply, { db: options.db, now: now() });
-    if (check.state === "rate_limited") {
-      return;
-    }
+  app.post(
+    "/users/session/sign-out",
+    { config: { access: OPEN_SESSION_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
+      const rawSessionId = readSessionCookie(request.headers.cookie);
+      if (!rawSessionId) {
+        await reply.code(401).send(UNAUTHENTICATED_RESPONSE);
+        return;
+      }
+      const check = await checkBackofficeSession(request, reply, { db: options.db, now: now() });
+      if (check.state === "rate_limited") {
+        return;
+      }
 
-    await options.db
-      .update(sessions)
-      .set({ revokedAt: now() })
-      .where(
-        and(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)), isNull(sessions.revokedAt)),
-      );
+      await options.db
+        .update(sessions)
+        .set({ revokedAt: now() })
+        .where(
+          and(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)), isNull(sessions.revokedAt)),
+        );
 
-    await reply.header("Set-Cookie", clearSessionCookie()).code(200).send();
-  });
+      await reply.header("Set-Cookie", clearSessionCookie()).code(200).send();
+    },
+  );
 }

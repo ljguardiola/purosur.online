@@ -4,6 +4,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
+import { PUBLIC_ACCESS } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 import {
@@ -154,248 +155,266 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     await reply.code(400).send({ code: "validation_failed", ...body });
   }
 
-  app.post("/users/recovery/registration-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    if (!(await checkRedemptionRateLimit(request, reply, "registration_options"))) {
-      return;
-    }
-
-    const rawToken = readRawToken(request.body);
-    if (!rawToken) {
-      sendTokenError(reply, "invalid");
-      return;
-    }
-
-    const classification = await classifyRecoveryToken(
-      options.db,
-      hashRecoveryToken(rawToken),
-      now(),
-    );
-    if (classification.status !== "valid") {
-      await rejectToken(reply, "registration_options", classification.status, classification.token);
-      return;
-    }
-    const token = classification.token;
-
-    const [account] = await options.db
-      .select({
-        id: users.id,
-        firstName: users.firstName,
-        email: users.email,
-        active: users.active,
-      })
-      .from(users)
-      .where(eq(users.id, token.userId))
-      .limit(1);
-    if (!account) {
-      // The account backing this token no longer exists; nothing to register against.
-      sendTokenError(reply, "invalid");
-      return;
-    }
-    if (!account.active) {
-      // A deactivated account can't recover access, so its link is as unusable as an unknown one.
-      await rejectToken(reply, "registration_options", "invalid", token);
-      return;
-    }
-
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, account.id));
-
-    const registrationOptions = await generateRegistrationOptions({
-      rpName: webAuthnConfig.rpName,
-      rpID: webAuthnConfig.rpID,
-      userName: account.email,
-      userDisplayName: account.firstName,
-      userID: deriveUserHandle(account.id),
-      attestationType: "none",
-      authenticatorSelection: { residentKey: "required", userVerification: "required" },
-      excludeCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-    });
-
-    await options.db
-      .update(recoveryTokens)
-      .set({ registrationChallenge: registrationOptions.challenge })
-      .where(eq(recoveryTokens.id, token.id));
-
-    await reply.code(200).send({
-      passkey_registration_options: registrationOptions,
-      display_name: account.firstName,
-    });
-  });
-
-  app.post("/users/recovery/redeem", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    if (!(await checkRedemptionRateLimit(request, reply, "redeem"))) {
-      return;
-    }
-
-    const rawToken = readRawToken(request.body);
-    if (!rawToken) {
-      sendTokenError(reply, "invalid");
-      return;
-    }
-    const tokenHash = hashRecoveryToken(rawToken);
-    const redeemedAt = now();
-
-    const classification = await classifyRecoveryToken(options.db, tokenHash, redeemedAt);
-    if (classification.status !== "valid") {
-      await rejectToken(reply, "redeem", classification.status, classification.token);
-      return;
-    }
-    const token: RecoveryTokenRow = classification.token;
-
-    const [account] = await options.db
-      .select({ id: users.id, active: users.active })
-      .from(users)
-      .where(eq(users.id, token.userId))
-      .limit(1);
-    if (!account) {
-      sendTokenError(reply, "invalid");
-      return;
-    }
-    if (!account.active) {
-      await rejectToken(reply, "redeem", "invalid", token);
-      return;
-    }
-
-    if (!token.registrationChallenge) {
-      await rejectRedemptionAsInvalid(reply, token, {
-        message: "no passkey registration was ever started for this recovery link",
-      });
-      return;
-    }
-
-    const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
-      ?.passkey_registration as RegistrationResponseJSON | undefined;
-    if (!passkeyRegistration) {
-      await rejectRedemptionAsInvalid(reply, token, {
-        message: "passkey_registration is required",
-        details: [{ field: "passkey_registration" }],
-      });
-      return;
-    }
-
-    const passkeyName = readPasskeyName(request.body);
-    if (!passkeyName) {
-      await rejectRedemptionAsInvalid(reply, token, {
-        message: "passkey_name is required and must be 1-40 characters once trimmed",
-        details: [{ field: "passkey_name" }],
-      });
-      return;
-    }
-
-    const verification = await verifyRegistrationResponse({
-      response: passkeyRegistration,
-      expectedChallenge: token.registrationChallenge,
-      expectedOrigin: webAuthnConfig.expectedOrigin,
-      expectedRPID: webAuthnConfig.rpID,
-      requireUserVerification: true,
-    }).catch(() => ({ verified: false as const }));
-    if (!verification.verified) {
-      await rejectRedemptionAsInvalid(reply, token, {
-        message: "the passkey registration did not verify against the backoffice's origin",
-      });
-      return;
-    }
-    const { registrationInfo } = verification;
-
-    const burnAndRegister = options.db.transaction(async (tx) => {
-      const [burned] = await tx
-        .update(recoveryTokens)
-        .set({ usedAt: redeemedAt })
-        .where(
-          and(
-            eq(recoveryTokens.id, token.id),
-            isNull(recoveryTokens.usedAt),
-            isNull(recoveryTokens.voidedAt),
-            gt(recoveryTokens.expiresAt, redeemedAt),
-          ),
-        )
-        .returning({ id: recoveryTokens.id });
-      if (!burned) {
-        return { burned: false } as const;
+  app.post(
+    "/users/recovery/registration-options",
+    { config: { access: PUBLIC_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
+      }
+      if (!(await checkRedemptionRateLimit(request, reply, "registration_options"))) {
+        return;
       }
 
-      const [newPasskey] = await tx
-        .insert(passkeys)
-        .values({
-          userId: account.id,
-          credentialId: registrationInfo.credential.id,
-          publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
-          counter: registrationInfo.credential.counter,
-          transports: registrationInfo.credential.transports ?? null,
-          deviceType: registrationInfo.credentialDeviceType,
-          backedUp: registrationInfo.credentialBackedUp,
-          name: passkeyName,
+      const rawToken = readRawToken(request.body);
+      if (!rawToken) {
+        sendTokenError(reply, "invalid");
+        return;
+      }
+
+      const classification = await classifyRecoveryToken(
+        options.db,
+        hashRecoveryToken(rawToken),
+        now(),
+      );
+      if (classification.status !== "valid") {
+        await rejectToken(
+          reply,
+          "registration_options",
+          classification.status,
+          classification.token,
+        );
+        return;
+      }
+      const token = classification.token;
+
+      const [account] = await options.db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          email: users.email,
+          active: users.active,
         })
-        .onConflictDoNothing({ target: passkeys.credentialId })
-        .returning({ id: passkeys.id });
-      if (!newPasskey) {
-        // Throwing rolls the burn back, so the link stays usable with a different authenticator.
-        throw new CredentialAlreadyRegistered();
+        .from(users)
+        .where(eq(users.id, token.userId))
+        .limit(1);
+      if (!account) {
+        // The account backing this token no longer exists; nothing to register against.
+        sendTokenError(reply, "invalid");
+        return;
+      }
+      if (!account.active) {
+        // A deactivated account can't recover access, so its link is as unusable as an unknown one.
+        await rejectToken(reply, "registration_options", "invalid", token);
+        return;
       }
 
-      await tx.insert(auditLog).values({
-        entity: "recovery_token",
-        entityId: token.id,
-        actorId: account.id,
-        previousValue: null,
-        newValue: { usedAt: redeemedAt.toISOString() },
-      });
-      await tx.insert(auditLog).values({
-        entity: "passkey",
-        entityId: newPasskey.id,
-        actorId: account.id,
-        previousValue: null,
-        newValue: {
-          id: newPasskey.id,
-          name: passkeyName,
-          credentialId: registrationInfo.credential.id,
-          deviceType: registrationInfo.credentialDeviceType,
-          backedUp: registrationInfo.credentialBackedUp,
-        },
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, account.id));
+
+      const registrationOptions = await generateRegistrationOptions({
+        rpName: webAuthnConfig.rpName,
+        rpID: webAuthnConfig.rpID,
+        userName: account.email,
+        userDisplayName: account.firstName,
+        userID: deriveUserHandle(account.id),
+        attestationType: "none",
+        authenticatorSelection: { residentKey: "required", userVerification: "required" },
+        excludeCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
       });
 
-      // Redeeming a recovery link ends every session already open on the account (drafts/docs
-      // §12.3 ~3878, §9.7 ~3204); it never opens a new one itself.
-      await tx
-        .update(sessions)
-        .set({ revokedAt: redeemedAt })
-        .where(and(eq(sessions.userId, account.id), isNull(sessions.revokedAt)));
+      await options.db
+        .update(recoveryTokens)
+        .set({ registrationChallenge: registrationOptions.challenge })
+        .where(eq(recoveryTokens.id, token.id));
 
-      return { burned: true, userId: account.id } as const;
-    });
-    const outcome = await burnAndRegister.catch((error: unknown) => {
-      if (error instanceof CredentialAlreadyRegistered) {
-        return { burned: false, credentialAlreadyRegistered: true } as const;
+      await reply.code(200).send({
+        passkey_registration_options: registrationOptions,
+        display_name: account.firstName,
+      });
+    },
+  );
+
+  app.post(
+    "/users/recovery/redeem",
+    { config: { access: PUBLIC_ACCESS } },
+    async (request, reply) => {
+      if (!checkOrigin(request, reply)) {
+        return;
       }
-      throw error;
-    });
+      if (!(await checkRedemptionRateLimit(request, reply, "redeem"))) {
+        return;
+      }
 
-    if ("credentialAlreadyRegistered" in outcome) {
-      await rejectRedemptionAsInvalid(reply, token, {
-        message: "this passkey is already registered",
-        details: [{ field: "passkey_registration" }],
+      const rawToken = readRawToken(request.body);
+      if (!rawToken) {
+        sendTokenError(reply, "invalid");
+        return;
+      }
+      const tokenHash = hashRecoveryToken(rawToken);
+      const redeemedAt = now();
+
+      const classification = await classifyRecoveryToken(options.db, tokenHash, redeemedAt);
+      if (classification.status !== "valid") {
+        await rejectToken(reply, "redeem", classification.status, classification.token);
+        return;
+      }
+      const token: RecoveryTokenRow = classification.token;
+
+      const [account] = await options.db
+        .select({ id: users.id, active: users.active })
+        .from(users)
+        .where(eq(users.id, token.userId))
+        .limit(1);
+      if (!account) {
+        sendTokenError(reply, "invalid");
+        return;
+      }
+      if (!account.active) {
+        await rejectToken(reply, "redeem", "invalid", token);
+        return;
+      }
+
+      if (!token.registrationChallenge) {
+        await rejectRedemptionAsInvalid(reply, token, {
+          message: "no passkey registration was ever started for this recovery link",
+        });
+        return;
+      }
+
+      const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
+        ?.passkey_registration as RegistrationResponseJSON | undefined;
+      if (!passkeyRegistration) {
+        await rejectRedemptionAsInvalid(reply, token, {
+          message: "passkey_registration is required",
+          details: [{ field: "passkey_registration" }],
+        });
+        return;
+      }
+
+      const passkeyName = readPasskeyName(request.body);
+      if (!passkeyName) {
+        await rejectRedemptionAsInvalid(reply, token, {
+          message: "passkey_name is required and must be 1-40 characters once trimmed",
+          details: [{ field: "passkey_name" }],
+        });
+        return;
+      }
+
+      const verification = await verifyRegistrationResponse({
+        response: passkeyRegistration,
+        expectedChallenge: token.registrationChallenge,
+        expectedOrigin: webAuthnConfig.expectedOrigin,
+        expectedRPID: webAuthnConfig.rpID,
+        requireUserVerification: true,
+      }).catch(() => ({ verified: false as const }));
+      if (!verification.verified) {
+        await rejectRedemptionAsInvalid(reply, token, {
+          message: "the passkey registration did not verify against the backoffice's origin",
+        });
+        return;
+      }
+      const { registrationInfo } = verification;
+
+      const burnAndRegister = options.db.transaction(async (tx) => {
+        const [burned] = await tx
+          .update(recoveryTokens)
+          .set({ usedAt: redeemedAt })
+          .where(
+            and(
+              eq(recoveryTokens.id, token.id),
+              isNull(recoveryTokens.usedAt),
+              isNull(recoveryTokens.voidedAt),
+              gt(recoveryTokens.expiresAt, redeemedAt),
+            ),
+          )
+          .returning({ id: recoveryTokens.id });
+        if (!burned) {
+          return { burned: false } as const;
+        }
+
+        const [newPasskey] = await tx
+          .insert(passkeys)
+          .values({
+            userId: account.id,
+            credentialId: registrationInfo.credential.id,
+            publicKey: Buffer.from(registrationInfo.credential.publicKey).toString("base64url"),
+            counter: registrationInfo.credential.counter,
+            transports: registrationInfo.credential.transports ?? null,
+            deviceType: registrationInfo.credentialDeviceType,
+            backedUp: registrationInfo.credentialBackedUp,
+            name: passkeyName,
+          })
+          .onConflictDoNothing({ target: passkeys.credentialId })
+          .returning({ id: passkeys.id });
+        if (!newPasskey) {
+          // Throwing rolls the burn back, so the link stays usable with a different authenticator.
+          throw new CredentialAlreadyRegistered();
+        }
+
+        await tx.insert(auditLog).values({
+          entity: "recovery_token",
+          entityId: token.id,
+          actorId: account.id,
+          previousValue: null,
+          newValue: { usedAt: redeemedAt.toISOString() },
+        });
+        await tx.insert(auditLog).values({
+          entity: "passkey",
+          entityId: newPasskey.id,
+          actorId: account.id,
+          previousValue: null,
+          newValue: {
+            id: newPasskey.id,
+            name: passkeyName,
+            credentialId: registrationInfo.credential.id,
+            deviceType: registrationInfo.credentialDeviceType,
+            backedUp: registrationInfo.credentialBackedUp,
+          },
+        });
+
+        // Redeeming a recovery link ends every session already open on the account (drafts/docs
+        // §12.3 ~3878, §9.7 ~3204); it never opens a new one itself.
+        await tx
+          .update(sessions)
+          .set({ revokedAt: redeemedAt })
+          .where(and(eq(sessions.userId, account.id), isNull(sessions.revokedAt)));
+
+        return { burned: true, userId: account.id } as const;
       });
-      return;
-    }
-    if (!outcome.burned) {
-      // Lost a race with a concurrent redemption of the same token: reclassify it fresh so the
-      // response matches what actually happened instead of assuming it was this request's own.
-      const raced = await classifyRecoveryToken(options.db, tokenHash, now());
-      await rejectToken(reply, "redeem", raced.status === "valid" ? "burned" : raced.status, token);
-      return;
-    }
+      const outcome = await burnAndRegister.catch((error: unknown) => {
+        if (error instanceof CredentialAlreadyRegistered) {
+          return { burned: false, credentialAlreadyRegistered: true } as const;
+        }
+        throw error;
+      });
 
-    await reply.code(200).send({ user_id: outcome.userId });
-  });
+      if ("credentialAlreadyRegistered" in outcome) {
+        await rejectRedemptionAsInvalid(reply, token, {
+          message: "this passkey is already registered",
+          details: [{ field: "passkey_registration" }],
+        });
+        return;
+      }
+      if (!outcome.burned) {
+        // Lost a race with a concurrent redemption of the same token: reclassify it fresh so the
+        // response matches what actually happened instead of assuming it was this request's own.
+        const raced = await classifyRecoveryToken(options.db, tokenHash, now());
+        await rejectToken(
+          reply,
+          "redeem",
+          raced.status === "valid" ? "burned" : raced.status,
+          token,
+        );
+        return;
+      }
+
+      await reply.code(200).send({ user_id: outcome.userId });
+    },
+  );
 }
