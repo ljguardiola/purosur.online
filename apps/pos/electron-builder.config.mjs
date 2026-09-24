@@ -45,10 +45,18 @@ export default {
   forceCodeSigning: false,
   win: {
     target: [{ target: "nsis", arch: ["x64"] }],
+    // The same isotype for both channels: electron-builder embeds it in the packaged exe, which is
+    // what the window, taskbar button, and Explorer show it from — not something the app sets at
+    // runtime.
+    icon: "build/icon.ico",
   },
   nsis: {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
+    // Without these, NSIS already falls back to win.icon for both, but naming them keeps the
+    // installer and uninstaller icon explicit rather than relying on that default.
+    installerIcon: "build/icon.ico",
+    uninstallerIcon: "build/icon.ico",
   },
   // Only where each channel's updates are published; nothing checks the feed yet.
   publish: updateFeedUrl ? [{ provider: "generic", url: updateFeedUrl, channel }] : null,
