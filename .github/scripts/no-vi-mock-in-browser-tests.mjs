@@ -5,10 +5,11 @@ import ts from "typescript";
 // Vitest browser mode intermittently does not apply a test file's `vi.mock` factories: the real
 // modules load instead, and every test in the file fails. Browser tests inject their dependencies
 // through a component's `services` prop instead of mocking modules.
-const MODULE_MOCK_METHODS = new Set(["mock", "doMock"]);
+const MODULE_MOCK_METHODS = new Set(["mock", "doMock", "importMock"]);
 
+// The script kind follows the file extension: `.ts` sources such as `<T>(x: T) => x` do not parse as TSX.
 function parse(source, fileName) {
-  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
 }
 
 function descendants(node) {
@@ -21,25 +22,62 @@ function descendants(node) {
   return nodes;
 }
 
-function isModuleMockCall(node) {
+/** The local names bound to Vitest's `vi` and to namespace imports of "vitest". */
+function vitestBindings(sourceFile) {
+  const viNames = new Set(["vi"]);
+  const namespaces = new Set();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || statement.moduleSpecifier.text !== "vitest") continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings)) {
+      namespaces.add(bindings.name.text);
+    } else if (bindings) {
+      for (const specifier of bindings.elements) {
+        if ((specifier.propertyName ?? specifier.name).text === "vi")
+          viNames.add(specifier.name.text);
+      }
+    }
+  }
+  return { viNames, namespaces };
+}
+
+/** The member name of `object.name` or `object["name"]`. */
+function accessedName(node) {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
+    return node.argumentExpression.text;
+  }
+  return undefined;
+}
+
+function isVi(node, { viNames, namespaces }) {
+  if (ts.isIdentifier(node)) return viNames.has(node.text);
   return (
-    ts.isCallExpression(node) &&
-    ts.isPropertyAccessExpression(node.expression) &&
-    ts.isIdentifier(node.expression.expression) &&
-    node.expression.expression.text === "vi" &&
-    MODULE_MOCK_METHODS.has(node.expression.name.text)
+    accessedName(node) === "vi" &&
+    ts.isIdentifier(node.expression) &&
+    namespaces.has(node.expression.text)
   );
 }
 
-/** `vi.mock(...)`/`vi.doMock(...)` calls in a browser test file's source, at their 1-indexed start line. */
+function isModuleMockCall(node, bindings) {
+  return (
+    ts.isCallExpression(node) &&
+    MODULE_MOCK_METHODS.has(accessedName(node.expression)) &&
+    isVi(node.expression.expression, bindings)
+  );
+}
+
+/** `vi.mock`, `vi.doMock` and `vi.importMock` calls in a browser test file's source, at their 1-indexed start line. */
 export function findViMockCalls(source) {
   const sourceFile = parse(source, "browser.test.tsx");
-  const lines = source.split("\n");
+  const bindings = vitestBindings(sourceFile);
+  const lineStarts = sourceFile.getLineStarts();
   return descendants(sourceFile)
-    .filter(isModuleMockCall)
+    .filter((node) => isModuleMockCall(node, bindings))
     .map((call) => {
-      const line = sourceFile.getLineAndCharacterOfPosition(call.getStart(sourceFile)).line + 1;
-      return { line, text: lines[line - 1].trim() };
+      const index = sourceFile.getLineAndCharacterOfPosition(call.getStart(sourceFile)).line;
+      const text = source.slice(lineStarts[index], lineStarts[index + 1] ?? source.length);
+      return { line: index + 1, text: text.trim() };
     });
 }
 
@@ -66,9 +104,10 @@ export function readBrowserTestGlobs(configSource) {
     const name = propertyNamed(node, "name");
     return name !== undefined && ts.isStringLiteral(name) && name.text === "browser";
   });
-  const include = browserProject && propertyNamed(browserProject, "include");
+  if (!browserProject) throw new Error("Vitest config has no browser project");
+  const include = propertyNamed(browserProject, "include");
   if (!include || !ts.isArrayLiteralExpression(include)) {
-    throw new Error("Vitest config has no browser project with an include array");
+    throw new Error("Vitest config's browser project has no include array");
   }
   return include.elements.map((element) => {
     if (!ts.isStringLiteral(element)) {
