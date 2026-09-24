@@ -123,6 +123,12 @@ test("fetchUserCreationChallenge reports failed on any other status or a network
   await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchUserCreationChallenge reports failed on a 200 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "failed" });
+});
+
 const reauthentication = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
 const creationInput = {
   firstName: "Martina Gómez",

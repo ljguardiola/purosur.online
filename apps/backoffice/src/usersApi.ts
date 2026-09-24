@@ -130,9 +130,12 @@ export async function fetchUserCreationChallenge(): Promise<FetchUserCreationCha
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as {
-    reauthentication_options: PublicKeyCredentialRequestOptionsJSON;
-  };
+  const body = (await response.json().catch(() => undefined)) as
+    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
+    | undefined;
+  if (!body) {
+    return { kind: "failed" };
+  }
   return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
 }
 
