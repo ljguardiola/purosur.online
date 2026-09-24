@@ -11,7 +11,7 @@ import {
 describe("runMigrations", () => {
   it("rejects when the database is unreachable", async () => {
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         // A zero wait budget keeps this test fast: it proves an unreachable database still
@@ -25,7 +25,7 @@ describe("runMigrations", () => {
     const onWaiting = vi.fn();
 
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 1,
@@ -42,7 +42,7 @@ describe("runMigrations", () => {
     const onWaiting = vi.fn();
 
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 30,
@@ -63,13 +63,17 @@ describe("runMigrations", () => {
 
     try {
       await expect(
-        runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
-          migrationsFolder: new URL("../migrations", import.meta.url).pathname,
-          connectTimeoutSeconds: 1,
-          sleep: clock.sleep,
-          now: clock.now,
-          onWaiting,
-        }),
+        runMigrations(
+          "postgres://user:pass@127.0.0.1:1/nonexistent",
+          "unused-unreachable-database",
+          {
+            migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+            connectTimeoutSeconds: 1,
+            sleep: clock.sleep,
+            now: clock.now,
+            onWaiting,
+          },
+        ),
       ).rejects.toMatchObject({ code: "ECONNREFUSED" });
     } finally {
       vi.unstubAllEnvs();
@@ -79,16 +83,51 @@ describe("runMigrations", () => {
   });
 });
 
+function envWithout(...names: string[]): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of names) {
+    delete env[name];
+  }
+  return env;
+}
+
 describe("the migrate command", () => {
   it("does not print the database URL when it fails on a malformed one", () => {
     const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
-      env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },
+      env: {
+        ...envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+        DATABASE_URL: "postgres://user:s3cret-password@[bad/db",
+        CLOUD_APP_DATABASE_PASSWORD: "unused-malformed-url-test",
+      },
       encoding: "utf8",
     });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("ERR_INVALID_URL");
     expect(`${result.stdout}${result.stderr}`).not.toContain("s3cret-password");
+  });
+
+  it("fails with a clear message when DATABASE_URL is not set", () => {
+    const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
+      env: envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("migrate: DATABASE_URL is not set");
+  });
+
+  it("fails with a clear message when CLOUD_APP_DATABASE_PASSWORD is not set", () => {
+    const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
+      env: {
+        ...envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+        DATABASE_URL: "postgres://user:pass@127.0.0.1:1/nonexistent",
+      },
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("migrate: CLOUD_APP_DATABASE_PASSWORD is not set");
   });
 });
 
