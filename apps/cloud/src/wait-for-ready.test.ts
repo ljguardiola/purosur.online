@@ -52,7 +52,8 @@ describe("waitForReady", () => {
     await expect(
       waitForReady("postgres://cloud_app:pass@127.0.0.1:1/nonexistent", {
         connectTimeoutSeconds: 1,
-        waitIntervalMs: 1000,
+        // Every probe opens a real socket, so a wide interval keeps the probe count low.
+        waitIntervalMs: 60_000,
         sleep: async (ms) => {
           current += ms;
         },
