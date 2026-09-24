@@ -242,6 +242,63 @@ test("gives the body 24px padding", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+test("goes straight from the header to the footer when there is nothing to show in the body", async () => {
+  const cases: Array<Partial<ModalProps>> = [
+    { children: undefined },
+    // A caller's conditional content that currently has nothing to show.
+    {
+      children: (
+        <>
+          {false}
+          {null}
+        </>
+      ),
+    },
+    { children: [false, null] },
+  ];
+
+  for (const overrides of cases) {
+    const screen = await render(
+      <Modal {...baseProps({ ...overrides, footer: <Button>Confirm</Button> })} />,
+    );
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const footer = screen.getByRole("button", { name: "Confirm" }).element()
+      .parentElement as HTMLElement;
+    const header = screen.getByRole("heading", { name: "Void the sale" }).element().parentElement
+      ?.parentElement as HTMLElement;
+
+    expect(dialog.children).toHaveLength(2);
+    expect(header.nextElementSibling).toBe(footer);
+
+    await expectNoAccessibilityViolations(document.body);
+    await screen.unmount();
+  }
+});
+
+test("shows the body between the header and the footer once there is something to show in it", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        footer: <Button>Confirm</Button>,
+        children: (
+          <>
+            {false}
+            <p>Signing out failed.</p>
+          </>
+        ),
+      })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const body = screen.getByText("Signing out failed.", { exact: true }).element()
+    .parentElement as HTMLElement;
+
+  expect(dialog.children).toHaveLength(3);
+  expect(dialog.children[1]).toBe(body);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("gives the footer a bone background, its padding, top border and 12px gap", async () => {
   const screen = await render(<Modal {...baseProps({ footer: <Button>Confirm</Button> })} />);
   const footerButton = screen.getByRole("button", { name: "Confirm" }).element() as HTMLElement;
