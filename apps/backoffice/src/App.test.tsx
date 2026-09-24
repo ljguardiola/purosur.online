@@ -51,6 +51,12 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       createRole: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    editRoleScreen: {
+      fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRoleEditChallenge: vi.fn(),
+      editRole: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchEmailChangeChallenge: vi.fn(),
@@ -561,6 +567,28 @@ test("opens the new role page at /settings/roles/new from the Nuevo rol button",
   await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/roles/new");
   expect(services.newRoleScreen.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+});
+
+test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the active sidebar item, and the browser's back button returns to the list", async () => {
+  // Routing/wiring only, the same way the user detail wiring test above navigates by URL rather
+  // than a row click: EditRoleScreen.test.tsx already covers the full pre-fill, passkey step-up,
+  // and stale-save flow in isolation, and RolesListScreen.test.tsx already covers the pencil
+  // action's own click and navigation.
+  const services = createServices();
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/roles");
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Editar rol", level: 1 })).toBeVisible();
+  expect(services.editRoleScreen.fetchRole).toHaveBeenCalledWith("role-stock");
+  const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
+  expect(rolesItem.getAttribute("aria-current")).toBe("page");
+
+  window.history.back();
+
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 });
 
 test("shows a forbidden notice on the roles list for a signed-in non-Administrator", async () => {

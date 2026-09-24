@@ -73,7 +73,7 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });
 
-test("shows only the Rol, Permisos, and Usuarios columns", async () => {
+test("shows the Rol, Permisos, Usuarios, and Acciones columns", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });
 
@@ -85,7 +85,37 @@ test("shows only the Rol, Permisos, and Usuarios columns", async () => {
       .getByRole("columnheader")
       .elements()
       .map((header) => header.textContent),
-  ).toEqual(["Rol", "Permisos", "Usuarios"]);
+  ).toEqual(["Rol", "Permisos", "Usuarios", "Acciones"]);
+});
+
+test("shows a pencil edit action on a hand-made role row, navigating to its edit page", async () => {
+  window.history.pushState(null, "", "/settings/roles");
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [administrator, stock],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
+
+  expect(window.location.pathname).toBe("/settings/roles/role-stock/edit");
+  window.history.pushState(null, "", "/");
+});
+
+test("shows no edit action on the Administrator row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [administrator, stock],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 roles")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: /^Editar el rol/ }).elements()).toHaveLength(1);
 });
 
 test("keeps the loaded list without refetching when the parent re-renders with a new onSessionEnded", async () => {

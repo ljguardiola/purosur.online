@@ -1082,6 +1082,37 @@ test("keeps the second action's own identity untouched when an update makes the 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders no button at all for a row whose action reports undefined, keeping the button for other rows", async () => {
+  type Item = { id: string; isAdministrator: boolean };
+  const itemRows: TableRow<Item>[] = [
+    { id: "1", item: { id: "1", isAdministrator: true } },
+    { id: "2", item: { id: "2", isAdministrator: false } },
+  ];
+  const hideableColumns = [
+    { key: "name", title: "Rol", render: (item: Item) => item.id },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [
+        (item: Item) =>
+          item.isAdministrator
+            ? undefined
+            : { icon: <Pencil />, "aria-label": `Edit ${item.id}`, onPress: () => {} },
+      ],
+    },
+  ] as const;
+
+  const screen = await render(
+    <Table aria-label="Roles" columns={hideableColumns} rows={itemRows} />,
+  );
+
+  expect(screen.getByRole("button", { name: "Edit 1" }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Edit 2" })).toBeVisible();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("does not accept a column without a title, or an actions column without its own fields", () => {
   expectTypeOf<{ key: string; render: (item: Product) => string }>().not.toExtend<
     TableColumn<Product>

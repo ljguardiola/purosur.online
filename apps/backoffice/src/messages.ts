@@ -383,9 +383,10 @@ export const messages = defineMessages("es-AR", (f) => ({
       pinBadgeLabel: "Caja · con PIN de otra persona",
       areaLabels: AREA_LABELS,
       permissionLabels: PERMISSION_LABELS,
-      newRole: {
-        breadcrumb: "Configuración · Roles",
-        heading: "Nuevo rol",
+      rowActionsLabel: "Acciones",
+      editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
+      // Shared by the New and Edit role pages: the one role form they both render.
+      form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
         nameReserved: "Ese nombre es del Administrador; elegí otro.",
@@ -402,6 +403,10 @@ export const messages = defineMessages("es-AR", (f) => ({
         alertsAllOption: VIEW_ALL_ALERTS_LABEL,
         dismissAlertsOption: DISMISS_ALERTS_LABEL,
         reauthNotice: "Se pide tu passkey para confirmar.",
+      },
+      newRole: {
+        breadcrumb: "Configuración · Roles",
+        heading: "Nuevo rol",
         cancel: CANCEL_LABEL,
         save: "Guardar el rol",
         attemptFailedTitle: "No se pudo crear el rol",
@@ -409,6 +414,26 @@ export const messages = defineMessages("es-AR", (f) => ({
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>
           `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      editRole: {
+        breadcrumb: "Configuración · Roles",
+        heading: "Editar rol",
+        loading: "Cargando…",
+        notFoundTitle: "No encontramos este rol",
+        backToList: "Volver a Roles",
+        loadErrorTitle: "No pudimos abrir este rol",
+        loadErrorDetail: "Probá de nuevo en unos minutos.",
+        cancel: CANCEL_LABEL,
+        save: "Guardar los cambios",
+        attemptFailedTitle: "No se pudo guardar el rol",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+        staleVersionTitle: "Este rol cambió mientras lo editabas",
+        staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
       },
     },
   },

@@ -1,10 +1,10 @@
 import { Button, InlineNotice, Table } from "@purosur/ui";
-import { Lock, Plus, ShieldX, TriangleAlert } from "lucide-react";
+import { Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { NEW_ROLE_PATH } from "./settingsRoutes";
+import { NEW_ROLE_PATH, roleEditPath } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -64,6 +64,22 @@ const columns = [
     key: "users",
     title: rolesMessages.columns.usuarios,
     render: (item: RoleSummary) => rolesMessages.usersCount({ count: item.userCount }),
+  },
+  {
+    key: "actions",
+    kind: "actions",
+    srLabel: rolesMessages.rowActionsLabel,
+    actions: [
+      // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
+      (item: RoleSummary) =>
+        item.isAdministrator
+          ? undefined
+          : {
+              icon: <Pencil />,
+              "aria-label": rolesMessages.editAria({ name: roleDisplayName(item) }),
+              onPress: () => navigate(roleEditPath(item.id)),
+            },
+    ],
   },
 ] as const;
 
