@@ -1,26 +1,69 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import { LifeBuoy, Settings, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { AccountFooter } from "./AccountFooter";
-import { AccountRecoveryScreen } from "./AccountRecoveryScreen";
+import {
+  AccountFooter,
+  type AccountFooterServices,
+  defaultAccountFooterServices,
+} from "./AccountFooter";
+import {
+  AccountRecoveryScreen,
+  type AccountRecoveryScreenServices,
+  defaultAccountRecoveryScreenServices,
+} from "./AccountRecoveryScreen";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
 import { linkProps } from "./linkProps";
-import { MyAccountScreen } from "./MyAccountScreen";
+import {
+  defaultMyAccountScreenServices,
+  MyAccountScreen,
+  type MyAccountScreenServices,
+} from "./MyAccountScreen";
 import { messages } from "./messages";
-import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
+import {
+  defaultRegisterPasskeyScreenServices,
+  RegisterPasskeyScreen,
+  type RegisterPasskeyScreenServices,
+} from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
-import { type SignInOpeningNotice, SignInScreen } from "./SignInScreen";
+import {
+  defaultSignInScreenServices,
+  type SignInOpeningNotice,
+  SignInScreen,
+  type SignInScreenServices,
+} from "./SignInScreen";
 import { useSessionActivityReporter } from "./sessionActivityReporter";
 import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 import { useSessionWatcher } from "./sessionWatcher";
 import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
+export type AppServices = {
+  fetchSession: typeof fetchSession;
+  checkSessionStatus: typeof checkSessionStatus;
+  signInScreen: SignInScreenServices;
+  accountRecoveryScreen: AccountRecoveryScreenServices;
+  registerPasskeyScreen: RegisterPasskeyScreenServices;
+  myAccountScreen: MyAccountScreenServices;
+  accountFooter: AccountFooterServices;
+};
+
+const defaultAppServices: AppServices = {
+  fetchSession,
+  checkSessionStatus,
+  signInScreen: defaultSignInScreenServices,
+  accountRecoveryScreen: defaultAccountRecoveryScreenServices,
+  registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
+  myAccountScreen: defaultMyAccountScreenServices,
+  accountFooter: defaultAccountFooterServices,
+};
+
 export type AppProps = {
   help: BackofficeHelpCatalog;
+  /** Injected in tests so App and every screen it renders skip the real APIs and WebAuthn. */
+  services?: AppServices;
 };
 
 type SessionState =
@@ -65,13 +108,15 @@ function HelpAreaItem({ active }: { active: boolean }) {
   );
 }
 
-type HelpAppProps = AppProps & {
+type HelpAppProps = {
+  help: BackofficeHelpCatalog;
   displayName: string;
   onSignedOut: () => void;
+  accountFooterServices: AccountFooterServices;
 };
 
 /** The Help-in-Shell part of the app, root for every path outside the access screens below. */
-function HelpApp({ help, displayName, onSignedOut }: HelpAppProps) {
+function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: HelpAppProps) {
   const route = useRoute();
   const helpRoute = resolveHelpPath(help, route);
   const [search, setSearch] = useState("");
@@ -107,7 +152,11 @@ function HelpApp({ help, displayName, onSignedOut }: HelpAppProps) {
       railFooter={
         <>
           <HelpAreaItem active />
-          <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
+          <AccountFooter
+            displayName={displayName}
+            onSignedOut={onSignedOut}
+            services={accountFooterServices}
+          />
         </>
       }
       sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
@@ -128,10 +177,18 @@ type SettingsAppProps = {
   displayName: string;
   onSignedOut: () => void;
   onSessionEnded: () => void;
+  accountFooterServices: AccountFooterServices;
+  myAccountScreenServices: MyAccountScreenServices;
 };
 
 /** The Config-in-Shell part of the app: today, just "Mi cuenta" under its single "Usuarios" section. */
-function SettingsApp({ displayName, onSignedOut, onSessionEnded }: SettingsAppProps) {
+function SettingsApp({
+  displayName,
+  onSignedOut,
+  onSessionEnded,
+  accountFooterServices,
+  myAccountScreenServices,
+}: SettingsAppProps) {
   useEffect(() => {
     document.title = messages.settings.myAccount.documentTitle;
   }, []);
@@ -145,7 +202,11 @@ function SettingsApp({ displayName, onSignedOut, onSessionEnded }: SettingsAppPr
       railFooter={
         <>
           <HelpAreaItem active={false} />
-          <AccountFooter displayName={displayName} onSignedOut={onSignedOut} />
+          <AccountFooter
+            displayName={displayName}
+            onSignedOut={onSignedOut}
+            services={accountFooterServices}
+          />
         </>
       }
       sectionColumn={
@@ -167,12 +228,25 @@ function SettingsApp({ displayName, onSignedOut, onSessionEnded }: SettingsAppPr
         </>
       }
     >
-      <MyAccountScreen displayName={displayName} onSessionEnded={onSessionEnded} />
+      <MyAccountScreen
+        displayName={displayName}
+        onSessionEnded={onSessionEnded}
+        services={myAccountScreenServices}
+      />
     </Shell>
   );
 }
 
-export function App({ help }: AppProps) {
+export function App({ help, services }: AppProps) {
+  const {
+    fetchSession,
+    checkSessionStatus,
+    signInScreen,
+    accountRecoveryScreen,
+    registerPasskeyScreen,
+    myAccountScreen,
+    accountFooter,
+  } = services ?? defaultAppServices;
   const route = useRoute();
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
 
@@ -213,7 +287,7 @@ export function App({ help }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchSession]);
 
   const isAccessRoute =
     route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
@@ -299,23 +373,34 @@ export function App({ help }: AppProps) {
   switch (route) {
     case SIGN_IN_PATH:
       return session.kind === "signed-in" ? null : (
-        <SignInScreen openingNotice={session.notice} onSignedIn={handleSignedIn} />
+        <SignInScreen
+          openingNotice={session.notice}
+          onSignedIn={handleSignedIn}
+          services={signInScreen}
+        />
       );
     case ACCOUNT_RECOVERY_PATH:
-      return <AccountRecoveryScreen />;
+      return <AccountRecoveryScreen services={accountRecoveryScreen} />;
     case REGISTER_PASSKEY_PATH:
-      return <RegisterPasskeyScreen />;
+      return <RegisterPasskeyScreen services={registerPasskeyScreen} />;
     case MY_ACCOUNT_PATH:
       return session.kind === "signed-in" ? (
         <SettingsApp
           displayName={session.displayName}
           onSignedOut={handleSignedOut}
           onSessionEnded={handleSessionEnded}
+          accountFooterServices={accountFooter}
+          myAccountScreenServices={myAccountScreen}
         />
       ) : null;
     default:
       return session.kind === "signed-in" ? (
-        <HelpApp help={help} displayName={session.displayName} onSignedOut={handleSignedOut} />
+        <HelpApp
+          help={help}
+          displayName={session.displayName}
+          onSignedOut={handleSignedOut}
+          accountFooterServices={accountFooter}
+        />
       ) : null;
   }
 }

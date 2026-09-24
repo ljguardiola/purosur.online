@@ -17,9 +17,7 @@ permissions:
 jobs:
   verify:
     name: verify
-    # Keyed on the pull request's author, not the event's actor: a person reopening or updating a
-    # Dependabot pull request would otherwise run its third-party install scripts here.
-    runs-on: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'ubuntu-24.04' || fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,13 +43,11 @@ jobs:
       - if: steps.scope.outputs.docs_only != 'true'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
-      # The project's own runners keep their pnpm store on disk; saving it from there would publish
-      # whatever earlier pull requests fetched into it.
       - if: steps.scope.outputs.docs_only != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache: pnpm
 
       - if: steps.scope.outputs.docs_only != 'true'
         run: pnpm install --frozen-lockfile
@@ -66,12 +62,12 @@ jobs:
         if: steps.scope.outputs.docs_only != 'true'
         run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      # GitHub-hosted runners start empty: keyed on the Playwright version, not the lockfile, since
-      # the browser only changes with it. Only main saves the cache, which every pull request can
-      # read; a copy saved from a pull request would serve only that pull request.
+      # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
+      # main saves the cache, which every pull request can read; a copy saved from a pull request
+      # would serve only that pull request.
       - name: Restore Playwright browsers
         id: playwright-cache
-        if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted'
+        if: steps.scope.outputs.docs_only != 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
@@ -79,23 +75,18 @@ jobs:
 
       # A cache hit still needs the OS packages Playwright's browsers link against,
       # just not another download of the (unchanged) browser binary.
-      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && steps.playwright-cache.outputs.cache-hit == 'true'
+      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && steps.playwright-cache.outputs.cache-hit != 'true'
+      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Save Playwright browsers
-        if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'github-hosted' && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.docs_only != 'true' && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
-
-      # The project's own runners keep their browsers and already have the OS packages, so no job
-      # runs apt there, and nothing a pull request downloads reaches the shared cache above.
-      - if: steps.scope.outputs.docs_only != 'true' && runner.environment == 'self-hosted'
-        run: pnpm exec playwright install chromium
 
       - if: steps.scope.outputs.docs_only != 'true'
         run: pnpm verify

@@ -27,6 +27,23 @@ type Phase =
   | ReadyPhase
   | { kind: "registered" };
 
+export type RegisterPasskeyScreenServices = {
+  fetchRegistrationOptions: typeof fetchRegistrationOptions;
+  redeemRecovery: typeof redeemRecovery;
+  startRegistration: typeof startRegistration;
+};
+
+export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
+  fetchRegistrationOptions,
+  redeemRecovery,
+  startRegistration,
+};
+
+export type RegisterPasskeyScreenProps = {
+  /** Injected in tests so registration doesn't call the real recovery API or WebAuthn. */
+  services?: RegisterPasskeyScreenServices;
+};
+
 function readToken(): string | null {
   const hash = window.location.hash;
   return hash.length > 1 ? hash.slice(1) : null;
@@ -64,7 +81,9 @@ function TokenErrorNotice({
  * Every token/rate-limit/failure state shares the error-tone notice pattern used for other
  * blocked-by-attempts states in the product.
  */
-export function RegisterPasskeyScreen() {
+export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps = {}) {
+  const { fetchRegistrationOptions, redeemRecovery, startRegistration } =
+    services ?? defaultRegisterPasskeyScreenServices;
   // A lazy initializer runs during the component's initial render, before any effect can strip
   // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
   // that same initial render, before the mount effect below strips the hash, so both read the
@@ -100,7 +119,7 @@ export function RegisterPasskeyScreen() {
     } else {
       setPhase({ kind: "loadError" });
     }
-  }, [token]);
+  }, [token, fetchRegistrationOptions]);
 
   useEffect(() => {
     // The token never reaches server logs or a Referer header through the URL fragment; it is
