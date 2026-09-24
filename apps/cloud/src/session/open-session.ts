@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sessions, users } from "../db/schema.js";
+import { roles, sessions, userRoles, users } from "../db/schema.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
 import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { readSessionCookie } from "./session-cookie.js";
@@ -23,6 +23,10 @@ export interface OpenSession {
   firstName: string;
   createdAt: Date;
   lastSeenAt: Date;
+  /** The branch (`locations.id`) the signed-in user belongs to (issue #247: single branch today). */
+  locationId: string;
+  /** Whether the signed-in user's role has `roles.is_administrator` set. */
+  isAdministrator: boolean;
 }
 
 /** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
@@ -67,9 +71,15 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       revokedAt: sessions.revokedAt,
       firstName: users.firstName,
       active: users.active,
+      locationId: users.locationId,
+      // Left-joined: a user with no `user_roles` row yet (some existing tests seed one that way)
+      // resolves to "not an Administrator" rather than making the session unresolvable.
+      isAdministrator: roles.isAdministrator,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
+    .leftJoin(userRoles, eq(userRoles.userId, users.id))
+    .leftJoin(roles, eq(roles.id, userRoles.roleId))
     .where(eq(sessions.sessionIdHash, sessionIdHash))
     .limit(1);
   if (!session || session.revokedAt) {
@@ -96,6 +106,8 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       firstName: session.firstName,
       createdAt: session.createdAt,
       lastSeenAt: session.lastSeenAt,
+      locationId: session.locationId,
+      isAdministrator: session.isAdministrator ?? false,
     },
   };
 }
