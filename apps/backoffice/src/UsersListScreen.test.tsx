@@ -21,6 +21,7 @@ const administrator: BranchUser = {
   email: "lucas@example.com",
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
+  passkeyCount: 2,
 };
 
 const martina: BranchUser = {
@@ -29,6 +30,16 @@ const martina: BranchUser = {
   email: "martina@example.com",
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
+  passkeyCount: 1,
+};
+
+const tomas: BranchUser = {
+  id: "user-3",
+  firstName: "Tomás Ruiz",
+  email: "tomas@example.com",
+  version: 1,
+  role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+  passkeyCount: 0,
 };
 
 const reauthenticationOptions = { challenge: "reauth" } as never;
@@ -55,6 +66,35 @@ test("shows the breadcrumb, heading, each user's role, and the user count", asyn
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
   await expect.element(screen.getByText("Administrador").first()).toBeVisible();
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+});
+
+test("shows each user's passkey count as plain text, with the plural, singular and none forms", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [administrator, martina, tomas],
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Passkeys")).toBeVisible();
+  await expect.element(screen.getByText("2 registradas")).toBeVisible();
+  await expect.element(screen.getByText("1 registrada")).toBeVisible();
+  await expect.element(screen.getByText("—")).toBeVisible();
+});
+
+test("shows no passkey helper line: a single passkey is a normal state and nothing knows who only uses the register", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [administrator, martina, tomas],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 registrada")).toBeVisible();
+
+  expect(screen.getByText("Conviene agregar otra").query()).toBeNull();
+  expect(screen.getByText("Solo usa la caja").query()).toBeNull();
 });
 
 test("the row action navigates to that user's detail screen", async () => {

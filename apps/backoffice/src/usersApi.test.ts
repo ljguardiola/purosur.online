@@ -7,7 +7,10 @@ import {
   fetchEmailChangeChallenge,
   fetchUser,
   fetchUserCreationChallenge,
+  fetchUserPasskeyRemovalChallenge,
+  fetchUserPasskeys,
   fetchUsers,
+  removeUserPasskey,
 } from "./usersApi";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -31,6 +34,7 @@ const administratorRow = {
   email: "lucas@example.com",
   version: 1,
   role: { id: "role-admin", is_administrator: true, name: null },
+  passkey_count: 2,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -38,6 +42,7 @@ const administrator: BranchUser = {
   email: "lucas@example.com",
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
+  passkeyCount: 2,
 };
 
 test("fetchUsers lists the branch's users on 200", async () => {
@@ -56,6 +61,17 @@ test("fetchUsers maps each user's version from the wire", async () => {
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.value[0]?.version).toBe(3);
+});
+
+test("fetchUsers maps each user's passkeyCount from the wire", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ ...administratorRow, passkey_count: 5 }]),
+  );
+
+  const outcome = await fetchUsers();
+
+  expect(outcome.kind).toBe("ok");
+  expect(outcome.kind === "ok" && outcome.value[0]?.passkeyCount).toBe(5);
 });
 
 test("fetchUsers reports forbidden on 403", async () => {
@@ -549,5 +565,229 @@ test("changeUserEmail reports failed on any other status or a network failure", 
       { email: "new@example.com", version: 1 },
       emailChangeReauthentication,
     ),
+  ).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchUserPasskeys lists the target user's passkeys on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      {
+        id: "pk-1",
+        name: "Notebook del local",
+        created_at: "2026-08-02T12:00:00.000Z",
+        last_used_at: null,
+      },
+    ]),
+  );
+
+  const outcome = await fetchUserPasskeys("user-2");
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: [
+      {
+        id: "pk-1",
+        name: "Notebook del local",
+        createdAt: "2026-08-02T12:00:00.000Z",
+        lastUsedAt: null,
+      },
+    ],
+  });
+  expect(fetch).toHaveBeenCalledWith("/users/user-2/passkeys");
+});
+
+test("fetchUserPasskeys reports failed on a 200 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchUserPasskeys reports not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(fetchUserPasskeys("missing")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("fetchUserPasskeys reports forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("fetchUserPasskeys reports unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("fetchUserPasskeys reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "75" }),
+  );
+
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 75,
+  });
+});
+
+test("fetchUserPasskeys reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+const userPasskeyRemovalReauthenticationOptions = { challenge: "reauth", rpId: "purosur.online" };
+
+test("fetchUserPasskeyRemovalChallenge posts with no body and returns the reauthentication options", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { reauthentication_options: userPasskeyRemovalReauthenticationOptions }),
+  );
+
+  const outcome = await fetchUserPasskeyRemovalChallenge("user-2");
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: { reauthenticationOptions: userPasskeyRemovalReauthenticationOptions },
+  });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/user-2/passkeys/removal-options",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+test("fetchUserPasskeyRemovalChallenge reports failed on a 200 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports own_account on 403 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "own_account" }));
+
+  await expect(fetchUserPasskeyRemovalChallenge("user-1")).resolves.toEqual({
+    kind: "own_account",
+  });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports forbidden on 403 for a non-Administrator", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(fetchUserPasskeyRemovalChallenge("missing")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({
+    kind: "unauthenticated",
+  });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
+  );
+
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 30,
+  });
+});
+
+test("fetchUserPasskeyRemovalChallenge reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+const userPasskeyRemovalReauthentication = {
+  id: "existing-cred",
+} as unknown as AuthenticationResponseJSON;
+
+test("removeUserPasskey posts the reauthentication and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication);
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/user-2/passkeys/pk-1/remove",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ reauthentication: userPasskeyRemovalReauthentication }),
+    }),
+  );
+});
+
+test("removeUserPasskey reports not_found on 404 for an unknown user or passkey", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(
+    removeUserPasskey("user-2", "missing", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "not_found" });
+});
+
+test("removeUserPasskey reports own_account on 403 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "own_account" }));
+
+  await expect(
+    removeUserPasskey("user-1", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "own_account" });
+});
+
+test("removeUserPasskey reports forbidden on 403 for a non-Administrator", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("removeUserPasskey reports authentication_failed on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "authentication_failed" });
+});
+
+test("removeUserPasskey reports unauthenticated on 401 with the unauthenticated code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("removeUserPasskey reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
+  );
+
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 40 });
+});
+
+test("removeUserPasskey reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
+  ).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(
+    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
   ).resolves.toEqual({ kind: "failed" });
 });

@@ -409,6 +409,11 @@ export function UsersListScreen({
       render: (item: BranchUser) => roleDisplayName(item.role),
     },
     {
+      key: "passkeys",
+      title: usersMessages.columns.passkeys,
+      render: (item: BranchUser) => usersMessages.passkeysCount({ count: item.passkeyCount }),
+    },
+    {
       key: "actions",
       kind: "actions",
       srLabel: usersMessages.rowActionsLabel,

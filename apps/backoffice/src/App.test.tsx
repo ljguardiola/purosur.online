@@ -46,6 +46,9 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchEmailChangeChallenge: vi.fn(),
       changeUserEmail: vi.fn(),
+      fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchUserPasskeyRemovalChallenge: vi.fn(),
+      removeUserPasskey: vi.fn(),
       startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
@@ -434,6 +437,7 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
     email: "martina@example.com",
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
+    passkeyCount: 1,
   };
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
     kind: "ok",
@@ -454,6 +458,38 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
   window.history.back();
 
   await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
+});
+
+test("passes the signed-in Administrator's own id to the user detail screen, hiding their own passkey's remove button", async () => {
+  const services = createServices();
+  const lucas = {
+    id: "user-1",
+    firstName: "Lucas Guardiola",
+    email: "lucas@example.com",
+    version: 1,
+    role: { id: "role-admin", isAdministrator: true, name: null },
+    passkeyCount: 1,
+  };
+  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: lucas });
+  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "pk-1",
+        name: "Notebook del local",
+        createdAt: "2026-08-02T12:00:00.000Z",
+        lastUsedAt: null,
+      },
+    ],
+  });
+  window.history.pushState(null, "", "/settings/users/user-1");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Dar de baja la passkey «Notebook del local»" }).query(),
+  ).toBeNull();
 });
 
 test("shows a forbidden notice, without listing users, for a signed-in non-Administrator", async () => {
