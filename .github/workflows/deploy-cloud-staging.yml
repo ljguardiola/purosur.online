@@ -26,7 +26,7 @@ jobs:
     # with no new push to react to) and is safe because the target is always a verified commit.
     # Both jobs carry this gate.
     if: (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
-    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: read
@@ -99,7 +99,7 @@ jobs:
     name: apply and deploy to staging
     needs: build
     if: ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && needs.build.outputs.deploy == 'true'
-    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ubuntu-24.04
     environment: staging
     permissions:
       contents: read
@@ -113,7 +113,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache: pnpm
 
       # Needed so the CLI's Node evaluator can resolve `import ... from "railway/iac"` inside
       # .railway/railway.ts.
