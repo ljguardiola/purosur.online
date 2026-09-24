@@ -73,7 +73,7 @@ type RegisterPasskeyModalProps = {
   registerPasskey: typeof registerPasskey;
 };
 
-/** Registers another passkey for the signed-in account, reauthenticating with an existing one first (issue #169). */
+/** Registers another passkey for the signed-in account, reauthenticating with an existing one first. */
 function RegisterPasskeyModal({
   isOpen,
   onClose,
@@ -278,7 +278,7 @@ type RemovePasskeyModalProps = {
   removePasskey: typeof removePasskey;
 };
 
-/** Removes one of the signed-in account's own passkeys, reauthenticating with an existing one first (issue #169). */
+/** Removes one of the signed-in account's own passkeys, reauthenticating with an existing one first. */
 function RemovePasskeyModal({
   target,
   isOnlyPasskey,
@@ -425,7 +425,7 @@ function RemovePasskeyModal({
   );
 }
 
-/** "Mi cuenta": the signed-in account's own Passkeys section, for Shell's children slot (issue #169). */
+/** "Mi cuenta": the signed-in account's own Passkeys section, for Shell's children slot. */
 export function MyAccountScreen({
   displayName,
   onSessionEnded,

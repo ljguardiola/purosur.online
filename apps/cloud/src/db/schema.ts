@@ -321,7 +321,7 @@ export const backofficeRateLimitKeyKind = pgEnum("backoffice_rate_limit_key_kind
   "source_address",
 ]);
 
-// One row per admitted backoffice API request (issue #205), counting every request made under an
+// One row per admitted backoffice API request, counting every request made under an
 // open session's cookie against both a per-session and a per-source-address rolling one-hour
 // limit. Same rolling-window shape as `recovery_rate_limit_attempts`: one row per event, pruned as
 // later requests are recorded, so a limit never doubles across a clock hour and storage stays
