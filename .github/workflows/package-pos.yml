@@ -38,7 +38,9 @@ permissions:
 
 jobs:
   package:
-    runs-on: ${{ github.actor == 'dependabot[bot]' && 'windows-latest' || fromJSON(vars.WINDOWS_RUNNER || '"windows-latest"') }}
+    # Keyed on the pull request's author, not the event's actor: a person reopening or updating a
+    # Dependabot pull request would otherwise run its third-party install scripts here.
+    runs-on: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'windows-latest' || fromJSON(vars.WINDOWS_RUNNER || '"windows-latest"') }}
     # Only a merge to main builds an installer: the staging one, under the staging environment,
     # which admits nothing but main. Pull requests package both channels' app code with no
     # credentials and no installer. The job builds the app code once and packages both channels
@@ -115,7 +117,9 @@ jobs:
   independent-build:
     name: independent build of the production app.asar
     if: github.event_name == 'push'
-    runs-on: ${{ github.actor == 'dependabot[bot]' && 'windows-latest' || fromJSON(vars.WINDOWS_RUNNER || '"windows-latest"') }}
+    # On the one own Windows runner this shares the package job's host, pnpm store and caches, so
+    # agreeing proves the build is deterministic, not that that host is clean.
+    runs-on: ${{ fromJSON(vars.WINDOWS_RUNNER || '"windows-latest"') }}
     permissions:
       contents: read
     steps:
@@ -148,7 +152,7 @@ jobs:
     name: independent build agrees on app code
     needs: [package, independent-build]
     if: github.event_name == 'push'
-    runs-on: ${{ github.actor == 'dependabot[bot]' && 'ubuntu-24.04' || fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
+    runs-on: ${{ fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
     permissions:
       contents: read
     steps:
