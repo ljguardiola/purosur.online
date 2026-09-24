@@ -11,7 +11,13 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
 import {
   isRoleNameUniqueViolation,
@@ -255,6 +261,8 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
   options: RolesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -270,19 +278,13 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
   app.post<{ Params: { id: string } }>(
     "/roles/:id/edit-options",
-    { config: { access: ADMINISTRATOR_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const issuedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: issuedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const target = await findEditableRole(options.db, request.params.id);
       if (!target) {
@@ -319,19 +321,13 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
   app.post<{ Params: { id: string } }>(
     "/roles/:id/edit",
-    { config: { access: ADMINISTRATOR_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const attemptedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: attemptedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const target = await findEditableRole(options.db, request.params.id);
       if (!target) {

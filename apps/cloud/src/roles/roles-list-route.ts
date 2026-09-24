@@ -3,7 +3,13 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
-import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -90,21 +96,22 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
   options: RolesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get("/roles", { config: { access: ADMINISTRATOR_ACCESS } }, async (request, reply) => {
-    if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
-      return;
-    }
-    const checkedAt = now();
-    const openSession = await enforceRouteAccess(request, reply, {
-      db: options.db,
-      now: checkedAt,
-    });
-    if (!openSession) {
-      return;
-    }
+  app.get(
+    "/roles",
+    {
+      preHandler: originGuard((request, reply) =>
+        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
+      ),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const openSession = openSessionOf(request);
 
-    const rows = await listRoles(options.db, openSession.locationId);
-    await reply.code(200).send(rows.map(toRoleSummaryWire));
-  });
+      const rows = await listRoles(options.db, openSession.locationId);
+      await reply.code(200).send(rows.map(toRoleSummaryWire));
+    },
+  );
 }

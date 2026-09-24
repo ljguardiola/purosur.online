@@ -11,7 +11,13 @@ import { auditLog, passkeys, users } from "../db/schema.js";
 import { deriveUserHandle } from "../recovery/recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
 import { UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
-import { enforceRouteAccess, OPEN_SESSION_ACCESS } from "../session/route-access.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -68,6 +74,8 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -83,19 +91,13 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
 
   app.post(
     "/users/passkeys/registration-options",
-    { config: { access: OPEN_SESSION_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const issuedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: issuedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const [account] = await options.db
         .select({ firstName: users.firstName, email: users.email })
@@ -158,19 +160,13 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
 
   app.post(
     "/users/passkeys",
-    { config: { access: OPEN_SESSION_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const attemptedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: attemptedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const passkeyRegistration = (request.body as { passkey_registration?: unknown } | undefined)
         ?.passkey_registration as RegistrationResponseJSON | undefined;

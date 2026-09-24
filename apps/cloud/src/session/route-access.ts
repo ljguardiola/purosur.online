@@ -1,98 +1,91 @@
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  preHandlerAsyncHookHandler,
+  RouteOptions,
+} from "fastify";
 import type { PermissionKey } from "../roles/permission-catalog.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import {
   type BackofficeSessionCheckOptions,
+  checkBackofficeSession,
   type OpenSession,
+  peekOpenSession,
   requireOpenSession,
+  UNAUTHENTICATED_RESPONSE,
 } from "./open-session.js";
+import { readSessionCookie } from "./session-cookie.js";
 
 /**
- * The one access level a route declares through its `config.access` (see the module augmentation
- * below): no session is required at all, any open session qualifies, only the Administrator role
- * qualifies, or holding one named catalog permission qualifies. An Administrator always satisfies
- * `open_session` and `permission`, but never satisfies `administrator` through a permission — that
- * level only ever passes because the session itself is an Administrator's.
+ * The one access level a route declares through its `config.access`:
+ * - `public`: no session is required at all.
+ * - `open_session`: any open session qualifies, and the request counts as use of it (touches
+ *   `last_seen_at`).
+ * - `open_session_peek`: any open session qualifies, without counting as use of it, so probing a
+ *   session's status never keeps an idle one alive.
+ * - `session_cookie`: a session cookie is enough, open or already ended, so signing out of an
+ *   ended session still succeeds.
+ * - `administrator`: only the Administrator role qualifies, never through a permission.
+ * - `permission`: holding one named catalog permission qualifies; an Administrator always does.
  */
 export type RouteAccess =
   | { level: "public" }
   | { level: "open_session" }
+  | { level: "open_session_peek" }
+  | { level: "session_cookie" }
   | { level: "administrator" }
   | { level: "permission"; permission: PermissionKey };
 
 export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
+export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek" };
+export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 export const ADMINISTRATOR_ACCESS: RouteAccess = { level: "administrator" };
 
 export function permissionAccess(permission: PermissionKey): RouteAccess {
   return { level: "permission", permission };
 }
 
-declare module "fastify" {
-  interface FastifyContextConfig {
-    /**
-     * The route's declared access level. Every route registered by this app must set this (see
-     * `registerRouteAccessInventory`'s consumer, the route-inventory test in `app.test.ts`), so a
-     * future endpoint can't ship without one.
-     */
-    access?: RouteAccess;
-  }
-
-  interface FastifyInstance {
-    /** Decorated by `registerRouteAccessInventory` so a test can read the built app's inventory back. */
-    routeAccessInventory(): RouteAccessEntry[];
-  }
-}
-
-function isAccessGranted(access: RouteAccess, session: OpenSession): boolean {
-  // An Administrator passes every permission and open-session check, but "administrator" itself is
-  // decided below by the branch it falls into, never by a permission key.
-  if (session.isAdministrator) {
-    return true;
-  }
-  switch (access.level) {
-    case "public":
-    case "open_session":
-      return true;
-    case "administrator":
-      return false;
-    case "permission":
-      return session.permissionKeys.includes(access.permission);
-  }
-}
-
-/**
- * The one central enforcement point for a route's declared `config.access`: resolves the open
- * session (401 `unauthenticated` as `requireOpenSession` already answers, touching `last_seen_at`)
- * and, only once a session is open, checks it against the route's declared level, answering 403
- * `FORBIDDEN_RESPONSE` when it doesn't qualify. Returns the resolved session for the handler to use,
- * so it never resolves the session a second time.
- *
- * Registered as a plain function a handler calls, not a Fastify hook: several route-registration
- * functions in this app are unit-tested by registering them directly on a bare `Fastify()` instance
- * (no `buildApp`), so a hook wired only in `app.ts` would silently stop enforcing in those tests. A
- * plain function enforces identically everywhere the route itself is registered, and — called at
- * the exact place `requireOpenSession` used to be — runs after the route's own existing origin
- * guard, which stays exactly where it is.
- */
-export async function enforceRouteAccess<TQueryResult extends PgQueryResultHKT>(
+type SessionCheck<TResult> = <TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
   options: BackofficeSessionCheckOptions<TQueryResult>,
-): Promise<OpenSession | undefined> {
-  const openSession = await requireOpenSession(request, reply, options);
-  if (!openSession) {
-    return undefined;
+) => Promise<TResult>;
+
+/** The database and clock a route's session is checked against, whatever driver it runs on. */
+export interface RouteSessionSource {
+  check<TResult>(
+    sessionCheck: SessionCheck<TResult>,
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<TResult>;
+}
+
+export function routeSessionSource<TQueryResult extends PgQueryResultHKT>(options: {
+  db: PgDatabase<TQueryResult>;
+  now?: () => Date;
+}): RouteSessionSource {
+  const now = options.now ?? (() => new Date());
+  return {
+    check: (sessionCheck, request, reply) =>
+      sessionCheck(request, reply, { db: options.db, now: now() }),
+  };
+}
+
+declare module "fastify" {
+  interface FastifyContextConfig {
+    /** The route's declared access level, enforced before its handler runs. */
+    access?: RouteAccess;
+    /** Where the session is checked, for every declared level other than `public`. */
+    sessionSource?: RouteSessionSource;
   }
 
-  const access = request.routeOptions.config.access;
-  if (!access || !isAccessGranted(access, openSession)) {
-    await reply.code(403).send(FORBIDDEN_RESPONSE);
-    return undefined;
+  interface FastifyInstance {
+    /** Every route registered since `registerRouteAccess`, with its declared access. */
+    routeAccessInventory(): RouteAccessEntry[];
   }
-
-  return openSession;
 }
 
 export interface RouteAccessEntry {
@@ -101,19 +94,155 @@ export interface RouteAccessEntry {
   access: RouteAccess | undefined;
 }
 
+const resolvedSessions = new WeakMap<FastifyRequest, OpenSession>();
+const resolvedSessionCookies = new WeakMap<FastifyRequest, string>();
+
+/** The session cookie a `session_cookie` route's declared access required before its handler ran. */
+export function sessionCookieOf(request: FastifyRequest): string {
+  const rawSessionId = resolvedSessionCookies.get(request);
+  if (!rawSessionId) {
+    throw new Error(
+      `${request.method} ${request.routeOptions.url} read a session cookie its declared access never required`,
+    );
+  }
+  return rawSessionId;
+}
+
 /**
- * Collects every route's declared `config.access` as it is registered, for the route-inventory test
- * to read back once the app is fully built (both as this function's own return value and, so a test
- * that only has the built app can reach it, as the app's decorated `routeAccessInventory()`). Must
- * be called right after the `Fastify()` instance is created and before any route is registered,
- * since Fastify's `onRoute` hook only fires for routes registered after it is added. Fastify
- * auto-registers a mirrored HEAD route for every GET with the same config; those are excluded here
- * since none of this app's routes ever declares HEAD access independently of its GET.
+ * The open session the route's declared access resolved before its handler ran. Only a route
+ * declaring `open_session`, `open_session_peek`, `administrator`, or a `permission` has one.
  */
-export function registerRouteAccessInventory(app: FastifyInstance): () => RouteAccessEntry[] {
-  const entries: RouteAccessEntry[] = [];
+export function openSessionOf(request: FastifyRequest): OpenSession {
+  const session = resolvedSessions.get(request);
+  if (!session) {
+    throw new Error(
+      `${request.method} ${request.routeOptions.url} read an open session its declared access never resolved`,
+    );
+  }
+  return session;
+}
+
+/**
+ * Adapts a route's own origin check to a `preHandler`, so it runs before the declared access is
+ * enforced (the enforcement is appended after the route's own `preHandler`s).
+ */
+export function originGuard(
+  check: (request: FastifyRequest, reply: FastifyReply) => boolean,
+): preHandlerAsyncHookHandler {
+  return async (request, reply) => {
+    if (!check(request, reply)) {
+      return reply;
+    }
+  };
+}
+
+function isAccessGranted(access: RouteAccess, session: OpenSession): boolean {
+  switch (access.level) {
+    case "public":
+    case "open_session":
+    case "open_session_peek":
+    case "session_cookie":
+      return true;
+    case "administrator":
+      return session.isAdministrator;
+    case "permission":
+      return session.isAdministrator || session.permissionKeys.includes(access.permission);
+  }
+}
+
+async function refuse(reply: FastifyReply, code: 401 | 403): Promise<FastifyReply> {
+  await reply.code(code).send(code === 401 ? UNAUTHENTICATED_RESPONSE : FORBIDDEN_RESPONSE);
+  return reply;
+}
+
+async function enforceDeclaredAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<FastifyReply | undefined> {
+  const { access, sessionSource } = request.routeOptions.config;
+  if (!access) {
+    return refuse(reply, 403);
+  }
+  if (access.level === "public") {
+    return undefined;
+  }
+  if (!sessionSource) {
+    throw new Error(`${request.method} ${request.routeOptions.url} has no session source`);
+  }
+
+  if (access.level === "session_cookie") {
+    const rawSessionId = readSessionCookie(request.headers.cookie);
+    if (!rawSessionId) {
+      return refuse(reply, 401);
+    }
+    const check = await sessionSource.check(checkBackofficeSession, request, reply);
+    if (check.state === "rate_limited") {
+      return reply;
+    }
+    resolvedSessionCookies.set(request, rawSessionId);
+    return undefined;
+  }
+
+  const session = await sessionSource.check(
+    access.level === "open_session_peek" ? peekOpenSession : requireOpenSession,
+    request,
+    reply,
+  );
+  if (!session) {
+    return reply;
+  }
+  if (!isAccessGranted(access, session)) {
+    return refuse(reply, 403);
+  }
+  resolvedSessions.set(request, session);
+  return undefined;
+}
+
+/**
+ * Declares `access` for every route a third-party plugin registers inside `scope`, for a plugin
+ * (like `@fastify/static`) that takes no per-route config of its own. Only reaches routes
+ * registered in that encapsulated scope, never the rest of the app.
+ */
+export function declarePluginRoutesAccess(scope: FastifyInstance, access: RouteAccess): void {
+  scope.addHook("onRoute", (routeOptions) => {
+    routeOptions.config = { ...routeOptions.config, access };
+  });
+}
+
+function declaredAccessOf(routeOptions: RouteOptions): RouteAccess | undefined {
+  return routeOptions.config?.access;
+}
+
+/**
+ * Installs, once per app, the one mechanism that enforces every route's declared `config.access`
+ * before its handler: each route registered afterwards gets `enforceDeclaredAccess` appended to its
+ * own `preHandler`s (so a route's origin guard still runs first), and is recorded for
+ * `routeAccessInventory()`. Every route-registration function calls it, so a route registered on a
+ * bare `Fastify()` instance in a test is enforced exactly as in the built app. A route with no
+ * declaration is refused with 403, and one declaring a session level without a session source
+ * can't be registered at all.
+ */
+export function registerRouteAccess(app: FastifyInstance): void {
+  if (app.hasDecorator("routeAccessInventory")) {
+    return;
+  }
+
+  const registered: { method: string; url: string; routeOptions: RouteOptions }[] = [];
 
   app.addHook("onRoute", (routeOptions) => {
+    const access = declaredAccessOf(routeOptions);
+    if (access && access.level !== "public" && !routeOptions.config?.sessionSource) {
+      throw new Error(
+        `${String(routeOptions.method)} ${routeOptions.url} declares ${access.level} access but no session source`,
+      );
+    }
+
+    const ownPreHandlers = routeOptions.preHandler ?? [];
+    routeOptions.preHandler = [
+      ...(Array.isArray(ownPreHandlers) ? ownPreHandlers : [ownPreHandlers]),
+      enforceDeclaredAccess,
+    ];
+
     const methods = Array.isArray(routeOptions.method)
       ? routeOptions.method
       : [routeOptions.method];
@@ -121,15 +250,15 @@ export function registerRouteAccessInventory(app: FastifyInstance): () => RouteA
       if (method === "HEAD") {
         continue;
       }
-      entries.push({
-        method,
-        url: routeOptions.url,
-        access: (routeOptions.config as { access?: RouteAccess } | undefined)?.access,
-      });
+      registered.push({ method, url: routeOptions.url, routeOptions });
     }
   });
 
-  const getInventory = (): RouteAccessEntry[] => [...entries];
-  app.decorate("routeAccessInventory", getInventory);
-  return getInventory;
+  app.decorate("routeAccessInventory", (): RouteAccessEntry[] =>
+    registered.map(({ method, url, routeOptions }) => ({
+      method,
+      url,
+      access: declaredAccessOf(routeOptions),
+    })),
+  );
 }

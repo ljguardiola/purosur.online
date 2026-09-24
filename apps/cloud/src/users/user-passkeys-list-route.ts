@@ -3,7 +3,13 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { passkeys } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
-import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { findBranchUser } from "./branch-users.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
@@ -27,22 +33,19 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
     "/users/:id/passkeys",
-    { config: { access: ADMINISTRATOR_ACCESS } },
+    {
+      preHandler: originGuard((request, reply) =>
+        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
+      ),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
-        return;
-      }
-      const checkedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: checkedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const targetId = (request.params as { id: string }).id;
       if (!UUID_PATTERN.test(targetId)) {

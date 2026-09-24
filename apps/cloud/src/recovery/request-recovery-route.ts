@@ -1,6 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { PUBLIC_ACCESS } from "../session/route-access.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
@@ -41,6 +41,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
   options: RecoveryRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;
 

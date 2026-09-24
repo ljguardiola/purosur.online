@@ -4,7 +4,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
-import { PUBLIC_ACCESS } from "../session/route-access.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
 import {
@@ -66,6 +66,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
   options: RecoveryRedemptionRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doRecordRejectedAttempt = options.recordRejectedAttempt ?? recordRejectedAttempt;
   const reportError = options.reportError ?? reportRecoveryBookkeepingError;

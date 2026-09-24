@@ -1,7 +1,13 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { checkRequestIsSameOrigin, peekOpenSession, sessionExpiresAt } from "./open-session.js";
-import { OPEN_SESSION_ACCESS } from "./route-access.js";
+import { checkRequestIsSameOrigin, sessionExpiresAt } from "./open-session.js";
+import {
+  OPEN_SESSION_PEEK_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "./route-access.js";
 
 export interface SessionStatusRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -11,36 +17,29 @@ export interface SessionStatusRouteOptions<TQueryResult extends PgQueryResultHKT
 }
 
 /**
- * Registers `GET /users/session/status`: resolves the session cookie through the shared
- * `peekOpenSession` helper (idle/absolute expiry, deactivated-account check) without touching
- * `last_seen_at`, and returns the session's deadline so an already-open tab can notice its session
- * ended without keeping an idle one alive. Answers 401 `unauthenticated` when no open session is
- * found, the same as `GET /users/session`. Declared `open_session` for the route inventory, but
- * calls `peekOpenSession` directly rather than the shared `enforceRouteAccess` helper, since that
- * helper always touches `last_seen_at` and this route must never do that.
+ * Registers `GET /users/session/status`: resolves the open session without touching
+ * `last_seen_at` (idle/absolute expiry, deactivated-account check) and returns the session's
+ * deadline so an already-open tab can notice its session ended without keeping an idle one alive.
+ * Answers 401 `unauthenticated` when no open session is found, the same as `GET /users/session`.
  */
 export function registerSessionStatusRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionStatusRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
   app.get(
     "/users/session/status",
-    { config: { access: OPEN_SESSION_ACCESS } },
+    {
+      preHandler: originGuard((request, reply) =>
+        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
+      ),
+      config: { access: OPEN_SESSION_PEEK_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
-        return;
-      }
-      const checkedAt = now();
-      const openSession = await peekOpenSession(request, reply, {
-        db: options.db,
-        now: checkedAt,
-      });
-      if (!openSession) {
-        return;
-      }
-
+      const openSession = openSessionOf(request);
       await reply.code(200).send({ expires_at: sessionExpiresAt(openSession).toISOString() });
     },
   );

@@ -2,7 +2,7 @@ import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { PUBLIC_ACCESS } from "./route-access.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { pruneExpiredSignInChallenges, storeSignInChallenge } from "./sign-in-challenge.js";
 
 export interface SessionAuthenticationOptionsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -25,6 +25,7 @@ export function registerSessionAuthenticationOptionsRoute<TQueryResult extends P
   options: SessionAuthenticationOptionsRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {

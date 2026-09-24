@@ -5,7 +5,13 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys } from "../db/schema.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { enforceRouteAccess, OPEN_SESSION_ACCESS } from "../session/route-access.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -53,6 +59,8 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   options: PasskeyRemovalRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -68,19 +76,13 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
 
   app.post(
     "/users/passkeys/removal-options",
-    { config: { access: OPEN_SESSION_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const issuedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: issuedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const existingPasskeys = await options.db
         .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
@@ -111,19 +113,13 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
 
   app.post(
     "/users/passkeys/:id/remove",
-    { config: { access: OPEN_SESSION_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const attemptedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: attemptedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const targetId = (request.params as { id: string }).id;
       if (!UUID_PATTERN.test(targetId)) {

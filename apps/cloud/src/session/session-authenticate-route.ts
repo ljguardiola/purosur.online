@@ -7,7 +7,7 @@ import { auditLog, passkeys, sessions, users } from "../db/schema.js";
 import { reportRecoveryBookkeepingError } from "../recovery/recovery-error-reporting.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { PUBLIC_ACCESS } from "./route-access.js";
+import { PUBLIC_ACCESS, registerRouteAccess } from "./route-access.js";
 import { readSessionCookie, serializeSessionCookie } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
 import { consumeSignInChallenge } from "./sign-in-challenge.js";
@@ -73,6 +73,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
   options: SessionAuthenticateRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
   const delay = options.delay ?? defaultDelay;
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
   const doConfirmRejectedSignInAttempt =

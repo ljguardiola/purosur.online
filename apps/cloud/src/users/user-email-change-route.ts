@@ -11,7 +11,13 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { findBranchUser, toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
@@ -129,6 +135,8 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   /** A malformed id would otherwise reach the database as an invalid uuid input error (500); this
@@ -153,19 +161,13 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
 
   app.post<{ Params: { id: string } }>(
     "/users/:id/email-change-options",
-    { config: { access: ADMINISTRATOR_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const issuedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: issuedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const target = await findTarget(openSession.locationId, request.params.id);
       if (!target) {
@@ -202,19 +204,13 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
 
   app.post<{ Params: { id: string } }>(
     "/users/:id/email",
-    { config: { access: ADMINISTRATOR_ACCESS } },
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
     async (request, reply) => {
-      if (!checkOrigin(request, reply)) {
-        return;
-      }
       const attemptedAt = now();
-      const openSession = await enforceRouteAccess(request, reply, {
-        db: options.db,
-        now: attemptedAt,
-      });
-      if (!openSession) {
-        return;
-      }
+      const openSession = openSessionOf(request);
 
       const target = await findTarget(openSession.locationId, request.params.id);
       if (!target) {

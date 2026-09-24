@@ -1,7 +1,13 @@
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
-import { ADMINISTRATOR_ACCESS, enforceRouteAccess } from "../session/route-access.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { findBranchUser, toBranchUserWire } from "./branch-users.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
@@ -25,32 +31,33 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get("/users/:id", { config: { access: ADMINISTRATOR_ACCESS } }, async (request, reply) => {
-    if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
-      return;
-    }
-    const checkedAt = now();
-    const openSession = await enforceRouteAccess(request, reply, {
-      db: options.db,
-      now: checkedAt,
-    });
-    if (!openSession) {
-      return;
-    }
+  app.get(
+    "/users/:id",
+    {
+      preHandler: originGuard((request, reply) =>
+        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
+      ),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const openSession = openSessionOf(request);
 
-    const targetId = (request.params as { id: string }).id;
-    if (!UUID_PATTERN.test(targetId)) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
+      const targetId = (request.params as { id: string }).id;
+      if (!UUID_PATTERN.test(targetId)) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    const row = await findBranchUser(options.db, openSession.locationId, targetId);
-    if (!row) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
+      const row = await findBranchUser(options.db, openSession.locationId, targetId);
+      if (!row) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    await reply.code(200).send(toBranchUserWire(row));
-  });
+      await reply.code(200).send(toBranchUserWire(row));
+    },
+  );
 }
