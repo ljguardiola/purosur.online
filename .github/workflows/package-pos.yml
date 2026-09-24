@@ -39,12 +39,12 @@ permissions:
 jobs:
   package:
     runs-on: windows-latest
-    # Only a merge to main builds an installer: the staging one, under the staging environment,
-    # which admits nothing but main. Pull requests package both channels' app code with no
-    # credentials and no installer. The job builds the app code once and packages both channels
-    # from it, but only the pack:staging step below reads the staging environment's Sentry DSN and
-    # update feed URL — pack:production never receives them. The production installer comes from
-    # the tag-bound release workflow.
+    # Every run builds both channels' installers, so a change that breaks either one fails before
+    # it merges. Only a merge to main runs under the staging environment, which admits nothing but
+    # main, and keeps its staging installer. The job builds the app code once and packages both
+    # channels from it, but only the pack:staging step below reads the staging environment's Sentry
+    # DSN and update feed URL — pack:production never receives them. The production installer that
+    # ships comes from the tag-bound release workflow.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,17 +66,16 @@ jobs:
 
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
       # update feed only reach each channel's resources/channel.json and app-update.yml, outside
-      # app.asar. An unset variable leaves that feature off. --dir stops at the unpacked app, which
-      # is all the app code comparisons below read.
-      - run: pnpm --filter @purosur/pos pack:production --dir
+      # app.asar. An unset variable leaves that feature off.
+      - run: pnpm --filter @purosur/pos pack:production
         env:
           POS_SENTRY_DSN: ""
           POS_UPDATE_FEED_URL: ""
 
       # The staging feed is a separate artifact in the staging bucket. The DSN reaches only the job
       # running under the staging environment (a push to main), which is also the only run that
-      # builds the staging installer.
-      - run: pnpm --filter @purosur/pos pack:staging ${{ github.event_name == 'pull_request' && '--dir' || '' }}
+      # keeps the staging installer.
+      - run: pnpm --filter @purosur/pos pack:staging
         env:
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_UPDATE_FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}
