@@ -43,6 +43,18 @@ test("shows the selected option's own label as the trigger's value", async () =>
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the hand cursor on the trigger and on each option", async () => {
+  const screen = await render(<Select {...baseProps()} />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+  expect(getComputedStyle(trigger).cursor).toBe("pointer");
+
+  await screen.getByRole("button", { name: /Rol/ }).click();
+  const option = screen.getByRole("option", { name: "Atención de caja" }).element() as HTMLElement;
+  expect(getComputedStyle(option).cursor).toBe("pointer");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("lists every option on open, with a check on the selected one only", async () => {
   const screen = await render(<Select {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Rol/ });

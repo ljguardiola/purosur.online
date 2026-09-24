@@ -96,7 +96,7 @@ const POPOVER_Z_INDEX = 100000;
 // own larger, bolder selected row reads as a quick prototype highlight rather than a second type
 // scale, since neither existing precedent varies size or weight for a chosen option.
 const optionClassName =
-  "flex h-10 cursor-default items-center justify-between rounded-md px-3 text-sm font-semibold " +
+  "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg data-[selected]:text-brand-blue-strong " +
   // Two attribute selectors outrank the single-attribute hover/focus rules above regardless of
