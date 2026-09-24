@@ -37,9 +37,10 @@ export interface ConfirmedSignInRejection {
 }
 
 /**
- * Hashes a source address for the audit log the same way the recovery rate limiter hashes its own keys
- * (SHA-256, hex-encoded): the lockout tables themselves key by the raw address (never looked up by
- * anything else), but a permanent audit row never stores it in the clear.
+ * Hashes a source address for the audit log the same way the recovery rate limiter hashes its
+ * destination-address key (SHA-256, hex-encoded): the lockout tables themselves key by the raw
+ * address (never looked up by anything else), but a permanent audit row never stores it in the
+ * clear.
  */
 export function hashSourceAddress(sourceAddress: string): string {
   return createHash("sha256").update(sourceAddress).digest("hex");

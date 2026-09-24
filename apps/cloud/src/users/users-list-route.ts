@@ -14,8 +14,8 @@ export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
 /**
  * Registers `GET /users`: requires an open session (the same `requireOpenSession` check
  * `GET /users/passkeys` uses, including its same-origin guard), then lists the users of the
- * session's own branch with their role. Administrator-only for now — a wider permission model
- * arrives with a later Roles issue — so a non-Administrator gets 403 `forbidden` instead of a list.
+ * session's own branch with their role. Administrator-only until a wider permission model exists,
+ * so a non-Administrator gets 403 `forbidden` instead of a list.
  */
 export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,

@@ -7,8 +7,8 @@ import type {
 // limiter's rolling one-hour window), so this is the fallback a missing `Retry-After` header
 // gets.
 const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
-// The backoffice API rate limiter counts a rolling one-hour window, the same
-// fallback recoveryApi.ts's own rate-limited outcomes fall back to.
+// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
+// recoveryApi.ts's own rate-limited outcomes fall back to.
 const BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =

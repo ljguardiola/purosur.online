@@ -3,8 +3,8 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 
-// The backoffice API rate limiter counts a rolling one-hour window, the same
-// fallback passkeyApi.ts's own rate-limited outcomes fall back to.
+// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
+// passkeyApi.ts's own rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type BranchUserRole = { id: string; isAdministrator: boolean; name: string | null };

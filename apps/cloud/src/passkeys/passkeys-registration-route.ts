@@ -58,8 +58,9 @@ function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
 /**
  * Registers the two endpoints that add a passkey to an already-open session's account:
  * `registration-options` hands back both a reauthentication challenge (against the account's
- * existing passkeys) and a registration challenge (excluding them), and `POST /users/passkeys` verifies both, in that order, before registering the new credential under the
- * given name. Neither ever revokes the session.
+ * existing passkeys) and a registration challenge (excluding them), and `POST /users/passkeys`
+ * verifies both, in that order, before registering the new credential under the given name.
+ * Neither ever revokes the session.
  */
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
