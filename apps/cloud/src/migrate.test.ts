@@ -2,16 +2,18 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, inject, it, vi } from "vitest";
 import {
+  isConcurrentCatalogUpdateError,
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
   runMigrations,
+  scramSha256Verifier,
   waitForDatabase,
 } from "./migrate.js";
 
 describe("runMigrations", () => {
   it("rejects when the database is unreachable", async () => {
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         // A zero wait budget keeps this test fast: it proves an unreachable database still
@@ -25,7 +27,7 @@ describe("runMigrations", () => {
     const onWaiting = vi.fn();
 
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 1,
@@ -42,7 +44,7 @@ describe("runMigrations", () => {
     const onWaiting = vi.fn();
 
     await expect(
-      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
+      runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 30,
@@ -63,13 +65,17 @@ describe("runMigrations", () => {
 
     try {
       await expect(
-        runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", {
-          migrationsFolder: new URL("../migrations", import.meta.url).pathname,
-          connectTimeoutSeconds: 1,
-          sleep: clock.sleep,
-          now: clock.now,
-          onWaiting,
-        }),
+        runMigrations(
+          "postgres://user:pass@127.0.0.1:1/nonexistent",
+          "unused-unreachable-database",
+          {
+            migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+            connectTimeoutSeconds: 1,
+            sleep: clock.sleep,
+            now: clock.now,
+            onWaiting,
+          },
+        ),
       ).rejects.toMatchObject({ code: "ECONNREFUSED" });
     } finally {
       vi.unstubAllEnvs();
@@ -79,16 +85,51 @@ describe("runMigrations", () => {
   });
 });
 
+function envWithout(...names: string[]): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of names) {
+    delete env[name];
+  }
+  return env;
+}
+
 describe("the migrate command", () => {
   it("does not print the database URL when it fails on a malformed one", () => {
     const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
-      env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },
+      env: {
+        ...envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+        DATABASE_URL: "postgres://user:s3cret-password@[bad/db",
+        CLOUD_APP_DATABASE_PASSWORD: "unused-malformed-url-test",
+      },
       encoding: "utf8",
     });
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("ERR_INVALID_URL");
     expect(`${result.stdout}${result.stderr}`).not.toContain("s3cret-password");
+  });
+
+  it("fails with a clear message when DATABASE_URL is not set", () => {
+    const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
+      env: envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("migrate: DATABASE_URL is not set");
+  });
+
+  it("fails with a clear message when CLOUD_APP_DATABASE_PASSWORD is not set", () => {
+    const result = spawnSync(process.execPath, [join(inject("cloudBuildDir"), "migrate.js")], {
+      env: {
+        ...envWithout("DATABASE_URL", "CLOUD_APP_DATABASE_PASSWORD"),
+        DATABASE_URL: "postgres://user:pass@127.0.0.1:1/nonexistent",
+      },
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("migrate: CLOUD_APP_DATABASE_PASSWORD is not set");
   });
 });
 
@@ -278,5 +319,60 @@ describe("isRetryableConnectionError", () => {
 
   it("does not treat a non-error value as retryable", () => {
     expect(isRetryableConnectionError("boom")).toBe(false);
+  });
+});
+
+describe("scramSha256Verifier", () => {
+  const VERIFIER_FORMAT =
+    /^SCRAM-SHA-256\$4096:([A-Za-z0-9+/=]+)\$([A-Za-z0-9+/=]+):([A-Za-z0-9+/=]+)$/;
+
+  it("builds a SCRAM-SHA-256 verifier with a 16-byte salt and 32-byte keys", () => {
+    const match = VERIFIER_FORMAT.exec(scramSha256Verifier("s3cret-password"));
+    if (!match) {
+      throw new Error("the verifier does not have the SCRAM-SHA-256 format");
+    }
+    const [, salt = "", storedKey = "", serverKey = ""] = match;
+
+    expect(Buffer.from(salt, "base64")).toHaveLength(16);
+    expect(Buffer.from(storedKey, "base64")).toHaveLength(32);
+    expect(Buffer.from(serverKey, "base64")).toHaveLength(32);
+  });
+
+  it("never contains the password itself", () => {
+    expect(scramSha256Verifier("s3cret-password")).not.toContain("s3cret-password");
+  });
+
+  it("uses a fresh salt every time", () => {
+    expect(scramSha256Verifier("s3cret-password")).not.toBe(scramSha256Verifier("s3cret-password"));
+  });
+});
+
+describe("isConcurrentCatalogUpdateError", () => {
+  it("treats Postgres's own code-less concurrent catalog write conflict as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("tuple concurrently updated"), { code: "XX000" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not treat another XX000 internal error as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("unexpected internal error"), { code: "XX000" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not treat the same message under a different code as one", () => {
+    expect(
+      isConcurrentCatalogUpdateError(
+        Object.assign(new Error("tuple concurrently updated"), { code: "40001" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not treat a non-error value as one", () => {
+    expect(isConcurrentCatalogUpdateError("boom")).toBe(false);
   });
 });

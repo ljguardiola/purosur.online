@@ -152,6 +152,7 @@ jobs:
           CLOUD_SENTRY_DSN: ${{ vars.CLOUD_SENTRY_DSN }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EDGE_ORIGIN_SECRET: ${{ secrets.EDGE_ORIGIN_SECRET }}
+          CLOUD_APP_DATABASE_PASSWORD: ${{ secrets.CLOUD_APP_DATABASE_PASSWORD }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 

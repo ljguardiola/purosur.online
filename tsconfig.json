@@ -33,6 +33,7 @@
     "apps/backoffice/vite.config.ts",
     "apps/pos/e2e",
     "apps/pos/vitest.e2e.config.ts",
-    ".railway/railway.ts"
+    ".railway/railway.ts",
+    ".railway/railway.test.ts"
   ]
 }
