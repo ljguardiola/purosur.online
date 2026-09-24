@@ -101,7 +101,12 @@ export async function fetchUsers(): Promise<FetchUsersOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as Array<Parameters<typeof userFromWire>[0]>;
+  const body = (await response.json().catch(() => undefined)) as
+    | Array<Parameters<typeof userFromWire>[0]>
+    | undefined;
+  if (!Array.isArray(body)) {
+    return { kind: "failed" };
+  }
   return { kind: "ok", value: body.map(userFromWire) };
 }
 
@@ -161,7 +166,12 @@ export async function createUser(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const body = (await response.json()) as Parameters<typeof userFromWire>[0];
+    const body = (await response.json().catch(() => undefined)) as
+      | Parameters<typeof userFromWire>[0]
+      | undefined;
+    if (!body) {
+      return { kind: "failed" };
+    }
     return { kind: "ok", value: userFromWire(body) };
   }
   if (response.status === 400) {

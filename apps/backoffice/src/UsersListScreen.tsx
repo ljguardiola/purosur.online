@@ -105,7 +105,7 @@ type FormNotice =
   | { kind: "unknownRole" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
-type FieldErrors = { firstName?: string; email?: string };
+type FieldErrors = { firstName?: string; email?: string; roleId?: string };
 type FieldErrorKey = keyof FieldErrors;
 
 function withFieldError(
@@ -167,11 +167,13 @@ function NewUserModal({
   async function handleSubmit() {
     const nameError = validateName(firstName);
     const emailError = validateEmail(email);
+    const roleError = roleId ? undefined : modalMessages.roleRequired;
     setFieldErrors({
       ...(nameError ? { firstName: nameError } : {}),
       ...(emailError ? { email: emailError } : {}),
+      ...(roleError ? { roleId: roleError } : {}),
     });
-    if (nameError || emailError || !options) {
+    if (nameError || emailError || roleError) {
       return;
     }
     setNotice(null);
@@ -216,11 +218,7 @@ function NewUserModal({
     }
     if (outcome.kind === "validation_failed") {
       const message = fieldErrorMessage(outcome.field);
-      setFieldErrors((current) => ({
-        ...current,
-        ...(outcome.field === "firstName" ? { firstName: message } : {}),
-        ...(outcome.field === "email" ? { email: message } : {}),
-      }));
+      setFieldErrors((current) => ({ ...current, [outcome.field]: message }));
       setSubmitting(false);
       return;
     }
@@ -329,8 +327,12 @@ function NewUserModal({
             label={modalMessages.roleLabel}
             options={options}
             value={roleId}
-            onChange={setRoleId}
+            onChange={(value) => {
+              setRoleId(value);
+              setFieldErrors((current) => withFieldError(current, "roleId", undefined));
+            }}
             required
+            {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
           />
         )}
         <TextField
@@ -365,6 +367,11 @@ export function UsersListScreen({
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
   const [modalOpen, setModalOpen] = useState(false);
+  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
+  // (each session-activity touch re-renders it), which would otherwise reload the list and pull
+  // the roles out from under an open create modal.
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
 
   const load = useCallback(async () => {
     setList({ kind: "loading" });
@@ -372,7 +379,7 @@ export function UsersListScreen({
     if (outcome.kind === "ok") {
       setList({ kind: "loaded", users: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+      onSessionEndedRef.current();
     } else if (outcome.kind === "rate_limited") {
       setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
@@ -380,7 +387,7 @@ export function UsersListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [onSessionEnded, fetchUsers]);
+  }, [fetchUsers]);
 
   useEffect(() => {
     if (isAdministrator) {

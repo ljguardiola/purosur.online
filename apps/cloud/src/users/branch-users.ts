@@ -38,9 +38,8 @@ const BRANCH_USER_SELECTION = {
 
 /**
  * Lists every user of `locationId`, ordered by first name, with the role each one holds. A user
- * created outside `createFirstAdministrator`/the (future) user-creation route without a
- * `user_roles` row is excluded by the inner join, the same way it would be invisible to any other
- * branch-scoped read.
+ * created outside `createFirstAdministrator`/`POST /users` without a `user_roles` row is excluded
+ * by the inner join, the same way it would be invisible to any other branch-scoped read.
  */
 export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

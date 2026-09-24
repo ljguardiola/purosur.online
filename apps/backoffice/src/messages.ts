@@ -185,7 +185,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       columns: { user: "Usuario", role: "Rol" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
-      loading: "Cargando los usuarios…",
       loadErrorTitle: "No pudimos abrir los usuarios",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",

@@ -67,6 +67,12 @@ test("fetchUsers reports failed on any other status or a network failure", async
   await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchUsers reports failed on a 200 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
+
+  await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
+});
+
 test("fetchUserCreationChallenge hands back reauthentication options on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, { reauthentication_options: { challenge: "reauth" } }),
@@ -142,6 +148,12 @@ test("createUser posts the wire shape and returns the created user on 201", asyn
       }),
     }),
   );
+});
+
+test("createUser reports failed on a 201 whose body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 201 }));
+
+  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({ kind: "failed" });
 });
 
 test("createUser reports a validation_failed field on 400", async () => {

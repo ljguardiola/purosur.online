@@ -297,6 +297,10 @@ export async function startServer(
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          users: {
+            db: recovery.db,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
         }
       : {}),
   });
