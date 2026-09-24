@@ -239,6 +239,9 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await userEvent.tab();
   await userEvent.hover(trigger);
+  // Both assertions below also hold for a focused trigger the pointer never reached, so the hover
+  // itself is proven first; otherwise a dropped hover would leave this test green.
+  await expect.poll(() => trigger.hasAttribute("data-hovered")).toBe(true);
 
   await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));
   expect(getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-white"));
@@ -262,6 +265,26 @@ test("switches the border to the error tone while invalid", async () => {
   expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("turns an invalid trigger bone on hover, keeping its error border", async () => {
+  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.hover(trigger);
+
+  await expect.poll(() => getComputedStyle(trigger).backgroundColor).toBe(tokenRgb("surface-bone"));
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("status-error-ui") });
+});
+
+test("shows the focused border instead of the error one while an invalid select's menu is open", async () => {
+  const screen = await render(<Select {...baseProps()} invalid errorMessage="Elegí un rol." />);
+  const trigger = screen.getByRole("button", { name: /Rol/ }).element() as HTMLElement;
+
+  await userEvent.click(trigger);
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+  expect(borderOf(trigger)).toEqual({ width: "2px", color: tokenRgb("brand-blue-ui") });
 });
 
 test("shows the focused border instead of the error one once an invalid select is focused", async () => {
