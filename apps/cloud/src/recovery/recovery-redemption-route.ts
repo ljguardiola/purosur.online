@@ -44,7 +44,7 @@ function readRawToken(body: unknown): string | undefined {
 
 const PASSKEY_NAME_MAX_LENGTH = 40;
 
-/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed (issue #169). */
+/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed. */
 function readPasskeyName(body: unknown): string | undefined {
   const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;
   if (typeof rawName !== "string") {

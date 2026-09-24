@@ -2,7 +2,7 @@ import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts } from "../db/schema.js";
 
-/** The hour every backoffice API limit counts over (issue #205). */
+/** The hour every backoffice API limit counts over. */
 export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 // Sized well above normal use: 10/min sustained per session, and per-address well above that
 // since several people can use the backoffice at once from one connection, such as a location's.

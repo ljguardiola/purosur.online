@@ -38,7 +38,7 @@ const AUTHENTICATION_FAILED_RESPONSE = {
 
 class CredentialAlreadyRegistered extends Error {}
 
-/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed (issue #169). */
+/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed. */
 function readPasskeyName(body: unknown): string | undefined {
   const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;
   if (typeof rawName !== "string") {
@@ -56,11 +56,11 @@ function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
 }
 
 /**
- * Registers the two endpoints that add a passkey to an already-open session's account (issue
- * #169): `registration-options` hands back both a reauthentication challenge (against the
- * account's existing passkeys) and a registration challenge (excluding them), and `POST
- * /users/passkeys` verifies both, in that order, before registering the new credential under the
- * given name. Neither ever revokes the session.
+ * Registers the two endpoints that add a passkey to an already-open session's account:
+ * `registration-options` hands back both a reauthentication challenge (against the account's
+ * existing passkeys) and a registration challenge (excluding them), and `POST /users/passkeys`
+ * verifies both, in that order, before registering the new credential under the given name.
+ * Neither ever revokes the session.
  */
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,

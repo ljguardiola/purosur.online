@@ -15,7 +15,7 @@ export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT>
  * Registers `GET /users/passkeys`: requires an already-open session (the same
  * `requireOpenSession` check `GET /users/session` uses, including its same-origin guard) and
  * returns only that session's own account passkeys, oldest first, so the backoffice can list them
- * by name with registration date and last use (issue #169).
+ * by name with registration date and last use.
  */
 export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
