@@ -117,8 +117,9 @@ const iconGlyphClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full 
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// The box's own border and shadow per interaction state, the same inset-shadow system TextField.tsx
-// and SearchField.tsx already use (see TextField.tsx's own boxStateClassName for why).
+// The box's own border and shadow per interaction state, drawn with the same inset-shadow
+// technique TextField.tsx and SearchField.tsx use (see TextField.tsx's own boxStateClassName for
+// why).
 function boxStateClassName(disabled: boolean, invalid: boolean): string {
   if (disabled) {
     return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";

@@ -240,7 +240,7 @@ test("shows a white box with a 2px line border at rest", async () => {
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("line", "2px"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -251,8 +251,7 @@ test("turns the box bone on hover, keeping the same 2px line border", async () =
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-  const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(insetBoundary("line", "2px"));
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
 
   await expectNoAccessibilityViolations(screen.container);
 });

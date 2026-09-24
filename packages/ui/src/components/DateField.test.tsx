@@ -296,9 +296,9 @@ test("tells the caller the complete date once typing finishes it", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The literal box-shadow string Chromium renders for the focused state, pinned to
-// TextField.test.tsx's own FOCUSED_SHADOW literal (see its comment there): DateField reuses that
-// exact border system verbatim.
+// The literal box-shadow string Chromium renders for the focused state: a 3px blue-strong inset
+// plus the 4px focus shadow, behind the four transparent layers Tailwind v4 always composes (see
+// TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
