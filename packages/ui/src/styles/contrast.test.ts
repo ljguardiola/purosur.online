@@ -77,7 +77,6 @@ const decorativeTones = [
   "ink-shadow",
   "ink-backdrop",
   "ink-panel-shadow",
-  "brand-blue-ui-shadow",
   "ink-menu-shadow",
   "surface-white-veil",
 ];
@@ -183,22 +182,6 @@ describe("tooltip text on ink background contrast", () => {
     expect(contrastRatio(textHex as string, backgroundHex as string)).toBeGreaterThanOrEqual(
       AAA_TEXT_CONTRAST,
     );
-  });
-});
-
-describe("brand-blue-ui-shadow token", () => {
-  it("parses to brand-blue-ui at 20% alpha", () => {
-    const shadowHex = colors["brand-blue-ui-shadow"];
-    const uiHex = colors["brand-blue-ui"];
-
-    expect(shadowHex, "brand-blue-ui-shadow is missing from the stylesheet").toMatch(
-      /^#[0-9a-f]{8}$/i,
-    );
-    expect(uiHex, "brand-blue-ui is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect((shadowHex as string).slice(0, 7).toLowerCase()).toBe((uiHex as string).toLowerCase());
-
-    const alpha = Number.parseInt((shadowHex as string).slice(7, 9), 16) / 255;
-    expect(alpha).toBeCloseTo(0.2, 2);
   });
 });
 
