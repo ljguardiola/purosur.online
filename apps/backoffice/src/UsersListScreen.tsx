@@ -10,9 +10,11 @@ import {
 } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { KeyRound, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
+import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
+import { navigate } from "./router";
+import { userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -410,6 +412,18 @@ export function UsersListScreen({
       key: "role",
       title: usersMessages.columns.role,
       render: (item: BranchUser) => roleDisplayName(item.role),
+    },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: usersMessages.rowActionsLabel,
+      actions: [
+        (item: BranchUser) => ({
+          icon: <Pencil />,
+          "aria-label": usersMessages.editAria({ name: item.firstName }),
+          onPress: () => navigate(userDetailPath(item.id)),
+        }),
+      ],
     },
   ] as const;
 

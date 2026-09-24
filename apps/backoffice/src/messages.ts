@@ -16,6 +16,16 @@ const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   timeZone: PASSKEY_TIME_ZONE,
 };
 
+// Shared across the Users area's screens and modals, so the same copy is never typed twice.
+const USERS_EYEBROW = "Configuración · Usuarios";
+const EMAIL_LABEL = "Correo";
+const EMAIL_HELPER = "Con este correo recupera el acceso al backoffice si pierde sus passkeys.";
+const EMAIL_REQUIRED = "Ingresá el correo.";
+const EMAIL_INVALID = "Ingresá un correo válido.";
+const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
+const CANCEL_LABEL = "Cancelar";
+const CLOSE_LABEL = "Cerrar";
+
 export const messages = defineMessages("es-AR", (f) => ({
   shell: {
     brandName: "Puro Sur",
@@ -191,22 +201,24 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       forbiddenTitle: "No tenés acceso a Usuarios",
       forbiddenDetail: "Esta sección es solo para Administradores.",
+      rowActionsLabel: "Acciones",
+      editAria: (params: { name: string }) => `Editar a ${params.name}`,
       newUserModal: {
-        eyebrow: "Configuración · Usuarios",
+        eyebrow: USERS_EYEBROW,
         heading: "Nuevo usuario",
         nameLabel: "Nombre",
         nameRequired: "Ingresá el nombre.",
         roleLabel: "Rol",
-        emailLabel: "Correo",
-        emailHelper: "Con este correo recupera el acceso al backoffice si pierde sus passkeys.",
-        emailRequired: "Ingresá el correo.",
-        emailInvalid: "Ingresá un correo válido.",
+        emailLabel: EMAIL_LABEL,
+        emailHelper: EMAIL_HELPER,
+        emailRequired: EMAIL_REQUIRED,
+        emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
-        emailTaken: "Ya existe un usuario con este correo.",
+        emailTaken: EMAIL_TAKEN,
         reauthNotice: "Se pide tu passkey para confirmar.",
-        cancel: "Cancelar",
+        cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
-        closeLabel: "Cerrar",
+        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo crear el usuario",
         attemptFailedDetail: "Probá de nuevo.",
         unknownRoleTitle: "Ese rol ya no está disponible",
@@ -214,6 +226,36 @@ export const messages = defineMessages("es-AR", (f) => ({
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>
           `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      detail: {
+        breadcrumb: USERS_EYEBROW,
+        heading: "Usuario",
+        loading: "Cargando…",
+        datosHeading: "Datos",
+        editButton: "Editar",
+        roleLabel: "Rol",
+        emailLabel: EMAIL_LABEL,
+        notFoundTitle: "No encontramos este usuario",
+        backToList: "Volver a Usuarios",
+        loadErrorTitle: "No pudimos abrir este usuario",
+        loadErrorDetail: "Probá de nuevo en unos minutos.",
+      },
+      editEmailModal: {
+        eyebrow: USERS_EYEBROW,
+        emailLabel: EMAIL_LABEL,
+        emailHelper: EMAIL_HELPER,
+        emailRequired: EMAIL_REQUIRED,
+        emailInvalid: EMAIL_INVALID,
+        emailTaken: EMAIL_TAKEN,
+        reauthNotice: "Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.",
+        cancel: CANCEL_LABEL,
+        submit: "Guardar los cambios",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo guardar el cambio",
+        attemptFailedDetail: "Probá de nuevo.",
+        staleVersionTitle: "Este usuario cambió mientras lo editabas",
+        staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        reload: "Recargar",
       },
     },
   },

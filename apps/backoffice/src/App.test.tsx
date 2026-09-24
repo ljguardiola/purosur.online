@@ -42,6 +42,12 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       createUser: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    userDetailScreen: {
+      fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchEmailChangeChallenge: vi.fn(),
+      changeUserEmail: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     ...overrides,
   };
@@ -418,6 +424,36 @@ test("following the sidebar's Usuarios item from Mi cuenta opens the Users list,
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/users/me");
+});
+
+test("opens a user's detail screen at /settings/users/:id, with Usuarios still the active sidebar item, and the browser's back button returns to the list", async () => {
+  const services = createServices();
+  const martina = {
+    id: "user-2",
+    firstName: "Martina Gómez",
+    email: "martina@example.com",
+    version: 1,
+    role: { id: "role-admin", isAdministrator: true, name: null },
+  };
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [martina],
+  });
+  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  window.history.pushState(null, "", "/settings/users");
+  window.history.pushState(null, "", "/settings/users/user-2");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Martina Gómez", level: 1 }))
+    .toBeVisible();
+  const usersItem = screen.getByRole("link", { name: "Usuarios" }).element() as HTMLAnchorElement;
+  expect(usersItem.getAttribute("aria-current")).toBe("page");
+
+  window.history.back();
+
+  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
 });
 
 test("shows a forbidden notice, without listing users, for a signed-in non-Administrator", async () => {
