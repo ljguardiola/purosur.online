@@ -294,6 +294,24 @@ describe("serving the backoffice's static build", () => {
     },
   );
 
+  it.each([
+    ["favicon.ico", "image/vnd.microsoft.icon"],
+    ["favicon.svg", "image/svg+xml"],
+  ])(
+    "serves /%s as a real static file with its icon content type, not the SPA fallback",
+    async (file, contentType) => {
+      const dir = backofficeBuild();
+      writeFileSync(join(dir, file), "isotype-bytes");
+      const app = buildApp({ version: "abc1234", staticDir: dir });
+
+      const response = await app.inject({ method: "GET", url: `/${file}` });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toContain(contentType);
+      expect(response.body).toBe("isotype-bytes");
+    },
+  );
+
   it("does not fall back for a non-GET request to an unmatched path", async () => {
     const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
 
