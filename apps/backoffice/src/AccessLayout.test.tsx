@@ -32,14 +32,16 @@ test("centers the logo horizontally in the panel and keeps the caption on its 32
   const panel = screen.getByText("Backoffice").element().parentElement as HTMLElement;
   const panelRect = panel.getBoundingClientRect();
   const captionRect = screen.getByText("Backoffice").element().getBoundingClientRect();
-  const logoRect = screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect();
+  const logo = screen.getByRole("img", { name: "Puro Sur" }).element();
+  const logoRect = logo.getBoundingClientRect();
 
-  // The 460px-wide logo box sits centered in the panel, with equal space on both sides, while the
-  // caption stays in the bottom-left corner on the panel's 32px padding.
   expect(captionRect.left - panelRect.left).toBeCloseTo(32, 0);
   expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
   expect(logoRect.left - panelRect.left).toBeCloseTo(panelRect.right - logoRect.right, 0);
   expect(logoRect.width).toBeCloseTo(460, 0);
+  // The drawn logo is narrower than its 460x180 box, so it is only centered if it is drawn in the
+  // middle of the box.
+  expect(getComputedStyle(logo).objectPosition).toBe("50% 50%");
 });
 
 test("shows the brand panel with the logo and the Backoffice caption, before the content", async () => {
