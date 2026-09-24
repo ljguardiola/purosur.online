@@ -19,15 +19,14 @@ describe("the backoffice tab icon", () => {
   });
 
   it("also links favicon.ico, so a browser that ignores the SVG link still gets the isotype", () => {
-    expect(indexHtml).toContain('<link rel="icon" href="/favicon.ico" sizes="any"');
+    expect(indexHtml).toContain('<link rel="icon" href="/favicon.ico" sizes="32x32"');
   });
 
   it("ships an isotype SVG with a square viewBox, so the icon is never stretched", () => {
     const viewBoxMatch = faviconSvg.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
 
-    expect(viewBoxMatch).not.toBeNull();
-    const [, width, height] = viewBoxMatch as unknown as [string, string, string];
-    expect(Number(width)).toBe(Number(height));
+    expect(viewBoxMatch?.[1]).toBeDefined();
+    expect(Number(viewBoxMatch?.[1])).toBe(Number(viewBoxMatch?.[2]));
   });
 
   it("ships the isotype in the brand colors, unchanged from the source design", () => {
@@ -35,18 +34,22 @@ describe("the backoffice tab icon", () => {
     expect(faviconSvg).toContain('fill="#9bb6c7"');
   });
 
-  it("ships a favicon.ico holding the standard 16, 32, and 48 px frames", () => {
+  it("ships a favicon.ico holding square 16, 32, and 48 px frames", () => {
     // ICO header: 2 reserved bytes (0), a type field (1 = icon), then an image count; each
     // 16-byte directory entry that follows starts with its width and height in bytes 0 and 1.
     expect(faviconIco.readUInt16LE(0)).toBe(0);
     expect(faviconIco.readUInt16LE(2)).toBe(1);
     const imageCount = faviconIco.readUInt16LE(4);
-    const sizes: number[] = [];
+    const frames: [number, number][] = [];
     for (let i = 0; i < imageCount; i++) {
       const entryOffset = 6 + i * 16;
-      sizes.push(faviconIco.readUInt8(entryOffset));
+      frames.push([faviconIco.readUInt8(entryOffset), faviconIco.readUInt8(entryOffset + 1)]);
     }
 
-    expect(sizes.sort((a, b) => a - b)).toEqual([16, 32, 48]);
+    expect(frames.sort(([a], [b]) => a - b)).toEqual([
+      [16, 16],
+      [32, 32],
+      [48, 48],
+    ]);
   });
 });

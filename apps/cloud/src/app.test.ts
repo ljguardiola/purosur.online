@@ -242,7 +242,7 @@ describe("serving the backoffice's static build", () => {
     expect(response.headers["content-type"]).toContain("text/html");
   });
 
-  it.each(["/assets/old-hash.js", "/favicon.ico", "/help/getting_started.png"])(
+  it.each(["/assets/old-hash.js", "/robots.txt", "/help/getting_started.png"])(
     "answers 404 instead of index.html for a missing file like %s",
     async (url) => {
       const app = buildApp({ version: "abc1234", staticDir: backofficeBuild() });
