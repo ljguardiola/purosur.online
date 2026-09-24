@@ -38,7 +38,12 @@ import { useSessionActivityReporter } from "./sessionActivityReporter";
 import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 import { useSessionWatcher } from "./sessionWatcher";
-import { MY_ACCOUNT_PATH, USERS_LIST_PATH } from "./settingsRoutes";
+import { MY_ACCOUNT_PATH, matchUserDetailPath, USERS_LIST_PATH } from "./settingsRoutes";
+import {
+  defaultUserDetailScreenServices,
+  UserDetailScreen,
+  type UserDetailScreenServices,
+} from "./UserDetailScreen";
 import {
   defaultUsersListScreenServices,
   UsersListScreen,
@@ -53,6 +58,7 @@ export type AppServices = {
   registerPasskeyScreen: RegisterPasskeyScreenServices;
   myAccountScreen: MyAccountScreenServices;
   usersListScreen: UsersListScreenServices;
+  userDetailScreen: UserDetailScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -64,6 +70,7 @@ const defaultAppServices: AppServices = {
   registerPasskeyScreen: defaultRegisterPasskeyScreenServices,
   myAccountScreen: defaultMyAccountScreenServices,
   usersListScreen: defaultUsersListScreenServices,
+  userDetailScreen: defaultUserDetailScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -180,10 +187,12 @@ function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: Help
   );
 }
 
-type SettingsAppSection = "myAccount" | "usersList";
+type SettingsAppSection = "myAccount" | "usersList" | "userDetail";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
+  /** Only set for `section: "userDetail"`. */
+  userDetailId?: string;
   displayName: string;
   isAdministrator: boolean;
   onSignedOut: () => void;
@@ -191,11 +200,13 @@ type SettingsAppProps = {
   accountFooterServices: AccountFooterServices;
   myAccountScreenServices: MyAccountScreenServices;
   usersListScreenServices: UsersListScreenServices;
+  userDetailScreenServices: UserDetailScreenServices;
 };
 
-/** The Config-in-Shell part of the app, under its single "Usuarios" section: the Users list (issue #247) or "Mi cuenta". */
+/** The Config-in-Shell part of the app, under its single "Usuarios" section: the Users list, one user's detail, or "Mi cuenta". */
 function SettingsApp({
   section,
+  userDetailId,
   displayName,
   isAdministrator,
   onSignedOut,
@@ -203,10 +214,11 @@ function SettingsApp({
   accountFooterServices,
   myAccountScreenServices,
   usersListScreenServices,
+  userDetailScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
-      section === "usersList"
+      section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
         : messages.settings.myAccount.documentTitle;
   }, [section]);
@@ -246,13 +258,22 @@ function SettingsApp({
         </>
       }
     >
-      {section === "usersList" ? (
+      {section === "usersList" && (
         <UsersListScreen
           isAdministrator={isAdministrator}
           onSessionEnded={onSessionEnded}
           services={usersListScreenServices}
         />
-      ) : (
+      )}
+      {section === "userDetail" && userDetailId !== undefined && (
+        <UserDetailScreen
+          userId={userDetailId}
+          isAdministrator={isAdministrator}
+          onSessionEnded={onSessionEnded}
+          services={userDetailScreenServices}
+        />
+      )}
+      {section === "myAccount" && (
         <MyAccountScreen
           displayName={displayName}
           onSessionEnded={onSessionEnded}
@@ -272,6 +293,7 @@ export function App({ help, services }: AppProps) {
     registerPasskeyScreen,
     myAccountScreen,
     usersListScreen,
+    userDetailScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -399,6 +421,33 @@ export function App({ help, services }: AppProps) {
     return null;
   }
 
+  const userDetailId = matchUserDetailPath(route);
+  const isSettingsRoute =
+    route === MY_ACCOUNT_PATH || route === USERS_LIST_PATH || userDetailId !== undefined;
+
+  if (isSettingsRoute) {
+    return session.kind === "signed-in" ? (
+      <SettingsApp
+        section={
+          route === USERS_LIST_PATH
+            ? "usersList"
+            : userDetailId !== undefined
+              ? "userDetail"
+              : "myAccount"
+        }
+        {...(userDetailId !== undefined ? { userDetailId } : {})}
+        displayName={session.displayName}
+        isAdministrator={session.isAdministrator}
+        onSignedOut={handleSignedOut}
+        onSessionEnded={handleSessionEnded}
+        accountFooterServices={accountFooter}
+        myAccountScreenServices={myAccountScreen}
+        usersListScreenServices={usersListScreen}
+        userDetailScreenServices={userDetailScreen}
+      />
+    ) : null;
+  }
+
   switch (route) {
     case SIGN_IN_PATH:
       return session.kind === "signed-in" ? null : (
@@ -412,20 +461,6 @@ export function App({ help, services }: AppProps) {
       return <AccountRecoveryScreen services={accountRecoveryScreen} />;
     case REGISTER_PASSKEY_PATH:
       return <RegisterPasskeyScreen services={registerPasskeyScreen} />;
-    case MY_ACCOUNT_PATH:
-    case USERS_LIST_PATH:
-      return session.kind === "signed-in" ? (
-        <SettingsApp
-          section={route === USERS_LIST_PATH ? "usersList" : "myAccount"}
-          displayName={session.displayName}
-          isAdministrator={session.isAdministrator}
-          onSignedOut={handleSignedOut}
-          onSessionEnded={handleSessionEnded}
-          accountFooterServices={accountFooter}
-          myAccountScreenServices={myAccountScreen}
-          usersListScreenServices={usersListScreen}
-        />
-      ) : null;
     default:
       return session.kind === "signed-in" ? (
         <HelpApp

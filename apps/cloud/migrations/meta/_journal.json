@@ -92,6 +92,20 @@
       "when": 1790256402941,
       "tag": "0012_passkey_challenge_user_creation_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790261647680,
+      "tag": "0013_users_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790261655239,
+      "tag": "0014_passkey_challenge_user_email_change_kind",
+      "breakpoints": true
     }
   ]
 }

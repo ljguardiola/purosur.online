@@ -13,14 +13,11 @@ import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthenticat
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
 import { requireOpenSession } from "../session/open-session.js";
 import { toBranchUserWire } from "./branch-users.js";
+import { readEmail } from "./email-validation.js";
 import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
-// The longest address SMTP can deliver to (RFC 5321's 256-octet path minus its angle brackets),
-// same bound `request-recovery-route.ts` applies to the address it stores this one must later match.
-const EMAIL_MAX_LENGTH = 254;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Same uniform code and message the passkey routes reject a bad reauthentication with.
@@ -62,16 +59,6 @@ function readFirstName(body: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-/** Same normalization and shape check `create-first-administrator.ts` and `request-recovery-route.ts` already apply. */
-function readEmail(body: unknown): string | undefined {
-  const raw = (body as { email?: unknown } | undefined)?.email;
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-  const email = raw.trim().toLowerCase();
-  return email.length <= EMAIL_MAX_LENGTH && EMAIL_SHAPE.test(email) ? email : undefined;
-}
-
 function readRoleId(body: unknown): string | undefined {
   const raw = (body as { role_id?: unknown } | undefined)?.role_id;
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
@@ -107,8 +94,8 @@ function isValidationFailure(
 }
 
 /**
- * Registers the two endpoints that let an Administrator create a new backoffice user (issue
- * #247), guarded by the same fresh-reauthentication step-up `passkeys-removal-route.ts` uses:
+ * Registers the two endpoints that let an Administrator create a new backoffice user, guarded by
+ * the same fresh-reauthentication step-up `passkeys-removal-route.ts` uses:
  * `creation-options` hands back a reauthentication challenge against the Administrator's own
  * existing passkeys (never the new user's, who has none yet), and `POST /users` verifies it
  * before creating the user in the session's own branch with the chosen existing role and no
@@ -280,6 +267,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         id: created.id,
         firstName: parsedBody.firstName,
         email: parsedBody.email,
+        version: 1,
         roleId: role.id,
         roleName: role.name,
         roleIsAdministrator: role.isAdministrator,

@@ -30,6 +30,10 @@ export const users = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id),
+    // Optimistic concurrency for a user row: starts at 1 and every update of that row increments
+    // it. A caller sends back the version it last read; a mismatch means someone else changed the
+    // row since (the email-change route is the first writer to check it).
+    version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],
 );
@@ -225,17 +229,22 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   "registration",
   "removal",
   // Step-up reauthentication an Administrator must pass before `POST /users` creates a new
-  // backoffice user (issue #247): challenged against the Administrator's own passkeys, exactly
+  // backoffice user: challenged against the Administrator's own passkeys, exactly
   // like `removal`, never against the user being created (who has none yet).
   "user_creation",
+  // Step-up reauthentication an Administrator must pass before their edit to another user's
+  // email is applied: challenged against the Administrator's own passkeys, exactly
+  // like `user_creation`, never against the user whose email is changing.
+  "user_email_change",
 ]);
 
-// One row per open session with a pending passkey self-management (or step-up) challenge (issue
-// #169, extended by #247): registering or removing a passkey, or creating a new backoffice user,
-// always requires a fresh reauthentication with one of the account's existing passkeys, so
-// `reauthentication_challenge` is always set; `registration` additionally stores
-// `registration_challenge` for the new credential itself, which stays null for a `removal` or
-// `user_creation` row. Keyed by `session_id` rather than by challenge value the way
+// One row per open session with a pending passkey self-management (or step-up) challenge:
+// registering or removing a passkey, creating a new backoffice user, or changing another user's
+// email always requires a fresh reauthentication with one of the
+// account's existing passkeys, so `reauthentication_challenge` is always set; `registration`
+// additionally stores `registration_challenge` for the new credential itself, which stays null for
+// a `removal`, `user_creation`, or `user_email_change` row. Keyed by `session_id` rather than by
+// challenge value the way
 // `sign_in_challenges` is, because these options requests are never discoverable (an open session
 // already identifies the account): `passkey_challenges_session_id_key` allows only one live row
 // per session, so a fresh options request replaces whatever that session had pending. A row is

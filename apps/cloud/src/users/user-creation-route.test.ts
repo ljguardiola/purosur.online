@@ -369,6 +369,7 @@ describe("POST /users", () => {
       id: body.id,
       first_name: "New Hire",
       email: "newhire@example.com",
+      version: 1,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
     });
 

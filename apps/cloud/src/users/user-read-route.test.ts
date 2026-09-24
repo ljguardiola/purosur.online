@@ -135,6 +135,7 @@ describe("GET /users/:id", () => {
       id: administratorId,
       first_name: "Ada Lovelace",
       email: "ada@example.com",
+      version: 1,
       role: { id: administratorRoleId, is_administrator: true, name: null },
     });
   });

@@ -10,9 +10,12 @@ import {
 } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { KeyRound, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
+import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
+import { navigate } from "./router";
+import { userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -37,7 +40,7 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
-  /** From the session (issue #247): only an Administrator sees the list at all. */
+  /** From the session: only an Administrator sees the list at all. */
   isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so user management doesn't call the real API or WebAuthn. */
@@ -53,8 +56,6 @@ type ListState =
 
 const usersMessages = messages.settings.users;
 const modalMessages = usersMessages.newUserModal;
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
 
 function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
@@ -82,13 +83,7 @@ function validateName(value: string): string | undefined {
   return value.trim() ? undefined : modalMessages.nameRequired;
 }
 
-function validateEmail(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return modalMessages.emailRequired;
-  }
-  return EMAIL_SHAPE.test(trimmed) ? undefined : modalMessages.emailInvalid;
-}
+const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
 
 function fieldErrorMessage(field: CreateUserFieldError): string {
   if (field === "firstName") {
@@ -129,7 +124,7 @@ type NewUserModalProps = {
   createUser: typeof createUser;
 };
 
-/** Creates a backoffice user, reauthenticating with the Administrator's own existing passkey first (issue #247). */
+/** Creates a backoffice user, reauthenticating with the Administrator's own existing passkey first. */
 function NewUserModal({
   isOpen,
   roles,
@@ -166,7 +161,7 @@ function NewUserModal({
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
-    const emailError = validateEmail(email);
+    const emailError = validateEmail(email, EMAIL_ERRORS);
     const roleError = roleId ? undefined : modalMessages.roleRequired;
     setFieldErrors({
       ...(nameError ? { firstName: nameError } : {}),
@@ -342,7 +337,9 @@ function NewUserModal({
           onChange={(value) => {
             setEmail(value);
             if (fieldErrors.email) {
-              setFieldErrors((current) => withFieldError(current, "email", validateEmail(value)));
+              setFieldErrors((current) =>
+                withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
+              );
             }
           }}
           helperText={modalMessages.emailHelper}
@@ -355,7 +352,7 @@ function NewUserModal({
   );
 }
 
-/** "Usuarios": the branch's backoffice users, listed with their role, Administrator only (issue #247). */
+/** "Usuarios": the branch's backoffice users, listed with their role, Administrator only. */
 export function UsersListScreen({
   isAdministrator,
   onSessionEnded,
@@ -410,6 +407,18 @@ export function UsersListScreen({
       key: "role",
       title: usersMessages.columns.role,
       render: (item: BranchUser) => roleDisplayName(item.role),
+    },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: usersMessages.rowActionsLabel,
+      actions: [
+        (item: BranchUser) => ({
+          icon: <Pencil />,
+          "aria-label": usersMessages.editAria({ name: item.firstName }),
+          onPress: () => navigate(userDetailPath(item.id)),
+        }),
+      ],
     },
   ] as const;
 

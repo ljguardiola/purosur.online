@@ -19,6 +19,7 @@ const administrator: BranchUser = {
   id: "user-1",
   firstName: "Lucas Guardiola",
   email: "lucas@example.com",
+  version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
 };
 
@@ -26,6 +27,7 @@ const martina: BranchUser = {
   id: "user-2",
   firstName: "Martina Gómez",
   email: "martina@example.com",
+  version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
 };
 
@@ -53,6 +55,19 @@ test("shows the breadcrumb, heading, each user's role, and the user count", asyn
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
   await expect.element(screen.getByText("Administrador").first()).toBeVisible();
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+});
+
+test("the row action navigates to that user's detail screen", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
+
+  expect(window.location.pathname).toBe("/settings/users/user-2");
+  window.history.pushState(null, "", "/");
 });
 
 test("shows a load error with a retry action when the users fail to load", async () => {

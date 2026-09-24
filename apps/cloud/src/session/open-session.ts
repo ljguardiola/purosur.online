@@ -23,7 +23,7 @@ export interface OpenSession {
   firstName: string;
   createdAt: Date;
   lastSeenAt: Date;
-  /** The branch (`locations.id`) the signed-in user belongs to (issue #247: single branch today). */
+  /** The branch (`locations.id`) the signed-in user belongs to (single branch today). */
   locationId: string;
   /** Whether the signed-in user's role has `roles.is_administrator` set. */
   isAdministrator: boolean;

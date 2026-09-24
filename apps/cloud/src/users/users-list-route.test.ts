@@ -153,12 +153,14 @@ describe("GET /users", () => {
         id: cashierId,
         first_name: "Ada Lovelace",
         email: "ada@example.com",
+        version: 1,
         role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       },
       {
         id: administratorId,
         first_name: "Zoe Admin",
         email: "zoe@example.com",
+        version: 1,
         role: { id: administratorRoleId, is_administrator: true, name: null },
       },
     ]);

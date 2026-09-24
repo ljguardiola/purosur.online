@@ -1,0 +1,1 @@
+ALTER TYPE "public"."passkey_management_challenge_kind" ADD VALUE 'user_email_change';
