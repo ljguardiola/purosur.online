@@ -56,7 +56,26 @@ export const roles = pgTable(
       "roles_name_unless_administrator",
       sql`(${table.isAdministrator} AND ${table.name} IS NULL) OR (NOT ${table.isAdministrator} AND ${table.name} IS NOT NULL)`,
     ),
+    // Roles aren't scoped to a branch (the business runs a single one today), so this is a
+    // global, case-insensitive uniqueness rule; Postgres treats every Administrator's null name
+    // as distinct, so this never conflicts with `roles_single_administrator_key` above.
+    uniqueIndex("roles_name_lower_key").on(sql`lower(${table.name})`),
   ],
+);
+
+// The permission catalog itself (`@purosur/contracts`) lives in code, not in this table: a key
+// added there later reaches every role that explicitly grants it, without a migration. The
+// Administrator role never gets rows here; it holds every permission implicitly through
+// `roles.is_administrator`.
+export const rolePermissions = pgTable(
+  "role_permissions",
+  {
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => roles.id),
+    permissionKey: text("permission_key").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.roleId, table.permissionKey] })],
 );
 
 export const userRoles = pgTable(
@@ -240,6 +259,9 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   // passkey: challenged against the Administrator's own passkeys, exactly like
   // `user_email_change`, never against the target user's.
   "user_passkey_removal",
+  // Step-up reauthentication an Administrator must pass before `POST /roles` creates a new role:
+  // challenged against the Administrator's own passkeys, exactly like `user_creation`.
+  "role_creation",
 ]);
 
 // One row per open session with a pending passkey self-management (or step-up) challenge:

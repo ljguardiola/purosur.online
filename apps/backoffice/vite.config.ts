@@ -32,6 +32,7 @@ export default defineConfig(({ mode }) => {
   return {
     resolve: {
       alias: {
+        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },
     },
@@ -48,6 +49,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/health": LOCAL_CLOUD_ORIGIN,
         "/users": cloudApiProxy,
+        "/roles": cloudApiProxy,
       },
     },
   };

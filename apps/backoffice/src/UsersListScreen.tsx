@@ -14,6 +14,7 @@ import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "luc
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
+import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
 import { userDetailPath } from "./settingsRoutes";
 import {
@@ -27,6 +28,7 @@ import {
 
 export type UsersListScreenServices = {
   fetchUsers: typeof fetchUsers;
+  fetchRoles: typeof fetchRoles;
   fetchUserCreationChallenge: typeof fetchUserCreationChallenge;
   createUser: typeof createUser;
   startAuthentication: typeof startAuthentication;
@@ -34,6 +36,7 @@ export type UsersListScreenServices = {
 
 export const defaultUsersListScreenServices: UsersListScreenServices = {
   fetchUsers,
+  fetchRoles,
   fetchUserCreationChallenge,
   createUser,
   startAuthentication,
@@ -59,16 +62,6 @@ const modalMessages = usersMessages.newUserModal;
 
 function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
-}
-
-function distinctRoles(users: BranchUser[]): BranchUserRole[] {
-  const byId = new Map<string, BranchUserRole>();
-  for (const user of users) {
-    if (!byId.has(user.role.id)) {
-      byId.set(user.role.id, user.role);
-    }
-  }
-  return [...byId.values()];
 }
 
 function roleOptions(roles: BranchUserRole[]): [SelectOption<string>, ...SelectOption<string>[]] {
@@ -358,11 +351,12 @@ export function UsersListScreen({
   onSessionEnded,
   services,
 }: UsersListScreenProps) {
-  const { fetchUsers, fetchUserCreationChallenge, createUser, startAuthentication } =
+  const { fetchUsers, fetchRoles, fetchUserCreationChallenge, createUser, startAuthentication } =
     services ?? defaultUsersListScreenServices;
   const [list, setList] = useState<ListState>(
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
+  const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the list and pull
@@ -370,21 +364,31 @@ export function UsersListScreen({
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
+  // Every role is offered here, not just the ones some existing user already holds, so a role
+  // that was just created with nobody in it yet can still be picked right away. Users and roles
+  // load (and retry) together: the create action needs both.
   const load = useCallback(async () => {
     setList({ kind: "loading" });
-    const outcome = await fetchUsers();
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", users: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
+    const [usersOutcome, rolesOutcome] = await Promise.all([fetchUsers(), fetchRoles()]);
+    const outcomes = [usersOutcome, rolesOutcome];
+    if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
       onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
+      return;
+    }
+    const rateLimited = outcomes.flatMap((outcome) =>
+      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
+    );
+    if (rateLimited.length > 0) {
+      setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
+    } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
       setList({ kind: "forbidden" });
+    } else if (usersOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
+      setRoles(rolesOutcome.value);
+      setList({ kind: "loaded", users: usersOutcome.value });
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers]);
+  }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
     if (isAdministrator) {
@@ -393,7 +397,6 @@ export function UsersListScreen({
   }, [isAdministrator, load]);
 
   const users = list.kind === "loaded" ? list.users : [];
-  const roles = distinctRoles(users);
 
   const columns = [
     {

@@ -12,6 +12,9 @@ import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
+import { registerRoleCreationRoutes } from "./roles/role-creation-route.js";
+import type { RolesRouteOptions } from "./roles/roles-list-route.js";
+import { registerRolesListRoute } from "./roles/roles-list-route.js";
 import type { SessionAuthenticateRouteOptions } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticateRoute } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session/session-authentication-options-route.js";
@@ -73,6 +76,12 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * shape `session` uses above.
    */
   users?: UsersRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /roles`, `POST /roles/creation-options`, and `POST /roles`, the backoffice
+   * Roles screen's read and create sides: every one is Administrator-only, the same
+   * optional-feature-wiring shape `users` uses above.
+   */
+  roles?: RolesRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -138,6 +147,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUserEmailChangeRoutes(app, options.users);
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
+  }
+
+  if (options.roles) {
+    registerRolesListRoute(app, options.roles);
+    registerRoleCreationRoutes(app, options.roles);
   }
 
   const staticDir = options.staticDir;

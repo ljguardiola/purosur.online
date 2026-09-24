@@ -6,13 +6,25 @@ import { UsersListScreen, type UsersListScreenServices } from "./UsersListScreen
 import type { BranchUser } from "./usersApi";
 
 function createServices(overrides: Partial<UsersListScreenServices> = {}): UsersListScreenServices {
-  return {
+  const services: UsersListScreenServices = {
     fetchUsers: vi.fn(),
+    fetchRoles: vi.fn(),
     fetchUserCreationChallenge: vi.fn(),
     createUser: vi.fn(),
     startAuthentication: vi.fn(),
     ...overrides,
   };
+  if (!overrides.fetchRoles) {
+    // Every existing test exercises a single Administrator; only a test about the role selector
+    // itself needs to override this with a different roster.
+    vi.mocked(services.fetchRoles).mockResolvedValue({
+      kind: "ok",
+      value: [
+        { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+      ],
+    });
+  }
+  return services;
 }
 
 const administrator: BranchUser = {
@@ -123,6 +135,50 @@ test("shows a load error with a retry action when the users fail to load", async
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 });
 
+test("shows a load error when the roles fail to load, and Reintentar reloads both users and roles", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValueOnce({ kind: "failed" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
+
+  vi.mocked(services.fetchRoles).mockResolvedValueOnce({
+    kind: "ok",
+    value: [
+      { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+    ],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeEnabled();
+  expect(services.fetchUsers).toHaveBeenCalledTimes(2);
+  expect(services.fetchRoles).toHaveBeenCalledTimes(2);
+});
+
+test("shows the rate-limited notice with a retry action when the roles request is rate limited", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("shows the forbidden notice when the roles request is forbidden", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+});
+
 test("ends the session when the users request finds no open session", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "unauthenticated" });
@@ -144,6 +200,7 @@ test("shows a forbidden notice, without calling the API, for a non-Administrator
 
   await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
   expect(services.fetchUsers).not.toHaveBeenCalled();
+  expect(services.fetchRoles).not.toHaveBeenCalled();
 });
 
 async function openNewUserModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -168,6 +225,32 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(services.fetchUserCreationChallenge).not.toHaveBeenCalled();
   expect(services.createUser).not.toHaveBeenCalled();
+});
+
+test("offers a role held by no users yet in the create-user selector", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: [
+        { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+        {
+          id: "role-stock",
+          isAdministrator: false,
+          name: "Depósito",
+          permissionKeys: [],
+          userCount: 0,
+        },
+      ],
+    }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  const dialog = await openNewUserModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Administrador Rol/ }));
+  await expect.element(dialog.getByRole("option", { name: "Depósito" })).toBeVisible();
 });
 
 test("creates a user through options, passkey and create, and shows it in the list", async () => {

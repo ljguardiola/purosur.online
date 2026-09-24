@@ -47,6 +47,9 @@ importers:
 
   apps/backoffice:
     dependencies:
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@purosur/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -112,6 +115,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.5.8
         version: 0.5.8
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@testcontainers/postgresql':
         specifier: ^12.1.0
         version: 12.1.0(supports-color@7.2.0)

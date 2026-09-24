@@ -38,8 +38,17 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchUserCreationChallenge: vi.fn(),
       createUser: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
+    rolesListScreen: {
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    newRoleScreen: {
+      fetchRoleCreationChallenge: vi.fn(),
+      createRole: vi.fn(),
       startAuthentication: vi.fn(),
     },
     userDetailScreen: {
@@ -490,6 +499,85 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
   expect(
     screen.getByRole("button", { name: "Dar de baja la passkey «Notebook del local»" }).query(),
   ).toBeNull();
+});
+
+test("shows the Roles item in the rail, only for an Administrator, linking to the roles list", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+});
+
+test("hides the Roles item in the rail for a non-Administrator", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+});
+
+test("following the sidebar's Roles item opens the roles list, with Config and Roles active", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Roles" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles");
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
+  expect(rolesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("opens the new role page at /settings/roles/new from the Nuevo rol button", async () => {
+  // This checks routing/wiring only, the same way every other screen's own test file (not
+  // App.test.tsx) owns its form-fill-and-submit behavior: NewRoleScreen.test.tsx already covers
+  // the full passkey step-up creation flow, and Cancelar's own navigation, in isolation.
+  window.history.pushState(null, "", "/settings/roles");
+  const services = createServices();
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles/new");
+  expect(services.newRoleScreen.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+});
+
+test("shows a forbidden notice on the roles list for a signed-in non-Administrator", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+    }),
+  });
+  window.history.pushState(null, "", "/settings/roles");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
+  expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
 });
 
 test("shows a forbidden notice, without listing users, for a signed-in non-Administrator", async () => {
