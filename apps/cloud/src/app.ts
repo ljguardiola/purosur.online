@@ -13,6 +13,8 @@ import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
 import { registerRoleCreationRoutes } from "./roles/role-creation-route.js";
+import { registerRoleEditRoutes } from "./roles/role-edit-route.js";
+import { registerRoleReadRoute } from "./roles/role-read-route.js";
 import type { RolesRouteOptions } from "./roles/roles-list-route.js";
 import { registerRolesListRoute } from "./roles/roles-list-route.js";
 import type { SessionAuthenticateRouteOptions } from "./session/session-authenticate-route.js";
@@ -77,9 +79,10 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   users?: UsersRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /roles`, `POST /roles/creation-options`, and `POST /roles`, the backoffice
-   * Roles screen's read and create sides: every one is Administrator-only, the same
-   * optional-feature-wiring shape `users` uses above.
+   * Registers `GET /roles`, `GET /roles/:id`, `POST /roles/creation-options`, `POST /roles`,
+   * `POST /roles/:id/edit-options`, and `POST /roles/:id/edit`, the backoffice Roles screen's read,
+   * create, and edit sides: every one is Administrator-only, the same optional-feature-wiring
+   * shape `users` uses above.
    */
   roles?: RolesRouteOptions<TQueryResult>;
 }
@@ -151,7 +154,9 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.roles) {
     registerRolesListRoute(app, options.roles);
+    registerRoleReadRoute(app, options.roles);
     registerRoleCreationRoutes(app, options.roles);
+    registerRoleEditRoutes(app, options.roles);
   }
 
   const staticDir = options.staticDir;

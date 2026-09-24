@@ -574,6 +574,10 @@ describe("wiring the roles routes", () => {
     const app = buildApp({ version: "abc1234" });
 
     const list = await app.inject({ method: "GET", url: "/roles" });
+    const read = await app.inject({
+      method: "GET",
+      url: "/roles/00000000-0000-0000-0000-000000000000",
+    });
     const creationOptions = await app.inject({
       method: "POST",
       url: "/roles/creation-options",
@@ -584,10 +588,23 @@ describe("wiring the roles routes", () => {
       url: "/roles",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const editOptions = await app.inject({
+      method: "POST",
+      url: "/roles/00000000-0000-0000-0000-000000000000/edit-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/roles/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(404);
+    expect(read.statusCode).toBe(404);
     expect(creationOptions.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
+    expect(editOptions.statusCode).toBe(404);
+    expect(edit.statusCode).toBe(404);
   });
 
   it("registers the roles routes when a roles option is given", async () => {
@@ -597,6 +614,11 @@ describe("wiring the roles routes", () => {
     });
 
     const list = await app.inject({ method: "GET", url: "/roles" });
+    const read = await app.inject({
+      method: "GET",
+      url: "/roles/00000000-0000-0000-0000-000000000000",
+      headers: { origin: "https://staging.purosur.online" },
+    });
     const creationOptions = await app.inject({
       method: "POST",
       url: "/roles/creation-options",
@@ -607,12 +629,25 @@ describe("wiring the roles routes", () => {
       url: "/roles",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const editOptions = await app.inject({
+      method: "POST",
+      url: "/roles/00000000-0000-0000-0000-000000000000/edit-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/roles/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
     // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
+    expect(read.statusCode).toBe(401);
     expect(creationOptions.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
+    expect(editOptions.statusCode).toBe(401);
+    expect(edit.statusCode).toBe(401);
   });
 });
 

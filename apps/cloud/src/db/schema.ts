@@ -44,6 +44,10 @@ export const roles = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name"),
     isAdministrator: boolean("is_administrator").notNull().default(false),
+    // Optimistic concurrency for a role row, the same shape `users.version` gives user rows:
+    // starts at 1 and every edit of that row increments it, so a save over a version someone else
+    // already changed is rejected instead of silently overwriting their change.
+    version: integer("version").notNull().default(1),
   },
   // The migration seeds the only Administrator role; no other row may ever carry the flag.
   (table) => [
@@ -262,6 +266,10 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   // Step-up reauthentication an Administrator must pass before `POST /roles` creates a new role:
   // challenged against the Administrator's own passkeys, exactly like `user_creation`.
   "role_creation",
+  // Step-up reauthentication an Administrator must pass before their edit to an existing role's
+  // name or permissions is applied: challenged against the Administrator's own passkeys, exactly
+  // like `role_creation`.
+  "role_edit",
 ]);
 
 // One row per open session with a pending passkey self-management (or step-up) challenge:
