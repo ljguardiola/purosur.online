@@ -66,6 +66,7 @@ import {
   matchUserDetailPath,
   NEW_ROLE_PATH,
   ROLES_LIST_PATH,
+  sendToMyAccount,
   USERS_LIST_PATH,
 } from "./settingsRoutes";
 import {
@@ -508,7 +509,7 @@ export function App({ help, services }: AppProps) {
     } else if (session.kind === "signed-in" && wantsUnlockedSection) {
       // A typed, stale, or now-forbidden settings URL (e.g. the role changed mid-session) never
       // shows a forbidden notice: it lands on Mi cuenta instead, the one screen everyone keeps.
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     }
   }, [session.kind, route, isAccessRoute, wantsUnlockedSection]);
 

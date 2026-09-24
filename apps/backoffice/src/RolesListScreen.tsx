@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { MY_ACCOUNT_PATH, NEW_ROLE_PATH, roleDuplicatePath, roleEditPath } from "./settingsRoutes";
+import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath, sendToMyAccount } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -111,7 +111,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     } else if (outcome.kind === "rate_limited") {
       setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     } else {
       setList({ kind: "loadError" });
     }

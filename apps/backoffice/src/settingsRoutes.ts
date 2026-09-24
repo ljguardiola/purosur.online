@@ -1,4 +1,15 @@
+import { navigate } from "./router";
+
 export const MY_ACCOUNT_PATH = "/settings/users/me";
+
+/**
+ * Where the signed-in user lands when a screen or action is no longer theirs to use (a settings
+ * URL they can't open, or a `forbidden` answer mid-use): Mi cuenta, replacing the refused screen in
+ * the history so going back doesn't return to it.
+ */
+export function sendToMyAccount(): void {
+  navigate(MY_ACCOUNT_PATH, { replace: true });
+}
 /** The Users list, an Administrator-only screen: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
 export const USERS_LIST_PATH = "/settings/users";
 /** The Roles list, an Administrator-only screen: the sidebar's "Roles" item opens this. */

@@ -16,7 +16,7 @@ import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
-import { MY_ACCOUNT_PATH, userDetailPath } from "./settingsRoutes";
+import { sendToMyAccount, userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -169,6 +169,10 @@ function NewUserModal({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
       setSubmitting(false);
@@ -199,6 +203,10 @@ function NewUserModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "validation_failed") {
@@ -376,7 +384,7 @@ export function UsersListScreen({ onSessionEnded, services }: UsersListScreenPro
     if (rateLimited.length > 0) {
       setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
     } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     } else if (usersOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
       setRoles(rolesOutcome.value);
       setList({ kind: "loaded", users: usersOutcome.value });

@@ -447,6 +447,45 @@ test("ends the session when creation-options finds the session already ended", a
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
+test("navigates to Mi cuenta when creation-options comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({ kind: "forbidden" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when creating the user comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "forbidden" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });

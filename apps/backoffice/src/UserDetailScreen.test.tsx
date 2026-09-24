@@ -254,6 +254,31 @@ test("ends the session when the change finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
+test("navigates to Mi cuenta when the email-change challenge comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  const { dialog } = await openModalWithChallenge(services);
+  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({ kind: "forbidden" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.changeUserEmail).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when the email change comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  const { dialog } = await openModalWithChallenge(services);
+  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "forbidden" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
 test("shows a rate-limited notice when the challenge request is rate limited, without calling changeUserEmail", async () => {
   const services = createServices();
   const { dialog } = await openModalWithChallenge(services);
@@ -590,6 +615,18 @@ test("ends the session when the passkeys list finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
+test("navigates to Mi cuenta when the passkeys list comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
 test("shows no remove button on the signed-in Administrator's own passkeys", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
@@ -833,6 +870,44 @@ test("ends the session when removing finds it already closed", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when the removal challenge comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.startAuthentication).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when removing the passkey comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations with the passkeys section loaded and the remove modal open", async () => {

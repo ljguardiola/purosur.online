@@ -18,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
-import { MY_ACCOUNT_PATH, USERS_LIST_PATH } from "./settingsRoutes";
+import { sendToMyAccount, USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -167,6 +167,10 @@ function EditEmailModal({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setNotice({
         kind: "rateLimited",
@@ -202,6 +206,10 @@ function EditEmailModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "validation_failed") {
@@ -257,7 +265,7 @@ function EditEmailModal({
     }
     if (outcome.kind === "forbidden") {
       onClose();
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -433,6 +441,10 @@ function RemoveUserPasskeyModal({
       onSessionEnded();
       return;
     }
+    if (challenge.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (challenge.kind === "rate_limited") {
       setRateLimitedSeconds(challenge.retryAfterSeconds);
       setSubmitting(false);
@@ -463,6 +475,10 @@ function RemoveUserPasskeyModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -586,6 +602,8 @@ export function UserDetailScreen({
       setPasskeysState({ kind: "loaded", passkeys: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       endSession();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
     } else if (outcome.kind === "rate_limited") {
       setPasskeysState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
@@ -606,7 +624,7 @@ export function UserDetailScreen({
     } else if (outcome.kind === "rate_limited") {
       setState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     } else {
       setState({ kind: "loadError" });
     }

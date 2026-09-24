@@ -9,7 +9,7 @@ import { RoleForm, roleFieldErrorMessage, validateRoleName } from "./RoleForm";
 import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from "./RoleLoadStatus";
 import { editRole, fetchRole, fetchRoleEditChallenge, type RoleDetail } from "./rolesApi";
 import { navigate } from "./router";
-import { MY_ACCOUNT_PATH, ROLES_LIST_PATH } from "./settingsRoutes";
+import { ROLES_LIST_PATH, sendToMyAccount } from "./settingsRoutes";
 
 export type EditRoleScreenServices = {
   fetchRole: typeof fetchRole;
@@ -84,7 +84,7 @@ export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScr
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     } else {
       setState(failedRoleLoadStatus(outcome));
     }
@@ -114,7 +114,7 @@ export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScr
       return;
     }
     if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -153,7 +153,7 @@ export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScr
       return;
     }
     if (challenge.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
       return;
     }
     if (challenge.kind === "rate_limited") {
@@ -199,7 +199,7 @@ export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScr
       return;
     }
     if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "name_taken") {

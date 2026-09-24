@@ -10,7 +10,7 @@ import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from ".
 import { withOneAlertView } from "./rolePermissions";
 import { createRole, fetchRoleCreationChallenge, fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
-import { MY_ACCOUNT_PATH, ROLES_LIST_PATH } from "./settingsRoutes";
+import { ROLES_LIST_PATH, sendToMyAccount } from "./settingsRoutes";
 
 export type DuplicateRoleScreenServices = RoleCreationServices & {
   fetchRoles: typeof fetchRoles;
@@ -82,7 +82,7 @@ export function DuplicateRoleScreen({
     } else if (outcome.kind === "unauthenticated") {
       endSession();
     } else if (outcome.kind === "forbidden") {
-      navigate(MY_ACCOUNT_PATH, { replace: true });
+      sendToMyAccount();
     } else {
       setState(failedRoleLoadStatus(outcome));
     }
