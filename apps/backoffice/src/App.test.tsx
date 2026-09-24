@@ -697,6 +697,73 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
 });
 
+test("follows a demotion reported by real use of the open tab: Usuarios and Roles leave the rail and the Users list gives way to Mi cuenta", async () => {
+  const services = createServices();
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    isAdministrator: false,
+    permissions: [],
+  });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    window.dispatchEvent(new KeyboardEvent("keydown"));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(window.location.pathname).toBe("/settings/users/me");
+    expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+    expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("follows a promotion reported by real use of the open tab: Usuarios and Roles join the rail", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({
+    kind: "ok",
+    userId: "user-2",
+    displayName: "Grace Hopper",
+    isAdministrator: true,
+    permissions: [],
+  });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    window.dispatchEvent(new KeyboardEvent("keydown"));
+
+    await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
   const services = createServices();
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({

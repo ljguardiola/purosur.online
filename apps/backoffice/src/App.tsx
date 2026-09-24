@@ -569,12 +569,22 @@ export function App({ help, services }: AppProps) {
   });
 
   // Keeps a continuously worked tab from going idle: real use (not merely an open tab) touches
-  // the session, and the watcher above follows the fresher deadline that comes back.
+  // the session, the watcher above follows the fresher deadline that comes back, and the rail and
+  // route gating follow the role's current access.
   useSessionActivityReporter({
     active: session.kind === "signed-in",
     touchSession: fetchSession,
-    onTouched: (expiresAt) => {
-      setSession((current) => (current.kind === "signed-in" ? { ...current, expiresAt } : current));
+    onTouched: (touched) => {
+      setSession((current) =>
+        current.kind === "signed-in"
+          ? {
+              ...current,
+              isAdministrator: touched.isAdministrator,
+              permissions: touched.permissions ?? [],
+              ...(touched.expiresAt !== undefined ? { expiresAt: touched.expiresAt } : {}),
+            }
+          : current,
+      );
     },
     onEnded: handleSessionEnded,
   });
