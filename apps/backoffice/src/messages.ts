@@ -256,6 +256,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleVersionTitle: "Este usuario cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
       },
     },
   },

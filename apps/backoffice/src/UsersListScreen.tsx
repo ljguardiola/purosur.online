@@ -12,6 +12,7 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
 import { userDetailPath } from "./settingsRoutes";
@@ -56,8 +57,6 @@ type ListState =
 const usersMessages = messages.settings.users;
 const modalMessages = usersMessages.newUserModal;
 
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
-
 function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
 }
@@ -84,13 +83,7 @@ function validateName(value: string): string | undefined {
   return value.trim() ? undefined : modalMessages.nameRequired;
 }
 
-function validateEmail(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return modalMessages.emailRequired;
-  }
-  return EMAIL_SHAPE.test(trimmed) ? undefined : modalMessages.emailInvalid;
-}
+const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
 
 function fieldErrorMessage(field: CreateUserFieldError): string {
   if (field === "firstName") {
@@ -168,7 +161,7 @@ function NewUserModal({
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
-    const emailError = validateEmail(email);
+    const emailError = validateEmail(email, EMAIL_ERRORS);
     const roleError = roleId ? undefined : modalMessages.roleRequired;
     setFieldErrors({
       ...(nameError ? { firstName: nameError } : {}),
@@ -344,7 +337,9 @@ function NewUserModal({
           onChange={(value) => {
             setEmail(value);
             if (fieldErrors.email) {
-              setFieldErrors((current) => withFieldError(current, "email", validateEmail(value)));
+              setFieldErrors((current) =>
+                withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
+              );
             }
           }}
           helperText={modalMessages.emailHelper}

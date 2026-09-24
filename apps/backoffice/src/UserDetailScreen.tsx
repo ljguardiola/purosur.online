@@ -13,13 +13,13 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
 import { USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
-  type ChangeUserEmailFieldError,
   changeUserEmail,
   fetchEmailChangeChallenge,
   fetchUser,
@@ -60,28 +60,17 @@ const usersMessages = messages.settings.users;
 const detailMessages = usersMessages.detail;
 const modalMessages = usersMessages.editEmailModal;
 
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
-
 function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
 }
 
-function validateEmail(value: string): string | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return modalMessages.emailRequired;
-  }
-  return EMAIL_SHAPE.test(trimmed) ? undefined : modalMessages.emailInvalid;
-}
-
-function fieldErrorMessage(field: ChangeUserEmailFieldError): string {
-  return field === "email" ? modalMessages.emailInvalid : modalMessages.attemptFailedDetail;
-}
+const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
 
 type EditEmailModalNotice =
   | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "staleVersion" };
+  | { kind: "rateLimited"; retryAfterSeconds: number; offersReload: boolean }
+  | { kind: "staleVersion" }
+  | { kind: "reloadFailed" };
 
 type EditEmailModalProps = {
   isOpen: boolean;
@@ -89,6 +78,7 @@ type EditEmailModalProps = {
   onClose: () => void;
   onSaved: (user: BranchUser) => void;
   onReloaded: (user: BranchUser) => void;
+  onReloadRejected: (state: "notFound" | "forbidden") => void;
   onSessionEnded: () => void;
   fetchUser: typeof fetchUser;
   fetchEmailChangeChallenge: typeof fetchEmailChangeChallenge;
@@ -103,6 +93,7 @@ function EditEmailModal({
   onClose,
   onSaved,
   onReloaded,
+  onReloadRejected,
   onSessionEnded,
   fetchUser,
   fetchEmailChangeChallenge,
@@ -130,7 +121,7 @@ function EditEmailModal({
   }, [isOpen]);
 
   async function handleSubmit() {
-    const validationError = validateEmail(email);
+    const validationError = validateEmail(email, EMAIL_ERRORS);
     setEmailError(validationError);
     if (validationError) {
       return;
@@ -144,7 +135,11 @@ function EditEmailModal({
       return;
     }
     if (challenge.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: challenge.retryAfterSeconds,
+        offersReload: false,
+      });
       setSubmitting(false);
       return;
     }
@@ -177,7 +172,11 @@ function EditEmailModal({
       return;
     }
     if (outcome.kind === "validation_failed") {
-      setEmailError(fieldErrorMessage(outcome.field));
+      if (outcome.field === "email") {
+        setEmailError(modalMessages.emailInvalid);
+      } else {
+        setNotice({ kind: "attemptFailed" });
+      }
       setSubmitting(false);
       return;
     }
@@ -192,7 +191,11 @@ function EditEmailModal({
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: outcome.retryAfterSeconds,
+        offersReload: false,
+      });
       setSubmitting(false);
       return;
     }
@@ -201,17 +204,39 @@ function EditEmailModal({
   }
 
   async function handleReload() {
+    setSubmitting(true);
     const outcome = await fetchUser(user.id);
     if (outcome.kind === "ok") {
       setEmail(outcome.value.email);
       setVersion(outcome.value.version);
       setNotice(null);
+      setSubmitting(false);
       onReloaded(outcome.value);
       return;
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
     }
+    if (outcome.kind === "not_found") {
+      onReloadRejected("notFound");
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      onReloadRejected("forbidden");
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: outcome.retryAfterSeconds,
+        offersReload: true,
+      });
+      setSubmitting(false);
+      return;
+    }
+    setNotice({ kind: "reloadFailed" });
+    setSubmitting(false);
   }
 
   return (
@@ -273,17 +298,32 @@ function EditEmailModal({
           />
         )}
         {notice?.kind === "staleVersion" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={modalMessages.staleVersionTitle}
-              detail={modalMessages.staleVersionDetail}
-            />
-            <Button variant="secondary" icon={<RotateCcw />} onPress={() => void handleReload()}>
-              {modalMessages.reload}
-            </Button>
-          </>
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.staleVersionTitle}
+            detail={modalMessages.staleVersionDetail}
+          />
+        )}
+        {notice?.kind === "reloadFailed" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.reloadFailedTitle}
+            detail={modalMessages.attemptFailedDetail}
+          />
+        )}
+        {(notice?.kind === "staleVersion" ||
+          notice?.kind === "reloadFailed" ||
+          (notice?.kind === "rateLimited" && notice.offersReload)) && (
+          <Button
+            variant="secondary"
+            icon={<RotateCcw />}
+            isDisabled={submitting}
+            onPress={() => void handleReload()}
+          >
+            {modalMessages.reload}
+          </Button>
         )}
         <TextField
           kind="plain-text"
@@ -292,7 +332,7 @@ function EditEmailModal({
           onChange={(value) => {
             setEmail(value);
             if (emailError) {
-              setEmailError(validateEmail(value));
+              setEmailError(validateEmail(value, EMAIL_ERRORS));
             }
           }}
           helperText={modalMessages.emailHelper}
@@ -318,6 +358,12 @@ export function UserDetailScreen({
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
   const [modalOpen, setModalOpen] = useState(false);
+  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
+  // (each session-activity touch re-renders it), which would otherwise reload the user and unmount
+  // an open edit modal along with what was typed in it.
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
+  const endSession = useCallback(() => onSessionEndedRef.current(), []);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -327,7 +373,7 @@ export function UserDetailScreen({
     } else if (outcome.kind === "not_found") {
       setState({ kind: "notFound" });
     } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+      endSession();
     } else if (outcome.kind === "rate_limited") {
       setState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
@@ -335,7 +381,7 @@ export function UserDetailScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [userId, onSessionEnded, fetchUser]);
+  }, [userId, endSession, fetchUser]);
 
   useEffect(() => {
     if (isAdministrator) {
@@ -439,7 +485,11 @@ export function UserDetailScreen({
             setModalOpen(false);
           }}
           onReloaded={(user) => setState({ kind: "loaded", user })}
-          onSessionEnded={onSessionEnded}
+          onReloadRejected={(kind) => {
+            setState({ kind });
+            setModalOpen(false);
+          }}
+          onSessionEnded={endSession}
           fetchUser={fetchUser}
           fetchEmailChangeChallenge={fetchEmailChangeChallenge}
           startAuthentication={startAuthentication}

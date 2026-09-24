@@ -643,6 +643,8 @@ describe("POST /users/:id/email", () => {
     expect(response.json()).toMatchObject({ code: "email_taken" });
     const [row] = await db.select().from(users).where(eq(users.id, targetId));
     expect(row).toMatchObject({ email: "grace@example.com", version: 1 });
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
+    expect(audited).toHaveLength(0);
   });
 
   it("accepts the same normalized email as a no-op: 200, version unchanged, no audit row", async () => {
@@ -693,6 +695,40 @@ describe("POST /users/:id/email", () => {
       previousValue: { email: "grace@example.com" },
       newValue: { email: "new.email@example.com" },
     });
+  });
+
+  it("voids a live recovery link sent to the old address, auditing only the email change", async () => {
+    const rawToken = "raw-token-for-the-old-address";
+    await db.insert(recoveryTokens).values({
+      userId: targetId,
+      tokenHash: hashRecoveryToken(rawToken),
+      issuedAt: currentTime,
+      expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const reauthentication = await reauthenticationFor(targetId, rawSessionId, emulator);
+
+    const response = await changeEmail(targetId, rawSessionId, {
+      email: "new.email@example.com",
+      version: 1,
+      reauthentication,
+    });
+    expect(response.statusCode).toBe(200);
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
+    expect(audited).toHaveLength(1);
+    expect(audited[0]).toMatchObject({
+      previousValue: { email: "grace@example.com" },
+      newValue: { email: "new.email@example.com" },
+    });
+
+    const redemption = await recoveryApp.inject({
+      method: "POST",
+      url: "/users/recovery/registration-options",
+      headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
+      payload: { recovery_token: rawToken },
+    });
+    expect(redemption.statusCode).toBe(410);
+    expect(redemption.json()).toMatchObject({ code: "recovery_token_burned" });
   });
 
   it("routes the next recovery request to the new address, never the old one", async () => {

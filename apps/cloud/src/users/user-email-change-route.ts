@@ -1,9 +1,9 @@
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import { generateAuthenticationOptions } from "@simplewebauthn/server";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, users } from "../db/schema.js";
+import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -45,6 +45,31 @@ const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "this user was changed since it was loaded",
 } as const;
+
+const UNIQUE_VIOLATION = "23505";
+const EMAIL_UNIQUE_INDEX = "users_email_key";
+
+/**
+ * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
+ * `users.email`. postgres-js, the production driver, names the index `constraint_name`; PGlite,
+ * which the unit tests run on, names it `constraint`.
+ */
+function isEmailUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+  while (current instanceof Error) {
+    const { code, constraint, constraint_name } = current as {
+      code?: unknown;
+      constraint?: unknown;
+      constraint_name?: unknown;
+    };
+    const index = constraint_name ?? constraint;
+    if (code === UNIQUE_VIOLATION && index === EMAIL_UNIQUE_INDEX) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
 
 interface ValidationFailure {
   field: "email" | "version";
@@ -239,52 +264,64 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
       return;
     }
 
-    const outcome = await options.db.transaction<EmailChangeOutcome>(async (tx) => {
-      // Locks this one row so a concurrent request against the same user waits instead of
-      // racing: the version check below and the write it may lead to happen against a value that
-      // cannot change out from under this transaction while it holds the lock.
-      const [current] = await tx
-        .select({ email: users.email, version: users.version })
-        .from(users)
-        .where(eq(users.id, target.id))
-        .for("update");
-      if (!current) {
-        // The branch check above already confirmed this id exists; nothing in this codebase
-        // deletes a user, so this is unreachable in practice.
-        return { kind: "stale_version" };
-      }
-      if (current.version !== parsedBody.version) {
-        return { kind: "stale_version" };
-      }
-      if (current.email === parsedBody.email) {
-        return { kind: "applied", email: current.email, version: current.version };
-      }
+    const outcome = await options.db
+      .transaction<EmailChangeOutcome>(async (tx) => {
+        // Locks this one row so a concurrent request against the same user waits instead of
+        // racing: the version check below and the write it may lead to happen against a value that
+        // cannot change out from under this transaction while it holds the lock.
+        const [current] = await tx
+          .select({ email: users.email, version: users.version })
+          .from(users)
+          .where(eq(users.id, target.id))
+          .for("update");
+        if (!current) {
+          // The branch check above already confirmed this id exists; nothing in this codebase
+          // deletes a user, so this is unreachable in practice.
+          return { kind: "stale_version" };
+        }
+        if (current.version !== parsedBody.version) {
+          return { kind: "stale_version" };
+        }
+        if (current.email === parsedBody.email) {
+          return { kind: "applied", email: current.email, version: current.version };
+        }
 
-      const alreadyTaken = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(and(eq(users.email, parsedBody.email), ne(users.id, target.id)))
-        .limit(1);
-      if (alreadyTaken.length > 0) {
-        return { kind: "email_taken" };
-      }
+        // The unique index on `users.email` decides whether the address is taken: a read before
+        // this write could miss another request writing the same address concurrently.
+        const nextVersion = current.version + 1;
+        await tx
+          .update(users)
+          .set({ email: parsedBody.email, version: nextVersion })
+          .where(eq(users.id, target.id));
 
-      const nextVersion = current.version + 1;
-      await tx
-        .update(users)
-        .set({ email: parsedBody.email, version: nextVersion })
-        .where(eq(users.id, target.id));
+        // A recovery link already sent to the previous address must not outlive the change.
+        await tx
+          .update(recoveryTokens)
+          .set({ voidedAt: attemptedAt })
+          .where(
+            and(
+              eq(recoveryTokens.userId, target.id),
+              isNull(recoveryTokens.usedAt),
+              isNull(recoveryTokens.voidedAt),
+            ),
+          );
 
-      await tx.insert(auditLog).values({
-        entity: "user",
-        entityId: target.id,
-        actorId: openSession.userId,
-        previousValue: { email: current.email },
-        newValue: { email: parsedBody.email },
+        await tx.insert(auditLog).values({
+          entity: "user",
+          entityId: target.id,
+          actorId: openSession.userId,
+          previousValue: { email: current.email },
+          newValue: { email: parsedBody.email },
+        });
+
+        return { kind: "applied", email: parsedBody.email, version: nextVersion };
+      })
+      .catch((error: unknown): EmailChangeOutcome => {
+        if (isEmailUniqueViolation(error)) {
+          return { kind: "email_taken" };
+        }
+        throw error;
       });
-
-      return { kind: "applied", email: parsedBody.email, version: nextVersion };
-    });
 
     if (outcome.kind === "stale_version") {
       await reply.code(409).send(STALE_VERSION_RESPONSE);
