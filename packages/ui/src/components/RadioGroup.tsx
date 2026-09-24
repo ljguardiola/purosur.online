@@ -22,15 +22,14 @@ const radioLabelClassName =
   // A disabled option answers no pointer, so it drops the hand cursor that promises it would.
   "data-[disabled]:cursor-default data-[disabled]:opacity-[0.45]";
 
-// Unlike Checkbox's box, the circle's fill stays white in both states (see the design table in
-// the issue: unchecked and checked both read "white"), so an unchecked circle's own brand element
-// is that white-to-bone fill, and hovering it darkens the fill exactly like Checkbox's unchecked
-// box. A checked circle's brand element is instead the ring drawn under it, so — mirroring
-// Checkbox's checked box (blue UI to blue strong) and Toggle's track (green UI to green strong) —
-// hovering a checked circle darkens that ring from blue UI to blue strong. Both the border and
-// the ring are drawn with an inset box-shadow instead of a real border, for the same reason as
-// Checkbox.tsx's boxClassName: it never participates in layout, so growing from a 2px border to a
-// 6px ring never resizes the circle.
+// Unlike Checkbox's box, the circle's fill stays white in both states, so an unchecked circle's
+// own brand element is that white-to-bone fill, and hovering it darkens the fill exactly like
+// Checkbox's unchecked box. A checked circle's brand element is instead the ring drawn under it,
+// so — mirroring Checkbox's checked box (blue UI to blue strong) and Toggle's track (green UI to
+// green strong) — hovering a checked circle darkens that ring from blue UI to blue strong. Both
+// the border and the ring are drawn with an inset box-shadow instead of a real border, for the
+// same reason as Checkbox.tsx's boxClassName: it never participates in layout, so growing from a
+// 2px border to a 6px ring never resizes the circle.
 const circleClassName =
   "size-5 shrink-0 rounded-full outline-none " +
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
