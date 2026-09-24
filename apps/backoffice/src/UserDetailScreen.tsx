@@ -1,12 +1,14 @@
-import { Button, InlineNotice, Modal, TextField } from "@purosur/ui";
+import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
   KeyRound,
+  Laptop,
   Pencil,
   RotateCcw,
   ShieldX,
+  Trash2,
   TriangleAlert,
   UserPen,
   UserX,
@@ -23,12 +25,19 @@ import {
   changeUserEmail,
   fetchEmailChangeChallenge,
   fetchUser,
+  fetchUserPasskeyRemovalChallenge,
+  fetchUserPasskeys,
+  removeUserPasskey,
+  type UserPasskey,
 } from "./usersApi";
 
 export type UserDetailScreenServices = {
   fetchUser: typeof fetchUser;
   fetchEmailChangeChallenge: typeof fetchEmailChangeChallenge;
   changeUserEmail: typeof changeUserEmail;
+  fetchUserPasskeys: typeof fetchUserPasskeys;
+  fetchUserPasskeyRemovalChallenge: typeof fetchUserPasskeyRemovalChallenge;
+  removeUserPasskey: typeof removeUserPasskey;
   startAuthentication: typeof startAuthentication;
 };
 
@@ -36,14 +45,21 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
   fetchEmailChangeChallenge,
   changeUserEmail,
+  fetchUserPasskeys,
+  fetchUserPasskeyRemovalChallenge,
+  removeUserPasskey,
   startAuthentication,
 };
 
 export type UserDetailScreenProps = {
   userId: string;
+  /** From the session: hides this user's own remove buttons, which Mi cuenta manages instead. */
+  signedInUserId: string;
   /** From the session: only an Administrator sees this screen at all. */
   isAdministrator: boolean;
   onSessionEnded: () => void;
+  /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
+  now?: () => Date;
   /** Injected in tests so this screen doesn't call the real API or WebAuthn. */
   services?: UserDetailScreenServices;
 };
@@ -56,9 +72,29 @@ type DetailState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; user: BranchUser };
 
+type PasskeysState =
+  | { kind: "loading" }
+  | { kind: "loadError" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "loaded"; passkeys: UserPasskey[] };
+
 const usersMessages = messages.settings.users;
 const detailMessages = usersMessages.detail;
 const modalMessages = usersMessages.editEmailModal;
+// The row detail formatting, the section title and the remove button's aria-label are grammar-
+// neutral ("Registrada el…", "Passkeys", "Dar de baja la passkey «X»"), so this screen reuses Mi
+// cuenta's own passkeys copy instead of duplicating it for a third person.
+const passkeysMessages = messages.settings.myAccount.passkeys;
+const selfRemoveMessages = passkeysMessages.removeModal;
+const removePasskeyModalMessages = usersMessages.removePasskeyModal;
+
+function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
+  return passkeysMessages.rowDetail({
+    registeredOn: new Date(passkey.createdAt),
+    ...(passkey.lastUsedAt ? { lastUsedAt: new Date(passkey.lastUsedAt) } : {}),
+    now,
+  });
+}
 
 function roleDisplayName(role: BranchUserRole): string {
   return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
@@ -345,18 +381,196 @@ function EditEmailModal({
   );
 }
 
-/** "Ver un usuario": one branch user's Datos section, with the passkey-confirmed email edit. */
+type RemoveUserPasskeyModalProps = {
+  target: UserPasskey | null;
+  userId: string;
+  userName: string;
+  isOnlyPasskey: boolean;
+  onClose: () => void;
+  onRemoved: (passkeyId: string) => void;
+  onSessionEnded: () => void;
+  fetchUserPasskeyRemovalChallenge: typeof fetchUserPasskeyRemovalChallenge;
+  startAuthentication: typeof startAuthentication;
+  removeUserPasskey: typeof removeUserPasskey;
+};
+
+/** Lets an Administrator remove another user's passkey, reauthenticating with their own passkey first. */
+function RemoveUserPasskeyModal({
+  target,
+  userId,
+  userName,
+  isOnlyPasskey,
+  onClose,
+  onRemoved,
+  onSessionEnded,
+  fetchUserPasskeyRemovalChallenge,
+  startAuthentication,
+  removeUserPasskey,
+}: RemoveUserPasskeyModalProps) {
+  const isOpen = target !== null;
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAttemptFailed(false);
+      setRateLimitedSeconds(null);
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  // Same reasoning as Mi cuenta's own RemovePasskeyModal: the removal challenge is consumed on
+  // every attempt that reaches the cloud, so a fresh one is fetched every time.
+  async function handleConfirm() {
+    if (!target) {
+      return;
+    }
+    setAttemptFailed(false);
+    setRateLimitedSeconds(null);
+    setSubmitting(true);
+
+    const challenge = await fetchUserPasskeyRemovalChallenge(userId);
+    if (challenge.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (challenge.kind === "rate_limited") {
+      setRateLimitedSeconds(challenge.retryAfterSeconds);
+      setSubmitting(false);
+      return;
+    }
+    // Also covers not_found, own_account and failed: none is expected here (the target and the
+    // remove button's own visibility already rule them out), so they fall back to the generic notice.
+    if (challenge.kind !== "ok") {
+      setAttemptFailed(true);
+      setSubmitting(false);
+      return;
+    }
+
+    const reauthentication = await startAuthentication({
+      optionsJSON: challenge.value.reauthenticationOptions,
+    }).catch((): AuthenticationResponseJSON | null => null);
+    if (!reauthentication) {
+      setAttemptFailed(true);
+      setSubmitting(false);
+      return;
+    }
+
+    const outcome = await removeUserPasskey(userId, target.id, reauthentication);
+    // A 404 means the passkey is already gone, which is exactly what removing it asked for.
+    if (outcome.kind === "ok" || outcome.kind === "not_found") {
+      onRemoved(target.id);
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setRateLimitedSeconds(outcome.retryAfterSeconds);
+      setSubmitting(false);
+      return;
+    }
+    setAttemptFailed(true);
+    setSubmitting(false);
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      width="confirmation"
+      tone="error"
+      icon={<Trash2 />}
+      title={removePasskeyModalMessages.title({ name: userName })}
+      closable
+      closeLabel={selfRemoveMessages.closeLabel}
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            size="large"
+            icon={<X />}
+            isDisabled={submitting}
+            onPress={onClose}
+          >
+            {selfRemoveMessages.cancel}
+          </Button>
+          <Button
+            variant="primary"
+            tone="destructive"
+            size="large"
+            icon={<Trash2 />}
+            fullWidth
+            isDisabled={submitting}
+            onPress={() => void handleConfirm()}
+          >
+            {selfRemoveMessages.confirm}
+          </Button>
+        </>
+      }
+    >
+      {target && (
+        <div className="flex flex-col gap-4">
+          <p className="text-base text-ink">
+            {removePasskeyModalMessages.body({ passkeyName: target.name })}
+            {isOnlyPasskey
+              ? ` ${removePasskeyModalMessages.onlyPasskeyWarning({ name: userName })}`
+              : ""}
+          </p>
+          {attemptFailed && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={selfRemoveMessages.attemptFailedTitle}
+              detail={selfRemoveMessages.attemptFailedDetail}
+            />
+          )}
+          {rateLimitedSeconds !== null && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={selfRemoveMessages.rateLimitedTitle}
+              detail={selfRemoveMessages.rateLimitedDetail({
+                minutes: Math.ceil(rateLimitedSeconds / 60),
+              })}
+            />
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email edit and passkey removal. */
 export function UserDetailScreen({
   userId,
+  signedInUserId,
   isAdministrator,
   onSessionEnded,
+  now,
   services,
 }: UserDetailScreenProps) {
-  const { fetchUser, fetchEmailChangeChallenge, changeUserEmail, startAuthentication } =
-    services ?? defaultUserDetailScreenServices;
+  const {
+    fetchUser,
+    fetchEmailChangeChallenge,
+    changeUserEmail,
+    fetchUserPasskeys,
+    fetchUserPasskeyRemovalChallenge,
+    removeUserPasskey,
+    startAuthentication,
+  } = services ?? defaultUserDetailScreenServices;
+  const clock = now ?? (() => new Date());
   const [state, setState] = useState<DetailState>(
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
+  const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
+  const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the user and unmount
@@ -365,11 +579,26 @@ export function UserDetailScreen({
   onSessionEndedRef.current = onSessionEnded;
   const endSession = useCallback(() => onSessionEndedRef.current(), []);
 
+  const loadPasskeys = useCallback(async () => {
+    setPasskeysState({ kind: "loading" });
+    const outcome = await fetchUserPasskeys(userId);
+    if (outcome.kind === "ok") {
+      setPasskeysState({ kind: "loaded", passkeys: outcome.value });
+    } else if (outcome.kind === "unauthenticated") {
+      endSession();
+    } else if (outcome.kind === "rate_limited") {
+      setPasskeysState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else {
+      setPasskeysState({ kind: "loadError" });
+    }
+  }, [userId, endSession, fetchUserPasskeys]);
+
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     const outcome = await fetchUser(userId);
     if (outcome.kind === "ok") {
       setState({ kind: "loaded", user: outcome.value });
+      void loadPasskeys();
     } else if (outcome.kind === "not_found") {
       setState({ kind: "notFound" });
     } else if (outcome.kind === "unauthenticated") {
@@ -381,7 +610,7 @@ export function UserDetailScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUser]);
+  }, [userId, endSession, fetchUser, loadPasskeys]);
 
   useEffect(() => {
     if (isAdministrator) {
@@ -390,6 +619,9 @@ export function UserDetailScreen({
   }, [isAdministrator, load]);
 
   const heading = state.kind === "loaded" ? state.user.firstName : detailMessages.heading;
+  // The cloud accepts a user id in any letter case, so the id in the URL may differ in case
+  // from the session's own.
+  const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
 
   return (
     <>
@@ -474,7 +706,98 @@ export function UserDetailScreen({
             </div>
           </div>
         )}
+        {state.kind === "loaded" && (
+          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
+            <div className="flex items-center gap-3">
+              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
+                {passkeysMessages.title}
+              </h2>
+            </div>
+            {passkeysState.kind === "loading" && (
+              <p role="status">{detailMessages.passkeysLoading}</p>
+            )}
+            {passkeysState.kind === "loadError" && (
+              <>
+                <InlineNotice
+                  tone="error"
+                  icon={<TriangleAlert />}
+                  title={detailMessages.passkeysLoadErrorTitle}
+                  detail={detailMessages.passkeysLoadErrorDetail}
+                />
+                <Button variant="secondary" onPress={() => void loadPasskeys()}>
+                  {usersMessages.retry}
+                </Button>
+              </>
+            )}
+            {passkeysState.kind === "rate_limited" && (
+              <>
+                <InlineNotice
+                  tone="error"
+                  icon={<ShieldX />}
+                  title={usersMessages.rateLimitedTitle}
+                  detail={usersMessages.rateLimitedDetail({
+                    minutes: Math.ceil(passkeysState.retryAfterSeconds / 60),
+                  })}
+                />
+                <Button variant="secondary" onPress={() => void loadPasskeys()}>
+                  {usersMessages.retry}
+                </Button>
+              </>
+            )}
+            {passkeysState.kind === "loaded" &&
+              (passkeysState.passkeys.length === 0 ? (
+                <p className="text-ink-secondary text-sm">{detailMessages.passkeysEmpty}</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {passkeysState.passkeys.map((passkey) => (
+                    <li key={passkey.id} className="flex items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex size-5 shrink-0 text-ink-secondary"
+                      >
+                        <Laptop />
+                      </span>
+                      <div className="flex flex-1 flex-col gap-1">
+                        <p className="font-semibold text-base text-ink">{passkey.name}</p>
+                        <p className="text-ink-secondary text-sm">
+                          {passkeyRowDetail(passkey, clock())}
+                        </p>
+                      </div>
+                      {!isOwnAccount && (
+                        <IconButton
+                          icon={<Trash2 />}
+                          aria-label={passkeysMessages.remove({ name: passkey.name })}
+                          onPress={() => setRemoveTarget(passkey)}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ))}
+          </div>
+        )}
       </div>
+      {state.kind === "loaded" && (
+        <RemoveUserPasskeyModal
+          target={removeTarget}
+          userId={userId}
+          userName={state.user.firstName}
+          isOnlyPasskey={passkeysState.kind === "loaded" && passkeysState.passkeys.length === 1}
+          onClose={() => setRemoveTarget(null)}
+          onRemoved={(passkeyId) => {
+            setRemoveTarget(null);
+            setPasskeysState((current) =>
+              current.kind === "loaded"
+                ? { kind: "loaded", passkeys: current.passkeys.filter((p) => p.id !== passkeyId) }
+                : current,
+            );
+          }}
+          onSessionEnded={endSession}
+          fetchUserPasskeyRemovalChallenge={fetchUserPasskeyRemovalChallenge}
+          startAuthentication={startAuthentication}
+          removeUserPasskey={removeUserPasskey}
+        />
+      )}
       {state.kind === "loaded" && (
         <EditEmailModal
           isOpen={modalOpen}

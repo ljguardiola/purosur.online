@@ -688,4 +688,55 @@ describe("POST /users/passkeys", () => {
       expect(newRow).toBeDefined();
     });
   });
+
+  it("never registers a passkey on another account, even when the request body names one: neither route reads a target id, so a passkey always lands on the session's own account", async () => {
+    const [otherUser] = await db
+      .insert(users)
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!otherUser) throw new Error("test setup: seeding the other user returned no row");
+    const rawSessionId = await insertSession(userId);
+    const optionsResponse = await postJson(
+      "/users/passkeys/registration-options",
+      { user_id: otherUser.id, id: otherUser.id, target_id: otherUser.id },
+      cookieHeader(rawSessionId),
+    );
+    expect(optionsResponse.statusCode).toBe(200);
+    const options = optionsResponse.json();
+    const reauthentication = registeredEmulator.getJSON(
+      BACKOFFICE_ORIGIN,
+      options.reauthentication_options,
+    );
+    const newEmulator = newDeviceEmulator();
+    const passkeyRegistration = newEmulator.createJSON(
+      BACKOFFICE_ORIGIN,
+      options.passkey_registration_options,
+    );
+
+    const response = await postJson(
+      "/users/passkeys",
+      {
+        reauthentication,
+        passkey_registration: passkeyRegistration,
+        passkey_name: "Passkey ajena",
+        user_id: otherUser.id,
+        id: otherUser.id,
+        target_id: otherUser.id,
+      },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(200);
+    const otherUserPasskeys = await db
+      .select()
+      .from(passkeys)
+      .where(eq(passkeys.userId, otherUser.id));
+    expect(otherUserPasskeys).toHaveLength(0);
+    const ownPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(ownPasskeys.map((row) => row.name)).toContain("Passkey ajena");
+  });
 });

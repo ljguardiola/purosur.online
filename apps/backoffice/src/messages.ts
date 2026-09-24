@@ -190,9 +190,13 @@ export const messages = defineMessages("es-AR", (f) => ({
       heading: "Usuarios",
       newUserButton: "Nuevo usuario",
       administratorRoleName: "Administrador",
-      columns: { user: "Usuario", role: "Rol" },
+      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
+      passkeysCount: (params: { count: number }) =>
+        params.count === 0
+          ? "—"
+          : f.plural(params.count, { one: "1 registrada", other: `${params.count} registradas` }),
       loadErrorTitle: "No pudimos abrir los usuarios",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",
@@ -239,6 +243,17 @@ export const messages = defineMessages("es-AR", (f) => ({
         backToList: "Volver a Usuarios",
         loadErrorTitle: "No pudimos abrir este usuario",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
+        passkeysLoading: "Cargando las passkeys…",
+        passkeysLoadErrorTitle: "No pudimos abrir las passkeys",
+        passkeysLoadErrorDetail: "Probá de nuevo en unos minutos.",
+        passkeysEmpty: "No tiene ninguna passkey registrada.",
+      },
+      removePasskeyModal: {
+        title: (params: { name: string }) => `¿Dar de baja la passkey de ${params.name}?`,
+        body: (params: { passkeyName: string }) =>
+          `«${params.passkeyName}» deja de servir para entrar.`,
+        onlyPasskeyWarning: (params: { name: string }) =>
+          `Es su única passkey: para volver a entrar, ${params.name} va a tener que pedir el enlace de recuperación por correo.`,
       },
       editEmailModal: {
         eyebrow: USERS_EYEBROW,

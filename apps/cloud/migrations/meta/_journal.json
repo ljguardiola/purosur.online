@@ -106,6 +106,13 @@
       "when": 1790261655239,
       "tag": "0014_passkey_challenge_user_email_change_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790268110109,
+      "tag": "0015_passkey_challenge_user_passkey_removal_kind",
+      "breakpoints": true
     }
   ]
 }

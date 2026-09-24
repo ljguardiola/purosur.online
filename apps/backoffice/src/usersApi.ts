@@ -15,7 +15,46 @@ export type BranchUser = {
   email: string;
   version: number;
   role: BranchUserRole;
+  passkeyCount: number;
 };
+
+export type UserPasskey = {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
+
+export type FetchUserPasskeysOutcome =
+  | { kind: "ok"; value: UserPasskey[] }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type UserPasskeyRemovalChallenge = {
+  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
+};
+
+export type FetchUserPasskeyRemovalChallengeOutcome =
+  | { kind: "ok"; value: UserPasskeyRemovalChallenge }
+  | { kind: "not_found" }
+  | { kind: "own_account" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type RemoveUserPasskeyOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "own_account" }
+  | { kind: "authentication_failed" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
 
 export type FetchUsersOutcome =
   | { kind: "ok"; value: BranchUser[] }
@@ -106,6 +145,7 @@ function userFromWire(row: {
   email: string;
   version: number;
   role: { id: string; is_administrator: boolean; name: string | null };
+  passkey_count: number;
 }): BranchUser {
   return {
     id: row.id,
@@ -117,7 +157,17 @@ function userFromWire(row: {
       isAdministrator: row.role.is_administrator,
       name: row.role.name,
     },
+    passkeyCount: row.passkey_count,
   };
+}
+
+function userPasskeyFromRow(row: {
+  id: string;
+  name: string;
+  created_at: string;
+  last_used_at: string | null;
+}): UserPasskey {
+  return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
 }
 
 /** Lists the session branch's users with their role, Administrator only (`GET /users`). */
@@ -377,6 +427,118 @@ export async function changeUserEmail(
   }
   if (response.status === 403) {
     return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
+async function forbiddenOrOwnAccount(
+  response: Response,
+): Promise<{ kind: "forbidden" } | { kind: "own_account" }> {
+  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+  return body?.code === "own_account" ? { kind: "own_account" } : { kind: "forbidden" };
+}
+
+/** Lists one branch user's passkeys, oldest first, Administrator only (`GET /users/:id/passkeys`). */
+export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
+  let response: Response;
+  try {
+    response = await fetch(`/users/${id}/passkeys`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const body = (await response.json().catch(() => undefined)) as
+    | Array<Parameters<typeof userPasskeyFromRow>[0]>
+    | undefined;
+  if (!Array.isArray(body)) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: body.map(userPasskeyFromRow) };
+}
+
+/**
+ * Hands back a fresh reauthentication challenge for removing another user's passkey, against the
+ * Administrator's own passkeys, never the target's (`POST /users/:id/passkeys/removal-options`).
+ */
+export async function fetchUserPasskeyRemovalChallenge(
+  id: string,
+): Promise<FetchUserPasskeyRemovalChallengeOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/users/${id}/passkeys/removal-options`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return forbiddenOrOwnAccount(response);
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const body = (await response.json().catch(() => undefined)) as
+    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
+    | undefined;
+  if (!body) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
+}
+
+/**
+ * Verifies the reauthentication and removes the target user's named passkey, ending every
+ * backoffice session they have open (`POST /users/:id/passkeys/:passkeyId/remove`).
+ */
+export async function removeUserPasskey(
+  id: string,
+  passkeyId: string,
+  reauthentication: AuthenticationResponseJSON,
+): Promise<RemoveUserPasskeyOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/users/${id}/passkeys/${passkeyId}/remove`, { reauthentication });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 403) {
+    return forbiddenOrOwnAccount(response);
+  }
+  if (response.status === 401) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "authentication_failed"
+      ? { kind: "authentication_failed" }
+      : { kind: "unauthenticated" };
   }
   if (response.status === 429) {
     return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };

@@ -371,6 +371,7 @@ describe("POST /users", () => {
       email: "newhire@example.com",
       version: 1,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
+      passkey_count: 0,
     });
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, body.id));

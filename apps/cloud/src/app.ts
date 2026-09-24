@@ -20,6 +20,8 @@ import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
+import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
+import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
 import { registerUserReadRoute } from "./users/user-read-route.js";
 import type { UsersRouteOptions } from "./users/users-list-route.js";
 import { registerUsersListRoute } from "./users/users-list-route.js";
@@ -64,8 +66,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
    * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, `POST /users`,
-   * `POST /users/:id/email-change-options`, and `POST /users/:id/email`, the backoffice Users
-   * screen's read, create, and email-edit sides: every one is
+   * `POST /users/:id/email-change-options`, `POST /users/:id/email`, `GET /users/:id/passkeys`,
+   * `POST /users/:id/passkeys/removal-options`, and `POST /users/:id/passkeys/:passkeyId/remove`,
+   * the backoffice Users screen's read, create, email-edit, and passkey-removal sides: every one is
    * Administrator-only and scoped to the session's own branch, the same optional-feature-wiring
    * shape `session` uses above.
    */
@@ -133,6 +136,8 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUserReadRoute(app, options.users);
     registerUserCreationRoutes(app, options.users);
     registerUserEmailChangeRoutes(app, options.users);
+    registerUserPasskeysListRoute(app, options.users);
+    registerUserPasskeyRemovalRoutes(app, options.users);
   }
 
   const staticDir = options.staticDir;

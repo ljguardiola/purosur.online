@@ -83,7 +83,13 @@ export type AppProps = {
 type SessionState =
   | { kind: "loading" }
   | { kind: "signed-out"; notice: SignInOpeningNotice | undefined }
-  | { kind: "signed-in"; displayName: string; isAdministrator: boolean; expiresAt?: string };
+  | {
+      kind: "signed-in";
+      userId: string;
+      displayName: string;
+      isAdministrator: boolean;
+      expiresAt?: string;
+    };
 
 function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
   const page =
@@ -193,6 +199,7 @@ type SettingsAppProps = {
   section: SettingsAppSection;
   /** Only set for `section: "userDetail"`. */
   userDetailId?: string;
+  signedInUserId: string;
   displayName: string;
   isAdministrator: boolean;
   onSignedOut: () => void;
@@ -207,6 +214,7 @@ type SettingsAppProps = {
 function SettingsApp({
   section,
   userDetailId,
+  signedInUserId,
   displayName,
   isAdministrator,
   onSignedOut,
@@ -268,6 +276,7 @@ function SettingsApp({
       {section === "userDetail" && userDetailId !== undefined && (
         <UserDetailScreen
           userId={userDetailId}
+          signedInUserId={signedInUserId}
           isAdministrator={isAdministrator}
           onSessionEnded={onSessionEnded}
           services={userDetailScreenServices}
@@ -309,6 +318,7 @@ export function App({ help, services }: AppProps) {
         markSignedIn();
         setSession({
           kind: "signed-in",
+          userId: outcome.userId,
           displayName: outcome.displayName,
           isAdministrator: outcome.isAdministrator,
           ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
@@ -360,6 +370,7 @@ export function App({ help, services }: AppProps) {
         markSignedIn();
         setSession({
           kind: "signed-in",
+          userId: outcome.userId,
           displayName: outcome.displayName,
           isAdministrator: outcome.isAdministrator,
           ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
@@ -436,6 +447,7 @@ export function App({ help, services }: AppProps) {
               : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
+        signedInUserId={session.userId}
         displayName={session.displayName}
         isAdministrator={session.isAdministrator}
         onSignedOut={handleSignedOut}

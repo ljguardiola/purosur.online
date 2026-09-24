@@ -271,6 +271,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         roleId: role.id,
         roleName: role.name,
         roleIsAdministrator: role.isAdministrator,
+        passkeyCount: 0,
       }),
     );
   });
