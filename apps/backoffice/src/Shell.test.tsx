@@ -1,3 +1,4 @@
+import { Checkbox } from "@purosur/ui";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { Shell } from "./Shell";
@@ -106,4 +107,30 @@ test("pins the rail footer to the rail's foot, above its 16px bottom padding", a
     16,
     0,
   );
+});
+
+test("keeps the page itself from scrolling when the content overflows with checkboxes, scrolling only the content", async () => {
+  const labels = Array.from({ length: 80 }, (_, index) => `Permission ${index + 1}`);
+  const screen = await render(
+    <Shell
+      brandName="Puro Sur"
+      areaRailLabel="Áreas"
+      sectionColumnLabel="Secciones"
+      railAreas={<p>rail areas</p>}
+      railFooter={<p>rail footer</p>}
+      sectionColumn={<p>section content</p>}
+    >
+      {labels.map((label) => (
+        <Checkbox key={label} isSelected={false} onChange={() => {}}>
+          {label}
+        </Checkbox>
+      ))}
+    </Shell>,
+  );
+
+  const main = screen.getByRole("main").element();
+  expect(main.scrollHeight).toBeGreaterThan(main.clientHeight);
+
+  const page = document.documentElement;
+  expect(page.scrollHeight).toBeLessThanOrEqual(page.clientHeight);
 });
