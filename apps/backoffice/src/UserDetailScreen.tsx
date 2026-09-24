@@ -377,7 +377,6 @@ function EditEmailModal({
               setEmailError(validateEmail(value, EMAIL_ERRORS));
             }
           }}
-          helperText={modalMessages.emailHelper}
           required
           {...(emailError ? { invalid: true, errorMessage: emailError } : {})}
         />

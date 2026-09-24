@@ -166,6 +166,19 @@ test("opens the edit modal with Correo prefilled, and Cancelar closes it without
   expect(services.changeUserEmail).not.toHaveBeenCalled();
 });
 
+test("shows no helper line under Correo in the edit modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+
+  const dialog = await openEditModal(screen);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Correo/ }))
+    .not.toHaveAccessibleDescription();
+});
+
 test("changes the email through options, passkey and change, and shows it on the screen", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
