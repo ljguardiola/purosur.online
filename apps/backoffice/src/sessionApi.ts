@@ -12,7 +12,13 @@ const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
 const BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =
-  | { kind: "ok"; userId: string; displayName: string }
+  | { kind: "ok"; userId: string; displayName: string; expiresAt?: string }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type SessionStatusOutcome =
+  | { kind: "ok"; expiresAt: string }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
@@ -65,8 +71,45 @@ export async function fetchSession(): Promise<SessionOutcome> {
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json()) as { user_id: string; display_name: string };
-  return { kind: "ok", userId: body.user_id, displayName: body.display_name };
+  const body = (await response.json()) as {
+    user_id: string;
+    display_name: string;
+    expires_at?: string;
+  };
+  return {
+    kind: "ok",
+    userId: body.user_id,
+    displayName: body.display_name,
+    ...(body.expires_at !== undefined ? { expiresAt: body.expires_at } : {}),
+  };
+}
+
+/**
+ * Looks the session up the same way `fetchSession` does, but without touching `last_seen_at`
+ * (`GET /users/session/status`), so an open tab can probe for expiry, revocation or deactivation
+ * without keeping an idle session alive.
+ */
+export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/users/session/status");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 429) {
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+    };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const body = (await response.json()) as { expires_at: string };
+  return { kind: "ok", expiresAt: body.expires_at };
 }
 
 /** Hands back WebAuthn request options for a discoverable credential, for the browser's own passkey picker to resolve. */

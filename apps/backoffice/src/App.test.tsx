@@ -18,6 +18,9 @@ vi.mock("./sessionApi", () => ({
   fetchAuthenticationOptions: vi.fn(),
   authenticate: vi.fn(),
   signOut: vi.fn(),
+  // Never resolves: these tests run well under the watcher's 60s interval and never report a
+  // deadline or dispatch a visibility change, so this is never expected to be awaited.
+  checkSessionStatus: vi.fn(() => new Promise(() => {})),
 }));
 vi.mock("./passkeyApi", () => ({
   fetchPasskeys: vi.fn(() => new Promise(() => {})),

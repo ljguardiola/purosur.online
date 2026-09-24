@@ -1,6 +1,12 @@
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { authenticate, fetchAuthenticationOptions, fetchSession, signOut } from "./sessionApi";
+import {
+  authenticate,
+  checkSessionStatus,
+  fetchAuthenticationOptions,
+  fetchSession,
+  signOut,
+} from "./sessionApi";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -54,6 +60,66 @@ test("fetchSession falls back to the one-hour rolling window when Retry-After is
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
 
   await expect(fetchSession()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 60 * 60,
+  });
+});
+
+test("fetchSession carries the session's deadline so the caller can schedule its next check", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      user_id: "user-1",
+      display_name: "Lucas Guardiola",
+      expires_at: "2026-09-23T12:30:00.000Z",
+    }),
+  );
+
+  await expect(fetchSession()).resolves.toEqual({
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    expiresAt: "2026-09-23T12:30:00.000Z",
+  });
+});
+
+test("checkSessionStatus returns the session's deadline on 200, without touching activity", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { expires_at: "2026-09-23T12:30:00.000Z" }));
+
+  const outcome = await checkSessionStatus();
+
+  expect(outcome).toEqual({ kind: "ok", expiresAt: "2026-09-23T12:30:00.000Z" });
+  expect(fetch).toHaveBeenCalledWith("/users/session/status");
+});
+
+test("checkSessionStatus reports unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("checkSessionStatus reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(checkSessionStatus()).resolves.toEqual({ kind: "failed" });
+});
+
+test("checkSessionStatus reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "120" }),
+  );
+
+  await expect(checkSessionStatus()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+});
+
+test("checkSessionStatus falls back to the one-hour rolling window when Retry-After is missing on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, { code: "rate_limited" }));
+
+  await expect(checkSessionStatus()).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 60 * 60,
   });
