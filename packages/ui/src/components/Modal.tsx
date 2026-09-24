@@ -156,7 +156,9 @@ export function Modal(props: ModalProps) {
             )}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
-          <div className="flex shrink-0 items-center gap-3 border-t border-line bg-surface-bone py-4 px-6">
+          {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
+              square corners over the panel's rounded ones. */}
+          <div className="flex shrink-0 items-center gap-3 rounded-b-[0.75rem] border-t border-line bg-surface-bone py-4 px-6">
             {footer}
           </div>
         </AriaDialog>
