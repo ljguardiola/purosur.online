@@ -1135,6 +1135,33 @@ const sortableColumns = [
   },
 ] as const;
 
+test("shows the hand cursor on the sortable header button and on each row action", async () => {
+  const actionColumns = [
+    { key: "name", title: "Producto", render: (p: Product) => p.name },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: "Actions",
+      actions: [() => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    },
+  ] as const;
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={sortableColumns}
+      sort={{ column: "stock", direction: "descending" }}
+      onSortChange={() => {}}
+    />,
+  );
+  const header = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
+  expect(getComputedStyle(header).cursor).toBe("pointer");
+  await screen.unmount();
+
+  const actionsScreen = await render(<Table {...commonProps} columns={actionColumns} />);
+  const edit = actionsScreen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
+  expect(getComputedStyle(edit).cursor).toBe("pointer");
+});
+
 test("renders an unsorted sortable column with a 12px chevrons-up-down icon, both in secondary text", async () => {
   const screen = await render(
     <Table

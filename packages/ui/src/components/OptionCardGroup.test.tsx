@@ -84,6 +84,16 @@ test("renders the group as a single row of equally wide cards, 12px apart", asyn
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("shows the hand cursor on each card", async () => {
+  const screen = await render(<OptionCardGroup {...baseProps()} />);
+
+  for (const option of options) {
+    expect(getComputedStyle(radioCard(screen, option.title)).cursor).toBe("pointer");
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("renders each card's icon, title and help text", async () => {
   const screen = await render(<OptionCardGroup {...baseProps()} />);
 

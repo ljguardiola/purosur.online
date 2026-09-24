@@ -83,7 +83,9 @@ const pageButtonClassName =
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
-const currentPageClassName = "bg-brand-blue-ui font-bold text-surface-white";
+// Pressing the current page does nothing, so it keeps the arrow the package's base rule gives
+// only to marked-disabled buttons; marking it disabled would announce the current page as unavailable.
+const currentPageClassName = "cursor-default bg-brand-blue-ui font-bold text-surface-white";
 // An inset shadow instead of a real border: a real border on only one of these two class strings
 // would make that button's own box 2px wider than the other's, shifting every button's width as
 // the current page moves.
