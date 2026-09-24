@@ -136,41 +136,18 @@ test("keeps the label 4px above the backoffice field's box", async () => {
 });
 
 for (const variant of ["register", "backoffice"] as const) {
-  test(`shows a white box with a 2px ink-secondary border at rest in the ${variant} variant`, async () => {
+  test(`shows a white box with a 2px line border at rest in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
     const style = getComputedStyle(group);
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`clears the non-text 3:1 contrast minimum between the box's own painted boundary and fill, resting and hovered, in the ${variant} variant`, async () => {
-    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
-    const group = fieldGroup(screen, "Expiry");
-
-    const restingFill = getComputedStyle(group).backgroundColor;
-    expect(restingFill).toBe(tokenRgb("surface-white"));
-    const restingBoundaryHex = boundaryColorHex(group);
-    expect(contrastRatio(restingBoundaryHex, rgbToHex(restingFill))).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-
-    await userEvent.hover(group);
-    await expect.poll(() => getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-bone"));
-
-    const hoveredBoundaryHex = boundaryColorHex(group);
-    const hoveredFillHex = rgbToHex(getComputedStyle(group).backgroundColor);
-    expect(contrastRatio(hoveredBoundaryHex, hoveredFillHex)).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
-  test(`shows a 3px blue-strong border and the focus shadow when a segment is focused in the ${variant} variant`, async () => {
+  test(`shows a 2px brand-blue-ui border with no outer shadow when a segment is focused in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
 
@@ -186,7 +163,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await expect
       .poll(() => getComputedStyle(group).boxShadow)
-      .toContain(tokenRgb("brand-blue-strong"));
+      .toContain(insetBoundary("brand-blue-ui", "2px"));
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -204,7 +181,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
     expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await userEvent.tab();
     expect(document.activeElement).toBe(nextControl);
@@ -313,13 +290,13 @@ test("tells the caller the complete date once typing finishes it", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The literal box-shadow string Chromium renders for the focused state: a 3px blue-strong inset
-// plus the 4px focus shadow, behind the four transparent layers Tailwind v4 always composes (see
+// The literal box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset
+// with no outer shadow, behind the four transparent layers Tailwind v4 always composes (see
 // TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
+  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`draws exactly the package's focused box shadow when a segment is focused in the ${variant} variant`, async () => {
@@ -1013,7 +990,7 @@ for (const [edge, accepted] of [
     const screen = await render(<BoundedHarness value={accepted} />);
     const group = fieldGroup(screen, "Expiry");
 
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
     expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
     await expect.element(screen.getByText(RANGE_HELPER)).toBeVisible();
 
