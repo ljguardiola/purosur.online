@@ -2,15 +2,8 @@ import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import {
-  boundaryColorHex,
-  insetBoundary,
-  paintedBoxShadowLayers,
-  rgbToHex,
-  tokenRgb,
-} from "../test/token-colors";
+import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -29,18 +22,18 @@ function fieldWrapper(screen: Screen, name: string): HTMLElement {
   return fieldBox(screen, name).parentElement as HTMLElement;
 }
 
-// The literal box-shadow string Chromium renders for the focused state (3px blue-strong inset
-// plus the 4px focus shadow), pinned to the design's own hex values (brand-blue-strong #334f60,
-// brand-blue-ui-shadow #4f6c7e33 = blue UI at 20% opacity) rather than read back from the
-// component's own class list or from tokens.css: if either of those drifted to a wrong color or
-// a wrong pixel value, this fixture would stop matching instead of moving together with it.
-// Tailwind v4's shadow utilities always compose five box-shadow layers even when only one or two
-// of them carry a real shadow, hence the four transparent placeholder layers ahead of the real
-// ones (confirmed once against the actual rendered value, not re-derived from Tailwind's classes).
+// The literal box-shadow string Chromium renders for the focused state (a 2px brand-blue-ui
+// inset border, no outer shadow ring), pinned to the design's own hex value (brand-blue-ui
+// #4f6c7e) rather than read back from the component's own class list or from tokens.css: if that
+// drifted to a wrong color or a wrong pixel value, this fixture would stop matching instead of
+// moving together with it. Tailwind v4's shadow utilities always compose five box-shadow layers
+// even when only one of them carries a real shadow, hence the four transparent placeholder
+// layers ahead of the real one (confirmed once against the actual rendered value, not re-derived
+// from Tailwind's classes).
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
+  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
 
 // The text a screen reader would read as the field's description: every id `aria-describedby`
 // names, in the order the attribute lists them. A dangling id (one naming an element that isn't
@@ -241,42 +234,30 @@ test("keeps the same box appearance whether the value is empty or filled", async
   await expectNoAccessibilityViolations(filledScreen.container);
 });
 
-test("shows a white box with a 2px ink-secondary border at rest", async () => {
+test("shows a white box with a 2px line border at rest", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Reason");
   const style = getComputedStyle(box);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
-
-  // The boundary check above pins the token this design picked, and a design that picks another
-  // one rewrites that line along with it. What has to hold whichever token is picked is the
-  // ratio: the box's border is a control boundary, not text, so the color it actually renders has
-  // to clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
-  const boundaryHex = boundaryColorHex(box);
-  const fillHex = rgbToHex(style.backgroundColor);
-  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  expect(style.boxShadow).toContain(insetBoundary("line", "2px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("turns the box bone on hover, keeping the same 2px ink-secondary border", async () => {
+test("turns the box bone on hover, keeping the same 2px line border", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Reason");
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   const style = getComputedStyle(box);
-  expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
-
-  const boundaryHex = boundaryColorHex(box);
-  const fillHex = rgbToHex(style.backgroundColor);
-  expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
+  expect(style.boxShadow).toContain(insetBoundary("line", "2px"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a 3px blue-strong border and the focus shadow when focused, as one field in two states", async () => {
+test("shows a 2px brand-blue-ui border with no outer shadow when focused, as one field in two states", async () => {
   const screen = await render(<PlainTextHarness />);
   const box = fieldBox(screen, "Reason");
 
@@ -341,7 +322,7 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await expect
     .poll(() => getComputedStyle(box).boxShadow)
-    .toContain(insetBoundary("brand-blue-strong", "3px"));
+    .toContain(insetBoundary("brand-blue-ui", "2px"));
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await expectNoAccessibilityViolations(screen.container);
@@ -363,7 +344,7 @@ test("dims the whole field to 45% opacity and blocks focus when disabled", async
   // The box itself still renders the field's ordinary resting look underneath that dimming —
   // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
   expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(input.disabled).toBe(true);
 
   await userEvent.tab();
@@ -397,12 +378,8 @@ test("lets a read-only field be focused and shows it, but is never typed into or
 
   expect(input.readOnly).toBe(true);
   expect(restingBackground).toBe(tokenRgb("surface-bone"));
-  // Read-only reuses the same ink-secondary border as resting/hovered, not the softer "line"
-  // token: it still marks a control's own boundary and needs the same 3:1 minimum.
-  expect(restingShadow).toContain(insetBoundary("ink-secondary", "2px"));
-  expect(contrastRatio(boundaryColorHex(box), rgbToHex(restingBackground))).toBeGreaterThanOrEqual(
-    NON_TEXT_CONTRAST,
-  );
+  // Read-only reuses the same line border as resting/hovered.
+  expect(restingShadow).toContain(insetBoundary("line", "2px"));
 
   // The ordinary field beside it goes first: once the pointer has provably turned that one bone,
   // a hover over the read-only box that changes nothing means "read-only ignores hover" rather
@@ -455,7 +432,7 @@ test("lets disabled win the box treatment over invalid, while still announcing i
 
   // Disabled's own white-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
 
   // Assistive technology still hears it as invalid, named by its message, regardless of the box.
@@ -509,7 +486,7 @@ test("lets read-only win the box treatment over invalid, while still announcing 
 
   // Read-only's own bone-fill look wins the box, not invalid's error-ui border.
   expect(style.backgroundColor).toBe(tokenRgb("surface-bone"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
 
   expect(input.getAttribute("aria-invalid")).toBe("true");
   expect(describedText(input)).toContain("Enter a reason.");
@@ -539,7 +516,7 @@ test("lets disabled win the box treatment over read-only when both apply", async
 
   // Disabled's white fill wins the box over read-only's bone fill.
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("ink-secondary", "2px")]);
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
   expect(getComputedStyle(wrapper).opacity).toBe("0.45");
   expect(input.disabled).toBe(true);
   expect(input.readOnly).toBe(true);

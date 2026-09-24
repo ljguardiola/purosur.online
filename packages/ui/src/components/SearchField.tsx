@@ -46,11 +46,11 @@ const registerIconWrapperClassName =
 const backofficeIconWrapperClassName =
   "inline-flex size-[1.125rem] shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full";
 
-// The box's own border and shadow per interaction state, copied verbatim from TextField.tsx's
-// own boxStateClassName (see the comment there for why an inset box-shadow stands in for a real
-// border, and why hover is suppressed once focused regardless of stylesheet order). A disabled
-// field keeps its resting look on the box itself; the wrapper's opacity is what communicates
-// "disabled", so neither hover nor focus treatment applies here while it is set.
+// The box's own border and shadow per interaction state, using the same inset-box-shadow
+// technique as TextField.tsx's own boxStateClassName (see the comment there for why it stands in
+// for a real border, and why hover is suppressed once focused regardless of stylesheet order). A
+// disabled field keeps its resting look on the box itself; the wrapper's opacity is what
+// communicates "disabled", so neither hover nor focus treatment applies here while it is set.
 function boxStateClassName(disabled: boolean): string {
   if (disabled) {
     return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";

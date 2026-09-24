@@ -86,45 +86,40 @@ const unitSuffixClassName = "shrink-0 text-xl font-normal text-ink-secondary";
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// The box's own border and shadow per interaction state. A real border going from 2px to 3px on
-// focus would resize the box, so every state is drawn with an inset box-shadow instead (see
-// Checkbox.tsx's own boxClassName for the same technique) — it never participates in layout.
+// The box's own border and shadow per interaction state, drawn as an inset box-shadow rather
+// than a real border (see Checkbox.tsx's own boxClassName for the same technique) so it never
+// participates in layout.
 //
-// Resting, hovered and read-only all share the same 2px ink-secondary border — the same choice
-// Checkbox.tsx already makes for its own unchecked box, and for the same reason: a control's own
-// boundary needs the WCAG 3:1 non-text contrast minimum, which the softer, decorative "line" and
-// "blue-soft" tokens fall short of (ink-secondary's own margin is checked against a real rendered
-// element on white in RadioGroup.test.tsx and Toggle.test.tsx, and on bone in Checkbox.test.tsx's
-// hovered box and this field's own hovered and read-only tests).
-// Those two tokens stay reserved for dividers and container edges, never this field's own boundary.
-// Only the fill tells resting from hovered apart, following the package's own white-hovers-to-bone
-// rule (see Checkbox.tsx and OptionCardGroup.tsx). A read-only field doesn't react to hover — its
-// value can't be edited — but it is still in the tab order, and the box and input both suppress
-// the browser's own focus ring, so it draws the package's focused border like any other reachable
-// field: a keyboard user would otherwise lose track of where they are mid-form. A disabled field
-// can't be reached at all, so it needs neither. `hover:not-focus-within:` keeps the hovered fill
-// from ever showing once the field is focused, regardless of stylesheet order.
+// Resting, hovered and read-only all share the same 2px "line" border, the design's own token for
+// this boundary. Only the fill tells resting from hovered apart, following the package's own
+// white-hovers-to-bone rule (see Checkbox.tsx and OptionCardGroup.tsx). A read-only field doesn't
+// react to hover — its value can't be edited — but it is still in the tab order, and the box and
+// input both suppress the browser's own focus ring, so it draws the package's focused border like
+// any other reachable field: a keyboard user would otherwise lose track of where they are
+// mid-form. A disabled field can't be reached at all, so it needs neither. Focus draws only the
+// 2px brand-blue-ui border, with no outer shadow ring. `hover:not-focus-within:` keeps the hovered
+// fill from ever showing once the field is focused, regardless of stylesheet order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
+    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
   }
   if (readOnly) {
     return (
-      "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
-      "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+      "bg-surface-bone shadow-[inset_0_0_0_2px_var(--color-line)] " +
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
     );
   }
   if (invalid) {
     return (
       "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
       "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
+    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
     "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
   );
 }
 
