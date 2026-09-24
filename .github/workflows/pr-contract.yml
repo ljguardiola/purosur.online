@@ -12,8 +12,8 @@ permissions:
 jobs:
   pr-contract:
     name: pr-contract
-    # Keyed on the pull request's author, not the event's actor: a person reopening or updating a
-    # Dependabot pull request would otherwise run its third-party install scripts here.
+    # Keyed on the pull request's author, not the event's actor, like Verify: a Dependabot pull
+    # request's checkout stays off the own runners whoever reopens or updates it.
     runs-on: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'ubuntu-24.04' || fromJSON(vars.LINUX_RUNNER || '"ubuntu-24.04"') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
