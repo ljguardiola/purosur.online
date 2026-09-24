@@ -166,8 +166,6 @@ export function Modal(props: ModalProps) {
               </AriaButton>
             )}
           </div>
-          {/* With nothing to show, the header's border meets the footer's, as the design draws
-              it, instead of leaving an empty padded band between them. */}
           {hasContent(children) && (
             <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
           )}
