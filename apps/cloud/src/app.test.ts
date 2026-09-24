@@ -741,9 +741,22 @@ describe("wiring the passkeys routes", () => {
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
+const productionStaticDirs: string[] = [];
+
+afterAll(() => {
+  for (const dir of productionStaticDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** Wired exactly as production is, including the backoffice's static build. */
 function fullyWiredApp() {
+  const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-"));
+  productionStaticDirs.push(staticDir);
+  writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
   return buildApp({
     version: "abc1234",
+    staticDir,
     recovery: {
       db: testDatabase.db,
       jobQueue: { async enqueueRecoveryRequest() {} },
@@ -757,8 +770,9 @@ function fullyWiredApp() {
 }
 
 describe("the route access inventory", () => {
-  it("declares exactly one access level for every registered route", () => {
+  it("declares exactly one access level for every registered route", async () => {
     const app = fullyWiredApp();
+    await app.ready();
 
     expect(app.routeAccessInventory()).toEqual([
       { method: "GET", url: "/health", access: PUBLIC_ACCESS },
@@ -798,11 +812,14 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles/:id/edit-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
   });
 
-  it("never registers a route with no declared access", () => {
+  it("never registers a route with no declared access", async () => {
     const app = fullyWiredApp();
+    await app.ready();
 
     for (const route of app.routeAccessInventory()) {
       expect(route.access, `${route.method} ${route.url} has no declared access`).toBeDefined();

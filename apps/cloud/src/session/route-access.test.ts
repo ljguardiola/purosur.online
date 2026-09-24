@@ -396,15 +396,43 @@ describe("the route access inventory", () => {
     await inventoryApp.close();
   });
 
-  it("reports a route with no declared access as undefined", async () => {
+  it("keeps a HEAD route registered on its own or alongside a GET", async () => {
     const inventoryApp = Fastify();
     registerRouteAccess(inventoryApp);
-    inventoryApp.get("/undeclared", async () => "ok");
+    inventoryApp.head("/alone", { config: { access: PUBLIC_ACCESS } }, async () => "ok");
+    inventoryApp.route({
+      method: ["HEAD", "GET"],
+      url: "/both",
+      config: { access: PUBLIC_ACCESS },
+      handler: async () => "ok",
+    });
 
     expect(inventoryApp.routeAccessInventory()).toEqual([
-      { method: "GET", url: "/undeclared", access: undefined },
+      { method: "HEAD", url: "/alone", access: PUBLIC_ACCESS },
+      { method: "HEAD", url: "/both", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/both", access: PUBLIC_ACCESS },
     ]);
 
     await inventoryApp.close();
+  });
+
+  it("reports a GET with no declared access, and the HEAD Fastify mirrors from it, as undefined", async () => {
+    const inventoryApp = Fastify();
+    registerRouteAccess(inventoryApp);
+    inventoryApp.get("/undeclared", async () => "ok");
+    await inventoryApp.ready();
+
+    expect(inventoryApp.routeAccessInventory()).toEqual([
+      { method: "GET", url: "/undeclared", access: undefined },
+      { method: "HEAD", url: "/undeclared", access: undefined },
+    ]);
+
+    await inventoryApp.close();
+  });
+
+  it("enforces the mirrored HEAD of a GET the same as the GET", async () => {
+    const response = await app.inject({ method: "HEAD", url: "/test-only/open-session" });
+
+    expect(response.statusCode).toBe(401);
   });
 });

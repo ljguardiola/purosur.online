@@ -228,6 +228,7 @@ export function registerRouteAccess(app: FastifyInstance): void {
   }
 
   const registered: { method: string; url: string; routeOptions: RouteOptions }[] = [];
+  const declaredGetConfigs = new Map<string, RouteOptions["config"]>();
 
   app.addHook("onRoute", (routeOptions) => {
     const access = declaredAccessOf(routeOptions);
@@ -246,10 +247,19 @@ export function registerRouteAccess(app: FastifyInstance): void {
     const methods = Array.isArray(routeOptions.method)
       ? routeOptions.method
       : [routeOptions.method];
+    // Fastify registers a GET's mirrored HEAD right after it, from the same options, so it shares
+    // the GET's very `config` object; a HEAD registered any other way is recorded on its own.
+    const mirrorsDeclaredGet =
+      routeOptions.method === "HEAD" &&
+      access !== undefined &&
+      declaredGetConfigs.get(routeOptions.url) === routeOptions.config;
+    if (mirrorsDeclaredGet) {
+      return;
+    }
+    if (access !== undefined && methods.includes("GET")) {
+      declaredGetConfigs.set(routeOptions.url, routeOptions.config);
+    }
     for (const method of methods) {
-      if (method === "HEAD") {
-        continue;
-      }
       registered.push({ method, url: routeOptions.url, routeOptions });
     }
   });
