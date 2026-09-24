@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_CATALOG, PERMISSION_KEYS } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -111,6 +111,46 @@ test("pre-fills every catalog permission and the Administrator's own display nam
   await expect
     .element(screen.getByRole("heading", { name: "Backups 2 de 2", level: 2 }))
     .toBeVisible();
+});
+
+test("duplicating Administrator saves exactly the one alert view its form shows", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-admin/duplicate");
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator, stock] });
+  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok", value: createdRole });
+  const screen = await renderScreen(services, () => {}, "role-admin");
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Administrador");
+  await expect.element(screen.getByRole("radio", { name: "Ver todas las alertas" })).toBeChecked();
+  const alertKeys: string[] = PERMISSION_CATALOG.filter(
+    (definition) => definition.area === "alerts",
+  ).map((definition) => definition.key);
+  const shownAlertCount = 2;
+  await expect
+    .element(
+      screen.getByRole("heading", {
+        name: `Alertas ${shownAlertCount} de ${alertKeys.length}`,
+        level: 2,
+      }),
+    )
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
+  const [payload] = vi.mocked(services.createRole).mock.calls[0] ?? [];
+  expect(payload?.permissionKeys).toContain("view_all_alerts");
+  expect(payload?.permissionKeys).not.toContain("view_branch_alerts");
+  expect(payload?.permissionKeys.filter((key) => alertKeys.includes(key))).toHaveLength(
+    shownAlertCount,
+  );
+  window.history.pushState(null, "", "/");
 });
 
 test("shows a not-found state when the source role id isn't in the list", async () => {

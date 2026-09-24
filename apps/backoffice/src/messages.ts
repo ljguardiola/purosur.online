@@ -386,7 +386,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // Shared by the New and Edit role pages: the one role form they both render.
+      // Shared by the New, Edit and Duplicate role pages: the one role form they all render.
       form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
@@ -405,51 +405,40 @@ export const messages = defineMessages("es-AR", (f) => ({
         dismissAlertsOption: DISMISS_ALERTS_LABEL,
         reauthNotice: "Se pide tu passkey para confirmar.",
       },
-      newRole: {
+      // Shared by every role page (New, Edit and Duplicate); a save that's rate limited shows the
+      // Roles area's own rateLimitedTitle/rateLimitedDetail above.
+      rolePage: {
         breadcrumb: "Configuración · Roles",
-        heading: "Nuevo rol",
         cancel: CANCEL_LABEL,
-        save: "Guardar el rol",
-        attemptFailedTitle: "No se pudo crear el rol",
         attemptFailedDetail: "Probá de nuevo.",
-        rateLimitedTitle: "Demasiadas solicitudes",
-        rateLimitedDetail: (params: { minutes: number }) =>
-          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
-      editRole: {
-        breadcrumb: "Configuración · Roles",
-        heading: "Editar rol",
+      // Shared by the Edit and Duplicate role pages, which both load a role before showing its form.
+      roleLoad: {
         loading: "Cargando…",
         notFoundTitle: "No encontramos este rol",
         loadErrorTitle: "No pudimos abrir este rol",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
-        cancel: CANCEL_LABEL,
+      },
+      // Shared by the New and Duplicate role pages, which both save by creating a role.
+      roleCreation: {
+        save: "Guardar el rol",
+        attemptFailedTitle: "No se pudo crear el rol",
+      },
+      newRole: {
+        heading: "Nuevo rol",
+      },
+      editRole: {
+        heading: "Editar rol",
         save: "Guardar los cambios",
         attemptFailedTitle: "No se pudo guardar el rol",
-        attemptFailedDetail: "Probá de nuevo.",
-        rateLimitedTitle: "Demasiadas solicitudes",
-        rateLimitedDetail: (params: { minutes: number }) =>
-          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
         staleVersionTitle: "Este rol cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
       },
       duplicateRole: {
-        breadcrumb: "Configuración · Roles",
         heading: "Duplicar rol",
         nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
-        loading: "Cargando…",
-        notFoundTitle: "No encontramos este rol",
-        loadErrorTitle: "No pudimos abrir este rol",
-        loadErrorDetail: "Probá de nuevo en unos minutos.",
-        cancel: CANCEL_LABEL,
-        save: "Guardar el rol",
-        attemptFailedTitle: "No se pudo crear el rol",
-        attemptFailedDetail: "Probá de nuevo.",
-        rateLimitedTitle: "Demasiadas solicitudes",
-        rateLimitedDetail: (params: { minutes: number }) =>
-          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
   },

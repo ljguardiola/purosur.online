@@ -28,41 +28,38 @@ export function matchUserDetailPath(path: string): string | undefined {
 }
 
 const ROLE_EDIT_SUFFIX = "/edit";
+const ROLE_DUPLICATE_SUFFIX = "/duplicate";
+
+/**
+ * Extracts the id from a `/settings/roles/:id<suffix>` path, distinguishing it from the list itself,
+ * from `NEW_ROLE_PATH` (`/settings/roles/new`) and from the role's paths under any other suffix,
+ * which all share the same prefix.
+ */
+function matchRolePathWithSuffix(path: string, suffix: string): string | undefined {
+  const prefix = `${ROLES_LIST_PATH}/`;
+  if (!path.startsWith(prefix) || !path.endsWith(suffix)) {
+    return undefined;
+  }
+  const rest = path.slice(prefix.length, -suffix.length);
+  return rest && !rest.includes("/") ? rest : undefined;
+}
 
 /** The Roles list row action's own target: one role's edit screen. */
 export function roleEditPath(id: string): string {
   return `${ROLES_LIST_PATH}/${id}${ROLE_EDIT_SUFFIX}`;
 }
 
-/**
- * Extracts the id from a `/settings/roles/:id/edit` path, distinguishing it from the list itself
- * and from `NEW_ROLE_PATH` (`/settings/roles/new`), which share the same prefix.
- */
+/** Extracts the id from a `/settings/roles/:id/edit` path. */
 export function matchRoleEditPath(path: string): string | undefined {
-  const prefix = `${ROLES_LIST_PATH}/`;
-  if (!path.startsWith(prefix) || !path.endsWith(ROLE_EDIT_SUFFIX)) {
-    return undefined;
-  }
-  const rest = path.slice(prefix.length, -ROLE_EDIT_SUFFIX.length);
-  return rest && !rest.includes("/") ? rest : undefined;
+  return matchRolePathWithSuffix(path, ROLE_EDIT_SUFFIX);
 }
-
-const ROLE_DUPLICATE_SUFFIX = "/duplicate";
 
 /** The Roles list row action's own target: a new role's screen, pre-filled from this one. */
 export function roleDuplicatePath(id: string): string {
   return `${ROLES_LIST_PATH}/${id}${ROLE_DUPLICATE_SUFFIX}`;
 }
 
-/**
- * Extracts the id from a `/settings/roles/:id/duplicate` path, distinguishing it from the list
- * itself and from the role's own edit path, which share the same prefix.
- */
+/** Extracts the id from a `/settings/roles/:id/duplicate` path. */
 export function matchRoleDuplicatePath(path: string): string | undefined {
-  const prefix = `${ROLES_LIST_PATH}/`;
-  if (!path.startsWith(prefix) || !path.endsWith(ROLE_DUPLICATE_SUFFIX)) {
-    return undefined;
-  }
-  const rest = path.slice(prefix.length, -ROLE_DUPLICATE_SUFFIX.length);
-  return rest && !rest.includes("/") ? rest : undefined;
+  return matchRolePathWithSuffix(path, ROLE_DUPLICATE_SUFFIX);
 }

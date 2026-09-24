@@ -7,6 +7,7 @@ import {
 import { Checkbox, RadioGroup, TextField } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { messages } from "./messages";
+import type { CreateRoleFieldError, EditRoleFieldError } from "./rolesApi";
 
 const rolesMessages = messages.settings.roles;
 const formMessages = rolesMessages.form;
@@ -59,6 +60,13 @@ export function validateRoleName(value: string): string | undefined {
     return formMessages.nameReserved;
   }
   return undefined;
+}
+
+/** The name field's own error for a save the server rejected on that field; none for any other. */
+export function roleFieldErrorMessage(
+  field: CreateRoleFieldError | EditRoleFieldError,
+): string | undefined {
+  return field === "name" ? formMessages.nameFieldError : undefined;
 }
 
 function PermissionRegisterBadge({
@@ -171,7 +179,7 @@ export type RoleFormProps = {
 };
 
 /**
- * The role form New and Edit both render: the name field, the "Referencias" block, every
+ * The role form New, Edit and Duplicate all render: the name field, the "Referencias" block, every
  * permission area grouped into the design's three columns (with a running "N de M" count), the
  * Alertas area's radio and manual-dismiss checkbox, and the passkey reauthentication notice. Fully
  * controlled: the caller owns `name` and `selected`, so it decides what happens next (validation,
