@@ -38,11 +38,16 @@ type TableUnsortableDataColumn<T> = TableColumnCommon<T> & {
 type TableDataColumn<T> = TableSortableDataColumn<T> | TableUnsortableDataColumn<T>;
 
 // The same shape IconButtonProps takes, minus the parts Table already owns (size, background).
-export type TableAction<T> = (item: T) => {
-  icon: ButtonIcon;
-  "aria-label": string;
-  onPress: () => void;
-};
+// Returning undefined for a specific item renders no button at all in that row's slot (not a
+// disabled one), for an action that does not apply to every row (e.g. no edit action on a fixed,
+// uneditable row).
+export type TableAction<T> = (item: T) =>
+  | {
+      icon: ButtonIcon;
+      "aria-label": string;
+      onPress: () => void;
+    }
+  | undefined;
 
 // The actions column's header has no visible title, so assistive technology needs srLabel
 // instead. `actions` both renders every IconButton and determines the column's own width (see
@@ -415,7 +420,11 @@ export function TableCellText({ children, detail }: TableCellTextProps) {
 // a label that changes with the item's own state (or two actions that happen to share one)
 // updates this same button in place instead of unmounting and remounting a new one.
 function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: T }) {
-  const { icon, "aria-label": ariaLabel, onPress } = action(item);
+  const descriptor = action(item);
+  if (!descriptor) {
+    return null;
+  }
+  const { icon, "aria-label": ariaLabel, onPress } = descriptor;
   return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;
 }
 

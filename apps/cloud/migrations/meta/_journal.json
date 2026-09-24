@@ -127,6 +127,13 @@
       "when": 1790278851649,
       "tag": "0017_role_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790280717262,
+      "tag": "0018_roles_version_and_edit_challenge_kind",
+      "breakpoints": true
     }
   ]
 }

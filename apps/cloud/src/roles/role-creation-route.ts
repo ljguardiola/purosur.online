@@ -13,7 +13,13 @@ import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthenticat
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
 import { requireOpenSession } from "../session/open-session.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
-import { ALERT_VIEW_PERMISSION_KEYS, isPermissionKey } from "./permission-catalog.js";
+import {
+  type RoleFieldValidationFailure,
+  readRoleName,
+  readRolePermissionKeys,
+  roleNameValidationFailure,
+  rolePermissionsValidationFailure,
+} from "./role-validation.js";
 import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
 
@@ -26,26 +32,25 @@ const AUTHENTICATION_FAILED_RESPONSE = {
   message: "the passkey reauthentication could not be verified",
 } as const;
 
-const ROLE_NAME_TAKEN_RESPONSE = {
+export const ROLE_NAME_TAKEN_RESPONSE = {
   code: "role_name_taken",
   message: "a role with that name already exists",
 } as const;
 
-const ADMINISTRATOR_NAME = "administrador";
-
 const UNIQUE_VIOLATION = "23505";
 const ROLE_NAME_UNIQUE_INDEX = "roles_name_lower_key";
 
-class RoleNameTaken extends Error {}
+export class RoleNameTaken extends Error {}
 
 /**
  * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on the
  * case-insensitive `roles.name` index. postgres-js, the production driver, names the index
  * `constraint_name`; PGlite, which the unit tests run on, names it `constraint`. The transaction
  * below already checks for a taken name itself, so this is only the backstop for a name that lands
- * concurrently between that check and the insert.
+ * concurrently between that check and the insert; `role-edit-route.ts` reuses this same mapping
+ * for its own edit transaction.
  */
-function isRoleNameUniqueViolation(error: unknown): boolean {
+export function isRoleNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
     const { code, constraint, constraint_name } = current as {
@@ -62,31 +67,9 @@ function isRoleNameUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-interface ValidationFailure {
-  field: "name" | "permissions";
-  message: string;
-}
-
 interface CreationRequestBody {
   name: string;
   permissionKeys: string[];
-}
-
-function readName(body: unknown): string | undefined {
-  const raw = (body as { name?: unknown } | undefined)?.name;
-  if (typeof raw !== "string") {
-    return undefined;
-  }
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function readPermissionKeys(body: unknown): string[] | undefined {
-  const raw = (body as { permissions?: unknown } | undefined)?.permissions;
-  if (!Array.isArray(raw) || !raw.every((entry): entry is string => typeof entry === "string")) {
-    return undefined;
-  }
-  return raw;
 }
 
 function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
@@ -96,36 +79,21 @@ function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
   return assertion && typeof assertion.id === "string" ? assertion : undefined;
 }
 
-function permissionsValidationFailure(permissionKeys: string[]): ValidationFailure | undefined {
-  if (!permissionKeys.every(isPermissionKey)) {
-    return { field: "permissions", message: "permissions must all be known permission keys" };
+function readCreationBody(body: unknown): CreationRequestBody | RoleFieldValidationFailure {
+  const name = readRoleName(body);
+  const nameFailure = roleNameValidationFailure(name);
+  if (nameFailure) {
+    return nameFailure;
   }
-  if (new Set(permissionKeys).size !== permissionKeys.length) {
-    return { field: "permissions", message: "permissions must not repeat a key" };
-  }
-  const [firstAlertView, secondAlertView] = ALERT_VIEW_PERMISSION_KEYS;
-  if (permissionKeys.includes(firstAlertView) && permissionKeys.includes(secondAlertView)) {
-    return {
-      field: "permissions",
-      message: "a role can hold at most one of the alert-view permissions",
-    };
-  }
-  return undefined;
-}
-
-function readCreationBody(body: unknown): CreationRequestBody | ValidationFailure {
-  const name = readName(body);
   if (!name) {
+    // Unreachable: `roleNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
-  if (name.toLowerCase() === ADMINISTRATOR_NAME) {
-    return { field: "name", message: "name must not be the Administrator role's own name" };
-  }
-  const permissionKeys = readPermissionKeys(body);
+  const permissionKeys = readRolePermissionKeys(body);
   if (!permissionKeys) {
     return { field: "permissions", message: "permissions must be an array of permission keys" };
   }
-  const permissionsFailure = permissionsValidationFailure(permissionKeys);
+  const permissionsFailure = rolePermissionsValidationFailure(permissionKeys);
   if (permissionsFailure) {
     return permissionsFailure;
   }
@@ -133,8 +101,8 @@ function readCreationBody(body: unknown): CreationRequestBody | ValidationFailur
 }
 
 function isValidationFailure(
-  value: CreationRequestBody | ValidationFailure,
-): value is ValidationFailure {
+  value: CreationRequestBody | RoleFieldValidationFailure,
+): value is RoleFieldValidationFailure {
   return "field" in value;
 }
 

@@ -12,6 +12,11 @@ import {
   defaultAccountRecoveryScreenServices,
 } from "./AccountRecoveryScreen";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
+import {
+  defaultEditRoleScreenServices,
+  EditRoleScreen,
+  type EditRoleScreenServices,
+} from "./EditRoleScreen";
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
 import { linkProps } from "./linkProps";
@@ -50,6 +55,7 @@ import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker"
 import { useSessionWatcher } from "./sessionWatcher";
 import {
   MY_ACCOUNT_PATH,
+  matchRoleEditPath,
   matchUserDetailPath,
   NEW_ROLE_PATH,
   ROLES_LIST_PATH,
@@ -77,6 +83,7 @@ export type AppServices = {
   userDetailScreen: UserDetailScreenServices;
   rolesListScreen: RolesListScreenServices;
   newRoleScreen: NewRoleScreenServices;
+  editRoleScreen: EditRoleScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -91,6 +98,7 @@ const defaultAppServices: AppServices = {
   userDetailScreen: defaultUserDetailScreenServices,
   rolesListScreen: defaultRolesListScreenServices,
   newRoleScreen: defaultNewRoleScreenServices,
+  editRoleScreen: defaultEditRoleScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -213,12 +221,20 @@ function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: Help
   );
 }
 
-type SettingsAppSection = "myAccount" | "usersList" | "userDetail" | "rolesList" | "newRole";
+type SettingsAppSection =
+  | "myAccount"
+  | "usersList"
+  | "userDetail"
+  | "rolesList"
+  | "newRole"
+  | "editRole";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
   /** Only set for `section: "userDetail"`. */
   userDetailId?: string;
+  /** Only set for `section: "editRole"`. */
+  editRoleId?: string;
   signedInUserId: string;
   displayName: string;
   isAdministrator: boolean;
@@ -230,12 +246,14 @@ type SettingsAppProps = {
   userDetailScreenServices: UserDetailScreenServices;
   rolesListScreenServices: RolesListScreenServices;
   newRoleScreenServices: NewRoleScreenServices;
+  editRoleScreenServices: EditRoleScreenServices;
 };
 
-/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new role). */
+/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new role, edit role). */
 function SettingsApp({
   section,
   userDetailId,
+  editRoleId,
   signedInUserId,
   displayName,
   isAdministrator,
@@ -247,12 +265,13 @@ function SettingsApp({
   userDetailScreenServices,
   rolesListScreenServices,
   newRoleScreenServices,
+  editRoleScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
-        : section === "rolesList" || section === "newRole"
+        : section === "rolesList" || section === "newRole" || section === "editRole"
           ? messages.settings.roles.documentTitle
           : messages.settings.myAccount.documentTitle;
   }, [section]);
@@ -295,7 +314,9 @@ function SettingsApp({
                 <SectionNavItem
                   label={messages.settings.rolesSectionLabel}
                   icon={<Shield />}
-                  active={section === "rolesList" || section === "newRole"}
+                  active={
+                    section === "rolesList" || section === "newRole" || section === "editRole"
+                  }
                   {...linkProps(ROLES_LIST_PATH)}
                 />
               </li>
@@ -341,6 +362,14 @@ function SettingsApp({
           services={newRoleScreenServices}
         />
       )}
+      {section === "editRole" && editRoleId !== undefined && (
+        <EditRoleScreen
+          roleId={editRoleId}
+          isAdministrator={isAdministrator}
+          onSessionEnded={onSessionEnded}
+          services={editRoleScreenServices}
+        />
+      )}
     </Shell>
   );
 }
@@ -357,6 +386,7 @@ export function App({ help, services }: AppProps) {
     userDetailScreen,
     rolesListScreen,
     newRoleScreen,
+    editRoleScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -487,12 +517,14 @@ export function App({ help, services }: AppProps) {
   }
 
   const userDetailId = matchUserDetailPath(route);
+  const editRoleId = matchRoleEditPath(route);
   const isSettingsRoute =
     route === MY_ACCOUNT_PATH ||
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH;
+    route === NEW_ROLE_PATH ||
+    editRoleId !== undefined;
 
   if (isSettingsRoute) {
     return session.kind === "signed-in" ? (
@@ -506,9 +538,12 @@ export function App({ help, services }: AppProps) {
                 ? "rolesList"
                 : route === NEW_ROLE_PATH
                   ? "newRole"
-                  : "myAccount"
+                  : editRoleId !== undefined
+                    ? "editRole"
+                    : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
+        {...(editRoleId !== undefined ? { editRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
         isAdministrator={session.isAdministrator}
@@ -520,6 +555,7 @@ export function App({ help, services }: AppProps) {
         userDetailScreenServices={userDetailScreen}
         rolesListScreenServices={rolesListScreen}
         newRoleScreenServices={newRoleScreen}
+        editRoleScreenServices={editRoleScreen}
       />
     ) : null;
   }
