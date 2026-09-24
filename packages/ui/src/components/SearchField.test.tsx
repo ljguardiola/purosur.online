@@ -100,9 +100,9 @@ for (const variantCase of variantCases) {
   });
 }
 
-// The literal box-shadow string Chromium renders for the focused state, both variants alike: the
-// same 2px brand-blue-ui inset with no outer shadow TextField.tsx's own FOCUSED_SHADOW uses (see
-// its comment for why the four transparent layers ahead of it are there).
+// The literal box-shadow string Chromium renders for the focused state, both variants alike: a 2px
+// brand-blue-ui inset with no outer shadow, behind the four transparent layers Tailwind v4 always
+// composes (see TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
