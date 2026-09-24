@@ -147,23 +147,13 @@ for (const variant of ["register", "backoffice"] as const) {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`shows a 2px brand-blue-ui border with no outer shadow when a segment is focused in the ${variant} variant`, async () => {
+  test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px line border`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
 
-    await userEvent.tab();
-    if (variant === "register") {
-      // The register variant leads with the calendar toggle button, so the first date segment is
-      // its second tab stop; the backoffice variant trails that button and reaches a segment first.
-      await userEvent.tab();
-    }
-
-    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
-    expect(document.activeElement).toBe(segment);
-
-    await expect
-      .poll(() => getComputedStyle(group).boxShadow)
-      .toContain(insetBoundary("brand-blue-ui", "2px"));
+    await userEvent.hover(group);
+    await expect.poll(() => getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-bone"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -298,21 +288,68 @@ const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgb(79, 108, 126) 0px 0px 0px 2px inset";
 
+async function focusFirstSegment(group: HTMLElement, variant: DateFieldProps["variant"]) {
+  await userEvent.tab();
+  if (variant === "register") {
+    // The register variant leads with the calendar toggle button, so the first date segment is
+    // its second tab stop; the backoffice variant trails that button and reaches a segment first.
+    await userEvent.tab();
+  }
+  expect(document.activeElement).toBe(group.querySelector('[role="spinbutton"]'));
+}
+
 for (const variant of ["register", "backoffice"] as const) {
   test(`draws exactly the package's focused box shadow when a segment is focused in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
 
-    await userEvent.tab();
-    if (variant === "register") {
-      // Same tab order as above: the calendar toggle button leads this variant.
-      await userEvent.tab();
-    }
-
-    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
-    expect(document.activeElement).toBe(segment);
+    await focusFirstSegment(group, variant);
 
     await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`keeps the focused border and white fill instead of the hovered bone one when both apply at once in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+
+    await focusFirstSegment(group, variant);
+    await userEvent.hover(group);
+    // Both assertions below also hold for a focused field the pointer never reached: focus alone
+    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
+    // as the only thing that puts the pointer on the box, and the poll proves it got there before
+    // asserting that focus won over it.
+    await expect.poll(() => group.matches(":hover")).toBe(true);
+
+    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`shows the focused border instead of the out-of-range one once a refused field is focused in the ${variant} variant`, async () => {
+    const screen = await render(
+      <DateField
+        variant={variant}
+        label="Expiry"
+        value={new CalendarDate(2027, 3, 15)}
+        onChange={() => {}}
+        minValue={RANGE_MIN}
+        maxValue={RANGE_MAX}
+        rangeMessage={RANGE_MESSAGE}
+      />,
+    );
+    const group = fieldGroup(screen, "Expiry");
+
+    await focusFirstSegment(group, variant);
+
+    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+
+    (document.activeElement as HTMLElement).blur();
+    await expect
+      .poll(() => paintedBoxShadowLayers(group))
+      .toEqual([insetBoundary("status-error-ui", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });

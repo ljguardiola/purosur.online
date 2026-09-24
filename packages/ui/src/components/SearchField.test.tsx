@@ -6,7 +6,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { SearchField, type SearchFieldProps } from "./SearchField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -136,10 +142,9 @@ for (const variant of ["register", "backoffice"] as const) {
       />,
     );
     const box = fieldBox(screen, "Scan or type the product name");
-    const style = getComputedStyle(box);
 
-    expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(style.boxShadow).toContain(insetBoundary(restBoundaryToken[variant], "2px"));
+    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -156,9 +161,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.hover(box);
     await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-    expect(getComputedStyle(box).boxShadow).toContain(
-      insetBoundary(restBoundaryToken[variant], "2px"),
-    );
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -227,9 +230,7 @@ for (const variant of ["register", "backoffice"] as const) {
     // The box itself still renders the field's ordinary resting look underneath that dimming —
     // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(getComputedStyle(box).boxShadow).toContain(
-      insetBoundary(restBoundaryToken[variant], "2px"),
-    );
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
     expect(input.disabled).toBe(true);
 
     await userEvent.tab();
