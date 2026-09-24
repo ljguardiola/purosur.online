@@ -26,8 +26,15 @@ function persistsCredentialsFalse(doc, stepNode) {
  * aliases wherever `jobs`, a job, `steps`, a step, `uses`, `with` or `persist-credentials` is
  * read, so an aliased checkout step is checked like any other. */
 export function findCheckoutSteps(source) {
+  return checkoutStepsOf(parseWorkflow(source));
+}
+
+function parseWorkflow(source) {
   const lineCounter = new LineCounter();
-  const doc = parseDocument(source, { lineCounter });
+  return { doc: parseDocument(source, { lineCounter }), lineCounter };
+}
+
+function checkoutStepsOf({ doc, lineCounter }) {
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
   if (!isMap(jobsNode)) return [];
 
@@ -57,16 +64,15 @@ export function findCheckoutSteps(source) {
  * violation naming its first parse error, instead of being scanned (and silently passing). */
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) => {
-    const source = readFile(path);
-    const doc = parseDocument(source);
-    if (doc.errors.length > 0) {
-      const [error] = doc.errors;
+    const workflow = parseWorkflow(readFile(path));
+    if (workflow.doc.errors.length > 0) {
+      const [error] = workflow.doc.errors;
       return [
         { path, line: error.linePos[0].line, message: `does not parse as YAML: ${error.message}` },
       ];
     }
 
-    return findCheckoutSteps(source)
+    return checkoutStepsOf(workflow)
       .filter((step) => !step.persistsCredentialsFalse)
       .map((step) => ({ path, line: step.line, message: MISSING_PERSIST_CREDENTIALS }));
   });
