@@ -19,7 +19,7 @@ export function AccessLayout({ children }: AccessLayoutProps) {
         <div className="flex-1" />
         <PuroSurLogo
           alt={messages.shell.brandName}
-          className="h-auto max-h-[180px] w-full max-w-[460px] object-contain"
+          className="h-auto max-h-[180px] w-full max-w-[460px] self-center object-contain"
         />
         <div className="flex-1" />
         <p className="text-sm font-bold text-ink-secondary">{messages.access.brandCaption}</p>

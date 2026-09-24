@@ -22,7 +22,7 @@ test("sizes the brand panel at 680px on a 1440px-wide desktop", async () => {
   expect(panel.getBoundingClientRect().width).toBeCloseTo(680, 0);
 });
 
-test("places the logo and the Backoffice caption on the panel's 32px padding", async () => {
+test("centers the logo horizontally in the panel and keeps the caption on its 32px padding", async () => {
   const screen = await render(
     <AccessLayout>
       <p>screen content</p>
@@ -32,14 +32,16 @@ test("places the logo and the Backoffice caption on the panel's 32px padding", a
   const panel = screen.getByText("Backoffice").element().parentElement as HTMLElement;
   const panelRect = panel.getBoundingClientRect();
   const captionRect = screen.getByText("Backoffice").element().getBoundingClientRect();
-  const logoRect = screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect();
+  const logo = screen.getByRole("img", { name: "Puro Sur" }).element();
+  const logoRect = logo.getBoundingClientRect();
 
-  // Both sit at the panel's 32px padding: the 460x180 logo box on the left edge, vertically
-  // centered, and the caption in the bottom-left corner.
   expect(captionRect.left - panelRect.left).toBeCloseTo(32, 0);
   expect(panelRect.bottom - captionRect.bottom).toBeCloseTo(32, 0);
-  expect(logoRect.left - panelRect.left).toBeCloseTo(32, 0);
+  expect(logoRect.left - panelRect.left).toBeCloseTo(panelRect.right - logoRect.right, 0);
   expect(logoRect.width).toBeCloseTo(460, 0);
+  // The drawn logo is narrower than its 460x180 box, so it is only centered if it is drawn in the
+  // middle of the box.
+  expect(getComputedStyle(logo).objectPosition).toBe("50% 50%");
 });
 
 test("shows the brand panel with the logo and the Backoffice caption, before the content", async () => {
