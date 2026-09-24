@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
+import { locations, rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -172,6 +172,70 @@ describe("GET /roles", () => {
         is_administrator: false,
         permissions: ["view_stock_balances", "adjust_stock"],
         user_count: 0,
+      },
+    ]);
+  });
+
+  it("counts only the users of the session's own branch", async () => {
+    const locationId = await seededLocationId(db);
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: inserting the other location returned no row");
+    }
+    const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
+    const administratorId = await insertUser({
+      firstName: "Zoe Admin",
+      email: "zoe@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId,
+    });
+    await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await insertUser({
+      firstName: "Bea Otherbranch",
+      email: "bea@example.com",
+      roleId: cashierRoleId,
+      locationId: otherLocation.id,
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getRoles(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([
+      { is_administrator: true, user_count: 1 },
+      { id: cashierRoleId, user_count: 1 },
+    ]);
+  });
+
+  it("returns a role's permissions in catalog order, whatever order they were stored in", async () => {
+    const locationId = await seededLocationId(db);
+    const cashierRoleId = await insertRole("Cajera", [
+      "adjust_stock",
+      "view_stock_balances",
+      "void_sale",
+      "sell_and_charge",
+    ]);
+    const administratorId = await insertUser({
+      firstName: "Zoe Admin",
+      email: "zoe@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getRoles(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([
+      { is_administrator: true },
+      {
+        id: cashierRoleId,
+        permissions: ["sell_and_charge", "void_sale", "view_stock_balances", "adjust_stock"],
       },
     ]);
   });

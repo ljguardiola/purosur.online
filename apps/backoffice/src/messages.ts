@@ -370,7 +370,7 @@ export const messages = defineMessages("es-AR", (f) => ({
           : f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 rol", other: `${params.count} roles` }),
-      columns: { rol: "Rol", permisos: "Permisos", usuarios: "Usuarios", acciones: "Acciones" },
+      columns: { rol: "Rol", permisos: "Permisos", usuarios: "Usuarios" },
       loadErrorTitle: "No pudimos abrir los roles",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",

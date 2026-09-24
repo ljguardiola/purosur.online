@@ -135,6 +135,50 @@ test("shows a load error with a retry action when the users fail to load", async
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
 });
 
+test("shows a load error when the roles fail to load, and Reintentar reloads both users and roles", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValueOnce({ kind: "failed" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir los usuarios")).toBeVisible();
+
+  vi.mocked(services.fetchRoles).mockResolvedValueOnce({
+    kind: "ok",
+    value: [
+      { id: "role-admin", isAdministrator: true, name: null, permissionKeys: [], userCount: 1 },
+    ],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nuevo usuario" })).toBeEnabled();
+  expect(services.fetchUsers).toHaveBeenCalledTimes(2);
+  expect(services.fetchRoles).toHaveBeenCalledTimes(2);
+});
+
+test("shows the rate-limited notice with a retry action when the roles request is rate limited", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("shows the forbidden notice when the roles request is forbidden", async () => {
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+});
+
 test("ends the session when the users request finds no open session", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "unauthenticated" });

@@ -17,9 +17,6 @@ import { registerUsersListRoute } from "../users/users-list-route.js";
 import { registerRoleCreationRoutes } from "./role-creation-route.js";
 import { registerRolesListRoute } from "./roles-list-route.js";
 
-// Proves a role created through `POST /roles` needs no further wiring to be offered to
-// `POST /users` and to show up correctly everywhere a role is read back from, the way
-// drafts/odd/tasks/create-backoffice-role.md's constraints call for.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;

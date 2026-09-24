@@ -172,7 +172,7 @@ export async function createRole<TQueryResult extends PgQueryResultHKT>(
         .values({ name: input.name, isAdministrator: false })
         .returning({ id: roles.id });
       if (!newRole) {
-        throw new RoleNameTaken();
+        throw new Error("inserting the role returned no row");
       }
 
       if (input.permissionKeys.length > 0) {

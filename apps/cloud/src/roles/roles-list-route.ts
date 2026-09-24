@@ -1,7 +1,7 @@
-import { asc, desc, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { rolePermissions, roles, userRoles } from "../db/schema.js";
+import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { checkRequestIsSameOrigin, requireOpenSession } from "../session/open-session.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
@@ -40,12 +40,13 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
 }
 
 /**
- * Lists every role, Administrator first (then by name): the Administrator row never has stored
- * `role_permissions` rows, so it always reports the full permission catalog instead of whatever
- * (nothing) is in that table for it.
+ * Lists every role, Administrator first (then by name), counting only the users of `locationId`:
+ * the Administrator row never has stored `role_permissions` rows, so it always reports the full
+ * permission catalog instead of whatever (nothing) is in that table for it.
  */
 export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
+  locationId: string,
 ): Promise<RoleSummaryRow[]> {
   const roleRows = await db
     .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
@@ -55,16 +56,22 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   const permissionRows = await db
     .select({ roleId: rolePermissions.roleId, permissionKey: rolePermissions.permissionKey })
     .from(rolePermissions);
-  const permissionKeysByRole = new Map<string, string[]>();
+  const storedKeysByRole = new Map<string, Set<string>>();
   for (const row of permissionRows) {
-    const current = permissionKeysByRole.get(row.roleId) ?? [];
-    current.push(row.permissionKey);
-    permissionKeysByRole.set(row.roleId, current);
+    const current = storedKeysByRole.get(row.roleId) ?? new Set<string>();
+    current.add(row.permissionKey);
+    storedKeysByRole.set(row.roleId, current);
   }
+  const catalogOrderedKeys = (roleId: string): string[] => {
+    const stored = storedKeysByRole.get(roleId);
+    return stored ? PERMISSION_KEYS.filter((key) => stored.has(key)) : [];
+  };
 
   const userCountRows = await db
     .select({ roleId: userRoles.roleId, count: sql<number>`count(*)::int` })
     .from(userRoles)
+    .innerJoin(users, eq(users.id, userRoles.userId))
+    .where(eq(users.locationId, locationId))
     .groupBy(userRoles.roleId);
   const userCountByRole = new Map(userCountRows.map((row) => [row.roleId, row.count]));
 
@@ -72,9 +79,7 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
     id: role.id,
     name: role.name,
     isAdministrator: role.isAdministrator,
-    permissionKeys: role.isAdministrator
-      ? [...PERMISSION_KEYS]
-      : (permissionKeysByRole.get(role.id) ?? []),
+    permissionKeys: role.isAdministrator ? [...PERMISSION_KEYS] : catalogOrderedKeys(role.id),
     userCount: userCountByRole.get(role.id) ?? 0,
   }));
 }
@@ -103,7 +108,7 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
       return;
     }
 
-    const rows = await listRoles(options.db);
+    const rows = await listRoles(options.db, openSession.locationId);
     await reply.code(200).send(rows.map(toRoleSummaryWire));
   });
 }

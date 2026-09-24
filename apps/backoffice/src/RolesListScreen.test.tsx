@@ -73,6 +73,37 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });
 
+test("shows only the Rol, Permisos, and Usuarios columns", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 rol")).toBeVisible();
+
+  expect(
+    screen
+      .getByRole("columnheader")
+      .elements()
+      .map((header) => header.textContent),
+  ).toEqual(["Rol", "Permisos", "Usuarios"]);
+});
+
+test("keeps the loaded list without refetching when the parent re-renders with a new onSessionEnded", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services, () => {});
+  await expect.element(screen.getByText("1 rol")).toBeVisible();
+
+  await screen.rerender(
+    <main>
+      <RolesListScreen isAdministrator services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
+
+  await expect.element(screen.getByText("1 rol")).toBeVisible();
+  expect(services.fetchRoles).toHaveBeenCalledTimes(1);
+});
+
 test("the Nuevo rol button navigates to the new role page", async () => {
   window.history.pushState(null, "", "/settings/roles");
   const services = createServices();

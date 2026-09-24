@@ -1,9 +1,5 @@
-// Mirrors `@purosur/contracts`'s permission catalog keys, in the same order. Duplicated here
-// (rather than imported) because that package ships untranspiled TypeScript for its Vite-bundled
-// consumers, and this app's own build is a plain `tsc` emit with an explicit `rootDir`, which
-// cannot pull in a source file living outside it. `permission-catalog.test.ts` (excluded from this
-// app's build like every other `*.test.ts` file, so it can import the shared package freely)
-// proves this list never drifts from the shared one.
+// Mirrors `@purosur/contracts`'s catalog because this app's `tsc` build (explicit `rootDir`) cannot
+// import that package's untranspiled source; `permission-catalog.test.ts` guards against drift.
 const PERMISSION_KEY_LIST = [
   "sell_and_charge",
   "view_sales_history",

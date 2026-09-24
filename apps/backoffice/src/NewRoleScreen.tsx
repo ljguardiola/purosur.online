@@ -54,12 +54,26 @@ function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
   return PERMISSION_CATALOG.filter((definition) => definition.area === area);
 }
 
+type MissingArea<T extends readonly (readonly PermissionArea[])[]> = Exclude<
+  PermissionArea,
+  T[number][number]
+>;
+
+// Rejects, at type-check time, a column layout that leaves any permission area out.
+function everyAreaPlaced<const T extends readonly (readonly PermissionArea[])[]>(
+  columns: T & ([MissingArea<T>] extends [never] ? unknown : { missingArea: MissingArea<T> }),
+): T {
+  return columns;
+}
+
 // The three columns' area order, exactly as the design groups them.
-const AREA_COLUMNS: readonly (readonly PermissionArea[])[] = [
+const AREA_COLUMNS = everyAreaPlaced([
   ["cashRegister", "sale", "returns", "checkout"],
   ["stock", "purchasing", "catalog", "assembledProducts"],
   ["users", "fiscal", "reports", "alerts", "devices", "backups", "branch"],
-];
+]);
+
+const ALERTS_TOTAL = definitionsByArea("alerts").length;
 
 function validateRoleName(value: string): string | undefined {
   const trimmed = value.trim();
@@ -130,7 +144,7 @@ function AlertsAreaBlock({
       <h2 className="font-bold text-ink">
         {rolesMessages.areaLabels.alerts}{" "}
         <span className="font-normal text-ink-secondary">
-          {pageMessages.areaCount({ count: selectedCount, total: 3 })}
+          {pageMessages.areaCount({ count: selectedCount, total: ALERTS_TOTAL })}
         </span>
       </h2>
       <RadioGroup
@@ -378,6 +392,7 @@ export function NewRoleScreen({ isAdministrator, onSessionEnded, services }: New
             </div>
           ))}
         </div>
+        <p className="text-sm text-ink-secondary">{pageMessages.reauthNotice}</p>
       </div>
       <div className="flex shrink-0 items-center justify-end gap-3 border-line border-t bg-surface-white px-8 py-4">
         <Button

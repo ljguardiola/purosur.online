@@ -9,11 +9,6 @@ import {
   PERMISSION_KEYS,
 } from "./permission-catalog.js";
 
-// `@purosur/contracts` ships untranspiled TypeScript for its Vite-bundled consumers (the
-// backoffice, later the register); this app's own build is a plain `tsc` emit with an explicit
-// `rootDir`, which cannot include a source file from outside it. This cloud-local list is the
-// mirror that build needs, and this test (excluded from that build like every other `*.test.ts`
-// file) is what keeps it from silently drifting away from the shared catalog.
 describe("the cloud's local permission key list", () => {
   it("matches the shared catalog's keys, in the same order", () => {
     expect(PERMISSION_KEYS).toEqual(SHARED_PERMISSION_KEYS);

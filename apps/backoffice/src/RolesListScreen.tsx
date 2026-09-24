@@ -1,6 +1,6 @@
 import { Button, InlineNotice, Table } from "@purosur/ui";
 import { Lock, Plus, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
@@ -65,14 +65,6 @@ const columns = [
     title: rolesMessages.columns.usuarios,
     render: (item: RoleSummary) => rolesMessages.usersCount({ count: item.userCount }),
   },
-  {
-    // Edit and duplicate row actions belong to later issues; this column stays reserved but
-    // empty until those issues render a real action. It keeps a real (not empty) header title
-    // so it stays an accessible column instead of an unlabeled one.
-    key: "actions",
-    title: rolesMessages.columns.acciones,
-    render: () => null,
-  },
 ] as const;
 
 /** "Roles": every role the branch has, with its permission and user counts, Administrator only. */
@@ -86,13 +78,18 @@ export function RolesListScreen({
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
 
+  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
+  // (each session-activity touch re-renders it), which would otherwise reload the list.
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
+
   const load = useCallback(async () => {
     setList({ kind: "loading" });
     const outcome = await fetchRoles();
     if (outcome.kind === "ok") {
       setList({ kind: "loaded", roles: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+      onSessionEndedRef.current();
     } else if (outcome.kind === "rate_limited") {
       setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "forbidden") {
@@ -100,7 +97,7 @@ export function RolesListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRoles, onSessionEnded]);
+  }, [fetchRoles]);
 
   useEffect(() => {
     if (isAdministrator) {

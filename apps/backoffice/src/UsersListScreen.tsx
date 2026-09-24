@@ -364,39 +364,37 @@ export function UsersListScreen({
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
+  // Every role is offered here, not just the ones some existing user already holds, so a role
+  // that was just created with nobody in it yet can still be picked right away. Users and roles
+  // load (and retry) together: the create action needs both.
   const load = useCallback(async () => {
     setList({ kind: "loading" });
-    const outcome = await fetchUsers();
-    if (outcome.kind === "ok") {
-      setList({ kind: "loaded", users: outcome.value });
-    } else if (outcome.kind === "unauthenticated") {
+    const [usersOutcome, rolesOutcome] = await Promise.all([fetchUsers(), fetchRoles()]);
+    const outcomes = [usersOutcome, rolesOutcome];
+    if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
       onSessionEndedRef.current();
-    } else if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
+      return;
+    }
+    const rateLimited = outcomes.flatMap((outcome) =>
+      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
+    );
+    if (rateLimited.length > 0) {
+      setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
+    } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
       setList({ kind: "forbidden" });
+    } else if (usersOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
+      setRoles(rolesOutcome.value);
+      setList({ kind: "loaded", users: usersOutcome.value });
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers]);
-
-  // Every role is offered here, not just the ones some existing user already holds, so a role
-  // that was just created with nobody in it yet can still be picked right away.
-  const loadRoles = useCallback(async () => {
-    const outcome = await fetchRoles();
-    if (outcome.kind === "ok") {
-      setRoles(outcome.value);
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-    }
-  }, [fetchRoles]);
+  }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
     if (isAdministrator) {
       void load();
-      void loadRoles();
     }
-  }, [isAdministrator, load, loadRoles]);
+  }, [isAdministrator, load]);
 
   const users = list.kind === "loaded" ? list.users : [];
 

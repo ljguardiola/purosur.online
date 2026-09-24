@@ -79,6 +79,14 @@ test("shows the breadcrumb, heading, name field, and every permission area with 
   await expect.element(screen.getByRole("radio", { name: "No ve alertas" })).toBeChecked();
 });
 
+test("tells the Administrator their passkey is asked to confirm saving", async () => {
+  const services = createServices();
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Se pide tu passkey para confirmar.")).toBeVisible();
+});
+
 test("checking a permission shows its register badge and updates its area's count", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
