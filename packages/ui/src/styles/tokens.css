@@ -30,7 +30,7 @@
   --color-brand-blue-message-bg: #e6eef3;
   --color-brand-blue-ui: #4f6c7e;
   --color-brand-blue-strong: #334f60;
-  /* Blue UI at 20% opacity, for the search and date fields' focus shadow. */
+  /* Blue UI at 20% opacity, for the register search field's focus shadow. */
   --color-brand-blue-ui-shadow: #4f6c7e33;
 
   --color-brand-green: #8ca38f;
@@ -52,9 +52,9 @@
   /* The status indicator's neutral tone: readable text without competing with primary ink. */
   --color-ink-secondary: #4a4a46;
 
-  /* Border-only colors: the icon button's own border and its hover border, and the text field's
-     box boundary. Deliberately soft, as the design draws them, so they sit outside the
-     text-contrast suite in contrast.test.ts. */
+  /* Border-only colors: the icon button's own border and its hover border, and the text field,
+     backoffice search field and date field's own box boundary. Deliberately soft, as the design
+     draws them, so they sit outside the text-contrast suite in contrast.test.ts. */
   --color-line: #d9d3c4;
   --color-blue-soft: #c9d7e0;
 

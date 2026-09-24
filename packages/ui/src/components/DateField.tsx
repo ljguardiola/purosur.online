@@ -118,23 +118,23 @@ const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
 // The box's own border and shadow per interaction state, drawn with the same inset-shadow
-// technique TextField.tsx and SearchField.tsx use (see TextField.tsx's own boxStateClassName for
-// why).
+// technique and the same line/brand-blue-ui border system as TextField.tsx (see its own
+// boxStateClassName for why).
 function boxStateClassName(disabled: boolean, invalid: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
+    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
   }
   if (invalid) {
     return (
       "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-status-error-ui)] " +
       "hover:not-focus-within:bg-surface-bone " +
-      "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+      "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
     );
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
+    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
     "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
   );
 }
 

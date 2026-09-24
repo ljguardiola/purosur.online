@@ -6,7 +6,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
 import { expectNoAccessibilityViolations } from "../test/axe";
-import { boundaryColorHex, insetBoundary, rgbToHex, tokenRgb } from "../test/token-colors";
+import {
+  boundaryColorHex,
+  insetBoundary,
+  paintedBoxShadowLayers,
+  rgbToHex,
+  tokenRgb,
+} from "../test/token-colors";
 import { SearchField, type SearchFieldProps } from "./SearchField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -101,16 +107,33 @@ for (const variantCase of variantCases) {
   });
 }
 
-// The literal box-shadow string Chromium renders for the focused state: a 3px blue-strong inset
-// plus the 4px focus shadow, behind the four transparent layers Tailwind v4 always composes (see
-// TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
-const FOCUSED_SHADOW =
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
+// The literal box-shadow string Chromium renders for the focused state, per variant: a 3px
+// blue-strong inset plus the 4px focus shadow for the register variant, and TextField.tsx's own
+// 2px brand-blue-ui inset with no outer shadow for the backoffice variant. Both sit behind the
+// four transparent layers Tailwind v4 always composes (see TextField.test.tsx's FOCUSED_SHADOW
+// comment for why they are there).
+const FOCUSED_SHADOW: Record<SearchFieldProps["variant"], string> = {
+  register:
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+    "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px",
+  backoffice:
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+    "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
+    "rgb(79, 108, 126) 0px 0px 0px 2px inset",
+};
+
+const restBoundaryToken: Record<SearchFieldProps["variant"], string> = {
+  register: "ink-secondary",
+  backoffice: "line",
+};
+const focusedBoundary: Record<SearchFieldProps["variant"], { token: string; width: string }> = {
+  register: { token: "brand-blue-strong", width: "3px" },
+  backoffice: { token: "brand-blue-ui", width: "2px" },
+};
 
 for (const variant of ["register", "backoffice"] as const) {
-  test(`shows a white box with a 2px ink-secondary border at rest in the ${variant} variant`, async () => {
+  test(`shows a white box with a 2px ${restBoundaryToken[variant]} border at rest in the ${variant} variant`, async () => {
     const screen = await render(
       <SearchFieldHarness
         variant={variant}
@@ -119,10 +142,9 @@ for (const variant of ["register", "backoffice"] as const) {
       />,
     );
     const box = fieldBox(screen, "Scan or type the product name");
-    const style = getComputedStyle(box);
 
-    expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -139,12 +161,12 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.hover(box);
     await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
-    expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`shows a 3px blue-strong border and the focus shadow when focused in the ${variant} variant`, async () => {
+  test(`shows its own focused border when focused in the ${variant} variant`, async () => {
     const screen = await render(
       <SearchFieldHarness
         variant={variant}
@@ -156,7 +178,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
 
-    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
+    await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW[variant]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -181,7 +203,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await expect
       .poll(() => getComputedStyle(box).boxShadow)
-      .toContain(insetBoundary("brand-blue-strong", "3px"));
+      .toContain(insetBoundary(focusedBoundary[variant].token, focusedBoundary[variant].width));
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
 
     await expectNoAccessibilityViolations(screen.container);
@@ -208,7 +230,7 @@ for (const variant of ["register", "backoffice"] as const) {
     // The box itself still renders the field's ordinary resting look underneath that dimming —
     // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
+    expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken[variant], "2px")]);
     expect(input.disabled).toBe(true);
 
     await userEvent.tab();
