@@ -5,6 +5,7 @@ import {
   describeViolation,
   findBrowserTestFiles,
   findViMockCalls,
+  readBrowserTestGlobs,
 } from "./no-vi-mock-in-browser-tests.mjs";
 
 // findViMockCalls ------------------------------------------------------------------------
@@ -58,8 +59,71 @@ test("finds nothing in a file that only injects services", () => {
   assert.deepEqual(findViMockCalls(source), []);
 });
 
-test("does not mistake a services field literally named mock for vi.mock", () => {
-  assert.deepEqual(findViMockCalls("const notAMock = { vimock: vi.fn() };"), []);
+test("finds a vi.doMock call", () => {
+  const matches = findViMockCalls('vi.doMock("./sessionApi", () => ({}));');
+
+  assert.equal(matches.length, 1);
+});
+
+test("finds a vi.mock call with type arguments", () => {
+  const matches = findViMockCalls(
+    'vi.mock<typeof import("./sessionApi")>("./sessionApi", () => ({}));',
+  );
+
+  assert.equal(matches.length, 1);
+});
+
+test("finds a vi.mock call split across lines, reported at the line where it starts", () => {
+  const source = ['import { vi } from "vitest";', "vi", '  .mock("./sessionApi");'].join("\n");
+
+  const matches = findViMockCalls(source);
+
+  assert.equal(matches.length, 1);
+  assert.equal(matches[0].line, 2);
+});
+
+test("ignores vi.mock mentioned in a line comment", () => {
+  assert.deepEqual(findViMockCalls('// never vi.mock("./sessionApi") here'), []);
+});
+
+test("ignores vi.mock mentioned in a block comment", () => {
+  assert.deepEqual(findViMockCalls('/*\n * vi.mock("./sessionApi") is unreliable\n */'), []);
+});
+
+test("ignores vi.mock mentioned in a string", () => {
+  assert.deepEqual(findViMockCalls(`const hint = "vi.mock('./sessionApi')";`), []);
+});
+
+test("does not flag vi.mocked", () => {
+  assert.deepEqual(findViMockCalls("vi.mocked(services.signIn).mockResolvedValue(session);"), []);
+});
+
+test("does not flag a mock method on another object", () => {
+  assert.deepEqual(findViMockCalls('services.mock("./sessionApi");'), []);
+});
+
+// readBrowserTestGlobs ---------------------------------------------------------------------
+
+test("reads the include globs of the browser project from a Vitest config", () => {
+  const config = [
+    "export default defineConfig({",
+    "  test: {",
+    "    projects: [",
+    '      { test: { name: "node", include: ["src/**/*.test.ts"] } },',
+    '      { plugins: [react()], test: { name: "browser", include: ["a/**/*.test.tsx", "b/*.test.tsx"] } },',
+    "    ],",
+    "  },",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(readBrowserTestGlobs(config), ["a/**/*.test.tsx", "b/*.test.tsx"]);
+});
+
+test("fails when the Vitest config has no browser project include", () => {
+  assert.throws(
+    () => readBrowserTestGlobs('export default { test: { name: "node" } };'),
+    /browser project/,
+  );
 });
 
 // checkFiles -------------------------------------------------------------------------------
