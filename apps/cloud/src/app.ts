@@ -20,6 +20,7 @@ import { registerRolesListRoute } from "./roles/roles-list-route.js";
 import type { SessionAuthenticateRouteOptions } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticateRoute } from "./session/session-authenticate-route.js";
 import { registerSessionAuthenticationOptionsRoute } from "./session/session-authentication-options-route.js";
+import { registerSessionAuthorizationRoutes } from "./session/session-authorization-route.js";
 import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
@@ -58,31 +59,33 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   recovery?: RecoveryRouteOptions<TQueryResult>;
   /**
-   * Registers all five `/users/session/*` routes (`authentication-options`, `authenticate`, the
-   * session-read `GET /users/session`, its non-touching `status`, and `sign-out`) when given, the
-   * same optional-feature-wiring shape `recovery` uses above.
+   * Registers every `/users/session/*` route (`authentication-options`, `authenticate`, the
+   * session-read `GET /users/session`, its non-touching `status`, `sign-out`, and the passkey-
+   * authorization pair `authorization-options`/`authorization` behind every sensitive action's
+   * shared 5-minute window, see `passkey-authorization-guard.ts`) when given, the same
+   * optional-feature-wiring shape `recovery` uses above.
    */
   session?: SessionAuthenticateRouteOptions<TQueryResult>;
   /**
    * Registers `GET /users/passkeys` and every `/users/passkeys/*` self-management route
-   * (registration and removal, each gated by a fresh reauthentication) for the session account's
-   * own passkeys, the same optional-feature-wiring shape `session` uses above.
+   * (registration, which stays its own two-step WebAuthn ceremony, and removal, gated by the
+   * shared passkey-authorization window) for the session account's own passkeys, the same
+   * optional-feature-wiring shape `session` uses above.
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, `POST /users`,
-   * `POST /users/:id/email-change-options`, `POST /users/:id/email`, `GET /users/:id/passkeys`,
-   * `POST /users/:id/passkeys/removal-options`, and `POST /users/:id/passkeys/:passkeyId/remove`,
-   * the backoffice Users screen's read, create, email-edit, and passkey-removal sides: every one is
-   * Administrator-only and scoped to the session's own branch, the same optional-feature-wiring
-   * shape `session` uses above.
+   * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/email`, `GET
+   * /users/:id/passkeys`, and `POST /users/:id/passkeys/:passkeyId/remove`, the backoffice Users
+   * screen's read, create, email-edit, and passkey-removal sides: every mutating one is
+   * Administrator-only, scoped to the session's own branch, and gated by the shared
+   * passkey-authorization window, the same optional-feature-wiring shape `session` uses above.
    */
   users?: UsersRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /roles`, `GET /roles/:id`, `POST /roles/creation-options`, `POST /roles`,
-   * `POST /roles/:id/edit-options`, and `POST /roles/:id/edit`, the backoffice Roles screen's read,
-   * create, and edit sides: every one is Administrator-only, the same optional-feature-wiring
-   * shape `users` uses above.
+   * Registers `GET /roles`, `GET /roles/:id`, `POST /roles`, and `POST /roles/:id/edit`, the
+   * backoffice Roles screen's read, create, and edit sides: every mutating one is
+   * Administrator-only and gated by the shared passkey-authorization window, the same
+   * optional-feature-wiring shape `users` uses above.
    */
   roles?: RolesRouteOptions<TQueryResult>;
 }
@@ -135,6 +138,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerSessionReadRoute(app, options.session);
     registerSessionStatusRoute(app, options.session);
     registerSessionSignOutRoute(app, options.session);
+    registerSessionAuthorizationRoutes(app, options.session);
   }
 
   if (options.passkeys) {

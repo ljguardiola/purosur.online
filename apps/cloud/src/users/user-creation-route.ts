@@ -1,30 +1,15 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, roles, userRoles, users } from "../db/schema.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "../passkeys/passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
-import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { auditLog, roles, userRoles, users } from "../db/schema.js";
 import { requireOpenSession } from "../session/open-session.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
 import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Same uniform code and message the passkey routes reject a bad reauthentication with.
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
-} as const;
 
 const UNKNOWN_ROLE_RESPONSE = {
   code: "unknown_role",
@@ -64,13 +49,6 @@ function readRoleId(body: unknown): string | undefined {
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
 }
 
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
-}
-
 function readCreationBody(body: unknown): CreationRequestBody | ValidationFailure {
   const firstName = readFirstName(body);
   if (!firstName) {
@@ -94,11 +72,9 @@ function isValidationFailure(
 }
 
 /**
- * Registers the two endpoints that let an Administrator create a new backoffice user, guarded by
- * the same fresh-reauthentication step-up `passkeys-removal-route.ts` uses:
- * `creation-options` hands back a reauthentication challenge against the Administrator's own
- * existing passkeys (never the new user's, who has none yet), and `POST /users` verifies it
- * before creating the user in the session's own branch with the chosen existing role and no
+ * Registers `POST /users`: creates a new backoffice user, gated by the shared
+ * passkey-authorization window (`passkey-authorization-guard.ts`) instead of its own per-action
+ * step-up. Creates the user in the session's own branch with the chosen existing role and no
  * passkeys.
  */
 export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -106,7 +82,6 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
-  const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -118,46 +93,6 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
     }
     return true;
   }
-
-  app.post("/users/creation-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
-
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "user_creation",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-  });
 
   app.post("/users", async (request, reply) => {
     if (!checkOrigin(request, reply)) {
@@ -186,30 +121,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
       return;
     }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "user_creation") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
       return;
     }
 

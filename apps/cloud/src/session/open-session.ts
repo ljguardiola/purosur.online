@@ -27,6 +27,8 @@ export interface OpenSession {
   locationId: string;
   /** Whether the signed-in user's role has `roles.is_administrator` set. */
   isAdministrator: boolean;
+  /** When this session last passed a passkey authorization, or `null` if it never did. See `passkey-authorization-guard.ts`. */
+  passkeyAuthorizedAt: Date | null;
 }
 
 /** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
@@ -69,6 +71,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       createdAt: sessions.createdAt,
       lastSeenAt: sessions.lastSeenAt,
       revokedAt: sessions.revokedAt,
+      passkeyAuthorizedAt: sessions.passkeyAuthorizedAt,
       firstName: users.firstName,
       active: users.active,
       locationId: users.locationId,
@@ -108,6 +111,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       lastSeenAt: session.lastSeenAt,
       locationId: session.locationId,
       isAdministrator: session.isAdministrator ?? false,
+      passkeyAuthorizedAt: session.passkeyAuthorizedAt,
     },
   };
 }

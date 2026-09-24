@@ -3,35 +3,29 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeyChallenges } from "../db/schema.js";
 
 /**
- * How long a passkey self-management challenge (`registration-options` or `removal-options`)
- * stays redeemable. Same lifetime as `sign-in-challenge.ts`'s `CHALLENGE_TTL_MS`: generous
- * relative to a WebAuthn prompt's own client-side timeout, so a slow biometric prompt never loses
- * to server-side expiry.
+ * How long a pending passkey challenge (`registration-options` or `session/authorization-
+ * options`) stays redeemable. Same lifetime as `sign-in-challenge.ts`'s `CHALLENGE_TTL_MS`:
+ * generous relative to a WebAuthn prompt's own client-side timeout, so a slow biometric prompt
+ * never loses to server-side expiry.
  */
 export const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
-export type PasskeyChallengeKind =
-  | "registration"
-  | "removal"
-  | "user_creation"
-  | "user_email_change"
-  | "user_passkey_removal"
-  | "role_creation"
-  | "role_edit";
+export type PasskeyChallengeKind = "registration" | "session_authorization";
 
 export interface StorePendingPasskeyChallengeInput {
   sessionId: string;
   kind: PasskeyChallengeKind;
-  reauthenticationChallenge: string;
-  /** Only set for `kind: "registration"`; a `removal` row never carries one. */
+  /** Only set for `kind: "session_authorization"`; a `registration` row never carries one. */
+  reauthenticationChallenge?: string;
+  /** Only set for `kind: "registration"`; a `session_authorization` row never carries one. */
   registrationChallenge?: string;
   now: Date;
 }
 
 export interface PendingPasskeyChallenge {
   kind: PasskeyChallengeKind;
-  reauthenticationChallenge: string;
+  reauthenticationChallenge: string | null;
   registrationChallenge: string | null;
 }
 
@@ -52,7 +46,7 @@ export async function storePendingPasskeyChallenge<TQueryResult extends PgQueryR
   const values = {
     sessionId: input.sessionId,
     kind: input.kind,
-    reauthenticationChallenge: input.reauthenticationChallenge,
+    reauthenticationChallenge: input.reauthenticationChallenge ?? null,
     registrationChallenge: input.registrationChallenge ?? null,
     createdAt: input.now,
   };

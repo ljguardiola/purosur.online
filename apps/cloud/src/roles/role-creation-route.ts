@@ -1,17 +1,9 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, rolePermissions, roles } from "../db/schema.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "../passkeys/passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
-import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { auditLog, rolePermissions, roles } from "../db/schema.js";
 import { requireOpenSession } from "../session/open-session.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import {
   type RoleFieldValidationFailure,
@@ -22,15 +14,6 @@ import {
 } from "./role-validation.js";
 import type { RoleSummaryRow, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
-
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
-
-// Same uniform code and message the other passkey step-up routes reject a bad reauthentication
-// with.
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
-} as const;
 
 export const ROLE_NAME_TAKEN_RESPONSE = {
   code: "role_name_taken",
@@ -70,13 +53,6 @@ export function isRoleNameUniqueViolation(error: unknown): boolean {
 interface CreationRequestBody {
   name: string;
   permissionKeys: string[];
-}
-
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
 }
 
 function readCreationBody(body: unknown): CreationRequestBody | RoleFieldValidationFailure {
@@ -185,11 +161,10 @@ export async function createRole<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Registers the two endpoints that let an Administrator create a new role, mirroring
- * `user-creation-route.ts`'s own shape: `creation-options` hands back a reauthentication challenge
- * against the Administrator's own existing passkeys, and `POST /roles` verifies it before creating
- * the role, its permission rows, and an audit row in one transaction. The name uniqueness check
- * runs inside that transaction first; the database's own case-insensitive unique index
+ * Registers `POST /roles`: creates a new role, gated by the shared passkey-authorization window
+ * (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Creates the role, its
+ * permission rows, and an audit row in one transaction; the name uniqueness check runs inside that
+ * transaction first, and the database's own case-insensitive unique index
  * (`roles_name_lower_key`) is the backstop for a name that lands concurrently.
  */
 export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -197,7 +172,6 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
   options: RolesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
-  const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -209,46 +183,6 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
     }
     return true;
   }
-
-  app.post("/roles/creation-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
-
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
-
-    const reauthenticationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
-
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "role_creation",
-      reauthenticationChallenge: reauthenticationOptions.challenge,
-      now: issuedAt,
-    });
-
-    await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-  });
 
   app.post("/roles", async (request, reply) => {
     if (!checkOrigin(request, reply)) {
@@ -277,30 +211,7 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
       return;
     }
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      now: attemptedAt,
-    });
-    if (pending?.kind !== "role_creation") {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
-
-    const reauthentication = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!reauthentication.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
       return;
     }
 
