@@ -14,6 +14,7 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  rolePermissions,
   roles,
   sessions,
   signInChallenges,
@@ -132,6 +133,7 @@ describe("buildTestDatabase", () => {
     }
 
     await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
+    await db.insert(rolePermissions).values({ roleId: role.id, permissionKey: "sell_and_charge" });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({
       userId: user.id,

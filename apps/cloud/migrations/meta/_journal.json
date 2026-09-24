@@ -113,6 +113,13 @@
       "when": 1790268110109,
       "tag": "0015_passkey_challenge_user_passkey_removal_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790273140074,
+      "tag": "0016_role_permissions",
+      "breakpoints": true
     }
   ]
 }

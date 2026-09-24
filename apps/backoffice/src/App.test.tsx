@@ -38,6 +38,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchUserCreationChallenge: vi.fn(),
       createUser: vi.fn(),
       startAuthentication: vi.fn(),

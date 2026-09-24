@@ -301,6 +301,10 @@ export async function startServer(
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          roles: {
+            db: recovery.db,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
         }
       : {}),
   });

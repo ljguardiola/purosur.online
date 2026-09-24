@@ -12,3 +12,15 @@ export {
   rendererPingMessageSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages";
+export type {
+  PermissionArea,
+  PermissionDefinition,
+  PermissionKey,
+  PermissionRegisterMarker,
+} from "./permission-catalog";
+export {
+  ALERT_VIEW_PERMISSION_KEYS,
+  isPermissionKey,
+  PERMISSION_CATALOG,
+  PERMISSION_KEYS,
+} from "./permission-catalog";
