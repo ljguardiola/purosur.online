@@ -5,7 +5,7 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
-// The backoffice API rate limiter (issue #205) counts a rolling one-hour window, the same
+// The backoffice API rate limiter counts a rolling one-hour window, the same
 // fallback sessionApi.ts's own backoffice-rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 

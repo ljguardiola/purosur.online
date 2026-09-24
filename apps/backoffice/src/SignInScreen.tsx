@@ -11,7 +11,7 @@ import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 /**
  * Why the app routed here: because the previous session ended (idle or absolute expiry), because
  * the check that would have told it never got an answer, or because the check itself was rate
- * limited (issue #205).
+ * limited.
  */
 export type SignInOpeningNotice =
   | { kind: "expired" }

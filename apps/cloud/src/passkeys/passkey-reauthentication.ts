@@ -25,7 +25,7 @@ export type PasskeyReauthenticationResult =
  * that passkey's counter and `last_used_at`. Mirrors `session-authenticate-route.ts`'s own
  * verification (including its clone-signal counter check), since this is the same
  * proof-of-possession-plus-user-verification check, performed against an already-open session
- * instead of at sign-in (issue #169: registering or removing a passkey requires it).
+ * instead of at sign-in, because registering or removing a passkey requires it.
  */
 export async function verifyPasskeyReauthentication<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

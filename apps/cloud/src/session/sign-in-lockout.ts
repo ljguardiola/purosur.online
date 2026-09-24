@@ -37,7 +37,7 @@ export interface ConfirmedSignInRejection {
 }
 
 /**
- * Hashes a source address for the audit log the same way #167 hashes its own rate-limit keys
+ * Hashes a source address for the audit log the same way the recovery rate limiter hashes its own keys
  * (SHA-256, hex-encoded): the lockout tables themselves key by the raw address (never looked up by
  * anything else), but a permanent audit row never stores it in the clear.
  */

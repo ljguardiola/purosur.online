@@ -59,7 +59,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   /**
    * Registers `GET /users/passkeys` and every `/users/passkeys/*` self-management route
    * (registration and removal, each gated by a fresh reauthentication) for the session account's
-   * own passkeys (issue #169), the same optional-feature-wiring shape `session` uses above.
+   * own passkeys, the same optional-feature-wiring shape `session` uses above.
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**

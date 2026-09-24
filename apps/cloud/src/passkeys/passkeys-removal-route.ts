@@ -42,8 +42,8 @@ function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
 }
 
 /**
- * Registers the two endpoints that remove a passkey from an already-open session's account (issue
- * #169): `removal-options` hands back a reauthentication challenge against the account's existing
+ * Registers the two endpoints that remove a passkey from an already-open session's account:
+ * `removal-options` hands back a reauthentication challenge against the account's existing
  * passkeys, and `POST /users/passkeys/:id/remove` verifies it before deleting the named passkey —
  * which may be the very one that reauthenticated. Neither ever revokes the session, and removing
  * the account's only remaining passkey is allowed.
