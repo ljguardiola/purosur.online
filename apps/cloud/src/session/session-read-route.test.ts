@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { backofficeRateLimitAttempts, sessions, users } from "../db/schema.js";
+import { backofficeRateLimitAttempts, roles, sessions, userRoles, users } from "../db/schema.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   exhaustSessionRateLimit,
@@ -97,6 +97,17 @@ async function sessionRow(rawSessionId: string) {
   return row;
 }
 
+async function seededAdministratorRoleId(): Promise<string> {
+  const [administratorRole] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.isAdministrator, true));
+  if (!administratorRole) {
+    throw new Error("test setup: no Administrator role seeded");
+  }
+  return administratorRole.id;
+}
+
 describe("GET /users/session", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
     const response = await getSession();
@@ -121,7 +132,7 @@ describe("GET /users/session", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("returns the signed-in user's id and name for a live session", async () => {
+  it("returns the signed-in user's id and name for a live session, not an Administrator", async () => {
     const rawSessionId = await insertSession();
 
     const response = await getSession(rawSessionId);
@@ -131,7 +142,18 @@ describe("GET /users/session", () => {
       user_id: userId,
       display_name: "Ada Lovelace",
       expires_at: new Date(NOON.getTime() + THIRTY_MINUTES_MS).toISOString(),
+      is_administrator: false,
     });
+  });
+
+  it("returns is_administrator true for a user holding the Administrator role", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    await db.insert(userRoles).values({ userId, roleId: administratorRoleId });
+    const rawSessionId = await insertSession();
+
+    const response = await getSession(rawSessionId);
+
+    expect(response.json()).toMatchObject({ is_administrator: true });
   });
 
   it("returns expires_at computed from the touched last_seen_at, not the stale one", async () => {

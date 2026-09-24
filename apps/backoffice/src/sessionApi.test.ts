@@ -25,13 +25,36 @@ afterEach(() => {
 
 test("fetchSession returns the signed-in user's identity on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { user_id: "user-1", display_name: "Lucas Guardiola" }),
+    jsonResponse(200, {
+      user_id: "user-1",
+      display_name: "Lucas Guardiola",
+      is_administrator: false,
+    }),
   );
 
   const outcome = await fetchSession();
 
-  expect(outcome).toEqual({ kind: "ok", userId: "user-1", displayName: "Lucas Guardiola" });
+  expect(outcome).toEqual({
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    isAdministrator: false,
+  });
   expect(fetch).toHaveBeenCalledWith("/users/session");
+});
+
+test("fetchSession reports isAdministrator true for an Administrator session", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      user_id: "user-1",
+      display_name: "Lucas Guardiola",
+      is_administrator: true,
+    }),
+  );
+
+  const outcome = await fetchSession();
+
+  expect(outcome).toMatchObject({ isAdministrator: true });
 });
 
 test("fetchSession reports unauthenticated on 401", async () => {
@@ -71,6 +94,7 @@ test("fetchSession carries the session's deadline so the caller can schedule its
       user_id: "user-1",
       display_name: "Lucas Guardiola",
       expires_at: "2026-09-23T12:30:00.000Z",
+      is_administrator: false,
     }),
   );
 
@@ -79,6 +103,7 @@ test("fetchSession carries the session's deadline so the caller can schedule its
     userId: "user-1",
     displayName: "Lucas Guardiola",
     expiresAt: "2026-09-23T12:30:00.000Z",
+    isAdministrator: false,
   });
 });
 

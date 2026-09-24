@@ -12,7 +12,13 @@ function wait(ms: number): Promise<void> {
 }
 
 function okOutcome(expiresAt: string): SessionOutcome {
-  return { kind: "ok", userId: "user-1", displayName: "Lucas Guardiola", expiresAt };
+  return {
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    isAdministrator: false,
+    expiresAt,
+  };
 }
 
 function renderReporter(initialProps: SessionActivityReporterOptions) {
