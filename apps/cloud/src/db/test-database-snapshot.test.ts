@@ -41,37 +41,53 @@ async function tablesInSnapshot(snapshotPath: string | undefined): Promise<strin
   }
 }
 
+interface Provided {
+  key: "testDatabaseSnapshotPath" | "testDatabaseClusterDumpPath";
+  value: string | undefined;
+}
+
 // Each test starts up to four embedded Postgres databases, about a second apiece on a fast machine
 // and several on a busy CI one, which the default five-second test limit does not cover.
 describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
-  it("rebuilds the provided snapshot from the migrations as they are when tests rerun", async () => {
+  it("rebuilds the provided snapshot from the migrations as they are when tests rerun, without rebuilding the cluster dump", async () => {
     const folder = await mkdtemp(join(tmpdir(), "test-database-snapshot-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     const migrationsFolder = join(folder, "migrations");
     await writeMigrations(migrationsFolder, ["first_table"]);
-    const provided: (string | undefined)[] = [];
+    const provided: Provided[] = [];
     const rerunHandlers: (() => Promise<void>)[] = [];
 
     await provideTestDatabaseSnapshot(
       {
-        provide: (_key, snapshotPath) => {
-          provided.push(snapshotPath);
+        provide: (key, value) => {
+          provided.push({ key, value });
         },
         onTestsRerun: (handler) => {
           rerunHandlers.push(handler);
         },
       },
       join(folder, "snapshot.tar"),
+      join(folder, "cluster-dump.tar"),
       migrationsFolder,
     );
-    expect(await tablesInSnapshot(provided.at(-1))).toEqual(["first_table"]);
+    const clusterDumpsProvided = provided.filter(
+      (entry) => entry.key === "testDatabaseClusterDumpPath",
+    );
+    const snapshotsProvided = () =>
+      provided.filter((entry) => entry.key === "testDatabaseSnapshotPath");
+    expect(await tablesInSnapshot(snapshotsProvided().at(-1)?.value)).toEqual(["first_table"]);
 
     await writeMigrations(migrationsFolder, ["first_table", "second_table"]);
     for (const rerun of rerunHandlers) {
       await rerun();
     }
 
-    expect(await tablesInSnapshot(provided.at(-1))).toEqual(["first_table", "second_table"]);
+    expect(await tablesInSnapshot(snapshotsProvided().at(-1)?.value)).toEqual([
+      "first_table",
+      "second_table",
+    ]);
+    // The empty cluster dump does not depend on migrations, so a rerun never rebuilds or re-provides it.
+    expect(clusterDumpsProvided).toHaveLength(1);
   });
 
   it("provides no snapshot, rather than stopping the rerun, when the migrations break mid-session", async () => {
@@ -79,19 +95,20 @@ describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     const migrationsFolder = join(folder, "migrations");
     await writeMigrations(migrationsFolder, ["first_table"]);
-    const provided: (string | undefined)[] = [];
+    const provided: Provided[] = [];
     const rerunHandlers: (() => Promise<void>)[] = [];
 
     await provideTestDatabaseSnapshot(
       {
-        provide: (_key, snapshotPath) => {
-          provided.push(snapshotPath);
+        provide: (key, value) => {
+          provided.push({ key, value });
         },
         onTestsRerun: (handler) => {
           rerunHandlers.push(handler);
         },
       },
       join(folder, "snapshot.tar"),
+      join(folder, "cluster-dump.tar"),
       migrationsFolder,
     );
     await writeFile(join(migrationsFolder, "0000_first_table.sql"), "this is not sql");
@@ -102,7 +119,8 @@ describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
       await expect(rerun()).resolves.toBeUndefined();
     }
 
-    expect(provided.at(-1)).toBeUndefined();
+    const snapshotsProvided = provided.filter((entry) => entry.key === "testDatabaseSnapshotPath");
+    expect(snapshotsProvided.at(-1)?.value).toBeUndefined();
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining("could not rebuild the test database snapshot"),
       expect.anything(),

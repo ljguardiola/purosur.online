@@ -17,6 +17,12 @@ declare module "vitest" {
      * so the migrations run once per test run rather than once per test file.
      */
     testDatabaseSnapshotPath?: string;
+    /**
+     * File holding a data-dir dump of an empty, freshly-initialized PGlite cluster (no migrations
+     * applied). `migrateFreshDatabase` loads it instead of running initdb, so initdb itself runs
+     * once per test run instead of once per test file with a custom migrations folder.
+     */
+    testDatabaseClusterDumpPath?: string;
   }
 }
 
@@ -42,7 +48,11 @@ export default async function setup(project: TestProject): Promise<() => void> {
     symlinkSync(join(CLOUD_DIR, "node_modules"), join(buildRoot, "node_modules"), "dir");
 
     project.provide("cloudBuildDir", join(buildRoot, "dist"));
-    await provideTestDatabaseSnapshot(project, join(buildRoot, "test-database-snapshot.tar"));
+    await provideTestDatabaseSnapshot(
+      project,
+      join(buildRoot, "test-database-snapshot.tar"),
+      join(buildRoot, "test-database-cluster-dump.tar"),
+    );
   } catch (error) {
     rmSync(buildRoot, { recursive: true, force: true });
     throw error;

@@ -73,21 +73,25 @@ async function restoreSeedRows(
  * data-dir snapshot of an already-migrated database, this loads that snapshot instead of running
  * the migrations again: `apps/cloud/vitest.global-setup.ts` migrates once per test run rather than
  * once per file. A custom `migrationsFolder` never uses the snapshot, since it only matches the
- * default migrations; outside that project (no snapshot provided), this migrates from scratch.
+ * default migrations; it instead migrates a fresh database, starting from the same "node" project's
+ * dump of an empty, already-initialized cluster so it never pays for its own initdb. Outside that
+ * project (nothing provided), this falls back to a plain, uninitialized `new PGlite()`.
  */
 export async function buildTestDatabase({
   migrationsFolder = MIGRATIONS_FOLDER,
   snapshotPath = migrationsFolder === MIGRATIONS_FOLDER
     ? inject("testDatabaseSnapshotPath")
     : undefined,
+  clusterDumpPath = inject("testDatabaseClusterDumpPath"),
 }: {
   migrationsFolder?: string;
   snapshotPath?: string;
+  clusterDumpPath?: string;
 } = {}): Promise<TestDatabase> {
   const usableSnapshotPath = migrationsFolder === MIGRATIONS_FOLDER ? snapshotPath : undefined;
   const client = usableSnapshotPath
     ? new PGlite({ loadDataDir: new Blob([await readFile(usableSnapshotPath)]) })
-    : await migrateFreshDatabase(migrationsFolder);
+    : await migrateFreshDatabase(migrationsFolder, clusterDumpPath);
   const db = drizzle(client);
   let migrationSeedRows: Map<string, Record<string, unknown>[]>;
   try {
