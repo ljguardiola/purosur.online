@@ -49,6 +49,11 @@ export function useSessionWatcher({
   const nowRef = useRef(now);
   nowRef.current = now;
 
+  // Lets the effect below move the deadline out as soon as real use (throttled activity touches,
+  // #192's T3) extends the session, by calling into the running effect's own scheduling function
+  // instead of tearing down and recreating the interval timer and its listeners on every touch.
+  const scheduleDeadlineRef = useRef<((expiresAt: string) => void) | undefined>(undefined);
+
   useEffect(() => {
     if (!active) {
       return;
@@ -74,6 +79,7 @@ export function useSessionWatcher({
         Math.max(delay, 0),
       );
     }
+    scheduleDeadlineRef.current = scheduleDeadline;
 
     async function check() {
       if (checking) {
@@ -103,10 +109,6 @@ export function useSessionWatcher({
       void check();
     }, intervalMs);
 
-    if (initialExpiresAt !== undefined) {
-      scheduleDeadline(initialExpiresAt);
-    }
-
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
         void check();
@@ -116,11 +118,21 @@ export function useSessionWatcher({
 
     return () => {
       cancelled = true;
+      scheduleDeadlineRef.current = undefined;
       window.clearInterval(intervalId);
       if (deadlineTimeoutId !== undefined) {
         window.clearTimeout(deadlineTimeoutId);
       }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [active, initialExpiresAt, intervalMs, deadlineMarginMs]);
+  }, [active, intervalMs, deadlineMarginMs]);
+
+  // Schedules from `initialExpiresAt` on mount and on every later value it takes on (e.g. the
+  // watcher's own re-arming on an "ok" status, or a fresher deadline an activity touch elsewhere
+  // reports through it) without touching the interval-owning effect above.
+  useEffect(() => {
+    if (active && initialExpiresAt !== undefined) {
+      scheduleDeadlineRef.current?.(initialExpiresAt);
+    }
+  }, [active, initialExpiresAt]);
 }

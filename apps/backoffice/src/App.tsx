@@ -13,6 +13,7 @@ import { RegisterPasskeyScreen } from "./RegisterPasskeyScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
 import { type SignInOpeningNotice, SignInScreen } from "./SignInScreen";
+import { useSessionActivityReporter } from "./sessionActivityReporter";
 import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 import { useSessionWatcher } from "./sessionWatcher";
@@ -278,6 +279,17 @@ export function App({ help }: AppProps) {
     ...(session.kind === "signed-in" && session.expiresAt !== undefined
       ? { initialExpiresAt: session.expiresAt }
       : {}),
+  });
+
+  // Keeps a continuously worked tab from going idle: real use (not merely an open tab) touches
+  // the session, and the watcher above follows the fresher deadline that comes back.
+  useSessionActivityReporter({
+    active: session.kind === "signed-in",
+    touchSession: fetchSession,
+    onTouched: (expiresAt) => {
+      setSession((current) => (current.kind === "signed-in" ? { ...current, expiresAt } : current));
+    },
+    onEnded: handleSessionEnded,
   });
 
   if (session.kind === "loading") {

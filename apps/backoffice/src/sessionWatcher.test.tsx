@@ -212,6 +212,44 @@ test("stops checking once the session is no longer active", async () => {
   expect(onEnded).not.toHaveBeenCalled();
 });
 
+test("moves the deadline out from a fresh initialExpiresAt without restarting the interval-driven check", async () => {
+  // Real use touching the session (#192's T3) reports a new deadline through this same prop;
+  // that must not tear down and recreate the interval or its listeners on every touch.
+  const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
+    kind: "ok",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  });
+  const onEnded = vi.fn();
+  const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+  const hook = await renderWatcher({
+    active: true,
+    initialExpiresAt: new Date(Date.now() + 1_000).toISOString(),
+    checkStatus,
+    onEnded,
+    intervalMs: 10_000,
+    deadlineMarginMs: 0,
+  });
+  hooks.push(hook);
+
+  const setIntervalCallsAfterMount = setIntervalSpy.mock.calls.length;
+
+  await hook.rerender({
+    active: true,
+    initialExpiresAt: new Date(Date.now() + 20).toISOString(),
+    checkStatus,
+    onEnded,
+    intervalMs: 10_000,
+    deadlineMarginMs: 0,
+  });
+
+  expect(setIntervalSpy.mock.calls.length).toBe(setIntervalCallsAfterMount);
+  await expect.poll(() => checkStatus.mock.calls.length).toBeGreaterThan(0);
+  expect(onEnded).not.toHaveBeenCalled();
+
+  setIntervalSpy.mockRestore();
+});
+
 test("stops checking once the component unmounts", async () => {
   const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
     kind: "ok",
