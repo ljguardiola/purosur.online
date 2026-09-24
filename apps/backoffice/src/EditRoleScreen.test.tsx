@@ -311,6 +311,74 @@ test("shows a reload-failed notice when Recargar cannot reach the role, and Reca
   await expect.poll(() => screen.getByText("No se pudieron recargar los datos").query()).toBeNull();
 });
 
+test("a rate-limited save at edit-options shows the wait without offering Recargar, keeping the typed edits", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito nuevo");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito nuevo");
+});
+
+test("a rate-limited save at the edit itself shows the wait without offering Recargar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
+});
+
+test("a rate-limited Recargar keeps offering Recargar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stock });
+  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { reauthenticationOptions },
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("Este rol cambió mientras lo editabas")).toBeVisible();
+
+  vi.mocked(services.fetchRole).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Recargar" })).toBeVisible();
+});
+
 test("has no accessibility violations once loaded", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });

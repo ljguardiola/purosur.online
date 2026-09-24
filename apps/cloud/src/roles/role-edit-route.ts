@@ -3,7 +3,7 @@ import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import { auditLog, passkeys, rolePermissions, roles } from "../db/schema.js";
 import {
   consumePendingPasskeyChallenge,
   pruneExpiredPasskeyChallenges,
@@ -19,7 +19,7 @@ import {
   ROLE_NAME_TAKEN_RESPONSE,
   RoleNameTaken,
 } from "./role-creation-route.js";
-import { findEditableRole, toRoleDetailWire } from "./role-read-route.js";
+import { countRoleUsers, findEditableRole, toRoleDetailWire } from "./role-read-route.js";
 import {
   type RoleFieldValidationFailure,
   readRoleName,
@@ -120,19 +120,6 @@ export type EditRoleOutcome =
   | { kind: "name_taken" }
   | { kind: "applied"; role: EditedRole };
 
-async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  roleId: string,
-  locationId: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(userRoles)
-    .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`);
-  return row?.count ?? 0;
-}
-
 /**
  * Updates one hand-made role's name and permissions in one transaction, rejecting a save made over
  * a version someone else already changed the same way `changeUserEmail` (`user-email-change-
@@ -205,6 +192,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
       }
 
       const nextVersion = current.version + 1;
+      const nextPermissionKeys = PERMISSION_KEYS.filter((key) => nextPermissionSet.has(key));
       await tx
         .update(roles)
         .set({ name: input.name, version: nextVersion })
@@ -227,7 +215,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           name: current.name,
           permissions: PERMISSION_KEYS.filter((key) => currentPermissionSet.has(key)),
         },
-        newValue: { name: input.name, permissions: input.permissionKeys },
+        newValue: { name: input.name, permissions: nextPermissionKeys },
       });
 
       return {
@@ -236,7 +224,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           id: input.id,
           name: input.name,
           isAdministrator: false,
-          permissionKeys: input.permissionKeys,
+          permissionKeys: nextPermissionKeys,
           userCount: 0,
           version: nextVersion,
         },

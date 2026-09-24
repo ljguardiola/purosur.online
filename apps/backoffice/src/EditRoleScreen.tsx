@@ -49,7 +49,7 @@ type LoadState =
 
 type FormNotice =
   | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
+  | { kind: "rateLimited"; retryAfterSeconds: number; offersReload: boolean }
   | { kind: "staleVersion" }
   | { kind: "reloadFailed" };
 
@@ -157,7 +157,11 @@ export function EditRoleScreen({
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: outcome.retryAfterSeconds,
+        offersReload: true,
+      });
       setSubmitting(false);
       return;
     }
@@ -193,7 +197,11 @@ export function EditRoleScreen({
       return;
     }
     if (challenge.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: challenge.retryAfterSeconds,
+        offersReload: false,
+      });
       setSubmitting(false);
       return;
     }
@@ -249,7 +257,11 @@ export function EditRoleScreen({
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setNotice({
+        kind: "rateLimited",
+        retryAfterSeconds: outcome.retryAfterSeconds,
+        offersReload: false,
+      });
       setSubmitting(false);
       return;
     }
@@ -260,7 +272,7 @@ export function EditRoleScreen({
   const offersReload =
     notice?.kind === "staleVersion" ||
     notice?.kind === "reloadFailed" ||
-    (notice?.kind === "rateLimited" && state.kind === "loaded");
+    (notice?.kind === "rateLimited" && notice.offersReload);
 
   return (
     <>

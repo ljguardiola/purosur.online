@@ -747,4 +747,28 @@ describe("POST /roles/:id/edit", () => {
       newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "adjust_stock"] },
     });
   });
+
+  it("answers and audits the new permissions in catalog order, whatever order they were sent in", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
+
+    const response = await editRoleRequest(roleId, rawSessionId, {
+      name: "Cajera",
+      permissions: ["adjust_stock", "view_stock_balances", "sell_and_charge"],
+      version: 1,
+      reauthentication,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().permissions).toEqual([
+      "sell_and_charge",
+      "view_stock_balances",
+      "adjust_stock",
+    ]);
+    const [editAudit] = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
+    expect(editAudit?.newValue).toEqual({
+      name: "Cajera",
+      permissions: ["sell_and_charge", "view_stock_balances", "adjust_stock"],
+    });
+  });
 });

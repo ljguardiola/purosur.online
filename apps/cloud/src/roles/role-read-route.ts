@@ -30,7 +30,7 @@ export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
   return { ...toRoleSummaryWire(row), version: row.version };
 }
 
-async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
+export async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   roleId: string,
   locationId: string,

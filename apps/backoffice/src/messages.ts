@@ -420,7 +420,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         heading: "Editar rol",
         loading: "Cargando…",
         notFoundTitle: "No encontramos este rol",
-        backToList: "Volver a Roles",
         loadErrorTitle: "No pudimos abrir este rol",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
         cancel: CANCEL_LABEL,
