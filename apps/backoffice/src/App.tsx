@@ -1,5 +1,5 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { LifeBuoy, Settings, Users } from "lucide-react";
+import { LifeBuoy, Settings, Shield, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AccountFooter,
@@ -22,10 +22,20 @@ import {
 } from "./MyAccountScreen";
 import { messages } from "./messages";
 import {
+  defaultNewRoleScreenServices,
+  NewRoleScreen,
+  type NewRoleScreenServices,
+} from "./NewRoleScreen";
+import {
   defaultRegisterPasskeyScreenServices,
   RegisterPasskeyScreen,
   type RegisterPasskeyScreenServices,
 } from "./RegisterPasskeyScreen";
+import {
+  defaultRolesListScreenServices,
+  RolesListScreen,
+  type RolesListScreenServices,
+} from "./RolesListScreen";
 import { navigate, onNavigate, useRoute } from "./router";
 import { Shell } from "./Shell";
 import {
@@ -38,7 +48,13 @@ import { useSessionActivityReporter } from "./sessionActivityReporter";
 import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 import { useSessionWatcher } from "./sessionWatcher";
-import { MY_ACCOUNT_PATH, matchUserDetailPath, USERS_LIST_PATH } from "./settingsRoutes";
+import {
+  MY_ACCOUNT_PATH,
+  matchUserDetailPath,
+  NEW_ROLE_PATH,
+  ROLES_LIST_PATH,
+  USERS_LIST_PATH,
+} from "./settingsRoutes";
 import {
   defaultUserDetailScreenServices,
   UserDetailScreen,
@@ -59,6 +75,8 @@ export type AppServices = {
   myAccountScreen: MyAccountScreenServices;
   usersListScreen: UsersListScreenServices;
   userDetailScreen: UserDetailScreenServices;
+  rolesListScreen: RolesListScreenServices;
+  newRoleScreen: NewRoleScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -71,6 +89,8 @@ const defaultAppServices: AppServices = {
   myAccountScreen: defaultMyAccountScreenServices,
   usersListScreen: defaultUsersListScreenServices,
   userDetailScreen: defaultUserDetailScreenServices,
+  rolesListScreen: defaultRolesListScreenServices,
+  newRoleScreen: defaultNewRoleScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -193,7 +213,7 @@ function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: Help
   );
 }
 
-type SettingsAppSection = "myAccount" | "usersList" | "userDetail";
+type SettingsAppSection = "myAccount" | "usersList" | "userDetail" | "rolesList" | "newRole";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
@@ -208,9 +228,11 @@ type SettingsAppProps = {
   myAccountScreenServices: MyAccountScreenServices;
   usersListScreenServices: UsersListScreenServices;
   userDetailScreenServices: UserDetailScreenServices;
+  rolesListScreenServices: RolesListScreenServices;
+  newRoleScreenServices: NewRoleScreenServices;
 };
 
-/** The Config-in-Shell part of the app, under its single "Usuarios" section: the Users list, one user's detail, or "Mi cuenta". */
+/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new role). */
 function SettingsApp({
   section,
   userDetailId,
@@ -223,12 +245,16 @@ function SettingsApp({
   myAccountScreenServices,
   usersListScreenServices,
   userDetailScreenServices,
+  rolesListScreenServices,
+  newRoleScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
-        : messages.settings.myAccount.documentTitle;
+        : section === "rolesList" || section === "newRole"
+          ? messages.settings.roles.documentTitle
+          : messages.settings.myAccount.documentTitle;
   }, [section]);
 
   return (
@@ -258,10 +284,22 @@ function SettingsApp({
               <SectionNavItem
                 label={messages.settings.usersSectionLabel}
                 icon={<Users />}
-                active
+                active={
+                  section === "usersList" || section === "userDetail" || section === "myAccount"
+                }
                 {...linkProps(USERS_LIST_PATH)}
               />
             </li>
+            {isAdministrator && (
+              <li>
+                <SectionNavItem
+                  label={messages.settings.rolesSectionLabel}
+                  icon={<Shield />}
+                  active={section === "rolesList" || section === "newRole"}
+                  {...linkProps(ROLES_LIST_PATH)}
+                />
+              </li>
+            )}
           </ul>
         </>
       }
@@ -289,6 +327,20 @@ function SettingsApp({
           services={myAccountScreenServices}
         />
       )}
+      {section === "rolesList" && (
+        <RolesListScreen
+          isAdministrator={isAdministrator}
+          onSessionEnded={onSessionEnded}
+          services={rolesListScreenServices}
+        />
+      )}
+      {section === "newRole" && (
+        <NewRoleScreen
+          isAdministrator={isAdministrator}
+          onSessionEnded={onSessionEnded}
+          services={newRoleScreenServices}
+        />
+      )}
     </Shell>
   );
 }
@@ -303,6 +355,8 @@ export function App({ help, services }: AppProps) {
     myAccountScreen,
     usersListScreen,
     userDetailScreen,
+    rolesListScreen,
+    newRoleScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -434,7 +488,11 @@ export function App({ help, services }: AppProps) {
 
   const userDetailId = matchUserDetailPath(route);
   const isSettingsRoute =
-    route === MY_ACCOUNT_PATH || route === USERS_LIST_PATH || userDetailId !== undefined;
+    route === MY_ACCOUNT_PATH ||
+    route === USERS_LIST_PATH ||
+    userDetailId !== undefined ||
+    route === ROLES_LIST_PATH ||
+    route === NEW_ROLE_PATH;
 
   if (isSettingsRoute) {
     return session.kind === "signed-in" ? (
@@ -444,7 +502,11 @@ export function App({ help, services }: AppProps) {
             ? "usersList"
             : userDetailId !== undefined
               ? "userDetail"
-              : "myAccount"
+              : route === ROLES_LIST_PATH
+                ? "rolesList"
+                : route === NEW_ROLE_PATH
+                  ? "newRole"
+                  : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
         signedInUserId={session.userId}
@@ -456,6 +518,8 @@ export function App({ help, services }: AppProps) {
         myAccountScreenServices={myAccountScreen}
         usersListScreenServices={usersListScreen}
         userDetailScreenServices={userDetailScreen}
+        rolesListScreenServices={rolesListScreen}
+        newRoleScreenServices={newRoleScreen}
       />
     ) : null;
   }

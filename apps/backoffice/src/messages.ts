@@ -1,3 +1,4 @@
+import { PERMISSION_KEYS, type PermissionArea, type PermissionKey } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -25,6 +26,85 @@ const EMAIL_INVALID = "Ingresá un correo válido.";
 const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
 const CANCEL_LABEL = "Cancelar";
 const CLOSE_LABEL = "Cerrar";
+const ADMINISTRATOR_ROLE_NAME = "Administrador";
+
+// Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
+// type error) and the Alertas area's own radio/checkbox widget, which renders these same three
+// permissions as a bespoke control instead of a plain checkbox list.
+const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
+const VIEW_ALL_ALERTS_LABEL = "Ver todas las alertas";
+const DISMISS_ALERTS_LABEL = "Cerrar alertas a mano";
+
+// Every permission the catalog defines, in its own order, so a permission added to the catalog
+// without a label here fails to compile instead of rendering blank.
+const PERMISSION_LABELS = {
+  sell_and_charge: "Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión",
+  view_sales_history: "Consultar el historial de ventas",
+  close_anothers_register_session: "Cerrar la sesión de caja de otra persona",
+  reprint_receipt: "Reimprimir un ticket",
+  record_cash_in: "Registrar un ingreso de efectivo",
+  record_cash_expense: "Registrar un gasto pagado en efectivo",
+  withdraw_cash: "Retirar efectivo de la caja",
+  override_line_price_or_discount: "Cambiar el precio o aplicar un descuento a una línea",
+  apply_total_discount: "Aplicar un descuento sobre el total",
+  void_sale: "Anular una venta",
+  process_return: "Hacer devoluciones",
+  authorize_late_defect_refund: "Autorizar el reembolso de un defecto fuera de plazo",
+  confirm_refunds: "Confirmar reembolsos",
+  record_initial_inventory: "Inventario inicial",
+  view_stock_balances: "Ver saldos",
+  perform_stock_counts: "Recuentos",
+  adjust_stock: "Ajustes",
+  record_stock_losses: "Pérdidas",
+  manage_suppliers: "Proveedores",
+  manage_purchase_presentations: "Presentaciones de compra",
+  record_purchases: "Registrar compras",
+  manage_freight: "Flete",
+  manage_expiration_dates: "Vencimientos",
+  manage_supplier_price_lists: "Cargar y revisar listas de proveedores",
+  compare_prices_and_suggest_orders: "Comparación de precios y sugerencia de pedido",
+  manage_purchase_orders: "Pedidos",
+  receive_purchase_orders: "Recibir pedidos",
+  manage_products_and_categories: "Productos y categorías",
+  manage_prices_and_review: "Precios y su revisión",
+  manage_promotions: "Promociones",
+  manage_recipes: "Recetas",
+  manage_batches: "Tandas",
+  reset_user_pin: "Reiniciar el PIN",
+  deactivate_users: "Desactivar usuarios",
+  correct_register_clock: "Corregir el reloj de la caja",
+  view_fiscal_documents: "Ver comprobantes, contingencias y puntos de venta",
+  close_fiscal_tasks: "Cerrar tareas fiscales",
+  change_fiscal_configuration: "Cambiar la configuración fiscal",
+  view_reports: "Ver reportes",
+  view_branch_alerts: VIEW_BRANCH_ALERTS_LABEL,
+  view_all_alerts: VIEW_ALL_ALERTS_LABEL,
+  dismiss_alerts_manually: DISMISS_ALERTS_LABEL,
+  enroll_register_devices: "Dar de alta cajas",
+  revoke_register_devices: "Revocar cajas",
+  view_bitlocker_key: "Consultar la clave de BitLocker",
+  view_backups_and_rotate_key: "Ver backups y rotar la clave",
+  recover_contingency_receipts: "Rescatar tickets de contingencia",
+  configure_branch: "Configurar la sucursal",
+} satisfies Record<PermissionKey, string>;
+
+const AREA_LABELS = {
+  cashRegister: "Caja",
+  sale: "Venta",
+  returns: "Devoluciones",
+  checkout: "Cobro",
+  stock: "Stock",
+  purchasing: "Compras",
+  catalog: "Catálogo",
+  assembledProducts: "Productos armados",
+  users: "Usuarios",
+  fiscal: "Fiscal",
+  reports: "Reportes",
+  alerts: "Alertas",
+  devices: "Dispositivos",
+  backups: "Backups",
+  branch: "Sucursal",
+} satisfies Record<PermissionArea, string>;
 
 export const messages = defineMessages("es-AR", (f) => ({
   shell: {
@@ -122,6 +202,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsHeading: "Configuración",
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
+    rolesSectionLabel: "Roles",
     myAccount: {
       documentTitle: "Mi cuenta · Puro Sur",
       breadcrumb: (params: { name: string }) => `Configuración · ${params.name}`,
@@ -189,7 +270,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       breadcrumb: "Configuración",
       heading: "Usuarios",
       newUserButton: "Nuevo usuario",
-      administratorRoleName: "Administrador",
+      administratorRoleName: ADMINISTRATOR_ROLE_NAME,
       columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
@@ -272,6 +353,62 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
+      },
+    },
+    roles: {
+      documentTitle: "Roles · Puro Sur",
+      breadcrumb: "Configuración",
+      heading: "Roles",
+      newRoleButton: "Nuevo rol",
+      administratorRoleName: ADMINISTRATOR_ROLE_NAME,
+      allPermissionsLabel: "Todos los permisos",
+      permissionsCount: (params: { count: number }) =>
+        `${params.count} de ${PERMISSION_KEYS.length} permisos`,
+      usersCount: (params: { count: number }) =>
+        params.count === 0
+          ? "Sin usuarios"
+          : f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 rol", other: `${params.count} roles` }),
+      columns: { rol: "Rol", permisos: "Permisos", usuarios: "Usuarios", acciones: "Acciones" },
+      loadErrorTitle: "No pudimos abrir los roles",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      forbiddenTitle: "No tenés acceso a Roles",
+      forbiddenDetail: "Esta sección es solo para Administradores.",
+      cashRegisterBadgeLabel: "Caja",
+      pinBadgeLabel: "Caja · con PIN de otra persona",
+      areaLabels: AREA_LABELS,
+      permissionLabels: PERMISSION_LABELS,
+      newRole: {
+        breadcrumb: "Configuración · Roles",
+        heading: "Nuevo rol",
+        nameLabel: "Nombre del rol",
+        nameRequired: "Ingresá el nombre del rol.",
+        nameReserved: "Ese nombre es del Administrador; elegí otro.",
+        nameFieldError: "Revisá el nombre del rol.",
+        nameTaken: "Ya existe un rol con este nombre.",
+        referencesPinHelper:
+          "Si quien está en la caja no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.",
+        administratorOnlyHelper:
+          "Crear y editar roles, dar de alta usuarios y asignarles un rol queda solo para el Administrador.",
+        areaCount: (params: { count: number; total: number }) =>
+          `${params.count} de ${params.total}`,
+        alertsNoneOption: "No ve alertas",
+        alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
+        alertsAllOption: VIEW_ALL_ALERTS_LABEL,
+        dismissAlertsOption: DISMISS_ALERTS_LABEL,
+        reauthNotice: "Se pide tu passkey para confirmar.",
+        cancel: CANCEL_LABEL,
+        save: "Guardar el rol",
+        attemptFailedTitle: "No se pudo crear el rol",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
   },

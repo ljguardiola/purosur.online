@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@purosur/contracts": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@simplewebauthn/browser": "^14.0.0",
     "lucide-react": "^1.47.0",

@@ -1,6 +1,10 @@
 export const MY_ACCOUNT_PATH = "/settings/users/me";
 /** The Users list, an Administrator-only screen: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
 export const USERS_LIST_PATH = "/settings/users";
+/** The Roles list, an Administrator-only screen: the sidebar's "Roles" item opens this. */
+export const ROLES_LIST_PATH = "/settings/roles";
+/** The Roles list's "Nuevo rol" action's own target: a full page, not a modal. */
+export const NEW_ROLE_PATH = "/settings/roles/new";
 
 /** The Users list row action's own target: one user's detail screen. */
 export function userDetailPath(id: string): string {

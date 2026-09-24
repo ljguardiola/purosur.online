@@ -47,6 +47,9 @@ importers:
 
   apps/backoffice:
     dependencies:
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@purosur/ui':
         specifier: workspace:*
         version: link:../../packages/ui
