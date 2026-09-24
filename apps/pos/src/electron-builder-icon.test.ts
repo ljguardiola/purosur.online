@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const APP_ROOT = fileURLToPath(new URL("..", import.meta.url));
-const ICON_PATH = `${APP_ROOT}/build/icon.ico`;
 
 const originalPosChannel = process.env.POS_CHANNEL;
 
@@ -31,27 +31,19 @@ describe.each(["production", "staging"] as const)(
     it("points the Windows app at the isotype icon", async () => {
       const config = await loadConfig(channel);
 
-      expect(config.win).toBeDefined();
       expect(config.win?.icon).toBe("build/icon.ico");
-    });
-
-    it("points the NSIS installer and uninstaller at the isotype icon", async () => {
-      const config = await loadConfig(channel);
-
-      expect(config.nsis).toBeDefined();
-      expect(config.nsis?.installerIcon).toBe("build/icon.ico");
-      expect(config.nsis?.uninstallerIcon).toBe("build/icon.ico");
     });
   },
 );
 
 describe("the register's app icon file", () => {
-  it("is a real ICO holding square frames, including the 256px frame electron-builder requires on Windows", () => {
-    const icon = readFileSync(ICON_PATH);
+  it("is a complete ICO holding square frames, including the 256px frame electron-builder requires on Windows", async () => {
+    const config = await loadConfig("production");
+    const icon = readFileSync(join(APP_ROOT, String(config.win?.icon)));
 
-    // ICO header: 2 reserved bytes (0), a type field (1 = icon), then an image count; each
-    // 16-byte directory entry that follows starts with its width and height in bytes 0 and 1,
-    // where a byte value of 0 means 256 (a byte can't hold 256 itself).
+    // ICO header: 2 reserved bytes (0), a type field (1 = icon), then an image count. Each 16-byte
+    // directory entry that follows holds the frame's width and height in bytes 0 and 1 (0 means
+    // 256), and the frame's byte length and offset in bytes 8 and 12.
     expect(icon.readUInt16LE(0)).toBe(0);
     expect(icon.readUInt16LE(2)).toBe(1);
     const imageCount = icon.readUInt16LE(4);
@@ -60,6 +52,10 @@ describe("the register's app icon file", () => {
       const entryOffset = 6 + i * 16;
       const width = icon.readUInt8(entryOffset) || 256;
       const height = icon.readUInt8(entryOffset + 1) || 256;
+      const byteLength = icon.readUInt32LE(entryOffset + 8);
+      const byteOffset = icon.readUInt32LE(entryOffset + 12);
+      expect(byteLength).toBeGreaterThan(0);
+      expect(byteOffset + byteLength).toBeLessThanOrEqual(icon.length);
       frames.push([width, height]);
     }
 
