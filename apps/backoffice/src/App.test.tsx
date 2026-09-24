@@ -6,7 +6,7 @@ import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/a
 import { App } from "./App";
 import { fetchPasskeys } from "./passkeyApi";
 import { fetchRegistrationOptions } from "./recoveryApi";
-import { fetchSession, signOut } from "./sessionApi";
+import { checkSessionStatus, fetchSession, signOut } from "./sessionApi";
 
 vi.mock("./recoveryApi", () => ({
   requestRecoveryLink: vi.fn(),
@@ -18,9 +18,7 @@ vi.mock("./sessionApi", () => ({
   fetchAuthenticationOptions: vi.fn(),
   authenticate: vi.fn(),
   signOut: vi.fn(),
-  // Never resolves: these tests run well under the watcher's 60s interval and never report a
-  // deadline or dispatch a visibility change, so this is never expected to be awaited.
-  checkSessionStatus: vi.fn(() => new Promise(() => {})),
+  checkSessionStatus: vi.fn(),
 }));
 vi.mock("./passkeyApi", () => ({
   fetchPasskeys: vi.fn(() => new Promise(() => {})),
@@ -60,6 +58,11 @@ beforeEach(() => {
     displayName: "Lucas Guardiola",
   });
   vi.mocked(signOut).mockReset().mockResolvedValue({ kind: "ok" });
+  // Never resolves by default: most tests here are about something else, and run well under the
+  // watcher's interval anyway.
+  vi.mocked(checkSessionStatus)
+    .mockReset()
+    .mockReturnValue(new Promise(() => {}));
   vi.mocked(fetchPasskeys)
     .mockReset()
     .mockReturnValue(new Promise(() => {}));
@@ -386,4 +389,34 @@ test("ends the session with the expired notice when Mi cuenta's passkeys request
   await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
   expect(window.location.pathname).toBe("/sign-in");
+});
+
+test("ends the session with the expired notice when the open tab's status check finds it already ended", async () => {
+  const screen = await render(<App help={emptyHelp} />);
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+
+  vi.mocked(checkSessionStatus).mockResolvedValue({ kind: "unauthenticated" });
+  document.dispatchEvent(new Event("visibilitychange"));
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
+});
+
+test("ends the session with the expired notice when real use of the open tab finds it already ended", async () => {
+  const screen = await render(<App help={emptyHelp} />);
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+
+  vi.mocked(fetchSession).mockResolvedValue({ kind: "unauthenticated" });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    await userEvent.click(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }));
+
+    await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+    await expect.element(screen.getByText("Tu sesión venció")).toBeVisible();
+    expect(window.location.pathname).toBe("/sign-in");
+  } finally {
+    vi.useRealTimers();
+  }
 });
