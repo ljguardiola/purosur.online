@@ -18,9 +18,23 @@ export type SignInOpeningNotice =
   | { kind: "check_failed" }
   | { kind: "rate_limited"; retryAfterSeconds: number };
 
+export type SignInScreenServices = {
+  fetchAuthenticationOptions: typeof fetchAuthenticationOptions;
+  authenticate: typeof authenticate;
+  startAuthentication: typeof startAuthentication;
+};
+
+export const defaultSignInScreenServices: SignInScreenServices = {
+  fetchAuthenticationOptions,
+  authenticate,
+  startAuthentication,
+};
+
 export type SignInScreenProps = {
   openingNotice?: SignInOpeningNotice | undefined;
   onSignedIn: () => void;
+  /** Injected in tests so sign-in doesn't call the real session API or WebAuthn. */
+  services?: SignInScreenServices;
 };
 
 type Notice =
@@ -34,7 +48,9 @@ type Notice =
  * network error, and a cancelled or failed browser passkey prompt alike: nothing about it may
  * let someone infer which of those actually happened.
  */
-export function SignInScreen({ openingNotice, onSignedIn }: SignInScreenProps) {
+export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScreenProps) {
+  const { fetchAuthenticationOptions, authenticate, startAuthentication } =
+    services ?? defaultSignInScreenServices;
   const [notice, setNotice] = useState<Notice | null>(openingNotice ?? null);
   const [submitting, setSubmitting] = useState(false);
 

@@ -1,25 +1,20 @@
-import { startAuthentication } from "@simplewebauthn/browser";
-import { beforeEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { SignInScreen } from "./SignInScreen";
-import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
-
-vi.mock("./sessionApi", () => ({
-  fetchAuthenticationOptions: vi.fn(),
-  authenticate: vi.fn(),
-}));
-vi.mock("@simplewebauthn/browser", () => ({ startAuthentication: vi.fn() }));
+import { SignInScreen, type SignInScreenServices } from "./SignInScreen";
 
 const authenticationOptions = { challenge: "abc", rpId: "purosur.online" } as never;
 const assertionResponse = { id: "cred-1" } as never;
 
-beforeEach(() => {
-  vi.mocked(fetchAuthenticationOptions).mockReset();
-  vi.mocked(authenticate).mockReset();
-  vi.mocked(startAuthentication).mockReset();
-});
+function createServices(overrides: Partial<SignInScreenServices> = {}): SignInScreenServices {
+  return {
+    fetchAuthenticationOptions: vi.fn(),
+    authenticate: vi.fn(),
+    startAuthentication: vi.fn(),
+    ...overrides,
+  };
+}
 
 test("shows the sign-in heading, its passkey copy, the submit button and the recovery link", async () => {
   const screen = await render(<SignInScreen onSignedIn={() => {}} />);
@@ -41,32 +36,36 @@ test("shows the sign-in heading, its passkey copy, the submit button and the rec
 });
 
 test("signs in and calls onSignedIn when the browser's assertion is accepted", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue({
-    kind: "ok",
-    value: authenticationOptions,
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    authenticate: vi.fn().mockResolvedValue({ kind: "ok" }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
   });
-  vi.mocked(startAuthentication).mockResolvedValue(assertionResponse);
-  vi.mocked(authenticate).mockResolvedValue({ kind: "ok" });
   const onSignedIn = vi.fn();
 
-  const screen = await render(<SignInScreen onSignedIn={onSignedIn} />);
+  const screen = await render(<SignInScreen onSignedIn={onSignedIn} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.poll(() => onSignedIn.mock.calls.length).toBe(1);
-  expect(startAuthentication).toHaveBeenCalledWith({ optionsJSON: authenticationOptions });
-  expect(authenticate).toHaveBeenCalledWith(assertionResponse);
+  expect(services.startAuthentication).toHaveBeenCalledWith({
+    optionsJSON: authenticationOptions,
+  });
+  expect(services.authenticate).toHaveBeenCalledWith(assertionResponse);
 });
 
 test("shows a blocked notice, without navigating away, when the cloud reports the lockout", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue({
-    kind: "ok",
-    value: authenticationOptions,
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
+    authenticate: vi.fn().mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 900 }),
   });
-  vi.mocked(startAuthentication).mockResolvedValue(assertionResponse);
-  vi.mocked(authenticate).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 900 });
   const onSignedIn = vi.fn();
 
-  const screen = await render(<SignInScreen onSignedIn={onSignedIn} />);
+  const screen = await render(<SignInScreen onSignedIn={onSignedIn} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("Demasiados intentos desde esta conexión")).toBeVisible();
@@ -94,20 +93,21 @@ test("shows the session-expired notice up front when the app opens it that way",
 });
 
 test("lets the person retry after the browser cancels the passkey prompt, clearing the expired notice", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue({
-    kind: "ok",
-    value: authenticationOptions,
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    startAuthentication: vi.fn().mockRejectedValue(new Error("NotAllowedError")),
   });
-  vi.mocked(startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
 
   const screen = await render(
-    <SignInScreen openingNotice={{ kind: "expired" }} onSignedIn={() => {}} />,
+    <SignInScreen openingNotice={{ kind: "expired" }} onSignedIn={() => {}} services={services} />,
   );
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
   expect(screen.getByText("Tu sesión venció").query()).toBeNull();
-  expect(authenticate).not.toHaveBeenCalled();
+  expect(services.authenticate).not.toHaveBeenCalled();
   await expect
     .element(screen.getByRole("button", { name: "Ingresar con passkey" }))
     .not.toBeDisabled();
@@ -139,33 +139,38 @@ test("shows a rate-limited notice up front when the app opens it that way", asyn
 });
 
 test("shows a generic failure notice when fetching the authentication options fails", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue({ kind: "failed" });
+  const services = createServices({
+    fetchAuthenticationOptions: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
 
-  const screen = await render(<SignInScreen onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
-  expect(startAuthentication).not.toHaveBeenCalled();
+  expect(services.startAuthentication).not.toHaveBeenCalled();
 });
 
 test("shows a generic failure notice when the cloud rejects the assertion", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue({
-    kind: "ok",
-    value: authenticationOptions,
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
+    authenticate: vi.fn().mockResolvedValue({ kind: "failed" }),
   });
-  vi.mocked(startAuthentication).mockResolvedValue(assertionResponse);
-  vi.mocked(authenticate).mockResolvedValue({ kind: "failed" });
 
-  const screen = await render(<SignInScreen onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
 });
 
 test("disables the submit button while a sign-in attempt is in flight", async () => {
-  vi.mocked(fetchAuthenticationOptions).mockResolvedValue(new Promise(() => {}) as never);
+  const services = createServices({
+    fetchAuthenticationOptions: vi.fn().mockResolvedValue(new Promise(() => {}) as never),
+  });
 
-  const screen = await render(<SignInScreen onSignedIn={() => {}} />);
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByRole("button", { name: "Ingresar con passkey" })).toBeDisabled();
