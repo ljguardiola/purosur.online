@@ -46,8 +46,9 @@ interface Provided {
   value: string | undefined;
 }
 
-// Each test starts up to four embedded Postgres databases, about a second apiece on a fast machine
-// and several on a busy CI one, which the default five-second test limit does not cover.
+// Each test initializes one embedded Postgres cluster from scratch, about a second on a fast machine
+// and several on a busy CI one, then loads up to four more from dumps, which together the default
+// five-second test limit does not cover.
 describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
   it("rebuilds the provided snapshot from the migrations as they are when tests rerun, without rebuilding the cluster dump", async () => {
     const folder = await mkdtemp(join(tmpdir(), "test-database-snapshot-"));
@@ -70,9 +71,9 @@ describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
       join(folder, "cluster-dump.tar"),
       migrationsFolder,
     );
-    const clusterDumpsProvided = provided.filter(
-      (entry) => entry.key === "testDatabaseClusterDumpPath",
-    );
+    const clusterDump = await readFile(join(folder, "cluster-dump.tar"));
+    const clusterDumpsProvided = () =>
+      provided.filter((entry) => entry.key === "testDatabaseClusterDumpPath");
     const snapshotsProvided = () =>
       provided.filter((entry) => entry.key === "testDatabaseSnapshotPath");
     expect(await tablesInSnapshot(snapshotsProvided().at(-1)?.value)).toEqual(["first_table"]);
@@ -87,7 +88,8 @@ describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
       "second_table",
     ]);
     // The empty cluster dump does not depend on migrations, so a rerun never rebuilds or re-provides it.
-    expect(clusterDumpsProvided).toHaveLength(1);
+    expect(clusterDumpsProvided()).toHaveLength(1);
+    expect((await readFile(join(folder, "cluster-dump.tar"))).equals(clusterDump)).toBe(true);
   });
 
   it("provides no snapshot, rather than stopping the rerun, when the migrations break mid-session", async () => {

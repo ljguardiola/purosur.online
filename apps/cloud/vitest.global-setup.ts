@@ -19,8 +19,8 @@ declare module "vitest" {
     testDatabaseSnapshotPath?: string;
     /**
      * File holding a data-dir dump of an empty, freshly-initialized PGlite cluster (no migrations
-     * applied). `migrateFreshDatabase` loads it instead of running initdb, so initdb itself runs
-     * once per test run instead of once per test file with a custom migrations folder.
+     * applied). `migrateFreshDatabase` loads it instead of running initdb, so initdb runs once per
+     * test run instead of once per database built from a custom migrations folder.
      */
     testDatabaseClusterDumpPath?: string;
   }
