@@ -236,6 +236,10 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   // email is applied: challenged against the Administrator's own passkeys, exactly
   // like `user_creation`, never against the user whose email is changing.
   "user_email_change",
+  // Step-up reauthentication an Administrator must pass before removing another branch user's
+  // passkey: challenged against the Administrator's own passkeys, exactly like
+  // `user_email_change`, never against the target user's.
+  "user_passkey_removal",
 ]);
 
 // One row per open session with a pending passkey self-management (or step-up) challenge:

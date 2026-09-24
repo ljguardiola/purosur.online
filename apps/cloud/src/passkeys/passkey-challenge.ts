@@ -15,7 +15,8 @@ export type PasskeyChallengeKind =
   | "registration"
   | "removal"
   | "user_creation"
-  | "user_email_change";
+  | "user_email_change"
+  | "user_passkey_removal";
 
 export interface StorePendingPasskeyChallengeInput {
   sessionId: string;

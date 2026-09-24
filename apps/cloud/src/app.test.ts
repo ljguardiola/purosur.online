@@ -465,6 +465,20 @@ describe("wiring the users routes", () => {
       url: "/users/00000000-0000-0000-0000-000000000000/email",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const userPasskeys = await app.inject({
+      method: "GET",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
+    });
+    const userPasskeyRemovalOptions = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/removal-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const userPasskeyRemove = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
@@ -472,6 +486,9 @@ describe("wiring the users routes", () => {
     expect(create.statusCode).toBe(404);
     expect(emailChangeOptions.statusCode).toBe(404);
     expect(emailChange.statusCode).toBe(404);
+    expect(userPasskeys.statusCode).toBe(404);
+    expect(userPasskeyRemovalOptions.statusCode).toBe(404);
+    expect(userPasskeyRemove.statusCode).toBe(404);
   });
 
   it("registers the users routes when a users option is given", async () => {
@@ -505,6 +522,20 @@ describe("wiring the users routes", () => {
       url: "/users/00000000-0000-0000-0000-000000000000/email",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const userPasskeys = await app.inject({
+      method: "GET",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
+    });
+    const userPasskeyRemovalOptions = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/removal-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const userPasskeyRemove = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     // No session cookie was sent in any case, so each reaches its own route handler's 401
     // instead of Fastify's generic not-found response for an unregistered route.
@@ -514,6 +545,9 @@ describe("wiring the users routes", () => {
     expect(create.statusCode).toBe(401);
     expect(emailChangeOptions.statusCode).toBe(401);
     expect(emailChange.statusCode).toBe(401);
+    expect(userPasskeys.statusCode).toBe(401);
+    expect(userPasskeyRemovalOptions.statusCode).toBe(401);
+    expect(userPasskeyRemove.statusCode).toBe(401);
   });
 });
 

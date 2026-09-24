@@ -137,6 +137,7 @@ describe("GET /users/:id", () => {
       email: "ada@example.com",
       version: 1,
       role: { id: administratorRoleId, is_administrator: true, name: null },
+      passkey_count: 0,
     });
   });
 

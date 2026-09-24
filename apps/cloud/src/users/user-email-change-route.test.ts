@@ -683,6 +683,7 @@ describe("POST /users/:id/email", () => {
       email: "new.email@example.com",
       version: 2,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
+      passkey_count: 0,
     });
 
     const [row] = await db.select().from(users).where(eq(users.id, targetId));
