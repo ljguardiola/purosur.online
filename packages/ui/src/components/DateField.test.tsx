@@ -280,6 +280,13 @@ test("tells the caller the complete date once typing finishes it", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The allowed range includes both of the days that name it: the field refuses what falls outside
+// the bounds, never the bounds themselves.
+const RANGE_MIN = new CalendarDate(2027, 1, 1);
+const RANGE_MAX = new CalendarDate(2027, 2, 28);
+const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
+const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
+
 // The literal box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset
 // with no outer shadow, behind the four transparent layers Tailwind v4 always composes (see
 // TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
@@ -994,13 +1001,6 @@ test("does not select the out-of-range day in the calendar", async () => {
 
   await expectNoAccessibilityViolations(document.body);
 });
-
-// The allowed range includes both of the days that name it: the field refuses what falls outside
-// the bounds, never the bounds themselves.
-const RANGE_MIN = new CalendarDate(2027, 1, 1);
-const RANGE_MAX = new CalendarDate(2027, 2, 28);
-const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
-const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
 
 function BoundedHarness({ value }: { value: CalendarDate }) {
   const [current, setCurrent] = useState<CalendarDate | null>(value);
