@@ -183,7 +183,7 @@ test("does not let one job's steps leak into the next job's step block", () => {
   assert.equal(steps[1].persistsCredentialsFalse, true);
 });
 
-// Real-world YAML shapes the line-based scanner missed, per review -------------------------
+// Non-standard but valid YAML step shapes -------------------------------------------------
 
 test("finds a checkout step whose steps: sequence is at the same indentation as the steps: key", () => {
   const source = ["jobs:", "  build:", "    steps:", "    - uses: actions/checkout@SHA1"].join(
@@ -259,6 +259,131 @@ test('accepts persist-credentials: "false" as a quoted string', () => {
   assert.equal(steps[0].persistsCredentialsFalse, true);
 });
 
+// YAML alias resolution --------------------------------------------------------------------
+
+test("resolves a jobs: value that is itself an alias", () => {
+  const source = [
+    "x-jobs: &all-jobs",
+    "  build:",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "jobs: *all-jobs",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 1);
+  assert.equal(steps[0].persistsCredentialsFalse, false);
+});
+
+test("resolves a job that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build: &common-job",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "        with:",
+    "          persist-credentials: false",
+    "  deploy: *common-job",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.ok(steps.every((step) => step.persistsCredentialsFalse));
+});
+
+test("resolves a steps: value that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps: &common-steps",
+    "      - uses: actions/checkout@SHA1",
+    "        with:",
+    "          persist-credentials: false",
+    "  deploy:",
+    "    steps: *common-steps",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.ok(steps.every((step) => step.persistsCredentialsFalse));
+});
+
+test("resolves a step in a steps: sequence that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - &checkout-step",
+    "        uses: actions/checkout@SHA1",
+    "      - *checkout-step",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.ok(steps.every((step) => step.persistsCredentialsFalse === false));
+});
+
+test("resolves a uses: value that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - uses: &checkout-action actions/checkout@SHA1",
+    "        with:",
+    "          persist-credentials: false",
+    "  deploy:",
+    "    steps:",
+    "      - uses: *checkout-action",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.equal(steps[0].persistsCredentialsFalse, true);
+  assert.equal(steps[1].persistsCredentialsFalse, false);
+});
+
+test("resolves a with: value that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "        with: &safe-options",
+    "          persist-credentials: false",
+    "      - uses: actions/checkout@SHA1",
+    "        with: *safe-options",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.ok(steps.every((step) => step.persistsCredentialsFalse));
+});
+
+test("resolves a persist-credentials: value that is itself an alias", () => {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - uses: actions/checkout@SHA1",
+    "        with:",
+    "          persist-credentials: &drop-credentials false",
+    "      - uses: actions/checkout@SHA1",
+    "        with:",
+    "          persist-credentials: *drop-credentials",
+  ].join("\n");
+
+  const steps = findCheckoutSteps(source);
+
+  assert.equal(steps.length, 2);
+  assert.ok(steps.every((step) => step.persistsCredentialsFalse));
+});
+
 // findWorkflowFiles ---------------------------------------------------------------------------
 
 test("findWorkflowFiles also finds a .yaml workflow file", () => {
@@ -301,10 +426,29 @@ test("reports the file and line of every checkout step missing persist-credentia
   assert.equal(violations[0].line, 4);
 });
 
+test("reports a workflow that does not parse as YAML instead of scanning it silently", () => {
+  const files = {
+    "broken.yml": ["jobs:", "  build:", "    steps:", '      - uses: "actions/checkout@SHA1'].join(
+      "\n",
+    ),
+  };
+
+  const violations = checkFiles(Object.keys(files), (path) => files[path]);
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].path, "broken.yml");
+  assert.equal(violations[0].line, 4);
+  assert.match(violations[0].message, /does not parse as YAML/);
+});
+
 // describeViolation ---------------------------------------------------------------------------
 
-test("describes a violation with its file and line", () => {
-  const description = describeViolation({ path: "a.yml", line: 2 });
+test("describes a violation with its file, line and message", () => {
+  const description = describeViolation({
+    path: "a.yml",
+    line: 2,
+    message: "actions/checkout step has no persist-credentials: false",
+  });
 
   assert.equal(description, "a.yml:2: actions/checkout step has no persist-credentials: false");
 });
