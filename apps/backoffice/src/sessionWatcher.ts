@@ -28,7 +28,8 @@ export type SessionWatcherOptions = {
  * Watches an already-open backoffice session for the rest of the tab's life, so it notices the
  * session ending — idle or absolute expiry, revocation, deactivation — without a reload. Checks
  * at the known deadline (plus a margin), every `intervalMs` regardless (revocation and
- * deactivation carry no deadline of their own), and whenever the tab becomes visible again.
+ * deactivation carry no deadline of their own), and whenever the tab becomes visible again; a
+ * hidden tab checks nothing.
  * Network trouble or a rate limit leaves the tab signed in; the next scheduled check retries.
  */
 export function useSessionWatcher({
@@ -49,8 +50,8 @@ export function useSessionWatcher({
   const nowRef = useRef(now);
   nowRef.current = now;
 
-  // Lets the effect below move the deadline out as soon as real use (throttled activity touches,
-  // #192's T3) extends the session, by calling into the running effect's own scheduling function
+  // Lets the effect below move the deadline out as soon as real use (throttled activity touches)
+  // extends the session, by calling into the running effect's own scheduling function
   // instead of tearing down and recreating the interval timer and its listeners on every touch.
   const scheduleDeadlineRef = useRef<((expiresAt: string) => void) | undefined>(undefined);
 
@@ -70,19 +71,25 @@ export function useSessionWatcher({
     function scheduleDeadline(expiresAt: string) {
       if (deadlineTimeoutId !== undefined) {
         window.clearTimeout(deadlineTimeoutId);
+        deadlineTimeoutId = undefined;
       }
       const delay = new Date(expiresAt).getTime() - nowRef.current().getTime() + deadlineMarginMs;
-      deadlineTimeoutId = window.setTimeout(
-        () => {
-          void check();
-        },
-        Math.max(delay, 0),
-      );
+      // A deadline this browser already sees as past while the cloud still reports the session
+      // open means the browser's clock runs ahead: checking it right away would just get the same
+      // answer again, in a loop. The interval check covers that session instead.
+      if (delay <= 0) {
+        return;
+      }
+      deadlineTimeoutId = window.setTimeout(() => {
+        void check();
+      }, delay);
     }
     scheduleDeadlineRef.current = scheduleDeadline;
 
     async function check() {
-      if (checking) {
+      // Every tab of a session shares its request budget, so a hidden tab stays quiet; becoming
+      // visible again checks right away.
+      if (checking || document.visibilityState !== "visible") {
         return;
       }
       checking = true;
@@ -95,8 +102,8 @@ export function useSessionWatcher({
           onEndedRef.current();
           return;
         }
-        // Real use (throttled activity touches, #192's T3) or simply still open can move the
-        // deadline out: re-arm from it instead of leaving the stale one to fire a useless check.
+        // Real use (throttled activity touches) or simply still open can move the deadline out:
+        // re-arm from it instead of leaving the stale one to fire a useless check.
         if (outcome.kind === "ok") {
           scheduleDeadline(outcome.expiresAt);
         }

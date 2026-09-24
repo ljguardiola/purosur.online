@@ -13,6 +13,32 @@ function renderWatcher(initialProps: SessionWatcherOptions) {
   });
 }
 
+/** Finds `visibilityState`'s own property descriptor anywhere up `document`'s prototype chain. */
+function findVisibilityStateDescriptor(): PropertyDescriptor | undefined {
+  for (
+    let target: object | null = document;
+    target !== null;
+    target = Object.getPrototypeOf(target)
+  ) {
+    const descriptor = Object.getOwnPropertyDescriptor(target, "visibilityState");
+    if (descriptor) {
+      return descriptor;
+    }
+  }
+  return undefined;
+}
+
+/** Makes `document.visibilityState` report `value` until the returned function restores the real accessor. */
+function setVisibilityState(value: DocumentVisibilityState): () => void {
+  const original = findVisibilityStateDescriptor();
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => value });
+  return () => {
+    if (original) {
+      Object.defineProperty(document, "visibilityState", original);
+    }
+  };
+}
+
 let hooks: Array<{ unmount: () => Promise<void> }> = [];
 
 afterEach(async () => {
@@ -213,8 +239,8 @@ test("stops checking once the session is no longer active", async () => {
 });
 
 test("moves the deadline out from a fresh initialExpiresAt without restarting the interval-driven check", async () => {
-  // Real use touching the session (#192's T3) reports a new deadline through this same prop;
-  // that must not tear down and recreate the interval or its listeners on every touch.
+  // Real use touching the session reports a new deadline through this same prop; that must not
+  // tear down and recreate the interval or its listeners on every touch.
   const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
     kind: "ok",
     expiresAt: "2099-01-01T00:00:00.000Z",
@@ -270,4 +296,63 @@ test("stops checking once the component unmounts", async () => {
   await wait(50);
 
   expect(checkStatus.mock.calls.length).toBe(callsAtUnmount);
+});
+
+test("does not keep re-checking a deadline the browser's clock already considers past", async () => {
+  // The browser's clock running ahead of the cloud's: the cloud keeps answering "open" with the
+  // same deadline the browser already sees as gone.
+  let skewMs = 0;
+  const expiresAt = new Date(Date.now() + 20).toISOString();
+  const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockImplementation(() => {
+    skewMs = 60_000;
+    return Promise.resolve({ kind: "ok", expiresAt });
+  });
+  const onEnded = vi.fn();
+
+  const hook = await renderWatcher({
+    active: true,
+    initialExpiresAt: expiresAt,
+    checkStatus,
+    onEnded,
+    intervalMs: 10_000,
+    deadlineMarginMs: 0,
+    now: () => new Date(Date.now() + skewMs),
+  });
+  hooks.push(hook);
+
+  await expect.poll(() => checkStatus.mock.calls.length).toBe(1);
+  await wait(100);
+
+  expect(checkStatus).toHaveBeenCalledTimes(1);
+  expect(onEnded).not.toHaveBeenCalled();
+});
+
+test("checks nothing while the tab is hidden, and once as soon as it becomes visible again", async () => {
+  const checkStatus = vi
+    .fn<() => Promise<SessionStatusOutcome>>()
+    .mockImplementation(() => new Promise(() => {}));
+  const restoreVisibility = setVisibilityState("hidden");
+
+  try {
+    const hook = await renderWatcher({
+      active: true,
+      initialExpiresAt: new Date(Date.now() + 10).toISOString(),
+      checkStatus,
+      onEnded: vi.fn(),
+      intervalMs: 10,
+      deadlineMarginMs: 0,
+    });
+    hooks.push(hook);
+
+    await wait(60);
+    expect(checkStatus).not.toHaveBeenCalled();
+  } finally {
+    restoreVisibility();
+  }
+
+  document.dispatchEvent(new Event("visibilitychange"));
+
+  await expect.poll(() => checkStatus.mock.calls.length).toBe(1);
+  await wait(40);
+  expect(checkStatus).toHaveBeenCalledTimes(1);
 });
