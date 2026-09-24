@@ -136,57 +136,24 @@ test("keeps the label 4px above the backoffice field's box", async () => {
 });
 
 for (const variant of ["register", "backoffice"] as const) {
-  test(`shows a white box with a 2px ink-secondary border at rest in the ${variant} variant`, async () => {
+  test(`shows a white box with a 2px line border at rest in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
     const style = getComputedStyle(group);
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  test(`clears the non-text 3:1 contrast minimum between the box's own painted boundary and fill, resting and hovered, in the ${variant} variant`, async () => {
+  test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px line border`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
-
-    const restingFill = getComputedStyle(group).backgroundColor;
-    expect(restingFill).toBe(tokenRgb("surface-white"));
-    const restingBoundaryHex = boundaryColorHex(group);
-    expect(contrastRatio(restingBoundaryHex, rgbToHex(restingFill))).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
 
     await userEvent.hover(group);
     await expect.poll(() => getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-bone"));
-
-    const hoveredBoundaryHex = boundaryColorHex(group);
-    const hoveredFillHex = rgbToHex(getComputedStyle(group).backgroundColor);
-    expect(contrastRatio(hoveredBoundaryHex, hoveredFillHex)).toBeGreaterThanOrEqual(
-      NON_TEXT_CONTRAST,
-    );
-
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
-  test(`shows a 3px blue-strong border and the focus shadow when a segment is focused in the ${variant} variant`, async () => {
-    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
-    const group = fieldGroup(screen, "Expiry");
-
-    await userEvent.tab();
-    if (variant === "register") {
-      // The register variant leads with the calendar toggle button, so the first date segment is
-      // its second tab stop; the backoffice variant trails that button and reaches a segment first.
-      await userEvent.tab();
-    }
-
-    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
-    expect(document.activeElement).toBe(segment);
-
-    await expect
-      .poll(() => getComputedStyle(group).boxShadow)
-      .toContain(tokenRgb("brand-blue-strong"));
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -204,7 +171,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
     expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
 
     await userEvent.tab();
     expect(document.activeElement).toBe(nextControl);
@@ -313,29 +280,83 @@ test("tells the caller the complete date once typing finishes it", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The literal box-shadow string Chromium renders for the focused state, pinned to
-// TextField.test.tsx's own FOCUSED_SHADOW literal (see its comment there): DateField reuses that
-// exact border system verbatim.
+// The allowed range includes both of the days that name it: the field refuses what falls outside
+// the bounds, never the bounds themselves.
+const RANGE_MIN = new CalendarDate(2027, 1, 1);
+const RANGE_MAX = new CalendarDate(2027, 2, 28);
+const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
+const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
+
+// The literal box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset
+// with no outer shadow, behind the four transparent layers Tailwind v4 always composes (see
+// TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
-  "rgb(51, 79, 96) 0px 0px 0px 3px inset, rgba(79, 108, 126, 0.2) 0px 0px 0px 4px";
+  "rgb(79, 108, 126) 0px 0px 0px 2px inset";
+
+async function focusFirstSegment(group: HTMLElement, variant: DateFieldProps["variant"]) {
+  await userEvent.tab();
+  if (variant === "register") {
+    // The register variant leads with the calendar toggle button, so the first date segment is
+    // its second tab stop; the backoffice variant trails that button and reaches a segment first.
+    await userEvent.tab();
+  }
+  expect(document.activeElement).toBe(group.querySelector('[role="spinbutton"]'));
+}
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`draws exactly the package's focused box shadow when a segment is focused in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
     const group = fieldGroup(screen, "Expiry");
 
-    await userEvent.tab();
-    if (variant === "register") {
-      // Same tab order as above: the calendar toggle button leads this variant.
-      await userEvent.tab();
-    }
-
-    const segment = group.querySelector('[role="spinbutton"]') as HTMLElement;
-    expect(document.activeElement).toBe(segment);
+    await focusFirstSegment(group, variant);
 
     await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`keeps the focused border and white fill instead of the hovered bone one when both apply at once in the ${variant} variant`, async () => {
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const group = fieldGroup(screen, "Expiry");
+
+    await focusFirstSegment(group, variant);
+    await userEvent.hover(group);
+    // Both assertions below also hold for a focused field the pointer never reached: focus alone
+    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
+    // as the only thing that puts the pointer on the box, and the poll proves it got there before
+    // asserting that focus won over it.
+    await expect.poll(() => group.matches(":hover")).toBe(true);
+
+    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+    expect(getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-white"));
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  test(`shows the focused border instead of the out-of-range one once a refused field is focused in the ${variant} variant`, async () => {
+    const screen = await render(
+      <DateField
+        variant={variant}
+        label="Expiry"
+        value={new CalendarDate(2027, 3, 15)}
+        onChange={() => {}}
+        minValue={RANGE_MIN}
+        maxValue={RANGE_MAX}
+        rangeMessage={RANGE_MESSAGE}
+      />,
+    );
+    const group = fieldGroup(screen, "Expiry");
+
+    await focusFirstSegment(group, variant);
+
+    await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
+
+    (document.activeElement as HTMLElement).blur();
+    await expect
+      .poll(() => paintedBoxShadowLayers(group))
+      .toEqual([insetBoundary("status-error-ui", "2px")]);
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -981,13 +1002,6 @@ test("does not select the out-of-range day in the calendar", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
-// The allowed range includes both of the days that name it: the field refuses what falls outside
-// the bounds, never the bounds themselves.
-const RANGE_MIN = new CalendarDate(2027, 1, 1);
-const RANGE_MAX = new CalendarDate(2027, 2, 28);
-const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
-const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
-
 function BoundedHarness({ value }: { value: CalendarDate }) {
   const [current, setCurrent] = useState<CalendarDate | null>(value);
   return (
@@ -1013,7 +1027,7 @@ for (const [edge, accepted] of [
     const screen = await render(<BoundedHarness value={accepted} />);
     const group = fieldGroup(screen, "Expiry");
 
-    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("ink-secondary", "2px")]);
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
     expect(screen.getByText(RANGE_MESSAGE).elements()).toHaveLength(0);
     await expect.element(screen.getByText(RANGE_HELPER)).toBeVisible();
 

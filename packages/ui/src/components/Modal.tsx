@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import {
   Button as AriaButton,
   Dialog as AriaDialog,
@@ -31,7 +31,7 @@ type ModalCommonProps = {
   context?: string;
   contextTone?: ModalContextTone;
   title: string;
-  children: ReactNode;
+  children?: ReactNode;
   footer: ReactNode;
 };
 
@@ -73,6 +73,17 @@ const contextToneClassName: Record<ModalContextTone, string> = {
 // never by cloning a `size` prop onto the caller's (or this component's own) icon element.
 const headerIconWrapperClassName = "inline-flex size-6 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 const closeIconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
+
+// Whether a caller's body has anything to render: Children.toArray drops null, undefined and
+// booleans (a conditional that currently shows nothing), but keeps a fragment as one child even
+// when everything inside it was dropped, so fragments are looked into.
+function hasContent(node: ReactNode): boolean {
+  return Children.toArray(node).some((child) =>
+    isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment
+      ? hasContent(child.props.children)
+      : true,
+  );
+}
 
 const closeButtonClassName =
   "flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-bone text-ink-secondary " +
@@ -155,7 +166,9 @@ export function Modal(props: ModalProps) {
               </AriaButton>
             )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+          {hasContent(children) && (
+            <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+          )}
           {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
               square corners over the panel's rounded ones. */}
           <div className="flex shrink-0 items-center gap-3 rounded-b-[0.75rem] border-t border-line bg-surface-bone py-4 px-6">

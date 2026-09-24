@@ -46,19 +46,21 @@ const registerIconWrapperClassName =
 const backofficeIconWrapperClassName =
   "inline-flex size-[1.125rem] shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full";
 
-// The box's own border and shadow per interaction state, copied verbatim from TextField.tsx's
-// own boxStateClassName (see the comment there for why an inset box-shadow stands in for a real
-// border, and why hover is suppressed once focused regardless of stylesheet order). A disabled
-// field keeps its resting look on the box itself; the wrapper's opacity is what communicates
-// "disabled", so neither hover nor focus treatment applies here while it is set.
+// The box's own border and shadow per interaction state, using the same inset-box-shadow
+// technique as TextField.tsx's own boxStateClassName (see the comment there for why it stands in
+// for a real border, and why hover is suppressed once focused regardless of stylesheet order). A
+// disabled field keeps its resting look on the box itself; the wrapper's opacity is what
+// communicates "disabled", so neither hover nor focus treatment applies here while it is set. Both
+// variants draw the same box, following TextField.tsx's own line/brand-blue-ui system, with no
+// outer shadow on focus.
 function boxStateClassName(disabled: boolean): string {
   if (disabled) {
-    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)]";
+    return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
   }
   return (
-    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
+    "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)] " +
     "hover:not-focus-within:bg-surface-bone " +
-    "focus-within:shadow-[inset_0_0_0_3px_var(--color-brand-blue-strong),0_0_0_4px_var(--color-brand-blue-ui-shadow)]"
+    "focus-within:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)]"
   );
 }
 

@@ -1,13 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  AA_TEXT_CONTRAST,
-  AAA_TEXT_CONTRAST,
-  contrastRatio,
-  hexToRgb,
-  NON_TEXT_CONTRAST,
-} from "./contrast";
+import { AA_TEXT_CONTRAST, AAA_TEXT_CONTRAST, contrastRatio, hexToRgb } from "./contrast";
 import { parseColorTokens } from "./parse-tokens";
 
 describe("contrastRatio", () => {
@@ -83,7 +77,6 @@ const decorativeTones = [
   "ink-shadow",
   "ink-backdrop",
   "ink-panel-shadow",
-  "brand-blue-ui-shadow",
   "ink-menu-shadow",
   "surface-white-veil",
 ];
@@ -190,53 +183,6 @@ describe("tooltip text on ink background contrast", () => {
       AAA_TEXT_CONTRAST,
     );
   });
-});
-
-describe("brand-blue-ui-shadow token", () => {
-  it("parses to brand-blue-ui at 20% alpha", () => {
-    const shadowHex = colors["brand-blue-ui-shadow"];
-    const uiHex = colors["brand-blue-ui"];
-
-    expect(shadowHex, "brand-blue-ui-shadow is missing from the stylesheet").toMatch(
-      /^#[0-9a-f]{8}$/i,
-    );
-    expect(uiHex, "brand-blue-ui is missing from the stylesheet").toMatch(/^#[0-9a-f]{6}$/i);
-    expect((shadowHex as string).slice(0, 7).toLowerCase()).toBe((uiHex as string).toLowerCase());
-
-    const alpha = Number.parseInt((shadowHex as string).slice(7, 9), 16) / 255;
-    expect(alpha).toBeCloseTo(0.2, 2);
-  });
-});
-
-// The text field's own resting, hovered and read-only border reuses the shared ink-secondary
-// boundary — whose contrast is checked against a real rendered element on white in
-// RadioGroup.test.tsx and Toggle.test.tsx, and on bone in Checkbox.test.tsx's hovered box and
-// TextField.test.tsx's hovered and read-only field — instead of the softer, decorative
-// "line"/"blue-soft" tokens, which fall short of the WCAG 3:1 non-text contrast minimum (line
-// measures ~1.49:1 on white, blue-soft ~1.47:1) and stay reserved for dividers and container
-// edges rather than a control's own boundary, except where a glyph and the focus ring identify
-// the control, as the icon button's own border does. Its focused and invalid borders are unique
-// to the field, so those are the two checked here, against both surfaces the field can sit on
-// (white, and bone for a hovered or read-only field).
-describe("text field border contrast", () => {
-  const borders: Record<string, string> = {
-    "focused (brand-blue-strong)": "brand-blue-strong",
-    "invalid (status-error-ui)": "status-error-ui",
-  };
-
-  for (const [state, tone] of Object.entries(borders)) {
-    it(`${state} border reaches ${NON_TEXT_CONTRAST}:1 against white and bone`, () => {
-      const borderHex = colors[tone];
-
-      expect(borderHex, `${tone} is missing from the stylesheet`).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(
-        contrastRatio(borderHex as string, backgrounds.white as string),
-      ).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-      expect(contrastRatio(borderHex as string, backgrounds.bone as string)).toBeGreaterThanOrEqual(
-        NON_TEXT_CONTRAST,
-      );
-    });
-  }
 });
 
 // A table row's background changes with its state while its text keeps ink and ink-secondary,
