@@ -45,6 +45,10 @@ export default {
   forceCodeSigning: false,
   win: {
     target: [{ target: "nsis", arch: ["x64"] }],
+    // electron-builder embeds this icon in the packaged exe, and Windows shows the window, taskbar
+    // button, shortcuts and the NSIS installer and uninstaller with it; the app never sets one at
+    // runtime.
+    icon: "build/icon.ico",
   },
   nsis: {
     oneClick: false,
