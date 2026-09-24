@@ -106,6 +106,7 @@ test("shows a rate-limited notice with the minutes to wait when loading is rate 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 

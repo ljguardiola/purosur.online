@@ -94,8 +94,8 @@ function isValidationFailure(
 }
 
 /**
- * Registers the two endpoints that let an Administrator create a new backoffice user (issue
- * #247), guarded by the same fresh-reauthentication step-up `passkeys-removal-route.ts` uses:
+ * Registers the two endpoints that let an Administrator create a new backoffice user, guarded by
+ * the same fresh-reauthentication step-up `passkeys-removal-route.ts` uses:
  * `creation-options` hands back a reauthentication challenge against the Administrator's own
  * existing passkeys (never the new user's, who has none yet), and `POST /users` verifies it
  * before creating the user in the session's own branch with the chosen existing role and no

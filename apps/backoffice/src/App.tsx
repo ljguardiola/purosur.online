@@ -203,7 +203,7 @@ type SettingsAppProps = {
   userDetailScreenServices: UserDetailScreenServices;
 };
 
-/** The Config-in-Shell part of the app, under its single "Usuarios" section: the Users list (issue #247), one user's detail (issue #248), or "Mi cuenta". */
+/** The Config-in-Shell part of the app, under its single "Usuarios" section: the Users list, one user's detail, or "Mi cuenta". */
 function SettingsApp({
   section,
   userDetailId,

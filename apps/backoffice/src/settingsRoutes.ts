@@ -1,8 +1,8 @@
 export const MY_ACCOUNT_PATH = "/settings/users/me";
-/** The Users list, an Administrator-only screen (issue #247): the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
+/** The Users list, an Administrator-only screen: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
 export const USERS_LIST_PATH = "/settings/users";
 
-/** The Users list row action's own target: one user's detail screen (issue #248). */
+/** The Users list row action's own target: one user's detail screen. */
 export function userDetailPath(id: string): string {
   return `${USERS_LIST_PATH}/${id}`;
 }

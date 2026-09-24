@@ -41,7 +41,7 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
 
 export type UserDetailScreenProps = {
   userId: string;
-  /** From the session (issue #247): only an Administrator sees this screen at all. */
+  /** From the session: only an Administrator sees this screen at all. */
   isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so this screen doesn't call the real API or WebAuthn. */
@@ -86,7 +86,7 @@ type EditEmailModalProps = {
   changeUserEmail: typeof changeUserEmail;
 };
 
-/** Changes one user's email, reauthenticating with the Administrator's own passkey and rejecting a save over a newer version (issue #248). */
+/** Changes one user's email, reauthenticating with the Administrator's own passkey and rejecting a save over a newer version. */
 function EditEmailModal({
   isOpen,
   user,
@@ -345,7 +345,7 @@ function EditEmailModal({
   );
 }
 
-/** "Ver un usuario": one branch user's Datos section, with the passkey-confirmed email edit (issue #248). */
+/** "Ver un usuario": one branch user's Datos section, with the passkey-confirmed email edit. */
 export function UserDetailScreen({
   userId,
   isAdministrator,

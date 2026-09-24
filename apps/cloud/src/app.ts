@@ -65,7 +65,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   /**
    * Registers `GET /users`, `GET /users/:id`, `POST /users/creation-options`, `POST /users`,
    * `POST /users/:id/email-change-options`, and `POST /users/:id/email`, the backoffice Users
-   * screen's read, create, and email-edit sides (issues #247 and #248): every one is
+   * screen's read, create, and email-edit sides: every one is
    * Administrator-only and scoped to the session's own branch, the same optional-feature-wiring
    * shape `session` uses above.
    */

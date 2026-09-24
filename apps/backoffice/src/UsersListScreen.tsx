@@ -40,7 +40,7 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
-  /** From the session (issue #247): only an Administrator sees the list at all. */
+  /** From the session: only an Administrator sees the list at all. */
   isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so user management doesn't call the real API or WebAuthn. */
@@ -124,7 +124,7 @@ type NewUserModalProps = {
   createUser: typeof createUser;
 };
 
-/** Creates a backoffice user, reauthenticating with the Administrator's own existing passkey first (issue #247). */
+/** Creates a backoffice user, reauthenticating with the Administrator's own existing passkey first. */
 function NewUserModal({
   isOpen,
   roles,
@@ -352,7 +352,7 @@ function NewUserModal({
   );
 }
 
-/** "Usuarios": the branch's backoffice users, listed with their role, Administrator only (issue #247). */
+/** "Usuarios": the branch's backoffice users, listed with their role, Administrator only. */
 export function UsersListScreen({
   isAdministrator,
   onSessionEnded,
