@@ -50,24 +50,28 @@ const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-[
 // design draws this field inside a backoffice modal at the same 48px/8px/12px metrics), not
 // TextField.tsx's own register-sized plain-text kind.
 const triggerBaseClassName =
-  "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg border-2 bg-surface-white px-3 " +
-  "outline-none data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
-  "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
+  "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg border-2 px-3 outline-none";
 
-// Unlike TextField.tsx's own boxStateClassName, this trigger is a real <button> (the same shape
-// ListFilter.tsx's own trigger already is), so its boundary is a real border rather than an inset
-// box-shadow, and it carries no hover treatment of its own - ListFilter.tsx's trigger doesn't
-// either. The design draws this field's own resting border in brand-blue-ui rather than
-// TextField's ink-secondary, the same blue ListFilter.tsx only reaches once open; disabled and
-// invalid still follow TextField.tsx's own token choices for those two states.
-function triggerBorderClassName(disabled: boolean, invalid: boolean): string {
+// The same field standard TextField.tsx's own boxStateClassName draws (resting, hovered and
+// disabled share the 2px line border, invalid swaps in the error tone, focus draws a 2px
+// brand-blue-ui border with no outer ring), but as a real border rather than an inset box-shadow,
+// since this trigger is a real <button> (the same shape ListFilter.tsx's own trigger already is).
+// The trigger counts as focused while its menu is open too: focus then sits in the listbox, yet
+// the field is still the one being edited. The attribute selector behind `data-[focused]:` outranks
+// the plain invalid border, and `not-data-[focused]` keeps the hovered fill off a focused trigger,
+// both regardless of stylesheet order.
+function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: boolean): string {
   if (disabled) {
-    return "border-ink-secondary";
+    return "bg-surface-white border-line";
   }
-  if (invalid) {
-    return "border-status-error-ui";
+  if (isOpen) {
+    return "bg-surface-white border-brand-blue-ui";
   }
-  return "border-brand-blue-ui";
+  const resting = invalid ? "border-status-error-ui" : "border-line";
+  return (
+    `bg-surface-white ${resting} data-[hovered]:not-data-[focused]:bg-surface-bone ` +
+    "data-[focused]:border-brand-blue-ui"
+  );
 }
 
 const valueClassName =
@@ -161,7 +165,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
               technology through the error text wired below via aria-describedby, the same
               channel TextField.tsx's own invalid field relies on. */}
           <AriaButton
-            className={`${triggerBaseClassName} ${triggerBorderClassName(disabled, invalid)}`}
+            className={`${triggerBaseClassName} ${triggerStateClassName(disabled, invalid, isOpen)}`}
           >
             <AriaSelectValue className={valueClassName} />
             {isOpen ? (
