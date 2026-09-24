@@ -697,6 +697,53 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
 });
 
+test.each([
+  {
+    path: "/settings/users/user-3",
+    adminOnlyCalls: (services: AppServices) => [
+      services.userDetailScreen.fetchUser,
+      services.userDetailScreen.fetchUserPasskeys,
+    ],
+  },
+  {
+    path: "/settings/roles/new",
+    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.fetchRoleCreationChallenge],
+  },
+  {
+    path: "/settings/roles/role-stock/edit",
+    adminOnlyCalls: (services: AppServices) => [services.editRoleScreen.fetchRole],
+  },
+  {
+    path: "/settings/roles/role-stock/duplicate",
+    adminOnlyCalls: (services: AppServices) => [services.duplicateRoleScreen.fetchRoles],
+  },
+])(
+  "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",
+  async ({ path, adminOnlyCalls }) => {
+    const services = createServices({
+      fetchSession: vi.fn().mockResolvedValue({
+        kind: "ok",
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: [],
+      }),
+    });
+    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(window.location.pathname).toBe("/settings/users/me");
+    for (const call of adminOnlyCalls(services)) {
+      expect(call).not.toHaveBeenCalled();
+    }
+  },
+);
+
 test("follows a demotion reported by real use of the open tab: Usuarios and Roles leave the rail and the Users list gives way to Mi cuenta", async () => {
   const services = createServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
