@@ -153,7 +153,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EDGE_ORIGIN_SECRET: ${{ secrets.EDGE_ORIGIN_SECRET }}
           CLOUD_APP_DATABASE_PASSWORD: ${{ secrets.CLOUD_APP_DATABASE_PASSWORD }}
-          AUTHORIZED_CUIT: ${{ secrets.AUTHORIZED_CUIT }}
+          AUTHORIZED_CUIT: ${{ vars.AUTHORIZED_CUIT }}
         # Without --confirm-destructive, a plan that destroys or replaces a resource fails here.
         run: railway config apply --json --yes
 
