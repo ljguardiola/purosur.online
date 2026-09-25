@@ -1664,8 +1664,14 @@ function PrintLabelsModal({
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-bone px-4 py-8 text-center">
             <Package aria-hidden="true" className="size-6 text-ink-secondary" />
-            <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
-            <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
+            {status === "inactive" ? (
+              <p className="text-base font-bold text-ink">{modalMessages.inactiveEmptyTitle}</p>
+            ) : (
+              <>
+                <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
+                <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
+              </>
+            )}
           </div>
         ) : (
           <>

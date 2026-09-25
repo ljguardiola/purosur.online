@@ -1753,6 +1753,24 @@ test("shows an empty state when no product has an internal barcode", async () =>
     .toBeDisabled();
 });
 
+test("with only inactive products listed, the empty state says they carry no labels", async () => {
+  const services = createServices();
+  const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
+  mockLoaded(services, [inactiveAlmendras]);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .element(dialog.getByText("Los productos inactivos no llevan etiquetas"))
+    .toBeVisible();
+  expect(dialog.getByText("No hay productos con código interno").query()).toBeNull();
+  expect(dialog.getByText("Generá uno desde el formulario del producto.").query()).toBeNull();
+});
+
 test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {
   const services = createServices();
   mockLoaded(services, [mielConCodigoInterno]);
