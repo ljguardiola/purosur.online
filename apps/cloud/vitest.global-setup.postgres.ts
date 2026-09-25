@@ -17,6 +17,11 @@ declare module "vitest" {
 // pinned to an explicit tag rather than a moving one.
 const POSTGRES_IMAGE = "postgres:18-alpine";
 
+// The integration files run in parallel on this one container, each with its own pool, and together
+// they can hold about 300 connections at once: Postgres's default limit of 100 would make whichever
+// file loses that race fail with "remaining connection slots are reserved" (53300).
+const MAX_CONNECTIONS = 500;
+
 /**
  * Starts one real Postgres container for the whole test run, shared by every
  * `*.integration.test.ts` file under apps/cloud/src. These tests exist because PGlite serves
@@ -28,7 +33,9 @@ const POSTGRES_IMAGE = "postgres:18-alpine";
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   let container: StartedPostgreSqlContainer;
   try {
-    container = await new PostgreSqlContainer(POSTGRES_IMAGE).start();
+    container = await new PostgreSqlContainer(POSTGRES_IMAGE)
+      .withCommand(["postgres", "-c", `max_connections=${MAX_CONNECTIONS}`])
+      .start();
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     throw new Error(
