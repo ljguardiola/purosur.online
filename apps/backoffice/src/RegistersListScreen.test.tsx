@@ -504,6 +504,81 @@ test("closing the code modal after a rate-limited emission refreshes the list", 
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
+test("keeps the current rows visible while the list refreshes after closing the code modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+
+  pendingRefresh.resolve({ kind: "ok", value: [caja2] });
+
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+  await expect.element(screen.getByRole("table")).not.toHaveAttribute("aria-busy");
+});
+
+test("keeps the current rows visible while the list refreshes after creating a register", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "ok",
+    value: { id: "register-3", name: "Caja 3" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  pendingRefresh.resolve({
+    kind: "ok",
+    value: [caja1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+  });
+
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+});
+
+test("a refresh that fails shows the load error with its retry action, like a failed first load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  await openEmitModal(screen, "Caja 1");
+  await expect
+    .element(screen.getByRole("dialog").getByRole("button", { name: "Reintentar" }))
+    .toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "failed" });
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+});
+
 test("opens the authorization modal on emit's authorization_required, then authorizes and shows the code", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });

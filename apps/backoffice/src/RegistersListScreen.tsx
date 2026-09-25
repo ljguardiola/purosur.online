@@ -47,7 +47,8 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; registers: RegisterSummary[] };
+  | { kind: "loaded"; registers: RegisterSummary[] }
+  | { kind: "refreshing"; registers: RegisterSummary[] };
 
 const registersMessages = messages.settings.registers;
 
@@ -405,7 +406,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    setList({ kind: "loading" });
+    // A reload after an action keeps the rows it already has on screen while it fetches.
+    setList((current) =>
+      current.kind === "loaded" || current.kind === "refreshing"
+        ? { kind: "refreshing", registers: current.registers }
+        : { kind: "loading" },
+    );
     const outcome = await fetchRegisters();
     if (thisLoad !== latestLoad.current) {
       return;
@@ -489,7 +495,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     void load();
   }
 
-  const registers = list.kind === "loaded" ? list.registers : [];
+  const registers = list.kind === "loaded" || list.kind === "refreshing" ? list.registers : [];
 
   const columns = [
     {
@@ -601,11 +607,13 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             </Button>
           </>
         )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
+        {(list.kind === "loading" || list.kind === "loaded" || list.kind === "refreshing") && (
           <Table
             aria-label={registersMessages.heading}
             columns={columns}
-            loading={list.kind === "loading" ? "initial" : false}
+            loading={
+              list.kind === "loading" ? "initial" : list.kind === "refreshing" ? "updating" : false
+            }
             rows={registers.map((register) => ({ id: register.id, item: register }))}
             empty={{
               icon: <Laptop />,
