@@ -153,9 +153,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
     const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
       entries: { idx: number; tag: string }[];
     };
-    const laterEntries = journal.entries.filter(
-      (entry) => entry.tag !== "0018_roles_version_and_edit_challenge_kind" && entry.idx > 18,
-    );
+    const laterEntries = journal.entries.filter((entry) => entry.idx > 18);
     for (const entry of laterEntries) {
       await rm(join(folder, `${entry.tag}.sql`));
       await rm(join(folder, "meta", `${String(entry.idx).padStart(4, "0")}_snapshot.json`));
