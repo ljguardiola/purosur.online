@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
 import {
   BAR_HEIGHT_MM,
@@ -31,6 +32,12 @@ const CUT_LINE_COLOR = "#999999";
 // The six-digit half of a barcode's own module width (6 digits × 7 modules × the module width).
 const DIGIT_GROUP_WIDTH_MM = 42 * 0.33;
 const FIRST_DIGIT_BOX_WIDTH_MM = 11 * 0.33;
+
+// pdfkit's built-in Helvetica-Bold only encodes WinAnsi, silently garbling any other character
+// (Greek, Cyrillic, "ő", "≈"); Liberation Sans Bold is metric-compatible with it and covers them.
+// `fonts/` sits beside `src/` and `dist/` alike, and ships through package.json's `files`.
+const NAME_FONT = "LiberationSans-Bold";
+const NAME_FONT_FILE = readFileSync(new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url));
 
 function mm(valueMm: number): number {
   return valueMm * PT_PER_MM;
@@ -70,7 +77,7 @@ const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
  * should have shown, or leave a gap above a name that didn't need the full box.
  */
 function measuredNameHeightMm(doc: PDFKit.PDFDocument, name: string): number {
-  doc.font("Helvetica-Bold").fontSize(NAME_FONT_SIZE_PT);
+  doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT);
   const maxHeightPt = doc.currentLineHeight(true) * NAME_MAX_LINES;
   const naturalHeightPt = doc.heightOfString(name, { width: mm(CONTENT_WIDTH_MM) });
   return Math.min(naturalHeightPt, maxHeightPt) / PT_PER_MM;
@@ -83,7 +90,7 @@ function drawName(
   heightMm: number,
 ): void {
   doc
-    .font("Helvetica-Bold")
+    .font(NAME_FONT)
     .fontSize(NAME_FONT_SIZE_PT)
     .fillColor("#000000")
     .text(label.name, mm(label.xMm + PADDING_LEFT_RIGHT_MM), mm(topMm), {
@@ -159,6 +166,7 @@ export function renderLabelSheetPdf(items: LabelSheetItem[]): Promise<Buffer> {
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
+    doc.registerFont(NAME_FONT, NAME_FONT_FILE);
 
     for (const page of layoutLabelSheet(items)) {
       doc.addPage();

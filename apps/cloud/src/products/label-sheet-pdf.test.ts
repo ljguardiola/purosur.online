@@ -238,7 +238,7 @@ describe("renderLabelSheetPdf", () => {
     expect(texts).toContain("678906");
   });
 
-  it("renders Spanish accented names using the built-in font's WinAnsi encoding", async () => {
+  it("renders Spanish accented names", async () => {
     const pdf = await renderLabelSheetPdf([
       { name: "Semillas de chía", code: "2000000000015", count: 1 },
       { name: "Ñandú", code: "2000000000022", count: 1 },
@@ -247,6 +247,21 @@ describe("renderLabelSheetPdf", () => {
 
     expect(texts).toContain("Semillas de chía");
     expect(texts).toContain("Ñandú");
+  });
+
+  it("renders letters and symbols outside Latin-1 as real glyphs of an embedded bold font", async () => {
+    const names = ["Omega Ω 3", "Kőrösi", "Мёд", "≈ 1 kg"];
+    const pdf = await renderLabelSheetPdf(
+      names.map((name) => ({ name, code: "2000000000015", count: 1 })),
+    );
+    const nameRuns = renderedTextRuns(pdf).filter((run) => names.includes(run.text));
+
+    expect(nameRuns.map((run) => run.text).sort()).toEqual([...names].sort());
+    for (const run of nameRuns) {
+      expect(run.font.embedded).toBe(true);
+      expect(run.font.baseFont).toMatch(/\+LiberationSans-Bold$/);
+    }
+    expect(renderedTexts(pdf).some((text) => text.includes("�"))).toBe(false);
   });
 
   it("renders the human-readable digits in a bold monospace font, matching the proof's weight", async () => {
@@ -284,8 +299,7 @@ describe("renderLabelSheetPdf", () => {
 
     expect(texts).toContain("Harina de almendras");
     expect(texts).toContain("integral orgánica sin gluten");
-    // pdfkit's ellipsis is a single WinAnsi byte (0x85), which `latin1` decodes as U+0085.
-    expect(texts.some((text) => text.includes("\u0085"))).toBe(false);
+    expect(texts.some((text) => text.includes("…"))).toBe(false);
   });
 
   it("ellipsizes only the second line when a name still doesn't fit in two lines", async () => {
@@ -299,7 +313,7 @@ describe("renderLabelSheetPdf", () => {
     const nameLines = renderedTexts(pdf).filter((text) => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}/.test(text));
 
     expect(nameLines).toHaveLength(2);
-    expect(nameLines[0]).not.toContain("\u0085");
-    expect(nameLines[1]).toContain("\u0085");
+    expect(nameLines[0]).not.toContain("…");
+    expect(nameLines[1]).toContain("…");
   });
 });
