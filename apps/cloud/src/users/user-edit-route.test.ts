@@ -115,6 +115,41 @@ function postJson(
   });
 }
 
+/**
+ * Runs `change` right after the route's own transaction commits, the one opened once the route has
+ * read its target (the branch-user read, the only one selecting `roleIsAdministrator`): the window
+ * in which a concurrent request can commit a change of its own before the route answers.
+ */
+function withChangeAfterCommit(change: () => Promise<unknown>): TestDatabase["db"] {
+  let targetRead = false;
+  let changed = false;
+  return new Proxy(db, {
+    get(target, property) {
+      const value = Reflect.get(target, property);
+      if (property === "select") {
+        return function (this: unknown, ...args: unknown[]) {
+          const [fields] = args;
+          if (typeof fields === "object" && fields !== null && "roleIsAdministrator" in fields) {
+            targetRead = true;
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      if (property === "transaction") {
+        return async function (this: unknown, ...args: unknown[]) {
+          const result: unknown = await Reflect.apply(value, this, args);
+          if (targetRead && !changed) {
+            changed = true;
+            await change();
+          }
+          return result;
+        };
+      }
+      return value;
+    },
+  });
+}
+
 function editUser(
   targetId: string,
   rawSessionId: string | undefined,
@@ -528,6 +563,55 @@ describe("POST /users/:id/edit", () => {
         newValue: { roleId: encargadaRoleId },
       }),
     );
+  });
+
+  it("answers with the edit it applied even when the user is deactivated right after it commits", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const racedApp = Fastify();
+    registerUserEditRoutes(racedApp, {
+      db: withChangeAfterCommit(() =>
+        db.update(users).set({ active: false, version: 3 }).where(eq(users.id, targetId)),
+      ),
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+    });
+
+    const response = await postJson(
+      racedApp,
+      `/users/${targetId}/edit`,
+      { email: "new.email@example.com", role_id: cashierRoleId, version: 1 },
+      cookieHeader(rawSessionId),
+    );
+    await racedApp.close();
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      id: targetId,
+      first_name: "Grace Hopper",
+      email: "new.email@example.com",
+      version: 2,
+      role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
+      passkey_count: 0,
+      is_last_active_administrator: false,
+    });
+  });
+
+  it("answers a promotion to Administrator with the promoted user no longer the last active one", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await editUser(targetId, rawSessionId, {
+      email: "grace@example.com",
+      role_id: administratorRoleId,
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      version: 2,
+      role: { id: administratorRoleId, is_administrator: true },
+      is_last_active_administrator: false,
+    });
   });
 
   describe("the last active Administrator", () => {

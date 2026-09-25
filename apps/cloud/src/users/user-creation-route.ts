@@ -184,8 +184,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
           roleName: role.name,
           roleIsAdministrator: role.isAdministrator,
           passkeyCount: 0,
-          // The pre-existing seeded Administrator can never be deactivated (no route targets one),
-          // so a just-created user is never the sole active Administrator, even given that role.
+          // Only an active Administrator of this same branch can create a user, so a just-created
+          // user is never the sole active Administrator, even given that role.
           isLastActiveAdministrator: false,
         }),
       );

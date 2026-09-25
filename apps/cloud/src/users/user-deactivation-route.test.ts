@@ -95,6 +95,41 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
   return { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` };
 }
 
+/**
+ * Runs `change` once the route has read its target (the branch-user read, the only one selecting
+ * `roleIsAdministrator`) and just before the next transaction it opens: the window in which a
+ * concurrent request can commit a change the route has not seen. Transactions opened earlier, by
+ * the session check, run untouched.
+ */
+function withChangeAfterTargetRead(change: () => Promise<unknown>): TestDatabase["db"] {
+  let targetRead = false;
+  let changed = false;
+  return new Proxy(db, {
+    get(target, property) {
+      const value = Reflect.get(target, property);
+      if (property === "select") {
+        return function (this: unknown, ...args: unknown[]) {
+          const [fields] = args;
+          if (typeof fields === "object" && fields !== null && "roleIsAdministrator" in fields) {
+            targetRead = true;
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      if (property === "transaction") {
+        return async function (this: unknown, ...args: unknown[]) {
+          if (targetRead && !changed) {
+            changed = true;
+            await change();
+          }
+          return Reflect.apply(value, this, args);
+        };
+      }
+      return value;
+    },
+  });
+}
+
 function deactivateUser(
   targetId: string,
   rawSessionId: string | undefined,
@@ -328,6 +363,42 @@ describe("POST /users/:id/deactivation", () => {
     const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "user"));
     const deactivations = audited.filter((row) => row.entityId === targetId);
     expect(deactivations).toHaveLength(1);
+  });
+
+  it("answers the same 404 for a target promoted to Administrator after it was first read, leaving them active and their sessions open", async () => {
+    const targetSessionId = await insertSession(targetId);
+    const rawSessionId = await insertSession(administratorId);
+    const administratorRoleId = await seededAdministratorRoleId();
+    const racedApp = Fastify();
+    registerUserDeactivationRoutes(racedApp, {
+      db: withChangeAfterTargetRead(() =>
+        db
+          .update(userRoles)
+          .set({ roleId: administratorRoleId })
+          .where(eq(userRoles.userId, targetId)),
+      ),
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => currentTime,
+    });
+
+    const response = await racedApp.inject({
+      method: "POST",
+      url: `/users/${targetId}/deactivation`,
+      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
+    });
+    await racedApp.close();
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    const [row] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(row?.active).toBe(true);
+    const [targetSessionRow] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(targetSessionId)));
+    expect(targetSessionRow?.revokedAt).toBeNull();
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
+    expect(audited).toHaveLength(0);
   });
 
   describe("the shared passkey-authorization guard", () => {

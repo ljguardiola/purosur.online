@@ -10,7 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { findBranchUser, toBranchUserWire } from "./branch-users.js";
+import { type BranchUserRow, findBranchUser, toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
@@ -118,7 +118,7 @@ type EditOutcome =
   | { kind: "stale_version" }
   | { kind: "email_taken" }
   | { kind: "last_administrator" }
-  | { kind: "applied" };
+  | { kind: "applied"; user: BranchUserRow };
 
 /**
  * Registers `POST /users/:id/edit`: changes another branch user's email and role together, in one
@@ -255,15 +255,15 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
 
           const emailChanged = currentUser.email !== parsedBody.email;
           const roleChanged = currentUserRole.roleId !== requestedRole.id;
-          if (!emailChanged && !roleChanged) {
-            return { kind: "applied" };
+          if (emailChanged || roleChanged) {
+            await tx
+              .update(users)
+              .set({
+                version: currentUser.version + 1,
+                ...(emailChanged ? { email: parsedBody.email } : {}),
+              })
+              .where(eq(users.id, target.id));
           }
-
-          const nextVersion = currentUser.version + 1;
-          await tx
-            .update(users)
-            .set({ version: nextVersion, ...(emailChanged ? { email: parsedBody.email } : {}) })
-            .where(eq(users.id, target.id));
 
           if (emailChanged) {
             // A recovery link already sent to the previous address must not outlive the change.
@@ -302,7 +302,15 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
             });
           }
 
-          return { kind: "applied" };
+          // Read under the locks this transaction still holds: once it commits, a deactivation
+          // waiting on this user's row can commit before a later read would find the user.
+          const edited = await findBranchUser(tx, openSession.locationId, target.id);
+          if (!edited) {
+            // A deactivation bumps `version`, so a matching version above means the user is still
+            // active; throwing rolls the edit back rather than answering for one that did not apply.
+            throw new Error("edited user is no longer an active user of this branch");
+          }
+          return { kind: "applied", user: edited };
         })
         .catch((error: unknown): EditOutcome => {
           if (isEmailUniqueViolation(error)) {
@@ -324,13 +332,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const updated = await findBranchUser(options.db, openSession.locationId, target.id);
-      if (!updated) {
-        // The transaction above only ever changes this row's email or role, never deactivates or
-        // removes it; unreachable in practice.
-        throw new Error("edited user vanished right after a successful edit");
-      }
-      await reply.code(200).send(toBranchUserWire(updated));
+      await reply.code(200).send(toBranchUserWire(outcome.user));
     },
   );
 }

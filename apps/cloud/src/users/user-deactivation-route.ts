@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, sessions, users } from "../db/schema.js";
+import { auditLog, roles, sessions, userRoles, users } from "../db/schema.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
   openSessionOf,
@@ -95,16 +95,29 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Locks this row before checking it, the same way `user-edit-route.ts` does: a
-        // concurrent deactivation of the same target waits instead of racing, and re-reads
-        // `active` under the lock so a second request against an already-deactivated target
-        // never re-revokes sessions or re-audits.
+        // Takes the Administrator role row lock, then the user row lock, in the same order
+        // `user-edit-route.ts` does (so the two never deadlock): a concurrent role change waits,
+        // and `active` and the role are re-read under the locks. The role check above ran before
+        // them, so a target promoted since would otherwise be deactivated as an Administrator, and a
+        // second request against an already-deactivated target would re-revoke and re-audit.
+        const [administratorRole] = await tx
+          .select({ id: roles.id })
+          .from(roles)
+          .where(eq(roles.isAdministrator, true))
+          .for("update");
         const [current] = await tx
           .select({ active: users.active, version: users.version })
           .from(users)
           .where(eq(users.id, target.id))
           .for("update");
         if (!current?.active) {
+          return { kind: "not_found" };
+        }
+        const [currentRole] = await tx
+          .select({ roleId: userRoles.roleId })
+          .from(userRoles)
+          .where(eq(userRoles.userId, target.id));
+        if (currentRole?.roleId === administratorRole?.id) {
           return { kind: "not_found" };
         }
 
