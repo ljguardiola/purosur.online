@@ -248,180 +248,112 @@ function NewRegisterModal({
   );
 }
 
-type EnrollmentCodeState =
-  | { kind: "issuing" }
-  | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "issued"; code: string; expiresAt: string };
+type EmissionState =
+  | { kind: "closed" }
+  | { kind: "issuing"; register: RegisterSummary }
+  | { kind: "attemptFailed"; register: RegisterSummary }
+  | { kind: "rateLimited"; register: RegisterSummary; retryAfterSeconds: number }
+  | { kind: "issued"; register: RegisterSummary; code: string; expiresAt: string };
 
 type EnrollmentCodeModalProps = {
-  target: RegisterSummary | null;
+  emission: EmissionState;
   onClose: () => void;
   onDone: () => void;
-  onVanished: () => void;
-  onSessionEnded: () => void;
-  emitEnrollmentCode: typeof emitEnrollmentCode;
-  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
-  authorizeSession: typeof authorizeSession;
-  startAuthentication: typeof startAuthentication;
+  onRetry: (register: RegisterSummary) => void;
 };
 
 /**
- * Emits a fresh enrollment code for one register as soon as it opens, confirming with the shared
- * passkey-authorization modal only when the cloud asks for it, then shows the code. "Listo" is the
- * only way out: there is nothing to cancel, since the code is already issued once this is open.
+ * Shows the outcome of emitting one register's enrollment code (in flight, issued, or a failure to
+ * retry). Purely presentational: the emission itself is started by the row action's click handler
+ * in `RegistersListScreen`, a real user action, never by this component opening or re-rendering —
+ * an effect that fired the request instead would run again for reasons that have nothing to do with
+ * the person actually asking for a new code (e.g. React Strict Mode's extra development render, or
+ * any future change that remounts this component while a target is already set).
  */
-function EnrollmentCodeModal({
-  target,
-  onClose,
-  onDone,
-  onVanished,
-  onSessionEnded,
-  emitEnrollmentCode,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
-}: EnrollmentCodeModalProps) {
+function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentCodeModalProps) {
   const modalMessages = registersMessages.enrollmentCodeModal;
-  const isOpen = target !== null;
-  const [state, setState] = useState<EnrollmentCodeState>({ kind: "issuing" });
-  const targetRef = useRef(target);
-  targetRef.current = target;
-  const { run, modal } = useAuthorization<EmitEnrollmentCodeOutcome>({
-    action: "registerEnrollmentCodeIssue",
-    onSessionEnded,
-    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
-  });
-  // Read every one of these through a ref, not as reactive `useCallback` dependencies: the parent
-  // hands fresh function references on every render (each session-activity touch re-renders it),
-  // which would otherwise retrigger the effect below and re-emit the code on an open modal.
-  const runRef = useRef(run);
-  runRef.current = run;
-  const emitEnrollmentCodeRef = useRef(emitEnrollmentCode);
-  emitEnrollmentCodeRef.current = emitEnrollmentCode;
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const onVanishedRef = useRef(onVanished);
-  onVanishedRef.current = onVanished;
-
-  const handleEmit = useCallback(async () => {
-    const current = targetRef.current;
-    if (!current) {
-      return;
-    }
-    setState({ kind: "issuing" });
-    const outcome = await runRef.current(() => emitEnrollmentCodeRef.current(current.id));
-    if (outcome.kind === "cancelled") {
-      onCloseRef.current();
-      return;
-    }
-    if (outcome.kind === "ok") {
-      setState({ kind: "issued", code: outcome.value.code, expiresAt: outcome.value.expiresAt });
-      return;
-    }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEndedRef.current();
-      return;
-    }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "not_found") {
-      onVanishedRef.current();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setState({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      return;
-    }
-    setState({ kind: "attemptFailed" });
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      void handleEmit();
-    }
-  }, [isOpen, handleEmit]);
-
-  const isIssued = state.kind === "issued";
+  const isOpen = emission.kind !== "closed";
+  const isIssued = emission.kind === "issued";
 
   return (
-    <>
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            onClose();
-          }
-        }}
-        width="standard"
-        tone="info"
-        icon={<KeySquare />}
-        {...(target ? { context: target.name } : {})}
-        title={modalMessages.heading}
-        closable
-        closeLabel={modalMessages.closeLabel}
-        footer={
-          <Button
-            variant="primary"
-            size="large"
-            icon={<Check />}
-            fullWidth
-            isDisabled={!isIssued}
-            onPress={onDone}
-          >
-            {modalMessages.doneButton}
-          </Button>
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
         }
-      >
-        <div className="flex flex-col gap-4">
-          {state.kind === "issuing" && <p role="status">{modalMessages.issuing}</p>}
-          {state.kind === "attemptFailed" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title={modalMessages.attemptFailedTitle}
-                detail={modalMessages.attemptFailedDetail}
-              />
-              <Button variant="secondary" icon={<RotateCcw />} onPress={() => void handleEmit()}>
-                {modalMessages.retry}
-              </Button>
-            </>
-          )}
-          {state.kind === "rateLimited" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<ShieldX />}
-                title={modalMessages.rateLimitedTitle}
-                detail={modalMessages.rateLimitedDetail({
-                  minutes: Math.ceil(state.retryAfterSeconds / 60),
-                })}
-              />
-              <Button variant="secondary" icon={<RotateCcw />} onPress={() => void handleEmit()}>
-                {modalMessages.retry}
-              </Button>
-            </>
-          )}
-          {state.kind === "issued" && (
-            <>
-              <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-bone p-4">
-                <p className="font-bold text-2xl text-brand-blue-strong tracking-[0.1em]">
-                  {groupedCode(state.code)}
-                </p>
-                <p className="text-ink-secondary text-sm">{modalMessages.codeExpiresNote}</p>
-              </div>
-              <p className="text-base text-ink">{modalMessages.description}</p>
-            </>
-          )}
-        </div>
-      </Modal>
-      {modal}
-    </>
+      }}
+      width="standard"
+      tone="info"
+      icon={<KeySquare />}
+      {...(emission.kind !== "closed" ? { context: emission.register.name } : {})}
+      title={modalMessages.heading}
+      closable
+      closeLabel={modalMessages.closeLabel}
+      footer={
+        <Button
+          variant="primary"
+          size="large"
+          icon={<Check />}
+          fullWidth
+          isDisabled={!isIssued}
+          onPress={onDone}
+        >
+          {modalMessages.doneButton}
+        </Button>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {emission.kind === "issuing" && <p role="status">{modalMessages.issuing}</p>}
+        {emission.kind === "attemptFailed" && (
+          <>
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.attemptFailedTitle}
+              detail={modalMessages.attemptFailedDetail}
+            />
+            <Button
+              variant="secondary"
+              icon={<RotateCcw />}
+              onPress={() => onRetry(emission.register)}
+            >
+              {modalMessages.retry}
+            </Button>
+          </>
+        )}
+        {emission.kind === "rateLimited" && (
+          <>
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={modalMessages.rateLimitedTitle}
+              detail={modalMessages.rateLimitedDetail({
+                minutes: Math.ceil(emission.retryAfterSeconds / 60),
+              })}
+            />
+            <Button
+              variant="secondary"
+              icon={<RotateCcw />}
+              onPress={() => onRetry(emission.register)}
+            >
+              {modalMessages.retry}
+            </Button>
+          </>
+        )}
+        {emission.kind === "issued" && (
+          <>
+            <div className="flex flex-col items-center gap-1 rounded-lg bg-surface-bone p-4">
+              <p className="font-bold text-2xl text-brand-blue-strong tracking-[0.1em]">
+                {groupedCode(emission.code)}
+              </p>
+              <p className="text-ink-secondary text-sm">{modalMessages.codeExpiresNote}</p>
+            </div>
+            <p className="text-base text-ink">{modalMessages.description}</p>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -445,7 +377,13 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const listRef = useRef(list);
   listRef.current = list;
   const [newModalOpen, setNewModalOpen] = useState(false);
-  const [emitTarget, setEmitTarget] = useState<RegisterSummary | null>(null);
+  const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
+  const { run: runEmission, modal: emissionAuthModal } =
+    useAuthorization<EmitEnrollmentCodeOutcome>({
+      action: "registerEnrollmentCodeIssue",
+      onSessionEnded,
+      services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+    });
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the list and pull
   // the registers out from under an open modal.
@@ -455,6 +393,10 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   // Only the latest load may settle the list: an earlier one still in flight would otherwise
   // overwrite it with a stale result.
   const latestLoad = useRef(0);
+  // Only the latest emission attempt may settle `emission`: closing the modal (or a future click,
+  // once nothing is in flight) bumps this, so a response that arrives after the person moved on
+  // never resurrects a modal or shows a code paired with the wrong register's name.
+  const latestEmission = useRef(0);
 
   const load = useCallback(async () => {
     latestLoad.current += 1;
@@ -480,6 +422,61 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Emits a fresh code for `register`, started by the row action's own click — never by an effect,
+  // so it runs exactly once per click and never re-fires for reasons that have nothing to do with
+  // the click itself. Ignored while another emission is already in flight: the open modal's own
+  // backdrop already blocks reaching a different row's action, but this also guards a second Enter/
+  // Space activation of the same button before its first request settles.
+  async function handleEmitClick(register: RegisterSummary) {
+    if (emission.kind === "issuing") {
+      return;
+    }
+    latestEmission.current += 1;
+    const thisEmission = latestEmission.current;
+    setEmission({ kind: "issuing", register });
+
+    const outcome = await runEmission(() => emitEnrollmentCode(register.id));
+    if (thisEmission !== latestEmission.current) {
+      return;
+    }
+    if (outcome.kind === "cancelled") {
+      setEmission({ kind: "closed" });
+      return;
+    }
+    if (outcome.kind === "ok") {
+      setEmission({
+        kind: "issued",
+        register,
+        code: outcome.value.code,
+        expiresAt: outcome.value.expiresAt,
+      });
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      setEmission({ kind: "closed" });
+      void load();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setEmission({ kind: "rateLimited", register, retryAfterSeconds: outcome.retryAfterSeconds });
+      return;
+    }
+    setEmission({ kind: "attemptFailed", register });
+  }
+
+  function closeEmission() {
+    latestEmission.current += 1;
+    setEmission({ kind: "closed" });
+  }
 
   const registers = list.kind === "loaded" ? list.registers : [];
 
@@ -539,7 +536,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         (item: RegisterSummary) => ({
           icon: <KeySquare />,
           "aria-label": registersMessages.issueCodeAria({ name: item.name }),
-          onPress: () => setEmitTarget(item),
+          onPress: () => void handleEmitClick(item),
         }),
       ],
     },
@@ -632,22 +629,15 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         startAuthentication={startAuthentication}
       />
       <EnrollmentCodeModal
-        target={emitTarget}
-        onClose={() => setEmitTarget(null)}
+        emission={emission}
+        onClose={closeEmission}
         onDone={() => {
-          setEmitTarget(null);
+          closeEmission();
           void load();
         }}
-        onVanished={() => {
-          setEmitTarget(null);
-          void load();
-        }}
-        onSessionEnded={onSessionEnded}
-        emitEnrollmentCode={emitEnrollmentCode}
-        fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
-        authorizeSession={authorizeSession}
-        startAuthentication={startAuthentication}
+        onRetry={(register) => void handleEmitClick(register)}
       />
+      {emissionAuthModal}
     </>
   );
 }

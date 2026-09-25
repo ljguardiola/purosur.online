@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -286,6 +287,29 @@ test("emitting a code shows it grouped in fours, with the expiry note and descri
       ),
     )
     .toBeVisible();
+});
+
+test("under StrictMode, clicking the row action emits the code exactly once and shows that call's code", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await render(
+    <StrictMode>
+      <main>
+        <RegistersListScreen services={services} onSessionEnded={() => {}} now={NOW} />
+      </main>
+    </StrictMode>,
+  );
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Código de alta" });
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  expect(services.emitEnrollmentCode).toHaveBeenCalledTimes(1);
 });
 
 test("Listo closes the code modal and refreshes the list", async () => {
