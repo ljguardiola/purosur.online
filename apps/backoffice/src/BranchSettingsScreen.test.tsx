@@ -373,6 +373,106 @@ test("removing a range drops it, hiding the trash button once only one is left",
   });
 });
 
+function rangeInput(
+  screen: Awaited<ReturnType<typeof renderScreen>>,
+  name: string,
+): HTMLInputElement {
+  return screen.getByRole("textbox", { name }).element() as HTMLInputElement;
+}
+
+async function pressWithKeyboard(button: HTMLElement) {
+  button.focus();
+  await userEvent.keyboard("{Enter}");
+}
+
+test("moves keyboard focus to the new range's opening field after adding one", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+
+  await pressWithKeyboard(
+    screen.getByRole("button", { name: "Agregar un horario al martes" }).element() as HTMLElement,
+  );
+
+  await expect
+    .poll(() => document.activeElement === rangeInput(screen, "Martes, horario 2, abre"))
+    .toBe(true);
+});
+
+test("keeps keyboard focus in the day once the add-range button disappears at the cap", async () => {
+  const belowCap: BranchSettings = {
+    ...loaded,
+    hours: {
+      ...loaded.hours,
+      friday: Array.from({ length: BRANCH_HOURS_RANGES_PER_DAY_MAX - 1 }, (_, index) => ({
+        opensAt: `0${index}:00`,
+        closesAt: `0${index + 1}:00`,
+      })),
+    },
+  };
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: belowCap });
+  const screen = await renderScreen(services);
+
+  await pressWithKeyboard(
+    screen.getByRole("button", { name: "Agregar un horario al viernes" }).element() as HTMLElement,
+  );
+
+  expect(screen.getByRole("button", { name: "Agregar un horario al viernes" }).query()).toBeNull();
+  await expect
+    .poll(
+      () =>
+        document.activeElement ===
+        rangeInput(screen, `Viernes, horario ${BRANCH_HOURS_RANGES_PER_DAY_MAX}, abre`),
+    )
+    .toBe(true);
+});
+
+test("moves keyboard focus to the previous range's opening field after removing the last range", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+
+  await pressWithKeyboard(
+    screen.getByRole("button", { name: "Quitar el horario 2 del lunes" }).element() as HTMLElement,
+  );
+
+  expect(screen.getByRole("button", { name: "Quitar el horario 1 del lunes" }).query()).toBeNull();
+  await expect
+    .poll(() => document.activeElement === rangeInput(screen, "Lunes, horario 1, abre"))
+    .toBe(true);
+});
+
+test("moves keyboard focus to the range that takes the removed one's place", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({
+    kind: "ok",
+    value: {
+      ...loaded,
+      hours: {
+        ...loaded.hours,
+        monday: [
+          { opensAt: "08:00", closesAt: "10:00" },
+          { opensAt: "11:00", closesAt: "13:00" },
+          { opensAt: "17:00", closesAt: "21:00" },
+        ],
+      },
+    },
+  });
+  const screen = await renderScreen(services);
+
+  await pressWithKeyboard(
+    screen.getByRole("button", { name: "Quitar el horario 1 del lunes" }).element() as HTMLElement,
+  );
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
+    .toHaveValue("11:00");
+  await expect
+    .poll(() => document.activeElement === rangeInput(screen, "Lunes, horario 1, abre"))
+    .toBe(true);
+});
+
 test("hides the add-range button once a day reaches the ranges cap", async () => {
   const atCap: BranchSettings = {
     ...loaded,
@@ -436,7 +536,27 @@ test("rejects a range whose closing time isn't later than opening, with one inli
   await expect
     .element(screen.getByText("La hora de cierre tiene que ser posterior a la de apertura."))
     .toBeVisible();
+  for (const name of [
+    "Lunes, horario 1, abre",
+    "Lunes, horario 1, cierra",
+    "Lunes, horario 2, abre",
+    "Lunes, horario 2, cierra",
+  ]) {
+    await expect
+      .element(screen.getByRole("textbox", { name }))
+      .toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(screen.getByRole("textbox", { name }))
+      .toHaveAccessibleDescription("La hora de cierre tiene que ser posterior a la de apertura.");
+  }
+  await expect
+    .element(screen.getByRole("textbox", { name: "Martes, horario 1, abre" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Martes, horario 1, abre" }))
+    .toHaveAccessibleDescription("");
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("rejects an empty opening time with a time-format error under the day, without saving", async () => {
@@ -451,6 +571,12 @@ test("rejects an empty opening time with a time-format error under the day, with
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(screen.getByText("Ingresá la hora como 9:00 o 21:30.")).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
   expect(
     screen.getByText("La hora de cierre tiene que ser posterior a la de apertura.").query(),
   ).toBeNull();
@@ -471,6 +597,9 @@ test("rejects two ranges of the same day that overlap, without saving", async ()
   await expect
     .element(screen.getByText("Los horarios de un mismo día no se pueden superponer."))
     .toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 2, abre" }))
+    .toHaveAccessibleDescription("Los horarios de un mismo día no se pueden superponer.");
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
@@ -489,6 +618,12 @@ test("editing a day's range clears its error", async () => {
   expect(
     screen.getByText("La hora de cierre tiene que ser posterior a la de apertura.").query(),
   ).toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .toHaveAccessibleDescription("");
 });
 
 test("rejects a days value above 2147483647 with an error that asks for a smaller number, without saving", async () => {
@@ -550,7 +685,7 @@ test("accepts a good-condition return window of exactly 0 days", async () => {
   });
 });
 
-test("shows the server's hours validation error inline under the day it names", async () => {
+test("shows the server's hours rejection as a neutral error under the day it names, since it doesn't say why", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({
@@ -564,9 +699,19 @@ test("shows the server's hours validation error inline under the day it names", 
 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
+  await expect.element(screen.getByText("Revisá los horarios de este día.")).toBeVisible();
+  expect(
+    screen.getByText("La hora de cierre tiene que ser posterior a la de apertura.").query(),
+  ).toBeNull();
   await expect
-    .element(screen.getByText("La hora de cierre tiene que ser posterior a la de apertura."))
-    .toBeVisible();
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }))
+    .toHaveAccessibleDescription("Revisá los horarios de este día.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Martes, horario 1, cierra" }))
+    .not.toHaveAttribute("aria-invalid", "true");
 });
 
 test("shows a stale_version notice, and Recargar refetches so the second save sends the new version", async () => {
@@ -692,4 +837,23 @@ test("centers a day's row actions on the same line as its time fields", async ()
 
   expect(removeCenter).toBeCloseTo(fieldBoxCenter, 0);
   expect(addCenter).toBeCloseTo(fieldBoxCenter, 0);
+});
+
+test("draws the same separator line above Lunes as above every other day", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Lunes")).toBeVisible();
+
+  // Day name → its fixed-width box → the row's first line → the day's row.
+  const dayRow = (day: string) =>
+    screen.getByText(day, { exact: true }).element().parentElement?.parentElement
+      ?.parentElement as HTMLElement;
+  const monday = getComputedStyle(dayRow("Lunes"));
+  const tuesday = getComputedStyle(dayRow("Martes"));
+
+  expect(monday.borderTopWidth).toBe("1px");
+  expect(monday.borderTopStyle).toBe(tuesday.borderTopStyle);
+  expect(monday.borderTopColor).toBe(tuesday.borderTopColor);
+  expect(monday.paddingTop).toBe(tuesday.paddingTop);
 });

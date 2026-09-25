@@ -47,10 +47,13 @@ type TextFieldCommonProps = {
 };
 
 // An invalid field always names why: there is no invalid state with nothing for the helper line
-// to show in its place.
+// to show in its place. `errorMessageId` names a message rendered once outside the field and
+// shared by several of them (e.g. one error under a day's row of time fields): the field turns
+// invalid and is described by it, without repeating the message under itself.
 type TextFieldValidityProps =
-  | { invalid: true; errorMessage: string }
-  | { invalid?: false; errorMessage?: undefined };
+  | { invalid: true; errorMessage: string; errorMessageId?: undefined }
+  | { invalid: true; errorMessageId: string; errorMessage?: undefined }
+  | { invalid?: false; errorMessage?: undefined; errorMessageId?: undefined };
 
 // Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
 // require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
@@ -164,6 +167,7 @@ export function TextField(props: TextFieldProps) {
   } = props;
   const invalid = props.invalid ?? false;
   const errorMessage = props.invalid ? props.errorMessage : undefined;
+  const errorMessageId = props.invalid ? props.errorMessageId : undefined;
   const prefix =
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
   const suffix =
@@ -180,8 +184,13 @@ export function TextField(props: TextFieldProps) {
   // Left out entirely rather than set to `undefined` for a field with no affix: AriaTextField's own
   // `aria-describedby` prop type doesn't accept `undefined` under this project's
   // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
-  const affixDescribedByProps =
-    prefix !== undefined || suffix !== undefined ? { "aria-describedby": affixId } : {};
+  const describedBy = [
+    prefix !== undefined || suffix !== undefined ? affixId : undefined,
+    errorMessageId,
+  ]
+    .filter((id) => id !== undefined)
+    .join(" ");
+  const describedByProps = describedBy !== "" ? { "aria-describedby": describedBy } : {};
 
   // react-aria's own useTextField already wires the input's accessible name to this label through
   // its own generated id; giving that id here (instead of leaving react-aria to generate one it
@@ -211,7 +220,7 @@ export function TextField(props: TextFieldProps) {
       isReadOnly={readOnly}
       isRequired={required}
       isInvalid={invalid}
-      {...affixDescribedByProps}
+      {...describedByProps}
       className={wrapperClassName}
     >
       <AriaLabel
@@ -248,11 +257,12 @@ export function TextField(props: TextFieldProps) {
           </span>
         )}
       </div>
-      {invalid ? (
+      {errorMessage !== undefined ? (
         <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
           {errorMessage}
         </AriaText>
       ) : (
+        !invalid &&
         helperText !== undefined && (
           <AriaText slot="description" className={helperClassName} {...disabledTextProps}>
             {helperText}

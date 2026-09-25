@@ -18,6 +18,7 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings-edit-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-settings-validation.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -279,7 +280,15 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
 
-    const response = await putBranchSettings(validBody(), rawSessionId);
+    const mondayHours = [
+      { opens_at: "09:00", closes_at: "13:00" },
+      { opens_at: "17:00", closes_at: "21:00" },
+    ];
+
+    const response = await putBranchSettings(
+      validBody({ monday_hours: mondayHours }),
+      rawSessionId,
+    );
 
     expect(response.statusCode).toBe(200);
     const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
@@ -287,9 +296,60 @@ describe("PUT /branch-settings", () => {
       entity: "branch_settings",
       entityId: locationId,
       actorId: administratorId,
-      previousValue: { address: "", version: 1 },
-      newValue: { address: "Av. Siempre Viva 742", version: 2 },
+      previousValue: {
+        address: "",
+        version: 1,
+        monday_hours: [],
+        tuesday_hours: [],
+        wednesday_hours: [],
+        thursday_hours: [],
+        friday_hours: [],
+        saturday_hours: [],
+        sunday_hours: [],
+      },
+      newValue: {
+        address: "Av. Siempre Viva 742",
+        version: 2,
+        monday_hours: mondayHours,
+        tuesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        wednesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        thursday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        friday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
+        sunday_hours: [],
+      },
     });
+  });
+
+  it("treats re-saving the same non-empty hours as a no-op: version unchanged, no new audit row", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+    const body = validBody({
+      monday_hours: [
+        { opens_at: "09:00", closes_at: "13:00" },
+        { opens_at: "17:00", closes_at: "21:00" },
+      ],
+    });
+    const first = await putBranchSettings(body, rawSessionId);
+    expect(first.statusCode).toBe(200);
+
+    const response = await putBranchSettings({ ...body, version: 2 }, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ...body, version: 2 });
+    const [row] = await db
+      .select()
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, locationId));
+    expect(row).toMatchObject({ version: 2 });
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
+    expect(audited).toHaveLength(1);
   });
 
   it("treats an unchanged save as a no-op: 200, version unchanged, no audit row", async () => {
@@ -553,7 +613,7 @@ describe("PUT /branch-settings", () => {
     });
   });
 
-  it(`rejects more than ${6} ranges on the same day, changing nothing`, async () => {
+  it(`rejects more than ${BRANCH_HOURS_RANGES_PER_DAY_MAX} ranges on the same day, changing nothing`, async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -561,10 +621,13 @@ describe("PUT /branch-settings", () => {
       locationId: await seededLocationId(db),
     });
     const rawSessionId = await insertSession(administratorId);
-    const tooManyRanges = Array.from({ length: 7 }, (_, index) => ({
-      opens_at: `0${index}:00`.slice(-5),
-      closes_at: `0${index}:30`.slice(-5),
-    }));
+    const tooManyRanges = Array.from(
+      { length: BRANCH_HOURS_RANGES_PER_DAY_MAX + 1 },
+      (_, index) => ({
+        opens_at: `0${index}:00`.slice(-5),
+        closes_at: `0${index}:30`.slice(-5),
+      }),
+    );
 
     const response = await putBranchSettings(
       validBody({ monday_hours: tooManyRanges }),

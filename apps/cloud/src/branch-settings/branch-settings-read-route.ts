@@ -87,12 +87,24 @@ export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsWire
 }
 
 /**
- * Reads `locationId`'s branch settings, for `GET /branch-settings` and for the edit route
- * `branch-settings-edit-route.ts` will add. Every location gets its row from the migration that
- * creates this table, so a missing row here means that invariant broke, not a legitimate "not
- * found" a caller should ever see.
+ * Reads `locationId`'s branch settings for `GET /branch-settings`. Every location gets its row
+ * from the migration that creates this table, so a missing row here means that invariant broke,
+ * not a legitimate "not found" a caller should ever see.
+ *
+ * Both reads share one repeatable-read snapshot: a save committing between them would otherwise
+ * pair the settings from before it with the hours from after it.
  */
 export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  locationId: string,
+): Promise<BranchSettingsRow> {
+  return db.transaction((tx) => readBranchSettings(tx, locationId), {
+    isolationLevel: "repeatable read",
+    accessMode: "read only",
+  });
+}
+
+async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
 ): Promise<BranchSettingsRow> {

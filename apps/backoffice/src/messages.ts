@@ -508,6 +508,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       hoursOrderError: "La hora de cierre tiene que ser posterior a la de apertura.",
       hoursFormatError: "Ingresá la hora como 9:00 o 21:30.",
       hoursOverlapError: "Los horarios de un mismo día no se pueden superponer.",
+      hoursInvalidError: "Revisá los horarios de este día.",
       daysFieldError: "Ingresá un número entero de 0 días o más.",
       daysTooLargeError: "Ingresá un número de días más chico.",
     },

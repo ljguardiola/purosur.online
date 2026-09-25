@@ -1,7 +1,7 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { Button, Checkbox, IconButton, InlineNotice, TextField } from "@purosur/ui";
 import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
   BranchDay,
   BranchHoursRange,
@@ -245,11 +245,11 @@ function settingsFrom(values: FormValues, version: number): BranchSettings {
 }
 
 /** The field's own error for a save the server rejected on it; `version` never renders inline. The
- * client already checked every day's ranges, so a day the server rejects is shown with the same
- * order-error copy the client itself would have shown it. */
+ * server names a rejected day without saying whether its format, order, overlap or ranges count
+ * failed, so the day gets a neutral message rather than guessing one of them. */
 function serverFieldErrors(field: FieldErrorKey): FieldErrors {
   if (isBranchDay(field)) {
-    return { [field]: branchMessages.hoursOrderError };
+    return { [field]: branchMessages.hoursInvalidError };
   }
   if (
     field === "expiringLotAlertDays" ||
@@ -293,6 +293,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const hoursErrorIdPrefix = useId();
 
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the settings and
@@ -321,6 +322,20 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Adding or removing a range unmounts the button that did it whenever the "+" reaches the cap or
+  // the trash buttons go away, which would drop keyboard focus to the page itself; focus lands on
+  // the added range, or on the range that takes the removed one's place, instead.
+  const rangeElementsRef = useRef(new Map<number, HTMLElement>());
+  const rangeToFocusRef = useRef<number | null>(null);
+  useEffect(() => {
+    const rangeId = rangeToFocusRef.current;
+    if (rangeId === null) {
+      return;
+    }
+    rangeToFocusRef.current = null;
+    rangeElementsRef.current.get(rangeId)?.querySelector("input")?.focus();
+  });
 
   async function handleReload() {
     setSubmitting(true);
@@ -391,19 +406,23 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   }
 
   function addRange(day: BranchDay) {
+    const added = emptyRange();
     setValues((current) => {
       if (current[day].ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX) {
         return current;
       }
       return {
         ...current,
-        [day]: { ...current[day], ranges: [...current[day].ranges, emptyRange()] },
+        [day]: { ...current[day], ranges: [...current[day].ranges, added] },
       };
     });
+    rangeToFocusRef.current = added.id;
     clearFieldError(day);
   }
 
   function removeRange(day: BranchDay, index: number) {
+    const ranges = values[day].ranges;
+    rangeToFocusRef.current = (ranges[index + 1] ?? ranges[index - 1])?.id ?? null;
     setValues((current) => {
       if (current[day].ranges.length <= 1) {
         return current;
@@ -498,7 +517,12 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     );
   }
 
-  function rangeTimeField(day: BranchDay, index: number, part: "opensAt" | "closesAt") {
+  function rangeTimeField(
+    day: BranchDay,
+    index: number,
+    part: "opensAt" | "closesAt",
+    errorId: string | undefined,
+  ) {
     const label = branchMessages.rangeFieldLabel({
       day: branchMessages.dayLabels[day],
       index: index + 1,
@@ -512,6 +536,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           labelVisuallyHidden
           value={values[day].ranges[index]?.[part] ?? ""}
           onChange={(value) => setRangeValue(day, index, part, value)}
+          {...(errorId !== undefined ? { invalid: true, errorMessageId: errorId } : {})}
         />
       </div>
     );
@@ -522,12 +547,11 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     const dayLower = dayLabel.toLocaleLowerCase("es-AR");
     const dayValues = values[day];
     const error = fieldErrors[day];
+    const errorId = `${hoursErrorIdPrefix}-${day}`;
+    const fieldErrorId = error !== undefined ? errorId : undefined;
     const atCap = dayValues.ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX;
     return (
-      <div
-        key={day}
-        className="flex flex-col gap-2 border-line border-t py-3 first:border-t-0 first:pt-0"
-      >
+      <div key={day} className="flex flex-col gap-2 border-line border-t py-3">
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex h-[3.25rem] w-[8.75rem] shrink-0 items-center">
             <p className="font-semibold text-ink">{dayLabel}</p>
@@ -544,12 +568,22 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           {!dayValues.closed && (
             <div className="flex flex-1 flex-wrap items-start gap-4">
               {dayValues.ranges.map((range, index) => (
-                <div key={range.id} className="flex items-center gap-2">
-                  {rangeTimeField(day, index, "opensAt")}
+                <div
+                  key={range.id}
+                  ref={(element) => {
+                    if (element === null) {
+                      rangeElementsRef.current.delete(range.id);
+                    } else {
+                      rangeElementsRef.current.set(range.id, element);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  {rangeTimeField(day, index, "opensAt", fieldErrorId)}
                   <span aria-hidden="true" className="text-ink">
                     {branchMessages.rangeSeparator}
                   </span>
-                  {rangeTimeField(day, index, "closesAt")}
+                  {rangeTimeField(day, index, "closesAt", fieldErrorId)}
                   {dayValues.ranges.length > 1 && (
                     <IconButton
                       icon={<Trash2 />}
@@ -574,7 +608,11 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             </div>
           )}
         </div>
-        {error !== undefined && <p className="text-sm font-normal text-status-error-ui">{error}</p>}
+        {error !== undefined && (
+          <p id={errorId} className="text-sm font-normal text-status-error-ui">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
