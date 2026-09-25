@@ -224,7 +224,10 @@ function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: Help
       }
       sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
     >
+      {/* Keyed by path so every help page mounts its own scroll body, opening at the top instead of
+          at the offset the previous page was scrolled to. */}
       <HelpContent
+        key={helpRoute.path}
         help={help}
         categoryId={helpRoute.categoryId}
         articleId={helpRoute.articleId}
