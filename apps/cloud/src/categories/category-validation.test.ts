@@ -1,5 +1,14 @@
+import {
+  CATEGORY_NAME_MAX_LENGTH as SHARED_CATEGORY_NAME_MAX_LENGTH,
+  categoryNameLength as sharedCategoryNameLength,
+} from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import { categoryNameValidationFailure, readCategoryName } from "./category-validation.js";
+import {
+  CATEGORY_NAME_MAX_LENGTH,
+  categoryNameLength,
+  categoryNameValidationFailure,
+  readCategoryName,
+} from "./category-validation.js";
 
 describe("readCategoryName", () => {
   it("reads a trimmed name from the request body", () => {
@@ -28,5 +37,22 @@ describe("categoryNameValidationFailure", () => {
 
   it("rejects a name longer than 100 characters", () => {
     expect(categoryNameValidationFailure("a".repeat(101))).toMatchObject({ field: "name" });
+  });
+
+  it("counts each emoji as one character toward the 100-character limit", () => {
+    expect(categoryNameValidationFailure("🌱".repeat(100))).toBeUndefined();
+    expect(categoryNameValidationFailure("🌱".repeat(101))).toMatchObject({ field: "name" });
+  });
+});
+
+describe("the cloud's local category name limit", () => {
+  it("matches the shared limit", () => {
+    expect(CATEGORY_NAME_MAX_LENGTH).toBe(SHARED_CATEGORY_NAME_MAX_LENGTH);
+  });
+
+  it("counts a name's length the same way the shared contract does", () => {
+    for (const name of ["Semillas", "🌱".repeat(3), "Café 🌱 orgánico"]) {
+      expect(categoryNameLength(name)).toBe(sharedCategoryNameLength(name));
+    }
   });
 });

@@ -1,3 +1,4 @@
+import { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -56,8 +57,6 @@ type ListState =
 const catalogMessages = messages.catalog;
 const categoriesMessages = catalogMessages.categories;
 
-const CATEGORY_NAME_MAX_LENGTH = 100;
-
 function categoryNameError(
   name: string,
   modalMessages: { nameRequired: string; nameTooLong: string },
@@ -66,7 +65,7 @@ function categoryNameError(
   if (!trimmed) {
     return modalMessages.nameRequired;
   }
-  if (trimmed.length > CATEGORY_NAME_MAX_LENGTH) {
+  if (categoryNameLength(trimmed) > CATEGORY_NAME_MAX_LENGTH) {
     return modalMessages.nameTooLong;
   }
   return undefined;

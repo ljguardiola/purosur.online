@@ -217,12 +217,11 @@ test("shows a category created while the list is still loading, even once the ea
   const nueva: CategorySummary = { id: "category-3", name: "Limpieza", version: 1 };
   let finishFirstLoad: (outcome: Awaited<ReturnType<typeof services.fetchCategories>>) => void =
     () => {};
+  const firstLoad: ReturnType<typeof services.fetchCategories> = new Promise((resolve) => {
+    finishFirstLoad = resolve;
+  });
   vi.mocked(services.fetchCategories)
-    .mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishFirstLoad = resolve;
-      }),
-    )
+    .mockReturnValueOnce(firstLoad)
     .mockResolvedValueOnce({ kind: "ok", value: [semillas, nueva] });
   vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
   const screen = await renderScreen(services);
@@ -237,8 +236,14 @@ test("shows a category created while the list is still loading, even once the ea
   await expect.element(screen.getByText("Limpieza")).toBeVisible();
 
   finishFirstLoad({ kind: "ok", value: [semillas] });
-  // Let the earlier load's result settle before checking it did not replace the newer list.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // The screen awaited this same promise first, so once it settles here the screen has already
+  // handled the earlier result; re-rendering then commits any update that handling scheduled.
+  await firstLoad;
+  await screen.rerender(
+    <main>
+      <CategoriesListScreen services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
 
   expect(screen.getByText("2 categorías").query()).not.toBeNull();
   expect(screen.getByText("Limpieza").query()).not.toBeNull();
@@ -283,6 +288,55 @@ test("rejects a name longer than 100 characters in the create modal, without cal
     .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
     .toBeVisible();
   expect(services.createCategory).not.toHaveBeenCalled();
+});
+
+test("sends a name of exactly 100 characters, once trimmed, from the create modal", async () => {
+  const services = createServices();
+  const longest = "a".repeat(100);
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createCategory).mockResolvedValue({
+    kind: "ok",
+    value: { id: "category-3", name: longest, version: 1 },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    `  ${longest}  `,
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => vi.mocked(services.createCategory).mock.calls.length).toBe(1);
+  expect(services.createCategory).toHaveBeenCalledWith({ name: longest });
+});
+
+test("counts each emoji as one character toward the create modal's 100-character limit", async () => {
+  const services = createServices();
+  const longest = "🌱".repeat(100);
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createCategory).mockResolvedValue({
+    kind: "ok",
+    value: { id: "category-3", name: longest, version: 1 },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+  const nameField = dialog.getByRole("textbox", { name: /^Nombre de la categoría/ });
+  const submit = dialog.getByRole("button", { name: "Crear la categoría" });
+
+  await userEvent.fill(nameField, `${longest}🌱`);
+  await userEvent.click(submit);
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createCategory).not.toHaveBeenCalled();
+
+  await userEvent.fill(nameField, longest);
+  await userEvent.click(submit);
+  await expect.poll(() => vi.mocked(services.createCategory).mock.calls.length).toBe(1);
+  expect(services.createCategory).toHaveBeenCalledWith({ name: longest });
 });
 
 test("requires a name before submitting the create modal, without calling the API", async () => {
@@ -375,6 +429,57 @@ test("rejects a name longer than 100 characters in the edit modal, without calli
     .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
     .toBeVisible();
   expect(services.editCategory).not.toHaveBeenCalled();
+});
+
+test("sends a name of exactly 100 characters, once trimmed, from the edit modal", async () => {
+  const services = createServices();
+  const longest = "a".repeat(100);
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [semillas] });
+  vi.mocked(services.editCategory).mockResolvedValue({
+    kind: "ok",
+    value: { ...semillas, name: longest, version: 2 },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Semillas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Semillas" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    `  ${longest}  `,
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(1);
+  expect(services.editCategory).toHaveBeenCalledWith("category-1", { name: longest, version: 1 });
+});
+
+test("counts each emoji as one character toward the edit modal's 100-character limit", async () => {
+  const services = createServices();
+  const longest = "🌱".repeat(100);
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [semillas] });
+  vi.mocked(services.editCategory).mockResolvedValue({
+    kind: "ok",
+    value: { ...semillas, name: longest, version: 2 },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Semillas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Semillas" }));
+  const dialog = screen.getByRole("dialog");
+  const nameField = dialog.getByRole("textbox", { name: /^Nombre de la categoría/ });
+  const submit = dialog.getByRole("button", { name: "Guardar los cambios" });
+
+  await userEvent.fill(nameField, `${longest}🌱`);
+  await userEvent.click(submit);
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.editCategory).not.toHaveBeenCalled();
+
+  await userEvent.fill(nameField, longest);
+  await userEvent.click(submit);
+  await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(1);
+  expect(services.editCategory).toHaveBeenCalledWith("category-1", { name: longest, version: 1 });
 });
 
 test("shows the name-taken error on rename and keeps the original name in the list", async () => {

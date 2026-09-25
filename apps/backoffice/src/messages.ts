@@ -1,4 +1,9 @@
-import { PERMISSION_KEYS, type PermissionArea, type PermissionKey } from "@purosur/contracts";
+import {
+  CATEGORY_NAME_MAX_LENGTH,
+  PERMISSION_KEYS,
+  type PermissionArea,
+  type PermissionKey,
+} from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -26,6 +31,8 @@ const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
 const CANCEL_LABEL = "Cancelar";
 const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
+
+const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -469,7 +476,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         heading: "Nueva categoría",
         nameLabel: "Nombre de la categoría",
         nameRequired: "Ingresá el nombre de la categoría.",
-        nameTooLong: "El nombre puede tener hasta 100 caracteres.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
         cancel: CANCEL_LABEL,
         submit: "Crear la categoría",
@@ -484,7 +491,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         eyebrow: "Catálogo · Categorías",
         nameLabel: "Nombre de la categoría",
         nameRequired: "Ingresá el nombre de la categoría.",
-        nameTooLong: "El nombre puede tener hasta 100 caracteres.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",

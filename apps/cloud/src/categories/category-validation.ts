@@ -3,7 +3,14 @@ export interface CategoryFieldValidationFailure {
   message: string;
 }
 
+// Mirrors `@purosur/contracts`'s category name limit because this app's `tsc` build (explicit
+// `rootDir`) cannot import that package's untranspiled source; `category-validation.test.ts`
+// guards against drift.
 export const CATEGORY_NAME_MAX_LENGTH = 100;
+
+export function categoryNameLength(name: string): number {
+  return Array.from(name).length;
+}
 
 export function readCategoryName(body: unknown): string | undefined {
   const raw = (body as { name?: unknown } | undefined)?.name;
@@ -20,7 +27,7 @@ export function categoryNameValidationFailure(
   if (!name) {
     return { field: "name", message: "name must not be empty" };
   }
-  if (name.length > CATEGORY_NAME_MAX_LENGTH) {
+  if (categoryNameLength(name) > CATEGORY_NAME_MAX_LENGTH) {
     return {
       field: "name",
       message: `name must be at most ${CATEGORY_NAME_MAX_LENGTH} characters`,
