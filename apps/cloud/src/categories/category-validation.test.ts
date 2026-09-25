@@ -21,4 +21,12 @@ describe("categoryNameValidationFailure", () => {
   it("accepts a non-empty name", () => {
     expect(categoryNameValidationFailure("Semillas")).toBeUndefined();
   });
+
+  it("accepts a name of exactly 100 characters", () => {
+    expect(categoryNameValidationFailure("a".repeat(100))).toBeUndefined();
+  });
+
+  it("rejects a name longer than 100 characters", () => {
+    expect(categoryNameValidationFailure("a".repeat(101))).toMatchObject({ field: "name" });
+  });
 });

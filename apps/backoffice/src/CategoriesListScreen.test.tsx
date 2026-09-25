@@ -87,6 +87,21 @@ test("the search field filters the list by name, case-insensitively", async () =
   expect(screen.getByText("Bebidas").query()).toBeNull();
 });
 
+test("the category count in the footer counts only the categories the search leaves", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [semillas, bebidas],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "semi");
+
+  await expect.element(screen.getByText("1 categoría")).toBeVisible();
+  expect(screen.getByText("2 categorías").query()).toBeNull();
+});
+
 test("shows an empty state when there are no categories yet", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
@@ -197,6 +212,79 @@ test("creates a category and shows it in the list", async () => {
   await expect.element(screen.getByText("2 categorías")).toBeVisible();
 });
 
+test("shows a category created while the list is still loading, even once the earlier load finishes", async () => {
+  const services = createServices();
+  const nueva: CategorySummary = { id: "category-3", name: "Limpieza", version: 1 };
+  let finishFirstLoad: (outcome: Awaited<ReturnType<typeof services.fetchCategories>>) => void =
+    () => {};
+  vi.mocked(services.fetchCategories)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishFirstLoad = resolve;
+      }),
+    )
+    .mockResolvedValueOnce({ kind: "ok", value: [semillas, nueva] });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+  const screen = await renderScreen(services);
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "Limpieza",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Limpieza")).toBeVisible();
+
+  finishFirstLoad({ kind: "ok", value: [semillas] });
+  // Let the earlier load's result settle before checking it did not replace the newer list.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(screen.getByText("2 categorías").query()).not.toBeNull();
+  expect(screen.getByText("Limpieza").query()).not.toBeNull();
+});
+
+test("shows a category created while the list failed to load", async () => {
+  const services = createServices();
+  const nueva: CategorySummary = { id: "category-3", name: "Limpieza", version: 1 };
+  vi.mocked(services.fetchCategories)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: [semillas, nueva] });
+  vi.mocked(services.createCategory).mockResolvedValue({ kind: "ok", value: nueva });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir las categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "Limpieza",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Limpieza")).toBeVisible();
+  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+});
+
+test("rejects a name longer than 100 characters in the create modal, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+  const dialog = await openNewCategoryModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "a".repeat(101),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createCategory).not.toHaveBeenCalled();
+});
+
 test("requires a name before submitting the create modal, without calling the API", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
@@ -267,6 +355,26 @@ test("renames a category and shows the new name in the list", async () => {
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Semillas y granos")).toBeVisible();
+});
+
+test("rejects a name longer than 100 characters in the edit modal, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [semillas] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Semillas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Semillas" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "a".repeat(101),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.editCategory).not.toHaveBeenCalled();
 });
 
 test("shows the name-taken error on rename and keeps the original name in the list", async () => {

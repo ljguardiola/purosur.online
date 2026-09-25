@@ -56,6 +56,22 @@ type ListState =
 const catalogMessages = messages.catalog;
 const categoriesMessages = catalogMessages.categories;
 
+const CATEGORY_NAME_MAX_LENGTH = 100;
+
+function categoryNameError(
+  name: string,
+  modalMessages: { nameRequired: string; nameTooLong: string },
+): string | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return modalMessages.nameRequired;
+  }
+  if (trimmed.length > CATEGORY_NAME_MAX_LENGTH) {
+    return modalMessages.nameTooLong;
+  }
+  return undefined;
+}
+
 function nameCollator(a: CategorySummary, b: CategorySummary): number {
   return a.name.localeCompare(b.name, "es");
 }
@@ -100,8 +116,9 @@ function NewCategoryModal({
 
   async function handleSubmit() {
     const trimmed = name.trim();
-    if (!trimmed) {
-      setNameError(modalMessages.nameRequired);
+    const invalidName = categoryNameError(name, modalMessages);
+    if (invalidName) {
+      setNameError(invalidName);
       return;
     }
     setNameError(undefined);
@@ -205,7 +222,7 @@ function NewCategoryModal({
           onChange={(value) => {
             setName(value);
             if (nameError) {
-              setNameError(value.trim() ? undefined : modalMessages.nameRequired);
+              setNameError(categoryNameError(value, modalMessages));
             }
           }}
           required
@@ -272,8 +289,9 @@ function EditCategoryModal({
       return;
     }
     const trimmed = name.trim();
-    if (!trimmed) {
-      setNameError(modalMessages.nameRequired);
+    const invalidName = categoryNameError(name, modalMessages);
+    if (invalidName) {
+      setNameError(invalidName);
       return;
     }
     setNameError(undefined);
@@ -460,7 +478,7 @@ function EditCategoryModal({
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(value.trim() ? undefined : modalMessages.nameRequired);
+                setNameError(categoryNameError(value, modalMessages));
               }
             }}
             required
@@ -482,9 +500,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const listRef = useRef(list);
+  listRef.current = list;
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<TableSort<"categoria">>({
-    column: "categoria",
+  const [sort, setSort] = useState<TableSort<"category">>({
+    column: "category",
     direction: "ascending",
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
@@ -495,9 +515,18 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
+  // Only the latest load may settle the list: an earlier one still in flight would otherwise
+  // overwrite it with a stale result.
+  const latestLoad = useRef(0);
+
   const load = useCallback(async () => {
+    latestLoad.current += 1;
+    const thisLoad = latestLoad.current;
     setList({ kind: "loading" });
     const outcome = await fetchCategories();
+    if (thisLoad !== latestLoad.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       setList({ kind: "loaded", categories: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
@@ -526,8 +555,8 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
 
   const columns = [
     {
-      key: "categoria",
-      title: categoriesMessages.columns.categoria,
+      key: "category",
+      title: categoriesMessages.columns.category,
       sortable: true,
       defaultDirection: "ascending",
       render: (item: CategorySummary) => item.name,
@@ -627,7 +656,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {categoriesMessages.count({ count: categories.length })}
+                  {categoriesMessages.count({ count: filtered.length })}
                 </p>
               }
             />
@@ -639,11 +668,14 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         onClose={() => setNewModalOpen(false)}
         onCreated={(category) => {
           setNewModalOpen(false);
-          setList((current) =>
-            current.kind === "loaded"
-              ? { kind: "loaded", categories: [...current.categories, category] }
-              : current,
-          );
+          // Read through a ref: this runs after the create request's await, when `list` from
+          // the render that started it may be stale.
+          const current = listRef.current;
+          if (current.kind === "loaded") {
+            setList({ kind: "loaded", categories: [...current.categories, category] });
+          } else {
+            void load();
+          }
         }}
         onSessionEnded={onSessionEnded}
         createCategory={createCategory}

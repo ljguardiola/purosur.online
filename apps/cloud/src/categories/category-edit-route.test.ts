@@ -231,6 +231,25 @@ describe("POST /categories/:id/edit", () => {
     expect(unchanged).toMatchObject({ name: "Semillas", version: 1 });
   });
 
+  it("rejects a name longer than 100 characters, changing nothing", async () => {
+    const category = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editCategory(rawSessionId, category.id, {
+      name: "a".repeat(101),
+      version: category.version,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
+    const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
+    expect(unchanged).toMatchObject({ name: "Semillas", version: 1 });
+  });
+
   it("rejects a missing or non-positive-integer version, changing nothing", async () => {
     const category = await insertCategory("Semillas");
     const userId = await insertUserWithPermission();
