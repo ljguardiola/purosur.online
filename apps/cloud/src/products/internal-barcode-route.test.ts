@@ -37,16 +37,12 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-async function nextSequenceValue(): Promise<bigint> {
-  const [row] = (
-    await testDatabase.client.query<{ last_value: string }>(
-      "select last_value from internal_barcode_sequence",
-    )
-  ).rows;
-  if (!row) {
-    throw new Error("test setup: reading the sequence's last_value returned no row");
-  }
-  return BigInt(row.last_value) + 1n;
+// `setval(..., false)` makes the very next `nextval` return exactly `value`, so a test knows the
+// code the allocator will pull first no matter what earlier tests left the sequence at.
+async function setNextSequenceValue(value: bigint): Promise<void> {
+  await testDatabase.client.query("select setval('internal_barcode_sequence', $1, false)", [
+    value.toString(),
+  ]);
 }
 
 async function insertBarcodeForNewProduct(code: string): Promise<void> {
@@ -83,7 +79,8 @@ describe("allocateInternalBarcode", () => {
   });
 
   it("skips a code already used by a product barcode", async () => {
-    const takenValue = await nextSequenceValue();
+    const takenValue = 200000000100n;
+    await setNextSequenceValue(takenValue);
     const takenCode = appendEan13CheckDigit(takenValue.toString());
     await insertBarcodeForNewProduct(takenCode);
 
