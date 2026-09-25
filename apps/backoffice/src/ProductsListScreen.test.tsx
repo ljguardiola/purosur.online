@@ -1306,3 +1306,78 @@ test("clears the rate-limited notice when generating again succeeds", async () =
   await expect.element(editDialog.getByText("2000000000022")).toBeVisible();
   expect(editDialog.getByText("Demasiadas solicitudes").query()).toBeNull();
 });
+
+test("keeps a rate-limited notice raised by saving when generating afterwards succeeds", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
+    kind: "ok",
+    code: "2000000000015",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+});
+
+function scanPlaceholderOf(dialog: ScreenLocator) {
+  return dialog.getByText("Escanear otro código", { exact: true });
+}
+
+// The modal keeps focus inside itself, so a plain blur() is pulled back into the scan input;
+// moving focus to another field is what actually leaves it.
+async function moveFocusOutOfScanInput(dialog: ScreenLocator) {
+  await userEvent.click(dialog.getByRole("textbox", { name: /^Nombre/ }));
+}
+
+test("shows the scan placeholder only while the scan input is empty", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const input = scanInputOf(dialog).element() as HTMLInputElement;
+  await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+
+  await userEvent.fill(scanInputOf(dialog), "7790001");
+  await moveFocusOutOfScanInput(dialog);
+  await expect.poll(() => scanPlaceholderOf(dialog).query()).toBeNull();
+
+  input.focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(dialog.getByText("7790001")).toBeVisible();
+  await moveFocusOutOfScanInput(dialog);
+
+  await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+});
+
+test("hides the scan placeholder while the empty scan input has focus", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const input = scanInputOf(dialog).element() as HTMLInputElement;
+  await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+
+  input.focus();
+  await expect.poll(() => scanPlaceholderOf(dialog).query()).toBeNull();
+
+  await moveFocusOutOfScanInput(dialog);
+  await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+});

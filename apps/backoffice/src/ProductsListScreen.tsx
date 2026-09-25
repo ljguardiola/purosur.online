@@ -194,6 +194,7 @@ function BarcodeChips({
   const scanErrorId = useId();
   const errorId = useId();
   const generateErrorId = useId();
+  const [scanFocused, setScanFocused] = useState(false);
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
@@ -219,9 +220,10 @@ function BarcodeChips({
       <div className="flex gap-3">
         {/* The input fills the whole control for clicks and typing, with its text centered; while
             it is empty, the icon and the placeholder text sit under it as one centered group, which
-            a native placeholder can't do without the input sizing itself to its content. */}
+            a native placeholder can't do without the input sizing itself to its content. Focus
+            hides the group too, leaving just the centered caret. */}
         <label className={scanControlClassName}>
-          {!scanInput && (
+          {!scanInput && !scanFocused && (
             <span
               aria-hidden="true"
               className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
@@ -235,6 +237,8 @@ function BarcodeChips({
             value={scanInput}
             onChange={(event) => onScanInputChange(event.target.value)}
             onKeyDown={onScanKeyDown}
+            onFocus={() => setScanFocused(true)}
+            onBlur={() => setScanFocused(false)}
             aria-label={labels.scanInputLabel}
             aria-invalid={describedBy ? true : undefined}
             aria-describedby={describedBy || undefined}
@@ -553,7 +557,9 @@ function NewProductModal({
   const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
-    { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
+    | { kind: "attemptFailed" }
+    | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
+    | null
   >(null);
   const [submitting, setSubmitting] = useState(false);
   const generate = useGenerateInternalBarcode(
@@ -561,10 +567,14 @@ function NewProductModal({
     generateInternalBarcode,
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
-    (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
-    // Only the notice a generate attempt can raise: a stale-version notice still drives the
-    // edit modal's reload action.
-    () => setNotice((current) => (current?.kind === "rateLimited" ? null : current)),
+    (retryAfterSeconds) =>
+      setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
+    // Only the notice a generate attempt raised itself: one raised by saving or reloading still
+    // holds, and a stale-version notice still drives the edit modal's reload action.
+    () =>
+      setNotice((current) =>
+        current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
+      ),
     modalMessages.generateFailed,
   );
 
@@ -806,7 +816,7 @@ type EditProductModalProps = {
 
 type EditNotice =
   | { kind: "attemptFailed" }
-  | { kind: "rateLimited"; retryAfterSeconds: number }
+  | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
   | { kind: "staleVersion" }
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
@@ -842,10 +852,14 @@ function EditProductModal({
     generateInternalBarcode,
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
-    (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
-    // Only the notice a generate attempt can raise: a stale-version notice still drives the
-    // edit modal's reload action.
-    () => setNotice((current) => (current?.kind === "rateLimited" ? null : current)),
+    (retryAfterSeconds) =>
+      setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
+    // Only the notice a generate attempt raised itself: one raised by saving or reloading still
+    // holds, and a stale-version notice still drives the edit modal's reload action.
+    () =>
+      setNotice((current) =>
+        current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
+      ),
     modalMessages.generateFailed,
   );
 
