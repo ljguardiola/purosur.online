@@ -764,6 +764,53 @@ describe("wiring the products routes", () => {
   });
 });
 
+describe("wiring the registers routes", () => {
+  it("does not register the registers routes when no registers option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/registers" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/registers",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const emitCode = await app.inject({
+      method: "POST",
+      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(create.statusCode).toBe(404);
+    expect(emitCode.statusCode).toBe(404);
+  });
+
+  it("registers the registers routes when a registers option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      registers: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/registers" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/registers",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const emitCode = await app.inject({
+      method: "POST",
+      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
+    // of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(create.statusCode).toBe(401);
+    expect(emitCode.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the branch settings routes", () => {
   it("does not register GET /branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -988,6 +1035,7 @@ function fullyWiredApp() {
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
 
@@ -1090,6 +1138,21 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/products/labels",
         access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
+        url: "/registers",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "POST",
+        url: "/registers",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "POST",
+        url: "/registers/:id/enrollment-code",
+        access: permissionAccess("enroll_register_devices"),
       },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
