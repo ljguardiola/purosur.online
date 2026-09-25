@@ -10,6 +10,7 @@ import {
   createRecoveryJobQueuePool,
   registerShutdownHandlers,
   reportStartupFailure,
+  requireAuthorizedCuit,
   resolvePort,
   resolveRecoveryEnv,
   resolveStaticDir,
@@ -17,6 +18,15 @@ import {
   shutdownServer,
   startServer,
 } from "./server.js";
+import {
+  ARCA_CERTIFICATE_WITH_MALFORMED_SERIAL_NUMBER,
+  ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT,
+  ARCA_CERTIFICATE_WITH_PLUS_INSIDE_A_VALUE,
+  ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
+  ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
+  VALID_ARCA_CERTIFICATE,
+  VALID_ARCA_CERTIFICATE_SINGLE_LINE,
+} from "./test-support/arca-certificate-fixtures.js";
 
 describe("resolveVersion", () => {
   it("returns APP_VERSION when set", () => {
@@ -38,6 +48,68 @@ describe("resolvePort", () => {
     expect(resolvePort({})).toBe(3000);
     expect(resolvePort({ PORT: "not-a-number" })).toBe(3000);
     expect(resolvePort({ PORT: "-1" })).toBe(3000);
+  });
+});
+
+describe("requireAuthorizedCuit", () => {
+  it("returns the CUIT carried in the certificate's serialNumber, normalized to NN-NNNNNNNN-N", () => {
+    expect(requireAuthorizedCuit({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE })).toBe(
+      "20-12345678-6",
+    );
+  });
+
+  it("accepts the same certificate delivered as a single line with literal \\n sequences", () => {
+    expect(requireAuthorizedCuit({ ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE_SINGLE_LINE })).toBe(
+      "20-12345678-6",
+    );
+  });
+
+  it("finds the serialNumber inside a multi-valued subject RDN", () => {
+    expect(
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT }),
+    ).toBe("20-12345678-6");
+  });
+
+  it("throws when ARCA_CERTIFICATE is not set", () => {
+    expect(() => requireAuthorizedCuit({})).toThrow(
+      "ARCA_CERTIFICATE must be set once DATABASE_URL is configured",
+    );
+  });
+
+  it("throws when ARCA_CERTIFICATE is not a parseable certificate", () => {
+    expect(() => requireAuthorizedCuit({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
+      "ARCA_CERTIFICATE must be a valid X.509 certificate",
+    );
+  });
+
+  it("keeps the parser's reason as the cause of an unparseable certificate's error", () => {
+    expect(() => requireAuthorizedCuit({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
+      expect.objectContaining({ cause: expect.any(Error) }),
+    );
+  });
+
+  it("throws when the certificate's subject has no serialNumber", () => {
+    expect(() =>
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER }),
+    ).toThrow("ARCA_CERTIFICATE's subject has no serialNumber");
+  });
+
+  it("never reads a serialNumber out of a value that merely contains an escaped +", () => {
+    expect(() =>
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_PLUS_INSIDE_A_VALUE }),
+    ).toThrow("ARCA_CERTIFICATE's subject has no serialNumber");
+  });
+
+  it('throws when the serialNumber is not in the exact "CUIT <11 digits>" form', () => {
+    expect(() =>
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_MALFORMED_SERIAL_NUMBER }),
+    ).toThrow('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
+  });
+
+  it("throws when the CUIT's check digit is wrong", () => {
+    expect(() =>
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT }),
+    ).toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   });
 });
 
@@ -279,6 +351,57 @@ describe("startServer", () => {
     expect(buildApp).not.toHaveBeenCalled();
   });
 
+  it("does not require ARCA_CERTIFICATE when DATABASE_URL is not set", async () => {
+    const listen = vi.fn().mockResolvedValue(undefined);
+    const fakeApp = { listen } as unknown as ReturnType<typeof import("./app.js").buildApp>;
+    const buildApp = vi.fn().mockReturnValue(fakeApp);
+
+    await startServer({ EDGE_ORIGIN_SECRET: "edge-secret" }, { initSentry: vi.fn(), buildApp });
+
+    expect(buildApp).toHaveBeenCalledWith(
+      expect.not.objectContaining({ issuerIdentification: expect.anything() }),
+    );
+  });
+
+  it("refuses to start when DATABASE_URL is set but ARCA_CERTIFICATE is not, before opening any database or job-queue resource", async () => {
+    const buildApp = vi.fn();
+    const setUpRecovery = vi.fn();
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      EDGE_ORIGIN_SECRET: "edge-secret",
+    };
+
+    await expect(
+      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+    ).rejects.toThrow("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).not.toHaveBeenCalled();
+  });
+
+  it("refuses to start when ARCA_CERTIFICATE's CUIT is not valid", async () => {
+    const buildApp = vi.fn();
+    const setUpRecovery = vi.fn();
+    const env = {
+      DATABASE_URL: "postgres://user:pass@db/purosur",
+      RESEND_API_KEY: "re_test_key",
+      RECOVERY_EMAIL_FROM: "Puro Sur <acceso@mail.staging.purosur.online>",
+      RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
+      BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+      EDGE_ORIGIN_SECRET: "edge-secret",
+      ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
+    };
+
+    await expect(
+      startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
+    ).rejects.toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
+    expect(setUpRecovery).not.toHaveBeenCalled();
+    expect(buildApp).not.toHaveBeenCalled();
+  });
+
   it("wires the resolved recovery infrastructure into the app and closes it when the app closes", async () => {
     const listen = vi.fn().mockResolvedValue(undefined);
     const onCloseHooks: Array<() => Promise<void>> = [];
@@ -308,6 +431,7 @@ describe("startServer", () => {
       RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
       BACKOFFICE_ORIGIN: "https://staging.purosur.online",
       EDGE_ORIGIN_SECRET: "edge-secret",
+      ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
     };
 
     await startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery });
@@ -347,6 +471,11 @@ describe("startServer", () => {
       branchSettings: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
+      issuerIdentification: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+        authorizedCuit: "20-12345678-6",
       },
       categories: {
         db: fakeRecovery.db,
@@ -404,6 +533,7 @@ describe("startServer with the real app", () => {
         RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
         BACKOFFICE_ORIGIN: "https://staging.purosur.online",
         EDGE_ORIGIN_SECRET: "edge-secret",
+        ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
         BACKOFFICE_STATIC_DIR: staticDir,
       },
       { initSentry: vi.fn(), buildApp: buildAppWithoutListening, setUpRecovery },

@@ -53,3 +53,12 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
 }
+
+/**
+ * Whether "Caja" and its "Caja y fiscal" section show at all: the Administrator or a role that was
+ * delegated `change_fiscal_configuration`. The same permission also gates the cloud's own read and
+ * edit routes, so a `forbidden` answer can only ever mean the permission changed mid-session.
+ */
+export function canSeeCashArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
+}

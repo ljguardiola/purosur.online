@@ -73,6 +73,10 @@ export default defineRailway((ctx) => {
   const resendApiKey = requireEnv("RESEND_API_KEY");
   const edgeOriginSecret = requireEnv("EDGE_ORIGIN_SECRET");
   const cloudAppDatabasePassword = requireEnv("CLOUD_APP_DATABASE_PASSWORD");
+  // The PEM text of the ARCA X.509 certificate the business is authorized under: public data, not
+  // a secret in the credential sense (the matching private key, added in #46, is the secret), but
+  // still an environment-specific value the owner supplies per this file's existing pattern.
+  const arcaCertificate = requireEnv("ARCA_CERTIFICATE");
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -131,6 +135,7 @@ export default defineRailway((ctx) => {
       RECOVERY_EMAIL_REPLY_TO,
       BACKOFFICE_ORIGIN: backofficeOrigin,
       EDGE_ORIGIN_SECRET: edgeOriginSecret,
+      ARCA_CERTIFICATE: arcaCertificate,
     },
   });
 
