@@ -197,8 +197,7 @@ type EditIssuerIdentificationModalProps = {
 /**
  * "Editar la identificación del emisor": the CUIT and tax status are always shown as plain text,
  * never editable, since both come from the tax authority; the other three fields are required,
- * mirroring that saving them requires all three (the feature document's own decision that the
- * incomplete state only exists before the first save). Saving is gated by the shared
+ * since the incomplete state only exists before the first save. Saving is gated by the shared
  * passkey-authorization window, the same way `EditRoleScreen` is.
  */
 function EditIssuerIdentificationModal({

@@ -76,10 +76,10 @@ function readVersion(body: unknown): number | undefined {
 /**
  * Parses and validates a `PUT /fiscal-configuration/issuer-identification` body, mirroring how
  * `branch-settings-validation.ts` reads and validates a branch settings edit. Every field is
- * required: saving requires all three values, since the incomplete state only exists before the
- * first save (the feature document's own decision). `authorized_cuit` and `tax_status` are never
- * read here even if a client sends them: the authorized CUIT and tax status come only from
- * deployment configuration, never from a request body.
+ * required: the incomplete state only exists before the first save, so a save never clears a
+ * value. `authorized_cuit` and `tax_status` are never read here even if a client sends them: the
+ * authorized CUIT and tax status come only from deployment configuration, never from a request
+ * body.
  */
 export function readIssuerIdentificationEditBody(
   body: unknown,
