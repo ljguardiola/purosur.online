@@ -1,4 +1,5 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
+import { argentinaCalendarDay } from "@purosur/contracts";
 import { Button, DateField, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
@@ -45,6 +46,8 @@ export type FiscalConfigurationScreenProps = {
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: FiscalConfigurationScreenServices;
+  /** Injected in tests so "today" for the activity start date is deterministic. */
+  now?: () => Date;
 };
 
 type LoadState =
@@ -61,10 +64,8 @@ function dateOf(value: string | null): CalendarDate | null {
   return value === null ? null : parseDate(value);
 }
 
-// Mirrors the server's own `todayIso` (`issuer-identification-validation.ts`): the UTC calendar
-// day, not the browser's local one, so "not in the future" reads the same boundary on both sides.
-function todayCalendarDate(): CalendarDate {
-  return parseDate(new Date().toISOString().slice(0, 10));
+function todayCalendarDate(now: Date): CalendarDate {
+  return parseDate(argentinaCalendarDay(now));
 }
 
 function formatDisplayDate(iso: string): string {
@@ -125,7 +126,7 @@ function valuesFrom(value: IssuerIdentification): ModalValues {
 
 /** Validates every field client-side, mirroring the server (`issuer-identification-validation.ts`):
  * all three are required, and the activity start date can never be in the future. */
-function validateModal(values: ModalValues): FieldErrors {
+function validateModal(values: ModalValues, today: CalendarDate): FieldErrors {
   const errors: FieldErrors = {};
   const legalName = values.legalName.trim();
   if (!legalName) {
@@ -141,7 +142,7 @@ function validateModal(values: ModalValues): FieldErrors {
   }
   if (values.activityStartDate === null) {
     errors.activityStartDate = modalMessages.activityStartDateRequired;
-  } else if (values.activityStartDate.compare(todayCalendarDate()) > 0) {
+  } else if (values.activityStartDate.compare(today) > 0) {
     errors.activityStartDate = modalMessages.activityStartDateFuture;
   }
   return errors;
@@ -168,6 +169,7 @@ type EditIssuerIdentificationModalProps = {
   onSaved: (value: IssuerIdentification) => void;
   onSessionEnded: () => void;
   services: FiscalConfigurationScreenServices;
+  now: () => Date;
 };
 
 /**
@@ -183,6 +185,7 @@ function EditIssuerIdentificationModal({
   onSaved,
   onSessionEnded,
   services,
+  now,
 }: EditIssuerIdentificationModalProps) {
   const {
     fetchIssuerIdentification,
@@ -228,7 +231,7 @@ function EditIssuerIdentificationModal({
     if (target === null) {
       return;
     }
-    const validationErrors = validateModal(values);
+    const validationErrors = validateModal(values, todayCalendarDate(now()));
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {
       return;
@@ -453,8 +456,10 @@ function EditIssuerIdentificationModal({
 export function FiscalConfigurationScreen({
   onSessionEnded,
   services,
+  now,
 }: FiscalConfigurationScreenProps) {
   const svc = services ?? defaultFiscalConfigurationScreenServices;
+  const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
 
@@ -562,6 +567,7 @@ export function FiscalConfigurationScreen({
         }}
         onSessionEnded={endSession}
         services={svc}
+        now={clock}
       />
     </ScreenLayout>
   );

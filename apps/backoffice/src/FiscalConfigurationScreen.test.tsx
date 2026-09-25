@@ -55,13 +55,75 @@ const incomplete: IssuerIdentification = {
 function renderScreen(
   services: FiscalConfigurationScreenServices,
   onSessionEnded: () => void = () => {},
+  now?: () => Date,
 ) {
   return render(
     <main>
-      <FiscalConfigurationScreen services={services} onSessionEnded={onSessionEnded} />
+      <FiscalConfigurationScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        {...(now ? { now } : {})}
+      />
     </main>,
   );
 }
+
+const lateEveningInArgentina = () => new Date("2020-09-25T23:30:00-03:00");
+
+/** Opens the modal on an incomplete identification and fills every field, typing `typedDate`. */
+async function fillIncompleteModal(
+  screen: Awaited<ReturnType<typeof renderScreen>>,
+  typedDate: string,
+) {
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "Puro Sur SRL");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "1284531-06");
+  await userEvent.click(
+    dialog
+      .getByRole("group", { name: /^Inicio de actividades/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard(typedDate);
+  return dialog;
+}
+
+test("refuses Argentina's tomorrow late in the evening, when the UTC day has already reached it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
+  const dialog = await fillIncompleteModal(screen, "26092020");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("La fecha no puede ser futura.")).toBeVisible();
+  expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
+});
+
+test("accepts Argentina's today late in the evening, when the UTC day has already moved on", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: { ...complete, activityStartDate: "2020-09-25", version: 2 },
+  });
+  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
+  const dialog = await fillIncompleteModal(screen, "25092020");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
+  expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
+    expect.objectContaining({ activityStartDate: "2020-09-25" }),
+  );
+});
 
 test("shows the breadcrumb, heading, and the complete issuer identification", async () => {
   const services = createServices();

@@ -10,6 +10,23 @@ export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
 // some surrounding notation.
 export const ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH = 100;
 
+// Mirrors `@purosur/contracts`'s Argentina calendar day because this app's `tsc` build (explicit
+// `rootDir`) cannot import that package's untranspiled source;
+// `issuer-identification-validation.test.ts` guards against drift.
+export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
+
+// The en-CA locale formats a date as YYYY-MM-DD, the ISO calendar date shape.
+const ARGENTINA_ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: ARGENTINA_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export function argentinaCalendarDay(instant: Date): string {
+  return ARGENTINA_ISO_DAY_FORMAT.format(instant);
+}
+
 const ACTIVITY_START_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export interface IssuerIdentificationFieldValidationFailure {
@@ -42,10 +59,6 @@ function isRealCalendarDate(year: number, month: number, day: number): boolean {
   );
 }
 
-function todayIso(today: Date): string {
-  return today.toISOString().slice(0, 10);
-}
-
 function readActivityStartDate(body: unknown, today: Date): string | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.activity_start_date;
   if (typeof raw !== "string") {
@@ -62,7 +75,7 @@ function readActivityStartDate(body: unknown, today: Date): string | undefined {
   if (!isRealCalendarDate(year, month, day)) {
     return undefined;
   }
-  return raw <= todayIso(today) ? raw : undefined;
+  return raw <= argentinaCalendarDay(today) ? raw : undefined;
 }
 
 function readVersion(body: unknown): number | undefined {

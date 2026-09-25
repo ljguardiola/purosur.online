@@ -1,5 +1,11 @@
+import {
+  ARGENTINA_TIME_ZONE as SHARED_ARGENTINA_TIME_ZONE,
+  argentinaCalendarDay as sharedArgentinaCalendarDay,
+} from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  ARGENTINA_TIME_ZONE,
+  argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   type IssuerIdentificationFieldValidationFailure,
@@ -152,6 +158,28 @@ describe("readIssuerIdentificationEditBody", () => {
     expect(result).toMatchObject({ field: "activity_start_date" });
   });
 
+  describe("at 23:30 in Argentina, when the UTC calendar has already moved to the next day", () => {
+    const lateEveningInArgentina = new Date("2026-09-25T23:30:00-03:00");
+
+    it("rejects Argentina's tomorrow", () => {
+      const result = readIssuerIdentificationEditBody(
+        validBody({ activity_start_date: "2026-09-26" }),
+        lateEveningInArgentina,
+      );
+
+      expect(result).toMatchObject({ field: "activity_start_date" });
+    });
+
+    it("accepts Argentina's today", () => {
+      const result = readIssuerIdentificationEditBody(
+        validBody({ activity_start_date: "2026-09-25" }),
+        lateEveningInArgentina,
+      );
+
+      expect(isValidationFailure(result)).toBe(false);
+    });
+  });
+
   it("rejects a missing version", () => {
     const body = validBody();
     delete body.version;
@@ -194,6 +222,24 @@ describe("readIssuerIdentificationEditBody", () => {
     expect(isValidationFailure(result)).toBe(false);
     if (!isValidationFailure(result)) {
       expect(result).not.toHaveProperty("taxStatus");
+    }
+  });
+});
+
+describe("the cloud's local Argentina calendar day", () => {
+  it("names the shared time zone", () => {
+    expect(ARGENTINA_TIME_ZONE).toBe(SHARED_ARGENTINA_TIME_ZONE);
+  });
+
+  it("reads the same calendar day the shared contract does", () => {
+    for (const instant of [
+      "2026-09-25T20:59:00-03:00",
+      "2026-09-25T23:30:00-03:00",
+      "2026-09-26T00:00:00-03:00",
+    ]) {
+      expect(argentinaCalendarDay(new Date(instant))).toBe(
+        sharedArgentinaCalendarDay(new Date(instant)),
+      );
     }
   });
 });
