@@ -128,9 +128,19 @@ function valuesFrom(value: IssuerIdentification): ModalValues {
   };
 }
 
+type CompleteModalValues = {
+  legalName: string;
+  grossIncomeRegistration: string;
+  activityStartDate: CalendarDate;
+};
+
+type ModalValidation =
+  | { kind: "valid"; values: CompleteModalValues }
+  | { kind: "invalid"; errors: FieldErrors };
+
 /** Validates every field client-side, mirroring the server (`issuer-identification-validation.ts`):
  * all three are required, and the activity start date can never be in the future. */
-function validateModal(values: ModalValues, today: CalendarDate): FieldErrors {
+function validateModal(values: ModalValues, today: CalendarDate): ModalValidation {
   const errors: FieldErrors = {};
   const legalName = values.legalName.trim();
   if (!legalName) {
@@ -146,12 +156,16 @@ function validateModal(values: ModalValues, today: CalendarDate): FieldErrors {
   ) {
     errors.grossIncomeRegistration = modalMessages.grossIncomeRegistrationTooLong;
   }
-  if (values.activityStartDate === null) {
+  const activityStartDate = values.activityStartDate;
+  if (activityStartDate === null) {
     errors.activityStartDate = modalMessages.activityStartDateRequired;
-  } else if (values.activityStartDate.compare(today) > 0) {
+  } else if (activityStartDate.compare(today) > 0) {
     errors.activityStartDate = modalMessages.activityStartDateFuture;
   }
-  return errors;
+  if (activityStartDate === null || Object.keys(errors).length > 0) {
+    return { kind: "invalid", errors };
+  }
+  return { kind: "valid", values: { legalName, grossIncomeRegistration, activityStartDate } };
 }
 
 /** The field's own error for a save the server rejected on it; `version` never renders inline
@@ -237,22 +251,20 @@ function EditIssuerIdentificationModal({
     if (target === null) {
       return;
     }
-    const validationErrors = validateModal(values, todayCalendarDate(now()));
-    setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) {
+    const validation = validateModal(values, todayCalendarDate(now()));
+    if (validation.kind === "invalid") {
+      setErrors(validation.errors);
       return;
     }
+    setErrors({});
     setNotice(null);
     setSubmitting(true);
 
-    const activityStartDate = values.activityStartDate;
-    if (!activityStartDate) {
-      return;
-    }
+    const { legalName, grossIncomeRegistration, activityStartDate } = validation.values;
     const outcome = await run(() =>
       saveIssuerIdentification({
-        legalName: values.legalName.trim(),
-        grossIncomeRegistration: values.grossIncomeRegistration.trim(),
+        legalName,
+        grossIncomeRegistration,
         activityStartDate: activityStartDate.toString(),
         version,
       }),
