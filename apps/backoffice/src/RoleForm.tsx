@@ -3,6 +3,8 @@ import {
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
 } from "@purosur/contracts";
 import { Checkbox, RadioGroup, TextField } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
@@ -50,11 +52,17 @@ const AREA_COLUMNS = everyAreaPlaced([
 
 const ALERTS_TOTAL = definitionsByArea("alerts").length;
 
-/** Empty (after trimming) or the Administrator role's own reserved name, case-insensitively. */
+/**
+ * Empty (after trimming), longer than `ROLE_NAME_MAX_LENGTH`, or the Administrator role's own
+ * reserved name, case-insensitively.
+ */
 export function validateRoleName(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
     return formMessages.nameRequired;
+  }
+  if (roleNameLength(trimmed) > ROLE_NAME_MAX_LENGTH) {
+    return formMessages.nameTooLong;
   }
   if (trimmed.toLowerCase() === rolesMessages.administratorRoleName.toLowerCase()) {
     return formMessages.nameReserved;

@@ -25,3 +25,4 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";
+export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";

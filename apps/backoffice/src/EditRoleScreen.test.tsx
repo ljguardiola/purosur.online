@@ -189,6 +189,23 @@ test("requires a non-empty name that is not the Administrator's own, without cal
   expect(services.editRole).not.toHaveBeenCalled();
 });
 
+test("rejects a name longer than 100 characters, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "a".repeat(101));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.editRole).not.toHaveBeenCalled();
+});
+
 test("saves the edit directly, without the authorization modal, when the session already has one", async () => {
   window.history.pushState(null, "", "/settings/roles/role-stock/edit");
   const services = createServices();

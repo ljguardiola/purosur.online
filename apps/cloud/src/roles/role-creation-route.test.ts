@@ -229,6 +229,20 @@ describe("POST /roles", () => {
     expect(created).toHaveLength(0);
   });
 
+  it("rejects a name longer than 100 characters, creating nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await createRole(rawSessionId, { name: "a".repeat(101), permissions: [] });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
+    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
+    expect(created).toHaveLength(0);
+  });
+
   it("rejects the name Administrador, case-insensitively, creating nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 
