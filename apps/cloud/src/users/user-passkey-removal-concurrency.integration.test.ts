@@ -306,6 +306,9 @@ describe("signing in with a passkey while an Administrator removes it, on a real
 
     expect(removalResponse.statusCode).toBe(200);
     expect(signInResponse.statusCode).toBe(401);
+    // The passkey row still existed when the sign-in looked it up (the removal's delete was not
+    // yet committed), so this loses the race later, updating zero rows in its own transaction: a
+    // different rejection path from an unknown credential, and still the generic code.
     expect(signInResponse.json()).toMatchObject({ code: "authentication_failed" });
     expect(await liveSessionsOf(targetId)).toHaveLength(0);
   });
