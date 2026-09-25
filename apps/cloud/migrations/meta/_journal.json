@@ -152,8 +152,15 @@
     {
       "idx": 21,
       "version": "7",
-      "when": 1790305342124,
-      "tag": "0021_products",
+      "when": 1790308950361,
+      "tag": "0021_branch_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790311313427,
+      "tag": "0022_products",
       "breakpoints": true
     }
   ]

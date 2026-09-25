@@ -1,6 +1,6 @@
 {
-  "id": "32494f69-d2fe-4452-b50e-5bb65021356e",
-  "prevId": "aae7838b-1cc2-4b0a-baef-a9b9b008e046",
+  "id": "af1c3fee-fce4-48d1-bf20-0f36bdb0802b",
+  "prevId": "32494f69-d2fe-4452-b50e-5bb65021356e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -538,6 +538,128 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.product_barcodes": {
+      "name": "product_barcodes",
+      "schema": "",
+      "columns": {
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "product_barcodes_code_key": {
+          "name": "product_barcodes_code_key",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "product_barcodes_product_id_products_id_fk": {
+          "name": "product_barcodes_product_id_products_id_fk",
+          "tableFrom": "product_barcodes",
+          "tableTo": "products",
+          "columnsFrom": ["product_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "product_barcodes_product_id_position_pk": {
+          "name": "product_barcodes_product_id_position_pk",
+          "columns": ["product_id", "position"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.products": {
+      "name": "products",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_unit": {
+          "name": "sale_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "products_category_id_categories_id_fk": {
+          "name": "products_category_id_categories_id_fk",
+          "tableFrom": "products",
+          "tableTo": "categories",
+          "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "products_sale_unit_check": {
+          "name": "products_sale_unit_check",
+          "value": "\"products\".\"sale_unit\" in ('UNIT', 'KG')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.recovery_rate_limit_attempts": {

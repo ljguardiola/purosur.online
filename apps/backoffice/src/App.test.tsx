@@ -88,6 +88,10 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    branchSettingsScreen: {
+      fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
+      saveBranchSettings: vi.fn(),
+    },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     ...overrides,
   };
@@ -615,6 +619,94 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["configure_branch"],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await expect.element(screen.getByRole("link", { name: "Sucursal" })).toBeVisible();
+});
+
+test("hides the Sucursal item in the rail for a user without configure_branch", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Sucursal" }).query()).toBeNull();
+});
+
+test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
+    kind: "ok",
+    value: {
+      address: "",
+      whatsappNumber: "",
+      instagramHandle: "",
+      weekdayHours: null,
+      saturdayHours: null,
+      sundayHours: null,
+      expiringLotAlertDays: 30,
+      unreviewedPriceAlertDays: 30,
+      goodConditionReturnDays: 15,
+      version: 1,
+    },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Sucursal" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/branch");
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const branchItem = screen.getByRole("link", { name: "Sucursal" }).element() as HTMLAnchorElement;
+  expect(branchItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a typed /settings/branch to Mi cuenta for a user without configure_branch, without calling its API", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/branch");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.branchSettingsScreen.fetchBranchSettings).not.toHaveBeenCalled();
 });
 
 test("opens the new role page at /settings/roles/new from the Nuevo rol button", async () => {

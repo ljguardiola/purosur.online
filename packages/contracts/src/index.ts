@@ -32,3 +32,4 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product";
+export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";

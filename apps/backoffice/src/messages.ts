@@ -6,6 +6,7 @@ import {
   type PermissionKey,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
@@ -50,6 +51,7 @@ const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCO
 const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
 const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
+const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -226,6 +228,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
     rolesSectionLabel: "Roles",
+    branchSectionLabel: "Sucursal",
     // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
     // always has at least one sidebar entry.
     myAccountSectionLabel: "Mi cuenta",
@@ -408,6 +411,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
+        nameTooLong: ROLE_NAME_TOO_LONG,
         nameReserved: "Ese nombre es del Administrador; elegí otro.",
         nameFieldError: "Revisá el nombre del rol.",
         nameTaken: "Ya existe un rol con este nombre.",
@@ -457,6 +461,44 @@ export const messages = defineMessages("es-AR", (f) => ({
         heading: "Duplicar rol",
         nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
       },
+    },
+    branch: {
+      documentTitle: "Sucursal · Puro Sur",
+      breadcrumb: "Configuración",
+      heading: "Sucursal",
+      save: "Guardar los cambios",
+      loading: "Cargando…",
+      loadErrorTitle: "No pudimos abrir la sucursal",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      attemptFailedTitle: "No se pudo guardar la sucursal",
+      attemptFailedDetail: "Probá de nuevo.",
+      staleVersionTitle: "La sucursal cambió mientras la editabas",
+      staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+      reload: "Recargar",
+      reloadFailedTitle: "No se pudieron recargar los datos",
+      ticketHeaderHeading: "Encabezado del ticket",
+      hoursHeading: "Horario de atención",
+      deadlinesHeading: "Plazos",
+      addressLabel: "Dirección",
+      whatsappLabel: "WhatsApp",
+      instagramLabel: "Instagram",
+      weekdayHoursLabel: "Lunes a viernes",
+      saturdayHoursLabel: "Sábados",
+      sundayHoursLabel: "Domingos",
+      opensAtLabel: "Abre",
+      closesAtLabel: "Cierra",
+      closedLabel: "Cerrado",
+      closedAria: (params: { group: string }) => `${params.group} — Cerrado`,
+      expiringLotAlertDaysLabel: "Aviso de vencimiento",
+      unreviewedPriceAlertDaysLabel: "Precio sin revisar",
+      goodConditionReturnDaysLabel: "Cambio en buen estado",
+      daysUnit: "días",
+      textFieldError: "Ingresá como mucho 200 caracteres.",
+      hoursOrderError: "La hora de cierre tiene que ser posterior a la de apertura.",
+      hoursFormatError: "Ingresá la hora como 9:00 o 21:30.",
+      daysFieldError: "Ingresá un número entero de 0 días o más.",
+      daysTooLargeError: "Ingresá un número de días más chico.",
     },
   },
   catalog: {
