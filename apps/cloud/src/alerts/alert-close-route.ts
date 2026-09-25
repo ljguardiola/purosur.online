@@ -9,7 +9,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { alertKindDefinition, isAlertKind } from "./alert-kind-catalog.js";
 import {
   ALERT_NOT_FOUND_RESPONSE,
   type AlertDetailRow,
@@ -25,19 +24,12 @@ const ALREADY_CLOSED_RESPONSE = {
   message: "this alert was already closed",
 } as const;
 
-const NOT_MANUALLY_CLOSEABLE_RESPONSE = {
-  code: "not_manually_closeable",
-  message: "this alert resolves on its own and cannot be closed by hand",
-} as const;
-
 export type CloseAlertOutcome =
   | { kind: "already_closed" }
-  | { kind: "not_manually_closeable" }
   | { kind: "closed"; alert: AlertDetailRow };
 
 /**
- * Closes one alert: refuses an already-closed one, and refuses a kind the catalog marks as
- * auto-resolving (none of this issue's four kinds does, but a future kind might). Records who
+ * Closes one alert: refuses an already-closed one. Every kind is closed by hand. Records who
  * closed it and audits the change, the same `audit_log` shape `branch-settings-edit-route.ts`
  * writes for its own permission-gated mutation, with no passkey step-up: closing an alert is an
  * acknowledgement, not an identity change.
@@ -63,9 +55,6 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
     }
     if (current.resolvedAt !== null) {
       return { kind: "already_closed" };
-    }
-    if (isAlertKind(current.kind) && alertKindDefinition(current.kind).autoResolves) {
-      return { kind: "not_manually_closeable" };
     }
 
     const resolvedAt = deps.now();
@@ -138,10 +127,6 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
       );
       if (outcome.kind === "already_closed") {
         await reply.code(409).send(ALREADY_CLOSED_RESPONSE);
-        return;
-      }
-      if (outcome.kind === "not_manually_closeable") {
-        await reply.code(409).send(NOT_MANUALLY_CLOSEABLE_RESPONSE);
         return;
       }
 

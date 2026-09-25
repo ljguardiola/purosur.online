@@ -20,8 +20,6 @@ export interface AlertKindDefinition {
   /** How long an open alert of this kind waits before escalating from Warning to Critical, or `null` if it never escalates. */
   escalatesAfterMs: number | null;
   audience: AlertAudience;
-  /** `false` means the kind records a one-time fact: only a person closing it from `Backoffice / Alertas` resolves it. */
-  autoResolves: boolean;
 }
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -35,28 +33,24 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
-    autoResolves: false,
   },
   {
     kind: "backoffice_recovery_requested",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
-    autoResolves: false,
   },
   {
     kind: "user_email_changed",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
-    autoResolves: false,
   },
   {
     kind: "backoffice_sign_in_lockout",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
-    autoResolves: false,
   },
 ];
 

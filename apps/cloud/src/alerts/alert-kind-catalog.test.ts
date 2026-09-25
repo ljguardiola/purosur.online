@@ -20,18 +20,14 @@ describe("ALERT_KINDS", () => {
 });
 
 describe("alertKindDefinition", () => {
-  it.each(ALERT_KINDS)(
-    "opens %s as a Warning, escalating after 24h, All audience, never auto-resolving",
-    (kind) => {
-      expect(alertKindDefinition(kind)).toEqual({
-        kind,
-        level: "warning",
-        escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
-        audience: "all",
-        autoResolves: false,
-      });
-    },
-  );
+  it.each(ALERT_KINDS)("opens %s as a Warning, escalating after 24h, All audience", (kind) => {
+    expect(alertKindDefinition(kind)).toEqual({
+      kind,
+      level: "warning",
+      escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
+      audience: "all",
+    });
+  });
 
   it("throws for a kind with no catalog entry", () => {
     expect(() => alertKindDefinition("not_a_real_kind" as AlertKind)).toThrow(/not_a_real_kind/);
