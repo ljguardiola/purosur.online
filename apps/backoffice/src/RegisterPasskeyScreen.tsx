@@ -8,6 +8,7 @@ import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { validatePasskeyName } from "./passkeyName";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
+import { signalUnknownCredential } from "./signalUnknownCredential";
 
 type ReadyPhase = {
   kind: "ready";
@@ -31,12 +32,14 @@ export type RegisterPasskeyScreenServices = {
   fetchRegistrationOptions: typeof fetchRegistrationOptions;
   redeemRecovery: typeof redeemRecovery;
   startRegistration: typeof startRegistration;
+  signalUnknownCredential: typeof signalUnknownCredential;
 };
 
 export const defaultRegisterPasskeyScreenServices: RegisterPasskeyScreenServices = {
   fetchRegistrationOptions,
   redeemRecovery,
   startRegistration,
+  signalUnknownCredential,
 };
 
 export type RegisterPasskeyScreenProps = {
@@ -82,7 +85,7 @@ function TokenErrorNotice({
  * blocked-by-attempts states in the product.
  */
 export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps = {}) {
-  const { fetchRegistrationOptions, redeemRecovery, startRegistration } =
+  const { fetchRegistrationOptions, redeemRecovery, startRegistration, signalUnknownCredential } =
     services ?? defaultRegisterPasskeyScreenServices;
   // A lazy initializer runs during the component's initial render, before any effect can strip
   // the fragment. StrictMode (dev only, see main.tsx) calls it twice, but both calls happen in
@@ -184,6 +187,20 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
     }
 
     const outcome = await redeemRecovery(token, registration, name.trim());
+    // The device just created this credential; every definitive rejection but "already
+    // registered" (the cloud already knows it) means the cloud never saved it, so the device
+    // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
+    // save may have landed — and never signals.
+    if (
+      outcome.kind !== "ok" &&
+      outcome.kind !== "already_registered" &&
+      outcome.kind !== "failed"
+    ) {
+      const rpId = readyPhase.options.rp.id;
+      if (rpId) {
+        signalUnknownCredential({ rpId, credentialId: registration.id });
+      }
+    }
     if (outcome.kind === "ok") {
       setPhase({ kind: "registered" });
     } else if (

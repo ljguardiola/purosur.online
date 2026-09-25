@@ -17,6 +17,7 @@ import {
 import { validatePasskeyName } from "./passkeyName";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
+import { signalUnknownCredential } from "./signalUnknownCredential";
 
 export type MyAccountScreenServices = {
   fetchPasskeys: typeof fetchPasskeys;
@@ -27,6 +28,7 @@ export type MyAccountScreenServices = {
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
   startRegistration: typeof startRegistration;
+  signalUnknownCredential: typeof signalUnknownCredential;
 };
 
 export const defaultMyAccountScreenServices: MyAccountScreenServices = {
@@ -38,6 +40,7 @@ export const defaultMyAccountScreenServices: MyAccountScreenServices = {
   authorizeSession,
   startAuthentication,
   startRegistration,
+  signalUnknownCredential,
 };
 
 export type MyAccountScreenProps = {
@@ -78,6 +81,7 @@ type RegisterPasskeyModalProps = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
+  signalUnknownCredential: typeof signalUnknownCredential;
 };
 
 /**
@@ -97,6 +101,7 @@ function RegisterPasskeyModal({
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,
+  signalUnknownCredential,
 }: RegisterPasskeyModalProps) {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -133,7 +138,22 @@ function RegisterPasskeyModal({
     if (!passkeyRegistration) {
       return { kind: "failed" };
     }
-    return registerPasskey(passkeyRegistration, trimmedName);
+    const outcome = await registerPasskey(passkeyRegistration, trimmedName);
+    // The device just created this credential; every definitive rejection but "already
+    // registered" (the cloud already knows it) means the cloud never saved it, so the device
+    // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
+    // save may have landed — and never signals.
+    if (
+      outcome.kind !== "ok" &&
+      outcome.kind !== "already_registered" &&
+      outcome.kind !== "failed"
+    ) {
+      const rpId = challenge.value.registrationOptions.rp.id;
+      if (rpId) {
+        signalUnknownCredential({ rpId, credentialId: passkeyRegistration.id });
+      }
+    }
+    return outcome;
   }
 
   async function handleSubmit() {
@@ -418,6 +438,7 @@ export function MyAccountScreen({
     authorizeSession,
     startAuthentication,
     startRegistration,
+    signalUnknownCredential,
   } = services ?? defaultMyAccountScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
@@ -567,6 +588,7 @@ export function MyAccountScreen({
         fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
         authorizeSession={authorizeSession}
         startAuthentication={startAuthentication}
+        signalUnknownCredential={signalUnknownCredential}
       />
       <RemovePasskeyModal
         target={removeTarget}

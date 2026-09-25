@@ -15,6 +15,7 @@ function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAcc
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     startRegistration: vi.fn(),
+    signalUnknownCredential: vi.fn(),
     ...overrides,
   };
 }
@@ -35,7 +36,7 @@ const phone: Passkey = {
   lastUsedAt: null,
 };
 
-const registrationOptions = { challenge: "reg" } as never;
+const registrationOptions = { challenge: "reg", rp: { id: "purosur.online" } } as never;
 const newRegistration = { id: "new-cred" } as never;
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
@@ -390,6 +391,81 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
+  // The device already created this credential and the cloud never saved it (rate limited): the
+  // device should forget it, naming the exact rp.id and credential id from that ceremony.
+  expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "new-cred",
+  });
+});
+
+test.each([
+  ["validation_failed", { kind: "validation_failed" }],
+  ["unauthenticated", { kind: "unauthenticated" }],
+] as const)(
+  "signals the device to forget the credential it just created when registering itself answers %s",
+  async (_, outcome) => {
+    const services = createServices();
+    vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+    vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+      kind: "ok",
+      value: { registrationOptions },
+    });
+    vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+    vi.mocked(services.registerPasskey).mockResolvedValue(outcome);
+    const dialog = await openRegisterModal(screen);
+
+    await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+    await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+    await expect.poll(() => vi.mocked(services.signalUnknownCredential).mock.calls.length).toBe(1);
+    expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+      rpId: "purosur.online",
+      credentialId: "new-cred",
+    });
+  },
+);
+
+test("never signals the device when the credential is already registered", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { registrationOptions },
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "already_registered" });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
+});
+
+test("never signals the device on a generic registration failure (network error or 5xx)", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { registrationOptions },
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "failed" });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
 test("shows an attempt-failed notice when the browser cancels the registration ceremony itself", async () => {
@@ -409,6 +485,9 @@ test("shows an attempt-failed notice when the browser cancels the registration c
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
   expect(services.registerPasskey).not.toHaveBeenCalled();
+  // The device never created a credential (the ceremony itself was cancelled), so there is
+  // nothing to ask it to forget.
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
 test("ends the session when the registration challenge finds the session already ended", async () => {

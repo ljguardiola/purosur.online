@@ -16,6 +16,7 @@ function createServices(
     fetchRegistrationOptions: vi.fn(),
     redeemRecovery: vi.fn(),
     startRegistration: vi.fn(),
+    signalUnknownCredential: vi.fn(),
     ...overrides,
   };
 }
@@ -237,6 +238,7 @@ test("lets the person retry, without a new link, after the browser cancels regis
   expect(services.redeemRecovery).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
 test("lets the person retry, without a new link, after redeem rejects the registration", async () => {
@@ -256,6 +258,77 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
+  // The device already created this credential and the cloud rejected saving it: the device
+  // should forget it, naming the exact rp.id and credential id from that ceremony.
+  expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "cred-1",
+  });
+});
+
+test.each([
+  ["invalid", { kind: "invalid" }],
+  ["burned", { kind: "burned" }],
+  ["expired", { kind: "expired" }],
+  ["rate_limited", { kind: "rate_limited", retryAfterSeconds: 60 }],
+] as const)(
+  "signals the device to forget the credential it just created when redeem answers %s",
+  async (_, outcome) => {
+    const services = createServices({
+      fetchRegistrationOptions: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { displayName: "Lucía Pérez", options: registrationOptions },
+      }),
+      startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+      redeemRecovery: vi.fn().mockResolvedValue(outcome),
+    });
+
+    const screen = await render(<RegisterPasskeyScreen services={services} />);
+    await fillName(screen, PASSKEY_NAME);
+    await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+    await expect.poll(() => vi.mocked(services.signalUnknownCredential).mock.calls.length).toBe(1);
+    expect(services.signalUnknownCredential).toHaveBeenCalledWith({
+      rpId: "purosur.online",
+      credentialId: "cred-1",
+    });
+  },
+);
+
+test("never signals the device when the credential is already registered", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "already_registered" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
+});
+
+test("never signals the device on a generic redeem failure (network error or 5xx)", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
 test("behaves exactly like any other rejected attempt when the credential is already registered", async () => {
