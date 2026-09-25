@@ -1,0 +1,216 @@
+export type ProductSaleUnit = "UNIT" | "KG";
+
+// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
+// categoriesApi.ts's own rate-limited outcomes fall back to.
+const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+
+export type ProductSummary = {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  saleUnit: ProductSaleUnit;
+  barcodes: string[];
+  version: number;
+};
+
+export type FetchProductsOutcome =
+  | { kind: "ok"; value: ProductSummary[] }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type ProductFieldError = "name" | "categoryId" | "saleUnit" | "barcodes" | "version";
+
+export type CreateProductInput = {
+  name: string;
+  categoryId: string;
+  saleUnit: ProductSaleUnit;
+  barcodes: string[];
+};
+
+export type CreateProductOutcome =
+  | { kind: "ok"; value: ProductSummary }
+  | { kind: "validation_failed"; field: ProductFieldError }
+  | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type EditProductInput = {
+  name: string;
+  categoryId: string;
+  saleUnit: ProductSaleUnit;
+  barcodes: string[];
+  version: number;
+};
+
+export type EditProductOutcome =
+  | { kind: "ok"; value: ProductSummary }
+  | { kind: "validation_failed"; field: ProductFieldError }
+  | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "stale_version" }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+function retryAfterSeconds(response: Response): number {
+  const header = response.headers.get("Retry-After");
+  const seconds = header ? Number(header) : Number.NaN;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+}
+
+function postJson(path: string, body?: unknown): Promise<Response> {
+  return fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+}
+
+function productFieldFromWire(field: unknown): ProductFieldError | undefined {
+  return field === "name" ||
+    field === "categoryId" ||
+    field === "saleUnit" ||
+    field === "barcodes" ||
+    field === "version"
+    ? field
+    : undefined;
+}
+
+async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
+  const body = (await response.json().catch(() => undefined)) as { codes?: unknown } | undefined;
+  return Array.isArray(body?.codes)
+    ? body.codes.filter((code): code is string => typeof code === "string")
+    : [];
+}
+
+/** Lists every catalog product, gated by `manage_products_and_categories` (`GET /products`). */
+export async function fetchProducts(): Promise<FetchProductsOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/products");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const body = (await response.json().catch(() => undefined)) as ProductSummary[] | undefined;
+  if (!Array.isArray(body)) {
+    return { kind: "failed" };
+  }
+  return { kind: "ok", value: body };
+}
+
+/** Creates a product with its barcodes, gated by `manage_products_and_categories`; no passkey step-up (`POST /products`). */
+export async function createProduct(input: CreateProductInput): Promise<CreateProductOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/products", input);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const body = (await response.json().catch(() => undefined)) as ProductSummary | undefined;
+    if (!body) {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", value: body };
+  }
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => undefined)) as
+      | { code?: string; details?: Array<{ field?: string }> }
+      | undefined;
+    if (body?.code === "validation_failed") {
+      const field = productFieldFromWire(body.details?.[0]?.field);
+      if (field) {
+        return { kind: "validation_failed", field };
+      }
+    }
+    return { kind: "failed" };
+  }
+  if (response.status === 409) {
+    return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
+/** Edits a product and replaces its barcodes, rejecting a save over a newer version, gated by `manage_products_and_categories`; no passkey step-up (`POST /products/:id/edit`). */
+export async function editProduct(
+  id: string,
+  input: EditProductInput,
+): Promise<EditProductOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/products/${id}/edit`, input);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const body = (await response.json().catch(() => undefined)) as ProductSummary | undefined;
+    if (!body) {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", value: body };
+  }
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => undefined)) as
+      | { code?: string; details?: Array<{ field?: string }> }
+      | undefined;
+    if (body?.code === "validation_failed") {
+      const field = productFieldFromWire(body.details?.[0]?.field);
+      if (field) {
+        return { kind: "validation_failed", field };
+      }
+    }
+    return { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => undefined)) as
+      | { code?: string; codes?: unknown }
+      | undefined;
+    if (body?.code === "stale_version") {
+      return { kind: "stale_version" };
+    }
+    const codes = Array.isArray(body?.codes)
+      ? body.codes.filter((code): code is string => typeof code === "string")
+      : [];
+    return { kind: "barcode_taken", codes };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
