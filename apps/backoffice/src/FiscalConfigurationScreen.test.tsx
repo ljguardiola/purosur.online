@@ -392,6 +392,54 @@ test("shows a stale_version notice, and Recargar refetches so the second save se
   });
 });
 
+test("keeps what Recargar brought on the screen after Cancelar, so reopening saves with the reloaded version", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
+    kind: "ok",
+    value: complete,
+  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+
+  const reloaded: IssuerIdentification = { ...complete, legalName: "Recargado SRL", version: 5 };
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
+    kind: "ok",
+    value: reloaded,
+  });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
+    .toHaveValue("Recargado SRL");
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await expect.element(screen.getByText("Recargado SRL")).toBeVisible();
+
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({
+    kind: "ok",
+    value: { ...reloaded, version: 6 },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
+  expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
+    legalName: "Recargado SRL",
+    grossIncomeRegistration: "1284531-06",
+    activityStartDate: "2019-03-01",
+    version: 5,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
 test("sends to Mi cuenta when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
   const services = createServices();

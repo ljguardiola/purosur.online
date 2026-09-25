@@ -187,6 +187,8 @@ type EditIssuerIdentificationModalProps = {
   target: IssuerIdentification | null;
   onClose: () => void;
   onSaved: (value: IssuerIdentification) => void;
+  /** Receives a fresh load after a stale save; the new `target` it produces re-seeds the modal. */
+  onReloaded: (value: IssuerIdentification) => void;
   onSessionEnded: () => void;
   services: FiscalConfigurationScreenServices;
   now: () => Date;
@@ -203,6 +205,7 @@ function EditIssuerIdentificationModal({
   target,
   onClose,
   onSaved,
+  onReloaded,
   onSessionEnded,
   services,
   now,
@@ -308,11 +311,7 @@ function EditIssuerIdentificationModal({
     setSubmitting(true);
     const outcome = await fetchIssuerIdentification();
     if (outcome.kind === "ok") {
-      setValues(valuesFrom(outcome.value));
-      setVersion(outcome.value.version);
-      setErrors({});
-      setNotice(null);
-      setSubmitting(false);
+      onReloaded(outcome.value);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -583,6 +582,7 @@ export function FiscalConfigurationScreen({
           setState({ kind: "loaded", value });
           setEditing(false);
         }}
+        onReloaded={(value) => setState({ kind: "loaded", value })}
         onSessionEnded={endSession}
         services={svc}
         now={clock}
