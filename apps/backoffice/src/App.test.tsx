@@ -805,18 +805,6 @@ test("opens the role editor modal for duplicating, pre-filled from the source ro
   expect(fetchRoles).toHaveBeenCalledTimes(1);
 });
 
-test("sends a deep link to the role editor's old page URL to the Roles list", async () => {
-  const services = createServices();
-  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
-  await expect.poll(() => window.location.pathname).toBe("/settings/roles");
-  expect(screen.getByRole("dialog").query()).toBeNull();
-});
-
 test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({
@@ -888,18 +876,6 @@ test.each([
       services.userDetailScreen.fetchUser,
       services.userDetailScreen.fetchUserPasskeys,
     ],
-  },
-  {
-    path: "/settings/roles/new",
-    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
-  },
-  {
-    path: "/settings/roles/role-stock/edit",
-    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
-  },
-  {
-    path: "/settings/roles/role-stock/duplicate",
-    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
   },
 ])(
   "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",

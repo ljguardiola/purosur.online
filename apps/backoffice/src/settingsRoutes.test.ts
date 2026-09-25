@@ -1,9 +1,7 @@
 import { expect, test } from "vitest";
 import {
-  isLegacyRolePath,
   MY_ACCOUNT_PATH,
   matchUserDetailPath,
-  ROLES_LIST_PATH,
   USERS_LIST_PATH,
   userDetailPath,
 } from "./settingsRoutes";
@@ -30,24 +28,4 @@ test("matchUserDetailPath returns undefined for an unrelated path", () => {
 
 test("matchUserDetailPath returns undefined for a path nested past the id", () => {
   expect(matchUserDetailPath("/settings/users/user-1/extra")).toBeUndefined();
-});
-
-test("isLegacyRolePath is false for the Roles list itself", () => {
-  expect(isLegacyRolePath(ROLES_LIST_PATH)).toBe(false);
-});
-
-test("isLegacyRolePath is true for the old new-role page", () => {
-  expect(isLegacyRolePath("/settings/roles/new")).toBe(true);
-});
-
-test("isLegacyRolePath is true for the old edit-role page", () => {
-  expect(isLegacyRolePath("/settings/roles/role-1/edit")).toBe(true);
-});
-
-test("isLegacyRolePath is true for the old duplicate-role page", () => {
-  expect(isLegacyRolePath("/settings/roles/role-1/duplicate")).toBe(true);
-});
-
-test("isLegacyRolePath is false for an unrelated path", () => {
-  expect(isLegacyRolePath("/help")).toBe(false);
 });

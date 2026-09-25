@@ -290,7 +290,7 @@ const EMPTY_VALUES: FormValues = {
 /**
  * "Sucursal": the branch's ticket header, hours of attention, and alert/return windows, reserved
  * to `configure_branch` (an Administrator always holds it implicitly) the same way
- * `EditRoleScreen` is reserved to the Administrator. Unlike a role edit, saving here carries no
+ * `RoleEditorModal` is reserved to the Administrator. Unlike a role edit, saving here carries no
  * passkey step-up (see the feature document's decisions): it isn't a sensitive action.
  */
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {

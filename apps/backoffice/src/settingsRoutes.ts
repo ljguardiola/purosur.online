@@ -39,13 +39,3 @@ export function matchUserDetailPath(path: string): string | undefined {
   const rest = path.slice(prefix.length);
   return rest && !rest.includes("/") ? rest : undefined;
 }
-
-/**
- * True for a role editor's old, now-removed page URL (`/settings/roles/new`,
- * `/settings/roles/:id/edit`, `/settings/roles/:id/duplicate`) — every path under the Roles list
- * other than the list itself. App.tsx sends a deep link to any of these to the Roles list instead:
- * the editor only ever opens as a modal over it now.
- */
-export function isLegacyRolePath(path: string): boolean {
-  return path.startsWith(`${ROLES_LIST_PATH}/`);
-}

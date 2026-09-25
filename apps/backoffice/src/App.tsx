@@ -68,7 +68,6 @@ import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker"
 import { useSessionWatcher } from "./sessionWatcher";
 import {
   BRANCH_SETTINGS_PATH,
-  isLegacyRolePath,
   MY_ACCOUNT_PATH,
   matchUserDetailPath,
   ROLES_LIST_PATH,
@@ -591,18 +590,16 @@ export function App({ help, services }: AppProps) {
     route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
 
   const userDetailId = matchUserDetailPath(route);
-  const legacyRolePath = isLegacyRolePath(route);
   const isSettingsRoute =
     route === MY_ACCOUNT_PATH ||
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
-    legacyRolePath ||
     route === BRANCH_SETTINGS_PATH;
   // "Usuarios", "Roles" and "Sucursal" are only reachable through their own URLs; Mi cuenta
   // (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
-  const wantsRoles = route === ROLES_LIST_PATH || legacyRolePath;
+  const wantsRoles = route === ROLES_LIST_PATH;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
   const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
@@ -630,12 +627,8 @@ export function App({ help, services }: AppProps) {
       // A typed, stale, or now-forbidden settings URL (e.g. the role changed mid-session) never
       // shows a forbidden notice: it lands on Mi cuenta instead, the one screen everyone keeps.
       sendToMyAccount();
-    } else if (session.kind === "signed-in" && legacyRolePath) {
-      // The role editor is a modal now, never its own page: a deep link to its old URL lands on
-      // the Roles list behind it instead of opening the editor.
-      navigate(ROLES_LIST_PATH, { replace: true });
     }
-  }, [session.kind, route, isAccessRoute, wantsUnlockedSection, legacyRolePath]);
+  }, [session.kind, route, isAccessRoute, wantsUnlockedSection]);
 
   function handleSignedIn() {
     setSession({ kind: "loading" });
@@ -733,7 +726,7 @@ export function App({ help, services }: AppProps) {
             ? "usersList"
             : userDetailId !== undefined
               ? "userDetail"
-              : route === ROLES_LIST_PATH || legacyRolePath
+              : route === ROLES_LIST_PATH
                 ? "rolesList"
                 : route === BRANCH_SETTINGS_PATH
                   ? "branchSettings"
