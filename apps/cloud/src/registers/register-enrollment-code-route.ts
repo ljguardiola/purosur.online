@@ -71,6 +71,14 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
   const expiresAt = new Date(input.now.getTime() + REGISTER_ENROLLMENT_CODE_WINDOW_MS);
 
   await db.transaction(async (tx) => {
+    // The register row always exists, unlike its code row before the first emission, so locking it
+    // is what serializes two emissions for the same register.
+    await tx
+      .select({ id: registers.id })
+      .from(registers)
+      .where(eq(registers.id, input.registerId))
+      .for("update");
+
     const [previous] = await tx
       .select({
         expiresAt: registerEnrollmentCodes.expiresAt,
