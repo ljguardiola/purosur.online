@@ -48,6 +48,11 @@ function asCloudApp(databaseUrl: string): string {
 export async function createIntegrationDatabase(namePrefix: string): Promise<IntegrationDatabase> {
   const adminUrl = inject("recoveryPostgresAdminUrl");
   const template = inject("cloudIntegrationTemplateDatabase");
+  if (template === undefined) {
+    throw new Error(
+      "the cloud integration template database could not be migrated; see the global setup's warning",
+    );
+  }
   const databaseName = `${namePrefix}_${randomUUID().replaceAll("-", "")}`;
 
   const admin = postgres(adminUrl, { max: 1 });

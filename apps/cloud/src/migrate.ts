@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { makeWorkerUtils } from "graphile-worker";
+import pg from "pg";
 import postgres from "postgres";
 import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
 
@@ -175,11 +176,6 @@ async function grantCloudAppGraphileWorkerAccess(sql: postgres.Sql): Promise<voi
   await grantCloudAppGraphileWorkerRowSecurityAccess(sql);
 }
 
-// `ALTER ROLE` updates a row in the cluster-wide (shared across every database) `pg_authid`
-// catalog. Nothing that migrates a database concurrently with another still writing this same
-// row exists any more (the cloud-integration test suite serializes every direct `runMigrations`
-// call, see `withExclusiveMigration`, and otherwise copies an already-migrated template database
-// instead of migrating its own), so this statement runs exactly once and is never retried.
 const SCRAM_ITERATIONS = 4096;
 const SCRAM_SALT_BYTES = 16;
 const SCRAM_KEY_BYTES = 32;
@@ -215,6 +211,25 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
     throw new Error("migrate: building the cloud_app password statement returned no row");
   }
   await sql.unsafe(row.statement);
+}
+
+/**
+ * graphile-worker warns and installs error handlers of its own on a pool it is given without both
+ * an `error` and a `connect` listener; a client that fails with no `error` listener at all would
+ * crash the process instead of failing the migration.
+ */
+function createWorkerPool(connectionString: string): pg.Pool {
+  const pool = new pg.Pool({ connectionString });
+  const logFailure = (error: Error) => {
+    console.error(
+      `migrate: graphile-worker database client failed ${describeDatabaseFailure(error)}`,
+    );
+  };
+  pool.on("error", logFailure);
+  pool.on("connect", (client) => {
+    client.on("error", logFailure);
+  });
+  return pool;
 }
 
 /**
@@ -257,11 +272,19 @@ export async function runMigrations(
   try {
     await migrate(drizzle(sql), { migrationsFolder });
 
-    const workerUtils = await makeWorkerUtils({ connectionString: databaseUrl });
+    // Owned here rather than left to graphile-worker, whose own pool (the one it builds from a
+    // `connectionString`) is ended without awaiting it on release, so this would otherwise return
+    // while a connection to the database it just migrated is still closing.
+    const workerPool = createWorkerPool(databaseUrl);
     try {
-      await workerUtils.migrate();
+      const workerUtils = await makeWorkerUtils({ pgPool: workerPool });
+      try {
+        await workerUtils.migrate();
+      } finally {
+        await workerUtils.release();
+      }
     } finally {
-      await workerUtils.release();
+      await workerPool.end();
     }
 
     await grantCloudAppGraphileWorkerAccess(sql);

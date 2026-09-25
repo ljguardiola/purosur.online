@@ -7,17 +7,19 @@ import { runMigrations } from "./src/migrate.js";
 declare module "vitest" {
   export interface ProvidedContext {
     /**
-     * Admin connection URL to the one Postgres container started for this run. Each integration
-     * test file uses it to create its own database as a copy of `cloudIntegrationTemplateDatabase`
-     * (see `recovery-integration-database.ts`); nothing connects to this admin database directly.
+     * Admin connection URL to the one Postgres container started for this run. Its own database
+     * is where every `CREATE DATABASE` and `DROP DATABASE` of the run is issued, and where
+     * `withExclusiveMigration` takes its lock; the tests themselves run against databases of
+     * their own (see `recovery-integration-database.ts`).
      */
     recoveryPostgresAdminUrl: string;
     /**
-     * Name of the one database on that container this setup migrates once, so no
+     * Name of the one database on that container this setup migrates, so no
      * `*.integration.test.ts` file migrates (and races) its own; `createIntegrationDatabase` copies
-     * it with `CREATE DATABASE ... TEMPLATE`.
+     * it with `CREATE DATABASE ... TEMPLATE`. Undefined only after a watch-mode rerun failed to
+     * migrate it again.
      */
-    cloudIntegrationTemplateDatabase: string;
+    cloudIntegrationTemplateDatabase: string | undefined;
   }
 }
 
@@ -38,8 +40,9 @@ const MAX_CONNECTIONS = 500;
  * Starts one real Postgres container for the whole test run, shared by every
  * `*.integration.test.ts` file under apps/cloud/src, and migrates the one template database those
  * files copy their own database from (see `createAndMigrateTemplateDatabase`), so no file migrates
- * one of its own on the shared cluster. These tests exist because PGlite serves every query on one
- * connection and has no LISTEN/NOTIFY, which the real production wiring (a postgres-js pool,
+ * one of its own on the shared cluster. It migrates that template again before every watch-mode
+ * rerun, so a migration added or edited after startup reaches the rerun tests. These tests exist
+ * because PGlite serves every query on one connection and has no LISTEN/NOTIFY, which the real production wiring (a postgres-js pool,
  * concurrent connections racing an advisory lock, plus graphile-worker's real `run()`) needs;
  * without a working Docker daemon there is no way to prove that wiring, so a missing or unreachable
  * Docker fails this project's run loudly instead of silently skipping it.
@@ -65,6 +68,17 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   await createAndMigrateTemplateDatabase(adminUrl);
   project.provide("cloudIntegrationTemplateDatabase", TEMPLATE_DATABASE_NAME);
+  project.onTestsRerun(async () => {
+    try {
+      await createAndMigrateTemplateDatabase(adminUrl);
+      project.provide("cloudIntegrationTemplateDatabase", TEMPLATE_DATABASE_NAME);
+    } catch (error) {
+      // A migration mid-edit must not end the watch session, which is what a rejected rerun hook
+      // does. With no template, every file that copies it fails saying so.
+      console.warn("could not migrate the cloud integration template database again", error);
+      project.provide("cloudIntegrationTemplateDatabase", undefined);
+    }
+  });
 
   return async () => {
     await container.stop();
@@ -72,14 +86,15 @@ export default async function setup(project: TestProject): Promise<() => Promise
 }
 
 /**
- * Creates the one database every `*.integration.test.ts` file's own database is later copied from
- * (`CREATE DATABASE ... TEMPLATE`), and migrates it exactly once. Every connection this opens to
- * the template is closed before returning: Postgres refuses `CREATE DATABASE ... TEMPLATE` while
- * anyone is still connected to the template being copied.
+ * Creates, from scratch, the one database every `*.integration.test.ts` file's own database is
+ * later copied from (`CREATE DATABASE ... TEMPLATE`), and migrates it. Postgres refuses
+ * `CREATE DATABASE ... TEMPLATE` while anyone is still connected to the template being copied;
+ * `runMigrations` returns only once every connection it opened is closed.
  */
 async function createAndMigrateTemplateDatabase(adminUrl: string): Promise<void> {
   const admin = postgres(adminUrl, { max: 1 });
   try {
+    await admin.unsafe(`DROP DATABASE IF EXISTS "${TEMPLATE_DATABASE_NAME}" WITH (FORCE)`);
     await admin.unsafe(`CREATE DATABASE "${TEMPLATE_DATABASE_NAME}"`);
   } finally {
     await admin.end({ timeout: 1 });

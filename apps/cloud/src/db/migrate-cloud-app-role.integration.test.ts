@@ -12,10 +12,10 @@ import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 // tries to grant itself that power back. PGlite's own tests cover that the migration SQL applies
 // cleanly; this suite covers what the role can and cannot do against a real Postgres.
 //
-// Shares its password with `recovery-integration-database.ts`: `cloud_app` is one cluster-wide
-// role, and this suite's own migrations must agree with the template database's on the exact same
-// password (see that constant's comment). `withExclusiveMigration` keeps this suite's two direct
-// `runMigrations` calls from racing that helper's own migration of the template database.
+// `cloud_app` is one cluster-wide role, so this suite's own migrations set the same password the
+// global setup set migrating the template database (`CLOUD_APP_PASSWORD`).
+// `withExclusiveMigration` keeps this suite's direct `runMigrations` calls from racing
+// `wait-for-ready.integration.test.ts`'s own.
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const PERMISSION_DENIED = "42501";
 
@@ -193,6 +193,27 @@ describe("the cloud_app role runMigrations creates", () => {
 
       expect(before.length).toBeGreaterThan(0);
       expect(await policyIds()).toEqual(before);
+    } finally {
+      await admin.end({ timeout: 1 });
+    }
+  }, 60_000);
+
+  // Postgres refuses `CREATE DATABASE ... TEMPLATE` and waits on `DROP DATABASE` while anyone is
+  // still connected to that database, so a connection runMigrations leaves closing behind it
+  // makes whatever runs next on that database depend on how fast the backend happens to exit.
+  it("leaves no connection open on the database once it resolves", async () => {
+    const admin = postgres(adminUrl, { max: 1 });
+    try {
+      await withExclusiveMigration(async () => {
+        await runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
+          migrationsFolder: MIGRATIONS_FOLDER,
+        });
+        const backends = await admin<{ pid: number }[]>`
+          select pid from pg_stat_activity
+          where datname = ${databaseName} and usename = current_user
+        `;
+        expect(backends).toEqual([]);
+      });
     } finally {
       await admin.end({ timeout: 1 });
     }
