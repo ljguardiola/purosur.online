@@ -1481,9 +1481,6 @@ function PrintLabelsModal({
   }, [isOpen]);
 
   const rows = useMemo(() => labelableProducts(products), [products]);
-  const onlyInactiveHaveCodes =
-    rows.length === 0 &&
-    products.some((product) => !product.active && product.barcodes.some(isInternalBarcode));
   const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
   const previewRow = rows.find((row) => (counts[row.product.id] ?? 0) > 0) ?? rows[0];
   const busy = printing || reloading;
@@ -1667,14 +1664,8 @@ function PrintLabelsModal({
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-bone px-4 py-8 text-center">
             <Package aria-hidden="true" className="size-6 text-ink-secondary" />
-            {onlyInactiveHaveCodes ? (
-              <p className="text-base font-bold text-ink">{modalMessages.inactiveEmptyTitle}</p>
-            ) : (
-              <>
-                <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
-                <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
-              </>
-            )}
+            <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
+            <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
           </div>
         ) : (
           <>

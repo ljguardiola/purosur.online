@@ -700,9 +700,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         decreaseAria: (params: { name: string }) => `Restar una etiqueta de ${params.name}`,
         increaseAria: (params: { name: string }) => `Sumar una etiqueta a ${params.name}`,
         previewAria: "Vista previa de la etiqueta",
-        emptyTitle: "No hay productos con código interno",
-        emptyDetail: "Generá uno desde el formulario del producto.",
-        inactiveEmptyTitle: "Los productos inactivos no llevan etiquetas",
+        emptyTitle: "No hay productos activos con código interno",
+        emptyDetail: "Generá uno desde el formulario de un producto activo.",
         summary: (params: { count: number }) =>
           f.plural(params.count, { one: "1 etiqueta", other: `${params.count} etiquetas` }),
         summaryDetail: "Hoja autoadhesiva para cualquier impresora común.",

@@ -1747,31 +1747,15 @@ test("shows an empty state when no product has an internal barcode", async () =>
 
   const dialog = await openPrintLabelsModal(screen);
 
-  await expect.element(dialog.getByText("No hay productos con código interno")).toBeVisible();
+  await expect
+    .element(dialog.getByText("No hay productos activos con código interno"))
+    .toBeVisible();
   await expect
     .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
     .toBeDisabled();
 });
 
-test("with only inactive products listed, the empty state says they carry no labels", async () => {
-  const services = createServices();
-  const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
-  mockLoaded(services, [inactiveAlmendras]);
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
-
-  const dialog = await openPrintLabelsModal(screen);
-
-  await expect
-    .element(dialog.getByText("Los productos inactivos no llevan etiquetas"))
-    .toBeVisible();
-  expect(dialog.getByText("No hay productos con código interno").query()).toBeNull();
-  expect(dialog.getByText("Generá uno desde el formulario del producto.").query()).toBeNull();
-});
-
-test("under Todos, when only an inactive product has an internal code, the empty state says inactive products carry no labels", async () => {
+test("an inactive product's internal code isn't offered, and the empty state asks for an active one", async () => {
   const services = createServices();
   const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
   mockLoaded(services, [inactiveAlmendras, sinCodigoInterno]);
@@ -1783,28 +1767,12 @@ test("under Todos, when only an inactive product has an internal code, the empty
   const dialog = await openPrintLabelsModal(screen);
 
   await expect
-    .element(dialog.getByText("Los productos inactivos no llevan etiquetas"))
+    .element(dialog.getByText("No hay productos activos con código interno"))
     .toBeVisible();
-  expect(dialog.getByText("No hay productos con código interno").query()).toBeNull();
-  expect(dialog.getByText("Generá uno desde el formulario del producto.").query()).toBeNull();
-});
-
-test("under Inactivos, when no inactive product has an internal code, the empty state asks for one", async () => {
-  const services = createServices();
-  const inactiveSinCodigo: ProductSummary = { ...sinCodigoInterno, active: false };
-  mockLoaded(services, [inactiveSinCodigo]);
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
-  await expect.element(screen.getByText("Producto sin código interno")).toBeVisible();
-
-  const dialog = await openPrintLabelsModal(screen);
-
-  await expect.element(dialog.getByText("No hay productos con código interno")).toBeVisible();
   await expect
-    .element(dialog.getByText("Generá uno desde el formulario del producto."))
+    .element(dialog.getByText("Generá uno desde el formulario de un producto activo."))
     .toBeVisible();
-  expect(dialog.getByText("Los productos inactivos no llevan etiquetas").query()).toBeNull();
+  expect(dialog.getByText("Almendras peladas").query()).toBeNull();
 });
 
 test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {
@@ -2330,6 +2298,8 @@ test("has no accessibility violations with the print labels modal open, loaded a
   mockLoaded(emptyServices, [sinCodigoInterno]);
   const emptyScreen = await renderScreen(emptyServices);
   const emptyDialog = await openPrintLabelsModal(emptyScreen);
-  await expect.element(emptyDialog.getByText("No hay productos con código interno")).toBeVisible();
+  await expect
+    .element(emptyDialog.getByText("No hay productos activos con código interno"))
+    .toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
