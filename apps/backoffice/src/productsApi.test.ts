@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createProduct, editProduct, fetchProducts, type ProductSummary } from "./productsApi";
+import {
+  createProduct,
+  editProduct,
+  fetchProducts,
+  generateInternalBarcode,
+  type ProductSummary,
+} from "./productsApi";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -209,4 +215,47 @@ test("editProduct returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
+});
+
+test("generateInternalBarcode posts with no body and returns the generated code on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { code: "2000000000015" }));
+
+  const outcome = await generateInternalBarcode();
+
+  expect(outcome).toEqual({ kind: "ok", code: "2000000000015" });
+  expect(fetch).toHaveBeenCalledWith("/products/internal-barcode", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+});
+
+test("generateInternalBarcode returns failed on a body carrying no code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, {}));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+});
+
+test("generateInternalBarcode returns unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "unauthenticated" });
+});
+
+test("generateInternalBarcode returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "forbidden" });
+});
+
+test("generateInternalBarcode returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "20" }));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "rate_limited", retryAfterSeconds: 20 });
+});
+
+test("generateInternalBarcode returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
 });

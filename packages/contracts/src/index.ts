@@ -14,6 +14,7 @@ export {
   rendererPingMessageSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages";
+export { appendEan13CheckDigit, ean13CheckDigit, isInternalBarcode } from "./ean13";
 export type {
   PermissionArea,
   PermissionDefinition,

@@ -8,8 +8,7 @@ import { describe, expect, inject, it, onTestFinished } from "vitest";
 import { branchHours } from "./schema.js";
 import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
 
-const BACKFILL_MIGRATION_TAG = "0023_branch_hours";
-const BACKFILL_MIGRATION_IDX = 23;
+const BACKFILL_MIGRATION_TAG_SUFFIX = "_branch_hours";
 
 interface JournalEntry {
   idx: number;
@@ -30,22 +29,36 @@ async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
+// Found by name rather than by number, so a renumbering after merging another branch's migration
+// doesn't silently point this test at the wrong file.
+async function branchHoursEntry(): Promise<JournalEntry> {
+  const journal = await readRealJournal();
+  const entry = journal.entries.find((candidate) =>
+    candidate.tag.endsWith(BACKFILL_MIGRATION_TAG_SUFFIX),
+  );
+  if (!entry) {
+    throw new Error("test setup: no branch_hours migration in the journal");
+  }
+  return entry;
+}
+
 /**
- * Builds a migrations folder holding only the real migrations up through `0022_products`: the
- * schema as it stood right before this feature's own migration existed, so the backfill it adds
+ * Builds a migrations folder holding only the real migrations that precede the branch_hours one:
+ * the schema as it stood right before this feature's own migration existed, so the backfill it adds
  * can be applied afterward, on its own, against data seeded in that pre-migration shape. Only
  * `_journal.json` and the migration `.sql` files themselves matter to the runtime migrator (unlike
  * `drizzle-kit generate`, it never reads the per-migration snapshot files).
  */
-async function migrationsFolderUpToProducts(destFolder: string): Promise<void> {
+async function migrationsFolderBeforeBranchHours(destFolder: string): Promise<void> {
   await mkdir(join(destFolder, "meta"), { recursive: true });
   const journal = await readRealJournal();
-  const entriesUpToProducts = journal.entries.filter((entry) => entry.idx < BACKFILL_MIGRATION_IDX);
+  const { idx } = await branchHoursEntry();
+  const entriesBefore = journal.entries.filter((entry) => entry.idx < idx);
   await writeFile(
     join(destFolder, "meta", "_journal.json"),
-    JSON.stringify({ ...journal, entries: entriesUpToProducts }),
+    JSON.stringify({ ...journal, entries: entriesBefore }),
   );
-  for (const entry of entriesUpToProducts) {
+  for (const entry of entriesBefore) {
     await copyFile(
       join(MIGRATIONS_FOLDER, `${entry.tag}.sql`),
       join(destFolder, `${entry.tag}.sql`),
@@ -53,22 +66,14 @@ async function migrationsFolderUpToProducts(destFolder: string): Promise<void> {
   }
 }
 
-/** Adds this feature's real, already hand-edited `0023_branch_hours` migration to the folder. */
+/** Adds this feature's real, already hand-edited branch_hours migration to the folder. */
 async function addBranchHoursMigration(destFolder: string): Promise<void> {
   const journalPath = join(destFolder, "meta", "_journal.json");
   const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
-  journal.entries.push({
-    idx: BACKFILL_MIGRATION_IDX,
-    version: "7",
-    when: Date.now(),
-    tag: BACKFILL_MIGRATION_TAG,
-    breakpoints: true,
-  });
+  const entry = await branchHoursEntry();
+  journal.entries.push(entry);
   await writeFile(journalPath, JSON.stringify(journal));
-  await copyFile(
-    join(MIGRATIONS_FOLDER, `${BACKFILL_MIGRATION_TAG}.sql`),
-    join(destFolder, `${BACKFILL_MIGRATION_TAG}.sql`),
-  );
+  await copyFile(join(MIGRATIONS_FOLDER, `${entry.tag}.sql`), join(destFolder, `${entry.tag}.sql`));
 }
 
 async function insertLocation(client: {
@@ -85,13 +90,13 @@ async function insertLocation(client: {
   return location.id;
 }
 
-describe("migration 0023's backfill of existing hours into branch_hours", {
+describe("the branch_hours migration's backfill of existing hours", {
   timeout: 30_000,
 }, () => {
   it("splits weekday hours into Monday..Friday, keeps Saturday and Sunday as their own day, and skips closed groups", async () => {
     const folder = await mkdtemp(join(tmpdir(), "branch-hours-backfill-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    await migrationsFolderUpToProducts(folder);
+    await migrationsFolderBeforeBranchHours(folder);
 
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());

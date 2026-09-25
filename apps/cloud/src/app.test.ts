@@ -696,10 +696,16 @@ describe("wiring the products routes", () => {
       url: "/products/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const internalBarcode = await app.inject({
+      method: "POST",
+      url: "/products/internal-barcode",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
     expect(edit.statusCode).toBe(404);
+    expect(internalBarcode.statusCode).toBe(404);
   });
 
   it("registers the products routes when a products option is given", async () => {
@@ -719,12 +725,18 @@ describe("wiring the products routes", () => {
       url: "/products/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const internalBarcode = await app.inject({
+      method: "POST",
+      url: "/products/internal-barcode",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
     // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
     expect(edit.statusCode).toBe(401);
+    expect(internalBarcode.statusCode).toBe(401);
   });
 });
 
@@ -953,6 +965,11 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/products/:id/edit",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/products/internal-barcode",
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },

@@ -61,6 +61,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       createProduct: vi.fn(),
       editProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      generateInternalBarcode: vi.fn(),
     },
     newRoleScreen: {
       createRole: vi.fn(),

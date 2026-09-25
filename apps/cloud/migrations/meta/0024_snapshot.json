@@ -1,6 +1,6 @@
 {
-  "id": "3d52d63b-2d5f-4e14-80cf-f37d7c2676bc",
-  "prevId": "af1c3fee-fce4-48d1-bf20-0f36bdb0802b",
+  "id": "8c32c148-1051-4ae6-9590-32923703f5c3",
+  "prevId": "3d52d63b-2d5f-4e14-80cf-f37d7c2676bc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -153,6 +153,73 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.branch_hours": {
+      "name": "branch_hours",
+      "schema": "",
+      "columns": {
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_of_week": {
+          "name": "day_of_week",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opens_at": {
+          "name": "opens_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "branch_hours_location_id_locations_id_fk": {
+          "name": "branch_hours_location_id_locations_id_fk",
+          "tableFrom": "branch_hours",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "branch_hours_location_id_day_of_week_position_pk": {
+          "name": "branch_hours_location_id_day_of_week_position_pk",
+          "columns": ["location_id", "day_of_week", "position"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "branch_hours_day_of_week_check": {
+          "name": "branch_hours_day_of_week_check",
+          "value": "\"branch_hours\".\"day_of_week\" BETWEEN 1 AND 7"
+        },
+        "branch_hours_closes_after_opens": {
+          "name": "branch_hours_closes_after_opens",
+          "value": "\"branch_hours\".\"closes_at\" > \"branch_hours\".\"opens_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.branch_settings": {
       "name": "branch_settings",
       "schema": "",
@@ -183,42 +250,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
-        },
-        "weekday_opens_at": {
-          "name": "weekday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "weekday_closes_at": {
-          "name": "weekday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "saturday_opens_at": {
-          "name": "saturday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "saturday_closes_at": {
-          "name": "saturday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sunday_opens_at": {
-          "name": "sunday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sunday_closes_at": {
-          "name": "sunday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
         },
         "expiring_lot_alert_days": {
           "name": "expiring_lot_alert_days",
@@ -264,20 +295,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "branch_settings_weekday_hours_shape": {
-          "name": "branch_settings_weekday_hours_shape",
-          "value": "(\"branch_settings\".\"weekday_opens_at\" IS NULL AND \"branch_settings\".\"weekday_closes_at\" IS NULL) OR (\"branch_settings\".\"weekday_opens_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" > \"branch_settings\".\"weekday_opens_at\")"
-        },
-        "branch_settings_saturday_hours_shape": {
-          "name": "branch_settings_saturday_hours_shape",
-          "value": "(\"branch_settings\".\"saturday_opens_at\" IS NULL AND \"branch_settings\".\"saturday_closes_at\" IS NULL) OR (\"branch_settings\".\"saturday_opens_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" > \"branch_settings\".\"saturday_opens_at\")"
-        },
-        "branch_settings_sunday_hours_shape": {
-          "name": "branch_settings_sunday_hours_shape",
-          "value": "(\"branch_settings\".\"sunday_opens_at\" IS NULL AND \"branch_settings\".\"sunday_closes_at\" IS NULL) OR (\"branch_settings\".\"sunday_opens_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" > \"branch_settings\".\"sunday_opens_at\")"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.categories": {
