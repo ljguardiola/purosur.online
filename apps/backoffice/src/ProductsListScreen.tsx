@@ -3,6 +3,8 @@ import {
   barcodeLength,
   ean13Modules,
   isInternalBarcode,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
@@ -1253,7 +1255,8 @@ function LabelPreviewBars({ code }: { code: string }) {
   );
 }
 
-const MAX_LABEL_COUNT_PER_PRODUCT = 999;
+// Long enough for any browser to finish handing the blob to its download before it's released.
+const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 
 type PrintNotice =
   | { kind: "attemptFailed" }
@@ -1290,8 +1293,12 @@ function PrintLabelsModal({
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
+  // Bumped whenever the modal opens or closes, so a print response still in flight from before
+  // can tell it no longer belongs to the modal on screen.
+  const printRequestIdRef = useRef(0);
 
   useEffect(() => {
+    printRequestIdRef.current += 1;
     if (isOpen) {
       setCounts({});
       setNotice(null);
@@ -1307,8 +1314,13 @@ function PrintLabelsModal({
 
   function changeCount(productId: string, delta: 1 | -1) {
     setCounts((current) => {
-      const next = (current[productId] ?? 0) + delta;
-      return { ...current, [productId]: Math.max(0, Math.min(MAX_LABEL_COUNT_PER_PRODUCT, next)) };
+      const count = current[productId] ?? 0;
+      const currentTotal = Object.values(current).reduce((sum, value) => sum + value, 0);
+      const ceiling = Math.min(
+        LABELS_MAX_COUNT_PER_PRODUCT,
+        count + Math.max(0, LABELS_MAX_TOTAL_COUNT - currentTotal),
+      );
+      return { ...current, [productId]: Math.max(0, Math.min(ceiling, count + delta)) };
     });
   }
 
@@ -1321,16 +1333,22 @@ function PrintLabelsModal({
     }
     setNotice(null);
     setPrinting(true);
+    const requestId = printRequestIdRef.current;
     const outcome = await printLabels(entries);
+    if (requestId !== printRequestIdRef.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       const url = URL.createObjectURL(outcome.blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "etiquetas.pdf";
+      link.download = modalMessages.downloadFileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      // Revoking right after click() can cancel the download in Firefox and Safari, which read
+      // the blob asynchronously.
+      setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_LIFETIME_MS);
       // Closes instead of staying open: the products just printed came from a snapshot that can
       // now be stale (someone edited a product meanwhile), and reopening re-syncs with the
       // screen's current list instead of carrying that snapshot (and the chosen counts) forward.
@@ -1497,7 +1515,9 @@ function PrintLabelsModal({
                       <IconButton
                         icon={<Plus />}
                         aria-label={modalMessages.increaseAria({ name: product.name })}
-                        isDisabled={count === MAX_LABEL_COUNT_PER_PRODUCT}
+                        isDisabled={
+                          count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
+                        }
                         onPress={() => changeCount(product.id, 1)}
                       />
                     </div>
@@ -1693,6 +1713,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
               <Button
                 variant="secondary"
                 icon={<Printer />}
+                isDisabled={list.kind !== "loaded"}
                 onPress={() => setPrintModalOpen(true)}
               >
                 {productsMessages.printLabelsButton}

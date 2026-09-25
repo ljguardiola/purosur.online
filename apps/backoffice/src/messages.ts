@@ -641,6 +641,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         summaryDetail: "Hoja autoadhesiva para cualquier impresora común.",
         cancel: CANCEL_LABEL,
         download: "Descargar la hoja para imprimir",
+        downloadFileName: "etiquetas.pdf",
         attemptFailedTitle: "No se pudo generar la hoja",
         attemptFailedDetail: "Probá de nuevo.",
         productsChangedTitle: "La lista de productos cambió",

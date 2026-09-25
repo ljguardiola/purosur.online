@@ -3,6 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import type { CategorySummary } from "./categoriesApi";
+import { messages } from "./messages";
 import { ProductsListScreen, type ProductsListScreenServices } from "./ProductsListScreen";
 import type { GenerateInternalBarcodeOutcome, ProductSummary } from "./productsApi";
 
@@ -1542,7 +1543,12 @@ test("downloads only the products with a count above zero, then closes the modal
   });
   const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
   const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const downloadedFileNames: string[] = [];
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloadedFileNames.push(this.download);
+  });
   const screen = await renderScreen(services);
   const dialog = await openPrintLabelsModal(screen);
   await userEvent.click(
@@ -1557,12 +1563,50 @@ test("downloads only the products with a count above zero, then closes the modal
   ]);
   expect(createObjectURL).toHaveBeenCalledTimes(1);
   expect(anchorClick).toHaveBeenCalledTimes(1);
-  await expect.poll(() => revokeObjectURL.mock.calls.length).toBe(1);
+  expect(downloadedFileNames).toEqual([
+    messages.catalog.products.printLabelsModal.downloadFileName,
+  ]);
+  expect(downloadedFileNames[0]).toMatch(/\.pdf$/);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
   createObjectURL.mockRestore();
   revokeObjectURL.mockRestore();
   anchorClick.mockRestore();
+});
+
+test("revokes the downloaded sheet's object URL only a minute after the download starts", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({
+    kind: "ok",
+    blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+  });
+  const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
+  const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
+  try {
+    await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+    await expect.poll(() => anchorClick.mock.calls.length).toBe(1);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(59_000);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1_000);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+  } finally {
+    vi.useRealTimers();
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    anchorClick.mockRestore();
+  }
 });
 
 test("the download action is disabled while the request is pending", async () => {
@@ -1710,6 +1754,141 @@ test("cancel closes the print labels modal without calling the API", async () =>
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(services.printLabels).not.toHaveBeenCalled();
+});
+
+test("disables the print labels button while the products are still loading", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProducts).mockReturnValue(new Promise(() => {}));
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeDisabled();
+});
+
+test("disables the print labels button when the products fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProducts).mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeDisabled();
+});
+
+test("disables the print labels button while loading the products is rate limited", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchProducts).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Imprimir etiquetas" })).toBeDisabled();
+});
+
+test("caps the sheet at 2400 labels in total, disabling a row's + once the total is reached", async () => {
+  const nuecesConCodigoInterno: ProductSummary = {
+    ...almendras,
+    id: "product-23",
+    name: "Nueces mariposa",
+    barcodes: ["2912345678906"],
+  };
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno, nuecesConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  const increase = (product: ProductSummary) =>
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${product.name}` });
+
+  // Native clicks for the same reason as the 999-bound stepper test above.
+  for (const [product, count] of [
+    [mielConCodigoInterno, 999],
+    [almendrasConCodigoInterno, 999],
+    [nuecesConCodigoInterno, 402],
+  ] as const) {
+    for (let clickIndex = 0; clickIndex < count; clickIndex += 1) {
+      (increase(product).element() as HTMLButtonElement).click();
+    }
+  }
+
+  await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
+  await expect.element(dialog.getByText("402", { exact: true })).toBeVisible();
+  await expect.element(increase(nuecesConCodigoInterno)).toBeDisabled();
+
+  (increase(nuecesConCodigoInterno).element() as HTMLButtonElement).click();
+  await expect.element(dialog.getByText("2400 etiquetas")).toBeVisible();
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Restar una etiqueta de ${nuecesConCodigoInterno.name}` }),
+  );
+  await expect.element(increase(nuecesConCodigoInterno)).toBeEnabled();
+});
+
+function pendingPrint(services: ProductsListScreenServices) {
+  let resolvePrint: (
+    outcome: Awaited<ReturnType<ProductsListScreenServices["printLabels"]>>,
+  ) => void = () => {};
+  vi.mocked(services.printLabels).mockReturnValue(
+    new Promise((resolve) => {
+      resolvePrint = resolve;
+    }),
+  );
+  return (outcome: Parameters<typeof resolvePrint>[0]) => resolvePrint(outcome);
+}
+
+async function startPrintThenCloseAndReopen(screen: Screen) {
+  const firstDialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    firstDialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await userEvent.click(
+    firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
+  );
+  await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  const dialog = await openPrintLabelsModal(screen);
+  await expect.element(dialog.getByText(mielConCodigoInterno.barcodes[0] as string)).toBeVisible();
+  return dialog;
+}
+
+test("ignores a print success that arrives after the modal was closed and opened again", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const resolvePrint = pendingPrint(services);
+  const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const screen = await renderScreen(services);
+  await startPrintThenCloseAndReopen(screen);
+
+  resolvePrint({ kind: "ok", blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }) });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(createObjectURL).not.toHaveBeenCalled();
+  expect(anchorClick).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog").query()).not.toBeNull();
+
+  createObjectURL.mockRestore();
+  anchorClick.mockRestore();
+});
+
+test("ignores a print failure that arrives after the modal was closed and opened again", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const resolvePrint = pendingPrint(services);
+  const screen = await renderScreen(services);
+  const dialog = await startPrintThenCloseAndReopen(screen);
+
+  resolvePrint({ kind: "failed" });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(dialog.getByText("No se pudo generar la hoja").query()).toBeNull();
 });
 
 test("has no accessibility violations with the print labels modal open, loaded and empty", async () => {
