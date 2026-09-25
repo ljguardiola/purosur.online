@@ -164,6 +164,12 @@ test("emitEnrollmentCode posts to the register's enrollment-code route and retur
   });
 });
 
+test("emitEnrollmentCode returns failed on a 200 without a string code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { expires_at: "2026-09-25T12:15:00.000Z" }));
+
+  expect(await emitEnrollmentCode("register-2")).toEqual({ kind: "failed" });
+});
+
 test("emitEnrollmentCode returns not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 

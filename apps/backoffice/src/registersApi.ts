@@ -174,9 +174,9 @@ export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCode
   }
   if (response.ok) {
     const body = (await response.json().catch(() => undefined)) as
-      | { code: string; expires_at: string }
+      | { code?: unknown; expires_at?: unknown }
       | undefined;
-    if (!body) {
+    if (typeof body?.code !== "string" || typeof body.expires_at !== "string") {
       return { kind: "failed" };
     }
     return { kind: "ok", value: { code: body.code, expiresAt: body.expires_at } };
