@@ -305,62 +305,59 @@ export async function startServer(
   // Validated before any database or job-queue resource opens, the same "fails fast" shape
   // `edgeOriginSecret` above has; gated on `DATABASE_URL` because the routes that need it only
   // wire up alongside every other database-backed feature below.
-  const authorizedCuit = recoveryEnv ? requireAuthorizedCuit(env) : undefined;
-  const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
+  const database = recoveryEnv
+    ? { authorizedCuit: requireAuthorizedCuit(env), recovery: await doSetUpRecovery(recoveryEnv) }
+    : undefined;
 
   const app = doBuildApp({
     version: resolveVersion(env),
     edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
-    ...(recovery
+    ...(database
       ? {
           recovery: {
-            db: recovery.db,
-            jobQueue: recovery.jobQueue,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            jobQueue: database.recovery.jobQueue,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           session: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           passkeys: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           users: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           roles: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           branchSettings: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
-          ...(authorizedCuit
-            ? {
-                issuerIdentification: {
-                  db: recovery.db,
-                  backofficeOrigin: recovery.backofficeOrigin,
-                  authorizedCuit,
-                },
-              }
-            : {}),
+          issuerIdentification: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+            authorizedCuit: database.authorizedCuit,
+          },
           categories: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           products: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
         }
       : {}),
   });
-  if (recovery) {
-    app.addHook("onClose", () => recovery.close());
+  if (database) {
+    app.addHook("onClose", () => database.recovery.close());
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;
