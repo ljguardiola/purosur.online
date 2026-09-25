@@ -96,7 +96,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
 }
 
 /**
- * "Roles": every role the branch has, with its permission and user counts. Reserved to the
+ * "Roles": every role, shared by all branches, with its permission and user counts. Reserved to the
  * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change mid-
  * session) sends the browser to Mi cuenta instead of showing a notice.
  */

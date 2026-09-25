@@ -55,14 +55,14 @@ export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
     .from(userRoles)
     .innerJoin(users, eq(users.id, userRoles.userId))
     .where(eq(userRoles.roleId, roleId))
-    .orderBy(asc(users.firstName));
+    .orderBy(asc(users.firstName), asc(users.id));
   return rows;
 }
 
 /**
  * Reads one hand-made role by id, never the Administrator role, for `GET /roles/:id` and for
- * `role-edit-route.ts`'s own step-up and edit routes: all three share this exact "malformed,
- * missing, and Administrator all answer alike" lookup.
+ * `role-edit-route.ts`'s `POST /roles/:id/edit`: both share this exact "malformed, missing, and
+ * Administrator all answer alike" lookup.
  */
 export async function findEditableRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,

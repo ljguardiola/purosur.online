@@ -66,10 +66,16 @@ async function insertUser(input: {
   email: string;
   roleId: string;
   locationId: string;
+  id?: string;
 }): Promise<string> {
   const [user] = await db
     .insert(users)
-    .values({ firstName: input.firstName, email: input.email, locationId: input.locationId })
+    .values({
+      ...(input.id ? { id: input.id } : {}),
+      firstName: input.firstName,
+      email: input.email,
+      locationId: input.locationId,
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: seeding the user returned no row");
@@ -235,6 +241,41 @@ describe("GET /roles/:id", () => {
       ],
     });
     expect(emptyResponse.json()).toMatchObject({ assigned_users: [] });
+  });
+
+  it("breaks a tie between people with the same name by id", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+    const cashierRoleId = await insertRole("Cajera");
+    const laterId = await insertUser({
+      id: "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      firstName: "Ana",
+      email: "ana.later@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const earlierId = await insertUser({
+      id: "00000000-0000-4000-8000-000000000001",
+      firstName: "Ana",
+      email: "ana.earlier@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+
+    const response = await getRole(cashierRoleId, rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      assigned_users: [
+        { id: earlierId, name: "Ana" },
+        { id: laterId, name: "Ana" },
+      ],
+    });
   });
 
   it("includes a person assigned to the role at a different branch, since roles are global", async () => {
