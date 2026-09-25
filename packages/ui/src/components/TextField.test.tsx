@@ -97,7 +97,7 @@ type KindCase = {
   label: string;
   height: number;
   paddingX: number;
-  gap: number | null;
+  gap: number;
   valueAlign: "left" | "right";
   valueFontSize: number;
   affix?: { position: "prefix" | "suffix"; content: string; fontSize: number };
@@ -192,9 +192,7 @@ for (const kindCase of kindCases) {
     expect(rect.height).toBeCloseTo(kindCase.height, 0);
     expect(Math.round(Number.parseFloat(boxStyle.paddingLeft))).toBe(kindCase.paddingX);
     expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(kindCase.paddingX);
-    if (kindCase.gap !== null) {
-      expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(kindCase.gap);
-    }
+    expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(kindCase.gap);
     expect(inputStyle.textAlign).toBe(kindCase.valueAlign);
     expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(kindCase.valueFontSize);
     expect(inputStyle.color).toBe(tokenRgb("ink"));
