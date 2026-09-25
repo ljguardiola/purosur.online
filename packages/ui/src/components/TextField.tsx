@@ -17,6 +17,9 @@ export type TextFieldValueKind =
   | "quantity"
   | "plain-text";
 
+// Mirrors DateField.tsx's own DateFieldVariant.
+export type TextFieldVariant = "register" | "backoffice";
+
 // See Checkbox.tsx's own children and Button.tsx's own icon: never null/undefined/boolean, so a
 // kind that calls for a prefix or a suffix can't compile with an empty one.
 export type TextFieldAffix = Exclude<ReactNode, null | undefined | boolean>;
@@ -58,49 +61,84 @@ type TextFieldValidityProps =
 // Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
 // require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
 // días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
-// not compile.
+// not compile. The design draws no backoffice money or kg field (see Select.tsx's own comment on
+// its frame matching this field's own backoffice one): "backoffice" only type-checks alongside
+// "plain-text", while "register" still keeps every kind.
 type TextFieldKindProps =
-  | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
-  | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
-  | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
+  | {
+      variant: "register";
+      kind: "amount" | "counted-cash" | "price";
+      prefix: TextFieldAffix;
+      suffix?: undefined;
+    }
+  | { variant: "register"; kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
+  | { variant: TextFieldVariant; kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
 
 export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
 
-const wrapperClassName = "flex flex-col gap-1.5 data-[disabled]:opacity-[0.45]";
+const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
+// Mirrors DateField.tsx's own wrapperGapClassName: 6px between label and box in the register
+// scale, 4px in the backoffice one.
+const wrapperGapClassName: Record<TextFieldVariant, string> = {
+  register: "gap-1.5",
+  backoffice: "gap-1",
+};
 
-const baseLabelClassName = "text-base font-bold text-ink";
+// The register label keeps this field's own long-standing 16px bold; the backoffice one matches
+// Select.tsx's own label exactly (14px bold, the same ink tone, not a dimmer secondary one).
+const labelClassName: Record<TextFieldVariant, string> = {
+  register: "text-base font-bold text-ink",
+  backoffice: "text-sm font-bold text-ink",
+};
 // The asterisk is a CSS pseudo-element, not JSX text: a language-agnostic mark rather than
 // caller-owned copy, drawn only when `required` is true. The field's required state itself
 // already reaches assistive technology through the native `required` attribute on the input.
-const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-['*']`;
+const requiredLabelSuffixClassName = "after:ml-1 after:content-['*']";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-// Height, horizontal padding and gap per value kind, in the exact px the design specifies.
-const frameClassName: Record<TextFieldValueKind, string> = {
+// Height, horizontal padding and gap for every kind but plain text, in the exact px the design
+// specifies; those five only ever draw in the register scale (see TextFieldKindProps above).
+// Plain text's own frame varies by variant instead (see plainTextFrameClassName).
+const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-[4.5rem] gap-2 px-4",
   "counted-cash": "h-[5rem] gap-3 px-6",
   price: "h-[4.5rem] gap-2 px-4",
   weight: "h-[4rem] gap-2 px-4",
   quantity: "h-[4.5rem] gap-2 px-4",
-  "plain-text": "h-[3.25rem] gap-2 px-4",
+};
+// The register scale is this field's own long-standing 52px/16px frame; the backoffice one
+// matches DateField.tsx's and Select.tsx's own backoffice frame exactly (48px/12px, the same 8px
+// gap as the register scale).
+const plainTextFrameClassName: Record<TextFieldVariant, string> = {
+  register: "h-[3.25rem] gap-2 px-4",
+  backoffice: "h-12 gap-2 px-3",
 };
 
 // The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
 // right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
-// Plain text is left-aligned unless it carries a suffix (see plainTextSuffixedValueClassName).
-const valueClassName: Record<TextFieldValueKind, string> = {
+// Those five only ever draw in the register scale (see TextFieldKindProps above); plain text's
+// own value varies by variant instead (see plainTextValueClassName/plainTextSuffixedValueClassName).
+const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "text-right text-3xl font-bold text-ink",
   "counted-cash": "text-right text-3xl font-bold text-ink",
   price: "text-right text-3xl font-bold text-ink",
   weight: "text-left text-3xl font-bold text-ink",
   quantity: "text-right text-3xl font-bold text-ink",
-  "plain-text": "text-left text-base font-normal text-ink",
 };
-
+// Plain text is left-aligned unless it carries a suffix (see plainTextSuffixedValueClassName);
+// only the weight changes between variants, from the register scale's own normal weight to the
+// backoffice one's semibold (Select.tsx's own value weight).
+const plainTextValueClassName: Record<TextFieldVariant, string> = {
+  register: "text-left text-base font-normal text-ink",
+  backoffice: "text-left text-base font-semibold text-ink",
+};
 // A plain-text value with a suffix sits immediately before it ("30 días"), like every other kind
 // that takes one, instead of leaving the input's empty width between the value and its unit.
-const plainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
+const plainTextSuffixedValueClassName: Record<TextFieldVariant, string> = {
+  register: "text-right text-base font-normal text-ink",
+  backoffice: "text-right text-base font-semibold text-ink",
+};
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
 
@@ -164,6 +202,7 @@ export function TextField(props: TextFieldProps) {
     labelledBy,
     labelVisuallyHidden = false,
     kind,
+    variant,
   } = props;
   const invalid = props.invalid ?? false;
   const errorMessage = props.invalid ? props.errorMessage : undefined;
@@ -221,18 +260,24 @@ export function TextField(props: TextFieldProps) {
       isRequired={required}
       isInvalid={invalid}
       {...describedByProps}
-      className={wrapperClassName}
+      className={`${wrapperBaseClassName} ${wrapperGapClassName[variant]}`}
     >
       <AriaLabel
         id={labelId}
         className={
-          labelVisuallyHidden ? "sr-only" : required ? requiredLabelClassName : baseLabelClassName
+          labelVisuallyHidden
+            ? "sr-only"
+            : required
+              ? `${labelClassName[variant]} ${requiredLabelSuffixClassName}`
+              : labelClassName[variant]
         }
       >
         {label}
       </AriaLabel>
       <div
-        className={`${boxBaseClassName} ${frameClassName[kind]} ${boxStateClassName(disabled, readOnly, invalid)}`}
+        className={`${boxBaseClassName} ${
+          kind === "plain-text" ? plainTextFrameClassName[variant] : frameClassName[kind]
+        } ${boxStateClassName(disabled, readOnly, invalid)}`}
       >
         {prefix !== undefined && (
           <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
@@ -241,8 +286,10 @@ export function TextField(props: TextFieldProps) {
         )}
         <AriaInput
           className={`${inputBaseClassName} ${
-            kind === "plain-text" && suffix !== undefined
-              ? plainTextSuffixedValueClassName
+            kind === "plain-text"
+              ? suffix !== undefined
+                ? plainTextSuffixedValueClassName[variant]
+                : plainTextValueClassName[variant]
               : valueClassName[kind]
           }`}
           {...labelledByProps}

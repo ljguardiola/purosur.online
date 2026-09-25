@@ -61,6 +61,7 @@ function AmountHarness({ initial = "" }: { initial?: string }) {
   return (
     <TextField
       kind="amount"
+      variant="register"
       label="Amount"
       value={value}
       onChange={setValue}
@@ -72,12 +73,20 @@ function AmountHarness({ initial = "" }: { initial?: string }) {
 
 function PlainTextHarness({ initial = "" }: { initial?: string }) {
   const [value, setValue] = useState(initial);
-  return <TextField kind="plain-text" label="Reason" value={value} onChange={setValue} />;
+  return (
+    <TextField
+      kind="plain-text"
+      variant="register"
+      label="Reason"
+      value={value}
+      onChange={setValue}
+    />
+  );
 }
 
 test("renders the label 6px above an 8px-radius box", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} />,
+    <TextField kind="plain-text" variant="register" label="Reason" value="" onChange={() => {}} />,
   );
   const label = screen.getByText("Reason").element() as HTMLElement;
   const box = fieldBox(screen, "Reason");
@@ -90,6 +99,79 @@ test("renders the label 6px above an 8px-radius box", async () => {
   expect(getComputedStyle(box).borderRadius).toBe("8px");
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("renders the backoffice variant's plain text at its own 14px bold ink label, 4px gap, 48px box, 12px padding and 16px semibold value", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      variant="backoffice"
+      label="Reason"
+      value=""
+      onChange={() => {}}
+    />,
+  );
+  const label = screen.getByText("Reason").element() as HTMLElement;
+  const wrapper = fieldWrapper(screen, "Reason");
+  const box = fieldBox(screen, "Reason");
+  const input = fieldInput(screen, "Reason");
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
+  expect(getComputedStyle(label).fontWeight).toBe("700");
+  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
+  expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(4);
+  expect(box.getBoundingClientRect().height).toBeCloseTo(48, 0);
+  expect(Math.round(Number.parseFloat(getComputedStyle(box).paddingLeft))).toBe(12);
+  expect(Math.round(Number.parseFloat(getComputedStyle(box).paddingRight))).toBe(12);
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(16);
+  expect(getComputedStyle(input).fontWeight).toBe("600");
+  expect(getComputedStyle(input).color).toBe(tokenRgb("ink"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the backoffice plain text value semibold even with a suffix, unlike its own unit", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      variant="backoffice"
+      label="Plazo"
+      value="30"
+      onChange={() => {}}
+      suffix="días"
+    />,
+  );
+  const input = fieldInput(screen, "Plazo");
+  const suffixElement = screen.getByText("días").element() as HTMLElement;
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(16);
+  expect(getComputedStyle(input).fontWeight).toBe("600");
+  expect(getComputedStyle(input).textAlign).toBe("right");
+  expect(getComputedStyle(suffixElement).fontWeight).toBe("400");
+  expect(getComputedStyle(suffixElement).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept the backoffice variant on a kind other than plain text", () => {
+  expectTypeOf<{
+    kind: "price";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("accepts the backoffice variant on the plain text kind", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }>().toExtend<TextFieldProps>();
 });
 
 type KindCase = {
@@ -169,15 +251,25 @@ function renderKind(kindCase: KindCase, value: string) {
   const common = { label: kindCase.label, value, onChange: () => {} };
   if (kindCase.affix?.position === "prefix") {
     return (
-      <TextField kind={kindCase.kind as "amount"} {...common} prefix={kindCase.affix.content} />
+      <TextField
+        kind={kindCase.kind as "amount"}
+        variant="register"
+        {...common}
+        prefix={kindCase.affix.content}
+      />
     );
   }
   if (kindCase.affix?.position === "suffix") {
     return (
-      <TextField kind={kindCase.kind as "weight"} {...common} suffix={kindCase.affix.content} />
+      <TextField
+        kind={kindCase.kind as "weight"}
+        variant="register"
+        {...common}
+        suffix={kindCase.affix.content}
+      />
     );
   }
-  return <TextField kind="plain-text" {...common} />;
+  return <TextField kind="plain-text" variant="register" {...common} />;
 }
 
 for (const kindCase of kindCases) {
@@ -269,6 +361,7 @@ test("shows the focused border instead of the invalid one once an invalid field 
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value=""
       onChange={() => {}}
@@ -289,6 +382,7 @@ test("turns the invalid box bone on hover, keeping its error border", async () =
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value=""
       onChange={() => {}}
@@ -328,7 +422,14 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 test("dims the whole field to 45% opacity and blocks focus when disabled", async () => {
   const screen = await render(
     <>
-      <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} disabled />
+      <TextField
+        kind="plain-text"
+        variant="register"
+        label="Reason"
+        value=""
+        onChange={() => {}}
+        disabled
+      />
       <button type="button">Next control</button>
     </>,
   );
@@ -359,12 +460,13 @@ test("lets a read-only field be focused and shows it, but is never typed into or
     <>
       <TextField
         kind="plain-text"
+        variant="register"
         label="Reason"
         value="Partial close"
         onChange={onChange}
         readOnly
       />
-      <TextField kind="plain-text" label="Detail" value="" onChange={() => {}} />
+      <TextField kind="plain-text" variant="register" label="Detail" value="" onChange={() => {}} />
     </>,
   );
   const box = fieldBox(screen, "Reason");
@@ -414,6 +516,7 @@ test("lets disabled win the box treatment over invalid, while still announcing i
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value=""
       onChange={() => {}}
@@ -448,6 +551,7 @@ test("marks the helper text as disabled too when the field itself is disabled", 
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value=""
       onChange={() => {}}
@@ -469,6 +573,7 @@ test("lets read-only win the box treatment over invalid, while still announcing 
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value="Partial close"
       onChange={() => {}}
@@ -496,6 +601,7 @@ test("lets disabled win the box treatment over read-only when both apply", async
     <>
       <TextField
         kind="plain-text"
+        variant="register"
         label="Reason"
         value="Partial close"
         onChange={() => {}}
@@ -531,6 +637,7 @@ test("describes an invalid money field with both its unit and its message", asyn
   const screen = await render(
     <TextField
       kind="amount"
+      variant="register"
       label="Amount"
       value=""
       onChange={() => {}}
@@ -550,7 +657,14 @@ test("describes an invalid money field with both its unit and its message", asyn
 
 test("marks a required field with an asterisk and exposes it as required", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} required />,
+    <TextField
+      kind="plain-text"
+      variant="register"
+      label="Reason"
+      value=""
+      onChange={() => {}}
+      required
+    />,
   );
   const label = screen.getByText("Reason").element() as HTMLElement;
   // The generated asterisk folds into the input's own accessible name (the browser reads ::after
@@ -570,6 +684,7 @@ test("names the field by an external heading through labelledBy, while the visib
       <p id="group-heading">Lunes a viernes</p>
       <TextField
         kind="plain-text"
+        variant="register"
         label="Abre"
         value=""
         onChange={() => {}}
@@ -589,6 +704,7 @@ test("keeps the label as the accessible name but paints nothing when labelVisual
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Lunes, horario 1, abre"
       value=""
       onChange={() => {}}
@@ -610,7 +726,7 @@ test("keeps the label as the accessible name but paints nothing when labelVisual
 
 test("shows the label as an ordinary visible caption when labelVisuallyHidden is left out", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} />,
+    <TextField kind="plain-text" variant="register" label="Reason" value="" onChange={() => {}} />,
   );
   const label = screen.getByText("Reason").element() as HTMLElement;
   const labelRect = label.getBoundingClientRect();
@@ -626,6 +742,7 @@ test("exposes the field as invalid, described by a shared message rendered outsi
     <>
       <TextField
         kind="plain-text"
+        variant="register"
         label="Opens"
         value=""
         onChange={() => {}}
@@ -654,6 +771,7 @@ test("describes an invalid field by both its suffix and the shared message error
     <>
       <TextField
         kind="plain-text"
+        variant="register"
         label="Days"
         value=""
         onChange={() => {}}
@@ -674,6 +792,7 @@ test("replaces the helper line with the field's message and exposes it as invali
   const screen = await render(
     <TextField
       kind="plain-text"
+      variant="register"
       label="Reason"
       value=""
       onChange={() => {}}
@@ -709,7 +828,14 @@ test("wires the helper text as the input's own description for assistive technol
 
 test("wires the money prefix into the input's own description for assistive technology", async () => {
   const screen = await render(
-    <TextField kind="amount" label="Amount" value="" onChange={() => {}} prefix="$" />,
+    <TextField
+      kind="amount"
+      variant="register"
+      label="Amount"
+      value=""
+      onChange={() => {}}
+      prefix="$"
+    />,
   );
   const input = fieldInput(screen, "Amount");
   const prefixElement = screen.getByText("$").element();
@@ -724,7 +850,14 @@ test("wires the money prefix into the input's own description for assistive tech
 
 test("renders an optional suffix on the plain text kind at its own text-base scale, exposed in its description", async () => {
   const screen = await render(
-    <TextField kind="plain-text" label="Plazo" value="30" onChange={() => {}} suffix="días" />,
+    <TextField
+      kind="plain-text"
+      variant="register"
+      label="Plazo"
+      value="30"
+      onChange={() => {}}
+      suffix="días"
+    />,
   );
   const box = fieldBox(screen, "Plazo");
   const input = fieldInput(screen, "Plazo");
@@ -744,7 +877,14 @@ test("renders an optional suffix on the plain text kind at its own text-base sca
 
 test("wires the kg suffix into the input's own description for assistive technology", async () => {
   const screen = await render(
-    <TextField kind="weight" label="Weight in kilos" value="" onChange={() => {}} suffix="kg" />,
+    <TextField
+      kind="weight"
+      variant="register"
+      label="Weight in kilos"
+      value=""
+      onChange={() => {}}
+      suffix="kg"
+    />,
   );
   const input = fieldInput(screen, "Weight in kilos");
   const suffixElement = screen.getByText("kg").element();
@@ -759,6 +899,7 @@ test("keeps the affix in the description alongside the helper text, each named o
   const screen = await render(
     <TextField
       kind="weight"
+      variant="register"
       label="Weight in kilos"
       value=""
       onChange={() => {}}
@@ -788,6 +929,7 @@ test("follows the field's description as it moves from helper text to an error a
         {invalid ? (
           <TextField
             kind="plain-text"
+            variant="register"
             label="Reason"
             value=""
             onChange={() => {}}
@@ -798,6 +940,7 @@ test("follows the field's description as it moves from helper text to an error a
         ) : (
           <TextField
             kind="plain-text"
+            variant="register"
             label="Reason"
             value=""
             onChange={() => {}}
@@ -884,6 +1027,7 @@ test("keeps the amount value right-aligned against its prefix as it grows", asyn
 test("does not accept a kind that calls for a prefix without one", () => {
   expectTypeOf<{
     kind: "amount";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -897,6 +1041,7 @@ test("does not accept a kind that calls for a prefix without one", () => {
 test("does not accept a suffix on a money kind that already has its own prefix", () => {
   expectTypeOf<{
     kind: "amount";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -908,6 +1053,7 @@ test("does not accept a suffix on a money kind that already has its own prefix",
 test("does not accept a prefix on a kg kind that already has its own suffix", () => {
   expectTypeOf<{
     kind: "weight";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -919,6 +1065,7 @@ test("does not accept a prefix on a kg kind that already has its own suffix", ()
 test("does not accept a prefix on the plain text kind", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -929,6 +1076,7 @@ test("does not accept a prefix on the plain text kind", () => {
 test("accepts an optional suffix on the plain text kind", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -939,6 +1087,7 @@ test("accepts an optional suffix on the plain text kind", () => {
 test("accepts each kind with exactly the affix it calls for", () => {
   expectTypeOf<{
     kind: "amount";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -946,6 +1095,7 @@ test("accepts each kind with exactly the affix it calls for", () => {
   }>().toExtend<TextFieldProps>();
   expectTypeOf<{
     kind: "weight";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -953,6 +1103,7 @@ test("accepts each kind with exactly the affix it calls for", () => {
   }>().toExtend<TextFieldProps>();
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -962,6 +1113,7 @@ test("accepts each kind with exactly the affix it calls for", () => {
 test("does not accept an invalid field without an error message", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -972,6 +1124,7 @@ test("does not accept an invalid field without an error message", () => {
 test("does not accept an invalid field with both its own message and a shared one", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -984,6 +1137,7 @@ test("does not accept an invalid field with both its own message and a shared on
 test("does not accept a shared error message id on a field that isn't invalid", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -994,6 +1148,7 @@ test("does not accept a shared error message id on a field that isn't invalid", 
 test("accepts an invalid field whose message is shared through errorMessageId", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
@@ -1005,16 +1160,19 @@ test("accepts an invalid field whose message is shared through errorMessageId", 
 test("does not accept a field without a label, a value or onChange", () => {
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     value: string;
     onChange: (value: string) => void;
   }>().not.toExtend<TextFieldProps>();
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     onChange: (value: string) => void;
   }>().not.toExtend<TextFieldProps>();
   expectTypeOf<{
     kind: "plain-text";
+    variant: "register";
     label: string;
     value: string;
   }>().not.toExtend<TextFieldProps>();

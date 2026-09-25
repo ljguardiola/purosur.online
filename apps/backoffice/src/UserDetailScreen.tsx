@@ -416,6 +416,7 @@ function EditUserModal({
           )}
           <TextField
             kind="plain-text"
+            variant="backoffice"
             label={modalMessages.emailLabel}
             value={email}
             onChange={(value) => {

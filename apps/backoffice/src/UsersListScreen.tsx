@@ -271,6 +271,7 @@ function NewUserModal({
           )}
           <TextField
             kind="plain-text"
+            variant="backoffice"
             label={modalMessages.nameLabel}
             value={firstName}
             onChange={(value) => {
@@ -301,6 +302,7 @@ function NewUserModal({
           )}
           <TextField
             kind="plain-text"
+            variant="backoffice"
             label={modalMessages.emailLabel}
             value={email}
             onChange={(value) => {

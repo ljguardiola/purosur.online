@@ -66,7 +66,9 @@ const wrapperGapClassName: Record<DateFieldVariant, string> = {
 };
 
 const registerLabelClassName = "text-base font-bold text-ink";
-const backofficeLabelClassName = "text-sm font-bold text-ink-secondary";
+// Matches Select.tsx's own label exactly (14px bold, the same ink tone as the register scale, not
+// a dimmer secondary one) and TextField.tsx's own backoffice plain-text label.
+const backofficeLabelClassName = "text-sm font-bold text-ink";
 // The same CSS-drawn asterisk TextField.tsx uses for a required field.
 const requiredLabelClassName = "after:ml-1 after:content-['*']";
 

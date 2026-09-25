@@ -235,6 +235,38 @@ test("Editar opens the modal prefilled, with CUIT and tax status as plain text, 
   await expect.element(dialog.getByText("Responsable Monotributo")).toBeVisible();
 });
 
+test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, side by side in the same row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+  const dialog = screen.getByRole("dialog");
+  const grossIncomeLabel = dialog.getByText("Ingresos Brutos").element() as HTMLElement;
+  const activityStartLabel = dialog.getByText("Inicio de actividades").element() as HTMLElement;
+  const grossIncomeBox = dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }).element()
+    .parentElement as HTMLElement;
+  const activityStartBox = dialog
+    .getByRole("group", { name: /^Inicio de actividades/ })
+    .element() as HTMLElement;
+
+  const grossIncomeLabelStyle = getComputedStyle(grossIncomeLabel);
+  const activityStartLabelStyle = getComputedStyle(activityStartLabel);
+  expect(grossIncomeLabelStyle.fontSize).toBe(activityStartLabelStyle.fontSize);
+  expect(grossIncomeLabelStyle.fontWeight).toBe(activityStartLabelStyle.fontWeight);
+  expect(grossIncomeLabelStyle.color).toBe(activityStartLabelStyle.color);
+  expect(grossIncomeLabel.getBoundingClientRect().top).toBeCloseTo(
+    activityStartLabel.getBoundingClientRect().top,
+    0,
+  );
+
+  const grossIncomeBoxRect = grossIncomeBox.getBoundingClientRect();
+  const activityStartBoxRect = activityStartBox.getBoundingClientRect();
+  expect(grossIncomeBoxRect.top).toBeCloseTo(activityStartBoxRect.top, 0);
+  expect(grossIncomeBoxRect.bottom).toBeCloseTo(activityStartBoxRect.bottom, 0);
+});
+
 test("prefills the modal empty for an incomplete identification", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({

@@ -735,6 +735,7 @@ function NewProductModal({
         )}
         <TextField
           kind="plain-text"
+          variant="backoffice"
           label={modalMessages.nameLabel}
           value={name}
           onChange={(value) => {
@@ -1118,6 +1119,7 @@ function EditProductModal({
           )}
           <TextField
             kind="plain-text"
+            variant="backoffice"
             label={modalMessages.nameLabel}
             value={name}
             onChange={(value) => {
