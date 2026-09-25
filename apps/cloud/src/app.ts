@@ -4,6 +4,7 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerBranchSettingsEditRoute } from "./branch-settings/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch-settings/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings/branch-settings-read-route.js";
 import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
@@ -93,9 +94,10 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   roles?: RolesRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /branch-settings`, the backoffice Sucursal screen's read side: gated by
-   * `configure_branch` (an Administrator always holds it implicitly) and scoped to the session's
-   * own location, the same optional-feature-wiring shape `roles` uses above.
+   * Registers `GET /branch-settings` and `PUT /branch-settings`, the backoffice Sucursal screen's
+   * read and save sides: both gated by `configure_branch` (an Administrator always holds it
+   * implicitly) and scoped to the session's own location, the same optional-feature-wiring shape
+   * `roles` uses above.
    */
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
 }
@@ -178,6 +180,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
   if (options.branchSettings) {
     registerBranchSettingsReadRoute(app, options.branchSettings);
+    registerBranchSettingsEditRoute(app, options.branchSettings);
   }
 
   const staticDir = options.staticDir;

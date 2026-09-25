@@ -694,6 +694,32 @@ describe("wiring the branch settings routes", () => {
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
+
+  it("does not register PUT /branch-settings when no branchSettings option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "PUT", url: "/branch-settings" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers PUT /branch-settings when a branchSettings option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/branch-settings",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
 });
 
 describe("wiring the passkeys routes", () => {
@@ -843,6 +869,11 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
+        url: "/branch-settings",
+        access: permissionAccess("configure_branch"),
+      },
+      {
+        method: "PUT",
         url: "/branch-settings",
         access: permissionAccess("configure_branch"),
       },
