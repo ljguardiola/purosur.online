@@ -670,3 +670,26 @@ test("keeps unsaved edits without refetching when the parent re-renders with a n
   await expect.element(address).toHaveValue("Av. Corrientes 800, CABA");
   expect(services.fetchBranchSettings).toHaveBeenCalledTimes(1);
 });
+
+test("centers a day's row actions on the same line as its time fields", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  const field = screen.getByRole("textbox", { name: "Lunes, horario 2, cierra" });
+  await expect.element(field).toBeVisible();
+
+  const centerY = (element: Element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  };
+  const fieldBoxCenter = centerY((field.element() as HTMLElement).parentElement as HTMLElement);
+  const removeCenter = centerY(
+    screen.getByRole("button", { name: "Quitar el horario 2 del lunes" }).element(),
+  );
+  const addCenter = centerY(
+    screen.getByRole("button", { name: "Agregar un horario al lunes" }).element(),
+  );
+
+  expect(removeCenter).toBeCloseTo(fieldBoxCenter, 0);
+  expect(addCenter).toBeCloseTo(fieldBoxCenter, 0);
+});

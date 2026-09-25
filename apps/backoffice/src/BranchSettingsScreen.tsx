@@ -563,11 +563,13 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 </div>
               ))}
               {!atCap && (
-                <IconButton
-                  icon={<Plus />}
-                  aria-label={branchMessages.addRangeAria({ day: dayLower })}
-                  onPress={() => addRange(day)}
-                />
+                <div className="flex h-[3.25rem] items-center">
+                  <IconButton
+                    icon={<Plus />}
+                    aria-label={branchMessages.addRangeAria({ day: dayLower })}
+                    onPress={() => addRange(day)}
+                  />
+                </div>
               )}
             </div>
           )}
