@@ -183,6 +183,13 @@
       "when": 1790357702752,
       "tag": "0025_issuer_identification",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790374638721,
+      "tag": "0026_alerts",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 import {
+  ALERT_ESCALATION_TASK_IDENTIFIER,
   RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER,
   RECOVERY_REQUEST_TASK_IDENTIFIER,
   startRecoveryWorker,
@@ -144,7 +145,27 @@ describe("startRecoveryWorker", () => {
         RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER as keyof typeof options.taskList
       ],
     ).toBeInstanceOf(Function);
-    expect(options.crontab).toBe("*/5 * * * * recovery-rejected-attempt-flush");
+    expect(options.crontab).toContain("*/5 * * * * recovery-rejected-attempt-flush");
+  });
+
+  it("registers the alert escalation task and schedules it every 5 minutes", async () => {
+    const runner = fakeRunner();
+    const runWorker = vi.fn().mockResolvedValue(runner);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+      },
+      { runWorker },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [{ taskList: object; crontab?: string }];
+    expect(
+      options.taskList[ALERT_ESCALATION_TASK_IDENTIFIER as keyof typeof options.taskList],
+    ).toBeInstanceOf(Function);
+    expect(options.crontab).toContain("*/5 * * * * alert-escalation");
   });
 
   it("delegates stop() to the runner returned by graphile-worker, then awaits closing the pool it owns", async () => {
@@ -617,6 +638,50 @@ describe("startRecoveryWorker", () => {
     expect(withPgClient).toHaveBeenCalledTimes(1);
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
     expect(flush).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({ now: expect.any(Function) }),
+    );
+  });
+
+  it("processes the alert escalation task through a client borrowed from graphile-worker's own pool", async () => {
+    const runner = fakeRunner();
+    const runWorker = vi.fn().mockResolvedValue(runner);
+    const fakeClient = { marker: "fake-client" };
+    const fakeDb = { marker: "fake-db" };
+    const createDatabase = vi.fn().mockReturnValue(fakeDb);
+    const withPgClient = vi.fn(async (callback: (client: unknown) => Promise<unknown>) =>
+      callback(fakeClient),
+    );
+    const escalate = vi.fn().mockResolvedValue(0);
+
+    await startRecoveryWorker(
+      {
+        databaseUrl: "postgres://user:pass@db/purosur",
+        backofficeOrigin: "https://staging.purosur.online",
+        emailSender,
+        now: () => new Date("2026-01-05T12:00:00.000Z"),
+      },
+      { runWorker, createDatabase, escalate },
+    );
+
+    const [options] = runWorker.mock.calls[0] as [
+      {
+        taskList: Record<
+          string,
+          (payload: unknown, helpers: { withPgClient: typeof withPgClient }) => Promise<void>
+        >;
+      },
+    ];
+    const task = mustExist(
+      options.taskList[ALERT_ESCALATION_TASK_IDENTIFIER],
+      "the registered alert escalation task",
+    );
+
+    await task({}, { withPgClient });
+
+    expect(withPgClient).toHaveBeenCalledTimes(1);
+    expect(createDatabase).toHaveBeenCalledWith(fakeClient);
+    expect(escalate).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({ now: expect.any(Function) }),
     );
