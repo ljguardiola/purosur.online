@@ -184,6 +184,9 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
           roleName: role.name,
           roleIsAdministrator: role.isAdministrator,
           passkeyCount: 0,
+          // Only an active Administrator of this same branch can create a user, so a just-created
+          // user is never the sole active Administrator, even given that role.
+          isLastActiveAdministrator: false,
         }),
       );
     },

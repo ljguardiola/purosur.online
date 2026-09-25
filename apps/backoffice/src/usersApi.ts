@@ -11,6 +11,8 @@ export type BranchUser = {
   version: number;
   role: BranchUserRole;
   passkeyCount: number;
+  /** From the wire: locks the Rol field in the edit modal, since the server refuses to change it regardless. */
+  isLastActiveAdministrator: boolean;
 };
 
 export type UserPasskey = {
@@ -62,15 +64,16 @@ export type FetchUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ChangeUserEmailInput = { email: string; version: number };
+export type EditUserInput = { email: string; roleId: string; version: number };
 
-export type ChangeUserEmailFieldError = "email" | "version";
+export type EditUserFieldError = "email" | "roleId" | "version";
 
-export type ChangeUserEmailOutcome =
+export type EditUserOutcome =
   | { kind: "ok"; value: BranchUser }
-  | { kind: "validation_failed"; field: ChangeUserEmailFieldError }
+  | { kind: "validation_failed"; field: EditUserFieldError }
   | { kind: "email_taken" }
   | { kind: "stale_version" }
+  | { kind: "last_administrator" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -114,6 +117,7 @@ function userFromWire(row: {
   version: number;
   role: { id: string; is_administrator: boolean; name: string | null };
   passkey_count: number;
+  is_last_active_administrator: boolean;
 }): BranchUser {
   return {
     id: row.id,
@@ -126,6 +130,7 @@ function userFromWire(row: {
       name: row.role.name,
     },
     passkeyCount: row.passkey_count,
+    isLastActiveAdministrator: row.is_last_active_administrator,
   };
 }
 
@@ -283,9 +288,12 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   return { kind: "ok", value: userFromWire(body) };
 }
 
-function emailChangeFieldFromWire(field: unknown): ChangeUserEmailFieldError | undefined {
+function editFieldFromWire(field: unknown): EditUserFieldError | undefined {
   if (field === "email") {
     return "email";
+  }
+  if (field === "role_id") {
+    return "roleId";
   }
   if (field === "version") {
     return "version";
@@ -294,18 +302,17 @@ function emailChangeFieldFromWire(field: unknown): ChangeUserEmailFieldError | u
 }
 
 /**
- * Changes the user's email, rejecting a save over a newer version, gated by the shared
- * passkey-authorization window instead of its own reauthentication step-up
- * (`POST /users/:id/email`).
+ * Changes the user's email and role together in one transaction, rejecting a save over a newer
+ * version or one that would leave the last active Administrator without their role, gated by the
+ * shared passkey-authorization window instead of its own reauthentication step-up
+ * (`POST /users/:id/edit`).
  */
-export async function changeUserEmail(
-  id: string,
-  input: ChangeUserEmailInput,
-): Promise<ChangeUserEmailOutcome> {
+export async function editUser(id: string, input: EditUserInput): Promise<EditUserOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/email`, {
+    response = await postJson(`/users/${id}/edit`, {
       email: input.email,
+      role_id: input.roleId,
       version: input.version,
     });
   } catch {
@@ -325,7 +332,7 @@ export async function changeUserEmail(
       | { code?: string; details?: Array<{ field?: string }> }
       | undefined;
     if (body?.code === "validation_failed") {
-      const field = emailChangeFieldFromWire(body.details?.[0]?.field);
+      const field = editFieldFromWire(body.details?.[0]?.field);
       if (field) {
         return { kind: "validation_failed", field };
       }
@@ -337,7 +344,13 @@ export async function changeUserEmail(
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "stale_version" ? { kind: "stale_version" } : { kind: "email_taken" };
+    if (body?.code === "stale_version") {
+      return { kind: "stale_version" };
+    }
+    if (body?.code === "last_administrator") {
+      return { kind: "last_administrator" };
+    }
+    return { kind: "email_taken" };
   }
   return gatedActionErrorOutcome(response);
 }

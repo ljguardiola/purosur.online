@@ -1,13 +1,4 @@
-import {
-  Button,
-  InlineNotice,
-  Modal,
-  Select,
-  type SelectOption,
-  Table,
-  TableCellText,
-  TextField,
-} from "@purosur/ui";
+import { Button, InlineNotice, Modal, Select, Table, TableCellText, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Eye, KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,6 +6,7 @@ import { useAuthorization } from "./AuthorizationModal";
 import type { BackofficeAccess } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
+import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
@@ -63,18 +55,6 @@ type ListState =
 
 const usersMessages = messages.settings.users;
 const modalMessages = usersMessages.newUserModal;
-
-function roleDisplayName(role: BranchUserRole): string {
-  return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
-}
-
-function roleOptions(roles: BranchUserRole[]): [SelectOption<string>, ...SelectOption<string>[]] {
-  const [first, ...rest] = roles.map((role) => ({ value: role.id, label: roleDisplayName(role) }));
-  if (!first) {
-    throw new Error("no role to offer: the signed-in Administrator is always in the list");
-  }
-  return [first, ...rest];
-}
 
 function validateName(value: string): string | undefined {
   return value.trim() ? undefined : modalMessages.nameRequired;

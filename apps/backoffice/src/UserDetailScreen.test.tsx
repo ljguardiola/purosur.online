@@ -1,19 +1,43 @@
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import type { BackofficeAccess } from "./access";
+import type { RoleSummary } from "./rolesApi";
 import { UserDetailScreen, type UserDetailScreenServices } from "./UserDetailScreen";
 import type { BranchUser, UserPasskey } from "./usersApi";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
+const shiftRole: RoleSummary = {
+  id: "role-shift",
+  isAdministrator: false,
+  name: "Responsable de turno",
+  permissionKeys: [],
+  userCount: 1,
+};
+const cashierRole: RoleSummary = {
+  id: "role-cashier",
+  isAdministrator: false,
+  name: "Cajero",
+  permissionKeys: [],
+  userCount: 0,
+};
+const administratorRole: RoleSummary = {
+  id: "role-admin",
+  isAdministrator: true,
+  name: null,
+  permissionKeys: [],
+  userCount: 1,
+};
+
 function createServices(
   overrides: Partial<UserDetailScreenServices> = {},
 ): UserDetailScreenServices {
-  return {
+  const services: UserDetailScreenServices = {
     fetchUser: vi.fn(),
-    changeUserEmail: vi.fn(),
+    editUser: vi.fn(),
+    fetchRoles: vi.fn(),
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     removeUserPasskey: vi.fn(),
     deactivateUser: vi.fn(),
@@ -22,6 +46,13 @@ function createServices(
     startAuthentication: vi.fn(),
     ...overrides,
   };
+  if (!overrides.fetchRoles) {
+    vi.mocked(services.fetchRoles).mockResolvedValue({
+      kind: "ok",
+      value: [administratorRole, shiftRole, cashierRole],
+    });
+  }
+  return services;
 }
 
 const lucia: BranchUser = {
@@ -29,8 +60,9 @@ const lucia: BranchUser = {
   firstName: "Lucía",
   email: "lucia.perez@purosur.online",
   version: 1,
-  role: { id: "role-shift", isAdministrator: false, name: "Responsable de turno" },
+  role: shiftRole,
   passkeyCount: 1,
+  isLastActiveAdministrator: false,
 };
 
 const NOW = () => new Date("2026-09-23T12:00:00.000Z");
@@ -167,6 +199,9 @@ test("opens the edit modal with Correo prefilled, with no advance notice about a
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("lucia.perez@purosur.online");
+  await expect
+    .element(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }))
+    .toBeVisible();
   expect(
     dialog
       .getByText("Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.")
@@ -176,7 +211,106 @@ test("opens the edit modal with Correo prefilled, with no advance notice about a
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.changeUserEmail).not.toHaveBeenCalled();
+  expect(services.editUser).not.toHaveBeenCalled();
+});
+
+test("lists every role and lets picking a different one change the Rol selector's value", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await expect.element(screen.getByRole("option", { name: "Administrador" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Cajero" })).toBeVisible();
+  await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
+
+  await expect.element(dialog.getByRole("button", { name: /^Cajero Rol/ })).toBeVisible();
+});
+
+test("saves the newly picked role together with the email", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  const updated: BranchUser = { ...lucia, role: cashierRole, version: 2 };
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "ok", value: updated });
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(1);
+  expect(services.editUser).toHaveBeenCalledWith("user-1", {
+    email: "lucia.perez@purosur.online",
+    roleId: "role-cashier",
+    version: 1,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Cajero")).toBeVisible();
+});
+
+test("shows no Select, but a locked Rol field with a keyboard-focusable lock and its tooltip, for the last active Administrator", async () => {
+  const lastAdmin: BranchUser = {
+    ...lucia,
+    role: administratorRole,
+    isLastActiveAdministrator: true,
+  };
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lastAdmin });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+
+  expect(dialog.getByRole("button", { name: /Rol$/ }).query()).toBeNull();
+  await expect.element(dialog.getByText("Administrador")).toBeVisible();
+  const lock = dialog.getByRole("button", { name: "Por qué el rol está fijo" });
+  await expect.element(lock).toBeVisible();
+
+  // The modal is wider than the default phone-sized browser-mode viewport, which would leave the
+  // lock (near the field's right edge) outside it and unhoverable (see Tooltip.test.tsx's own
+  // comment on the same constraint applied to another portaled overlay).
+  await page.viewport(1280, 900);
+  await userEvent.hover(lock);
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent(
+      "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.",
+    );
+
+  await page.viewport(414, 896);
+});
+
+test("shows a last_administrator notice with a reload action when the server still refuses the role change", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "last_administrator" });
+
+  await userEvent.click(dialog.getByRole("button", { name: /^Responsable de turno Rol/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Ahora es el único Administrador activo")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeVisible();
+});
+
+test("shows an unknown-role notice when the server rejects the chosen role", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "validation_failed", field: "roleId" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Ese rol ya no está disponible")).toBeVisible();
 });
 
 test("shows no helper line under Correo in the edit modal", async () => {
@@ -199,14 +333,15 @@ test("changes the email directly, without the authorization modal, when the sess
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
   const updated: BranchUser = { ...lucia, email: "nueva@purosur.online", version: 2 };
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "ok", value: updated });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "ok", value: updated });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => vi.mocked(services.changeUserEmail).mock.calls.length).toBe(1);
-  expect(services.changeUserEmail).toHaveBeenCalledWith("user-1", {
+  await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(1);
+  expect(services.editUser).toHaveBeenCalledWith("user-1", {
     email: "nueva@purosur.online",
+    roleId: "role-shift",
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -220,9 +355,9 @@ test("opens the authorization modal on authorization_required, then authorizes a
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
   const updated: BranchUser = { ...lucia, email: "nueva@purosur.online", version: 2 };
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "authorization_required" });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "ok", value: updated });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "ok", value: updated });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -231,14 +366,14 @@ test("opens the authorization modal on authorization_required, then authorizes a
   await expect
     .element(
       authDialog.getByText(
-        "Cambiar el correo de un usuario necesita tu autorización. Confirmala con tu passkey.",
+        "Editar un usuario necesita tu autorización. Confirmala con tu passkey.",
       ),
     )
     .toBeVisible();
 
   await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  await expect.poll(() => vi.mocked(services.changeUserEmail).mock.calls.length).toBe(2);
+  await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(2);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("nueva@purosur.online")).toBeVisible();
 });
@@ -249,7 +384,7 @@ test("cancelling the authorization modal keeps the edit modal open with its type
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "authorization_required" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -266,7 +401,7 @@ test("cancelling the authorization modal keeps the edit modal open with its type
     .element(screen.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("nueva@purosur.online");
   expect(screen.getByText("No se pudo guardar el cambio").query()).toBeNull();
-  expect(services.changeUserEmail).toHaveBeenCalledTimes(1);
+  expect(services.editUser).toHaveBeenCalledTimes(1);
 });
 
 test("shows email_taken on Correo and keeps the modal open", async () => {
@@ -275,7 +410,7 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "email_taken" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "email_taken" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "tomada@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -284,13 +419,13 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
 
-test("shows an error inside the authorization modal, not calling changeUserEmail again, when the browser cancels the passkey ceremony", async () => {
+test("shows an error inside the authorization modal, not calling editUser again, when the browser cancels the passkey ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "authorization_required" });
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
     value: authorizationOptions,
@@ -303,7 +438,7 @@ test("shows an error inside the authorization modal, not calling changeUserEmail
   await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.element(authDialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
-  expect(services.changeUserEmail).toHaveBeenCalledTimes(1);
+  expect(services.editUser).toHaveBeenCalledTimes(1);
 });
 
 test("ends the session when authorizing the email change finds it closed", async () => {
@@ -313,7 +448,7 @@ test("ends the session when authorizing the email change finds it closed", async
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "authorization_required" });
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "unauthenticated",
   });
@@ -333,7 +468,7 @@ test("ends the session when the change itself finds it closed", async () => {
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "unauthenticated" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -348,7 +483,7 @@ test("navigates to Mi cuenta, without the authorization modal, when the email ch
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "forbidden" });
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "forbidden" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -365,9 +500,9 @@ test("navigates to Mi cuenta when the email change retried after the authorizati
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "authorization_required" });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "forbidden" });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "forbidden" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -387,7 +522,7 @@ test("shows a rate-limited notice when the change is rate limited", async () => 
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({
+  vi.mocked(services.editUser).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
@@ -404,7 +539,7 @@ test("shows a server-rejected email on Correo", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({
+  vi.mocked(services.editUser).mockResolvedValue({
     kind: "validation_failed",
     field: "email",
   });
@@ -421,7 +556,7 @@ test("shows a server-rejected version as a failed notice, leaving Correo without
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValue({
+  vi.mocked(services.editUser).mockResolvedValue({
     kind: "validation_failed",
     field: "version",
   });
@@ -441,7 +576,7 @@ test("shows a stale_version notice, and Recargar refetches the user so the secon
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "stale_version" });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "stale_version" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -460,14 +595,14 @@ test("shows a stale_version notice, and Recargar refetches the user so the secon
     .toBeNull();
 
   const updated: BranchUser = { ...reloaded, email: "final@purosur.online", version: 6 };
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "ok", value: updated });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "ok", value: updated });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "final@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => vi.mocked(services.changeUserEmail).mock.calls.length).toBe(2);
-  expect(vi.mocked(services.changeUserEmail).mock.calls[1]).toEqual([
+  await expect.poll(() => vi.mocked(services.editUser).mock.calls.length).toBe(2);
+  expect(vi.mocked(services.editUser).mock.calls[1]).toEqual([
     "user-1",
-    { email: "final@purosur.online", version: 5 },
+    { email: "final@purosur.online", roleId: "role-shift", version: 5 },
   ]);
 });
 
@@ -476,7 +611,7 @@ async function openStaleModal(services: UserDetailScreenServices) {
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "stale_version" });
+  vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "stale_version" });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByText("Este usuario cambió mientras lo editabas")).toBeVisible();
@@ -989,6 +1124,7 @@ const adminTarget: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 1,
+  isLastActiveAdministrator: false,
 };
 
 test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {

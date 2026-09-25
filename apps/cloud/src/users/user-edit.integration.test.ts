@@ -12,7 +12,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerUserEmailChangeRoutes } from "./user-email-change-route.js";
+import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite reports a unique violation with its own error shape; production talks to Postgres
 // through postgres-js, whose error names the violated index differently. This proves the taken
@@ -37,7 +37,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   app = Fastify();
-  registerUserEmailChangeRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
+  registerUserEditRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN });
 });
 
 afterEach(async () => {
@@ -81,7 +81,7 @@ async function insertSession(userId: string): Promise<string> {
   return rawSessionId;
 }
 
-describe("changing a user's email to a taken address on a real Postgres through postgres-js", () => {
+describe("editing a user's email to a taken address on a real Postgres through postgres-js", () => {
   it("answers 409 email_taken and writes nothing", async () => {
     const suffix = randomUUID();
     const administratorId = await insertUser(
@@ -102,9 +102,9 @@ describe("changing a user's email to a taken address on a real Postgres through 
 
     const response = await app.inject({
       method: "POST",
-      url: `/users/${targetId}/email`,
+      url: `/users/${targetId}/edit`,
       headers: { origin: BACKOFFICE_ORIGIN, cookie },
-      payload: { email: takenEmail, version: 1 },
+      payload: { email: takenEmail, role_id: cashierRole.id, version: 1 },
     });
 
     expect(response.statusCode).toBe(409);

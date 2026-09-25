@@ -117,7 +117,7 @@ export const users = pgTable(
       .references(() => locations.id),
     // Optimistic concurrency for a user row: starts at 1 and every update of that row increments
     // it. A caller sends back the version it last read; a mismatch means someone else changed the
-    // row since (the email-change route is the first writer to check it).
+    // row since (the user edit route checks it).
     version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],

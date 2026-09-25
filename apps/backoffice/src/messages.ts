@@ -379,8 +379,12 @@ export const messages = defineMessages("es-AR", (f) => ({
         onlyPasskeyWarning: (params: { name: string }) =>
           `Es su única passkey: para volver a entrar, ${params.name} va a tener que pedir el enlace de recuperación por correo.`,
       },
-      editEmailModal: {
+      editUserModal: {
         eyebrow: USERS_EYEBROW,
+        roleLabel: "Rol",
+        lockedRoleAria: "Por qué el rol está fijo",
+        lastAdministratorTooltip:
+          "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.",
         emailLabel: EMAIL_LABEL,
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
@@ -392,6 +396,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Este usuario cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        lastAdministratorTitle: "Ahora es el único Administrador activo",
+        lastAdministratorDetail:
+          "Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona.",
+        unknownRoleTitle: "Ese rol ya no está disponible",
+        unknownRoleDetail: "Cerrá esta ventana y volvé a intentarlo.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
       },
@@ -818,7 +827,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     actions: {
       roleSave: "Guardar un rol",
       userCreate: "Crear un usuario",
-      emailChange: "Cambiar el correo de un usuario",
+      userEdit: "Editar un usuario",
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",

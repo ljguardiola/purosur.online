@@ -17,7 +17,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 // The Administrator role is never an editable target, so it answers identically to a missing or
 // malformed id, the same "none of the three ever leaks which one it was" reasoning
-// `user-read-route.ts` and `user-email-change-route.ts` apply to a cross-branch user id.
+// `user-read-route.ts` and `user-edit-route.ts` apply to a cross-branch user id.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no editable role with that id",

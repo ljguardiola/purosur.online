@@ -143,6 +143,7 @@ describe("GET /users/:id", () => {
       version: 1,
       role: { id: roleId, is_administrator: false, name: "Encargada" },
       passkey_count: 0,
+      is_last_active_administrator: false,
     });
   });
 
@@ -167,6 +168,7 @@ describe("GET /users/:id", () => {
       version: 1,
       role: { id: administratorRoleId, is_administrator: true, name: null },
       passkey_count: 0,
+      is_last_active_administrator: true,
     });
   });
 

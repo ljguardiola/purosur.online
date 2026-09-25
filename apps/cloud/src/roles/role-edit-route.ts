@@ -110,8 +110,8 @@ export type EditRoleOutcome =
 
 /**
  * Updates one hand-made role's name and permissions in one transaction, rejecting a save made over
- * a version someone else already changed the same way `changeUserEmail` (`user-email-change-
- * route.ts`) rejects a stale user save. A name that already belongs to another role is rejected
+ * a version someone else already changed the same way `user-edit-route.ts` rejects a stale user
+ * save. A name that already belongs to another role is rejected
  * the same way `createRole` (`role-creation-route.ts`) rejects one, including its own database
  * backstop for a name that lands concurrently. Leaving the name and permission set exactly as they
  * were is a no-op: the version does not bump and nothing is audited.

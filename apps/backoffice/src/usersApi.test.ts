@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   type BranchUser,
-  changeUserEmail,
   createUser,
   deactivateUser,
+  editUser,
   fetchUser,
   fetchUserPasskeys,
   fetchUsers,
@@ -32,6 +32,7 @@ const administratorRow = {
   version: 1,
   role: { id: "role-admin", is_administrator: true, name: null },
   passkey_count: 2,
+  is_last_active_administrator: false,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -40,6 +41,7 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 2,
+  isLastActiveAdministrator: false,
 };
 
 test("fetchUsers lists the branch's users on 200", async () => {
@@ -69,6 +71,17 @@ test("fetchUsers maps each user's passkeyCount from the wire", async () => {
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.value[0]?.passkeyCount).toBe(5);
+});
+
+test("fetchUsers maps each user's isLastActiveAdministrator from the wire", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ ...administratorRow, is_last_active_administrator: true }]),
+  );
+
+  const outcome = await fetchUsers();
+
+  expect(outcome.kind).toBe("ok");
+  expect(outcome.kind === "ok" && outcome.value[0]?.isLastActiveAdministrator).toBe(true);
 });
 
 test("fetchUsers reports forbidden on 403", async () => {
@@ -276,121 +289,137 @@ test("fetchUser reports failed on a 200 whose body is not JSON", async () => {
   await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
 });
 
-const changedRow = { ...administratorRow, email: "new@example.com", version: 2 };
-const changedUser: BranchUser = { ...administrator, email: "new@example.com", version: 2 };
+const changedRow = {
+  ...administratorRow,
+  email: "new@example.com",
+  role: { id: "role-shift", is_administrator: false, name: "Responsable de turno" },
+  version: 2,
+};
+const changedUser: BranchUser = {
+  ...administrator,
+  email: "new@example.com",
+  role: { id: "role-shift", isAdministrator: false, name: "Responsable de turno" },
+  version: 2,
+};
+const editInput = { email: "new@example.com", roleId: "role-shift", version: 1 };
 
-test("changeUserEmail posts the wire shape and returns the updated user on 200", async () => {
+test("editUser posts the wire shape and returns the updated user on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, changedRow));
 
-  const outcome = await changeUserEmail("user-1", { email: "new@example.com", version: 1 });
+  const outcome = await editUser("user-1", editInput);
 
   expect(outcome).toEqual({ kind: "ok", value: changedUser });
   expect(fetch).toHaveBeenCalledWith(
-    "/users/user-1/email",
+    "/users/user-1/edit",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({ email: "new@example.com", version: 1 }),
+      body: JSON.stringify({ email: "new@example.com", role_id: "role-shift", version: 1 }),
     }),
   );
 });
 
-test("changeUserEmail reports failed on a 200 whose body is not JSON", async () => {
+test("editUser reports failed on a 200 whose body is not JSON", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "failed" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "failed" });
 });
 
-test("changeUserEmail reports a validation_failed field on 400", async () => {
+test("editUser reports a validation_failed field on 400", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "email" }] }),
   );
 
-  await expect(changeUserEmail("user-1", { email: "not-an-email", version: 1 })).resolves.toEqual({
+  await expect(editUser("user-1", { ...editInput, email: "not-an-email" })).resolves.toEqual({
     kind: "validation_failed",
     field: "email",
   });
 });
 
-test("changeUserEmail maps the version validation field to its camelCase name", async () => {
+test("editUser maps the role_id validation field to its camelCase name", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "role_id" }] }),
+  );
+
+  await expect(editUser("user-1", editInput)).resolves.toEqual({
+    kind: "validation_failed",
+    field: "roleId",
+  });
+});
+
+test("editUser maps the version validation field to its camelCase name", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "version" }] }),
   );
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "validation_failed", field: "version" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({
+    kind: "validation_failed",
+    field: "version",
+  });
 });
 
-test("changeUserEmail reports email_taken on 409 with that code", async () => {
+test("editUser reports email_taken on 409 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "email_taken" }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "taken@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "email_taken" });
+  await expect(editUser("user-1", { ...editInput, email: "taken@example.com" })).resolves.toEqual({
+    kind: "email_taken",
+  });
 });
 
-test("changeUserEmail reports stale_version on 409 with that code", async () => {
+test("editUser reports stale_version on 409 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "stale_version" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "stale_version" });
 });
 
-test("changeUserEmail reports not_found on 404", async () => {
+test("editUser reports last_administrator on 409 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "last_administrator" }));
+
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "last_administrator" });
+});
+
+test("editUser reports not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 
-  await expect(
-    changeUserEmail("missing", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "not_found" });
+  await expect(editUser("missing", editInput)).resolves.toEqual({ kind: "not_found" });
 });
 
-test("changeUserEmail reports authorization_required on 401 with that code", async () => {
+test("editUser reports authorization_required on 401 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "authorization_required" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({
+    kind: "authorization_required",
+  });
 });
 
-test("changeUserEmail reports unauthenticated on 401 with the unauthenticated code", async () => {
+test("editUser reports unauthenticated on 401 with the unauthenticated code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "unauthenticated" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "unauthenticated" });
 });
 
-test("changeUserEmail reports forbidden on 403", async () => {
+test("editUser reports forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "forbidden" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "forbidden" });
 });
 
-test("changeUserEmail reports rate_limited with the Retry-After seconds on 429", async () => {
+test("editUser reports rate_limited with the Retry-After seconds on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "50" }),
   );
 
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 50 });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 50,
+  });
 });
 
-test("changeUserEmail reports failed on any other status or a network failure", async () => {
+test("editUser reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "failed" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(
-    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
-  ).resolves.toEqual({ kind: "failed" });
+  await expect(editUser("user-1", editInput)).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchUserPasskeys lists the target user's passkeys on 200", async () => {
