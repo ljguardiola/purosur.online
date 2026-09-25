@@ -45,13 +45,14 @@ type TextFieldValidityProps =
   | { invalid: true; errorMessage: string }
   | { invalid?: false; errorMessage?: undefined };
 
-// Only the three money kinds take a prefix and only the two kg kinds take a suffix; plain text
-// takes neither. Asking for the wrong affix on a kind, or leaving out the one it requires, does
+// Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
+// require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
+// días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
 // not compile.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
-  | { kind: "plain-text"; prefix?: undefined; suffix?: undefined };
+  | { kind: "plain-text"; prefix?: undefined; suffix?: TextFieldAffix };
 
 export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
 
@@ -72,11 +73,12 @@ const frameClassName: Record<TextFieldValueKind, string> = {
   price: "h-[4.5rem] gap-2 px-4",
   weight: "h-[4rem] gap-2 px-4",
   quantity: "h-[4.5rem] gap-2 px-4",
-  "plain-text": "h-[3.25rem] px-4",
+  "plain-text": "h-[3.25rem] gap-2 px-4",
 };
 
 // The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
 // right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
+// Plain text is left-aligned unless it carries a suffix (see plainTextSuffixedValueClassName).
 const valueClassName: Record<TextFieldValueKind, string> = {
   amount: "text-right text-3xl font-bold text-ink",
   "counted-cash": "text-right text-3xl font-bold text-ink",
@@ -86,10 +88,19 @@ const valueClassName: Record<TextFieldValueKind, string> = {
   "plain-text": "text-left text-base font-normal text-ink",
 };
 
+// A plain-text value with a suffix sits immediately before it ("30 días"), like every other kind
+// that takes one, instead of leaving the input's empty width between the value and its unit.
+const plainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
+
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
 
 const moneyPrefixClassName = "shrink-0 text-3xl font-normal text-ink-secondary";
 const unitSuffixClassName = "shrink-0 text-xl font-normal text-ink-secondary";
+// Plain text's own value is text-base rather than the 32px register scale every other kind
+// shares, so its optional suffix (e.g. "días") follows that same smaller scale instead of
+// unitSuffixClassName's kg-kind size, while keeping the same ink-secondary color every affix uses
+// to read as a unit rather than part of the value.
+const plainTextSuffixClassName = "shrink-0 text-base font-normal text-ink-secondary";
 
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
@@ -147,7 +158,8 @@ export function TextField(props: TextFieldProps) {
   const errorMessage = props.invalid ? props.errorMessage : undefined;
   const prefix =
     kind === "amount" || kind === "counted-cash" || kind === "price" ? props.prefix : undefined;
-  const suffix = kind === "weight" || kind === "quantity" ? props.suffix : undefined;
+  const suffix =
+    kind === "weight" || kind === "quantity" || kind === "plain-text" ? props.suffix : undefined;
 
   // The prefix and suffix are visual-only (`aria-hidden`) so a screen reader doesn't hit them a
   // second time as stray text while moving through the field, but a sighted user reads the unit
@@ -157,7 +169,7 @@ export function TextField(props: TextFieldProps) {
   // whatever `aria-describedby` the caller passes to TextField itself, in that order, so handing
   // it this id here reaches the input without the caller ever repeating the unit in the label.
   const affixId = useId();
-  // Left out entirely rather than set to `undefined` for a plain-text field: AriaTextField's own
+  // Left out entirely rather than set to `undefined` for a field with no affix: AriaTextField's own
   // `aria-describedby` prop type doesn't accept `undefined` under this project's
   // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
   const affixDescribedByProps =
@@ -206,11 +218,19 @@ export function TextField(props: TextFieldProps) {
           </span>
         )}
         <AriaInput
-          className={`${inputBaseClassName} ${valueClassName[kind]}`}
+          className={`${inputBaseClassName} ${
+            kind === "plain-text" && suffix !== undefined
+              ? plainTextSuffixedValueClassName
+              : valueClassName[kind]
+          }`}
           {...labelledByProps}
         />
         {suffix !== undefined && (
-          <span aria-hidden="true" id={affixId} className={unitSuffixClassName}>
+          <span
+            aria-hidden="true"
+            id={affixId}
+            className={kind === "plain-text" ? plainTextSuffixClassName : unitSuffixClassName}
+          >
             {suffix}
           </span>
         )}

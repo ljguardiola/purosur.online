@@ -517,6 +517,25 @@ test("fits the three deadline fields inside their card at the backoffice's conte
   );
 });
 
+test("renders a Plazos field at the same box height as a plain-text field, with its días unit still exposed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+
+  const addressBox = screen.getByRole("textbox", { name: "Dirección" }).element()
+    .parentElement as HTMLElement;
+  const daysBox = screen.getByRole("textbox", { name: "Precio sin revisar" }).element()
+    .parentElement as HTMLElement;
+
+  expect(daysBox.getBoundingClientRect().height).toBeCloseTo(
+    addressBox.getBoundingClientRect().height,
+    0,
+  );
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveAccessibleDescription("días");
+});
+
 test("keeps unsaved edits without refetching when the parent re-renders with a new onSessionEnded", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
