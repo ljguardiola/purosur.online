@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
+import { type BackofficeAccess, canDeactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
@@ -25,6 +26,8 @@ import {
   type BranchUserRole,
   type ChangeUserEmailOutcome,
   changeUserEmail,
+  type DeactivateUserOutcome,
+  deactivateUser,
   fetchUser,
   fetchUserPasskeys,
   type RemoveUserPasskeyOutcome,
@@ -37,6 +40,7 @@ export type UserDetailScreenServices = {
   changeUserEmail: typeof changeUserEmail;
   fetchUserPasskeys: typeof fetchUserPasskeys;
   removeUserPasskey: typeof removeUserPasskey;
+  deactivateUser: typeof deactivateUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
@@ -47,6 +51,7 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   changeUserEmail,
   fetchUserPasskeys,
   removeUserPasskey,
+  deactivateUser,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,
@@ -56,6 +61,8 @@ export type UserDetailScreenProps = {
   userId: string;
   /** From the session: hides this user's own remove buttons, which Mi cuenta manages instead. */
   signedInUserId: string;
+  /** From the session: gates every action this screen offers by what the viewer actually holds. */
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
   now?: () => Date;
@@ -85,6 +92,7 @@ const modalMessages = usersMessages.editEmailModal;
 const passkeysMessages = messages.settings.myAccount.passkeys;
 const selfRemoveMessages = passkeysMessages.removeModal;
 const removePasskeyModalMessages = usersMessages.removePasskeyModal;
+const deactivateModalMessages = usersMessages.deactivateModal;
 
 function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
   return passkeysMessages.rowDetail({
@@ -518,15 +526,164 @@ function RemoveUserPasskeyModal({
   );
 }
 
+type DeactivateUserModalProps = {
+  isOpen: boolean;
+  user: BranchUser;
+  onClose: () => void;
+  onDeactivated: () => void;
+  onVanished: () => void;
+  onSessionEnded: () => void;
+  deactivateUser: typeof deactivateUser;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
+  startAuthentication: typeof startAuthentication;
+};
+
+/** Confirms deactivating a user, confirming with the shared passkey-authorization modal only when the cloud asks for it. There is no reactivation, so this is a one-way action. */
+function DeactivateUserModal({
+  isOpen,
+  user,
+  onClose,
+  onDeactivated,
+  onVanished,
+  onSessionEnded,
+  deactivateUser,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
+  startAuthentication,
+}: DeactivateUserModalProps) {
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<DeactivateUserOutcome>({
+    action: "userDeactivation",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      setAttemptFailed(false);
+      setRateLimitedSeconds(null);
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  async function handleConfirm() {
+    setAttemptFailed(false);
+    setRateLimitedSeconds(null);
+    setSubmitting(true);
+
+    const outcome = await run(() => deactivateUser(user.id));
+    if (outcome.kind === "cancelled") {
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "ok") {
+      onDeactivated();
+      return;
+    }
+    // A 404 means the target is already gone, inactive, or otherwise unreachable — the same vanished
+    // target the rest of this screen shows its not-found state for.
+    if (outcome.kind === "not_found") {
+      onVanished();
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setRateLimitedSeconds(outcome.retryAfterSeconds);
+      setSubmitting(false);
+      return;
+    }
+    setAttemptFailed(true);
+    setSubmitting(false);
+  }
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="confirmation"
+        tone="error"
+        icon={<UserX />}
+        title={deactivateModalMessages.title({ name: user.firstName })}
+        closable
+        closeLabel={deactivateModalMessages.closeLabel}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              isDisabled={submitting}
+              onPress={onClose}
+            >
+              {deactivateModalMessages.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              tone="destructive"
+              size="large"
+              icon={<UserX />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleConfirm()}
+            >
+              {deactivateModalMessages.confirm}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-base text-ink">{deactivateModalMessages.body}</p>
+          {attemptFailed && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={deactivateModalMessages.attemptFailedTitle}
+              detail={deactivateModalMessages.attemptFailedDetail}
+            />
+          )}
+          {rateLimitedSeconds !== null && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={usersMessages.rateLimitedTitle}
+              detail={usersMessages.rateLimitedDetail({
+                minutes: Math.ceil(rateLimitedSeconds / 60),
+              })}
+            />
+          )}
+        </div>
+      </Modal>
+      {modal}
+    </>
+  );
+}
+
 /**
  * "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email
- * edit and passkey removal. Reserved to the Administrator: App.tsx only ever routes here for one,
- * and a `forbidden` read (a role change mid-session) sends the browser to Mi cuenta instead of
- * showing a notice.
+ * edit, passkey removal, and deactivation. Every action here is gated by `access`: an Administrator
+ * can do everything; a role delegated only `deactivate_users` can reach this screen but sees just
+ * the Desactivar row (never against another Administrator). A `forbidden` read (a role change
+ * mid-session) sends the browser to Mi cuenta instead of showing a notice.
  */
 export function UserDetailScreen({
   userId,
   signedInUserId,
+  access,
   onSessionEnded,
   now,
   services,
@@ -536,6 +693,7 @@ export function UserDetailScreen({
     changeUserEmail,
     fetchUserPasskeys,
     removeUserPasskey,
+    deactivateUser,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
@@ -545,6 +703,7 @@ export function UserDetailScreen({
   const [passkeysState, setPasskeysState] = useState<PasskeysState>({ kind: "loading" });
   const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the user and unmount
   // an open edit modal along with what was typed in it.
@@ -652,14 +811,16 @@ export function UserDetailScreen({
               <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
                 {detailMessages.datosHeading}
               </h2>
-              <Button
-                variant="secondary"
-                size="small"
-                icon={<Pencil />}
-                onPress={() => setModalOpen(true)}
-              >
-                {detailMessages.editButton}
-              </Button>
+              {access.isAdministrator && (
+                <Button
+                  variant="secondary"
+                  size="small"
+                  icon={<Pencil />}
+                  onPress={() => setModalOpen(true)}
+                >
+                  {detailMessages.editButton}
+                </Button>
+              )}
             </div>
             <div className="flex gap-8">
               <div className="flex flex-col gap-1">
@@ -732,7 +893,7 @@ export function UserDetailScreen({
                           {passkeyRowDetail(passkey, clock())}
                         </p>
                       </div>
-                      {!isOwnAccount && (
+                      {access.isAdministrator && !isOwnAccount && (
                         <IconButton
                           icon={<Trash2 />}
                           aria-label={passkeysMessages.remove({ name: passkey.name })}
@@ -743,6 +904,22 @@ export function UserDetailScreen({
                   ))}
                 </ul>
               ))}
+          </div>
+        )}
+        {state.kind === "loaded" && canDeactivateUser(access, state.user.role) && (
+          <div className="flex items-center gap-3">
+            <p className="flex-1 text-ink-secondary text-sm">
+              {detailMessages.deactivateHelp({ name: state.user.firstName })}
+            </p>
+            <Button
+              variant="secondary"
+              size="small"
+              tone="destructive"
+              icon={<UserX />}
+              onPress={() => setDeactivateModalOpen(true)}
+            >
+              {detailMessages.deactivateButton({ name: state.user.firstName })}
+            </Button>
           </div>
         )}
       </ScreenLayout>
@@ -785,6 +962,26 @@ export function UserDetailScreen({
           onSessionEnded={endSession}
           fetchUser={fetchUser}
           changeUserEmail={changeUserEmail}
+          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
+          authorizeSession={authorizeSession}
+          startAuthentication={startAuthentication}
+        />
+      )}
+      {state.kind === "loaded" && (
+        <DeactivateUserModal
+          isOpen={deactivateModalOpen}
+          user={state.user}
+          onClose={() => setDeactivateModalOpen(false)}
+          onDeactivated={() => {
+            setDeactivateModalOpen(false);
+            navigate(USERS_LIST_PATH);
+          }}
+          onVanished={() => {
+            setDeactivateModalOpen(false);
+            setState({ kind: "notFound" });
+          }}
+          onSessionEnded={endSession}
+          deactivateUser={deactivateUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}

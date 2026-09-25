@@ -88,6 +88,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       changeUserEmail: vi.fn(),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
+      deactivateUser: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
@@ -856,6 +857,88 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
   expect(myAccountItem.getAttribute("aria-current")).toBe("page");
   expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+});
+
+test("lets a non-Administrator holding deactivate_users open Usuarios, without Nuevo usuario", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["deactivate_users"],
+    }),
+  });
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "user-3",
+        firstName: "Tomás Ruiz",
+        email: "tomas@example.com",
+        version: 1,
+        role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+        passkeyCount: 0,
+      },
+    ],
+  });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "role-shift",
+        isAdministrator: false,
+        name: "Atención de caja",
+        permissionKeys: [],
+        userCount: 1,
+      },
+    ],
+  });
+  window.history.pushState(null, "", "/settings/users");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+  window.history.pushState(null, "", "/");
+});
+
+test("opens a user's detail for a non-Administrator holding deactivate_users, offering only Desactivar", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["deactivate_users"],
+    }),
+  });
+  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "user-3",
+      firstName: "Tomás Ruiz",
+      email: "tomas@example.com",
+      version: 1,
+      role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+      passkeyCount: 0,
+    },
+  });
+  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/settings/users/user-3");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Tomás Ruiz", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Desactivar a Tomás Ruiz" }))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  window.history.pushState(null, "", "/");
 });
 
 test.each([

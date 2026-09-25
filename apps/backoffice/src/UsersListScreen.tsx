@@ -12,6 +12,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
+import type { BackofficeAccess } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { fetchRoles } from "./rolesApi";
@@ -47,6 +48,8 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
+  /** From the session: hides actions this viewer can't perform (only Administrator-only today). */
+  access: BackofficeAccess;
   onSessionEnded: () => void;
   /** Injected in tests so user management doesn't call the real API or WebAuthn. */
   services?: UsersListScreenServices;
@@ -343,7 +346,7 @@ function NewUserModal({
  * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change
  * mid-session) sends the browser to Mi cuenta instead of showing a notice.
  */
-export function UsersListScreen({ onSessionEnded, services }: UsersListScreenProps) {
+export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
   const {
     fetchUsers,
     fetchRoles,
@@ -434,14 +437,16 @@ export function UsersListScreen({ onSessionEnded, services }: UsersListScreenPro
               <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
               <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
             </div>
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              isDisabled={list.kind !== "loaded" || roles.length === 0}
-              onPress={() => setModalOpen(true)}
-            >
-              {usersMessages.newUserButton}
-            </Button>
+            {access.isAdministrator && (
+              <Button
+                variant="primary"
+                icon={<Plus />}
+                isDisabled={list.kind !== "loaded" || roles.length === 0}
+                onPress={() => setModalOpen(true)}
+              >
+                {usersMessages.newUserButton}
+              </Button>
+            )}
           </div>
         }
         bodyClassName="gap-4 p-6"

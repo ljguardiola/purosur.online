@@ -356,6 +356,18 @@ export const messages = defineMessages("es-AR", (f) => ({
         passkeysLoadErrorTitle: "No pudimos abrir las passkeys",
         passkeysLoadErrorDetail: "Probá de nuevo en unos minutos.",
         passkeysEmpty: "No tiene ninguna passkey registrada.",
+        deactivateHelp: (params: { name: string }) =>
+          `Al desactivar a ${params.name}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`,
+        deactivateButton: (params: { name: string }) => `Desactivar a ${params.name}`,
+      },
+      deactivateModal: {
+        title: (params: { name: string }) => `¿Desactivar a ${params.name}?`,
+        body: "No se puede deshacer.",
+        cancel: CANCEL_LABEL,
+        confirm: "Desactivar",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo desactivar el usuario",
+        attemptFailedDetail: "Probá de nuevo.",
       },
       removePasskeyModal: {
         title: (params: { name: string }) => `¿Dar de baja la passkey de ${params.name}?`,
@@ -720,6 +732,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       emailChange: "Cambiar el correo de un usuario",
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
+      userDeactivation: "Desactivar un usuario",
     },
   },
   help: {

@@ -1,13 +1,50 @@
 import { expect, test } from "vitest";
-import { canSeeBranchArea, canSeeCatalogArea, canSeeRolesArea, canSeeUsersArea } from "./access";
+import {
+  canDeactivateUser,
+  canSeeBranchArea,
+  canSeeCatalogArea,
+  canSeeRolesArea,
+  canSeeUsersArea,
+} from "./access";
 
 test("canSeeUsersArea is true for an Administrator", () => {
   expect(canSeeUsersArea({ isAdministrator: true, permissions: [] })).toBe(true);
 });
 
-test("canSeeUsersArea is false for a non-Administrator with no delegable Users permission yet", () => {
+test("canSeeUsersArea is true for a non-Administrator holding deactivate_users", () => {
+  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["deactivate_users"] })).toBe(true);
+});
+
+test("canSeeUsersArea is false for a non-Administrator without deactivate_users", () => {
   expect(
     canSeeUsersArea({ isAdministrator: false, permissions: ["view_reports", "void_sale"] }),
+  ).toBe(false);
+});
+
+test("canDeactivateUser is true for an Administrator, against a non-Administrator target", () => {
+  expect(
+    canDeactivateUser({ isAdministrator: true, permissions: [] }, { isAdministrator: false }),
+  ).toBe(true);
+});
+
+test("canDeactivateUser is true for a non-Administrator holding deactivate_users, against a non-Administrator target", () => {
+  expect(
+    canDeactivateUser(
+      { isAdministrator: false, permissions: ["deactivate_users"] },
+      { isAdministrator: false },
+    ),
+  ).toBe(true);
+});
+
+test("canDeactivateUser is false for a non-Administrator without deactivate_users", () => {
+  expect(
+    canDeactivateUser({ isAdministrator: false, permissions: [] }, { isAdministrator: false }),
+  ).toBe(false);
+});
+
+test("canDeactivateUser is false against an Administrator target, even for an Administrator viewer", () => {
+  expect(
+    canDeactivateUser({ isAdministrator: true, permissions: [] }, { isAdministrator: true }),
   ).toBe(false);
 });
 

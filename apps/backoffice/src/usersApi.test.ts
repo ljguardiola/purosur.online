@@ -3,6 +3,7 @@ import {
   type BranchUser,
   changeUserEmail,
   createUser,
+  deactivateUser,
   fetchUser,
   fetchUserPasskeys,
   fetchUsers,
@@ -524,4 +525,59 @@ test("removeUserPasskey reports failed on any other status or a network failure"
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
   await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "failed" });
+});
+
+test("deactivateUser posts with no body and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await deactivateUser("user-2");
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/user-2/deactivation",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+test("deactivateUser reports not_found on 404 for a missing, inactive, other-branch, or Administrator target", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("deactivateUser reports forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("deactivateUser reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "authorization_required" });
+});
+
+test("deactivateUser reports unauthenticated on 401 with the unauthenticated code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("deactivateUser reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
+  );
+
+  await expect(deactivateUser("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
+});
+
+test("deactivateUser reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
 });
