@@ -1,18 +1,8 @@
-// No field-specific length is documented anywhere in the codebase; the same gap
-// `branch-settings-validation.ts` notes for its own free-text fields. Long enough for a ticket
-// header line, short enough to guard against an unbounded payload, the same bound
-// `BRANCH_SETTINGS_TEXT_MAX_LENGTH` gives `branch_settings.address`.
-export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
-
-// Ingresos Brutos registration numbers are free text: their shape varies by province (a single
-// jurisdiction's plain number, or a multilateral-agreement "Convenio Multilateral" number with its
-// own prefix), so this is a generous bound rather than a pattern, wide enough for any of them plus
-// some surrounding notation.
-export const ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH = 100;
-
-// Mirrors `@purosur/contracts`'s Argentina calendar day because this app's `tsc` build (explicit
+// Mirrors `@purosur/contracts`'s issuer identification limits and Argentina calendar day because this app's `tsc` build (explicit
 // `rootDir`) cannot import that package's untranspiled source;
 // `issuer-identification-validation.test.ts` guards against drift.
+export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
+export const ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH = 100;
 export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 // The en-CA locale formats a date as YYYY-MM-DD, the ISO calendar date shape.

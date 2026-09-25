@@ -1,5 +1,9 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import { argentinaCalendarDay } from "@purosur/contracts";
+import {
+  argentinaCalendarDay,
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+} from "@purosur/contracts";
 import { Button, DateField, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
@@ -131,13 +135,15 @@ function validateModal(values: ModalValues, today: CalendarDate): FieldErrors {
   const legalName = values.legalName.trim();
   if (!legalName) {
     errors.legalName = modalMessages.legalNameRequired;
-  } else if (legalName.length > 200) {
+  } else if (legalName.length > ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH) {
     errors.legalName = modalMessages.legalNameTooLong;
   }
   const grossIncomeRegistration = values.grossIncomeRegistration.trim();
   if (!grossIncomeRegistration) {
     errors.grossIncomeRegistration = modalMessages.grossIncomeRegistrationRequired;
-  } else if (grossIncomeRegistration.length > 100) {
+  } else if (
+    grossIncomeRegistration.length > ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH
+  ) {
     errors.grossIncomeRegistration = modalMessages.grossIncomeRegistrationTooLong;
   }
   if (values.activityStartDate === null) {
