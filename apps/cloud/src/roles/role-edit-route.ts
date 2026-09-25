@@ -91,7 +91,6 @@ export interface EditRoleInput {
   permissionKeys: string[];
   version: number;
   actorId: string;
-  locationId: string;
 }
 
 export interface EditedRole {
@@ -231,7 +230,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   if (outcome.kind !== "applied") {
     return outcome;
   }
-  const assignedUsers = await listRoleUsers(db, input.id, input.locationId);
+  const assignedUsers = await listRoleUsers(db, input.id);
   return {
     kind: "applied",
     role: { ...outcome.role, userCount: assignedUsers.length, assignedUsers },
@@ -298,7 +297,6 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         permissionKeys: parsedBody.permissionKeys,
         version: parsedBody.version,
         actorId: openSession.userId,
-        locationId: openSession.locationId,
       });
 
       if (outcome.kind === "stale_version") {

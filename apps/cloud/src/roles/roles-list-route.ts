@@ -1,11 +1,10 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import { rolePermissions, roles, userRoles } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   ADMINISTRATOR_ACCESS,
-  openSessionOf,
   originGuard,
   registerRouteAccess,
   routeSessionSource,
@@ -46,13 +45,13 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
 }
 
 /**
- * Lists every role, Administrator first (then by name), counting only the users of `locationId`:
- * the Administrator row never has stored `role_permissions` rows, so it always reports the full
- * permission catalog instead of whatever (nothing) is in that table for it.
+ * Lists every role, Administrator first (then by name), counting every user who holds each role
+ * across every branch: roles aren't scoped to a branch (`db/schema.ts`), so its people aren't
+ * either. The Administrator row never has stored `role_permissions` rows, so it always reports the
+ * full permission catalog instead of whatever (nothing) is in that table for it.
  */
 export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  locationId: string,
 ): Promise<RoleSummaryRow[]> {
   const roleRows = await db
     .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
@@ -76,8 +75,6 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   const userCountRows = await db
     .select({ roleId: userRoles.roleId, count: sql<number>`count(*)::int` })
     .from(userRoles)
-    .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(eq(users.locationId, locationId))
     .groupBy(userRoles.roleId);
   const userCountByRole = new Map(userCountRows.map((row) => [row.roleId, row.count]));
 
@@ -107,10 +104,8 @@ export function registerRolesListRoute<TQueryResult extends PgQueryResultHKT>(
       ),
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
-    async (request, reply) => {
-      const openSession = openSessionOf(request);
-
-      const rows = await listRoles(options.db, openSession.locationId);
+    async (_request, reply) => {
+      const rows = await listRoles(options.db);
       await reply.code(200).send(rows.map(toRoleSummaryWire));
     },
   );

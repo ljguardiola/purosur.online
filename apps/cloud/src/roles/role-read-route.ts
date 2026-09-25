@@ -1,11 +1,10 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   ADMINISTRATOR_ACCESS,
-  openSessionOf,
   originGuard,
   registerRouteAccess,
   routeSessionSource,
@@ -43,17 +42,19 @@ export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
   return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
 }
 
-/** The people holding this role at this branch, ordered by name, for the role editor's confirmation step. */
+/**
+ * Every person holding this role, across every branch, ordered by name, for the role editor's
+ * confirmation step. Roles aren't scoped to a branch (`db/schema.ts`), so its people aren't either.
+ */
 export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   roleId: string,
-  locationId: string,
 ): Promise<AssignedUser[]> {
   const rows = await db
     .select({ id: users.id, name: users.firstName })
     .from(userRoles)
     .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`)
+    .where(eq(userRoles.roleId, roleId))
     .orderBy(asc(users.firstName));
   return rows;
 }
@@ -121,8 +122,6 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
       config: { access: ADMINISTRATOR_ACCESS, sessionSource },
     },
     async (request, reply) => {
-      const openSession = openSessionOf(request);
-
       const targetId = (request.params as { id: string }).id;
       const role = await findEditableRole(options.db, targetId);
       if (!role) {
@@ -130,7 +129,7 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const assignedUsers = await listRoleUsers(options.db, role.id, openSession.locationId);
+      const assignedUsers = await listRoleUsers(options.db, role.id);
       await reply
         .code(200)
         .send(toRoleDetailWire({ ...role, userCount: assignedUsers.length, assignedUsers }));

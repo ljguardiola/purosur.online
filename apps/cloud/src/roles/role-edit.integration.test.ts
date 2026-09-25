@@ -58,7 +58,6 @@ describe("two edits racing on the same role's version, on a real Postgres throug
   it("applies exactly one of them and reports the other as stale_version", async () => {
     const suffix = randomUUID();
     const administratorId = await insertAdministrator(suffix);
-    const locationId = await seededLocationId(db);
     const roleId = await insertRole(`Cajera ${suffix}`);
 
     const [first, second] = await Promise.all([
@@ -68,7 +67,6 @@ describe("two edits racing on the same role's version, on a real Postgres throug
         permissionKeys: ["sell_and_charge"],
         version: 1,
         actorId: administratorId,
-        locationId,
       }),
       editRole(db, {
         id: roleId,
@@ -76,7 +74,6 @@ describe("two edits racing on the same role's version, on a real Postgres throug
         permissionKeys: ["adjust_stock"],
         version: 1,
         actorId: administratorId,
-        locationId,
       }),
     ]);
 
@@ -102,7 +99,6 @@ describe("two edits racing to rename different roles to the same name, on a real
   it("applies exactly one of them and reports the other as name_taken", async () => {
     const suffix = randomUUID();
     const administratorId = await insertAdministrator(suffix);
-    const locationId = await seededLocationId(db);
     const roleAId = await insertRole(`Original A ${suffix}`);
     const roleBId = await insertRole(`Original B ${suffix}`);
     const targetName = `Compartido ${suffix}`;
@@ -114,7 +110,6 @@ describe("two edits racing to rename different roles to the same name, on a real
         permissionKeys: [],
         version: 1,
         actorId: administratorId,
-        locationId,
       }),
       editRole(db, {
         id: roleBId,
@@ -122,7 +117,6 @@ describe("two edits racing to rename different roles to the same name, on a real
         permissionKeys: [],
         version: 1,
         actorId: administratorId,
-        locationId,
       }),
     ]);
 

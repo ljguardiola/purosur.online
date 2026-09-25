@@ -176,7 +176,7 @@ describe("GET /roles", () => {
     ]);
   });
 
-  it("counts only the users of the session's own branch", async () => {
+  it("counts a role's users across every branch, since roles are global", async () => {
     const locationId = await seededLocationId(db);
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) {
@@ -208,7 +208,7 @@ describe("GET /roles", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject([
       { is_administrator: true, user_count: 1 },
-      { id: cashierRoleId, user_count: 1 },
+      { id: cashierRoleId, user_count: 2 },
     ]);
   });
 

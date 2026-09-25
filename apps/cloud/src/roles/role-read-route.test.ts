@@ -237,7 +237,7 @@ describe("GET /roles/:id", () => {
     expect(emptyResponse.json()).toMatchObject({ assigned_users: [] });
   });
 
-  it("never includes a person assigned to the role at a different branch", async () => {
+  it("includes a person assigned to the role at a different branch, since roles are global", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -250,7 +250,7 @@ describe("GET /roles/:id", () => {
       throw new Error("test setup: seeding the other branch returned no row");
     }
     const cashierRoleId = await insertRole("Cajera");
-    await insertUser({
+    const someoneElseId = await insertUser({
       firstName: "Someone Else",
       email: "someone@example.com",
       roleId: cashierRoleId,
@@ -259,6 +259,8 @@ describe("GET /roles/:id", () => {
 
     const response = await getRole(cashierRoleId, rawSessionId);
 
-    expect(response.json()).toMatchObject({ assigned_users: [] });
+    expect(response.json()).toMatchObject({
+      assigned_users: [{ id: someoneElseId, name: "Someone Else" }],
+    });
   });
 });
