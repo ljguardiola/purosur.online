@@ -5,7 +5,7 @@
 // referenced from the cloud service here.
 import { bucket, defineRailway, image, postgres, project, service } from "railway/iac";
 // Railway IaC cannot register a custom domain: it must be added once in the dashboard or with
-// `railway domain <domain> --service cloud`, and only then declared in this file.
+// `railway domain <domain> --service "Cloud Server"`, and only then declared in this file.
 // .github/scripts/apply-edge-rules.mjs reads the same file to scope the edge origin secret.
 import customDomains from "./custom-domains.json" with { type: "json" };
 
@@ -47,7 +47,7 @@ function requireRecoveryEmailFrom(environment: string): string {
   return from;
 }
 
-const POSTGRES_RESOURCE_NAME = "postgres";
+const POSTGRES_RESOURCE_NAME = "Database";
 const CLOUD_APP_ROLE = "cloud_app";
 
 // `db.env.DATABASE_URL` is a reference object, not a string (it has no `toString`, so
@@ -79,8 +79,10 @@ export default defineRailway((ctx) => {
   }
   const backofficeOrigin = requireBackofficeOrigin(environment);
 
+  // Railway identifies each resource by its name: renaming one only here deletes it and creates an
+  // empty one in its place, database included. Rename it in the Railway dashboard first.
   const db = postgres(POSTGRES_RESOURCE_NAME, { region: SERVICE_REGION });
-  const media = bucket("media", { region: BUCKET_REGION });
+  const media = bucket("Media Storage", { region: BUCKET_REGION });
 
   const registryCredentials = {
     username: "ljguardiola",
@@ -92,7 +94,7 @@ export default defineRailway((ctx) => {
   // the schema migrations once per deploy, as the role that owns the schema, then exits.
   // `restartPolicyType: "NEVER"` keeps a finished or crashed run from restarting instead of the
   // deploy just failing. It never takes traffic, so it has no domain and no healthcheck.
-  const migrate = service("migrate", {
+  const migrate = service("Schema Migrations", {
     source: cloudImage,
     regions: { [SERVICE_REGION]: 1 },
     deploy: {
@@ -106,13 +108,13 @@ export default defineRailway((ctx) => {
     },
   });
 
-  const cloud = service("cloud", {
+  const cloud = service("Cloud Server", {
     source: cloudImage,
     regions: { [SERVICE_REGION]: 1 },
     domains: CUSTOM_DOMAINS[environment] ?? [],
     deploy: {
       registryCredentials,
-      // Read-only: waits, connected as `cloud_app`, until the schema `migrate` applied matches
+      // Read-only: waits, connected as `cloud_app`, until the schema `Schema Migrations` applied matches
       // this image's bundled migrations, instead of applying any schema change itself. Railway
       // accepts a single command string here (at most one array item), and only `apply` rejects
       // more, not `plan`.
