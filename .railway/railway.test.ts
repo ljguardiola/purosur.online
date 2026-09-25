@@ -3,30 +3,6 @@ import { createRailwayContext, project } from "railway/iac";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import railway from "./railway";
 
-// A self-signed test certificate whose subject carries `serialNumber=CUIT 20123456786`
-// (generated once with openssl, never used against a real service).
-const ARCA_CERTIFICATE = `-----BEGIN CERTIFICATE-----
-MIIDNzCCAh+gAwIBAgIUWxRlGEGJGDEzQxzKn4lYZw2xrZ8wDQYJKoZIhvcNAQEL
-BQAwKjENMAsGA1UEAwwEdGVzdDEZMBcGA1UEBRMQQ1VJVCAyMDEyMzQ1Njc4NjAg
-Fw0yNjA5MjUxOTQyMTdaGA8yMTI2MDkwMTE5NDIxN1owKjENMAsGA1UEAwwEdGVz
-dDEZMBcGA1UEBRMQQ1VJVCAyMDEyMzQ1Njc4NjCCASIwDQYJKoZIhvcNAQEBBQAD
-ggEPADCCAQoCggEBALrxZsZw5gClGGTTzj9V7eyllxxyn8lUMc5X79PhBzWOSgjN
-m7JnnjlBUlR8pZ9SbXeUO80jV7zzehK8Ty5uUcN1K8E2BqrAMNcfLSXQHChO0LkA
-PxbA90jnZ1draSjA7Ju3VcnRERMZNVdnPOq000vqm2f3XheEjyMg7SEZVg6kcJVI
-YpNEB6HzocKMC7TsVTy2MR3QceJxllTMmPpBvuePIWjs7/uuc+lp5LPGWdP1DLmw
-GDXqNga0pcQOjd5iXPmDrpNxo5ENmggs+uZBDkFTc+278kYVYnug2AgRZxzJvHbe
-epqZ+PJ2eptSW/PkTYl0G5sGQKA11MPnXgq03sMCAwEAAaNTMFEwHQYDVR0OBBYE
-FCNdiYR5rGm42ZEUCxM4RvTXaApOMB8GA1UdIwQYMBaAFCNdiYR5rGm42ZEUCxM4
-RvTXaApOMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBADG8GKzg
-ePdpRvBwG+al779aYramcE3jqK6fI6wd2Hd2ElNuWj21nTizCUtHbOwPXQzO3Ae7
-/xT40krgYbOBcJ70Cbxwc09LVSchu15Rg0WG1RKiNDrO1H6u+WsF3zGd51UU7XhO
-LuwQkKH+L3Yyy3wA/0YmqdVpx6Fh1MVRO86SEzFJLLFTcUcLoQDc1HstF3Tt45VA
-0vYQ2ARsi9yJqePZRewS1b6vxlK+550hiDAw7BLkuir9PxJzL5tVhfXb2gzbf0eO
-ArZyviuF8uJ7UJQzIkkb65NnVp5lI4mgSyVYZhNOknXjRIwtHvlOlZhIieeiJOGq
-oWHVwAwQ06dKPhQ=
------END CERTIFICATE-----
-`;
-
 const REQUIRED_ENV: Record<string, string> = {
   CLOUD_IMAGE_REF: "ghcr.io/ljguardiola/purosur-cloud@sha256:test",
   GHCR_PULL_TOKEN: "ghcr-pull-token",
@@ -34,7 +10,7 @@ const REQUIRED_ENV: Record<string, string> = {
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
-  ARCA_CERTIFICATE,
+  ARCA_CERTIFICATE: "arca-certificate-pem",
 };
 
 beforeEach(() => {
@@ -114,6 +90,14 @@ describe("the Cloud Server service's environment", () => {
       `postgresql://cloud_app:cloud-app-password@\${{Database.PGHOST}}:\${{Database.PGPORT}}/\${{Database.PGDATABASE}}`,
     );
     expect(databaseUrl.value).not.toContain("[object Object]");
+  });
+
+  it("carries the ARCA certificate from the deploying environment", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.ARCA_CERTIFICATE).toEqual({
+      type: "literal",
+      value: "arca-certificate-pem",
+    });
   });
 
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {

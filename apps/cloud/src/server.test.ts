@@ -63,31 +63,33 @@ describe("requireAuthorizedCuit", () => {
   });
 
   it("throws when ARCA_CERTIFICATE is not set", () => {
-    expect(() => requireAuthorizedCuit({})).toThrow("ARCA_CERTIFICATE");
+    expect(() => requireAuthorizedCuit({})).toThrow(
+      "ARCA_CERTIFICATE must be set once DATABASE_URL is configured",
+    );
   });
 
   it("throws when ARCA_CERTIFICATE is not a parseable certificate", () => {
     expect(() => requireAuthorizedCuit({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
-      "ARCA_CERTIFICATE",
+      "ARCA_CERTIFICATE must be a valid X.509 certificate",
     );
   });
 
   it("throws when the certificate's subject has no serialNumber", () => {
     expect(() =>
       requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER }),
-    ).toThrow("ARCA_CERTIFICATE");
+    ).toThrow("ARCA_CERTIFICATE's subject has no serialNumber");
   });
 
   it('throws when the serialNumber is not in the exact "CUIT <11 digits>" form', () => {
     expect(() =>
       requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_MALFORMED_SERIAL_NUMBER }),
-    ).toThrow("ARCA_CERTIFICATE");
+    ).toThrow('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
   });
 
   it("throws when the CUIT's check digit is wrong", () => {
     expect(() =>
       requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT }),
-    ).toThrow("ARCA_CERTIFICATE");
+    ).toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   });
 });
 
@@ -355,7 +357,7 @@ describe("startServer", () => {
 
     await expect(
       startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
-    ).rejects.toThrow("ARCA_CERTIFICATE");
+    ).rejects.toThrow("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
@@ -375,7 +377,7 @@ describe("startServer", () => {
 
     await expect(
       startServer(env, { initSentry: vi.fn(), buildApp, setUpRecovery }),
-    ).rejects.toThrow("ARCA_CERTIFICATE");
+    ).rejects.toThrow("ARCA_CERTIFICATE's CUIT must have a correct check digit");
     expect(setUpRecovery).not.toHaveBeenCalled();
     expect(buildApp).not.toHaveBeenCalled();
   });
