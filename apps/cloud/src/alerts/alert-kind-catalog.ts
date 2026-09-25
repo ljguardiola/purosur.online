@@ -64,6 +64,12 @@ const ALERT_KIND_CATALOG_BY_KIND: ReadonlyMap<AlertKind, AlertKindDefinition> = 
   ALERT_KIND_CATALOG.map((definition) => [definition.kind, definition]),
 );
 
+const ALERT_KIND_SET: ReadonlySet<string> = new Set(ALERT_KIND_LIST);
+
+export function isAlertKind(value: unknown): value is AlertKind {
+  return typeof value === "string" && ALERT_KIND_SET.has(value);
+}
+
 export function alertKindDefinition(kind: AlertKind): AlertKindDefinition {
   const definition = ALERT_KIND_CATALOG_BY_KIND.get(kind);
   if (!definition) {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ALERT_KINDS, type AlertKind, alertKindDefinition } from "./alert-kind-catalog.js";
+import {
+  ALERT_KINDS,
+  type AlertKind,
+  alertKindDefinition,
+  isAlertKind,
+} from "./alert-kind-catalog.js";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -30,5 +35,14 @@ describe("alertKindDefinition", () => {
 
   it("throws for a kind with no catalog entry", () => {
     expect(() => alertKindDefinition("not_a_real_kind" as AlertKind)).toThrow(/not_a_real_kind/);
+  });
+});
+
+describe("isAlertKind", () => {
+  it("accepts every catalog kind and rejects an unknown one", () => {
+    for (const kind of ALERT_KINDS) {
+      expect(isAlertKind(kind)).toBe(true);
+    }
+    expect(isAlertKind("not_a_real_kind")).toBe(false);
   });
 });
