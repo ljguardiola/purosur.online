@@ -3,6 +3,7 @@ export const PT_PER_MM = 72 / 25.4;
 export const PADDING_TOP_BOTTOM_MM = 4.5;
 export const CONTENT_GAP_MM = 1.5;
 export const NAME_FONT_SIZE_PT = 12;
+export const NAME_LINE_HEIGHT_PT = 1.1 * NAME_FONT_SIZE_PT;
 export const NAME_MAX_LINES = 2;
 
 export interface LabelContentLayoutInput {
@@ -10,8 +11,8 @@ export interface LabelContentLayoutInput {
   paddingTopBottomMm: number;
   /**
    * The name's own rendered height, already clamped to at most `NAME_MAX_LINES`. This must be
-   * measured with the exact font/line metrics the name is drawn with (e.g. pdfkit's own
-   * `heightOfString`/`currentLineHeight`): reserving less than the renderer's real per-line height
+   * measured with the exact font and line spacing the name is drawn with (e.g. pdfkit's own
+   * `heightOfString`): reserving less than the renderer's real per-line height
    * makes it clip a wrapped line early instead of showing it.
    */
   nameHeightMm: number;

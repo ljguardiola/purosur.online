@@ -10,6 +10,7 @@ import {
   CONTENT_GAP_MM,
   layoutLabelContent,
   NAME_FONT_SIZE_PT,
+  NAME_LINE_HEIGHT_PT,
   NAME_MAX_LINES,
   PADDING_TOP_BOTTOM_MM,
   PT_PER_MM,
@@ -71,34 +72,40 @@ const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
 /**
  * The name's own rendered height at the label's content width, word-wrapped up to
  * `NAME_MAX_LINES` lines and clamped there (`drawName`'s `ellipsis: true` then truncates whatever
- * doesn't fit). Measured with pdfkit's own `heightOfString`/`currentLineHeight`, the exact metric
- * `drawName` renders with: reserving a height computed from a different (e.g. CSS-derived)
+ * doesn't fit). Measured with pdfkit's own `heightOfString` and the same line spacing `drawName`
+ * renders with: reserving a height computed from a different (e.g. CSS-derived)
  * per-line estimate would under- or over-shoot pdfkit's real wrapping and either clip a line that
  * should have shown, or leave a gap above a name that didn't need the full box.
  */
 function measuredNameHeightMm(doc: PDFKit.PDFDocument, name: string): number {
   doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT);
-  const maxHeightPt = doc.currentLineHeight(true) * NAME_MAX_LINES;
-  const naturalHeightPt = doc.heightOfString(name, { width: mm(CONTENT_WIDTH_MM) });
+  const maxHeightPt = NAME_LINE_HEIGHT_PT * NAME_MAX_LINES;
+  const naturalHeightPt = doc.heightOfString(name, {
+    width: mm(CONTENT_WIDTH_MM),
+    lineGap: nameLineGapPt(doc),
+  });
   return Math.min(naturalHeightPt, maxHeightPt) / PT_PER_MM;
 }
 
-function drawName(
-  doc: PDFKit.PDFDocument,
-  label: PositionedLabel,
-  topMm: number,
-  heightMm: number,
-): void {
-  doc
-    .font(NAME_FONT)
-    .fontSize(NAME_FONT_SIZE_PT)
-    .fillColor("#000000")
-    .text(label.name, mm(label.xMm + PADDING_LEFT_RIGHT_MM), mm(topMm), {
-      width: mm(CONTENT_WIDTH_MM),
-      height: mm(heightMm),
-      align: "center",
-      ellipsis: true,
-    });
+/** pdfkit advances each line by the font's own line height plus `lineGap`, here negative. */
+function nameLineGapPt(doc: PDFKit.PDFDocument): number {
+  return NAME_LINE_HEIGHT_PT - doc.currentLineHeight(true);
+}
+
+function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
+  doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT).fillColor("#000000");
+  // pdfkit's wrapper decides where to stop and ellipsize from the font's own line height, ignoring
+  // `lineGap`: it ellipsizes a line unless two more of those fit under `height`, and stops once
+  // one more doesn't. This height lets exactly `NAME_MAX_LINES` lines through, ellipsizing the last.
+  const wrapHeightPt =
+    (NAME_MAX_LINES - 1) * NAME_LINE_HEIGHT_PT + 1.5 * doc.currentLineHeight(true);
+  doc.text(label.name, mm(label.xMm + PADDING_LEFT_RIGHT_MM), mm(topMm), {
+    width: mm(CONTENT_WIDTH_MM),
+    height: wrapHeightPt,
+    lineGap: nameLineGapPt(doc),
+    align: "center",
+    ellipsis: true,
+  });
 }
 
 function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
@@ -145,7 +152,7 @@ function drawLabel(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
     barcodeHeightMm: BARCODE_HEIGHT_MM,
   });
 
-  drawName(doc, label, label.yMm + layout.nameTopMm, layout.nameHeightMm);
+  drawName(doc, label, label.yMm + layout.nameTopMm);
   drawBarcode(doc, label, label.yMm + layout.barcodeTopMm);
 }
 

@@ -1,6 +1,7 @@
 import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { LABELS_PER_PAGE } from "./label-sheet-layout.js";
+import { PADDING_TOP_BOTTOM_MM, PT_PER_MM } from "./label-content-layout.js";
+import { LABEL_HEIGHT_MM, LABELS_PER_PAGE } from "./label-sheet-layout.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 
 interface PdfObject {
@@ -315,5 +316,31 @@ describe("renderLabelSheetPdf", () => {
     expect(nameLines).toHaveLength(2);
     expect(nameLines[0]).not.toContain("…");
     expect(nameLines[1]).toContain("…");
+  });
+
+  it.each([
+    ["a 1-line", "Ñandú Ávila"],
+    ["a 2-line", "Ñandú Ávila Émile Óleo Úrsula Íñigo Ángel"],
+  ])("keeps %s name's accented capitals and the barcode inside the label's padded box", async (_, name) => {
+    const pdf = await renderLabelSheetPdf([{ name, code: "2000000000015", count: 1 }]);
+    const runs = renderedTextRuns(pdf);
+    const nameRuns = runs.filter((run) => run.font.embedded);
+    const digitRuns = runs.filter((run) => run.font.baseFont === "Courier-Bold");
+    const paddedTopPt = PADDING_TOP_BOTTOM_MM * PT_PER_MM;
+    const paddedBottomPt = (LABEL_HEIGHT_MM - PADDING_TOP_BOTTOM_MM) * PT_PER_MM;
+
+    expect(nameRuns.length).toBe(name.length > 20 ? 2 : 1);
+    for (const run of nameRuns) {
+      // The font's ascent bounds every glyph's top, accented capitals included.
+      const glyphTopPt = run.baselinePt - ((run.font.ascent ?? 0) / 1000) * run.fontSizePt;
+      expect(glyphTopPt).toBeGreaterThanOrEqual(paddedTopPt);
+    }
+    for (const bar of barRectangles(pdf)) {
+      expect(bar.yPt + bar.heightPt).toBeLessThanOrEqual(paddedBottomPt);
+    }
+    expect(digitRuns.length).toBeGreaterThan(0);
+    for (const run of digitRuns) {
+      expect(run.baselinePt).toBeLessThanOrEqual(paddedBottomPt);
+    }
   });
 });
