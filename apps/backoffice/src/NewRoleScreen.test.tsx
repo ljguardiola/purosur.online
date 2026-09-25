@@ -158,6 +158,26 @@ test("rejects a name longer than 100 characters, without calling the API", async
   expect(services.createRole).not.toHaveBeenCalled();
 });
 
+test("sends a name of exactly 100 characters, counting each emoji as one", async () => {
+  window.history.pushState(null, "", "/settings/roles/new");
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "ok", value: createdRole });
+  const screen = await renderScreen(services);
+  const longest = "🌱".repeat(100);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), longest);
+  await userEvent.click(screen.getByText("Ver saldos").element());
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
+  expect(services.createRole).toHaveBeenCalledWith({
+    name: longest,
+    permissionKeys: ["view_stock_balances"],
+  });
+  await expect.poll(() => window.location.pathname).toBe("/settings/roles");
+  window.history.pushState(null, "", "/");
+});
+
 test("Cancelar navigates back to the roles list without calling the API", async () => {
   window.history.pushState(null, "", "/settings/roles/new");
   const services = createServices();
