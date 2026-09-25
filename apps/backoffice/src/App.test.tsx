@@ -1,6 +1,6 @@
 import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { App, type AppServices } from "./App";
@@ -50,6 +50,14 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     rolesListScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
+      roleEditorModal: {
+        fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+        createRole: vi.fn(),
+        editRole: vi.fn(),
+        fetchSessionAuthorizationOptions: vi.fn(),
+        authorizeSession: vi.fn(),
+        startAuthentication: vi.fn(),
+      },
     },
     categoriesListScreen: {
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -62,26 +70,6 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       editProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       generateInternalBarcode: vi.fn(),
-    },
-    newRoleScreen: {
-      createRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    editRoleScreen: {
-      fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-      editRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    duplicateRoleScreen: {
-      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      createRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -719,10 +707,10 @@ test("redirects a typed /settings/branch to Mi cuenta for a user without configu
   expect(services.branchSettingsScreen.fetchBranchSettings).not.toHaveBeenCalled();
 });
 
-test("opens the new role page at /settings/roles/new from the Nuevo rol button", async () => {
+test("opens the role editor modal, over the Roles list, from the Nuevo rol button", async () => {
   // This checks routing/wiring only, the same way every other screen's own test file (not
-  // App.test.tsx) owns its form-fill-and-submit behavior: NewRoleScreen.test.tsx already covers
-  // the full passkey step-up creation flow, and Cancelar's own navigation, in isolation.
+  // App.test.tsx) owns its form-fill-and-submit behavior: RoleEditorModal.test.tsx already covers
+  // the full passkey step-up creation flow, and Cancelar's own behavior, in isolation.
   window.history.pushState(null, "", "/settings/roles");
   const services = createServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -731,39 +719,66 @@ test("opens the new role page at /settings/roles/new from the Nuevo rol button",
 
   await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/roles/new");
-  expect(services.newRoleScreen.createRole).not.toHaveBeenCalled();
+  await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles");
+  expect(services.rolesListScreen.roleEditorModal?.createRole).not.toHaveBeenCalled();
 });
 
-test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the active sidebar item, and the browser's back button returns to the list", async () => {
-  // Routing/wiring only, the same way the user detail wiring test above navigates by URL rather
-  // than a row click: EditRoleScreen.test.tsx already covers the full pre-fill, passkey step-up,
-  // and stale-save flow in isolation, and RolesListScreen.test.tsx already covers the pencil
-  // action's own click and navigation.
+test("opens the role editor modal for editing, from a role's pencil action, with Roles still the active sidebar item", async () => {
+  // Routing/wiring only, the same way the user detail wiring test above checks its own row
+  // action: RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and
+  // stale-save flow in isolation. A desktop-sized viewport keeps this row action clear of the
+  // rail at the browser mode's own phone-sized default (see Tooltip.test.tsx's own comment).
+  await page.viewport(1280, 900);
   const services = createServices();
-  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  const roleEditorModal = services.rolesListScreen.roleEditorModal;
+  if (!roleEditorModal) {
+    throw new Error("test setup: createServices always fills roleEditorModal");
+  }
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "role-stock",
+        name: "Depósito",
+        isAdministrator: false,
+        permissionKeys: [],
+        userCount: 0,
+      },
+    ],
+  });
+  vi.mocked(roleEditorModal.fetchRole).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "role-stock",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: [],
+      userCount: 0,
+      version: 1,
+      assignedUsers: [],
+    },
+  });
   window.history.pushState(null, "", "/settings/roles");
-  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
-
   const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
-  await expect.element(screen.getByRole("heading", { name: "Editar rol", level: 1 })).toBeVisible();
-  expect(services.editRoleScreen.fetchRole).toHaveBeenCalledWith("role-stock");
+  await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("Editar rol")).toBeVisible();
+  expect(services.rolesListScreen.roleEditorModal?.fetchRole).toHaveBeenCalledWith("role-stock");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
-
-  window.history.back();
-
-  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles");
 });
 
-test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled from the source role", async () => {
-  // Routing/wiring only, the same way the edit page's own wiring test above navigates by URL:
-  // DuplicateRoleScreen.test.tsx already covers the full pre-fill, passkey step-up, and error
-  // states in isolation, and RolesListScreen.test.tsx already covers the copy action's own click.
+test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
+  // Routing/wiring only, the same way the edit test above checks its own row action:
+  // RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and error states.
+  await page.viewport(1280, 900);
   const services = createServices();
-  vi.mocked(services.duplicateRoleScreen.fetchRoles).mockResolvedValue({
+  const fetchRoles = vi.mocked(services.rolesListScreen.fetchRoles);
+  fetchRoles.mockResolvedValue({
     kind: "ok",
     value: [
       {
@@ -776,22 +791,30 @@ test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled
     ],
   });
   window.history.pushState(null, "", "/settings/roles");
-  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
-
   const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Duplicar rol", level: 1 }))
-    .toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("Duplicar rol")).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Copia de Depósito");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
+  expect(fetchRoles).toHaveBeenCalledTimes(1);
+});
 
-  window.history.back();
+test("sends a deep link to the role editor's old page URL to the Roles list", async () => {
+  const services = createServices();
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+  await expect.poll(() => window.location.pathname).toBe("/settings/roles");
+  expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
@@ -868,15 +891,15 @@ test.each([
   },
   {
     path: "/settings/roles/new",
-    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.createRole],
+    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
   },
   {
     path: "/settings/roles/role-stock/edit",
-    adminOnlyCalls: (services: AppServices) => [services.editRoleScreen.fetchRole],
+    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
   },
   {
     path: "/settings/roles/role-stock/duplicate",
-    adminOnlyCalls: (services: AppServices) => [services.duplicateRoleScreen.fetchRoles],
+    adminOnlyCalls: (services: AppServices) => [services.rolesListScreen.fetchRoles],
   },
 ])(
   "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",

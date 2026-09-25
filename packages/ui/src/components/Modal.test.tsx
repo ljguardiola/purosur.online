@@ -42,6 +42,7 @@ const widths: Record<ModalWidth, number> = {
   confirmation: 560,
   standard: 640,
   wide: 720,
+  editor: 1040,
 };
 
 test("renders each width in the design's scale", async () => {

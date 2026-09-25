@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALERT_VIEW_PERMISSION_KEYS,
   isPermissionKey,
+  PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";
@@ -71,6 +72,10 @@ describe("PERMISSION_CATALOG", () => {
   it("leaves every remaining permission with no register marker", () => {
     const none = PERMISSION_CATALOG.filter((permission) => permission.registerMarker === "none");
     expect(none).toHaveLength(48 - 4 - 11);
+  });
+
+  it("exports PERMISSION_AREAS in the exact drawn area order, the role editor's areas pane order", () => {
+    expect(PERMISSION_AREAS).toEqual(AREA_ORDER_WITH_COUNTS.map(([area]) => area));
   });
 
   it("exposes the two mutually exclusive alert-view permissions, both in the catalog", () => {

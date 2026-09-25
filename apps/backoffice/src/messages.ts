@@ -403,8 +403,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      cashRegisterBadgeLabel: "Caja",
-      pinBadgeLabel: "Caja · con PIN de otra persona",
       areaLabels: AREA_LABELS,
       permissionLabels: PERMISSION_LABELS,
       rowActionsLabel: "Acciones",
@@ -463,6 +461,30 @@ export const messages = defineMessages("es-AR", (f) => ({
       duplicateRole: {
         heading: "Duplicar rol",
         nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
+      },
+      // The role editor modal (New, Edit and Duplicate all open the same one) and its confirmation
+      // step; every other label it shows (headings, save/cancel, load and error notices) reuses
+      // the keys above so nothing is written twice.
+      roleEditorModal: {
+        eyebrow: "Configuración · Roles",
+        closeLabel: CLOSE_LABEL,
+        cashRegisterTag: "Caja",
+        pinTag: "PIN",
+        cashRegisterTagTooltip: "Se usa en la caja.",
+        pinTagTooltip:
+          "En la caja, si quien atiende no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.",
+        selectedCount: (params: { count: number }) =>
+          f.plural(params.count, {
+            one: "1 permiso elegido",
+            other: `${params.count} permisos elegidos`,
+          }),
+        confirmTitle: "¿Guardar los cambios?",
+        confirmText: (params: { count: number; roleName: string }) =>
+          `${f.plural(params.count, {
+            one: "Se aplica a la 1 persona",
+            other: `Se aplican a las ${params.count} personas`,
+          })} con el rol ${params.roleName}:`,
+        back: "Volver",
       },
     },
     branch: {

@@ -2,13 +2,18 @@ import { Button, InlineNotice, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
+import {
+  RoleEditorModal,
+  type RoleEditorModalServices,
+  type RoleEditorRequest,
+} from "./RoleEditorModal";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
-import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
-import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath, sendToMyAccount } from "./settingsRoutes";
+import { sendToMyAccount } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
+  roleEditorModal?: RoleEditorModalServices;
 };
 
 export const defaultRolesListScreenServices: RolesListScreenServices = {
@@ -39,54 +44,56 @@ function permissionsCellContent(role: RoleSummary) {
     : rolesMessages.permissionsCount({ count: role.permissionKeys.length });
 }
 
-const columns = [
-  {
-    key: "role",
-    title: rolesMessages.columns.rol,
-    render: (item: RoleSummary) =>
-      item.isAdministrator ? (
-        <span className="flex items-center gap-1.5">
-          <Lock aria-hidden="true" className="size-4" />
-          {roleDisplayName(item)}
-        </span>
-      ) : (
-        roleDisplayName(item)
-      ),
-  },
-  {
-    key: "permissions",
-    title: rolesMessages.columns.permisos,
-    render: (item: RoleSummary) => permissionsCellContent(item),
-  },
-  {
-    key: "users",
-    title: rolesMessages.columns.usuarios,
-    render: (item: RoleSummary) => rolesMessages.usersCount({ count: item.userCount }),
-  },
-  {
-    key: "actions",
-    kind: "actions",
-    srLabel: rolesMessages.rowActionsLabel,
-    actions: [
-      // Every row gets this one, Administrator included: duplicating it is how an ordinary role
-      // starts from every permission in the catalog.
-      (item: RoleSummary) => ({
-        icon: <Copy />,
-        "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
-        onPress: () => navigate(roleDuplicatePath(item.id)),
-      }),
-      // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
-      (item: RoleSummary) =>
-        item.isAdministrator
-          ? undefined
-          : {
-              icon: <Pencil />,
-              "aria-label": rolesMessages.editAria({ name: roleDisplayName(item) }),
-              onPress: () => navigate(roleEditPath(item.id)),
-            },
-    ],
-  },
-] as const;
+function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
+  return [
+    {
+      key: "role",
+      title: rolesMessages.columns.rol,
+      render: (item: RoleSummary) =>
+        item.isAdministrator ? (
+          <span className="flex items-center gap-1.5">
+            <Lock aria-hidden="true" className="size-4" />
+            {roleDisplayName(item)}
+          </span>
+        ) : (
+          roleDisplayName(item)
+        ),
+    },
+    {
+      key: "permissions",
+      title: rolesMessages.columns.permisos,
+      render: (item: RoleSummary) => permissionsCellContent(item),
+    },
+    {
+      key: "users",
+      title: rolesMessages.columns.usuarios,
+      render: (item: RoleSummary) => rolesMessages.usersCount({ count: item.userCount }),
+    },
+    {
+      key: "actions",
+      kind: "actions",
+      srLabel: rolesMessages.rowActionsLabel,
+      actions: [
+        // Every row gets this one, Administrator included: duplicating it is how an ordinary role
+        // starts from every permission in the catalog.
+        (item: RoleSummary) => ({
+          icon: <Copy />,
+          "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
+          onPress: () => openEditor({ kind: "duplicate", source: item }),
+        }),
+        // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
+        (item: RoleSummary) =>
+          item.isAdministrator
+            ? undefined
+            : {
+                icon: <Pencil />,
+                "aria-label": rolesMessages.editAria({ name: roleDisplayName(item) }),
+                onPress: () => openEditor({ kind: "edit", roleId: item.id }),
+              },
+      ],
+    },
+  ] as const;
+}
 
 /**
  * "Roles": every role the branch has, with its permission and user counts. Reserved to the
@@ -94,8 +101,9 @@ const columns = [
  * session) sends the browser to Mi cuenta instead of showing a notice.
  */
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
-  const { fetchRoles } = services ?? defaultRolesListScreenServices;
+  const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
+  const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the list.
@@ -123,6 +131,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   }, [load]);
 
   const roles = list.kind === "loaded" ? list.roles : [];
+  const columns = columnsFor(setEditorRequest);
 
   return (
     <ScreenLayout
@@ -132,7 +141,11 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             <p className="text-ink-secondary text-sm">{rolesMessages.breadcrumb}</p>
             <h1 className="font-bold text-2xl text-brand-blue-strong">{rolesMessages.heading}</h1>
           </div>
-          <Button variant="primary" icon={<Plus />} onPress={() => navigate(NEW_ROLE_PATH)}>
+          <Button
+            variant="primary"
+            icon={<Plus />}
+            onPress={() => setEditorRequest({ kind: "new" })}
+          >
             {rolesMessages.newRoleButton}
           </Button>
         </div>
@@ -180,6 +193,16 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
           }
         />
       )}
+      <RoleEditorModal
+        request={editorRequest}
+        onClose={() => setEditorRequest(null)}
+        onSaved={() => {
+          setEditorRequest(null);
+          void load();
+        }}
+        onSessionEnded={onSessionEnded}
+        {...(roleEditorModal ? { services: roleEditorModal } : {})}
+      />
     </ScreenLayout>
   );
 }

@@ -9,7 +9,7 @@ import {
 } from "react-aria-components";
 import type { ButtonIcon } from "./Button";
 
-export type ModalWidth = "confirmation" | "standard" | "wide";
+export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
 export type ModalTone = "info" | "success" | "warning" | "error";
 
 // The set of package text tones a caller may use to color the context line instead of the
@@ -45,6 +45,9 @@ const widthClassName: Record<ModalWidth, string> = {
   confirmation: "w-[35rem]",
   standard: "w-[40rem]",
   wide: "w-[45rem]",
+  // The role editor's own width (design.pen `bnyPf`), wide enough for its areas pane plus the
+  // selected area's permissions to sit side by side.
+  editor: "w-[65rem]",
 };
 
 const toneMessageBgClassName: Record<ModalTone, string> = {
