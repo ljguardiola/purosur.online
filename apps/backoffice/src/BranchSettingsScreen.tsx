@@ -1,8 +1,19 @@
-import { Button, Checkbox, InlineNotice, TextField } from "@purosur/ui";
-import { Check, RotateCcw, TriangleAlert } from "lucide-react";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { Button, Checkbox, IconButton, InlineNotice, TextField } from "@purosur/ui";
+import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { BranchSettings, BranchSettingsField, BranchSettingsHours } from "./branchSettingsApi";
-import { fetchBranchSettings, saveBranchSettings } from "./branchSettingsApi";
+import type {
+  BranchDay,
+  BranchHoursRange,
+  BranchSettings,
+  BranchSettingsField,
+} from "./branchSettingsApi";
+import {
+  BRANCH_DAYS,
+  DAY_FIELD_OF,
+  fetchBranchSettings,
+  saveBranchSettings,
+} from "./branchSettingsApi";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -34,20 +45,26 @@ type DaysFieldName =
 
 type TextFieldName = "address" | "whatsappNumber" | "instagramHandle";
 
-type HoursGroupName = "weekday" | "saturday" | "sunday";
+// `id` never leaves this screen (see `hoursSettingsOf`): it exists only so each range's own row
+// keeps a stable React key across adds and removes, instead of the array index `noArrayIndexKey`
+// warns against, which would shift onto the wrong row once an earlier range is removed.
+type RangeValues = { id: number; opensAt: string; closesAt: string };
 
-type FieldErrorKey = TextFieldName | DaysFieldName | HoursGroupName;
+let nextRangeId = 0;
+function makeRangeId(): number {
+  nextRangeId += 1;
+  return nextRangeId;
+}
 
-type HoursGroupValues = { opensAt: string; closesAt: string; closed: boolean };
+type DayValues = { closed: boolean; ranges: RangeValues[] };
 
-type HoursGroupErrors = { opensAt?: string; closesAt?: string };
+type FieldErrorKey = TextFieldName | DaysFieldName | BranchDay;
 
-type FieldErrors = Partial<Record<TextFieldName | DaysFieldName, string>> &
-  Partial<Record<HoursGroupName, HoursGroupErrors>>;
+type FieldErrors = Partial<Record<FieldErrorKey, string>>;
 
 type FormValues = Record<TextFieldName, string> &
   Record<DaysFieldName, string> &
-  Record<HoursGroupName, HoursGroupValues>;
+  Record<BranchDay, DayValues>;
 
 const branchMessages = messages.settings.branch;
 
@@ -55,9 +72,7 @@ const WIRE_FIELD_OF: Record<FieldErrorKey, BranchSettingsField> = {
   address: "address",
   whatsappNumber: "whatsapp_number",
   instagramHandle: "instagram_handle",
-  weekday: "weekday_hours",
-  saturday: "saturday_hours",
-  sunday: "sunday_hours",
+  ...DAY_FIELD_OF,
   expiringLotAlertDays: "expiring_lot_alert_days",
   unreviewedPriceAlertDays: "unreviewed_price_alert_days",
   goodConditionReturnDays: "good_condition_return_days",
@@ -70,20 +85,32 @@ function fieldNameOfWire(field: BranchSettingsField): FieldErrorKey | undefined 
   return entry?.[0];
 }
 
-function hoursGroupValuesFrom(hours: BranchSettingsHours): HoursGroupValues {
-  return hours === null
-    ? { opensAt: "", closesAt: "", closed: true }
-    : { opensAt: hours.opensAt, closesAt: hours.closesAt, closed: false };
+const BRANCH_DAY_SET: ReadonlySet<string> = new Set(BRANCH_DAYS);
+
+function isBranchDay(field: FieldErrorKey): field is BranchDay {
+  return BRANCH_DAY_SET.has(field);
+}
+
+function emptyRange(): RangeValues {
+  return { id: makeRangeId(), opensAt: "", closesAt: "" };
+}
+
+function dayValuesFrom(ranges: BranchHoursRange[]): DayValues {
+  return ranges.length === 0
+    ? { closed: true, ranges: [] }
+    : { closed: false, ranges: ranges.map((range) => ({ id: makeRangeId(), ...range })) };
 }
 
 function valuesFrom(settings: BranchSettings): FormValues {
+  const dayValues = {} as Record<BranchDay, DayValues>;
+  for (const day of BRANCH_DAYS) {
+    dayValues[day] = dayValuesFrom(settings.hours[day]);
+  }
   return {
     address: settings.address,
     whatsappNumber: settings.whatsappNumber,
     instagramHandle: settings.instagramHandle,
-    weekday: hoursGroupValuesFrom(settings.weekdayHours),
-    saturday: hoursGroupValuesFrom(settings.saturdayHours),
-    sunday: hoursGroupValuesFrom(settings.sundayHours),
+    ...dayValues,
     expiringLotAlertDays: String(settings.expiringLotAlertDays),
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
@@ -133,57 +160,83 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
   return errors;
 }
 
-/** Validates every hours group client-side, mirroring the server: closed needs nothing, and an
- * open group needs two valid HH:MM times with closing strictly later than opening. A time that
- * isn't valid is marked on its own field; closing not later than opening is marked on Cierra. */
-function validateHoursFields(
-  values: FormValues,
-): Partial<Record<HoursGroupName, HoursGroupErrors>> {
-  const errors: Partial<Record<HoursGroupName, HoursGroupErrors>> = {};
-  const groups: readonly HoursGroupName[] = ["weekday", "saturday", "sunday"];
-  for (const group of groups) {
-    const groupValues = values[group];
-    if (groupValues.closed) {
+/** Every one of a day's ranges, normalized to zero-padded HH:MM, or `undefined` once any of them
+ * isn't a valid time. */
+function normalizedDayRanges(ranges: RangeValues[]): BranchHoursRange[] | undefined {
+  const normalized: BranchHoursRange[] = [];
+  for (const range of ranges) {
+    const opensAt = normalizedTime(range.opensAt);
+    const closesAt = normalizedTime(range.closesAt);
+    if (opensAt === undefined || closesAt === undefined) {
+      return undefined;
+    }
+    normalized.push({ opensAt, closesAt });
+  }
+  return normalized;
+}
+
+/** True once any two ranges share a moment in time, mirroring `branch-settings-validation.ts`'s own
+ * `rangesOverlap`: a range that only touches another isn't an overlap. */
+function rangesOverlap(ranges: BranchHoursRange[]): boolean {
+  for (let i = 0; i < ranges.length; i++) {
+    for (let j = i + 1; j < ranges.length; j++) {
+      const a = ranges[i];
+      const b = ranges[j];
+      if (a !== undefined && b !== undefined && a.opensAt < b.closesAt && b.opensAt < a.closesAt) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** Validates every open day's ranges client-side, mirroring the server: format, then order, then
+ * overlap, each day showing at most one of these as a single message under its own row. */
+function validateHoursFields(values: FormValues): Partial<Record<BranchDay, string>> {
+  const errors: Partial<Record<BranchDay, string>> = {};
+  for (const day of BRANCH_DAYS) {
+    const dayValues = values[day];
+    if (dayValues.closed) {
       continue;
     }
-    const opensAt = normalizedTime(groupValues.opensAt);
-    const closesAt = normalizedTime(groupValues.closesAt);
-    const groupErrors: HoursGroupErrors = {};
-    if (opensAt === undefined) {
-      groupErrors.opensAt = branchMessages.hoursFormatError;
+    const normalized = normalizedDayRanges(dayValues.ranges);
+    if (normalized === undefined) {
+      errors[day] = branchMessages.hoursFormatError;
+      continue;
     }
-    if (closesAt === undefined) {
-      groupErrors.closesAt = branchMessages.hoursFormatError;
-    } else if (opensAt !== undefined && closesAt <= opensAt) {
-      groupErrors.closesAt = branchMessages.hoursOrderError;
+    if (normalized.some((range) => range.closesAt <= range.opensAt)) {
+      errors[day] = branchMessages.hoursOrderError;
+      continue;
     }
-    if (groupErrors.opensAt !== undefined || groupErrors.closesAt !== undefined) {
-      errors[group] = groupErrors;
+    if (rangesOverlap(normalized)) {
+      errors[day] = branchMessages.hoursOverlapError;
     }
   }
   return errors;
 }
 
-function hoursSettingsOf(groupValues: HoursGroupValues): BranchSettingsHours {
-  if (groupValues.closed) {
-    return null;
+function hoursSettingsOf(dayValues: DayValues): BranchHoursRange[] {
+  if (dayValues.closed) {
+    return [];
   }
-  // Only reached once `validateHoursFields` found this group's times valid, so the fallback to ""
-  // never actually renders: it only satisfies the type checker.
-  return {
-    opensAt: normalizedTime(groupValues.opensAt) ?? "",
-    closesAt: normalizedTime(groupValues.closesAt) ?? "",
-  };
+  // Only reached once `validateHoursFields` found every range of this day valid, so the fallback to
+  // "" never actually renders: it only satisfies the type checker.
+  return dayValues.ranges.map((range) => ({
+    opensAt: normalizedTime(range.opensAt) ?? "",
+    closesAt: normalizedTime(range.closesAt) ?? "",
+  }));
 }
 
 function settingsFrom(values: FormValues, version: number): BranchSettings {
+  const hours = {} as Record<BranchDay, BranchHoursRange[]>;
+  for (const day of BRANCH_DAYS) {
+    hours[day] = hoursSettingsOf(values[day]);
+  }
   return {
     address: values.address,
     whatsappNumber: values.whatsappNumber,
     instagramHandle: values.instagramHandle,
-    weekdayHours: hoursSettingsOf(values.weekday),
-    saturdayHours: hoursSettingsOf(values.saturday),
-    sundayHours: hoursSettingsOf(values.sunday),
+    hours,
     expiringLotAlertDays: Number(values.expiringLotAlertDays),
     unreviewedPriceAlertDays: Number(values.unreviewedPriceAlertDays),
     goodConditionReturnDays: Number(values.goodConditionReturnDays),
@@ -192,11 +245,11 @@ function settingsFrom(values: FormValues, version: number): BranchSettings {
 }
 
 /** The field's own error for a save the server rejected on it; `version` never renders inline. The
- * client already checked each time's format, so an hours group the server rejects is shown as its
- * closing time not being later than its opening, on Cierra. */
+ * client already checked every day's ranges, so a day the server rejects is shown with the same
+ * order-error copy the client itself would have shown it. */
 function serverFieldErrors(field: FieldErrorKey): FieldErrors {
-  if (field === "weekday" || field === "saturday" || field === "sunday") {
-    return { [field]: { closesAt: branchMessages.hoursOrderError } };
+  if (isBranchDay(field)) {
+    return { [field]: branchMessages.hoursOrderError };
   }
   if (
     field === "expiringLotAlertDays" ||
@@ -208,15 +261,18 @@ function serverFieldErrors(field: FieldErrorKey): FieldErrors {
   return { [field]: branchMessages.textFieldError };
 }
 
-const CLOSED_HOURS_GROUP: HoursGroupValues = { opensAt: "", closesAt: "", closed: true };
+const CLOSED_DAY: DayValues = { closed: true, ranges: [] };
+
+const EMPTY_DAY_VALUES = Object.fromEntries(BRANCH_DAYS.map((day) => [day, CLOSED_DAY])) as Record<
+  BranchDay,
+  DayValues
+>;
 
 const EMPTY_VALUES: FormValues = {
   address: "",
   whatsappNumber: "",
   instagramHandle: "",
-  weekday: CLOSED_HOURS_GROUP,
-  saturday: CLOSED_HOURS_GROUP,
-  sunday: CLOSED_HOURS_GROUP,
+  ...EMPTY_DAY_VALUES,
   expiringLotAlertDays: "",
   unreviewedPriceAlertDays: "",
   goodConditionReturnDays: "",
@@ -237,17 +293,11 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // One id per group's row heading, named by React so it stays stable across renders (unlike a
-  // hand-rolled string, which react-hooks/rules-of-hooks would refuse from inside `hoursRow`, a
-  // plain helper rather than a component or a custom hook).
-  const weekdayHeadingId = useId();
-  const saturdayHeadingId = useId();
-  const sundayHeadingId = useId();
-  const hoursHeadingId: Record<HoursGroupName, string> = {
-    weekday: weekdayHeadingId,
-    saturday: saturdayHeadingId,
-    sunday: sundayHeadingId,
-  };
+  // One id per component instance, combined with a day and range index to name each range's own
+  // hidden heading: react-aria's own `useId` can't be called a variable number of times (a day's
+  // range count changes as ranges are added and removed), so a single call here backs every id
+  // instead of one call per range.
+  const rangeHeadingBaseId = useId();
 
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the settings and
@@ -321,19 +371,57 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     clearFieldError(field);
   }
 
-  function setHoursOpensAt(group: HoursGroupName, value: string) {
-    setValues((current) => ({ ...current, [group]: { ...current[group], opensAt: value } }));
-    clearFieldError(group);
+  function setDayClosed(day: BranchDay, closed: boolean) {
+    setValues((current) => {
+      const dayValues = current[day];
+      const ranges = !closed && dayValues.ranges.length === 0 ? [emptyRange()] : dayValues.ranges;
+      return { ...current, [day]: { closed, ranges } };
+    });
+    clearFieldError(day);
   }
 
-  function setHoursClosesAt(group: HoursGroupName, value: string) {
-    setValues((current) => ({ ...current, [group]: { ...current[group], closesAt: value } }));
-    clearFieldError(group);
+  function setRangeValue(
+    day: BranchDay,
+    index: number,
+    part: "opensAt" | "closesAt",
+    value: string,
+  ) {
+    setValues((current) => {
+      const ranges = current[day].ranges.map((range, rangeIndex) =>
+        rangeIndex === index ? { ...range, [part]: value } : range,
+      );
+      return { ...current, [day]: { ...current[day], ranges } };
+    });
+    clearFieldError(day);
   }
 
-  function setHoursClosed(group: HoursGroupName, closed: boolean) {
-    setValues((current) => ({ ...current, [group]: { ...current[group], closed } }));
-    clearFieldError(group);
+  function addRange(day: BranchDay) {
+    setValues((current) => {
+      if (current[day].ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX) {
+        return current;
+      }
+      return {
+        ...current,
+        [day]: { ...current[day], ranges: [...current[day].ranges, emptyRange()] },
+      };
+    });
+    clearFieldError(day);
+  }
+
+  function removeRange(day: BranchDay, index: number) {
+    setValues((current) => {
+      if (current[day].ranges.length <= 1) {
+        return current;
+      }
+      return {
+        ...current,
+        [day]: {
+          ...current[day],
+          ranges: current[day].ranges.filter((_, rangeIndex) => rangeIndex !== index),
+        },
+      };
+    });
+    clearFieldError(day);
   }
 
   async function handleSubmit() {
@@ -415,48 +503,85 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     );
   }
 
-  function hoursRow(group: HoursGroupName, groupLabel: string) {
-    const groupValues = values[group];
-    const errors = fieldErrors[group];
-    const headingId = hoursHeadingId[group];
+  function rangeHeadingId(day: BranchDay, index: number): string {
+    return `${rangeHeadingBaseId}-${day}-${index}`;
+  }
+
+  function rangeTimeField(day: BranchDay, index: number, part: "opensAt" | "closesAt") {
+    const label =
+      part === "opensAt" ? branchMessages.rangeOpensLabel : branchMessages.rangeClosesLabel;
     return (
-      <div key={group} className="flex items-end gap-4">
-        <div className="flex h-[3.25rem] w-36 shrink-0 items-center">
-          <p id={headingId} className="font-semibold text-ink">
-            {groupLabel}
-          </p>
+      <div className="w-[5.5rem]">
+        <TextField
+          kind="plain-text"
+          label={label}
+          labelledBy={rangeHeadingId(day, index)}
+          value={values[day].ranges[index]?.[part] ?? ""}
+          onChange={(value) => setRangeValue(day, index, part, value)}
+        />
+      </div>
+    );
+  }
+
+  function dayRow(day: BranchDay) {
+    const dayLabel = branchMessages.dayLabels[day];
+    const dayLower = dayLabel.toLocaleLowerCase("es-AR");
+    const dayValues = values[day];
+    const error = fieldErrors[day];
+    const atCap = dayValues.ranges.length >= BRANCH_HOURS_RANGES_PER_DAY_MAX;
+    return (
+      <div
+        key={day}
+        className="flex flex-col gap-2 border-line border-t py-3 first:border-t-0 first:pt-0"
+      >
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="flex h-[3.25rem] w-[8.75rem] shrink-0 items-center">
+            <p className="font-semibold text-ink">{dayLabel}</p>
+          </div>
+          <div className="flex h-[3.25rem] w-[6.25rem] shrink-0 items-center">
+            <Checkbox
+              isSelected={dayValues.closed}
+              onChange={(closed) => setDayClosed(day, closed)}
+            >
+              <span aria-hidden="true">{branchMessages.closedLabel}</span>
+              <span className="sr-only">{branchMessages.closedAria({ day: dayLabel })}</span>
+            </Checkbox>
+          </div>
+          {!dayValues.closed && (
+            <div className="flex flex-1 flex-wrap items-start gap-4">
+              {dayValues.ranges.map((range, index) => (
+                <div key={range.id} className="flex items-center gap-2">
+                  <span id={rangeHeadingId(day, index)} className="sr-only">
+                    {branchMessages.rangeHeading({ day: dayLabel, index: index + 1 })}
+                  </span>
+                  {rangeTimeField(day, index, "opensAt")}
+                  <span aria-hidden="true" className="text-ink">
+                    {branchMessages.rangeSeparator}
+                  </span>
+                  {rangeTimeField(day, index, "closesAt")}
+                  {dayValues.ranges.length > 1 && (
+                    <IconButton
+                      icon={<Trash2 />}
+                      aria-label={branchMessages.removeRangeAria({
+                        day: dayLower,
+                        index: index + 1,
+                      })}
+                      onPress={() => removeRange(day, index)}
+                    />
+                  )}
+                </div>
+              ))}
+              {!atCap && (
+                <IconButton
+                  icon={<Plus />}
+                  aria-label={branchMessages.addRangeAria({ day: dayLower })}
+                  onPress={() => addRange(day)}
+                />
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex-1">
-          <TextField
-            kind="plain-text"
-            label={branchMessages.opensAtLabel}
-            labelledBy={headingId}
-            value={groupValues.closed ? "" : groupValues.opensAt}
-            onChange={(value) => setHoursOpensAt(group, value)}
-            disabled={groupValues.closed}
-            {...(errors?.opensAt ? { invalid: true, errorMessage: errors.opensAt } : {})}
-          />
-        </div>
-        <div className="flex-1">
-          <TextField
-            kind="plain-text"
-            label={branchMessages.closesAtLabel}
-            labelledBy={headingId}
-            value={groupValues.closed ? "" : groupValues.closesAt}
-            onChange={(value) => setHoursClosesAt(group, value)}
-            disabled={groupValues.closed}
-            {...(errors?.closesAt ? { invalid: true, errorMessage: errors.closesAt } : {})}
-          />
-        </div>
-        <div className="flex h-[3.25rem] items-center">
-          <Checkbox
-            isSelected={groupValues.closed}
-            onChange={(closed) => setHoursClosed(group, closed)}
-          >
-            <span aria-hidden="true">{branchMessages.closedLabel}</span>
-            <span className="sr-only">{branchMessages.closedAria({ group: groupLabel })}</span>
-          </Checkbox>
-        </div>
+        {error !== undefined && <p className="text-sm font-normal text-status-error-ui">{error}</p>}
       </div>
     );
   }
@@ -543,13 +668,11 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               {textField("instagramHandle", branchMessages.instagramLabel)}
             </div>
           </div>
-          <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="font-bold text-brand-blue-strong text-lg">
+          <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface-white p-4">
+            <h2 className="mb-2 font-bold text-brand-blue-strong text-lg">
               {branchMessages.hoursHeading}
             </h2>
-            {hoursRow("weekday", branchMessages.weekdayHoursLabel)}
-            {hoursRow("saturday", branchMessages.saturdayHoursLabel)}
-            {hoursRow("sunday", branchMessages.sundayHoursLabel)}
+            {BRANCH_DAYS.map((day) => dayRow(day))}
           </div>
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
             <h2 className="font-bold text-brand-blue-strong text-lg">

@@ -17,22 +17,38 @@ const wireRow = {
   address: "Av. Belgrano 1450, CABA",
   whatsapp_number: "+54 9 11 3333-2211",
   instagram_handle: "@purosur.dietetica",
-  weekday_hours: { opens_at: "09:00", closes_at: "20:00" },
-  saturday_hours: { opens_at: "09:00", closes_at: "13:30" },
-  sunday_hours: null,
   expiring_lot_alert_days: 30,
   unreviewed_price_alert_days: 30,
   good_condition_return_days: 15,
   version: 1,
+  monday_hours: [
+    { opens_at: "09:00", closes_at: "13:00" },
+    { opens_at: "17:00", closes_at: "21:00" },
+  ],
+  tuesday_hours: [{ opens_at: "09:00", closes_at: "20:00" }],
+  wednesday_hours: [{ opens_at: "09:00", closes_at: "20:00" }],
+  thursday_hours: [{ opens_at: "09:00", closes_at: "20:00" }],
+  friday_hours: [{ opens_at: "09:00", closes_at: "20:00" }],
+  saturday_hours: [{ opens_at: "09:00", closes_at: "13:30" }],
+  sunday_hours: [],
 };
 
 const settings: BranchSettings = {
   address: "Av. Belgrano 1450, CABA",
   whatsappNumber: "+54 9 11 3333-2211",
   instagramHandle: "@purosur.dietetica",
-  weekdayHours: { opensAt: "09:00", closesAt: "20:00" },
-  saturdayHours: { opensAt: "09:00", closesAt: "13:30" },
-  sundayHours: null,
+  hours: {
+    monday: [
+      { opensAt: "09:00", closesAt: "13:00" },
+      { opensAt: "17:00", closesAt: "21:00" },
+    ],
+    tuesday: [{ opensAt: "09:00", closesAt: "20:00" }],
+    wednesday: [{ opensAt: "09:00", closesAt: "20:00" }],
+    thursday: [{ opensAt: "09:00", closesAt: "20:00" }],
+    friday: [{ opensAt: "09:00", closesAt: "20:00" }],
+    saturday: [{ opensAt: "09:00", closesAt: "13:30" }],
+    sunday: [],
+  },
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
@@ -72,7 +88,7 @@ test("fetchBranchSettings returns failed on an unexpected status", async () => {
   expect(await fetchBranchSettings()).toEqual({ kind: "failed" });
 });
 
-test("saveBranchSettings PUTs every field and the version, returning the saved settings", async () => {
+test("saveBranchSettings PUTs every field, each day's ranges in order, and the version, returning the saved settings", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...wireRow, version: 2 }));
 
   const outcome = await saveBranchSettings(settings);
@@ -85,19 +101,19 @@ test("saveBranchSettings PUTs every field and the version, returning the saved s
   });
 });
 
-test("saveBranchSettings maps a 400 validation_failed to its field", async () => {
+test("saveBranchSettings maps a 400 validation_failed to its day field", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, {
       code: "validation_failed",
       message:
-        "weekday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
-      details: [{ field: "weekday_hours" }],
+        "monday_hours must be a list of at most 6 non-overlapping HH:MM opens_at/closes_at ranges, each with closes_at later",
+      details: [{ field: "monday_hours" }],
     }),
   );
 
   expect(await saveBranchSettings(settings)).toEqual({
     kind: "validation_failed",
-    field: "weekday_hours",
+    field: "monday_hours",
   });
 });
 
