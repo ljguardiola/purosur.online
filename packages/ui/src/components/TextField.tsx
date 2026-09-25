@@ -37,6 +37,13 @@ type TextFieldCommonProps = {
    * unaffected.
    */
   labelledBy?: string;
+  /**
+   * True keeps the label as the input's accessible name but renders it visually hidden (`sr-only`)
+   * instead of the ordinary visible caption, for a design that draws no visible label at all (e.g.
+   * a branch's hours range fields, whose own sentence — "Lunes, horario 1, abre" — only needs to
+   * reach assistive technology). Defaults to false, the ordinary visible label.
+   */
+  labelVisuallyHidden?: boolean;
 };
 
 // An invalid field always names why: there is no invalid state with nothing for the helper line
@@ -152,6 +159,7 @@ export function TextField(props: TextFieldProps) {
     readOnly = false,
     required = false,
     labelledBy,
+    labelVisuallyHidden = false,
     kind,
   } = props;
   const invalid = props.invalid ?? false;
@@ -206,7 +214,12 @@ export function TextField(props: TextFieldProps) {
       {...affixDescribedByProps}
       className={wrapperClassName}
     >
-      <AriaLabel id={labelId} className={required ? requiredLabelClassName : baseLabelClassName}>
+      <AriaLabel
+        id={labelId}
+        className={
+          labelVisuallyHidden ? "sr-only" : required ? requiredLabelClassName : baseLabelClassName
+        }
+      >
         {label}
       </AriaLabel>
       <div

@@ -1,7 +1,7 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { Button, Checkbox, IconButton, InlineNotice, TextField } from "@purosur/ui";
 import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   BranchDay,
   BranchHoursRange,
@@ -293,11 +293,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // One id per component instance, combined with a day and range index to name each range's own
-  // hidden heading: react-aria's own `useId` can't be called a variable number of times (a day's
-  // range count changes as ranges are added and removed), so a single call here backs every id
-  // instead of one call per range.
-  const rangeHeadingBaseId = useId();
 
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the settings and
@@ -503,19 +498,18 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     );
   }
 
-  function rangeHeadingId(day: BranchDay, index: number): string {
-    return `${rangeHeadingBaseId}-${day}-${index}`;
-  }
-
   function rangeTimeField(day: BranchDay, index: number, part: "opensAt" | "closesAt") {
-    const label =
-      part === "opensAt" ? branchMessages.rangeOpensLabel : branchMessages.rangeClosesLabel;
+    const label = branchMessages.rangeFieldLabel({
+      day: branchMessages.dayLabels[day],
+      index: index + 1,
+      part,
+    });
     return (
       <div className="w-[5.5rem]">
         <TextField
           kind="plain-text"
           label={label}
-          labelledBy={rangeHeadingId(day, index)}
+          labelVisuallyHidden
           value={values[day].ranges[index]?.[part] ?? ""}
           onChange={(value) => setRangeValue(day, index, part, value)}
         />
@@ -551,9 +545,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             <div className="flex flex-1 flex-wrap items-start gap-4">
               {dayValues.ranges.map((range, index) => (
                 <div key={range.id} className="flex items-center gap-2">
-                  <span id={rangeHeadingId(day, index)} className="sr-only">
-                    {branchMessages.rangeHeading({ day: dayLabel, index: index + 1 })}
-                  </span>
                   {rangeTimeField(day, index, "opensAt")}
                   <span aria-hidden="true" className="text-ink">
                     {branchMessages.rangeSeparator}

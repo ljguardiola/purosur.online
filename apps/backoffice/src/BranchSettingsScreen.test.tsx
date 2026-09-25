@@ -38,12 +38,12 @@ const loaded: BranchSettings = {
   version: 1,
 };
 
-// The visible label text an input's own associated <label> carries, independent of whatever an
-// external heading adds to its accessible name through `aria-labelledby` (see TextField.tsx's own
-// `labelledBy` prop): proves the day/range heading isn't repeated inside the field's own visible
-// label.
-function visibleLabelText(input: HTMLInputElement): string {
-  return input.labels?.[0]?.textContent ?? "";
+// A range field's own label carries its full sentence ("Lunes, horario 1, abre") but draws
+// nothing (`labelVisuallyHidden`, see TextField.test.tsx): its box collapses to 1x1px, the same
+// technique and assertion as Table.tsx's own srLabel.
+function labelRect(input: HTMLInputElement): DOMRect {
+  const label = input.labels?.[0] as HTMLElement;
+  return label.getBoundingClientRect();
 }
 
 function renderScreen(
@@ -88,18 +88,20 @@ test("shows the breadcrumb, heading, and the branch's loaded values", async () =
   await expect
     .element(screen.getByRole("textbox", { name: "Lunes, horario 2, cierra" }))
     .toHaveValue("21:00");
-  expect(
-    visibleLabelText(
-      screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }).element() as HTMLInputElement,
-    ),
-  ).toBe("abre");
-  expect(
-    visibleLabelText(
-      screen
-        .getByRole("textbox", { name: "Lunes, horario 1, cierra" })
-        .element() as HTMLInputElement,
-    ),
-  ).toBe("cierra");
+  const opensRect = labelRect(
+    screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }).element() as HTMLInputElement,
+  );
+  expect(opensRect.width).toBeLessThanOrEqual(1);
+  expect(opensRect.height).toBeLessThanOrEqual(1);
+  const closesRect = labelRect(
+    screen.getByRole("textbox", { name: "Lunes, horario 1, cierra" }).element() as HTMLInputElement,
+  );
+  expect(closesRect.width).toBeLessThanOrEqual(1);
+  expect(closesRect.height).toBeLessThanOrEqual(1);
+  // No standalone "abre"/"cierra" caption renders for a range: only the field's own full,
+  // visually hidden sentence names it.
+  expect(screen.getByText("abre", { exact: true }).query()).toBeNull();
+  expect(screen.getByText("cierra", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByRole("checkbox", { name: "Lunes — Cerrado" })).not.toBeChecked();
   await expect
     .element(screen.getByRole("button", { name: "Quitar el horario 2 del lunes" }))

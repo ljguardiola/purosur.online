@@ -585,6 +585,42 @@ test("names the field by an external heading through labelledBy, while the visib
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps the label as the accessible name but paints nothing when labelVisuallyHidden", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Lunes, horario 1, abre"
+      value=""
+      onChange={() => {}}
+      labelVisuallyHidden
+    />,
+  );
+  const input = screen.getByRole("textbox", { name: "Lunes, horario 1, abre" });
+  await expect.element(input).toBeVisible();
+  const label = screen.getByText("Lunes, horario 1, abre").element() as HTMLElement;
+  const labelRect = label.getBoundingClientRect();
+
+  // Named for assistive technology, but not painted: the label's own box collapses to 1x1px
+  // (sr-only), the same technique and assertion as Table.tsx's own srLabel (see Table.test.tsx).
+  expect(labelRect.width).toBeLessThanOrEqual(1);
+  expect(labelRect.height).toBeLessThanOrEqual(1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the label as an ordinary visible caption when labelVisuallyHidden is left out", async () => {
+  const screen = await render(
+    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} />,
+  );
+  const label = screen.getByText("Reason").element() as HTMLElement;
+  const labelRect = label.getBoundingClientRect();
+
+  expect(labelRect.width).toBeGreaterThan(1);
+  expect(labelRect.height).toBeGreaterThan(1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("replaces the helper line with the field's message and exposes it as invalid, named by that message", async () => {
   const screen = await render(
     <TextField

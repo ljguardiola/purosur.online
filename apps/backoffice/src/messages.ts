@@ -492,11 +492,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         saturday: "Sábado",
         sunday: "Domingo",
       },
-      rangeOpensLabel: "abre",
-      rangeClosesLabel: "cierra",
       rangeSeparator: "a",
-      rangeHeading: (params: { day: string; index: number }) =>
-        `${params.day}, horario ${params.index},`,
+      rangeFieldLabel: (params: { day: string; index: number; part: "opensAt" | "closesAt" }) =>
+        `${params.day}, horario ${params.index}, ${params.part === "opensAt" ? "abre" : "cierra"}`,
       removeRangeAria: (params: { day: string; index: number }) =>
         `Quitar el horario ${params.index} del ${params.day}`,
       addRangeAria: (params: { day: string }) => `Agregar un horario al ${params.day}`,
