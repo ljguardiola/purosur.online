@@ -72,31 +72,32 @@ test("ends the session once the known deadline (plus its margin) passes", async 
 });
 
 test("moves the deadline check out when an open status reports a later expiresAt", async () => {
-  const laterExpiresAt = () => new Date(Date.now() + 150).toISOString();
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
+  const laterExpiresAt = new Date(fixedNow.getTime() + 500).toISOString();
   const checkStatus = vi
     .fn<() => Promise<SessionStatusOutcome>>()
-    .mockResolvedValueOnce({ kind: "ok", expiresAt: laterExpiresAt() })
-    .mockResolvedValue({ kind: "ok", expiresAt: laterExpiresAt() });
+    .mockResolvedValue({ kind: "ok", expiresAt: laterExpiresAt });
   const onEnded = vi.fn();
 
   const hook = await renderWatcher({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 15).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 15).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
   hooks.push(hook);
 
-  // The original ~15ms deadline fires the first check, which reports the session open until
-  // ~150ms out. Once rearmed, that stale ~15ms deadline must not fire a second check on its own.
+  // The original 15ms deadline fires the first check, which reports the session open until
+  // 500ms out. Once rearmed, that stale 15ms deadline must not fire a second check on its own.
   await expect.poll(() => checkStatus.mock.calls.length).toBe(1);
   await wait(60);
   expect(checkStatus).toHaveBeenCalledTimes(1);
   expect(onEnded).not.toHaveBeenCalled();
 
-  // The rescheduled ~150ms deadline fires a second check.
+  // The rescheduled 500ms deadline fires a second check.
   await expect.poll(() => checkStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
   expect(onEnded).not.toHaveBeenCalled();
 });
@@ -247,14 +248,16 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
   });
   const onEnded = vi.fn();
   const setIntervalSpy = vi.spyOn(window, "setInterval");
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
 
   const hook = await renderWatcher({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 1_000).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 60_000).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
   hooks.push(hook);
 
@@ -262,11 +265,12 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
 
   await hook.rerender({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 20).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 20).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
 
   expect(setIntervalSpy.mock.calls.length).toBe(setIntervalCallsAfterMount);
@@ -301,8 +305,9 @@ test("stops checking once the component unmounts", async () => {
 test("does not keep re-checking a deadline the browser's clock already considers past", async () => {
   // The browser's clock running ahead of the cloud's: the cloud keeps answering "open" with the
   // same deadline the browser already sees as gone.
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
   let skewMs = 0;
-  const expiresAt = new Date(Date.now() + 20).toISOString();
+  const expiresAt = new Date(fixedNow.getTime() + 20).toISOString();
   const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockImplementation(() => {
     skewMs = 60_000;
     return Promise.resolve({ kind: "ok", expiresAt });
@@ -316,7 +321,7 @@ test("does not keep re-checking a deadline the browser's clock already considers
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
-    now: () => new Date(Date.now() + skewMs),
+    now: () => new Date(fixedNow.getTime() + skewMs),
   });
   hooks.push(hook);
 
@@ -332,15 +337,17 @@ test("checks nothing while the tab is hidden, and once as soon as it becomes vis
     .fn<() => Promise<SessionStatusOutcome>>()
     .mockImplementation(() => new Promise(() => {}));
   const restoreVisibility = setVisibilityState("hidden");
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
 
   try {
     const hook = await renderWatcher({
       active: true,
-      initialExpiresAt: new Date(Date.now() + 10).toISOString(),
+      initialExpiresAt: new Date(fixedNow.getTime() + 10).toISOString(),
       checkStatus,
       onEnded: vi.fn(),
       intervalMs: 10,
       deadlineMarginMs: 0,
+      now: () => fixedNow,
     });
     hooks.push(hook);
 
