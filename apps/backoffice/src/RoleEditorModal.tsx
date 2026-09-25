@@ -311,6 +311,7 @@ export function RoleEditorModal({
   }
 
   async function save() {
+    const session = sessionRef.current;
     setNotice(null);
     setSubmitting(true);
 
@@ -323,6 +324,9 @@ export function RoleEditorModal({
           })
         : createRole({ name: name.trim(), permissionKeys: Array.from(selected) }),
     );
+    if (session !== sessionRef.current) {
+      return;
+    }
     if (outcome.kind === "cancelled") {
       setSubmitting(false);
       return;
@@ -426,7 +430,7 @@ export function RoleEditorModal({
       <Modal
         isOpen={isOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !submitting) {
             onClose();
           }
         }}
@@ -435,8 +439,10 @@ export function RoleEditorModal({
         icon={<Shield />}
         context={editorMessages.eyebrow}
         title={heading}
-        closable
-        closeLabel={editorMessages.closeLabel}
+        // A save in flight can't be dismissed, like Cancelar: no close button and no Escape.
+        {...(submitting
+          ? { closable: false }
+          : { closable: true, closeLabel: editorMessages.closeLabel })}
         bodyPadding="none"
         footer={
           <div className="flex w-full items-center justify-between gap-3">

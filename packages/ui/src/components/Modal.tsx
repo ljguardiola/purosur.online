@@ -37,12 +37,25 @@ type ModalCommonProps = {
   width?: ModalWidth;
   tone: ModalTone;
   icon: ButtonIcon;
-  context?: string;
-  contextTone?: ModalContextTone;
   title: string;
   children?: ReactNode;
-  bodyPadding?: ModalBodyPadding;
   footer: ReactNode;
+};
+
+type ModalLeadingProps = {
+  headerLayout?: "leading";
+  context?: string;
+  contextTone?: ModalContextTone;
+  bodyPadding?: ModalBodyPadding;
+};
+
+// The centered layout draws no context line and lays its body out in its own column, so the
+// props that only style those leading-layout regions do not compile there.
+type ModalCenteredProps = {
+  headerLayout: "centered";
+  context?: undefined;
+  contextTone?: undefined;
+  bodyPadding?: undefined;
 };
 
 // A closable modal's close button needs its own accessible name (see IconButton's aria-label),
@@ -51,9 +64,9 @@ type ModalCommonProps = {
 // close button, so there `closable` only lets Escape dismiss it and a label does not compile.
 export type ModalProps = ModalCommonProps &
   (
-    | { headerLayout?: "leading"; closable: true; closeLabel: string }
-    | { headerLayout?: "leading"; closable?: false; closeLabel?: undefined }
-    | { headerLayout: "centered"; closable?: boolean; closeLabel?: undefined }
+    | (ModalLeadingProps & { closable: true; closeLabel: string })
+    | (ModalLeadingProps & { closable?: false; closeLabel?: undefined })
+    | (ModalCenteredProps & { closable?: boolean; closeLabel?: undefined })
   );
 
 const widthClassName: Record<ModalWidth, string> = {

@@ -265,17 +265,8 @@ test('gives the body no padding at all when bodyPadding is "none", for a caller 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("centers the header's icon (as a 56px circle) and title, with no context line, when headerLayout is centered", async () => {
-  const screen = await render(
-    <Modal
-      {...baseProps({
-        headerLayout: "centered",
-        // A context line the design has no room for in this layout: proves it's dropped, not
-        // merely unstyled.
-        context: "Ignored in centered layout",
-      })}
-    />,
-  );
+test("centers the header's icon (as a 56px circle) and title when headerLayout is centered", async () => {
+  const screen = await render(<Modal {...baseProps({ headerLayout: "centered" })} />);
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
   const iconBox = dialog.querySelector('[aria-hidden="true"]') as HTMLElement;
   const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
@@ -293,7 +284,6 @@ test("centers the header's icon (as a 56px circle) and title, with no context li
   );
   expect(getComputedStyle(dialog.firstElementChild as HTMLElement).alignItems).toBe("center");
   expect(getComputedStyle(title).textAlign).toBe("center");
-  expect(screen.getByText("Ignored in centered layout").query()).toBeNull();
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -861,6 +851,34 @@ test("does not accept a closable modal without a close label", () => {
 
 test("does not accept a close label on a non-closable modal", () => {
   expectTypeOf<{ closable: false; closeLabel: string }>().not.toExtend<ModalCloseFields>();
+});
+
+// The same distribution, keeping only each branch's layout-specific fields: the header layout and
+// the leading layout's context line and body padding.
+type ModalLayoutFields = ModalProps extends infer P
+  ? P extends unknown
+    ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable" | "closeLabel">
+    : never
+  : never;
+
+test("accepts a context line, its tone and a flush body in the leading header layout", () => {
+  expectTypeOf<{
+    context: string;
+    contextTone: "brand-blue-ui";
+    bodyPadding: "none";
+  }>().toExtend<ModalLayoutFields>();
+});
+
+test("does not accept a context line, its tone or a flush body in the centered header layout, which draws none of them", () => {
+  expectTypeOf<{ headerLayout: "centered"; context: string }>().not.toExtend<ModalLayoutFields>();
+  expectTypeOf<{
+    headerLayout: "centered";
+    contextTone: "brand-blue-ui";
+  }>().not.toExtend<ModalLayoutFields>();
+  expectTypeOf<{
+    headerLayout: "centered";
+    bodyPadding: "none";
+  }>().not.toExtend<ModalLayoutFields>();
 });
 
 test("does not accept a close label in the centered header layout, which draws no close button", () => {

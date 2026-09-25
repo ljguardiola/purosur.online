@@ -7,7 +7,13 @@ import {
   type RoleEditorModalServices,
   type RoleEditorRequest,
 } from "./RoleEditorModal";
-import type { FetchRoleOutcome, RoleDetail, RoleSummary } from "./rolesApi";
+import type {
+  CreateRoleOutcome,
+  EditRoleOutcome,
+  FetchRoleOutcome,
+  RoleDetail,
+  RoleSummary,
+} from "./rolesApi";
 
 // The editor modal is 1040px wide, wider than the browser mode's own phone-sized default
 // viewport (see Tooltip.test.tsx's own comment on that default), which leaves its footer's save
@@ -649,4 +655,101 @@ test("at a short desktop viewport, the areas list and the permissions list each 
 
     await screen.unmount();
   }
+});
+
+function deferred<T>() {
+  let resolve: (outcome: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function modalSavingTo(
+  request: RoleEditorRequest | null,
+  services: RoleEditorModalServices,
+  onSaved: () => void,
+) {
+  return (
+    <main>
+      <RoleEditorModal
+        request={request}
+        onClose={() => {}}
+        onSaved={onSaved}
+        onSessionEnded={() => {}}
+        services={services}
+      />
+    </main>
+  );
+}
+
+test("while a save is in flight, neither the close button nor Escape dismisses the editor", async () => {
+  const pendingSave = deferred<CreateRoleOutcome>();
+  const services = createServices({ createRole: vi.fn().mockReturnValue(pendingSave.promise) });
+  const onClose = vi.fn();
+  const screen = await renderModal({ kind: "new" }, services, { onClose });
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
+
+  expect(screen.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await userEvent.keyboard("{Escape}");
+  await settleLateResponse();
+
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test("a save that succeeds after the editor moved on to another request never reports the save", async () => {
+  const pendingSave = deferred<CreateRoleOutcome>();
+  const services = createServices({ createRole: vi.fn().mockReturnValue(pendingSave.promise) });
+  const onSaved = vi.fn();
+  const screen = await render(modalSavingTo({ kind: "new" }, services, onSaved));
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
+  await screen.rerender(
+    modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved),
+  );
+
+  pendingSave.resolve({
+    kind: "ok",
+    value: {
+      id: "role-new",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: [],
+      userCount: 0,
+    },
+  });
+  await settleLateResponse();
+
+  expect(onSaved).not.toHaveBeenCalled();
+  await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeEnabled();
+});
+
+test("a confirmed save that fails after the editor moved on to another request leaves the new request's form untouched", async () => {
+  const pendingSave = deferred<EditRoleOutcome>();
+  const services = createServices({ editRole: vi.fn().mockReturnValue(pendingSave.promise) });
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const onSaved = vi.fn();
+  const screen = await render(
+    modalSavingTo({ kind: "edit", roleId: "role-stock" }, services, onSaved),
+  );
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "¿Guardar los cambios?" })
+      .getByRole("button", { name: "Guardar los cambios" }),
+  );
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
+  await screen.rerender(modalSavingTo({ kind: "new" }, services, onSaved));
+
+  pendingSave.resolve({ kind: "name_taken" });
+  await settleLateResponse();
+
+  expect(screen.getByText("Ya existe un rol con este nombre.").query()).toBeNull();
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
 });
