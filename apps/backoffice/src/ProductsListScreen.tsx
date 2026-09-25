@@ -20,6 +20,7 @@ import {
   TextField,
 } from "@purosur/ui";
 import {
+  Barcode,
   Check,
   Package,
   PackagePlus,
@@ -50,6 +51,7 @@ import {
   createProduct,
   editProduct,
   fetchProducts,
+  generateInternalBarcode,
   type ProductSaleUnit,
   type ProductSummary,
 } from "./productsApi";
@@ -61,6 +63,7 @@ export type ProductsListScreenServices = {
   createProduct: typeof createProduct;
   editProduct: typeof editProduct;
   fetchCategories: typeof fetchCategories;
+  generateInternalBarcode: typeof generateInternalBarcode;
 };
 
 export const defaultProductsListScreenServices: ProductsListScreenServices = {
@@ -68,6 +71,7 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   createProduct,
   editProduct,
   fetchCategories,
+  generateInternalBarcode,
 };
 
 export type ProductsListScreenProps = {
@@ -133,19 +137,32 @@ function productNameError(
 // Same asterisk TextField and Select draw on a required field's own label.
 const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
 
+// Shared by the scan input and the "Generar código interno" button: the design's own outlined
+// control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
+const barcodeActionClassName =
+  "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-base font-bold " +
+  "text-brand-blue-strong shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
+  "outline-none transition-[background-color] hover:bg-surface-bone " +
+  "focus-visible:outline-[3px] focus-visible:outline-offset-3 focus-visible:outline-brand-blue-strong " +
+  "disabled:opacity-[0.45]";
+
 type BarcodeChipsProps = {
   barcodes: string[];
   onRemove: (code: string) => void;
   scanInput: string;
   onScanInputChange: (value: string) => void;
   onScanKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onGenerate: () => void;
+  generateDisabled: boolean;
   labels: {
     barcodesLabel: string;
     scanInputLabel: string;
+    generateButtonLabel: string;
     barcodeRemoveAria: (params: { code: string }) => string;
   };
   error: string | undefined;
   scanError: string | undefined;
+  generateError: string | undefined;
 };
 
 function BarcodeChips({
@@ -154,47 +171,64 @@ function BarcodeChips({
   scanInput,
   onScanInputChange,
   onScanKeyDown,
+  onGenerate,
+  generateDisabled,
   labels,
   error,
   scanError,
+  generateError,
 }: BarcodeChipsProps) {
   const scanErrorId = useId();
   const errorId = useId();
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
       {barcodes.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
-            <span
+            <div
               key={code}
-              className="flex items-center gap-1.5 rounded-full bg-surface-bone py-1 pr-1 pl-3 text-sm font-semibold text-ink"
+              className="flex h-11 items-center gap-2 rounded-lg bg-surface-bone px-3"
             >
-              {code}
+              <span className="min-w-0 flex-1 truncate font-mono text-sm text-ink">{code}</span>
               <IconButton
                 icon={<X />}
                 aria-label={labels.barcodeRemoveAria({ code })}
                 onPress={() => onRemove(code)}
               />
-            </span>
+            </div>
           ))}
         </div>
       )}
-      <div className="flex h-[3.25rem] items-center gap-2 rounded-lg px-4 shadow-[inset_0_0_0_2px_var(--color-line)]">
-        <ScanBarcode aria-hidden="true" className="size-[1.125rem] shrink-0 text-ink-secondary" />
-        <input
-          className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-secondary"
-          value={scanInput}
-          onChange={(event) => onScanInputChange(event.target.value)}
-          onKeyDown={onScanKeyDown}
-          placeholder={labels.scanInputLabel}
-          aria-label={labels.scanInputLabel}
-          aria-invalid={describedBy ? true : undefined}
-          aria-describedby={describedBy || undefined}
-        />
+      <div className="flex gap-3">
+        <div className={barcodeActionClassName}>
+          <ScanBarcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
+          <input
+            className="min-w-0 flex-1 bg-transparent text-center outline-none placeholder:text-brand-blue-strong"
+            value={scanInput}
+            onChange={(event) => onScanInputChange(event.target.value)}
+            onKeyDown={onScanKeyDown}
+            placeholder={labels.scanInputLabel}
+            aria-label={labels.scanInputLabel}
+            aria-invalid={describedBy ? true : undefined}
+            aria-describedby={describedBy || undefined}
+          />
+        </div>
+        <button
+          type="button"
+          className={barcodeActionClassName}
+          disabled={generateDisabled}
+          onClick={onGenerate}
+        >
+          <Barcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
+          <span className="truncate">{labels.generateButtonLabel}</span>
+        </button>
       </div>
+      {generateError && (
+        <span className="text-sm font-normal text-status-error-ui">{generateError}</span>
+      )}
       {scanError && (
         <span id={scanErrorId} className="text-sm font-normal text-status-error-ui">
           {scanError}
@@ -287,6 +321,29 @@ function barcodeTakenError(
     : modalMessages.barcodeTakenUnnamed;
 }
 
+// GS1's 20-29 restricted-circulation prefix with a valid EAN-13 check digit: mirrors the cloud's
+// own recognition of a code it allocated (`internal-barcode-route.ts`), so a manufacturer barcode
+// that happens to start with 2 is never mistaken for one.
+const INTERNAL_BARCODE_PATTERN = /^2\d{12}$/;
+
+function ean13CheckDigit(twelveDigitBody: string): number {
+  let weightedSum = 0;
+  for (let index = 0; index < twelveDigitBody.length; index += 1) {
+    weightedSum += Number(twelveDigitBody[index]) * (index % 2 === 0 ? 1 : 3);
+  }
+  return (10 - (weightedSum % 10)) % 10;
+}
+
+function isInternalBarcode(code: string): boolean {
+  return (
+    INTERNAL_BARCODE_PATTERN.test(code) && Number(code[12]) === ean13CheckDigit(code.slice(0, 12))
+  );
+}
+
+function hasInternalBarcode(barcodes: string[]): boolean {
+  return barcodes.some(isInternalBarcode);
+}
+
 function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
   const [scanInput, setScanInput] = useState("");
@@ -347,6 +404,19 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     }
   }
 
+  // Adds a code the cloud already allocated and confirmed unique, so unlike a scanned code it
+  // skips straight past the spaces/length/duplicate checks — only the shared 20-code cap still
+  // applies, exactly as it does for a scanned one.
+  function addGenerated(code: string): PendingCodeResult {
+    if (barcodes.length >= PRODUCT_BARCODES_MAX_COUNT) {
+      setScanError(scanMessages.barcodeLimitReached);
+      return { ok: false };
+    }
+    const next = [...barcodes, code];
+    setBarcodes(next);
+    return { ok: true, barcodes: next, added: true };
+  }
+
   return {
     barcodes,
     scanInput,
@@ -356,7 +426,58 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     remove,
     commitPending,
     handleScanKeyDown,
+    addGenerated,
   };
+}
+
+/**
+ * Drives the "Generar código interno" button shared by the create and edit modals: allocates a
+ * code from the cloud and adds it like a scanned one, or reports the outcome the same way the
+ * rest of the modal's own submit does (session end, forbidden, or an inline failure that leaves
+ * whatever is already listed untouched).
+ */
+function useGenerateInternalBarcode(
+  chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "addGenerated">,
+  generateInternalBarcodeService: typeof generateInternalBarcode,
+  onSessionEnded: () => void,
+  clearBarcodesFieldError: () => void,
+  generateFailedMessage: string,
+) {
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | undefined>(undefined);
+
+  // Stable across renders, like useBarcodeChips's own reset, so a caller's effect can list it as
+  // a dependency without re-running on every render.
+  const reset = useCallback(() => {
+    setGenerating(false);
+    setGenerateError(undefined);
+  }, []);
+
+  async function handleGenerate() {
+    setGenerateError(undefined);
+    setGenerating(true);
+    const outcome = await generateInternalBarcodeService();
+    setGenerating(false);
+    if (outcome.kind === "ok") {
+      if (chips.addGenerated(outcome.code).ok) {
+        clearBarcodesFieldError();
+      }
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    setGenerateError(generateFailedMessage);
+  }
+
+  const disabled = generating || hasInternalBarcode(chips.barcodes);
+
+  return { generating, generateError, disabled, reset, handleGenerate };
 }
 
 type NewProductModalProps = {
@@ -365,6 +486,7 @@ type NewProductModalProps = {
   onCreated: (product: ProductSummary) => void;
   onSessionEnded: () => void;
   createProduct: typeof createProduct;
+  generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
 };
 
@@ -375,6 +497,7 @@ function NewProductModal({
   onCreated,
   onSessionEnded,
   createProduct,
+  generateInternalBarcode,
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
@@ -391,6 +514,13 @@ function NewProductModal({
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
   const [submitting, setSubmitting] = useState(false);
+  const generate = useGenerateInternalBarcode(
+    chips,
+    generateInternalBarcode,
+    onSessionEnded,
+    () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
+    modalMessages.generateFailed,
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -401,8 +531,9 @@ function NewProductModal({
       setErrors({});
       setNotice(null);
       setSubmitting(false);
+      generate.reset();
     }
-  }, [isOpen, chips.reset]);
+  }, [isOpen, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -604,9 +735,12 @@ function NewProductModal({
               setErrors((current) => withFieldError(current, "barcodes", undefined)),
             )
           }
+          onGenerate={() => void generate.handleGenerate()}
+          generateDisabled={generate.disabled}
           labels={modalMessages}
           error={errors.barcodes}
           scanError={chips.scanError}
+          generateError={generate.generateError}
         />
       </div>
     </Modal>
@@ -620,6 +754,7 @@ type EditProductModalProps = {
   onSessionEnded: () => void;
   fetchProducts: typeof fetchProducts;
   editProduct: typeof editProduct;
+  generateInternalBarcode: typeof generateInternalBarcode;
   categories: CategorySummary[];
 };
 
@@ -638,6 +773,7 @@ function EditProductModal({
   onSessionEnded,
   fetchProducts,
   editProduct,
+  generateInternalBarcode,
   categories,
 }: EditProductModalProps) {
   const modalMessages = productsMessages.editProductModal;
@@ -655,6 +791,13 @@ function EditProductModal({
   const [submitting, setSubmitting] = useState(false);
   const targetRef = useRef(target);
   targetRef.current = target;
+  const generate = useGenerateInternalBarcode(
+    chips,
+    generateInternalBarcode,
+    onSessionEnded,
+    () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
+    modalMessages.generateFailed,
+  );
 
   useEffect(() => {
     if (isOpen && target) {
@@ -667,8 +810,9 @@ function EditProductModal({
       setErrors({});
       setNotice(null);
       setSubmitting(false);
+      generate.reset();
     }
-  }, [isOpen, target, chips.reset]);
+  }, [isOpen, target, chips.reset, generate.reset]);
 
   const categoryOptions = categorySelectOptions(categories);
 
@@ -776,6 +920,7 @@ function EditProductModal({
       setErrors({});
       setNotice(null);
       setSubmitting(false);
+      generate.reset();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -960,9 +1105,12 @@ function EditProductModal({
                 setErrors((current) => withFieldError(current, "barcodes", undefined)),
               )
             }
+            onGenerate={() => void generate.handleGenerate()}
+            generateDisabled={generate.disabled}
             labels={modalMessages}
             error={errors.barcodes}
             scanError={chips.scanError}
+            generateError={generate.generateError}
           />
         </div>
       )}
@@ -982,6 +1130,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     createProduct: createProductService,
     editProduct: editProductService,
     fetchCategories: fetchCategoriesService,
+    generateInternalBarcode: generateInternalBarcodeService,
   } = services ?? defaultProductsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useRef(list);
@@ -1224,6 +1373,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         }}
         onSessionEnded={onSessionEnded}
         createProduct={createProductService}
+        generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
       />
       <EditProductModal
@@ -1245,6 +1395,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         onSessionEnded={onSessionEnded}
         fetchProducts={fetchProductsService}
         editProduct={editProductService}
+        generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
       />
     </>

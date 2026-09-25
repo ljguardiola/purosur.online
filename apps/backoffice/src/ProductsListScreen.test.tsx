@@ -1,10 +1,19 @@
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import type { CategorySummary } from "./categoriesApi";
 import { ProductsListScreen, type ProductsListScreenServices } from "./ProductsListScreen";
 import type { ProductSummary } from "./productsApi";
+
+// The default viewport is narrower than the modal's own "standard" width, and a modal panel is
+// centered by a fixed-position overlay that never grows the document's own scroll area, so a
+// control past its clipped edge can't be scrolled into view (see Modal.test.tsx's own reasoning).
+// This screen targets the backoffice's desktop-only display, so every test here runs at a
+// desktop-sized viewport instead.
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+});
 
 function createServices(
   overrides: Partial<ProductsListScreenServices> = {},
@@ -14,6 +23,7 @@ function createServices(
     createProduct: vi.fn(),
     editProduct: vi.fn(),
     fetchCategories: vi.fn(),
+    generateInternalBarcode: vi.fn(),
     ...overrides,
   };
 }
@@ -520,6 +530,11 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
   await openNewProductModal(screen);
   await expectNoAccessibilityViolations(document.body);
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await openEditProductModal(screen, miel);
+  await expectNoAccessibilityViolations(document.body);
 });
 
 async function fillNewProductFieldsExceptBarcodes(dialog: ScreenLocator) {
@@ -879,4 +894,146 @@ test("marks the fallback category label as required when there are no categories
   const editDialog = await openEditProductModal(screen, miel);
   const editLabel = editDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
   expect(getComputedStyle(editLabel, "::after").content).toContain("*");
+});
+
+function generateButtonOf(dialog: ScreenLocator) {
+  return dialog.getByRole("button", { name: "Generar código interno" });
+}
+
+test("generates an internal code, adds it to the list, and saves the product with it", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
+    kind: "ok",
+    code: "2000000000015",
+  });
+  const created: ProductSummary = {
+    id: "product-3",
+    name: "Ensalada de fruta 300 g",
+    categoryId: "category-1",
+    categoryName: "Almacén",
+    saleUnit: "KG",
+    barcodes: ["2000000000015"],
+    version: 1,
+  };
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Ensalada de fruta 300 g");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+
+  await userEvent.click(generateButtonOf(dialog));
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledWith({
+    name: "Ensalada de fruta 300 g",
+    categoryId: "category-1",
+    saleUnit: "KG",
+    barcodes: ["2000000000015"],
+  });
+});
+
+test("generates an internal code from the edit modal and saves it alongside the existing code", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
+    kind: "ok",
+    code: "2000000000015",
+  });
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "ok",
+    value: { ...miel, barcodes: [...miel.barcodes, "2000000000015"], version: 2 },
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(generateButtonOf(dialog));
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+    name: "Miel pura de abeja 1 kg",
+    categoryId: "category-1",
+    saleUnit: "UNIT",
+    barcodes: ["7790987000015", "2000000000015"],
+    version: 1,
+  });
+});
+
+test("disables the generate button while its request is pending", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  // Resolves with a failure, not a code: an allocated internal code would keep the button
+  // disabled for the "already listed" reason instead, which is a separate behavior this test
+  // isn't the one covering.
+  let resolveGenerate: (outcome: { kind: "failed" }) => void = () => {};
+  vi.mocked(services.generateInternalBarcode).mockReturnValue(
+    new Promise((resolve) => {
+      resolveGenerate = resolve;
+    }),
+  );
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const generateButton = generateButtonOf(dialog);
+  await expect.element(generateButton).not.toBeDisabled();
+
+  await userEvent.click(generateButton);
+  await expect.element(generateButton).toBeDisabled();
+
+  resolveGenerate({ kind: "failed" });
+  await expect.element(generateButton).not.toBeDisabled();
+});
+
+test("disables generating another internal code once one is already listed, enabling again once it's removed", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
+    kind: "ok",
+    code: "2000000000015",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const generateButton = generateButtonOf(dialog);
+  await expect.element(generateButton).not.toBeDisabled();
+
+  await userEvent.click(generateButton);
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  await expect.element(generateButton).toBeDisabled();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el código 2000000000015" }));
+
+  await expect.element(generateButton).not.toBeDisabled();
+});
+
+test("shows an inline error when generating fails, keeping the codes already entered", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(dialog.getByText("7790000000099")).toBeVisible();
+
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect
+    .element(dialog.getByText("No se pudo generar el código interno. Probá de nuevo."))
+    .toBeVisible();
+  await expect.element(dialog.getByText("7790000000099")).toBeVisible();
 });

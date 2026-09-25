@@ -51,6 +51,9 @@ const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCO
 const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
 const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
+const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
+const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
+  "No se pudo generar el código interno. Probá de nuevo.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
@@ -550,6 +553,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         unitOptionWeightHelp: "Se pesa en la balanza",
         barcodesLabel: PRODUCT_BARCODES_LABEL,
         scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+        generateButtonLabel: PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL,
+        generateFailed: PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
         barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
         barcodeRequired: PRODUCT_BARCODE_REQUIRED,
         barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
@@ -588,6 +593,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         unitOptionWeightHelp: "Se pesa en la balanza",
         barcodesLabel: PRODUCT_BARCODES_LABEL,
         scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+        generateButtonLabel: PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL,
+        generateFailed: PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
         barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
         barcodeRequired: PRODUCT_BARCODE_REQUIRED,
         barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
