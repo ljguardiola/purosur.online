@@ -69,27 +69,17 @@ async function insertBarcodeForNewProduct(code: string): Promise<void> {
 
 describe("allocateInternalBarcode", () => {
   it("allocates a GS1 restricted-circulation (20-29) EAN-13 code with a valid check digit", async () => {
-    const outcome = await allocateInternalBarcode(db);
+    const code = await allocateInternalBarcode(db);
 
-    expect(outcome.kind).toBe("allocated");
-    if (outcome.kind !== "allocated") {
-      throw new Error("test setup: expected the allocation to succeed");
-    }
-    expect(outcome.code).toMatch(EAN13_RESTRICTED_CIRCULATION_PATTERN);
-    const body = outcome.code.slice(0, 12);
-    expect(outcome.code).toBe(appendEan13CheckDigit(body));
+    expect(code).toMatch(EAN13_RESTRICTED_CIRCULATION_PATTERN);
+    expect(code).toBe(appendEan13CheckDigit(code.slice(0, 12)));
   });
 
   it("returns a different code on consecutive allocations", async () => {
     const first = await allocateInternalBarcode(db);
     const second = await allocateInternalBarcode(db);
 
-    expect(first.kind).toBe("allocated");
-    expect(second.kind).toBe("allocated");
-    if (first.kind !== "allocated" || second.kind !== "allocated") {
-      throw new Error("test setup: expected both allocations to succeed");
-    }
-    expect(second.code).not.toBe(first.code);
+    expect(second).not.toBe(first);
   });
 
   it("skips a code already used by a product barcode", async () => {
@@ -97,14 +87,10 @@ describe("allocateInternalBarcode", () => {
     const takenCode = appendEan13CheckDigit(takenValue.toString());
     await insertBarcodeForNewProduct(takenCode);
 
-    const outcome = await allocateInternalBarcode(db);
+    const code = await allocateInternalBarcode(db);
 
-    expect(outcome.kind).toBe("allocated");
-    if (outcome.kind !== "allocated") {
-      throw new Error("test setup: expected the allocation to succeed");
-    }
-    expect(outcome.code).not.toBe(takenCode);
-    expect(outcome.code).toBe(appendEan13CheckDigit((takenValue + 1n).toString()));
+    expect(code).not.toBe(takenCode);
+    expect(code).toBe(appendEan13CheckDigit((takenValue + 1n).toString()));
   });
 });
 

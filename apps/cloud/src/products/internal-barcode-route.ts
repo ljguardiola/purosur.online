@@ -13,25 +13,6 @@ import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const INTERNAL_BARCODE_SEQUENCE_NAME = "internal_barcode_sequence";
 const NEXTVAL_QUERY = sql.raw(`select nextval('${INTERNAL_BARCODE_SEQUENCE_NAME}') as value`);
-const SEQUENCE_EXHAUSTED_PATTERN = new RegExp(
-  `reached maximum value of sequence "?${INTERNAL_BARCODE_SEQUENCE_NAME}"?`,
-  "i",
-);
-
-export type AllocateInternalBarcodeOutcome =
-  | { kind: "allocated"; code: string }
-  | { kind: "sequence_exhausted" };
-
-function isSequenceExhausted(error: unknown): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if (SEQUENCE_EXHAUSTED_PATTERN.test(current.message)) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
-}
 
 // `db.execute`'s result shape differs by driver: node-postgres and PGlite return `{ rows }`,
 // postgres-js returns the row array itself. The same kind of driver-shape normalization
@@ -60,22 +41,15 @@ async function nextSequenceValue<TQueryResult extends PgQueryResultHKT>(
  * value from `internal_barcode_sequence` (GS1's 20-29 restricted-circulation range, see
  * `db/schema.ts`), appends its check digit, and skips any code that already exists on
  * `product_barcodes` by pulling another value, so a sequence value is never handed out twice and a
- * concurrent allocation racing this one is always given a different one.
+ * concurrent allocation racing this one is always given a different one. The range holds around
+ * 10^11 codes, so the sequence running out is not a real case: it errors like any unexpected
+ * database failure instead of a handled outcome.
  */
 export async function allocateInternalBarcode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-): Promise<AllocateInternalBarcodeOutcome> {
+): Promise<string> {
   for (;;) {
-    let value: bigint;
-    try {
-      value = await nextSequenceValue(db);
-    } catch (error) {
-      if (isSequenceExhausted(error)) {
-        return { kind: "sequence_exhausted" };
-      }
-      throw error;
-    }
-
+    const value = await nextSequenceValue(db);
     const code = appendEan13CheckDigit(value.toString());
     const [existing] = await db
       .select({ code: productBarcodes.code })
@@ -83,7 +57,7 @@ export async function allocateInternalBarcode<TQueryResult extends PgQueryResult
       .where(eq(productBarcodes.code, code))
       .limit(1);
     if (!existing) {
-      return { kind: "allocated", code };
+      return code;
     }
   }
 }
@@ -120,17 +94,8 @@ export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultH
       },
     },
     async (_request, reply) => {
-      const outcome = await allocateInternalBarcode(options.db);
-
-      if (outcome.kind === "sequence_exhausted") {
-        await reply.code(503).send({
-          code: "internal_barcode_range_exhausted",
-          message: "no internal barcode is left to allocate in the 20-29 restricted range",
-        });
-        return;
-      }
-
-      await reply.code(200).send({ code: outcome.code });
+      const code = await allocateInternalBarcode(options.db);
+      await reply.code(200).send({ code });
     },
   );
 }

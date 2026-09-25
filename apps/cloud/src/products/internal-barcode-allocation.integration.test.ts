@@ -28,16 +28,8 @@ afterAll(async () => {
 
 describe("allocating internal barcodes concurrently on a real Postgres through postgres-js", () => {
   it("gives every concurrent allocation its own distinct code", async () => {
-    const outcomes = await Promise.all(
-      Array.from({ length: 20 }, () => allocateInternalBarcode(db)),
-    );
+    const codes = await Promise.all(Array.from({ length: 20 }, () => allocateInternalBarcode(db)));
 
-    const codes = outcomes.map((outcome) => {
-      if (outcome.kind !== "allocated") {
-        throw new Error(`test setup: expected every allocation to succeed, got ${outcome.kind}`);
-      }
-      return outcome.code;
-    });
     expect(new Set(codes).size).toBe(codes.length);
   });
 });
