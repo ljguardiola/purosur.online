@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
     "@purosur/contracts": "workspace:*",
     "@purosur/ui": "workspace:*",
     "@simplewebauthn/browser": "^14.0.0",

@@ -295,6 +295,8 @@ test("shows each catalog action key's own sentence", async () => {
       "Cambiar el correo de un usuario necesita tu autorización. Confirmala con tu passkey.",
     passkeyRemoval: "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
     passkeyRegistration: "Agregar una passkey necesita tu autorización. Confirmala con tu passkey.",
+    issuerIdentificationSave:
+      "Guardar la identificación del emisor necesita tu autorización. Confirmala con tu passkey.",
   };
 
   function ActionHarness({ action }: { action: AuthorizationActionKey }) {
