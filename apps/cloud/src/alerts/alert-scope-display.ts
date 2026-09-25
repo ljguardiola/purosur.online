@@ -1,0 +1,48 @@
+import { inArray } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { users } from "../db/schema.js";
+import { alertKindDefinition, isAlertKind } from "./alert-kind-catalog.js";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A batch lookup of every given id's first name, for the "ALCANCE" column and the detail screen:
+ * one query for a whole page of alerts instead of one per row. An id with no matching active-or-
+ * not user (a scope value from before that user was seeded, or a test fixture) is simply left out
+ * of the map; `scopeDisplay` falls back to the raw scope for it.
+ */
+export async function loadScopeDisplayNames<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  userIds: readonly string[],
+): Promise<Map<string, string>> {
+  // A source address, or a fixture scope from a kind outside the catalog, is never a well-formed
+  // uuid: filtered out here rather than sent to a `uuid` column, which would otherwise reject the
+  // whole query with an invalid-input-syntax error instead of just skipping that one id.
+  const wellFormedIds = userIds.filter((id) => UUID_PATTERN.test(id));
+  if (wellFormedIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({ id: users.id, firstName: users.firstName })
+    .from(users)
+    .where(inArray(users.id, wellFormedIds));
+  return new Map(rows.map((row) => [row.id, row.firstName]));
+}
+
+/**
+ * What an alert's own scope reads as to a person: a user-scoped kind's scope is a user id, shown
+ * as that user's first name (falling back to the raw id when it can't be resolved); a source-
+ * address-scoped kind's scope is already the address itself, never looked up. `kind` is read as
+ * plain text from `alerts.kind` (see schema.ts), so a value outside the catalog (a fixture, or a
+ * kind retired since the alert opened) falls back to the raw scope too, rather than throwing.
+ */
+export function scopeDisplay(
+  kind: string,
+  scope: string,
+  namesByUserId: ReadonlyMap<string, string>,
+): string {
+  if (!isAlertKind(kind) || alertKindDefinition(kind).scopeKind !== "user") {
+    return scope;
+  }
+  return namesByUserId.get(scope) ?? scope;
+}

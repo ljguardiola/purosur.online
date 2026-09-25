@@ -12,6 +12,7 @@ import {
 } from "../session/route-access.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import type { AlertAudience, AlertLevel } from "./alert-kind-catalog.js";
+import { loadScopeDisplayNames, scopeDisplay } from "./alert-scope-display.js";
 import { canSeeAllAlerts, canSeeAnyAlerts } from "./alert-visibility.js";
 
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -38,6 +39,8 @@ export interface AlertSummaryWire {
   id: string;
   kind: string;
   scope: string;
+  /** `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope otherwise. */
+  scope_display: string;
   level: AlertLevel;
   audience: AlertAudience;
   opened_at: string;
@@ -45,11 +48,15 @@ export interface AlertSummaryWire {
   resolved_at: string | null;
 }
 
-export function toAlertSummaryWire(row: AlertSummaryRow): AlertSummaryWire {
+export function toAlertSummaryWire(
+  row: AlertSummaryRow,
+  namesByUserId: ReadonlyMap<string, string>,
+): AlertSummaryWire {
   return {
     id: row.id,
     kind: row.kind,
     scope: row.scope,
+    scope_display: scopeDisplay(row.kind, row.scope, namesByUserId),
     level: row.level,
     audience: row.audience,
     opened_at: row.openedAt.toISOString(),
@@ -144,7 +151,11 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         request.query.open === "true" ? true : request.query.open === "false" ? false : undefined;
 
       const rows = await listVisibleAlerts(options.db, openSession, { level, open });
-      await reply.code(200).send(rows.map(toAlertSummaryWire));
+      const namesByUserId = await loadScopeDisplayNames(
+        options.db,
+        rows.map((row) => row.scope),
+      );
+      await reply.code(200).send(rows.map((row) => toAlertSummaryWire(row, namesByUserId)));
     },
   );
 }

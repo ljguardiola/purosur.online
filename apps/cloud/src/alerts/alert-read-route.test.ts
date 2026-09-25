@@ -208,4 +208,40 @@ describe("GET /alerts/:id", () => {
       },
     ]);
   });
+
+  it("resolves a user-scoped alert's scope and its detail's actorId to first names", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const administratorRoleId = await insertRole("administrator", []);
+    const administratorId = await insertUserWithRole("Ada", administratorRoleId);
+    const targetRoleId = await insertRole("target", []);
+    const targetId = await insertUserWithRole("Lucía", targetRoleId);
+    const [alertRow] = await db
+      .insert(alerts)
+      .values({
+        kind: "user_email_changed",
+        scope: targetId,
+        level: "warning",
+        audience: "all",
+        detail: {
+          previousEmail: "old@example.com",
+          newEmail: "new@example.com",
+          actorId: administratorId,
+        },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alertRow) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, alertRow.id);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      scope_display: string;
+      detail: { actorId: string; actorName?: string };
+    };
+    expect(body.scope_display).toBe("Lucía");
+    expect(body.detail.actorName).toBe("Ada");
+  });
 });

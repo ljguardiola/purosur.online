@@ -2,6 +2,9 @@ export type AlertLevel = "informational" | "warning" | "critical";
 
 export type AlertAudience = "local" | "all";
 
+/** What `alerts.scope` identifies for a kind: a user id, or a source address (not looked up as a user). */
+export type AlertScopeKind = "user" | "sourceAddress";
+
 const ALERT_KIND_LIST = [
   "backoffice_passkey_changed",
   "backoffice_recovery_requested",
@@ -20,6 +23,7 @@ export interface AlertKindDefinition {
   /** How long an open alert of this kind waits before escalating from Warning to Critical, or `null` if it never escalates. */
   escalatesAfterMs: number | null;
   audience: AlertAudience;
+  scopeKind: AlertScopeKind;
 }
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -33,24 +37,28 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
+    scopeKind: "user",
   },
   {
     kind: "backoffice_recovery_requested",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
+    scopeKind: "user",
   },
   {
     kind: "user_email_changed",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
+    scopeKind: "user",
   },
   {
     kind: "backoffice_sign_in_lockout",
     level: "warning",
     escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
     audience: "all",
+    scopeKind: "sourceAddress",
   },
 ];
 

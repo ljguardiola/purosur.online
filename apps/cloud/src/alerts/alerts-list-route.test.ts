@@ -227,4 +227,42 @@ describe("GET /alerts", () => {
     expect((openResponse.json() as { id: string }[]).map((row) => row.id)).toEqual([openId]);
     expect((closedResponse.json() as { id: string }[]).map((row) => row.id)).not.toContain(openId);
   });
+
+  it("shows a user-scoped alert's scope_display as that user's first name", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const viewerId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(viewerId);
+    const targetRoleId = await insertRole([]);
+    const targetId = await insertUserWithRole(targetRoleId);
+    await insertAlert({ kind: "user_email_changed", scope: targetId, audience: "all" });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { kind: string; scope: string; scope_display: string }[];
+    expect(body).toEqual([
+      expect.objectContaining({
+        kind: "user_email_changed",
+        scope: targetId,
+        scope_display: "Ada",
+      }),
+    ]);
+  });
+
+  it("falls back to the raw scope for a kind outside the catalog, e.g. a source address", async () => {
+    const roleId = await insertRole(["view_all_alerts"]);
+    const userId = await insertUserWithRole(roleId);
+    const rawSessionId = await insertSession(userId);
+    await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: "203.0.113.5",
+      audience: "all",
+    });
+
+    const response = await getAlerts(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { scope_display: string }[];
+    expect(body).toEqual([expect.objectContaining({ scope_display: "203.0.113.5" })]);
+  });
 });

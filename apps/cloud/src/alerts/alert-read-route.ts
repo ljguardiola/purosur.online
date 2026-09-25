@@ -12,6 +12,7 @@ import {
 } from "../session/route-access.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import type { AlertAudience, AlertLevel } from "./alert-kind-catalog.js";
+import { loadScopeDisplayNames, scopeDisplay } from "./alert-scope-display.js";
 import { canSeeAlert, canSeeAnyAlerts } from "./alert-visibility.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
@@ -69,13 +70,34 @@ export interface AlertDetailWire {
   id: string;
   kind: string;
   scope: string;
+  /** `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope otherwise. */
+  scope_display: string;
   level: AlertLevel;
   audience: AlertAudience;
+  /**
+   * The kind's own fact payload, passed through as stored, plus one addition: when it carries an
+   * `actorId` (who performed the change — `backoffice_passkey_changed`, `user_email_changed`), an
+   * `actorName` next to it, resolved the same way `scope_display` is. Never added when that id
+   * can't be resolved, rather than showing a raw id.
+   */
   detail: Record<string, unknown>;
   opened_at: string;
   escalated_at: string | null;
   resolved_at: string | null;
   deliveries: AlertDeliveryWire[];
+}
+
+/** Adds `actorName` next to a `detail.actorId` when it resolves to a known user; passes `detail` through untouched otherwise. */
+export function detailWithActorName(
+  detail: Record<string, unknown>,
+  namesByUserId: ReadonlyMap<string, string>,
+): Record<string, unknown> {
+  const actorId = detail.actorId;
+  if (typeof actorId !== "string") {
+    return detail;
+  }
+  const actorName = namesByUserId.get(actorId);
+  return actorName === undefined ? detail : { ...detail, actorName };
 }
 
 export function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
@@ -99,14 +121,16 @@ export function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
 export function toAlertDetailWire(
   alert: AlertDetailRow,
   deliveries: AlertDeliveryRow[],
+  namesByUserId: ReadonlyMap<string, string>,
 ): AlertDetailWire {
   return {
     id: alert.id,
     kind: alert.kind,
     scope: alert.scope,
+    scope_display: scopeDisplay(alert.kind, alert.scope, namesByUserId),
     level: alert.level,
     audience: alert.audience,
-    detail: alert.detail,
+    detail: detailWithActorName(alert.detail, namesByUserId),
     opened_at: alert.openedAt.toISOString(),
     escalated_at: alert.escalatedAt?.toISOString() ?? null,
     resolved_at: alert.resolvedAt?.toISOString() ?? null,
@@ -204,7 +228,14 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const deliveries = await listAlertDeliveries(options.db, alert.id);
-      await reply.code(200).send(toAlertDetailWire(alert, deliveries));
+      const namesByUserId = await loadScopeDisplayNames(options.db, userIdsToResolve(alert));
+      await reply.code(200).send(toAlertDetailWire(alert, deliveries, namesByUserId));
     },
   );
+}
+
+/** Every id worth resolving to a name for one alert: its own scope, plus its detail's `actorId` when it has one. */
+export function userIdsToResolve(alert: Pick<AlertDetailRow, "scope" | "detail">): string[] {
+  const actorId = alert.detail.actorId;
+  return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

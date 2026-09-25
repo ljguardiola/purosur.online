@@ -19,6 +19,13 @@ describe("ALERT_KINDS", () => {
   });
 });
 
+const SCOPE_KIND_BY_ALERT_KIND: Record<AlertKind, "user" | "sourceAddress"> = {
+  backoffice_passkey_changed: "user",
+  backoffice_recovery_requested: "user",
+  user_email_changed: "user",
+  backoffice_sign_in_lockout: "sourceAddress",
+};
+
 describe("alertKindDefinition", () => {
   it.each(ALERT_KINDS)("opens %s as a Warning, escalating after 24h, All audience", (kind) => {
     expect(alertKindDefinition(kind)).toEqual({
@@ -26,7 +33,14 @@ describe("alertKindDefinition", () => {
       level: "warning",
       escalatesAfterMs: TWENTY_FOUR_HOURS_MS,
       audience: "all",
+      scopeKind: SCOPE_KIND_BY_ALERT_KIND[kind],
     });
+  });
+
+  it("scopes every kind but the lockout to a user, and the lockout to a source address", () => {
+    for (const kind of ALERT_KINDS) {
+      expect(alertKindDefinition(kind).scopeKind).toBe(SCOPE_KIND_BY_ALERT_KIND[kind]);
+    }
   });
 
   it("throws for a kind with no catalog entry", () => {
