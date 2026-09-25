@@ -467,6 +467,43 @@ test("closing an issued code's modal with Escape refreshes the list", async () =
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
+test("closing the code modal after a failed emission refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("closing the code modal after a rate-limited emission refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
 test("opens the authorization modal on emit's authorization_required, then authorizes and shows the code", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });

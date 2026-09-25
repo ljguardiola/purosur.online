@@ -481,13 +481,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     setEmission({ kind: "attemptFailed", register });
   }
 
+  // Reloads after every outcome, not just an issued code: a failure seen here (a dropped
+  // connection, an unreadable 200) may still follow a code the cloud already committed.
   function closeEmission() {
-    const wasIssued = emission.kind === "issued";
     latestEmission.current += 1;
     setEmission({ kind: "closed" });
-    if (wasIssued) {
-      void load();
-    }
+    void load();
   }
 
   const registers = list.kind === "loaded" ? list.registers : [];
