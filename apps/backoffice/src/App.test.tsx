@@ -940,6 +940,28 @@ test("hides the Catálogo item in the rail for a user without the permission", a
   expect(screen.getByRole("link", { name: "Catálogo" }).query()).toBeNull();
 });
 
+test.each(["/help", "/settings/users", "/catalog/categories"])(
+  "lists Catálogo above Config in the rail on %s",
+  async (path) => {
+    window.history.pushState(null, "", path);
+    const services = createServices();
+    vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    const rail = screen.getByRole("navigation", { name: "Áreas" });
+    await expect.element(rail.getByRole("link", { name: "Catálogo" })).toBeVisible();
+    const labels = rail
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent);
+    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Config"));
+  },
+);
+
 test("following the rail's Catálogo item opens the categories list, with Catálogo and Categorías active", async () => {
   window.history.pushState(null, "", "/help");
   const services = createServices();

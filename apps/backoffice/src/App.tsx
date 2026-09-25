@@ -249,8 +249,8 @@ function HelpApp({
       sectionColumnLabel={messages.help.sectionsNavLabel}
       railAreas={
         <>
-          <ConfigAreaItem active={false} />
           {canSeeCatalog && <CatalogAreaItem active={false} />}
+          <ConfigAreaItem active={false} />
         </>
       }
       railFooter={
@@ -355,8 +355,8 @@ function SettingsApp({
       sectionColumnLabel={messages.settings.sectionsNavLabel}
       railAreas={
         <>
-          <ConfigAreaItem active />
           {canSeeCatalog && <CatalogAreaItem active={false} />}
+          <ConfigAreaItem active />
         </>
       }
       railFooter={
@@ -491,8 +491,8 @@ function CatalogApp({
       sectionColumnLabel={messages.catalog.sectionsNavLabel}
       railAreas={
         <>
-          <ConfigAreaItem active={false} />
           <CatalogAreaItem active />
+          <ConfigAreaItem active={false} />
         </>
       }
       railFooter={
