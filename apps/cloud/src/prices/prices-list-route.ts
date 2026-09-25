@@ -50,6 +50,7 @@ export interface ListPricesInput {
 export interface ListPricesResult {
   products: PriceProductRow[];
   pendingCount: number;
+  reviewWindowDays: number;
 }
 
 /**
@@ -198,6 +199,7 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
   return {
     products: sorted.map(({ pending: _pending, ...row }) => row),
     pendingCount,
+    reviewWindowDays: input.unreviewedPriceAlertDays,
   };
 }
 

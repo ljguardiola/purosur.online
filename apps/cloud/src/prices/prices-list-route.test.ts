@@ -184,6 +184,20 @@ describe("GET /prices", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("reports the branch's own unreviewed-price window as reviewWindowDays", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    await db
+      .update(branchSettings)
+      .set({ unreviewedPriceAlertDays: 45 })
+      .where(eq(branchSettings.locationId, await seededLocationId(db)));
+
+    const response = await listPricesRequest(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().reviewWindowDays).toBe(45);
+  });
+
   it("lists a never-priced product ahead of every reviewed one, as having no price", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
