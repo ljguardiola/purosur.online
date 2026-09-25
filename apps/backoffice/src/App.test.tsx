@@ -238,6 +238,47 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
     .toHaveFocus();
 });
 
+function scrollingAncestor(element: Element): HTMLElement {
+  let ancestor = element.parentElement;
+  while (ancestor && getComputedStyle(ancestor).overflowY !== "auto") {
+    ancestor = ancestor.parentElement;
+  }
+  if (!ancestor) throw new Error("the element has no scrolling ancestor");
+  return ancestor;
+}
+
+test("opens every help page at the top of its content, not where the previous page was scrolled", async () => {
+  const longBody = Array.from({ length: 40 }, (_, index) => ({
+    kind: "paragraph" as const,
+    text: `Paso ${index + 1} de la guía.`,
+  }));
+  const longHelp = defineHelp("es-AR", {
+    categories: { getting_started: { label: "Primeros pasos" } },
+    articles: {
+      intro: {
+        category: "getting_started",
+        title: "Bienvenida",
+        body: [...longBody, { kind: "articleLink", article: "catalog" }],
+      },
+      catalog: { category: "getting_started", title: "Catálogo", body: longBody },
+    },
+  });
+  window.history.pushState(null, "", "/help/getting_started/intro");
+  const screen = await render(<App help={longHelp} services={createServices()} />);
+
+  const link = screen.getByRole("link", { name: "Catálogo" });
+  await expect.element(link).toBeInTheDocument();
+  const firstBody = scrollingAncestor(link.element());
+  expect(firstBody.scrollHeight).toBeGreaterThan(firstBody.clientHeight);
+  firstBody.scrollTop = firstBody.scrollHeight;
+  await expect.poll(() => firstBody.scrollTop).toBeGreaterThan(0);
+
+  await userEvent.click(link);
+
+  await expect.element(screen.getByRole("heading", { name: "Catálogo", level: 1 })).toHaveFocus();
+  expect(scrollingAncestor(screen.getByRole("searchbox").element()).scrollTop).toBe(0);
+});
+
 test("routes /sign-in to the sign-in screen, outside the Shell, when no session is live", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),

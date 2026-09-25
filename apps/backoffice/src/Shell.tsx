@@ -38,10 +38,9 @@ export function Shell({
       >
         {sectionColumn}
       </nav>
-      {/* `relative` makes the content the containing block of React Aria's visually hidden
-          checkbox, radio and switch inputs, which are absolutely positioned: without it they are
-          placed against the page, stretching it past the viewport so the whole page scrolls. */}
-      <main className="relative flex flex-1 flex-col overflow-auto">{children}</main>
+      {/* Never a scroll container itself: each screen's own ScreenLayout owns the one scroll
+          region (its body), so a screen's top bar and action footer can't scroll away with it. */}
+      <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );
 }

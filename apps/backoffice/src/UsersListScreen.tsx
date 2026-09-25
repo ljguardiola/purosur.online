@@ -16,6 +16,7 @@ import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount, userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
@@ -432,21 +433,25 @@ export function UsersListScreen({ onSessionEnded, services }: UsersListScreenPro
 
   return (
     <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
-        </div>
-        <Button
-          variant="primary"
-          icon={<Plus />}
-          isDisabled={list.kind !== "loaded" || roles.length === 0}
-          onPress={() => setModalOpen(true)}
-        >
-          {usersMessages.newUserButton}
-        </Button>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+            <div className="flex flex-col justify-center">
+              <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
+            </div>
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              isDisabled={list.kind !== "loaded" || roles.length === 0}
+              onPress={() => setModalOpen(true)}
+            >
+              {usersMessages.newUserButton}
+            </Button>
+          </div>
+        }
+        bodyClassName="gap-4 p-6"
+      >
         {list.kind === "loadError" && (
           <>
             <InlineNotice
@@ -488,7 +493,7 @@ export function UsersListScreen({ onSessionEnded, services }: UsersListScreenPro
             }
           />
         )}
-      </div>
+      </ScreenLayout>
       <NewUserModal
         isOpen={modalOpen}
         roles={roles}
