@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { makeWorkerUtils } from "graphile-worker";
+import pg from "pg";
 import postgres from "postgres";
 import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
 
@@ -175,41 +176,6 @@ async function grantCloudAppGraphileWorkerAccess(sql: postgres.Sql): Promise<voi
   await grantCloudAppGraphileWorkerRowSecurityAccess(sql);
 }
 
-// `ALTER ROLE` updates a row in the cluster-wide (shared across every database) `pg_authid`
-// catalog with a plain, non-blocking catalog write: two databases racing to migrate at once (the
-// integration test suite migrates several databases concurrently, each setting this same
-// cluster-wide role's password) can both attempt that write for `cloud_app` at once, and the
-// loser gets this internal, code-less "tuple concurrently updated" failure instead of waiting for
-// a lock. It is safe to just retry: by the next attempt, the winner's write has already committed.
-const CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS = 5;
-
-export function isConcurrentCatalogUpdateError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const { code, message } = error as { code?: unknown; message?: unknown };
-  return (
-    code === "XX000" &&
-    typeof message === "string" &&
-    message.includes("tuple concurrently updated")
-  );
-}
-
-async function retryOnConcurrentCatalogUpdate<T>(run: () => Promise<T>): Promise<T> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await run();
-    } catch (error) {
-      if (
-        attempt >= CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS ||
-        !isConcurrentCatalogUpdateError(error)
-      ) {
-        throw error;
-      }
-    }
-  }
-}
-
 const SCRAM_ITERATIONS = 4096;
 const SCRAM_SALT_BYTES = 16;
 const SCRAM_KEY_BYTES = 32;
@@ -244,7 +210,26 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
   if (!row) {
     throw new Error("migrate: building the cloud_app password statement returned no row");
   }
-  await retryOnConcurrentCatalogUpdate(() => sql.unsafe(row.statement));
+  await sql.unsafe(row.statement);
+}
+
+/**
+ * graphile-worker warns and installs error handlers of its own on a pool it is given without both
+ * an `error` and a `connect` listener; a client that fails with no `error` listener at all would
+ * crash the process instead of failing the migration.
+ */
+function createWorkerPool(connectionString: string): pg.Pool {
+  const pool = new pg.Pool({ connectionString });
+  const logFailure = (error: Error) => {
+    console.error(
+      `migrate: graphile-worker database client failed ${describeDatabaseFailure(error)}`,
+    );
+  };
+  pool.on("error", logFailure);
+  pool.on("connect", (client) => {
+    client.on("error", logFailure);
+  });
+  return pool;
 }
 
 /**
@@ -287,11 +272,19 @@ export async function runMigrations(
   try {
     await migrate(drizzle(sql), { migrationsFolder });
 
-    const workerUtils = await makeWorkerUtils({ connectionString: databaseUrl });
+    // Owned here rather than left to graphile-worker, whose own pool (the one it builds from a
+    // `connectionString`) is ended without awaiting it on release, so this would otherwise return
+    // while a connection to the database it just migrated is still closing.
+    const workerPool = createWorkerPool(databaseUrl);
     try {
-      await workerUtils.migrate();
+      const workerUtils = await makeWorkerUtils({ pgPool: workerPool });
+      try {
+        await workerUtils.migrate();
+      } finally {
+        await workerUtils.release();
+      }
     } finally {
-      await workerUtils.release();
+      await workerPool.end();
     }
 
     await grantCloudAppGraphileWorkerAccess(sql);
