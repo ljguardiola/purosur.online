@@ -102,6 +102,7 @@ const PERMISSION_LABELS = {
   manage_batches: "Tandas",
   reset_user_pin: "Reiniciar el PIN",
   deactivate_users: "Desactivar usuarios",
+  reactivate_users: "Reactivar usuarios",
   correct_register_clock: "Corregir el reloj de la caja",
   view_fiscal_documents: "Ver comprobantes, contingencias y puntos de venta",
   close_fiscal_tasks: "Cerrar tareas fiscales",

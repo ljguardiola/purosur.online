@@ -10,7 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { toBranchUserWire } from "./branch-users.js";
+import { canReactivateUsers, toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
@@ -25,6 +25,21 @@ const EMAIL_TAKEN_RESPONSE = {
   code: "email_taken",
   message: "a user with that email already exists",
 } as const;
+
+/**
+ * Answered instead of the plain `email_taken` above when the conflicting email belongs to a
+ * deactivated user and the caller can reactivate one (`canReactivateUsers`): carries that user's id
+ * and display name so the form can lead the caller to reactivating them instead of creating a
+ * second account.
+ */
+function emailBelongsToDeactivatedUserResponse(target: { id: string; firstName: string }) {
+  return {
+    code: "email_belongs_to_deactivated_user",
+    message: "that email belongs to a deactivated user; reactivate them instead",
+    id: target.id,
+    name: target.firstName,
+  } as const;
+}
 
 class EmailAlreadyTaken extends Error {}
 
@@ -170,6 +185,18 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         });
 
       if (!created) {
+        // The conflict is never branch-scoped, the same way `users.email`'s own unique index
+        // isn't: a deactivated user in any branch with this email blocks creation the same way an
+        // active one does, just with a response that leads to reactivating them instead.
+        const [conflicting] = await options.db
+          .select({ id: users.id, firstName: users.firstName, active: users.active })
+          .from(users)
+          .where(eq(users.email, parsedBody.email))
+          .limit(1);
+        if (conflicting && !conflicting.active && canReactivateUsers(openSession)) {
+          await reply.code(409).send(emailBelongsToDeactivatedUserResponse(conflicting));
+          return;
+        }
         await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
         return;
       }
@@ -180,6 +207,7 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
           firstName: parsedBody.firstName,
           email: parsedBody.email,
           version: 1,
+          active: true,
           roleId: role.id,
           roleName: role.name,
           roleIsAdministrator: role.isAdministrator,

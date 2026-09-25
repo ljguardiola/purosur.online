@@ -50,6 +50,7 @@ import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.
 import { registerUserEditRoutes } from "./users/user-edit-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
+import { registerUserReactivationRoutes } from "./users/user-reactivation-route.js";
 import { registerUserReadRoute } from "./users/user-read-route.js";
 import type { UsersRouteOptions } from "./users/users-list-route.js";
 import { registerUsersListRoute } from "./users/users-list-route.js";
@@ -97,10 +98,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
    * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/edit`, `GET
-   * /users/:id/passkeys`, and `POST /users/:id/passkeys/:passkeyId/remove`, the backoffice Users
-   * screen's read, create, email-and-role-edit, and passkey-removal sides: every mutating one is
-   * Administrator-only, scoped to the session's own branch, and gated by the shared
+   * /users/:id/passkeys`, `POST /users/:id/passkeys/:passkeyId/remove`, `POST
+   * /users/:id/deactivation`, and `POST /users/:id/reactivation`, the backoffice Users screen's
+   * read, create, email-and-role-edit, passkey-removal, deactivation, and reactivation sides:
+   * every mutating one is scoped to the session's own branch and gated by the shared
    * passkey-authorization window, the same optional-feature-wiring shape `session` uses above.
+   * `GET /users` and `GET /users/:id` also answer a deactivated user, with an `active` field, to a
+   * holder of `deactivate_users` or `reactivate_users`; every other route here only ever resolves
+   * an active target.
    */
   users?: UsersRouteOptions<TQueryResult>;
   /**
@@ -211,6 +216,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
     registerUserDeactivationRoutes(app, options.users);
+    registerUserReactivationRoutes(app, options.users);
   }
 
   if (options.roles) {

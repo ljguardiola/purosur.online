@@ -166,13 +166,40 @@ describe("GET /users/:id", () => {
       first_name: "Ada Lovelace",
       email: "ada@example.com",
       version: 1,
+      active: true,
       role: { id: administratorRoleId, is_administrator: true, name: null },
       passkey_count: 0,
       is_last_active_administrator: true,
     });
   });
 
-  it("answers the same 404 for an inactive user's id as for a missing one", async () => {
+  it("answers the same 404 for an inactive user's id as for a missing one, for a holder of only deactivate_users", async () => {
+    const locationId = await seededLocationId(db);
+    const holderRoleId = await insertCashierRole("Encargada", ["deactivate_users"]);
+    const holderId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: holderRoleId,
+      locationId,
+    });
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const inactiveId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
+    const rawSessionId = await insertSession(holderId);
+
+    const inactiveResponse = await getUser(inactiveId, rawSessionId);
+    const missingResponse = await getUser("00000000-0000-0000-0000-000000000000", rawSessionId);
+
+    expect(inactiveResponse.statusCode).toBe(404);
+    expect(inactiveResponse.json()).toEqual(missingResponse.json());
+  });
+
+  it("returns an inactive user's shape, with its active field, for an Administrator", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();
     const cashierRoleId = await insertCashierRole("Cajera");
@@ -191,11 +218,44 @@ describe("GET /users/:id", () => {
     await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
     const rawSessionId = await insertSession(administratorId);
 
-    const inactiveResponse = await getUser(inactiveId, rawSessionId);
-    const missingResponse = await getUser("00000000-0000-0000-0000-000000000000", rawSessionId);
+    const response = await getUser(inactiveId, rawSessionId);
 
-    expect(inactiveResponse.statusCode).toBe(404);
-    expect(inactiveResponse.json()).toEqual(missingResponse.json());
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      id: inactiveId,
+      first_name: "Grace Hopper",
+      email: "grace@example.com",
+      version: 1,
+      active: false,
+      role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
+      passkey_count: 0,
+      is_last_active_administrator: false,
+    });
+  });
+
+  it("returns an inactive user's shape for a holder of only reactivate_users, though not an Administrator", async () => {
+    const locationId = await seededLocationId(db);
+    const holderRoleId = await insertCashierRole("Encargada", ["reactivate_users"]);
+    const holderId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: holderRoleId,
+      locationId,
+    });
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const inactiveId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
+    const rawSessionId = await insertSession(holderId);
+
+    const response = await getUser(inactiveId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: inactiveId, active: false });
   });
 
   it("answers the identical 404 for another branch's id, a missing id, and a malformed id", async () => {

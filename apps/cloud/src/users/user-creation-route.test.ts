@@ -264,6 +264,33 @@ describe("POST /users", () => {
     expect(matching).toHaveLength(1);
   });
 
+  it("answers email_belongs_to_deactivated_user with that user's id and name when the email belongs to a deactivated user, creating nothing", async () => {
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const deactivatedId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: cashierRoleId,
+      locationId: await seededLocationId(db),
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await createUser(rawSessionId, {
+      first_name: "New Hire",
+      email: "Grace@Example.com",
+      role_id: cashierRoleId,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: "email_belongs_to_deactivated_user",
+      id: deactivatedId,
+      name: "Grace Hopper",
+    });
+    const matching = await db.select().from(users).where(eq(users.email, "grace@example.com"));
+    expect(matching).toHaveLength(1);
+  });
+
   it("ignores location/branch fields sent in the body, always using the session's own branch", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const rawSessionId = await insertSession(administratorId);
