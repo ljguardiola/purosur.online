@@ -29,6 +29,14 @@ type TextFieldCommonProps = {
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
+  /**
+   * The id of another element whose text names this field alongside its own visible `label` — a
+   * row heading shared by several fields (e.g. a day group's name before its own "Abre"/"Cierra"
+   * fields), which stays out of every field's own visible label so it isn't repeated once per
+   * field. Prepended to the field's own label in its accessible name; the visible label is
+   * unaffected.
+   */
+  labelledBy?: string;
 };
 
 // An invalid field always names why: there is no invalid state with nothing for the helper line
@@ -132,6 +140,7 @@ export function TextField(props: TextFieldProps) {
     disabled = false,
     readOnly = false,
     required = false,
+    labelledBy,
     kind,
   } = props;
   const invalid = props.invalid ?? false;
@@ -153,6 +162,14 @@ export function TextField(props: TextFieldProps) {
   // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
   const affixDescribedByProps =
     prefix !== undefined || suffix !== undefined ? { "aria-describedby": affixId } : {};
+
+  // react-aria's own useTextField already wires the input's accessible name to this label through
+  // its own generated id; giving that id here (instead of leaving react-aria to generate one it
+  // never hands back) lets `labelledBy` list an external heading before it, without disturbing the
+  // internal association react-aria itself relies on.
+  const labelId = useId();
+  const labelledByProps =
+    labelledBy !== undefined ? { "aria-labelledby": `${labelledBy} ${labelId}` } : {};
 
   // The native `disabled` attribute already lands on the input itself, but the error or helper
   // text beside it doesn't inherit that from a sibling, so assistive tooling has no way to tell
@@ -177,7 +194,7 @@ export function TextField(props: TextFieldProps) {
       {...affixDescribedByProps}
       className={wrapperClassName}
     >
-      <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
+      <AriaLabel id={labelId} className={required ? requiredLabelClassName : baseLabelClassName}>
         {label}
       </AriaLabel>
       <div
@@ -188,7 +205,10 @@ export function TextField(props: TextFieldProps) {
             {prefix}
           </span>
         )}
-        <AriaInput className={`${inputBaseClassName} ${valueClassName[kind]}`} />
+        <AriaInput
+          className={`${inputBaseClassName} ${valueClassName[kind]}`}
+          {...labelledByProps}
+        />
         {suffix !== undefined && (
           <span aria-hidden="true" id={affixId} className={unitSuffixClassName}>
             {suffix}

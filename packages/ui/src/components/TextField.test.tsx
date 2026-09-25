@@ -566,6 +566,27 @@ test("marks a required field with an asterisk and exposes it as required", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("names the field by an external heading through labelledBy, while the visible label stays its own text", async () => {
+  const screen = await render(
+    <>
+      <p id="group-heading">Lunes a viernes</p>
+      <TextField
+        kind="plain-text"
+        label="Abre"
+        value=""
+        onChange={() => {}}
+        labelledBy="group-heading"
+      />
+    </>,
+  );
+
+  await expect.element(screen.getByText("Abre")).toBeVisible();
+  await expect.element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" })).toBeVisible();
+  expect(screen.getByRole("textbox", { name: "Abre", exact: true }).query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("replaces the helper line with the field's message and exposes it as invalid, named by that message", async () => {
   const screen = await render(
     <TextField
