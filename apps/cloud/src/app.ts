@@ -12,6 +12,9 @@ import { registerCategoriesListRoute } from "./categories/categories-list-route.
 import { registerCategoryCreationRoute } from "./categories/category-creation-route.js";
 import { registerCategoryEditRoute } from "./categories/category-edit-route.js";
 import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
+import { registerIssuerIdentificationEditRoute } from "./fiscal-configuration/issuer-identification-edit-route.js";
+import type { IssuerIdentificationRouteOptions } from "./fiscal-configuration/issuer-identification-read-route.js";
+import { registerIssuerIdentificationReadRoute } from "./fiscal-configuration/issuer-identification-read-route.js";
 import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
@@ -113,6 +116,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /fiscal-configuration/issuer-identification` and `PUT
+   * .../issuer-identification`, the backoffice fiscal configuration's business-wide taxpayer
+   * identification: both gated by `change_fiscal_configuration` (an Administrator always holds it
+   * implicitly), with `PUT` additionally requiring the shared passkey-authorization window before
+   * it saves, the same optional-feature-wiring shape `roles` uses above.
+   */
+  issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /categories`, `POST /categories`, and `POST /categories/:id/edit`, the
    * backoffice Categories screen's list, create, and rename sides: every one is gated by the
    * `manage_products_and_categories` permission (an Administrator always holds it too), the same
@@ -209,6 +220,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   if (options.branchSettings) {
     registerBranchSettingsReadRoute(app, options.branchSettings);
     registerBranchSettingsEditRoute(app, options.branchSettings);
+  }
+
+  if (options.issuerIdentification) {
+    registerIssuerIdentificationReadRoute(app, options.issuerIdentification);
+    registerIssuerIdentificationEditRoute(app, options.issuerIdentification);
   }
 
   if (options.categories) {

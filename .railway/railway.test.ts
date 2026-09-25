@@ -10,6 +10,7 @@ const REQUIRED_ENV: Record<string, string> = {
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
+  AUTHORIZED_CUIT: "20-12345678-6",
 };
 
 beforeEach(() => {

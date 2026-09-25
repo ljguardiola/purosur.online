@@ -794,6 +794,76 @@ describe("wiring the branch settings routes", () => {
   });
 });
 
+describe("wiring the issuer identification routes", () => {
+  const authorizedCuit = "20-12345678-6";
+
+  it("does not register GET /fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/fiscal-configuration/issuer-identification",
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      issuerIdentification: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        authorizedCuit,
+      },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/fiscal-configuration/issuer-identification",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+
+  it("does not register PUT /fiscal-configuration/issuer-identification when no issuerIdentification option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/fiscal-configuration/issuer-identification",
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers PUT /fiscal-configuration/issuer-identification when an issuerIdentification option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      issuerIdentification: {
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+        authorizedCuit,
+      },
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: "/fiscal-configuration/issuer-identification",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /users/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -887,6 +957,11 @@ function fullyWiredApp() {
     users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    issuerIdentification: {
+      db: testDatabase.db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      authorizedCuit: "20-12345678-6",
+    },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
@@ -936,6 +1011,16 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/branch-settings",
         access: permissionAccess("configure_branch"),
+      },
+      {
+        method: "GET",
+        url: "/fiscal-configuration/issuer-identification",
+        access: permissionAccess("change_fiscal_configuration"),
+      },
+      {
+        method: "PUT",
+        url: "/fiscal-configuration/issuer-identification",
+        access: permissionAccess("change_fiscal_configuration"),
       },
       {
         method: "GET",

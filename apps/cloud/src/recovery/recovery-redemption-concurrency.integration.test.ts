@@ -55,6 +55,7 @@ async function startRealServer(): Promise<StartedFixture> {
     RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
     BACKOFFICE_ORIGIN,
     EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
+    AUTHORIZED_CUIT: "20-12345678-6",
   });
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }

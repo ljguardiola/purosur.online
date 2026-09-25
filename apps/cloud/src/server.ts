@@ -8,6 +8,7 @@ import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
+import { parseCuit } from "./fiscal-configuration/cuit.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
 import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
@@ -38,6 +39,13 @@ export interface ServerEnv {
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
   /** The value Cloudflare's edge sets on every request it forwards; see `edge-origin-guard.ts`. */
   EDGE_ORIGIN_SECRET?: string | undefined;
+  /**
+   * The CUIT the business is authorized under at the tax authority, until #46 loads it from an
+   * ARCA certificate instead. Required once `DATABASE_URL` is configured (see
+   * `requireAuthorizedCuit`), the same "required whenever the database-backed features wire up"
+   * shape `RECOVERY_EMAIL_FROM` and friends already have in `resolveRecoveryEnv`.
+   */
+  AUTHORIZED_CUIT?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -101,6 +109,24 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
     throw new Error("EDGE_ORIGIN_SECRET must be set");
   }
   return value;
+}
+
+/**
+ * Validates `AUTHORIZED_CUIT` and normalizes it to `NN-NNNNNNNN-N` for display: called once
+ * `DATABASE_URL` is configured, so a missing or malformed value fails startup the same way a
+ * missing `RESEND_API_KEY` does in `resolveRecoveryEnv`, before any database or job-queue resource
+ * opens.
+ */
+export function requireAuthorizedCuit(env: ServerEnv): string {
+  const value = env.AUTHORIZED_CUIT;
+  if (!value) {
+    throw new Error("AUTHORIZED_CUIT must be set once DATABASE_URL is configured");
+  }
+  const normalized = parseCuit(value);
+  if (!normalized) {
+    throw new Error("AUTHORIZED_CUIT must be a valid CUIT (11 digits with a correct check digit)");
+  }
+  return normalized;
 }
 
 const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
@@ -276,6 +302,10 @@ export async function startServer(
 
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const recoveryEnv = resolveRecoveryEnv(env);
+  // Validated before any database or job-queue resource opens, the same "fails fast" shape
+  // `edgeOriginSecret` above has; gated on `DATABASE_URL` because the routes that need it only
+  // wire up alongside every other database-backed feature below.
+  const authorizedCuit = recoveryEnv ? requireAuthorizedCuit(env) : undefined;
   const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
 
   const app = doBuildApp({
@@ -309,6 +339,15 @@ export async function startServer(
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          ...(authorizedCuit
+            ? {
+                issuerIdentification: {
+                  db: recovery.db,
+                  backofficeOrigin: recovery.backofficeOrigin,
+                  authorizedCuit,
+                },
+              }
+            : {}),
           categories: {
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,

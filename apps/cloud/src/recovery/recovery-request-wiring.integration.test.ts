@@ -148,6 +148,7 @@ async function startRealServer(
         RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
         BACKOFFICE_ORIGIN,
         EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
+        AUTHORIZED_CUIT: "20-12345678-6",
       },
       {
         // The only seam this test touches: everything else (the pool, graphile-worker's run(),
