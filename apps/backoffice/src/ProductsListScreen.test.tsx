@@ -521,3 +521,287 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await openNewProductModal(screen);
   await expectNoAccessibilityViolations(document.body);
 });
+
+async function fillNewProductFieldsExceptBarcodes(dialog: ScreenLocator) {
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
+}
+
+async function openEditProductModal(screen: Screen, product: ProductSummary) {
+  await expect.element(screen.getByText(product.name)).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: `Editar el producto ${product.name}` }));
+  return screen.getByRole("dialog");
+}
+
+function scanInputOf(dialog: ScreenLocator) {
+  return dialog.getByRole("textbox", { name: "Escanear otro código" });
+}
+
+test("rejects scanning a code with spaces inside it, without adding a chip", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.keyboard("{Enter}");
+
+  await expect
+    .element(dialog.getByText("El código de barras no puede tener espacios."))
+    .toBeVisible();
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
+});
+
+test("rejects scanning a code longer than 64 characters, counting each emoji once", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "🌱".repeat(64));
+  await userEvent.keyboard("{Enter}");
+  await expect
+    .element(dialog.getByRole("button", { name: `Quitar el código ${"🌱".repeat(64)}` }))
+    .toBeVisible();
+
+  await userEvent.fill(scanInputOf(dialog), "1".repeat(65));
+  await userEvent.keyboard("{Enter}");
+
+  await expect
+    .element(dialog.getByText("El código de barras puede tener hasta 64 caracteres."))
+    .toBeVisible();
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+});
+
+test("refuses scanning more than 20 codes for one product", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  for (let index = 1; index <= 21; index += 1) {
+    await userEvent.fill(scanInputOf(dialog), `code-${index}`);
+    await userEvent.keyboard("{Enter}");
+  }
+
+  await expect
+    .element(dialog.getByText("El producto puede tener hasta 20 códigos de barras."))
+    .toBeVisible();
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(20);
+});
+
+test("shows an invalid-code error, not the required one, when the cloud rejects listed barcodes", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "barcodes",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.keyboard("{Enter}");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("Alguno de los códigos de barras no es válido."))
+    .toBeVisible();
+  expect(dialog.getByText("Escaneá al menos un código de barras.").query()).toBeNull();
+});
+
+test("shows an invalid-code error on edit when the cloud rejects the listed barcodes", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "barcodes",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("Alguno de los códigos de barras no es válido."))
+    .toBeVisible();
+  expect(dialog.getByText("Escaneá al menos un código de barras.").query()).toBeNull();
+});
+
+test("creating includes a code typed in the scan input but not yet confirmed with Enter", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledWith({
+    name: "Producto nuevo",
+    categoryId: "category-1",
+    saleUnit: "UNIT",
+    barcodes: ["7790000000099"],
+  });
+});
+
+test("creating is blocked when the code left in the scan input is invalid", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("El código de barras no puede tener espacios."))
+    .toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("saving an edit includes a code typed in the scan input but not yet confirmed with Enter", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+    name: "Miel pura de abeja 1 kg",
+    categoryId: "category-1",
+    saleUnit: "UNIT",
+    barcodes: ["7790987000015", "7790000000099"],
+    version: 1,
+  });
+});
+
+test("saving an edit is blocked when the code left in the scan input is already listed", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.fill(scanInputOf(dialog), "7790987000015");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Ese código ya está en la lista.")).toBeVisible();
+  expect(services.editProduct).not.toHaveBeenCalled();
+});
+
+test("shows a generic barcode-taken error when the cloud names no taken code", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "barcode_taken", codes: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.keyboard("{Enter}");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("Alguno de los códigos ya es de otro producto."))
+    .toBeVisible();
+});
+
+test("shows a generic barcode-taken error on edit when the cloud names no taken code", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "barcode_taken", codes: [] });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("Alguno de los códigos ya es de otro producto."))
+    .toBeVisible();
+});
+
+test("reloading after a stale-version conflict retitles the modal with the fresh name", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = { ...miel, name: "Miel pura de abeja 900 g", version: 2 };
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
+    .toBeVisible();
+});
+
+test("the scan input is marked invalid and described by the barcode field's error", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await expect.element(scanInputOf(dialog)).not.toHaveAttribute("aria-invalid", "true");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+  await expect.element(scanInputOf(dialog)).toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(scanInputOf(dialog))
+    .toHaveAccessibleDescription("Escaneá al menos un código de barras.");
+
+  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.keyboard("{Enter}");
+  await expect
+    .element(scanInputOf(dialog))
+    .toHaveAccessibleDescription(/El código de barras no puede tener espacios\./);
+});
+
+test("marks the sale unit and barcode labels as required, like the name and category", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto")).toBeVisible();
+
+  const createDialog = await openNewProductModal(screen);
+  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
+    const label = createDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
+    expect(getComputedStyle(label, "::after").content).toContain("*");
+  }
+  await expect
+    .element(createDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
+    .toHaveAttribute("aria-required", "true");
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
+    const label = editDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
+    expect(getComputedStyle(label, "::after").content).toContain("*");
+  }
+  await expect
+    .element(editDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
+    .toHaveAttribute("aria-required", "true");
+});

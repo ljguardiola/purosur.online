@@ -14,3 +14,5 @@ export const BARCODE_MAX_LENGTH = 64;
 export function barcodeLength(code: string): number {
   return Array.from(code).length;
 }
+
+export const PRODUCT_BARCODES_MAX_COUNT = 20;

@@ -1,4 +1,10 @@
-import { PRODUCT_NAME_MAX_LENGTH, productNameLength } from "@purosur/contracts";
+import {
+  BARCODE_MAX_LENGTH,
+  barcodeLength,
+  PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
+  productNameLength,
+} from "@purosur/contracts";
 import {
   Button,
   IconButton,
@@ -28,7 +34,15 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { messages } from "./messages";
 import {
@@ -116,6 +130,9 @@ function productNameError(
   return undefined;
 }
 
+// Same asterisk TextField and Select draw on a required field's own label.
+const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
+
 type BarcodeChipsProps = {
   barcodes: string[];
   onRemove: (code: string) => void;
@@ -141,9 +158,13 @@ function BarcodeChips({
   error,
   scanError,
 }: BarcodeChipsProps) {
+  const scanErrorId = useId();
+  const errorId = useId();
+  const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
+
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-base font-bold text-ink">{labels.barcodesLabel}</span>
+      <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
       {barcodes.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {barcodes.map((code) => (
@@ -170,10 +191,20 @@ function BarcodeChips({
           onKeyDown={onScanKeyDown}
           placeholder={labels.scanInputLabel}
           aria-label={labels.scanInputLabel}
+          aria-invalid={describedBy ? true : undefined}
+          aria-describedby={describedBy || undefined}
         />
       </div>
-      {scanError && <span className="text-sm font-normal text-status-error-ui">{scanError}</span>}
-      {error && <span className="text-sm font-normal text-status-error-ui">{error}</span>}
+      {scanError && (
+        <span id={scanErrorId} className="text-sm font-normal text-status-error-ui">
+          {scanError}
+        </span>
+      )}
+      {error && (
+        <span id={errorId} className="text-sm font-normal text-status-error-ui">
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -208,6 +239,44 @@ function productFieldErrors(
   return next;
 }
 
+type PendingCodeResult = { ok: true; barcodes: string[]; added: boolean } | { ok: false };
+
+function scanErrorFor(code: string, listed: string[]): string | undefined {
+  const scanMessages = productsMessages.newProductModal;
+  if (/\s/.test(code)) {
+    return scanMessages.barcodeHasSpaces;
+  }
+  if (barcodeLength(code) > BARCODE_MAX_LENGTH) {
+    return scanMessages.barcodeTooLong;
+  }
+  if (listed.includes(code)) {
+    return scanMessages.barcodeAlreadyListed;
+  }
+  if (listed.length >= PRODUCT_BARCODES_MAX_COUNT) {
+    return scanMessages.barcodeLimitReached;
+  }
+  return undefined;
+}
+
+function barcodesRejectedError(
+  sent: string[],
+  modalMessages: { barcodeRequired: string; barcodeInvalid: string },
+): string {
+  return sent.length > 0 ? modalMessages.barcodeInvalid : modalMessages.barcodeRequired;
+}
+
+function barcodeTakenError(
+  codes: string[],
+  modalMessages: {
+    barcodeTaken: (params: { codes: string[] }) => string;
+    barcodeTakenUnnamed: string;
+  },
+): string {
+  return codes.length > 0
+    ? modalMessages.barcodeTaken({ codes })
+    : modalMessages.barcodeTakenUnnamed;
+}
+
 function useBarcodeChips(initial: string[]) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
   const [scanInput, setScanInput] = useState("");
@@ -225,26 +294,46 @@ function useBarcodeChips(initial: string[]) {
     setBarcodes((current) => current.filter((existing) => existing !== code));
   }
 
+  // Adds the code still sitting in the scan input, if any, and returns the list as it stands
+  // once added, since the state update isn't readable until the next render.
+  function commitPending(): PendingCodeResult {
+    const trimmed = scanInput.trim();
+    if (!trimmed) {
+      return { ok: true, barcodes, added: false };
+    }
+    const error = scanErrorFor(trimmed, barcodes);
+    if (error) {
+      setScanError(error);
+      return { ok: false };
+    }
+    const next = [...barcodes, trimmed];
+    setBarcodes(next);
+    setScanInput("");
+    setScanError(undefined);
+    return { ok: true, barcodes: next, added: true };
+  }
+
   function handleScanKeyDown(event: KeyboardEvent<HTMLInputElement>, onAdded: () => void) {
     if (event.key !== "Enter") {
       return;
     }
     event.preventDefault();
-    const trimmed = scanInput.trim();
-    if (!trimmed) {
-      return;
+    const result = commitPending();
+    if (result.ok && result.added) {
+      onAdded();
     }
-    if (barcodes.includes(trimmed)) {
-      setScanError(productsMessages.newProductModal.barcodeAlreadyListed);
-      return;
-    }
-    setBarcodes((current) => [...current, trimmed]);
-    setScanInput("");
-    setScanError(undefined);
-    onAdded();
   }
 
-  return { barcodes, scanInput, setScanInput, scanError, reset, remove, handleScanKeyDown };
+  return {
+    barcodes,
+    scanInput,
+    setScanInput,
+    scanError,
+    reset,
+    remove,
+    commitPending,
+    handleScanKeyDown,
+  };
 }
 
 type NewProductModalProps = {
@@ -298,9 +387,11 @@ function NewProductModal({
     const nameError = productNameError(name, modalMessages);
     const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
     const unitError = saleUnit ? undefined : modalMessages.unitRequired;
-    const barcodesError = chips.barcodes.length > 0 ? undefined : modalMessages.barcodeRequired;
+    const pending = chips.commitPending();
+    const barcodesError =
+      pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
     setErrors(productFieldErrors(nameError, categoryError, unitError, barcodesError));
-    if (!categoryId || !saleUnit || nameError || barcodesError) {
+    if (!pending.ok || !categoryId || !saleUnit || nameError || barcodesError) {
       return;
     }
     setNotice(null);
@@ -310,7 +401,7 @@ function NewProductModal({
       name: name.trim(),
       categoryId,
       saleUnit,
-      barcodes: chips.barcodes,
+      barcodes: pending.barcodes,
     };
     const outcome = await createProduct(input);
     if (outcome.kind === "ok") {
@@ -333,7 +424,9 @@ function NewProductModal({
       } else if (outcome.field === "saleUnit") {
         setErrors((current) => withFieldError(current, "unit", modalMessages.unitRequired));
       } else if (outcome.field === "barcodes") {
-        setErrors((current) => withFieldError(current, "barcodes", modalMessages.barcodeRequired));
+        setErrors((current) =>
+          withFieldError(current, "barcodes", barcodesRejectedError(input.barcodes, modalMessages)),
+        );
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -343,7 +436,7 @@ function NewProductModal({
     if (outcome.kind === "barcode_taken") {
       setErrors((current) => ({
         ...current,
-        barcodes: modalMessages.barcodeTaken({ codes: outcome.codes }),
+        barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
       setSubmitting(false);
       return;
@@ -452,7 +545,7 @@ function NewProductModal({
           </div>
         )}
         <div className="flex flex-col gap-1.5">
-          <span className="text-base font-bold text-ink">{modalMessages.unitLabel}</span>
+          <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -474,6 +567,7 @@ function NewProductModal({
               setSaleUnit(value);
               setErrors((current) => withFieldError(current, "unit", undefined));
             }}
+            required
             {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
         </div>
@@ -562,21 +656,24 @@ function EditProductModal({
     }
     const nameError = productNameError(name, modalMessages);
     const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
-    const barcodesError = chips.barcodes.length > 0 ? undefined : modalMessages.barcodeRequired;
+    const pending = chips.commitPending();
+    const barcodesError =
+      pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
     // Category and sale unit are already the product's own current values here (never chosen
     // through this modal for the first time), so unlike NewProductModal, `unit` is never invalid.
     setErrors(productFieldErrors(nameError, categoryError, undefined, barcodesError));
-    if (nameError || categoryError || barcodesError) {
+    if (!pending.ok || nameError || categoryError || barcodesError) {
       return;
     }
     setNotice(null);
     setSubmitting(true);
 
+    const sentBarcodes = pending.barcodes;
     const outcome = await editProduct(current.id, {
       name: name.trim(),
       categoryId,
       saleUnit,
-      barcodes: chips.barcodes,
+      barcodes: sentBarcodes,
       version,
     });
     if (outcome.kind === "ok") {
@@ -607,7 +704,9 @@ function EditProductModal({
       } else if (outcome.field === "categoryId") {
         setErrors((current) => withFieldError(current, "category", modalMessages.categoryRequired));
       } else if (outcome.field === "barcodes") {
-        setErrors((current) => withFieldError(current, "barcodes", modalMessages.barcodeRequired));
+        setErrors((current) =>
+          withFieldError(current, "barcodes", barcodesRejectedError(sentBarcodes, modalMessages)),
+        );
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -617,7 +716,7 @@ function EditProductModal({
     if (outcome.kind === "barcode_taken") {
       setErrors((current) => ({
         ...current,
-        barcodes: modalMessages.barcodeTaken({ codes: outcome.codes }),
+        barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
       setSubmitting(false);
       return;
@@ -646,6 +745,7 @@ function EditProductModal({
         return;
       }
       setName(fresh.name);
+      setTitle(fresh.name);
       setCategoryId(fresh.categoryId);
       setSaleUnit(fresh.saleUnit);
       setVersion(fresh.version);
@@ -805,7 +905,7 @@ function EditProductModal({
             </div>
           )}
           <div className="flex flex-col gap-1.5">
-            <span className="text-base font-bold text-ink">{modalMessages.unitLabel}</span>
+            <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
@@ -824,6 +924,7 @@ function EditProductModal({
               ]}
               value={saleUnit}
               onChange={setSaleUnit}
+              required
             />
           </div>
           <BarcodeChips

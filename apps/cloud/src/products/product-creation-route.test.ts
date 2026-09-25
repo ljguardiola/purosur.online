@@ -375,6 +375,26 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
+  it("rejects more than 20 barcodes, creating nothing", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: Array.from({ length: 21 }, (_, index) => `code-${index}`),
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "barcodes" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
   it("rejects a repeated barcode inside the same request, creating nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     const userId = await insertUserWithPermission();

@@ -427,7 +427,7 @@ describe("POST /products/:id/edit", () => {
 
   it("rejects a barcode already used by another product, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
-    const other = await insertProduct({
+    await insertProduct({
       name: "Other",
       categoryId,
       saleUnit: "UNIT",
@@ -441,7 +441,6 @@ describe("POST /products/:id/edit", () => {
     });
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
-    void other;
 
     const response = await editProduct(rawSessionId, product.id, {
       name: "Maceta",

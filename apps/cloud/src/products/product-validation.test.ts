@@ -1,5 +1,6 @@
 import {
   BARCODE_MAX_LENGTH as SHARED_BARCODE_MAX_LENGTH,
+  PRODUCT_BARCODES_MAX_COUNT as SHARED_PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH as SHARED_PRODUCT_NAME_MAX_LENGTH,
   barcodeLength as sharedBarcodeLength,
   productNameLength as sharedProductNameLength,
@@ -8,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
   readBarcodes,
@@ -148,6 +150,16 @@ describe("validateProductFields", () => {
     ).toMatchObject({ field: "barcodes" });
   });
 
+  it("accepts up to 20 barcodes and rejects a 21st", () => {
+    const codes = Array.from({ length: 21 }, (_, index) => `code-${index}`);
+    const fields = { name: "Maceta", categoryId: "cat-1", saleUnit: "UNIT" } as const;
+
+    expect(validateProductFields({ ...fields, barcodes: codes.slice(0, 20) })).toBeUndefined();
+    expect(validateProductFields({ ...fields, barcodes: codes })).toMatchObject({
+      field: "barcodes",
+    });
+  });
+
   it("rejects a barcode with whitespace inside it", () => {
     expect(
       validateProductFields({
@@ -175,6 +187,7 @@ describe("the cloud's local product limits", () => {
   it("match the shared limits", () => {
     expect(PRODUCT_NAME_MAX_LENGTH).toBe(SHARED_PRODUCT_NAME_MAX_LENGTH);
     expect(BARCODE_MAX_LENGTH).toBe(SHARED_BARCODE_MAX_LENGTH);
+    expect(PRODUCT_BARCODES_MAX_COUNT).toBe(SHARED_PRODUCT_BARCODES_MAX_COUNT);
   });
 
   it("count length the same way the shared contract does", () => {

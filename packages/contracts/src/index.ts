@@ -28,6 +28,7 @@ export {
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product";

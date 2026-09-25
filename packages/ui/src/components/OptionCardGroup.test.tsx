@@ -513,6 +513,22 @@ test("does not show an error message when not invalid", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("exposes a required group as required, and an optional one as not required", async () => {
+  const screen = await render(
+    <>
+      <OptionCardGroup {...baseProps({ label: "Required group", required: true })} />
+      <OptionCardGroup {...baseProps({ label: "Optional group" })} />
+    </>,
+  );
+
+  const required = screen.getByRole("radiogroup", { name: "Required group" }).element();
+  const optional = screen.getByRole("radiogroup", { name: "Optional group" }).element();
+  expect(required.getAttribute("aria-required")).toBe("true");
+  expect(optional.getAttribute("aria-required")).not.toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("accepts a null value for no selection yet", () => {
   expectTypeOf<{
     label: string;

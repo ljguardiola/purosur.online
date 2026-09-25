@@ -14,6 +14,7 @@ export interface ProductFieldValidationFailure {
 // against it.
 export const PRODUCT_NAME_MAX_LENGTH = 100;
 export const BARCODE_MAX_LENGTH = 64;
+export const PRODUCT_BARCODES_MAX_COUNT = 20;
 
 export function productNameLength(name: string): number {
   return Array.from(name).length;
@@ -94,6 +95,12 @@ export function validateProductFields(
   }
   if (!input.barcodes) {
     return { field: "barcodes", message: "barcodes must be a non-empty list of codes" };
+  }
+  if (input.barcodes.length > PRODUCT_BARCODES_MAX_COUNT) {
+    return {
+      field: "barcodes",
+      message: `a product can have at most ${PRODUCT_BARCODES_MAX_COUNT} barcodes`,
+    };
   }
   const seen = new Set<string>();
   for (const code of input.barcodes) {

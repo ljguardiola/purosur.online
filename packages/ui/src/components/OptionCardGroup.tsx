@@ -34,6 +34,7 @@ export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProp
   options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
   value: NoInfer<V> | null;
   onChange: (value: NoInfer<V>) => void;
+  required?: boolean;
 };
 
 // See Button.tsx's iconWrapperClassName: the icon's size is imposed by this wrapper's own CSS,
@@ -90,7 +91,7 @@ function OptionCard<V extends string>({ value, icon, title, helpText }: OptionCa
 }
 
 export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>) {
-  const { label, options, value, onChange } = props;
+  const { label, options, value, onChange, required = false } = props;
   const invalid = props.invalid ?? false;
   const errorMessage = props.invalid ? props.errorMessage : undefined;
 
@@ -103,6 +104,7 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       // calls this with a value it read off one of our own Radio elements, whose `value` is
       // always one of `options`' own V values, so this cast can't observe a value outside V.
       onChange={(nextValue) => onChange(nextValue as V)}
+      isRequired={required}
       isInvalid={invalid}
       validationBehavior="aria"
       className="flex flex-col gap-1.5"

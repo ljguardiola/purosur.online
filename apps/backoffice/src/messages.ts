@@ -1,8 +1,10 @@
 import {
+  BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
+  PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
@@ -43,6 +45,11 @@ const PRODUCT_BARCODES_LABEL = "Códigos de barras";
 const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
+const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
+const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`;
+const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
+const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
+const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -504,6 +511,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
         barcodeRequired: PRODUCT_BARCODE_REQUIRED,
         barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+        barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+        barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+        barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+        barcodeInvalid: PRODUCT_BARCODE_INVALID,
+        barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
         barcodeTaken: (params: { codes: string[] }) => {
           const list = params.codes.join(", ");
           return f.plural(params.codes.length, {
@@ -537,6 +549,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
         barcodeRequired: PRODUCT_BARCODE_REQUIRED,
         barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+        barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+        barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+        barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+        barcodeInvalid: PRODUCT_BARCODE_INVALID,
+        barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
         barcodeTaken: (params: { codes: string[] }) => {
           const list = params.codes.join(", ");
           return f.plural(params.codes.length, {
