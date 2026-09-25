@@ -135,6 +135,52 @@ test("ends the session when the load finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
+test("navigates to Mi cuenta when the load comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/branch");
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when the save comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/branch");
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/branch");
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("La sucursal cambió mientras la editabas")).toBeVisible();
+
+  vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "forbidden" });
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
 test("saves every field and the loaded version, showing the saved values", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
@@ -191,6 +237,38 @@ test("checking Cerrado on a group disables and clears its Abre/Cierra fields, an
   expect(services.saveBranchSettings).toHaveBeenCalledWith({ ...loaded, weekdayHours: null });
 });
 
+test("unchecking Cerrado brings back the times the group had before it was checked", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveValue("09:00");
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }), "21:30");
+
+  await screen.getByRole("checkbox", { name: "Lunes a viernes — Cerrado" }).click({ force: true });
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toBeDisabled();
+  await screen.getByRole("checkbox", { name: "Lunes a viernes — Cerrado" }).click({ force: true });
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveValue("09:00");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }))
+    .toHaveValue("21:30");
+  await expect.element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
+  expect(services.saveBranchSettings).toHaveBeenCalledWith({
+    ...loaded,
+    weekdayHours: { opensAt: "09:00", closesAt: "21:30" },
+  });
+});
+
 test("accepts a single-digit hour like 9:00 and sends it zero-padded", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({
@@ -224,9 +302,113 @@ test("rejects an hours group whose closing time isn't later than opening, with a
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
-    .element(screen.getByText("La hora de cierre tiene que ser posterior a la de apertura."))
-    .toBeVisible();
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }))
+    .toHaveAccessibleDescription("La hora de cierre tiene que ser posterior a la de apertura.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .not.toHaveAttribute("aria-invalid", "true");
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("rejects an empty opening time with a time-format error on Abre alone, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveValue("09:00");
+
+  await userEvent.clear(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+  expect(
+    screen.getByText("La hora de cierre tiene que ser posterior a la de apertura.").query(),
+  ).toBeNull();
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("rejects an out-of-range closing time like 25:00 with a time-format error on Cierra alone", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Sábados Cierra" }))
+    .toHaveValue("13:30");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Sábados Cierra" }), "25:00");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Sábados Cierra" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Sábados Abre" }))
+    .not.toHaveAttribute("aria-invalid", "true");
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("marks both times of a group when neither is a valid time", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveValue("09:00");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }), "9.00");
+  await userEvent.clear(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }))
+    .toHaveAccessibleDescription("Ingresá la hora como 9:00 o 21:30.");
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("rejects a days value above 2147483647 with the days error inline, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveValue("30");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Precio sin revisar" }), "2147483648");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect.element(screen.getByText("Ingresá un número entero de 0 días o más.")).toBeVisible();
+  expect(services.saveBranchSettings).not.toHaveBeenCalled();
+});
+
+test("accepts a days value of exactly 2147483647", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
+    .toHaveValue("30");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Precio sin revisar" }), "2147483647");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
+  expect(services.saveBranchSettings).toHaveBeenCalledWith({
+    ...loaded,
+    unreviewedPriceAlertDays: 2147483647,
+  });
 });
 
 test("accepts a good-condition return window of exactly 0 days", async () => {
@@ -266,8 +448,8 @@ test("shows the server's hours validation error inline on the group's Cierra fie
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
-    .element(screen.getByText("La hora de cierre tiene que ser posterior a la de apertura."))
-    .toBeVisible();
+    .element(screen.getByRole("textbox", { name: "Lunes a viernes Cierra" }))
+    .toHaveAccessibleDescription("La hora de cierre tiene que ser posterior a la de apertura.");
 });
 
 test("shows a stale_version notice, and Recargar refetches so the second save sends the new version", async () => {

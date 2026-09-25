@@ -5,6 +5,7 @@ import type { BranchSettings, BranchSettingsField, BranchSettingsHours } from ".
 import { fetchBranchSettings, saveBranchSettings } from "./branchSettingsApi";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
+import { sendToMyAccount } from "./settingsRoutes";
 
 export type BranchSettingsScreenServices = {
   fetchBranchSettings: typeof fetchBranchSettings;
@@ -38,6 +39,11 @@ type HoursGroupName = "weekday" | "saturday" | "sunday";
 type FieldErrorKey = TextFieldName | DaysFieldName | HoursGroupName;
 
 type HoursGroupValues = { opensAt: string; closesAt: string; closed: boolean };
+
+type HoursGroupErrors = { opensAt?: string; closesAt?: string };
+
+type FieldErrors = Partial<Record<TextFieldName | DaysFieldName, string>> &
+  Partial<Record<HoursGroupName, HoursGroupErrors>>;
 
 type FormValues = Record<TextFieldName, string> &
   Record<DaysFieldName, string> &
@@ -84,6 +90,9 @@ function valuesFrom(settings: BranchSettings): FormValues {
   };
 }
 
+// The server stores each days value in a Postgres `integer` column and rejects anything above it.
+const DAYS_MAX = 2147483647;
+
 function parseDays(value: string): number | undefined {
   const trimmed = value.trim();
   return /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
@@ -104,7 +113,7 @@ function normalizedTime(value: string): string | undefined {
 }
 
 /** Validates every days field client-side, mirroring the server (`branch-settings-validation.ts`):
- * an integer of 0 or more. Returns one error per invalid field, keyed by our own field name so it
+ * an integer from 0 to `DAYS_MAX`. Returns one error per invalid field, keyed by our own field name so it
  * lines up directly with the corresponding TextField's `invalid`/`errorMessage` props. */
 function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, string>> {
   const errors: Partial<Record<DaysFieldName, string>> = {};
@@ -115,7 +124,7 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
   ];
   for (const field of daysFields) {
     const parsed = parseDays(values[field]);
-    if (parsed === undefined || parsed < 0) {
+    if (parsed === undefined || parsed > DAYS_MAX) {
       errors[field] = branchMessages.daysFieldError;
     }
   }
@@ -123,9 +132,12 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
 }
 
 /** Validates every hours group client-side, mirroring the server: closed needs nothing, and an
- * open group needs two valid HH:MM times with closing strictly later than opening. */
-function validateHoursFields(values: FormValues): Partial<Record<HoursGroupName, string>> {
-  const errors: Partial<Record<HoursGroupName, string>> = {};
+ * open group needs two valid HH:MM times with closing strictly later than opening. A time that
+ * isn't valid is marked on its own field; closing not later than opening is marked on Cierra. */
+function validateHoursFields(
+  values: FormValues,
+): Partial<Record<HoursGroupName, HoursGroupErrors>> {
+  const errors: Partial<Record<HoursGroupName, HoursGroupErrors>> = {};
   const groups: readonly HoursGroupName[] = ["weekday", "saturday", "sunday"];
   for (const group of groups) {
     const groupValues = values[group];
@@ -134,8 +146,17 @@ function validateHoursFields(values: FormValues): Partial<Record<HoursGroupName,
     }
     const opensAt = normalizedTime(groupValues.opensAt);
     const closesAt = normalizedTime(groupValues.closesAt);
-    if (opensAt === undefined || closesAt === undefined || closesAt <= opensAt) {
-      errors[group] = branchMessages.hoursFieldError;
+    const groupErrors: HoursGroupErrors = {};
+    if (opensAt === undefined) {
+      groupErrors.opensAt = branchMessages.hoursFormatError;
+    }
+    if (closesAt === undefined) {
+      groupErrors.closesAt = branchMessages.hoursFormatError;
+    } else if (opensAt !== undefined && closesAt <= opensAt) {
+      groupErrors.closesAt = branchMessages.hoursOrderError;
+    }
+    if (groupErrors.opensAt !== undefined || groupErrors.closesAt !== undefined) {
+      errors[group] = groupErrors;
     }
   }
   return errors;
@@ -168,19 +189,21 @@ function settingsFrom(values: FormValues, version: number): BranchSettings {
   };
 }
 
-/** The field's own error for a save the server rejected on it; `version` never renders inline. */
-function fieldErrorMessage(field: FieldErrorKey): string {
+/** The field's own error for a save the server rejected on it; `version` never renders inline. The
+ * client already checked each time's format, so an hours group the server rejects is shown as its
+ * closing time not being later than its opening, on Cierra. */
+function serverFieldErrors(field: FieldErrorKey): FieldErrors {
   if (field === "weekday" || field === "saturday" || field === "sunday") {
-    return branchMessages.hoursFieldError;
+    return { [field]: { closesAt: branchMessages.hoursOrderError } };
   }
   if (
     field === "expiringLotAlertDays" ||
     field === "unreviewedPriceAlertDays" ||
     field === "goodConditionReturnDays"
   ) {
-    return branchMessages.daysFieldError;
+    return { [field]: branchMessages.daysFieldError };
   }
-  return branchMessages.textFieldError;
+  return { [field]: branchMessages.textFieldError };
 }
 
 const CLOSED_HOURS_GROUP: HoursGroupValues = { opensAt: "", closesAt: "", closed: true };
@@ -209,7 +232,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [version, setVersion] = useState(0);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldErrorKey, string>>>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // One id per group's row heading, named by React so it stays stable across renders (unlike a
@@ -235,6 +258,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       setState({ kind: "loaded" });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
     } else {
       setState({ kind: "loadError" });
     }
@@ -257,6 +282,10 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     setNotice({ kind: "reloadFailed" });
@@ -295,10 +324,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   }
 
   function setHoursClosed(group: HoursGroupName, closed: boolean) {
-    setValues((current) => ({
-      ...current,
-      [group]: closed ? CLOSED_HOURS_GROUP : { opensAt: "", closesAt: "", closed: false },
-    }));
+    setValues((current) => ({ ...current, [group]: { ...current[group], closed } }));
     clearFieldError(group);
   }
 
@@ -325,10 +351,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       onSessionEnded();
       return;
     }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (outcome.kind === "validation_failed") {
       const field = fieldNameOfWire(outcome.field);
       if (field) {
-        setFieldErrors({ [field]: fieldErrorMessage(field) });
+        setFieldErrors(serverFieldErrors(field));
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -379,7 +409,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
 
   function hoursRow(group: HoursGroupName, groupLabel: string) {
     const groupValues = values[group];
-    const error = fieldErrors[group];
+    const errors = fieldErrors[group];
     const headingId = hoursHeadingId[group];
     return (
       <div key={group} className="flex items-end gap-4">
@@ -393,9 +423,10 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             kind="plain-text"
             label={branchMessages.opensAtLabel}
             labelledBy={headingId}
-            value={groupValues.opensAt}
+            value={groupValues.closed ? "" : groupValues.opensAt}
             onChange={(value) => setHoursOpensAt(group, value)}
             disabled={groupValues.closed}
+            {...(errors?.opensAt ? { invalid: true, errorMessage: errors.opensAt } : {})}
           />
         </div>
         <div className="flex-1">
@@ -403,10 +434,10 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             kind="plain-text"
             label={branchMessages.closesAtLabel}
             labelledBy={headingId}
-            value={groupValues.closesAt}
+            value={groupValues.closed ? "" : groupValues.closesAt}
             onChange={(value) => setHoursClosesAt(group, value)}
             disabled={groupValues.closed}
-            {...(error ? { invalid: true, errorMessage: error } : {})}
+            {...(errors?.closesAt ? { invalid: true, errorMessage: errors.closesAt } : {})}
           />
         </div>
         <div className="flex h-[3.25rem] items-center">

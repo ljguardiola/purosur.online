@@ -78,9 +78,17 @@ function readHoursGroup(
   return { opensAt, closesAt };
 }
 
-function readNonNegativeInteger(body: unknown, key: string): number | undefined {
+// The days columns are Postgres `integer` (int4): anything larger would fail the write itself.
+export const BRANCH_SETTINGS_DAYS_MAX = 2147483647;
+
+function readDays(body: unknown, key: string): number | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.[key];
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : undefined;
+  return typeof raw === "number" &&
+    Number.isInteger(raw) &&
+    raw >= 0 &&
+    raw <= BRANCH_SETTINGS_DAYS_MAX
+    ? raw
+    : undefined;
 }
 
 function readVersion(body: unknown): number | undefined {
@@ -141,25 +149,25 @@ export function readBranchSettingsEditBody(
       message: "sunday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
     };
   }
-  const expiringLotAlertDays = readNonNegativeInteger(body, "expiring_lot_alert_days");
+  const expiringLotAlertDays = readDays(body, "expiring_lot_alert_days");
   if (expiringLotAlertDays === undefined) {
     return {
       field: "expiring_lot_alert_days",
-      message: "expiring_lot_alert_days must be an integer of at least 0",
+      message: `expiring_lot_alert_days must be an integer from 0 to ${BRANCH_SETTINGS_DAYS_MAX}`,
     };
   }
-  const unreviewedPriceAlertDays = readNonNegativeInteger(body, "unreviewed_price_alert_days");
+  const unreviewedPriceAlertDays = readDays(body, "unreviewed_price_alert_days");
   if (unreviewedPriceAlertDays === undefined) {
     return {
       field: "unreviewed_price_alert_days",
-      message: "unreviewed_price_alert_days must be an integer of at least 0",
+      message: `unreviewed_price_alert_days must be an integer from 0 to ${BRANCH_SETTINGS_DAYS_MAX}`,
     };
   }
-  const goodConditionReturnDays = readNonNegativeInteger(body, "good_condition_return_days");
+  const goodConditionReturnDays = readDays(body, "good_condition_return_days");
   if (goodConditionReturnDays === undefined) {
     return {
       field: "good_condition_return_days",
-      message: "good_condition_return_days must be an integer of at least 0",
+      message: `good_condition_return_days must be an integer from 0 to ${BRANCH_SETTINGS_DAYS_MAX}`,
     };
   }
   const version = readVersion(body);

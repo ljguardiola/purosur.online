@@ -498,6 +498,92 @@ describe("PUT /branch-settings", () => {
     expect(row).toMatchObject({ expiringLotAlertDays: 30, version: 1 });
   });
 
+  it("accepts a window value of 2147483647 days, the largest the database stores", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ unreviewed_price_alert_days: 2147483647 }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ unreviewed_price_alert_days: 2147483647 });
+  });
+
+  it("accepts text fields of exactly 200 characters", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(validBody({ address: "a".repeat(200) }), rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ address: "a".repeat(200) });
+  });
+
+  it.each([
+    {
+      case: "a window value above 2147483647 days",
+      overrides: { good_condition_return_days: 2147483648 },
+      field: "good_condition_return_days",
+    },
+    {
+      case: "a negative window value",
+      overrides: { unreviewed_price_alert_days: -1 },
+      field: "unreviewed_price_alert_days",
+    },
+    {
+      case: "an address longer than 200 characters",
+      overrides: { address: "a".repeat(201) },
+      field: "address",
+    },
+    {
+      case: "an Instagram handle longer than 200 characters",
+      overrides: { instagram_handle: "a".repeat(201) },
+      field: "instagram_handle",
+    },
+    {
+      case: "a WhatsApp number that isn't a string",
+      overrides: { whatsapp_number: 541155555555 },
+      field: "whatsapp_number",
+    },
+    { case: "a missing version", overrides: { version: undefined }, field: "version" },
+    { case: "a non-integer version", overrides: { version: 1.5 }, field: "version" },
+    { case: "a version below 1", overrides: { version: 0 }, field: "version" },
+  ])(
+    "rejects $case with 400 validation_failed on that field, changing nothing",
+    async ({ overrides, field }) => {
+      const administratorId = await insertUser({
+        firstName: "Ada Lovelace",
+        email: "ada@example.com",
+        roleId: await seededAdministratorRoleId(),
+        locationId: await seededLocationId(db),
+      });
+      const rawSessionId = await insertSession(administratorId);
+      const locationId = await seededLocationId(db);
+
+      const response = await putBranchSettings(validBody(overrides), rawSessionId);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "validation_failed", details: [{ field }] });
+      const [row] = await db
+        .select()
+        .from(branchSettings)
+        .where(eq(branchSettings.locationId, locationId));
+      expect(row).toMatchObject({ address: "", version: 1 });
+    },
+  );
+
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
