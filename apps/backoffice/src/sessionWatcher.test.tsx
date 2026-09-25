@@ -72,7 +72,8 @@ test("ends the session once the known deadline (plus its margin) passes", async 
 });
 
 test("moves the deadline check out when an open status reports a later expiresAt", async () => {
-  const laterExpiresAt = () => new Date(Date.now() + 150).toISOString();
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
+  const laterExpiresAt = () => new Date(fixedNow.getTime() + 150).toISOString();
   const checkStatus = vi
     .fn<() => Promise<SessionStatusOutcome>>()
     .mockResolvedValueOnce({ kind: "ok", expiresAt: laterExpiresAt() })
@@ -81,11 +82,12 @@ test("moves the deadline check out when an open status reports a later expiresAt
 
   const hook = await renderWatcher({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 15).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 15).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
   hooks.push(hook);
 
@@ -247,14 +249,16 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
   });
   const onEnded = vi.fn();
   const setIntervalSpy = vi.spyOn(window, "setInterval");
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
 
   const hook = await renderWatcher({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 1_000).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 1_000).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
   hooks.push(hook);
 
@@ -262,11 +266,12 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
 
   await hook.rerender({
     active: true,
-    initialExpiresAt: new Date(Date.now() + 20).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 20).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
+    now: () => fixedNow,
   });
 
   expect(setIntervalSpy.mock.calls.length).toBe(setIntervalCallsAfterMount);
@@ -301,8 +306,9 @@ test("stops checking once the component unmounts", async () => {
 test("does not keep re-checking a deadline the browser's clock already considers past", async () => {
   // The browser's clock running ahead of the cloud's: the cloud keeps answering "open" with the
   // same deadline the browser already sees as gone.
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
   let skewMs = 0;
-  const expiresAt = new Date(Date.now() + 20).toISOString();
+  const expiresAt = new Date(fixedNow.getTime() + 20).toISOString();
   const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockImplementation(() => {
     skewMs = 60_000;
     return Promise.resolve({ kind: "ok", expiresAt });
@@ -316,7 +322,7 @@ test("does not keep re-checking a deadline the browser's clock already considers
     onEnded,
     intervalMs: 10_000,
     deadlineMarginMs: 0,
-    now: () => new Date(Date.now() + skewMs),
+    now: () => new Date(fixedNow.getTime() + skewMs),
   });
   hooks.push(hook);
 
