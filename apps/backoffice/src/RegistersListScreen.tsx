@@ -51,6 +51,9 @@ type ListState =
 
 const registersMessages = messages.settings.registers;
 
+/** How often the list re-reads the clock, so a pending code's minutes, and its expiry, stay current. */
+const PENDING_CODE_REFRESH_MS = 30_000;
+
 function minutesElapsed(issuedAt: string, now: Date): number {
   return Math.max(0, Math.floor((now.getTime() - new Date(issuedAt).getTime()) / 60_000));
 }
@@ -81,7 +84,7 @@ function registerNameError(
 type NewRegisterModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (register: RegisterSummary) => void;
+  onCreated: () => void;
   onSessionEnded: () => void;
   createRegister: typeof createRegister;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -139,7 +142,7 @@ function NewRegisterModal({
       return;
     }
     if (outcome.kind === "ok") {
-      onCreated({ ...outcome.value, pendingCode: null });
+      onCreated();
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -253,7 +256,7 @@ type EmissionState =
   | { kind: "issuing"; register: RegisterSummary }
   | { kind: "attemptFailed"; register: RegisterSummary }
   | { kind: "rateLimited"; register: RegisterSummary; retryAfterSeconds: number }
-  | { kind: "issued"; register: RegisterSummary; code: string; expiresAt: string };
+  | { kind: "issued"; register: RegisterSummary; code: string };
 
 type EnrollmentCodeModalProps = {
   emission: EmissionState;
@@ -288,8 +291,11 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
       icon={<KeySquare />}
       {...(emission.kind !== "closed" ? { context: emission.register.name } : {})}
       title={modalMessages.heading}
-      closable
-      closeLabel={modalMessages.closeLabel}
+      // An emission in flight can't be dismissed: the cloud may already have replaced the
+      // register's pending code, and only this response carries the new one.
+      {...(emission.kind === "issuing"
+        ? { closable: false }
+        : { closable: true, closeLabel: modalMessages.closeLabel })}
       footer={
         <Button
           variant="primary"
@@ -374,8 +380,6 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   } = services ?? defaultRegistersListScreenServices;
   const clock = now ?? (() => new Date());
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useRef(list);
-  listRef.current = list;
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
@@ -423,6 +427,15 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     void load();
   }, [load]);
 
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const intervalId = window.setInterval(
+      () => setClockTick((tick) => tick + 1),
+      PENDING_CODE_REFRESH_MS,
+    );
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   // Emits a fresh code for `register`, started by the row action's own click — never by an effect,
   // so it runs exactly once per click and never re-fires for reasons that have nothing to do with
   // the click itself. Ignored while another emission is already in flight: the open modal's own
@@ -445,12 +458,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       return;
     }
     if (outcome.kind === "ok") {
-      setEmission({
-        kind: "issued",
-        register,
-        code: outcome.value.code,
-        expiresAt: outcome.value.expiresAt,
-      });
+      setEmission({ kind: "issued", register, code: outcome.value.code });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -474,8 +482,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   }
 
   function closeEmission() {
+    const wasIssued = emission.kind === "issued";
     latestEmission.current += 1;
     setEmission({ kind: "closed" });
+    if (wasIssued) {
+      void load();
+    }
   }
 
   const registers = list.kind === "loaded" ? list.registers : [];
@@ -492,22 +504,24 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       key: "installation",
       title: registersMessages.columns.installation,
       render: (item: RegisterSummary) => {
-        if (!item.pendingCode) {
+        const now = clock();
+        const pendingCode =
+          item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
+        if (!pendingCode) {
           return (
             <span className="text-ink-secondary text-sm">{registersMessages.codeNotIssued}</span>
           );
         }
-        const now = clock();
         return (
           <div className="flex flex-col gap-1">
             <span className="text-ink text-sm">
               {registersMessages.codeIssued({
-                minutes: minutesElapsed(item.pendingCode.issuedAt, now),
+                minutes: minutesElapsed(pendingCode.issuedAt, now),
               })}
             </span>
             <span className="text-sm text-status-warning-strong">
               {registersMessages.codeExpiresIn({
-                minutes: minutesRemaining(item.pendingCode.expiresAt, now),
+                minutes: minutesRemaining(pendingCode.expiresAt, now),
               })}
             </span>
           </div>
@@ -611,16 +625,9 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       <NewRegisterModal
         isOpen={newModalOpen}
         onClose={() => setNewModalOpen(false)}
-        onCreated={(register) => {
+        onCreated={() => {
           setNewModalOpen(false);
-          // Read through a ref: this runs after the create request's await, when `list` from the
-          // render that started it may be stale.
-          const current = listRef.current;
-          if (current.kind === "loaded") {
-            setList({ kind: "loaded", registers: [...current.registers, register] });
-          } else {
-            void load();
-          }
+          void load();
         }}
         onSessionEnded={onSessionEnded}
         createRegister={createRegister}
@@ -631,10 +638,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       <EnrollmentCodeModal
         emission={emission}
         onClose={closeEmission}
-        onDone={() => {
-          closeEmission();
-          void load();
-        }}
+        onDone={closeEmission}
         onRetry={(register) => void handleEmitClick(register)}
       />
       {emissionAuthModal}

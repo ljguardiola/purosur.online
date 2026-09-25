@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { RegistersListScreen, type RegistersListScreenServices } from "./RegistersListScreen";
@@ -103,6 +103,30 @@ test("shows recién for a code issued less than a minute ago", async () => {
   await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
 });
 
+test("stops showing a pending code once it expires while the screen stays open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja2] });
+  let current = new Date("2026-09-25T12:00:00.000Z");
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const screen = await render(
+      <main>
+        <RegistersListScreen services={services} onSessionEnded={() => {}} now={() => current} />
+      </main>,
+    );
+    await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
+
+    current = new Date("2026-09-25T12:11:00.000Z");
+    vi.advanceTimersByTime(30_000);
+
+    await expect.poll(() => screen.getByText(/^Vence en/).query()).toBeNull();
+    await expect.poll(() => screen.getByText(/^Código emitido/).query()).toBeNull();
+    await expect.element(screen.getByText("—")).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("shows an empty state when there are no registers yet", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
@@ -182,7 +206,11 @@ test("opens the create modal, and cancel closes it without calling the API", asy
 
 test("creates a register and shows it in the list", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [caja1, { id: "register-3", name: "Caja 3", pendingCode: null }],
+  });
   vi.mocked(services.createRegister).mockResolvedValue({
     kind: "ok",
     value: { id: "register-3", name: "Caja 3" },
@@ -199,6 +227,31 @@ test("creates a register and shows it in the list", async () => {
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Caja 3")).toBeVisible();
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
+});
+
+test("shows a created register in the same order the server lists registers", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1, caja2] });
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "ok",
+    value: { id: caja1.id, name: caja1.name },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+  const rowNames = screen
+    .getByRole("row")
+    .all()
+    .map((row) => row.element().textContent ?? "")
+    .filter((text) => text.includes("Caja"))
+    .map((text) => text.match(/Caja \d/)?.[0]);
+  expect(rowNames).toEqual(["Caja 1", "Caja 2"]);
 });
 
 test("requires a name before submitting the create modal, without calling the API", async () => {
@@ -232,7 +285,11 @@ test("shows the name-taken error on create and does not add the register to the 
 
 test("opens the authorization modal on create's authorization_required, then authorizes and retries", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ id: "register-3", name: "Caja 3", pendingCode: null }],
+  });
   vi.mocked(services.createRegister).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
   vi.mocked(services.createRegister).mockResolvedValueOnce({
@@ -326,6 +383,84 @@ test("Listo closes the code modal and refreshes the list", async () => {
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
 
   await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+test("while the code is being emitted, neither the close button nor Escape dismisses the modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  const pendingEmission =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
+  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
+
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(dialog).toBeVisible();
+
+  pendingEmission.resolve({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+});
+
+test("closing an issued code's modal with the close button refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+
+  // The modal is wider than the default phone-sized browser-mode viewport, which would leave its
+  // close button outside it and unclickable.
+  await page.viewport(1280, 900);
+  try {
+    await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
+  } finally {
+    await page.viewport(414, 896);
+  }
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("closing an issued code's modal with Escape refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+
+  await userEvent.keyboard("{Escape}");
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
