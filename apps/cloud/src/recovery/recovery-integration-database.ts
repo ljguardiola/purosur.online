@@ -36,10 +36,10 @@ function asCloudApp(databaseUrl: string): string {
 
 /**
  * Creates one fresh, isolated database on the single Testcontainers Postgres instance
- * `vitest.global-setup.postgres.ts` starts for the run, as a copy of the one template database
- * that global setup migrates once (`CREATE DATABASE ... TEMPLATE`), so each `*.integration.test.ts`
- * file gets its own already-migrated database, instead of every file migrating (and racing) its
- * own on the shared cluster.
+ * `vitest.global-setup.postgres.ts` starts for the run, as a copy of the template database that
+ * global setup migrates (`CREATE DATABASE ... TEMPLATE`), so each `*.integration.test.ts` file
+ * gets its own already-migrated database instead of migrating (and racing) its own on the shared
+ * cluster.
  *
  * Hands back a `cloud_app` connection URL: every `*.integration.test.ts` file that exercises the
  * server, its repositories, or graphile-worker through this database must run as the same role the

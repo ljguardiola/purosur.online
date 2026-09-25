@@ -14,10 +14,9 @@ declare module "vitest" {
      */
     recoveryPostgresAdminUrl: string;
     /**
-     * Name of the one database on that container this setup migrates, so no
-     * `*.integration.test.ts` file migrates (and races) its own; `createIntegrationDatabase` copies
-     * it with `CREATE DATABASE ... TEMPLATE`. Undefined only after a watch-mode rerun failed to
-     * migrate it again.
+     * Name of the one database on that container this setup migrates, which
+     * `createIntegrationDatabase` copies with `CREATE DATABASE ... TEMPLATE` instead of migrating
+     * a database of its own. Undefined only after a watch-mode rerun failed to migrate it again.
      */
     cloudIntegrationTemplateDatabase: string | undefined;
   }
@@ -38,14 +37,14 @@ const MAX_CONNECTIONS = 500;
 
 /**
  * Starts one real Postgres container for the whole test run, shared by every
- * `*.integration.test.ts` file under apps/cloud/src, and migrates the one template database those
- * files copy their own database from (see `createAndMigrateTemplateDatabase`), so no file migrates
- * one of its own on the shared cluster. It migrates that template again before every watch-mode
- * rerun, so a migration added or edited after startup reaches the rerun tests. These tests exist
- * because PGlite serves every query on one connection and has no LISTEN/NOTIFY, which the real production wiring (a postgres-js pool,
- * concurrent connections racing an advisory lock, plus graphile-worker's real `run()`) needs;
- * without a working Docker daemon there is no way to prove that wiring, so a missing or unreachable
- * Docker fails this project's run loudly instead of silently skipping it.
+ * `*.integration.test.ts` file under apps/cloud/src, and migrates the one template database
+ * `createIntegrationDatabase` copies (see `createAndMigrateTemplateDatabase`). It migrates that
+ * template again before every watch-mode rerun, so a migration added or edited after startup
+ * reaches the rerun tests. These tests exist because PGlite serves every query on one connection
+ * and has no LISTEN/NOTIFY, which the real production wiring (a postgres-js pool, concurrent
+ * connections racing an advisory lock, plus graphile-worker's real `run()`) needs; without a
+ * working Docker daemon there is no way to prove that wiring, so a missing or unreachable Docker
+ * fails this project's run loudly instead of silently skipping it.
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   let container: StartedPostgreSqlContainer;
