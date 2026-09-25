@@ -7,6 +7,7 @@ import {
   fetchUser,
   fetchUserPasskeys,
   fetchUsers,
+  reactivateUser,
   removeUserPasskey,
 } from "./usersApi";
 
@@ -82,6 +83,28 @@ test("fetchUsers maps each user's isLastActiveAdministrator from the wire", asyn
 
   expect(outcome.kind).toBe("ok");
   expect(outcome.kind === "ok" && outcome.value[0]?.isLastActiveAdministrator).toBe(true);
+});
+
+test("fetchUsers maps each user's active field from the wire, when present", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...administratorRow, active: false }]));
+
+  const outcome = await fetchUsers();
+
+  expect(outcome.kind).toBe("ok");
+  expect(outcome.kind === "ok" && outcome.value[0]?.active).toBe(false);
+});
+
+test("fetchUsers leaves active undefined on a row where the wire omits it", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [administratorRow]));
+
+  const outcome = await fetchUsers();
+
+  if (outcome.kind !== "ok") {
+    throw new Error("expected an ok outcome");
+  }
+  const [user] = outcome.value;
+  expect(user?.active).toBeUndefined();
+  expect(user && "active" in user).toBe(false);
 });
 
 test("fetchUsers reports forbidden on 403", async () => {
@@ -191,6 +214,22 @@ test("createUser reports email_taken on 409", async () => {
 
   await expect(createUser(creationInput)).resolves.toEqual({
     kind: "email_taken",
+  });
+});
+
+test("createUser reports email_belongs_to_deactivated_user on 409 with that code, id, and name", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, {
+      code: "email_belongs_to_deactivated_user",
+      id: "user-9",
+      name: "Sofía Díaz",
+    }),
+  );
+
+  await expect(createUser(creationInput)).resolves.toEqual({
+    kind: "email_belongs_to_deactivated_user",
+    id: "user-9",
+    name: "Sofía Díaz",
   });
 });
 
@@ -609,4 +648,59 @@ test("deactivateUser reports failed on any other status or a network failure", a
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
   await expect(deactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
+});
+
+test("reactivateUser posts with no body and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await reactivateUser("user-2");
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/user-2/reactivation",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+test("reactivateUser reports not_found on 404 for a missing, other-branch, or already-active target", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "not_found" });
+});
+
+test("reactivateUser reports forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
+
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "forbidden" });
+});
+
+test("reactivateUser reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "authorization_required" });
+});
+
+test("reactivateUser reports unauthenticated on 401 with the unauthenticated code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("reactivateUser reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
+  );
+
+  await expect(reactivateUser("user-2")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
+});
+
+test("reactivateUser reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
+  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "failed" });
 });

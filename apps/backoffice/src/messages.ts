@@ -306,13 +306,18 @@ export const messages = defineMessages("es-AR", (f) => ({
       heading: "Usuarios",
       newUserButton: "Nuevo usuario",
       administratorRoleName: ADMINISTRATOR_ROLE_NAME,
-      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys" },
+      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys", state: "Estado" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
       passkeysCount: (params: { count: number }) =>
         params.count === 0
           ? "—"
           : f.plural(params.count, { one: "1 registrada", other: `${params.count} registradas` }),
+      inactiveTag: "Inactivo",
+      stateFilterLabel: "Estado:",
+      stateFilterAllOption: "Activos e inactivos",
+      stateFilterActiveOption: "Activos",
+      stateFilterInactiveOption: "Inactivos",
       loadErrorTitle: "No pudimos abrir los usuarios",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",
@@ -333,6 +338,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
         emailTaken: EMAIL_TAKEN,
+        emailBelongsToDeactivatedUser: (params: { name: string }) =>
+          `Ese correo pertenece a la cuenta desactivada de ${params.name}.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
         closeLabel: CLOSE_LABEL,
@@ -363,6 +371,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         deactivateHelp: (params: { name: string }) =>
           `Al desactivar a ${params.name}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`,
         deactivateButton: (params: { name: string }) => `Desactivar a ${params.name}`,
+        reactivateHelp: (params: { name: string }) =>
+          `Al reactivar a ${params.name}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
       },
       deactivateModal: {
         title: (params: { name: string }) => `¿Desactivar a ${params.name}?`,
@@ -371,6 +382,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         confirm: "Desactivar",
         closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo desactivar el usuario",
+        attemptFailedDetail: "Probá de nuevo.",
+      },
+      reactivateModal: {
+        title: (params: { name: string }) => `¿Reactivar a ${params.name}?`,
+        body: "Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.",
+        cancel: CANCEL_LABEL,
+        confirm: "Reactivar",
+        attemptFailedTitle: "No se pudo reactivar el usuario",
         attemptFailedDetail: "Probá de nuevo.",
       },
       removePasskeyModal: {
@@ -832,6 +851,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",
+      userReactivation: "Reactivar un usuario",
       issuerIdentificationSave: "Guardar la identificación del emisor",
     },
   },
