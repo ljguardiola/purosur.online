@@ -83,6 +83,14 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
+    registersListScreen: {
+      fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      createRegister: vi.fn(),
+      emitEnrollmentCode: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     branchSettingsScreen: {
       fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
       saveBranchSettings: vi.fn(),
@@ -625,6 +633,87 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["enroll_register_devices"],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await expect.element(screen.getByRole("link", { name: "Cajas registradoras" })).toBeVisible();
+});
+
+test("hides the Cajas registradoras item in the rail for a user without enroll_register_devices", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Cajas registradoras" }).query()).toBeNull();
+});
+
+test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Cajas registradoras" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/settings/registers");
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const registersItem = screen
+    .getByRole("link", { name: "Cajas registradoras" })
+    .element() as HTMLAnchorElement;
+  expect(registersItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a typed /settings/registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/registers");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {

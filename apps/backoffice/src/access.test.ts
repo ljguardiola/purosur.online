@@ -3,6 +3,7 @@ import {
   canDeactivateUser,
   canSeeBranchArea,
   canSeeCatalogArea,
+  canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
 } from "./access";
@@ -85,4 +86,20 @@ test("canSeeCatalogArea is true for a non-Administrator holding manage_products_
 
 test("canSeeCatalogArea is false for a non-Administrator without manage_products_and_categories", () => {
   expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
+});
+
+test("canSeeRegistersArea is true for an Administrator", () => {
+  expect(canSeeRegistersArea({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canSeeRegistersArea is true for a non-Administrator holding enroll_register_devices", () => {
+  expect(
+    canSeeRegistersArea({ isAdministrator: false, permissions: ["enroll_register_devices"] }),
+  ).toBe(true);
+});
+
+test("canSeeRegistersArea is false for a non-Administrator without enroll_register_devices", () => {
+  expect(canSeeRegistersArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(
+    false,
+  );
 });

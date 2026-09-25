@@ -8,6 +8,7 @@ import {
   type PermissionKey,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  REGISTER_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
@@ -57,6 +58,7 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
+const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -233,6 +235,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
     rolesSectionLabel: "Roles",
+    registersSectionLabel: "Cajas registradoras",
     branchSectionLabel: "Sucursal",
     // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
     // always has at least one sidebar entry.
@@ -489,6 +492,71 @@ export const messages = defineMessages("es-AR", (f) => ({
           alertsAllOption: VIEW_ALL_ALERTS_LABEL,
           dismissAlertsOption: DISMISS_ALERTS_LABEL,
         },
+      },
+    },
+    registers: {
+      documentTitle: "Cajas registradoras · Puro Sur",
+      breadcrumb: "Configuración",
+      heading: "Cajas registradoras",
+      newRegisterButton: "Nueva caja",
+      columns: {
+        register: "CAJA",
+        installation: "INSTALACIÓN",
+        pointsOfSale: "PUNTOS DE VENTA",
+        status: "ESTADO",
+      },
+      noInstallation: "Sin instalación",
+      codeNotIssued: "—",
+      pointsOfSaleNotConfigured: "Sin configurar",
+      statusPendingEnrollment: "Esperando alta",
+      codeIssued: (params: { minutes: number }) =>
+        params.minutes < 1
+          ? "Código emitido recién"
+          : `Código emitido hace ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      codeExpiresIn: (params: { minutes: number }) =>
+        `Vence en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 caja", other: `${params.count} cajas` }),
+      emptyTitle: "Todavía no hay cajas registradoras",
+      emptyDetail: "Creá la primera para verla en la lista.",
+      loadErrorTitle: "No pudimos abrir las cajas registradoras",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      issueCodeAria: (params: { name: string }) => `Emitir código de alta para ${params.name}`,
+      newRegisterModal: {
+        eyebrow: "Configuración",
+        heading: "Nueva caja",
+        nameLabel: "Nombre de la caja",
+        nameRequired: "Ingresá el nombre de la caja.",
+        nameTooLong: REGISTER_NAME_TOO_LONG,
+        nameTaken: "Ya existe una caja con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Crear la caja",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear la caja",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      enrollmentCodeModal: {
+        heading: "Código de alta",
+        issuing: "Emitiendo el código…",
+        codeExpiresNote: "Vence en 15 minutos · se usa una sola vez",
+        description:
+          "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
+        doneButton: "Listo",
+        closeLabel: CLOSE_LABEL,
+        retry: "Reintentar",
+        attemptFailedTitle: "No se pudo emitir el código",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
     branch: {
@@ -832,6 +900,8 @@ export const messages = defineMessages("es-AR", (f) => ({
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",
       issuerIdentificationSave: "Guardar la identificación del emisor",
+      registerCreate: "Crear una caja",
+      registerEnrollmentCodeIssue: "Emitir un código de alta",
     },
   },
   help: {
