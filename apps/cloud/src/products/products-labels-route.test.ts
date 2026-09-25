@@ -1,3 +1,7 @@
+import {
+  LABELS_MAX_COUNT_PER_PRODUCT as SHARED_LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT as SHARED_LABELS_MAX_TOTAL_COUNT,
+} from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
@@ -14,7 +18,11 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerProductLabelsRoute } from "./products-labels-route.js";
+import {
+  MAX_LABEL_COUNT_PER_PRODUCT,
+  MAX_TOTAL_LABEL_COUNT,
+  registerProductLabelsRoute,
+} from "./products-labels-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -227,6 +235,47 @@ describe("POST /products/labels", () => {
     });
   });
 
+  it("rejects the same productId sent twice in different letter cases", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const productId = await insertProduct({
+      name: "Almendras",
+      categoryId,
+      barcodes: [INTERNAL_BARCODE],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabels(rawSessionId, {
+      labels: [
+        { productId, count: 1 },
+        { productId: productId.toUpperCase(), count: 2 },
+      ],
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "labels" }],
+    });
+  });
+
+  it("finds an existing product by its id written in uppercase", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const productId = await insertProduct({
+      name: "Almendras",
+      categoryId,
+      barcodes: [INTERNAL_BARCODE],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabels(rawSessionId, {
+      labels: [{ productId: productId.toUpperCase(), count: 1 }],
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
   it("rejects a count outside 1..999", async () => {
     const categoryId = await insertCategory("Almacén");
     const productId = await insertProduct({
@@ -350,9 +399,16 @@ describe("POST /products/labels", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toBe("application/pdf");
-    expect(response.headers["content-disposition"]).toContain("attachment");
-    expect(response.headers["content-disposition"]).toContain("etiquetas.pdf");
+    // The downloaded file's name comes from the backoffice's own message catalog.
+    expect(response.headers["content-disposition"]).toBe("attachment");
     const pdf = response.rawPayload;
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  });
+});
+
+describe("label count limits", () => {
+  it("mirror the shared contract's limits", () => {
+    expect(MAX_LABEL_COUNT_PER_PRODUCT).toBe(SHARED_LABELS_MAX_COUNT_PER_PRODUCT);
+    expect(MAX_TOTAL_LABEL_COUNT).toBe(SHARED_LABELS_MAX_TOTAL_COUNT);
   });
 });

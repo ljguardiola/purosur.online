@@ -13,8 +13,9 @@ import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import { UUID_PATTERN } from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
+// Mirrors `@purosur/contracts`'s label limits because this app's `tsc` build (explicit `rootDir`)
+// cannot import that package's untranspiled source; the drift test guards against it.
 export const MAX_LABEL_COUNT_PER_PRODUCT = 999;
-// 100 sheets of 24 labels each, generous headroom over a real print run.
 export const MAX_TOTAL_LABEL_COUNT = 2400;
 
 export interface LabelRequestEntry {
@@ -47,7 +48,8 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
   ) {
     return undefined;
   }
-  return { productId, count };
+  // Postgres stores and compares uuids in lowercase; the pattern above accepts either case.
+  return { productId: productId.toLowerCase(), count };
 }
 
 /**
@@ -208,7 +210,7 @@ export function registerProductLabelsRoute<TQueryResult extends PgQueryResultHKT
 
       const pdf = await renderLabelSheetPdf(items);
       await reply
-        .header("Content-Disposition", 'attachment; filename="etiquetas.pdf"')
+        .header("Content-Disposition", "attachment")
         .type("application/pdf")
         .code(200)
         .send(pdf);
