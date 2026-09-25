@@ -1264,3 +1264,45 @@ test("fills the generate button on hover only while it is enabled", async () => 
   expect(getComputedStyle(generateButton.element()).backgroundColor).toBe(unfilled);
   resolveGenerate({ kind: "failed" });
 });
+
+test("announces a generate failure as an alert", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect
+    .element(dialog.getByRole("alert"))
+    .toHaveTextContent("No se pudo generar el código interno. Probá de nuevo.");
+});
+
+test("clears the rate-limited notice when generating again succeeds", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.generateInternalBarcode)
+    .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 120 })
+    .mockResolvedValueOnce({ kind: "ok", code: "2000000000015" })
+    .mockResolvedValueOnce({ kind: "rate_limited", retryAfterSeconds: 120 })
+    .mockResolvedValueOnce({ kind: "ok", code: "2000000000022" });
+  const screen = await renderScreen(services);
+
+  const createDialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(createDialog));
+  await expect.element(createDialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await userEvent.click(generateButtonOf(createDialog));
+  await expect.element(createDialog.getByText("2000000000015")).toBeVisible();
+  expect(createDialog.getByText("Demasiadas solicitudes").query()).toBeNull();
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  await userEvent.click(generateButtonOf(editDialog));
+  await expect.element(editDialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await userEvent.click(generateButtonOf(editDialog));
+  await expect.element(editDialog.getByText("2000000000022")).toBeVisible();
+  expect(editDialog.getByText("Demasiadas solicitudes").query()).toBeNull();
+});

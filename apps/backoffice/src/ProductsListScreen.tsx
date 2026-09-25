@@ -244,7 +244,11 @@ function BarcodeChips({
         </button>
       </div>
       {generateError && (
-        <span id={generateErrorId} className="text-sm font-normal text-status-error-ui">
+        <span
+          id={generateErrorId}
+          role="alert"
+          className="text-sm font-normal text-status-error-ui"
+        >
           {generateError}
         </span>
       )}
@@ -453,6 +457,7 @@ function useGenerateInternalBarcode(
   onSessionEnded: () => void,
   clearBarcodesFieldError: () => void,
   onRateLimited: (retryAfterSeconds: number) => void,
+  clearRateLimited: () => void,
   generateFailedMessage: string,
 ) {
   const [generating, setGenerating] = useState(false);
@@ -471,6 +476,7 @@ function useGenerateInternalBarcode(
 
   async function handleGenerate() {
     setGenerateError(undefined);
+    clearRateLimited();
     if (chips.refuseWhenFull()) {
       return;
     }
@@ -548,6 +554,9 @@ function NewProductModal({
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
+    // Only the notice a generate attempt can raise: a stale-version notice still drives the
+    // edit modal's reload action.
+    () => setNotice((current) => (current?.kind === "rateLimited" ? null : current)),
     modalMessages.generateFailed,
   );
 
@@ -826,6 +835,9 @@ function EditProductModal({
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
+    // Only the notice a generate attempt can raise: a stale-version notice still drives the
+    // edit modal's reload action.
+    () => setNotice((current) => (current?.kind === "rateLimited" ? null : current)),
     modalMessages.generateFailed,
   );
 
