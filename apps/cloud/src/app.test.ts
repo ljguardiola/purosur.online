@@ -668,6 +668,34 @@ describe("wiring the roles routes", () => {
   });
 });
 
+describe("wiring the branch settings routes", () => {
+  it("does not register GET /branch-settings when no branchSettings option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/branch-settings" });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers GET /branch-settings when a branchSettings option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      branchSettings: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/branch-settings",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent, so this reaches the route handler's own 401 instead of
+    // Fastify's generic not-found response for an unregistered route.
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+  });
+});
+
 describe("wiring the passkeys routes", () => {
   it("does not register GET /users/passkeys when no passkeys option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -766,6 +794,7 @@ function fullyWiredApp() {
     passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
 
@@ -812,6 +841,11 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles/:id/edit-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      {
+        method: "GET",
+        url: "/branch-settings",
+        access: permissionAccess("configure_branch"),
+      },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);

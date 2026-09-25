@@ -134,6 +134,13 @@
       "when": 1790280717262,
       "tag": "0018_roles_version_and_edit_challenge_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790298999766,
+      "tag": "0019_branch_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,44 @@ export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
 });
 
+// One row per location (1:1, `location_id` is both primary and foreign key), holding the settings
+// a user with `configure_branch` edits from the backoffice Sucursal screen: the ticket header, the
+// hours of attention, the timezone, and the alert and return windows, in days. The migration
+// creates this row, with these defaults, for every location that already exists, so a branch
+// always has settings to read.
+export const branchSettings = pgTable(
+  "branch_settings",
+  {
+    locationId: uuid("location_id")
+      .primaryKey()
+      .references(() => locations.id),
+    businessName: text("business_name").notNull().default(""),
+    address: text("address").notNull().default(""),
+    whatsappNumber: text("whatsapp_number").notNull().default(""),
+    instagramHandle: text("instagram_handle").notNull().default(""),
+    weekdayHours: text("weekday_hours").notNull().default(""),
+    saturdayHours: text("saturday_hours").notNull().default(""),
+    sundayHours: text("sunday_hours").notNull().default(""),
+    // An IANA time zone identifier; the read side always returns one, and the edit side validates
+    // a submitted value against `Intl.supportedValuesOf("timeZone")`.
+    timezone: text("timezone").notNull().default("America/Argentina/Buenos_Aires"),
+    expiringLotAlertDays: integer("expiring_lot_alert_days").notNull().default(30),
+    unreviewedPriceAlertDays: integer("unreviewed_price_alert_days").notNull().default(30),
+    goodConditionReturnDays: integer("good_condition_return_days").notNull().default(15),
+    defectiveReturnDays: integer("defective_return_days").notNull().default(180),
+    // Optimistic concurrency for a branch settings row, the same shape `roles.version` gives role
+    // rows: starts at 1 and every edit of that row increments it, so a save over a version someone
+    // else already changed is rejected instead of silently overwriting their change.
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    // A warranty the law doesn't allow reducing against the buyer sets this floor; the window for
+    // a product in good condition has no such floor, since accepting those returns at all is the
+    // branch's own policy.
+    check("branch_settings_defective_return_days_floor", sql`${table.defectiveReturnDays} >= 180`),
+  ],
+);
+
 export const users = pgTable(
   "users",
   {

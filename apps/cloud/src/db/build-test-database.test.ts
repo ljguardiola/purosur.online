@@ -8,6 +8,7 @@ import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
   backofficeRateLimitAttempts,
+  branchSettings,
   locations,
   passkeyChallenges,
   passkeys,
@@ -110,10 +111,12 @@ describe("buildTestDatabase", () => {
     const baseline = await countsByTable(client);
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
-    // The migrations seed the single Administrator role and the single location; the baseline
-    // must hold both for the comparison below to prove clear() restores them.
+    // The migrations seed the single Administrator role, the single location, and that location's
+    // branch settings; the baseline must hold all three for the comparison below to prove clear()
+    // restores them.
     expect(baseline.get("roles")).toBe(1);
     expect(baseline.get("locations")).toBe(1);
+    expect(baseline.get("branch_settings")).toBe(1);
 
     const [user] = await db
       .insert(users)
@@ -127,11 +130,12 @@ describe("buildTestDatabase", () => {
       .insert(roles)
       .values({ name: "Cashier", isAdministrator: false })
       .returning({ id: roles.id });
-    await db.insert(locations).values({});
-    if (!user || !role) {
-      throw new Error("seeding users/roles returned no row");
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!user || !role || !otherLocation) {
+      throw new Error("seeding users/roles/locations returned no row");
     }
 
+    await db.insert(branchSettings).values({ locationId: otherLocation.id });
     await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
     await db.insert(rolePermissions).values({ roleId: role.id, permissionKey: "sell_and_charge" });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });

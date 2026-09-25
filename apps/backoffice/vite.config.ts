@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
         "/health": LOCAL_CLOUD_ORIGIN,
         "/users": cloudApiProxy,
         "/roles": cloudApiProxy,
+        "/branch-settings": cloudApiProxy,
       },
     },
   };
