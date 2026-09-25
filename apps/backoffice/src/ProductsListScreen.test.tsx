@@ -4,7 +4,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import type { CategorySummary } from "./categoriesApi";
 import { ProductsListScreen, type ProductsListScreenServices } from "./ProductsListScreen";
-import type { ProductSummary } from "./productsApi";
+import type { GenerateInternalBarcodeOutcome, ProductSummary } from "./productsApi";
 
 // The default viewport is narrower than the modal's own "standard" width, and a modal panel is
 // centered by a fixed-position overlay that never grows the document's own scroll area, so a
@@ -1036,4 +1036,186 @@ test("shows an inline error when generating fails, keeping the codes already ent
     .element(dialog.getByText("No se pudo generar el código interno. Probá de nuevo."))
     .toBeVisible();
   await expect.element(dialog.getByText("7790000000099")).toBeVisible();
+});
+
+function pendingGenerate(services: ProductsListScreenServices) {
+  let resolveGenerate: (outcome: GenerateInternalBarcodeOutcome) => void = () => {};
+  vi.mocked(services.generateInternalBarcode).mockReturnValue(
+    new Promise((resolve) => {
+      resolveGenerate = resolve;
+    }),
+  );
+  return (outcome: GenerateInternalBarcodeOutcome) => resolveGenerate(outcome);
+}
+
+test("keeps a code scanned while the internal code is being generated", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const resolveGenerate = pendingGenerate(services);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(dialog));
+  await userEvent.fill(scanInputOf(dialog), "7790000000099");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(dialog.getByText("7790000000099")).toBeVisible();
+
+  resolveGenerate({ kind: "ok", code: "2000000000015" });
+
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  await expect.element(dialog.getByText("7790000000099")).toBeVisible();
+});
+
+test("keeps a code removed while the internal code is being generated out of the list", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const resolveGenerate = pendingGenerate(services);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(generateButtonOf(dialog));
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el código 7790987000015" }));
+  await expect.poll(() => dialog.getByText("7790987000015").query()).toBeNull();
+
+  resolveGenerate({ kind: "ok", code: "2000000000015" });
+
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  expect(dialog.getByText("7790987000015").query()).toBeNull();
+});
+
+test("drops an internal code that arrives after the create modal was closed and opened again", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const resolveGenerate = pendingGenerate(services);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const firstDialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(firstDialog));
+  await userEvent.click(firstDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  const dialog = await openNewProductModal(screen);
+  await expect.element(generateButtonOf(dialog)).not.toBeDisabled();
+
+  resolveGenerate({ kind: "ok", code: "2000000000015" });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(dialog.getByText("2000000000015").query()).toBeNull();
+});
+
+test("drops an internal code that arrives after the edit modal moved to another product", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel, almendras]);
+  const resolveGenerate = pendingGenerate(services);
+  const screen = await renderScreen(services);
+
+  const firstDialog = await openEditProductModal(screen, miel);
+  await userEvent.click(generateButtonOf(firstDialog));
+  await userEvent.click(firstDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  const dialog = await openEditProductModal(screen, almendras);
+  await expect.element(dialog.getByText("7790000000001")).toBeVisible();
+
+  resolveGenerate({ kind: "ok", code: "2000000000015" });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(dialog.getByText("2000000000015").query()).toBeNull();
+  expect(dialog.getByText("7790987000015").query()).toBeNull();
+  await expect.element(dialog.getByText("7790000000001")).toBeVisible();
+});
+
+test("shows the 20-code limit instead of generating when the list is already full", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  for (let index = 1; index <= 20; index += 1) {
+    await userEvent.fill(scanInputOf(dialog), `code-${index}`);
+    await userEvent.keyboard("{Enter}");
+  }
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect
+    .element(dialog.getByText("El producto puede tener hasta 20 códigos de barras."))
+    .toBeVisible();
+  expect(services.generateInternalBarcode).not.toHaveBeenCalled();
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(20);
+});
+
+test("ends the session when generating finds no open session", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when generating comes back forbidden", async () => {
+  window.history.pushState(null, "", "/catalog/products");
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("describes the generate button with its failure, so a screen reader announces it", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(dialog));
+
+  await expect
+    .element(generateButtonOf(dialog))
+    .toHaveAccessibleDescription("No se pudo generar el código interno. Probá de nuevo.");
+});
+
+test("shows the rate-limited notice when generating is refused for too many requests", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.generateInternalBarcode).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+
+  const createDialog = await openNewProductModal(screen);
+  await userEvent.click(generateButtonOf(createDialog));
+  await expect.element(createDialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect
+    .element(createDialog.getByText("Se puede volver a intentar en 2 minutos."))
+    .toBeVisible();
+  expect(
+    createDialog.getByText("No se pudo generar el código interno. Probá de nuevo.").query(),
+  ).toBeNull();
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  await userEvent.click(generateButtonOf(editDialog));
+  await expect.element(editDialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect
+    .element(editDialog.getByText("Se puede volver a intentar en 2 minutos."))
+    .toBeVisible();
 });

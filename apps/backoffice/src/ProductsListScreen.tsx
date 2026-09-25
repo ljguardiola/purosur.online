@@ -181,6 +181,7 @@ function BarcodeChips({
 }: BarcodeChipsProps) {
   const scanErrorId = useId();
   const errorId = useId();
+  const generateErrorId = useId();
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
@@ -222,13 +223,16 @@ function BarcodeChips({
           className={barcodeActionClassName}
           disabled={generateDisabled}
           onClick={onGenerate}
+          aria-describedby={generateError ? generateErrorId : undefined}
         >
           <Barcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
           <span className="truncate">{labels.generateButtonLabel}</span>
         </button>
       </div>
       {generateError && (
-        <span className="text-sm font-normal text-status-error-ui">{generateError}</span>
+        <span id={generateErrorId} className="text-sm font-normal text-status-error-ui">
+          {generateError}
+        </span>
       )}
       {scanError && (
         <span id={scanErrorId} className="text-sm font-normal text-status-error-ui">
@@ -328,6 +332,8 @@ function hasInternalBarcode(barcodes: string[]): boolean {
 
 function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
+  const barcodesRef = useRef(barcodes);
+  barcodesRef.current = barcodes;
   const [scanInput, setScanInput] = useState("");
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
@@ -386,17 +392,25 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     }
   }
 
-  // Adds a code the cloud already allocated and confirmed unique, so unlike a scanned code it
-  // skips straight past the spaces/length/duplicate checks — only the shared 20-code cap still
-  // applies, exactly as it does for a scanned one.
-  function addGenerated(code: string): PendingCodeResult {
-    if (barcodes.length >= PRODUCT_BARCODES_MAX_COUNT) {
-      setScanError(scanMessages.barcodeLimitReached);
-      return { ok: false };
+  // Shows the shared 20-code cap before a code is allocated, so a full list never burns one.
+  function refuseWhenFull(): boolean {
+    if (barcodes.length < PRODUCT_BARCODES_MAX_COUNT) {
+      return false;
     }
-    const next = [...barcodes, code];
-    setBarcodes(next);
-    return { ok: true, barcodes: next, added: true };
+    setScanError(scanMessages.barcodeLimitReached);
+    return true;
+  }
+
+  // Adds a code the cloud already allocated and confirmed unique, so unlike a scanned code it
+  // skips the spaces/length checks. It lands after a request, so it appends to the list as it
+  // stands by then (codes scanned or removed meanwhile), still under the shared 20-code cap.
+  function addGenerated(code: string): boolean {
+    if (barcodesRef.current.length >= PRODUCT_BARCODES_MAX_COUNT) {
+      setScanError(scanMessages.barcodeLimitReached);
+      return false;
+    }
+    setBarcodes((current) => (current.includes(code) ? current : [...current, code]));
+    return true;
   }
 
   return {
@@ -408,6 +422,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     remove,
     commitPending,
     handleScanKeyDown,
+    refuseWhenFull,
     addGenerated,
   };
 }
@@ -419,29 +434,42 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
  * whatever is already listed untouched).
  */
 function useGenerateInternalBarcode(
-  chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "addGenerated">,
+  chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "refuseWhenFull" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
   onSessionEnded: () => void,
   clearBarcodesFieldError: () => void,
+  onRateLimited: (retryAfterSeconds: number) => void,
   generateFailedMessage: string,
 ) {
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
+  // Bumped by every reset (the modal reopening, moving to another product, or reloading it), so a
+  // response still in flight from before can tell it no longer belongs to the form on screen.
+  const requestIdRef = useRef(0);
 
   // Stable across renders, like useBarcodeChips's own reset, so a caller's effect can list it as
   // a dependency without re-running on every render.
   const reset = useCallback(() => {
+    requestIdRef.current += 1;
     setGenerating(false);
     setGenerateError(undefined);
   }, []);
 
   async function handleGenerate() {
     setGenerateError(undefined);
+    if (chips.refuseWhenFull()) {
+      return;
+    }
     setGenerating(true);
+    requestIdRef.current += 1;
+    const requestId = requestIdRef.current;
     const outcome = await generateInternalBarcodeService();
+    if (requestId !== requestIdRef.current) {
+      return;
+    }
     setGenerating(false);
     if (outcome.kind === "ok") {
-      if (chips.addGenerated(outcome.code).ok) {
+      if (chips.addGenerated(outcome.code)) {
         clearBarcodesFieldError();
       }
       return;
@@ -452,6 +480,10 @@ function useGenerateInternalBarcode(
     }
     if (outcome.kind === "forbidden") {
       sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      onRateLimited(outcome.retryAfterSeconds);
       return;
     }
     setGenerateError(generateFailedMessage);
@@ -501,6 +533,7 @@ function NewProductModal({
     generateInternalBarcode,
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
+    (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
     modalMessages.generateFailed,
   );
 
@@ -778,6 +811,7 @@ function EditProductModal({
     generateInternalBarcode,
     onSessionEnded,
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
+    (retryAfterSeconds) => setNotice({ kind: "rateLimited", retryAfterSeconds }),
     modalMessages.generateFailed,
   );
 
