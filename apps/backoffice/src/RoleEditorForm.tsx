@@ -13,8 +13,8 @@ import { messages } from "./messages";
 import type { CreateRoleFieldError, EditRoleFieldError } from "./rolesApi";
 
 const rolesMessages = messages.settings.roles;
-const formMessages = rolesMessages.form;
-const editorMessages = rolesMessages.roleEditorModal;
+const formMessages = rolesMessages.roleEditor.form;
+const editorMessages = rolesMessages.roleEditor;
 
 // The Alertas area's own two view permissions are mutually exclusive, drawn as a radio instead of
 // two checkboxes; "dismiss_alerts_manually" is a plain third permission in the same area.

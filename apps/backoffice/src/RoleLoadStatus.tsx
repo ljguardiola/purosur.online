@@ -3,11 +3,11 @@ import { ShieldOff, ShieldX, TriangleAlert } from "lucide-react";
 import { messages } from "./messages";
 
 const rolesMessages = messages.settings.roles;
-const loadMessages = rolesMessages.roleLoad;
+const loadMessages = rolesMessages.roleEditor;
 
-/** Every state a page that loads a role before showing its form can be in, short of loaded. A
- * forbidden read is never one of them: the caller redirects to Mi cuenta instead (see
- * `settingsRoutes.ts`'s `MY_ACCOUNT_PATH`), since a screen offers only what its permissions unlock. */
+/** Every state the role editor modal's own role load can be in, short of loaded. A forbidden read
+ * is never one of them: the caller redirects to Mi cuenta instead (see `settingsRoutes.ts`'s
+ * `MY_ACCOUNT_PATH`), since a screen offers only what its permissions unlock. */
 export type RoleLoadStatus =
   | { kind: "loading" }
   | { kind: "notFound" }
@@ -15,7 +15,7 @@ export type RoleLoadStatus =
   | { kind: "rate_limited"; retryAfterSeconds: number };
 
 /**
- * The status a role read's failure leaves the page in; an ended session and a forbidden read are
+ * The status a role read's failure leaves the modal in; an ended session and a forbidden read are
  * the caller's to handle (the caller checks `outcome.kind === "forbidden"` itself, before this, and
  * redirects instead of calling this function).
  */
@@ -36,7 +36,7 @@ export function failedRoleLoadStatus(
 
 /**
  * The loading, not-found, load-error and rate-limited states, the last two offering to load again;
- * nothing once loaded (the page renders its form then).
+ * nothing once loaded (the modal renders its form then).
  */
 export function RoleLoadStatusView({
   state,

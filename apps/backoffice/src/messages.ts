@@ -408,61 +408,30 @@ export const messages = defineMessages("es-AR", (f) => ({
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // The role editor modal's own form: its name field and its areas and permissions panes.
-      form: {
-        nameLabel: "Nombre del rol",
-        nameRequired: "Ingresá el nombre del rol.",
-        nameTooLong: ROLE_NAME_TOO_LONG,
-        nameReserved: "Ese nombre es del Administrador; elegí otro.",
-        nameFieldError: "Revisá el nombre del rol.",
-        nameTaken: "Ya existe un rol con este nombre.",
-        areasGroupLabel: "Áreas de permisos",
-        areaCount: (params: { count: number; total: number }) =>
-          `${params.count} de ${params.total}`,
-        alertsNoneOption: "No ve alertas",
-        alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
-        alertsAllOption: VIEW_ALL_ALERTS_LABEL,
-        dismissAlertsOption: DISMISS_ALERTS_LABEL,
-      },
-      // Shared by the role editor modal in all three modes (New, Edit and Duplicate); a save
-      // that's rate limited shows the Roles area's own rateLimitedTitle/rateLimitedDetail above.
-      rolePage: {
+      // The role editor modal (New, Edit and Duplicate all open the same one), its form and its
+      // save confirmation step. A save that's rate limited shows the Roles area's own
+      // rateLimitedTitle/rateLimitedDetail above instead of a key from this group.
+      roleEditor: {
+        eyebrow: "Configuración · Roles",
+        closeLabel: CLOSE_LABEL,
+        newTitle: "Nuevo rol",
+        editTitle: "Editar rol",
+        duplicateTitle: "Duplicar rol",
+        // New and Duplicate both save by creating a role; only Edit saves by updating one.
+        createSave: "Guardar el rol",
+        editSave: "Guardar los cambios",
         cancel: CANCEL_LABEL,
-        attemptFailedDetail: "Probá de nuevo.",
-      },
-      // Editing loads the role before showing its form.
-      roleLoad: {
+        nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
         loading: "Cargando…",
         notFoundTitle: "No encontramos este rol",
         loadErrorTitle: "No pudimos abrir este rol",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
-      },
-      // New and Duplicate both save by creating a role.
-      roleCreation: {
-        save: "Guardar el rol",
-      },
-      newRole: {
-        heading: "Nuevo rol",
-      },
-      editRole: {
-        heading: "Editar rol",
-        save: "Guardar los cambios",
         attemptFailedTitle: "No se pudo guardar el rol",
+        attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Este rol cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
-      },
-      duplicateRole: {
-        heading: "Duplicar rol",
-        nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
-      },
-      // The role editor modal (New, Edit and Duplicate all open the same one) and its confirmation
-      // step; every other label it shows (headings, save/cancel, load and error notices) reuses
-      // the keys above so nothing is written twice.
-      roleEditorModal: {
-        eyebrow: "Configuración · Roles",
-        closeLabel: CLOSE_LABEL,
         cashRegisterTag: "Caja",
         pinTag: "PIN",
         cashRegisterTagTooltip: "Se usa en la caja.",
@@ -480,6 +449,22 @@ export const messages = defineMessages("es-AR", (f) => ({
             other: `Se aplican a las ${params.count} personas`,
           })} con el rol ${params.roleName}:`,
         back: "Volver",
+        // The name field and the areas/permissions panes.
+        form: {
+          nameLabel: "Nombre del rol",
+          nameRequired: "Ingresá el nombre del rol.",
+          nameTooLong: ROLE_NAME_TOO_LONG,
+          nameReserved: "Ese nombre es del Administrador; elegí otro.",
+          nameFieldError: "Revisá el nombre del rol.",
+          nameTaken: "Ya existe un rol con este nombre.",
+          areasGroupLabel: "Áreas de permisos",
+          areaCount: (params: { count: number; total: number }) =>
+            `${params.count} de ${params.total}`,
+          alertsNoneOption: "No ve alertas",
+          alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
+          alertsAllOption: VIEW_ALL_ALERTS_LABEL,
+          dismissAlertsOption: DISMISS_ALERTS_LABEL,
+        },
       },
     },
     branch: {

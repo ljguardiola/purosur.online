@@ -33,7 +33,7 @@ import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi
 import { sendToMyAccount } from "./settingsRoutes";
 
 const rolesMessages = messages.settings.roles;
-const editorMessages = rolesMessages.roleEditorModal;
+const editorMessages = rolesMessages.roleEditor;
 
 export type RoleEditorRequest =
   | { kind: "new" }
@@ -142,7 +142,7 @@ function RoleSaveConfirmationModal({
             isDisabled={submitting}
             onPress={onConfirm}
           >
-            {rolesMessages.editRole.save}
+            {rolesMessages.roleEditor.editSave}
           </Button>
         </>
       }
@@ -255,7 +255,7 @@ export function RoleEditorModal({
       setLoadState({ kind: "ready" });
     } else if (request.kind === "duplicate") {
       setName(
-        rolesMessages.duplicateRole.nameFromOriginal({ name: sourceDisplayName(request.source) }),
+        rolesMessages.roleEditor.nameFromOriginal({ name: sourceDisplayName(request.source) }),
       );
       setSelected(withOneAlertView(request.source.permissionKeys as PermissionKey[]));
       setLoadState({ kind: "ready" });
@@ -349,7 +349,7 @@ export function RoleEditorModal({
       return;
     }
     if (outcome.kind === "name_taken") {
-      setNameError(rolesMessages.form.nameTaken);
+      setNameError(rolesMessages.roleEditor.form.nameTaken);
       setSubmitting(false);
       return;
     }
@@ -410,11 +410,12 @@ export function RoleEditorModal({
 
   const heading =
     mode === "edit"
-      ? rolesMessages.editRole.heading
+      ? rolesMessages.roleEditor.editTitle
       : mode === "duplicate"
-        ? rolesMessages.duplicateRole.heading
-        : rolesMessages.newRole.heading;
-  const saveLabel = mode === "edit" ? rolesMessages.editRole.save : rolesMessages.roleCreation.save;
+        ? rolesMessages.roleEditor.duplicateTitle
+        : rolesMessages.roleEditor.newTitle;
+  const saveLabel =
+    mode === "edit" ? rolesMessages.roleEditor.editSave : rolesMessages.roleEditor.createSave;
   const offersReload =
     notice?.kind === "staleVersion" ||
     notice?.kind === "reloadFailed" ||
@@ -451,7 +452,7 @@ export function RoleEditorModal({
             </p>
             <div className="flex items-center gap-3">
               <Button variant="secondary" icon={<X />} isDisabled={submitting} onPress={onClose}>
-                {rolesMessages.rolePage.cancel}
+                {rolesMessages.roleEditor.cancel}
               </Button>
               <Button
                 variant="primary"
@@ -472,8 +473,8 @@ export function RoleEditorModal({
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={rolesMessages.editRole.attemptFailedTitle}
-                  detail={rolesMessages.rolePage.attemptFailedDetail}
+                  title={rolesMessages.roleEditor.attemptFailedTitle}
+                  detail={rolesMessages.roleEditor.attemptFailedDetail}
                 />
               )}
               {notice?.kind === "rateLimited" && (
@@ -490,16 +491,16 @@ export function RoleEditorModal({
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={rolesMessages.editRole.staleVersionTitle}
-                  detail={rolesMessages.editRole.staleVersionDetail}
+                  title={rolesMessages.roleEditor.staleVersionTitle}
+                  detail={rolesMessages.roleEditor.staleVersionDetail}
                 />
               )}
               {notice?.kind === "reloadFailed" && (
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={rolesMessages.editRole.reloadFailedTitle}
-                  detail={rolesMessages.rolePage.attemptFailedDetail}
+                  title={rolesMessages.roleEditor.reloadFailedTitle}
+                  detail={rolesMessages.roleEditor.attemptFailedDetail}
                 />
               )}
               {offersReload && (
@@ -509,17 +510,17 @@ export function RoleEditorModal({
                   isDisabled={submitting}
                   onPress={() => void handleReload()}
                 >
-                  {rolesMessages.editRole.reload}
+                  {rolesMessages.roleEditor.reload}
                 </Button>
               )}
               {loadState.kind === "loading" && (
-                <p role="status">{rolesMessages.roleLoad.loading}</p>
+                <p role="status">{rolesMessages.roleEditor.loading}</p>
               )}
               {loadState.kind === "notFound" && (
                 <InlineNotice
                   tone="error"
                   icon={<ShieldOff />}
-                  title={rolesMessages.roleLoad.notFoundTitle}
+                  title={rolesMessages.roleEditor.notFoundTitle}
                 />
               )}
               {loadState.kind === "loadError" && (
@@ -527,8 +528,8 @@ export function RoleEditorModal({
                   <InlineNotice
                     tone="error"
                     icon={<TriangleAlert />}
-                    title={rolesMessages.roleLoad.loadErrorTitle}
-                    detail={rolesMessages.roleLoad.loadErrorDetail}
+                    title={rolesMessages.roleEditor.loadErrorTitle}
+                    detail={rolesMessages.roleEditor.loadErrorDetail}
                   />
                   <Button
                     variant="secondary"
