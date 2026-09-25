@@ -373,6 +373,22 @@ test("removing a range drops it, hiding the trash button once only one is left",
   });
 });
 
+test("leaves focus off the time fields when a range is removed with a pointer", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 2, abre" }))
+    .toHaveValue("17:00");
+
+  await userEvent.click(screen.getByRole("button", { name: "Quitar el horario 1 del lunes" }));
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Lunes, horario 1, abre" }))
+    .toHaveValue("17:00");
+  expect(document.activeElement).not.toBe(rangeInput(screen, "Lunes, horario 1, abre"));
+});
+
 function rangeInput(
   screen: Awaited<ReturnType<typeof renderScreen>>,
   name: string,

@@ -1,5 +1,12 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
-import { Button, Checkbox, IconButton, InlineNotice, TextField } from "@purosur/ui";
+import {
+  Button,
+  Checkbox,
+  IconButton,
+  type IconButtonProps,
+  InlineNotice,
+  TextField,
+} from "@purosur/ui";
 import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
@@ -35,6 +42,8 @@ export type BranchSettingsScreenProps = {
 };
 
 type LoadState = { kind: "loading" } | { kind: "loadError" } | { kind: "loaded" };
+
+type PointerType = Parameters<NonNullable<IconButtonProps["onPress"]>>[0]["pointerType"];
 
 type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" } | { kind: "reloadFailed" };
 
@@ -420,9 +429,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     clearFieldError(day);
   }
 
-  function removeRange(day: BranchDay, index: number) {
+  function removeRange(day: BranchDay, index: number, pointerType: PointerType) {
     const ranges = values[day].ranges;
-    rangeToFocusRef.current = (ranges[index + 1] ?? ranges[index - 1])?.id ?? null;
+    // Only a keyboard press loses focus to the page when its button unmounts; moving a pointer or
+    // touch user's focus into a time field would pop the on-screen keyboard unasked.
+    rangeToFocusRef.current =
+      pointerType === "keyboard" || pointerType === "virtual"
+        ? ((ranges[index + 1] ?? ranges[index - 1])?.id ?? null)
+        : null;
     setValues((current) => {
       if (current[day].ranges.length <= 1) {
         return current;
@@ -591,7 +605,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                         day: dayLower,
                         index: index + 1,
                       })}
-                      onPress={() => removeRange(day, index)}
+                      onPress={(event) => removeRange(day, index, event.pointerType)}
                     />
                   )}
                 </div>
