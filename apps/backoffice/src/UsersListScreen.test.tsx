@@ -9,8 +9,9 @@ function createServices(overrides: Partial<UsersListScreenServices> = {}): Users
   const services: UsersListScreenServices = {
     fetchUsers: vi.fn(),
     fetchRoles: vi.fn(),
-    fetchUserCreationChallenge: vi.fn(),
     createUser: vi.fn(),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     ...overrides,
   };
@@ -54,8 +55,18 @@ const tomas: BranchUser = {
   passkeyCount: 0,
 };
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
-const reauthAssertion = { id: "existing-cred" } as never;
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
+function grantAuthorization(services: UsersListScreenServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
 
 function renderScreen(services: UsersListScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
@@ -218,12 +229,11 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
 
   await expect.element(dialog.getByRole("heading", { name: "Nuevo usuario" })).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
-  await expect.element(dialog.getByText("Se pide tu passkey para confirmar.")).toBeVisible();
+  expect(dialog.getByText("Se pide tu passkey para confirmar.").query()).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.fetchUserCreationChallenge).not.toHaveBeenCalled();
   expect(services.createUser).not.toHaveBeenCalled();
 });
 
@@ -253,18 +263,13 @@ test("offers a role held by no users yet in the create-user selector", async () 
   await expect.element(dialog.getByRole("option", { name: "Depósito" })).toBeVisible();
 });
 
-test("creates a user through options, passkey and create, and shows it in the list", async () => {
+test("creates a user directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
 
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
   vi.mocked(services.fetchUsers).mockResolvedValueOnce({
     kind: "ok",
@@ -276,13 +281,75 @@ test("creates a user through options, passkey and create, and shows it in the li
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
   await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);
-  expect(services.createUser).toHaveBeenCalledWith(
-    { firstName: "Martina Gómez", email: "martina@example.com", roleId: "role-admin" },
-    reauthAssertion,
-  );
+  expect(services.createUser).toHaveBeenCalledWith({
+    firstName: "Martina Gómez",
+    email: "martina@example.com",
+    roleId: "role-admin",
+  });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
   await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries the creation", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValueOnce({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "ok", value: martina });
+  vi.mocked(services.fetchUsers).mockResolvedValueOnce({
+    kind: "ok",
+    value: [administrator, martina],
+  });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText("Crear un usuario necesita tu autorización. Confirmala con tu passkey."),
+    )
+    .toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
+});
+
+test("cancelling the authorization modal keeps the create-user form open with its values, with no error", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect.element(screen.getByRole("dialog", { name: "Nuevo usuario" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Martina Gómez");
+  expect(screen.getByText("No se pudo crear el usuario").query()).toBeNull();
+  expect(services.createUser).toHaveBeenCalledTimes(1);
 });
 
 test("requires name and email before submitting, without calling the API", async () => {
@@ -296,14 +363,14 @@ test("requires name and email before submitting, without calling the API", async
 
   await expect.element(dialog.getByText("Ingresá el nombre.")).toBeVisible();
   await expect.element(dialog.getByText("Ingresá el correo.")).toBeVisible();
-  expect(services.fetchUserCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createUser).not.toHaveBeenCalled();
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "no-es-un-correo");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
   await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
-  expect(services.fetchUserCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createUser).not.toHaveBeenCalled();
 });
 
 test("shows email_taken on Correo and keeps the modal open", async () => {
@@ -312,11 +379,6 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "email_taken" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
@@ -333,11 +395,6 @@ test("shows a server validation_failed error on the named field", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "email" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
@@ -353,11 +410,6 @@ test("shows a server validation_failed error for the role on Rol", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "roleId" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
@@ -386,11 +438,6 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
   await expect.element(dialog.getByRole("button", { name: /^Administrador Rol/ })).toBeVisible();
   expect(services.fetchUsers).toHaveBeenCalledTimes(1);
 
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "ok", value: martina });
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -402,24 +449,27 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
   });
 });
 
-test("keeps the modal open with a notice when the passkey prompt is cancelled", async () => {
+test("shows an error inside the authorization modal, not calling createUser again, when the browser cancels the passkey ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions },
+    value: authorizationOptions,
   });
   vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  await expect.element(dialog.getByText("No se pudo crear el usuario")).toBeVisible();
-  expect(services.createUser).not.toHaveBeenCalled();
+  await expect.element(authDialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
+  expect(services.createUser).toHaveBeenCalledTimes(1);
 });
 
 test("shows a notice when the chosen role is no longer valid", async () => {
@@ -428,11 +478,6 @@ test("shows a notice when the chosen role is no longer valid", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createUser).mockResolvedValue({ kind: "unknown_role" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
@@ -442,18 +487,39 @@ test("shows a notice when the chosen role is no longer valid", async () => {
   await expect.element(dialog.getByText("Ese rol ya no está disponible")).toBeVisible();
 });
 
-test("ends the session when creation-options finds the session already ended", async () => {
+test("ends the session when creating the user finds the session already ended", async () => {
   const services = createServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   const dialog = await openNewUserModal(screen);
-  vi.mocked(services.fetchUserCreationChallenge).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "unauthenticated" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("ends the session when authorizing finds the session already ended", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "unauthenticated",
+  });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });

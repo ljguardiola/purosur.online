@@ -43,6 +43,19 @@ export type SignOutOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type SessionAuthorizationOptionsOutcome =
+  | { kind: "ok"; value: PublicKeyCredentialRequestOptionsJSON }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type AuthorizeSessionOutcome =
+  | { kind: "ok" }
+  | { kind: "unauthenticated" }
+  | { kind: "authentication_failed" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 function retryAfterSeconds(response: Response, fallbackSeconds: number): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
@@ -174,6 +187,67 @@ export async function signOut(): Promise<SignOutOutcome> {
   }
   if (response.ok || response.status === 401) {
     return { kind: "ok" };
+  }
+  if (response.status === 429) {
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+    };
+  }
+  return { kind: "failed" };
+}
+
+/**
+ * Hands back WebAuthn request options against the session's own account's passkeys, for the
+ * shared step-up modal's "Usar mi passkey" (`POST /users/session/authorization-options`).
+ */
+export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthorizationOptionsOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/users/session/authorization-options");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 429) {
+    return {
+      kind: "rate_limited",
+      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+    };
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const body = (await response.json()) as {
+    authorization_options: PublicKeyCredentialRequestOptionsJSON;
+  };
+  return { kind: "ok", value: body.authorization_options };
+}
+
+/**
+ * Verifies the WebAuthn assertion and opens (or refreshes) the session's 5-minute passkey
+ * authorization window, covering every sensitive backoffice action for that long
+ * (`POST /users/session/authorization`).
+ */
+export async function authorizeSession(
+  assertion: AuthenticationResponseJSON,
+): Promise<AuthorizeSessionOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/users/session/authorization", { authorization: assertion });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 401) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "authentication_failed"
+      ? { kind: "authentication_failed" }
+      : { kind: "unauthenticated" };
   }
   if (response.status === 429) {
     return {

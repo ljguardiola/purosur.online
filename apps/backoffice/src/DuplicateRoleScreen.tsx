@@ -13,8 +13,9 @@ import {
   RolesForbiddenNotice,
 } from "./RoleLoadStatus";
 import { withOneAlertView } from "./rolePermissions";
-import { createRole, fetchRoleCreationChallenge, fetchRoles, type RoleSummary } from "./rolesApi";
+import { createRole, fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type DuplicateRoleScreenServices = RoleCreationServices & {
@@ -23,8 +24,9 @@ export type DuplicateRoleScreenServices = RoleCreationServices & {
 
 export const defaultDuplicateRoleScreenServices: DuplicateRoleScreenServices = {
   fetchRoles,
-  fetchRoleCreationChallenge,
   createRole,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -149,6 +151,7 @@ export function DuplicateRoleScreen({
           {rolesMessages.roleCreation.save}
         </Button>
       </div>
+      {creation.modal}
     </>
   );
 }

@@ -10,11 +10,11 @@ function createServices(
 ): UserDetailScreenServices {
   return {
     fetchUser: vi.fn(),
-    fetchEmailChangeChallenge: vi.fn(),
     changeUserEmail: vi.fn(),
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchUserPasskeyRemovalChallenge: vi.fn(),
     removeUserPasskey: vi.fn(),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     ...overrides,
   };
@@ -45,8 +45,18 @@ const phone: UserPasskey = {
   lastUsedAt: null,
 };
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
-const reauthAssertion = { id: "existing-cred" } as never;
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
+function grantAuthorization(services: UserDetailScreenServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
 
 function renderScreen(
   services: UserDetailScreenServices,
@@ -146,10 +156,10 @@ test("ends the session when loading the user finds it closed", async () => {
 
 async function openEditModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
-  return screen.getByRole("dialog");
+  return screen.getByRole("dialog", { name: "Lucía" });
 }
 
-test("opens the edit modal with Correo prefilled, and Cancelar closes it without calling the API", async () => {
+test("opens the edit modal with Correo prefilled, with no advance notice about a passkey, and Cancelar closes it without calling the API", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
@@ -160,33 +170,24 @@ test("opens the edit modal with Correo prefilled, and Cancelar closes it without
   await expect
     .element(dialog.getByRole("textbox", { name: /^Correo/ }))
     .toHaveValue("lucia.perez@purosur.online");
-  await expect
-    .element(
-      dialog
-        .getByText("Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.")
-        .first(),
-    )
-    .toBeVisible();
+  expect(
+    dialog
+      .getByText("Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.")
+      .query(),
+  ).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.fetchEmailChangeChallenge).not.toHaveBeenCalled();
   expect(services.changeUserEmail).not.toHaveBeenCalled();
 });
 
-test("changes the email through options, passkey and change, and shows it on the screen", async () => {
+test("changes the email directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   const updated: BranchUser = { ...lucia, email: "nueva@purosur.online", version: 2 };
   vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "ok", value: updated });
 
@@ -194,13 +195,68 @@ test("changes the email through options, passkey and change, and shows it on the
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.changeUserEmail).mock.calls.length).toBe(1);
-  expect(services.changeUserEmail).toHaveBeenCalledWith(
-    "user-1",
-    { email: "nueva@purosur.online", version: 1 },
-    reauthAssertion,
-  );
+  expect(services.changeUserEmail).toHaveBeenCalledWith("user-1", {
+    email: "nueva@purosur.online",
+    version: 1,
+  });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("nueva@purosur.online")).toBeVisible();
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries the change", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  const updated: BranchUser = { ...lucia, email: "nueva@purosur.online", version: 2 };
+  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "ok", value: updated });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Cambiar el correo de un usuario necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.changeUserEmail).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("nueva@purosur.online")).toBeVisible();
+});
+
+test("cancelling the authorization modal keeps the edit modal open with its typed value, with no error", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect.element(screen.getByRole("dialog", { name: "Lucía" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Correo/ }))
+    .toHaveValue("nueva@purosur.online");
+  expect(screen.getByText("No se pudo guardar el cambio").query()).toBeNull();
+  expect(services.changeUserEmail).toHaveBeenCalledTimes(1);
 });
 
 test("shows email_taken on Correo and keeps the modal open", async () => {
@@ -209,11 +265,6 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "email_taken" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "tomada@purosur.online");
@@ -223,68 +274,75 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
 
-async function openModalWithChallenge(
-  services: UserDetailScreenServices,
-  onSessionEnded: () => void = () => {},
-) {
+test("shows an error inside the authorization modal, not calling changeUserEmail again, when the browser cancels the passkey ceremony", async () => {
+  const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
+  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.element(authDialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
+  expect(services.changeUserEmail).toHaveBeenCalledTimes(1);
+});
+
+test("ends the session when authorizing the email change finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
+  vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "unauthenticated",
   });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
+
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
-  return { screen, dialog };
-}
-
-test("ends the session when the challenge request finds it closed, without calling changeUserEmail", async () => {
-  const services = createServices();
-  const onSessionEnded = vi.fn();
-  const { dialog } = await openModalWithChallenge(services, onSessionEnded);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({ kind: "unauthenticated" });
-
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-  expect(services.changeUserEmail).not.toHaveBeenCalled();
 });
 
-test("ends the session when the change finds it closed", async () => {
+test("ends the session when the change itself finds it closed", async () => {
   const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const onSessionEnded = vi.fn();
-  const { dialog } = await openModalWithChallenge(services, onSessionEnded);
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
   vi.mocked(services.changeUserEmail).mockResolvedValue({ kind: "unauthenticated" });
 
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("shows a rate-limited notice when the challenge request is rate limited, without calling changeUserEmail", async () => {
-  const services = createServices();
-  const { dialog } = await openModalWithChallenge(services);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  expect(services.changeUserEmail).not.toHaveBeenCalled();
 });
 
 test("shows a rate-limited notice when the change is rate limited", async () => {
   const services = createServices();
-  const { dialog } = await openModalWithChallenge(services);
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
   vi.mocked(services.changeUserEmail).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
 
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
@@ -292,12 +350,16 @@ test("shows a rate-limited notice when the change is rate limited", async () => 
 
 test("shows a server-rejected email on Correo", async () => {
   const services = createServices();
-  const { dialog } = await openModalWithChallenge(services);
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
   vi.mocked(services.changeUserEmail).mockResolvedValue({
     kind: "validation_failed",
     field: "email",
   });
 
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
@@ -305,12 +367,16 @@ test("shows a server-rejected email on Correo", async () => {
 
 test("shows a server-rejected version as a failed notice, leaving Correo without an error", async () => {
   const services = createServices();
-  const { dialog } = await openModalWithChallenge(services);
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  const dialog = await openEditModal(screen);
   vi.mocked(services.changeUserEmail).mockResolvedValue({
     kind: "validation_failed",
     field: "version",
   });
 
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
@@ -325,11 +391,6 @@ test("shows a stale_version notice, and Recargar refetches the user so the secon
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "stale_version" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
@@ -357,7 +418,6 @@ test("shows a stale_version notice, and Recargar refetches the user so the secon
   expect(vi.mocked(services.changeUserEmail).mock.calls[1]).toEqual([
     "user-1",
     { email: "final@purosur.online", version: 5 },
-    reauthAssertion,
   ]);
 });
 
@@ -366,11 +426,6 @@ async function openStaleModal(services: UserDetailScreenServices) {
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "stale_version" });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -443,50 +498,6 @@ test("disables Recargar and Guardar while the reload is pending", async () => {
 
   await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
-});
-
-test("keeps the modal open with a notice when the passkey prompt is cancelled, without calling changeUserEmail", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
-  const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@purosur.online");
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
-  expect(services.changeUserEmail).not.toHaveBeenCalled();
-});
-
-test("requests a fresh challenge on every submit", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
-  const dialog = await openEditModal(screen);
-  vi.mocked(services.fetchEmailChangeChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "email_taken" });
-
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "tomada@purosur.online");
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-  await expect.element(dialog.getByText("Ya existe un usuario con este correo.")).toBeVisible();
-
-  const updated: BranchUser = { ...lucia, email: "otra@purosur.online", version: 2 };
-  vi.mocked(services.changeUserEmail).mockResolvedValueOnce({ kind: "ok", value: updated });
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "otra@purosur.online");
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.poll(() => vi.mocked(services.fetchEmailChangeChallenge).mock.calls.length).toBe(2);
 });
 
 test("has no accessibility violations once loaded, and with the edit modal open", async () => {
@@ -641,7 +652,7 @@ test("shows no remove button on the Administrator's own passkeys when the id arr
 
 async function openRemoveModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
-  return screen.getByRole("dialog");
+  return screen.getByRole("dialog", { name: "¿Dar de baja la passkey de Lucía?" });
 }
 
 test("opens the remove modal titled and worded for the target user and passkey", async () => {
@@ -683,7 +694,7 @@ test("shows the only-passkey sentence only when it is the user's last passkey", 
     .toBeVisible();
 });
 
-test("removes a passkey through the challenge, passkey prompt and remove call, dropping the row on success", async () => {
+test("removes a passkey directly, without the authorization modal, dropping the row on success", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({
@@ -692,28 +703,75 @@ test("removes a passkey through the challenge, passkey prompt and remove call, d
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "ok" });
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  expect(services.fetchUserPasskeyRemovalChallenge).toHaveBeenCalledWith("user-1");
-  expect(services.startAuthentication).toHaveBeenCalledWith({
-    optionsJSON: reauthenticationOptions,
-  });
   await expect.poll(() => vi.mocked(services.removeUserPasskey).mock.calls.length).toBe(1);
-  expect(services.removeUserPasskey).toHaveBeenCalledWith("user-1", "pk-1", reauthAssertion);
+  expect(services.removeUserPasskey).toHaveBeenCalledWith("user-1", "pk-1");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByText("Notebook del local").query()).toBeNull();
 });
 
-test("Cancelar closes the remove modal without calling the challenge or remove API", async () => {
+test("opens the authorization modal on authorization_required, then authorizes and retries the removal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({
+    kind: "ok",
+    value: [notebook, phone],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(services.removeUserPasskey).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.removeUserPasskey).mockResolvedValueOnce({ kind: "ok" });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.removeUserPasskey).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("Notebook del local").query()).toBeNull();
+});
+
+test("cancelling the authorization modal keeps the remove modal open, removing nothing", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "authorization_required" });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect
+    .element(screen.getByRole("dialog", { name: "¿Dar de baja la passkey de Lucía?" }))
+    .toBeVisible();
+  expect(services.removeUserPasskey).toHaveBeenCalledTimes(1);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+});
+
+test("Cancelar closes the remove modal without calling the remove API", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
@@ -724,7 +782,6 @@ test("Cancelar closes the remove modal without calling the challenge or remove A
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.fetchUserPasskeyRemovalChallenge).not.toHaveBeenCalled();
   expect(services.removeUserPasskey).not.toHaveBeenCalled();
 });
 
@@ -732,11 +789,6 @@ test("treats a removal 404 as already gone, dropping the row", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "not_found" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
@@ -748,13 +800,14 @@ test("treats a removal 404 as already gone, dropping the row", async () => {
   expect(screen.getByText("Notebook del local").query()).toBeNull();
 });
 
-test("keeps the modal open with a notice when the passkey prompt is cancelled", async () => {
+test("shows an error inside the authorization modal, not calling removeUserPasskey again, when the browser cancels the passkey ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions },
+    value: authorizationOptions,
   });
   vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
   const screen = await renderScreen(services);
@@ -762,55 +815,19 @@ test("keeps the modal open with a notice when the passkey prompt is cancelled", 
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
-  expect(services.removeUserPasskey).not.toHaveBeenCalled();
+  await expect.element(authDialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
+  expect(services.removeUserPasskey).toHaveBeenCalledTimes(1);
 });
 
-test("keeps the modal open with a notice when the remove call reports authentication_failed", async () => {
+test("ends the session when authorizing the removal finds it already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.removeUserPasskey).mockResolvedValueOnce({ kind: "authentication_failed" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
-});
-
-test("shows a rate-limited notice when the removal challenge is rate limited, without calling startAuthentication", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 60,
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
-});
-
-test("ends the session when the removal challenge finds it already closed", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "unauthenticated",
   });
   const onSessionEnded = vi.fn();
@@ -819,6 +836,8 @@ test("ends the session when the removal challenge finds it already closed", asyn
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -827,11 +846,6 @@ test("ends the session when removing finds it already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  vi.mocked(services.fetchUserPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);

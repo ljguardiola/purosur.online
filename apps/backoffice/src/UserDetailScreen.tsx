@@ -1,5 +1,4 @@
 import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
@@ -15,39 +14,41 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuthorization } from "./AuthorizationModal";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
+  type ChangeUserEmailOutcome,
   changeUserEmail,
-  fetchEmailChangeChallenge,
   fetchUser,
-  fetchUserPasskeyRemovalChallenge,
   fetchUserPasskeys,
+  type RemoveUserPasskeyOutcome,
   removeUserPasskey,
   type UserPasskey,
 } from "./usersApi";
 
 export type UserDetailScreenServices = {
   fetchUser: typeof fetchUser;
-  fetchEmailChangeChallenge: typeof fetchEmailChangeChallenge;
   changeUserEmail: typeof changeUserEmail;
   fetchUserPasskeys: typeof fetchUserPasskeys;
-  fetchUserPasskeyRemovalChallenge: typeof fetchUserPasskeyRemovalChallenge;
   removeUserPasskey: typeof removeUserPasskey;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
 export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
-  fetchEmailChangeChallenge,
   changeUserEmail,
   fetchUserPasskeys,
-  fetchUserPasskeyRemovalChallenge,
   removeUserPasskey,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -117,12 +118,13 @@ type EditEmailModalProps = {
   onReloadRejected: (state: "notFound" | "forbidden") => void;
   onSessionEnded: () => void;
   fetchUser: typeof fetchUser;
-  fetchEmailChangeChallenge: typeof fetchEmailChangeChallenge;
-  startAuthentication: typeof startAuthentication;
   changeUserEmail: typeof changeUserEmail;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
+  startAuthentication: typeof startAuthentication;
 };
 
-/** Changes one user's email, reauthenticating with the Administrator's own passkey and rejecting a save over a newer version. */
+/** Changes one user's email, confirming with the shared passkey-authorization modal only when the cloud asks for it, and rejecting a save over a newer version. */
 function EditEmailModal({
   isOpen,
   user,
@@ -132,15 +134,21 @@ function EditEmailModal({
   onReloadRejected,
   onSessionEnded,
   fetchUser,
-  fetchEmailChangeChallenge,
-  startAuthentication,
   changeUserEmail,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
+  startAuthentication,
 }: EditEmailModalProps) {
   const [email, setEmail] = useState(user.email);
   const [version, setVersion] = useState(user.version);
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<EditEmailModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<ChangeUserEmailOutcome>({
+    action: "emailChange",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
   // Read from refs, not reactive dependencies: the reset below must only run when the modal
   // opens, never again just because the parent re-rendered with a new `user` reference.
   const userRef = useRef(user);
@@ -165,40 +173,11 @@ function EditEmailModal({
     setNotice(null);
     setSubmitting(true);
 
-    const challenge = await fetchEmailChangeChallenge(user.id);
-    if (challenge.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (challenge.kind === "rate_limited") {
-      setNotice({
-        kind: "rateLimited",
-        retryAfterSeconds: challenge.retryAfterSeconds,
-        offersReload: false,
-      });
+    const outcome = await run(() => changeUserEmail(user.id, { email: email.trim(), version }));
+    if (outcome.kind === "cancelled") {
       setSubmitting(false);
       return;
     }
-    if (challenge.kind !== "ok") {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const reauthentication = await startAuthentication({
-      optionsJSON: challenge.value.reauthenticationOptions,
-    }).catch((): AuthenticationResponseJSON | null => null);
-    if (!reauthentication) {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await changeUserEmail(
-      user.id,
-      { email: email.trim(), version },
-      reauthentication,
-    );
     if (outcome.kind === "ok") {
       onSaved(outcome.value);
       return;
@@ -276,108 +255,110 @@ function EditEmailModal({
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
+    <>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="standard"
+        tone="info"
+        icon={<UserPen />}
+        context={modalMessages.eyebrow}
+        title={user.firstName}
+        closable
+        closeLabel={modalMessages.closeLabel}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              isDisabled={submitting}
+              onPress={onClose}
+            >
+              {modalMessages.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              size="large"
+              icon={<Check />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleSubmit()}
+            >
+              {modalMessages.submit}
+            </Button>
+          </>
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<UserPen />}
-      context={modalMessages.eyebrow}
-      title={user.firstName}
-      closable
-      closeLabel={modalMessages.closeLabel}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<X />}
-            isDisabled={submitting}
-            onPress={onClose}
-          >
-            {modalMessages.cancel}
-          </Button>
-          <Button
-            variant="primary"
-            size="large"
-            icon={<Check />}
-            fullWidth
-            isDisabled={submitting}
-            onPress={() => void handleSubmit()}
-          >
-            {modalMessages.submit}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+      >
+        <div className="flex flex-col gap-4">
+          {notice?.kind === "attemptFailed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.attemptFailedTitle}
+              detail={modalMessages.attemptFailedDetail}
+            />
+          )}
+          {notice?.kind === "rateLimited" && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={usersMessages.rateLimitedTitle}
+              detail={usersMessages.rateLimitedDetail({
+                minutes: Math.ceil(notice.retryAfterSeconds / 60),
+              })}
+            />
+          )}
+          {notice?.kind === "staleVersion" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.staleVersionTitle}
+              detail={modalMessages.staleVersionDetail}
+            />
+          )}
+          {notice?.kind === "reloadFailed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.reloadFailedTitle}
+              detail={modalMessages.attemptFailedDetail}
+            />
+          )}
+          {(notice?.kind === "staleVersion" ||
+            notice?.kind === "reloadFailed" ||
+            (notice?.kind === "rateLimited" && notice.offersReload)) && (
+            <Button
+              variant="secondary"
+              icon={<RotateCcw />}
+              isDisabled={submitting}
+              onPress={() => void handleReload()}
+            >
+              {modalMessages.reload}
+            </Button>
+          )}
+          <TextField
+            kind="plain-text"
+            label={modalMessages.emailLabel}
+            value={email}
+            onChange={(value) => {
+              setEmail(value);
+              if (emailError) {
+                setEmailError(validateEmail(value, EMAIL_ERRORS));
+              }
+            }}
+            helperText={modalMessages.emailHelper}
+            required
+            {...(emailError ? { invalid: true, errorMessage: emailError } : {})}
           />
-        )}
-        {notice?.kind === "rateLimited" && (
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title={usersMessages.rateLimitedTitle}
-            detail={usersMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
-          />
-        )}
-        {notice?.kind === "staleVersion" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.staleVersionTitle}
-            detail={modalMessages.staleVersionDetail}
-          />
-        )}
-        {notice?.kind === "reloadFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.reloadFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
-          />
-        )}
-        {(notice?.kind === "staleVersion" ||
-          notice?.kind === "reloadFailed" ||
-          (notice?.kind === "rateLimited" && notice.offersReload)) && (
-          <Button
-            variant="secondary"
-            icon={<RotateCcw />}
-            isDisabled={submitting}
-            onPress={() => void handleReload()}
-          >
-            {modalMessages.reload}
-          </Button>
-        )}
-        <TextField
-          kind="plain-text"
-          label={modalMessages.emailLabel}
-          value={email}
-          onChange={(value) => {
-            setEmail(value);
-            if (emailError) {
-              setEmailError(validateEmail(value, EMAIL_ERRORS));
-            }
-          }}
-          helperText={modalMessages.emailHelper}
-          required
-          {...(emailError ? { invalid: true, errorMessage: emailError } : {})}
-        />
-        <InlineNotice tone="info" icon={<KeyRound />} detail={modalMessages.reauthNotice} />
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+      {modal}
+    </>
   );
 }
 
@@ -389,12 +370,13 @@ type RemoveUserPasskeyModalProps = {
   onClose: () => void;
   onRemoved: (passkeyId: string) => void;
   onSessionEnded: () => void;
-  fetchUserPasskeyRemovalChallenge: typeof fetchUserPasskeyRemovalChallenge;
-  startAuthentication: typeof startAuthentication;
   removeUserPasskey: typeof removeUserPasskey;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
+  startAuthentication: typeof startAuthentication;
 };
 
-/** Lets an Administrator remove another user's passkey, reauthenticating with their own passkey first. */
+/** Lets an Administrator remove another user's passkey, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function RemoveUserPasskeyModal({
   target,
   userId,
@@ -403,14 +385,20 @@ function RemoveUserPasskeyModal({
   onClose,
   onRemoved,
   onSessionEnded,
-  fetchUserPasskeyRemovalChallenge,
-  startAuthentication,
   removeUserPasskey,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
+  startAuthentication,
 }: RemoveUserPasskeyModalProps) {
   const isOpen = target !== null;
   const [attemptFailed, setAttemptFailed] = useState(false);
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<RemoveUserPasskeyOutcome>({
+    action: "passkeyRemoval",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -420,8 +408,6 @@ function RemoveUserPasskeyModal({
     }
   }, [isOpen]);
 
-  // Same reasoning as Mi cuenta's own RemovePasskeyModal: the removal challenge is consumed on
-  // every attempt that reaches the cloud, so a fresh one is fetched every time.
   async function handleConfirm() {
     if (!target) {
       return;
@@ -430,34 +416,11 @@ function RemoveUserPasskeyModal({
     setRateLimitedSeconds(null);
     setSubmitting(true);
 
-    const challenge = await fetchUserPasskeyRemovalChallenge(userId);
-    if (challenge.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (challenge.kind === "rate_limited") {
-      setRateLimitedSeconds(challenge.retryAfterSeconds);
+    const outcome = await run(() => removeUserPasskey(userId, target.id));
+    if (outcome.kind === "cancelled") {
       setSubmitting(false);
       return;
     }
-    // Also covers not_found, own_account and failed: none is expected here (the target and the
-    // remove button's own visibility already rule them out), so they fall back to the generic notice.
-    if (challenge.kind !== "ok") {
-      setAttemptFailed(true);
-      setSubmitting(false);
-      return;
-    }
-
-    const reauthentication = await startAuthentication({
-      optionsJSON: challenge.value.reauthenticationOptions,
-    }).catch((): AuthenticationResponseJSON | null => null);
-    if (!reauthentication) {
-      setAttemptFailed(true);
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await removeUserPasskey(userId, target.id, reauthentication);
     // A 404 means the passkey is already gone, which is exactly what removing it asked for.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onRemoved(target.id);
@@ -477,73 +440,76 @@ function RemoveUserPasskeyModal({
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
+    <>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="confirmation"
+        tone="error"
+        icon={<Trash2 />}
+        title={removePasskeyModalMessages.title({ name: userName })}
+        closable
+        closeLabel={selfRemoveMessages.closeLabel}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              isDisabled={submitting}
+              onPress={onClose}
+            >
+              {selfRemoveMessages.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              tone="destructive"
+              size="large"
+              icon={<Trash2 />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleConfirm()}
+            >
+              {selfRemoveMessages.confirm}
+            </Button>
+          </>
         }
-      }}
-      width="confirmation"
-      tone="error"
-      icon={<Trash2 />}
-      title={removePasskeyModalMessages.title({ name: userName })}
-      closable
-      closeLabel={selfRemoveMessages.closeLabel}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<X />}
-            isDisabled={submitting}
-            onPress={onClose}
-          >
-            {selfRemoveMessages.cancel}
-          </Button>
-          <Button
-            variant="primary"
-            tone="destructive"
-            size="large"
-            icon={<Trash2 />}
-            fullWidth
-            isDisabled={submitting}
-            onPress={() => void handleConfirm()}
-          >
-            {selfRemoveMessages.confirm}
-          </Button>
-        </>
-      }
-    >
-      {target && (
-        <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">
-            {removePasskeyModalMessages.body({ passkeyName: target.name })}
-            {isOnlyPasskey
-              ? ` ${removePasskeyModalMessages.onlyPasskeyWarning({ name: userName })}`
-              : ""}
-          </p>
-          {attemptFailed && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={selfRemoveMessages.attemptFailedTitle}
-              detail={selfRemoveMessages.attemptFailedDetail}
-            />
-          )}
-          {rateLimitedSeconds !== null && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title={selfRemoveMessages.rateLimitedTitle}
-              detail={selfRemoveMessages.rateLimitedDetail({
-                minutes: Math.ceil(rateLimitedSeconds / 60),
-              })}
-            />
-          )}
-        </div>
-      )}
-    </Modal>
+      >
+        {target && (
+          <div className="flex flex-col gap-4">
+            <p className="text-base text-ink">
+              {removePasskeyModalMessages.body({ passkeyName: target.name })}
+              {isOnlyPasskey
+                ? ` ${removePasskeyModalMessages.onlyPasskeyWarning({ name: userName })}`
+                : ""}
+            </p>
+            {attemptFailed && (
+              <InlineNotice
+                tone="error"
+                icon={<TriangleAlert />}
+                title={selfRemoveMessages.attemptFailedTitle}
+                detail={selfRemoveMessages.attemptFailedDetail}
+              />
+            )}
+            {rateLimitedSeconds !== null && (
+              <InlineNotice
+                tone="error"
+                icon={<ShieldX />}
+                title={selfRemoveMessages.rateLimitedTitle}
+                detail={selfRemoveMessages.rateLimitedDetail({
+                  minutes: Math.ceil(rateLimitedSeconds / 60),
+                })}
+              />
+            )}
+          </div>
+        )}
+      </Modal>
+      {modal}
+    </>
   );
 }
 
@@ -558,11 +524,11 @@ export function UserDetailScreen({
 }: UserDetailScreenProps) {
   const {
     fetchUser,
-    fetchEmailChangeChallenge,
     changeUserEmail,
     fetchUserPasskeys,
-    fetchUserPasskeyRemovalChallenge,
     removeUserPasskey,
+    fetchSessionAuthorizationOptions,
+    authorizeSession,
     startAuthentication,
   } = services ?? defaultUserDetailScreenServices;
   const clock = now ?? (() => new Date());
@@ -793,9 +759,10 @@ export function UserDetailScreen({
             );
           }}
           onSessionEnded={endSession}
-          fetchUserPasskeyRemovalChallenge={fetchUserPasskeyRemovalChallenge}
-          startAuthentication={startAuthentication}
           removeUserPasskey={removeUserPasskey}
+          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
+          authorizeSession={authorizeSession}
+          startAuthentication={startAuthentication}
         />
       )}
       {state.kind === "loaded" && (
@@ -814,9 +781,10 @@ export function UserDetailScreen({
           }}
           onSessionEnded={endSession}
           fetchUser={fetchUser}
-          fetchEmailChangeChallenge={fetchEmailChangeChallenge}
-          startAuthentication={startAuthentication}
           changeUserEmail={changeUserEmail}
+          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
+          authorizeSession={authorizeSession}
+          startAuthentication={startAuthentication}
         />
       )}
     </>

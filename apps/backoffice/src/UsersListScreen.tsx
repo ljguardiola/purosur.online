@@ -8,37 +8,40 @@ import {
   TableCellText,
   TextField,
 } from "@purosur/ui";
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuthorization } from "./AuthorizationModal";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
   type CreateUserFieldError,
+  type CreateUserOutcome,
   createUser,
-  fetchUserCreationChallenge,
   fetchUsers,
 } from "./usersApi";
 
 export type UsersListScreenServices = {
   fetchUsers: typeof fetchUsers;
   fetchRoles: typeof fetchRoles;
-  fetchUserCreationChallenge: typeof fetchUserCreationChallenge;
   createUser: typeof createUser;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
 export const defaultUsersListScreenServices: UsersListScreenServices = {
   fetchUsers,
   fetchRoles,
-  fetchUserCreationChallenge,
   createUser,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -112,21 +115,23 @@ type NewUserModalProps = {
   onClose: () => void;
   onCreated: () => void;
   onSessionEnded: () => void;
-  fetchUserCreationChallenge: typeof fetchUserCreationChallenge;
-  startAuthentication: typeof startAuthentication;
   createUser: typeof createUser;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
+  startAuthentication: typeof startAuthentication;
 };
 
-/** Creates a backoffice user, reauthenticating with the Administrator's own existing passkey first. */
+/** Creates a backoffice user, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function NewUserModal({
   isOpen,
   roles,
   onClose,
   onCreated,
   onSessionEnded,
-  fetchUserCreationChallenge,
-  startAuthentication,
   createUser,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
+  startAuthentication,
 }: NewUserModalProps) {
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
   // Read from a ref, not a reactive dependency: the reset below must only run when the modal
@@ -140,6 +145,11 @@ function NewUserModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<CreateUserOutcome>({
+    action: "userCreate",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -167,35 +177,13 @@ function NewUserModal({
     setNotice(null);
     setSubmitting(true);
 
-    const challenge = await fetchUserCreationChallenge();
-    if (challenge.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (challenge.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    if (challenge.kind !== "ok") {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const reauthentication = await startAuthentication({
-      optionsJSON: challenge.value.reauthenticationOptions,
-    }).catch((): AuthenticationResponseJSON | null => null);
-    if (!reauthentication) {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await createUser(
-      { firstName: firstName.trim(), email: email.trim(), roleId },
-      reauthentication,
+    const outcome = await run(() =>
+      createUser({ firstName: firstName.trim(), email: email.trim(), roleId }),
     );
+    if (outcome.kind === "cancelled") {
+      setSubmitting(false);
+      return;
+    }
     if (outcome.kind === "ok") {
       onCreated();
       return;
@@ -230,118 +218,122 @@ function NewUserModal({
   }
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
+    <>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="standard"
+        tone="info"
+        icon={<UserPlus />}
+        context={modalMessages.eyebrow}
+        title={modalMessages.heading}
+        closable
+        closeLabel={modalMessages.closeLabel}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              isDisabled={submitting}
+              onPress={onClose}
+            >
+              {modalMessages.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              size="large"
+              icon={<KeyRound />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleSubmit()}
+            >
+              {modalMessages.submit}
+            </Button>
+          </>
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<UserPlus />}
-      context={modalMessages.eyebrow}
-      title={modalMessages.heading}
-      closable
-      closeLabel={modalMessages.closeLabel}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<X />}
-            isDisabled={submitting}
-            onPress={onClose}
-          >
-            {modalMessages.cancel}
-          </Button>
-          <Button
-            variant="primary"
-            size="large"
-            icon={<KeyRound />}
-            fullWidth
-            isDisabled={submitting}
-            onPress={() => void handleSubmit()}
-          >
-            {modalMessages.submit}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
-          />
-        )}
-        {notice?.kind === "unknownRole" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.unknownRoleTitle}
-            detail={modalMessages.unknownRoleDetail}
-          />
-        )}
-        {notice?.kind === "rateLimited" && (
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
-          />
-        )}
-        <TextField
-          kind="plain-text"
-          label={modalMessages.nameLabel}
-          value={firstName}
-          onChange={(value) => {
-            setFirstName(value);
-            if (fieldErrors.firstName) {
-              setFieldErrors((current) =>
-                withFieldError(current, "firstName", validateName(value)),
-              );
-            }
-          }}
-          required
-          {...(fieldErrors.firstName ? { invalid: true, errorMessage: fieldErrors.firstName } : {})}
-        />
-        {options && (
-          <Select
-            label={modalMessages.roleLabel}
-            options={options}
-            value={roleId}
+      >
+        <div className="flex flex-col gap-4">
+          {notice?.kind === "attemptFailed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.attemptFailedTitle}
+              detail={modalMessages.attemptFailedDetail}
+            />
+          )}
+          {notice?.kind === "unknownRole" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.unknownRoleTitle}
+              detail={modalMessages.unknownRoleDetail}
+            />
+          )}
+          {notice?.kind === "rateLimited" && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={modalMessages.rateLimitedTitle}
+              detail={modalMessages.rateLimitedDetail({
+                minutes: Math.ceil(notice.retryAfterSeconds / 60),
+              })}
+            />
+          )}
+          <TextField
+            kind="plain-text"
+            label={modalMessages.nameLabel}
+            value={firstName}
             onChange={(value) => {
-              setRoleId(value);
-              setFieldErrors((current) => withFieldError(current, "roleId", undefined));
+              setFirstName(value);
+              if (fieldErrors.firstName) {
+                setFieldErrors((current) =>
+                  withFieldError(current, "firstName", validateName(value)),
+                );
+              }
             }}
             required
-            {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
+            {...(fieldErrors.firstName
+              ? { invalid: true, errorMessage: fieldErrors.firstName }
+              : {})}
           />
-        )}
-        <TextField
-          kind="plain-text"
-          label={modalMessages.emailLabel}
-          value={email}
-          onChange={(value) => {
-            setEmail(value);
-            if (fieldErrors.email) {
-              setFieldErrors((current) =>
-                withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
-              );
-            }
-          }}
-          helperText={modalMessages.emailHelper}
-          required
-          {...(fieldErrors.email ? { invalid: true, errorMessage: fieldErrors.email } : {})}
-        />
-        <p className="text-sm text-ink-secondary">{modalMessages.reauthNotice}</p>
-      </div>
-    </Modal>
+          {options && (
+            <Select
+              label={modalMessages.roleLabel}
+              options={options}
+              value={roleId}
+              onChange={(value) => {
+                setRoleId(value);
+                setFieldErrors((current) => withFieldError(current, "roleId", undefined));
+              }}
+              required
+              {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
+            />
+          )}
+          <TextField
+            kind="plain-text"
+            label={modalMessages.emailLabel}
+            value={email}
+            onChange={(value) => {
+              setEmail(value);
+              if (fieldErrors.email) {
+                setFieldErrors((current) =>
+                  withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
+                );
+              }
+            }}
+            helperText={modalMessages.emailHelper}
+            required
+            {...(fieldErrors.email ? { invalid: true, errorMessage: fieldErrors.email } : {})}
+          />
+        </div>
+      </Modal>
+      {modal}
+    </>
   );
 }
 
@@ -351,8 +343,14 @@ export function UsersListScreen({
   onSessionEnded,
   services,
 }: UsersListScreenProps) {
-  const { fetchUsers, fetchRoles, fetchUserCreationChallenge, createUser, startAuthentication } =
-    services ?? defaultUsersListScreenServices;
+  const {
+    fetchUsers,
+    fetchRoles,
+    createUser,
+    fetchSessionAuthorizationOptions,
+    authorizeSession,
+    startAuthentication,
+  } = services ?? defaultUsersListScreenServices;
   const [list, setList] = useState<ListState>(
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
@@ -506,9 +504,10 @@ export function UsersListScreen({
           void load();
         }}
         onSessionEnded={onSessionEnded}
-        fetchUserCreationChallenge={fetchUserCreationChallenge}
-        startAuthentication={startAuthentication}
         createUser={createUser}
+        fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
+        authorizeSession={authorizeSession}
+        startAuthentication={startAuthentication}
       />
     </>
   );

@@ -1,7 +1,5 @@
 import type {
-  AuthenticationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
@@ -19,45 +17,32 @@ export type Passkey = {
 export type FetchPasskeysOutcome = { kind: "ok"; value: Passkey[] } | ErrorOutcome;
 
 export type RegistrationChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
   registrationOptions: PublicKeyCredentialCreationOptionsJSON;
 };
 
 export type FetchPasskeyRegistrationChallengeOutcome =
   | { kind: "ok"; value: RegistrationChallenge }
-  | { kind: "no_passkey" }
   | ErrorOutcome;
 
-export type RemovalChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchPasskeyRemovalChallengeOutcome =
-  | { kind: "ok"; value: RemovalChallenge }
-  | ErrorOutcome;
-
-// Both the registration and removal endpoints answer 401 with either code, depending on whether
-// the session itself ended or the reauthentication just failed to verify (passkeys-registration-route.ts,
-// passkeys-removal-route.ts).
 type ErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-type ReauthenticatedActionErrorOutcome =
+// Every one of the account's own passkey actions is gated by the shared passkey-authorization
+// window (`passkey-authorization-guard.ts`) instead of its own step-up, so a 401 here means either
+// the session ended or that window has lapsed, never a rejected assertion.
+type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
-  | { kind: "authentication_failed" }
+  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
 export type RegisterPasskeyOutcome =
   | { kind: "ok"; value: Passkey }
   | { kind: "validation_failed" }
-  | ReauthenticatedActionErrorOutcome;
+  | GatedActionErrorOutcome;
 
-export type RemovePasskeyOutcome =
-  | { kind: "ok" }
-  | { kind: "not_found" }
-  | ReauthenticatedActionErrorOutcome;
+export type RemovePasskeyOutcome = { kind: "ok" } | { kind: "not_found" } | GatedActionErrorOutcome;
 
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
@@ -108,46 +93,11 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   return { kind: "ok", value: body.map(passkeyFromRow) };
 }
 
-/** Hands back a fresh reauthentication challenge and registration options for a new passkey (`POST /users/passkeys/registration-options`). */
+/** Hands back registration options for a new passkey (`POST /users/passkeys/registration-options`). */
 export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyRegistrationChallengeOutcome> {
   let response: Response;
   try {
     response = await postJson("/users/passkeys/registration-options");
-  } catch {
-    return { kind: "failed" };
-  }
-  // The endpoint answers `authentication_failed` while the session is still open when the account
-  // has no passkey left to reauthenticate with (passkeys-registration-route.ts).
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "no_passkey" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json()) as {
-    reauthentication_options: PublicKeyCredentialRequestOptionsJSON;
-    passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;
-  };
-  return {
-    kind: "ok",
-    value: {
-      reauthenticationOptions: body.reauthentication_options,
-      registrationOptions: body.passkey_registration_options,
-    },
-  };
-}
-
-/** Hands back a fresh reauthentication challenge for removing a passkey (`POST /users/passkeys/removal-options`). */
-export async function fetchPasskeyRemovalChallenge(): Promise<FetchPasskeyRemovalChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson("/users/passkeys/removal-options");
   } catch {
     return { kind: "failed" };
   }
@@ -161,18 +111,16 @@ export async function fetchPasskeyRemovalChallenge(): Promise<FetchPasskeyRemova
     return { kind: "failed" };
   }
   const body = (await response.json()) as {
-    reauthentication_options: PublicKeyCredentialRequestOptionsJSON;
+    passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;
   };
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
+  return { kind: "ok", value: { registrationOptions: body.passkey_registration_options } };
 }
 
-async function reauthenticatedActionErrorOutcome(
-  response: Response,
-): Promise<ReauthenticatedActionErrorOutcome> {
+async function gatedActionErrorOutcome(response: Response): Promise<GatedActionErrorOutcome> {
   if (response.status === 401) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
+    return body?.code === "authorization_required"
+      ? { kind: "authorization_required" }
       : { kind: "unauthenticated" };
   }
   if (response.status === 429) {
@@ -181,16 +129,18 @@ async function reauthenticatedActionErrorOutcome(
   return { kind: "failed" };
 }
 
-/** Verifies the reauthentication and the new passkey's registration, then registers it under `passkeyName` (`POST /users/passkeys`). */
+/**
+ * Registers the new passkey's registration under `passkeyName`, gated by the shared
+ * passkey-authorization window instead of its own reauthentication step-up
+ * (`POST /users/passkeys`).
+ */
 export async function registerPasskey(
-  reauthentication: AuthenticationResponseJSON,
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
 ): Promise<RegisterPasskeyOutcome> {
   let response: Response;
   try {
     response = await postJson("/users/passkeys", {
-      reauthentication,
       passkey_registration: passkeyRegistration,
       passkey_name: passkeyName,
     });
@@ -209,17 +159,17 @@ export async function registerPasskey(
   if (response.status === 400) {
     return { kind: "validation_failed" };
   }
-  return reauthenticatedActionErrorOutcome(response);
+  return gatedActionErrorOutcome(response);
 }
 
-/** Verifies the reauthentication and removes the named passkey (`POST /users/passkeys/:id/remove`). */
-export async function removePasskey(
-  id: string,
-  reauthentication: AuthenticationResponseJSON,
-): Promise<RemovePasskeyOutcome> {
+/**
+ * Removes the named passkey, gated by the shared passkey-authorization window instead of its own
+ * reauthentication step-up (`POST /users/passkeys/:id/remove`).
+ */
+export async function removePasskey(id: string): Promise<RemovePasskeyOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/passkeys/${id}/remove`, { reauthentication });
+    response = await postJson(`/users/passkeys/${id}/remove`);
   } catch {
     return { kind: "failed" };
   }
@@ -229,5 +179,5 @@ export async function removePasskey(
   if (response.status === 404) {
     return { kind: "not_found" };
   }
-  return reauthenticatedActionErrorOutcome(response);
+  return gatedActionErrorOutcome(response);
 }

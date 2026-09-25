@@ -1,19 +1,22 @@
 import type { PermissionKey } from "@purosur/contracts";
 import { InlineNotice } from "@purosur/ui";
-import type { AuthenticationResponseJSON, startAuthentication } from "@simplewebauthn/browser";
+import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useState } from "react";
+import { useAuthorization } from "./AuthorizationModal";
 import { messages } from "./messages";
 import { roleFieldErrorMessage, validateRoleName } from "./RoleForm";
-import type { createRole, fetchRoleCreationChallenge } from "./rolesApi";
+import type { CreateRoleOutcome, createRole } from "./rolesApi";
 import { navigate } from "./router";
+import type { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
 const rolesMessages = messages.settings.roles;
 
 export type RoleCreationServices = {
-  fetchRoleCreationChallenge: typeof fetchRoleCreationChallenge;
   createRole: typeof createRole;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
@@ -22,9 +25,11 @@ export type RoleCreationNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 /**
- * The New and Duplicate role pages' shared form state and save: validates the name, confirms with a
- * passkey step-up, creates the role through `POST /roles` and returns to the roles list, or keeps
- * the form with the outcome's field error or notice.
+ * The New and Duplicate role pages' shared form state and save: validates the name, attempts
+ * `POST /roles` directly and, only when the cloud answers `authorization_required`, confirms with
+ * the shared passkey-authorization modal and retries once, then returns to the roles list or keeps
+ * the form with the outcome's field error or notice. Cancelling the modal leaves the form exactly
+ * as it was.
  */
 export function useRoleCreation({
   services,
@@ -33,12 +38,18 @@ export function useRoleCreation({
   services: RoleCreationServices;
   onSessionEnded: () => void;
 }) {
-  const { fetchRoleCreationChallenge, createRole, startAuthentication } = services;
+  const { createRole, fetchSessionAuthorizationOptions, authorizeSession, startAuthentication } =
+    services;
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<PermissionKey>>(new Set());
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<RoleCreationNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<CreateRoleOutcome>({
+    action: "roleSave",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
 
   // Stable across renders (every dependency is a setter, which React guarantees never changes), so
   // a caller's load callback can depend on it without recreating on every render.
@@ -64,35 +75,13 @@ export function useRoleCreation({
     setNotice(null);
     setSubmitting(true);
 
-    const challenge = await fetchRoleCreationChallenge();
-    if (challenge.kind === "unauthenticated") {
-      onSessionEnded();
-      return;
-    }
-    if (challenge.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: challenge.retryAfterSeconds });
-      setSubmitting(false);
-      return;
-    }
-    if (challenge.kind !== "ok") {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const reauthentication = await startAuthentication({
-      optionsJSON: challenge.value.reauthenticationOptions,
-    }).catch((): AuthenticationResponseJSON | null => null);
-    if (!reauthentication) {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await createRole(
-      { name: name.trim(), permissionKeys: Array.from(selected) },
-      reauthentication,
+    const outcome = await run(() =>
+      createRole({ name: name.trim(), permissionKeys: Array.from(selected) }),
     );
+    if (outcome.kind === "cancelled") {
+      setSubmitting(false);
+      return;
+    }
     if (outcome.kind === "ok") {
       navigate(ROLES_LIST_PATH);
       return;
@@ -133,6 +122,7 @@ export function useRoleCreation({
     notice,
     submitting,
     submit,
+    modal,
   };
 }
 

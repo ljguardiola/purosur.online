@@ -1,9 +1,9 @@
 import type { PermissionKey } from "@purosur/contracts";
 import { Button, InlineNotice } from "@purosur/ui";
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuthorization } from "./AuthorizationModal";
 import { messages } from "./messages";
 import { RoleForm, roleFieldErrorMessage, validateRoleName } from "./RoleForm";
 import {
@@ -12,21 +12,24 @@ import {
   RoleLoadStatusView,
   RolesForbiddenNotice,
 } from "./RoleLoadStatus";
-import { editRole, fetchRole, fetchRoleEditChallenge, type RoleDetail } from "./rolesApi";
+import { type EditRoleOutcome, editRole, fetchRole, type RoleDetail } from "./rolesApi";
 import { navigate } from "./router";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type EditRoleScreenServices = {
   fetchRole: typeof fetchRole;
-  fetchRoleEditChallenge: typeof fetchRoleEditChallenge;
   editRole: typeof editRole;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
 export const defaultEditRoleScreenServices: EditRoleScreenServices = {
   fetchRole,
-  fetchRoleEditChallenge,
   editRole,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -58,8 +61,13 @@ export function EditRoleScreen({
   onSessionEnded,
   services,
 }: EditRoleScreenProps) {
-  const { fetchRole, fetchRoleEditChallenge, editRole, startAuthentication } =
-    services ?? defaultEditRoleScreenServices;
+  const {
+    fetchRole,
+    editRole,
+    fetchSessionAuthorizationOptions,
+    authorizeSession,
+    startAuthentication,
+  } = services ?? defaultEditRoleScreenServices;
   const [state, setState] = useState<LoadState>(
     isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
   );
@@ -74,6 +82,11 @@ export function EditRoleScreen({
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
   const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const { run, modal } = useAuthorization<EditRoleOutcome>({
+    action: "roleSave",
+    onSessionEnded: endSession,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
 
   // Stable across renders (every dependency is a setter, which React guarantees never changes),
   // so `load` and `handleReload` below can depend on it without recreating on every render.
@@ -156,50 +169,17 @@ export function EditRoleScreen({
     setNotice(null);
     setSubmitting(true);
 
-    const challenge = await fetchRoleEditChallenge(roleId);
-    if (challenge.kind === "unauthenticated") {
-      endSession();
-      return;
-    }
-    if (challenge.kind === "not_found") {
-      setState({ kind: "notFound" });
-      setSubmitting(false);
-      return;
-    }
-    if (challenge.kind === "forbidden") {
-      setState({ kind: "forbidden" });
-      setSubmitting(false);
-      return;
-    }
-    if (challenge.kind === "rate_limited") {
-      setNotice({
-        kind: "rateLimited",
-        retryAfterSeconds: challenge.retryAfterSeconds,
-        offersReload: false,
-      });
-      setSubmitting(false);
-      return;
-    }
-    if (challenge.kind !== "ok") {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const reauthentication = await startAuthentication({
-      optionsJSON: challenge.value.reauthenticationOptions,
-    }).catch((): AuthenticationResponseJSON | null => null);
-    if (!reauthentication) {
-      setNotice({ kind: "attemptFailed" });
-      setSubmitting(false);
-      return;
-    }
-
-    const outcome = await editRole(
-      roleId,
-      { name: name.trim(), permissionKeys: Array.from(selected), version: state.role.version },
-      reauthentication,
+    const outcome = await run(() =>
+      editRole(roleId, {
+        name: name.trim(),
+        permissionKeys: Array.from(selected),
+        version: state.role.version,
+      }),
     );
+    if (outcome.kind === "cancelled") {
+      setSubmitting(false);
+      return;
+    }
     if (outcome.kind === "ok") {
       navigate(ROLES_LIST_PATH);
       return;
@@ -336,6 +316,7 @@ export function EditRoleScreen({
           {pageMessages.save}
         </Button>
       </div>
+      {modal}
     </>
   );
 }

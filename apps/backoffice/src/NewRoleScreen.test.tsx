@@ -6,15 +6,26 @@ import { NewRoleScreen, type NewRoleScreenServices } from "./NewRoleScreen";
 
 function createServices(overrides: Partial<NewRoleScreenServices> = {}): NewRoleScreenServices {
   return {
-    fetchRoleCreationChallenge: vi.fn(),
     createRole: vi.fn(),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     ...overrides,
   };
 }
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
-const reauthAssertion = { id: "existing-cred" } as never;
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
+function grantAuthorization(services: NewRoleScreenServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
 
 const createdRole = {
   id: "role-stock",
@@ -42,7 +53,7 @@ test("shows a forbidden notice, without calling the API, for a non-Administrator
   );
 
   await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createRole).not.toHaveBeenCalled();
 });
 
 test("shows the breadcrumb, heading, name field, and every permission area with a starting 0 count", async () => {
@@ -79,12 +90,12 @@ test("shows the breadcrumb, heading, name field, and every permission area with 
   await expect.element(screen.getByRole("radio", { name: "No ve alertas" })).toBeChecked();
 });
 
-test("tells the Administrator their passkey is asked to confirm saving", async () => {
+test("shows no advance notice about a passkey before the save is attempted", async () => {
   const services = createServices();
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Se pide tu passkey para confirmar.")).toBeVisible();
+  expect(screen.getByText("Se pide tu passkey para confirmar.").query()).toBeNull();
 });
 
 test("checking a permission shows its register badge and updates its area's count", async () => {
@@ -136,7 +147,7 @@ test("requires a non-empty name that is not the Administrator's own, without cal
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
 
   await expect.element(screen.getByText("Ingresá el nombre del rol.")).toBeVisible();
-  expect(services.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createRole).not.toHaveBeenCalled();
 
   await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Administrador");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
@@ -144,7 +155,7 @@ test("requires a non-empty name that is not the Administrator's own, without cal
   await expect
     .element(screen.getByText("Ese nombre es del Administrador; elegí otro."))
     .toBeVisible();
-  expect(services.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createRole).not.toHaveBeenCalled();
 });
 
 test("Cancelar navigates back to the roles list without calling the API", async () => {
@@ -155,18 +166,13 @@ test("Cancelar navigates back to the roles list without calling the API", async 
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
   expect(window.location.pathname).toBe("/settings/roles");
-  expect(services.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.createRole).not.toHaveBeenCalled();
   window.history.pushState(null, "", "/");
 });
 
-test("creates the role through the passkey step-up and returns to the roles list", async () => {
+test("creates the role directly, without the authorization modal, when the session already has one", async () => {
   window.history.pushState(null, "", "/settings/roles/new");
   const services = createServices();
-  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createRole).mockResolvedValue({ kind: "ok", value: createdRole });
   const screen = await renderScreen(services);
 
@@ -175,21 +181,62 @@ test("creates the role through the passkey step-up and returns to the roles list
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
 
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
-  expect(services.createRole).toHaveBeenCalledWith(
-    { name: "Depósito", permissionKeys: ["view_stock_balances"] },
-    reauthAssertion,
-  );
+  expect(services.createRole).toHaveBeenCalledWith({
+    name: "Depósito",
+    permissionKeys: ["view_stock_balances"],
+  });
+  await expect.poll(() => window.location.pathname).toBe("/settings/roles");
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  window.history.pushState(null, "", "/");
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries the save", async () => {
+  window.history.pushState(null, "", "/settings/roles/new");
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "ok", value: createdRole });
+  const screen = await renderScreen(services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+  await expect
+    .element(
+      dialog.getByText("Guardar un rol necesita tu autorización. Confirmala con tu passkey."),
+    )
+    .toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(2);
   await expect.poll(() => window.location.pathname).toBe("/settings/roles");
   window.history.pushState(null, "", "/");
 });
 
+test("cancelling the authorization modal keeps the form exactly as it was, with no error", async () => {
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "authorization_required" });
+  const screen = await renderScreen(services);
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  expect(screen.getByText("No se pudo crear el rol").query()).toBeNull();
+  expect(services.createRole).toHaveBeenCalledTimes(1);
+});
+
 test("shows name_taken as a field error on Nombre del rol and keeps the form", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.createRole).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
 
@@ -200,25 +247,9 @@ test("shows name_taken as a field error on Nombre del rol and keeps the form", a
   await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
 });
 
-test("shows a notice, not calling createRole, when the passkey prompt is cancelled", async () => {
+test("shows a rate-limited notice when creating the role is rate limited", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
-  const screen = await renderScreen(services);
-
-  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
-  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
-
-  await expect.element(screen.getByText("No se pudo crear el rol")).toBeVisible();
-  expect(services.createRole).not.toHaveBeenCalled();
-});
-
-test("shows a rate-limited notice when creation-options is rate limited", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({
+  vi.mocked(services.createRole).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
@@ -230,9 +261,9 @@ test("shows a rate-limited notice when creation-options is rate limited", async 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
 });
 
-test("ends the session when creation-options finds the session already ended", async () => {
+test("ends the session when creating the role finds the session already ended", async () => {
   const services = createServices();
-  vi.mocked(services.fetchRoleCreationChallenge).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
 

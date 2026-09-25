@@ -300,7 +300,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
         emailTaken: EMAIL_TAKEN,
-        reauthNotice: "Se pide tu passkey para confirmar.",
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
         closeLabel: CLOSE_LABEL,
@@ -343,7 +342,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
         emailTaken: EMAIL_TAKEN,
-        reauthNotice: "Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.",
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
         closeLabel: CLOSE_LABEL,
@@ -403,7 +401,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
         alertsAllOption: VIEW_ALL_ALERTS_LABEL,
         dismissAlertsOption: DISMISS_ALERTS_LABEL,
-        reauthNotice: "Se pide tu passkey para confirmar.",
       },
       // Shared by every role page (New, Edit and Duplicate); a save that's rate limited shows the
       // Roles area's own rateLimitedTitle/rateLimitedDetail above.
@@ -440,6 +437,31 @@ export const messages = defineMessages("es-AR", (f) => ({
         heading: "Duplicar rol",
         nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
       },
+    },
+  },
+  // The shared authorization modal every sensitive backoffice action opens on
+  // `authorization_required`, one instance of copy reused everywhere instead of per screen.
+  passkeyAuthorization: {
+    title: "Autorizá este cambio",
+    body: (params: { action: string }) =>
+      `${params.action} necesita tu autorización. Confirmala con tu passkey.`,
+    cancel: CANCEL_LABEL,
+    confirm: "Usar mi passkey",
+    closeLabel: CLOSE_LABEL,
+    attemptFailedTitle: "No se pudo confirmar con tu passkey",
+    attemptFailedDetail: "Probá de nuevo.",
+    rateLimitedTitle: "Demasiadas solicitudes",
+    rateLimitedDetail: (params: { minutes: number }) =>
+      `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+    // One action sentence per call site; role create/edit/duplicate all save through the same
+    // creation or edit request, so they share "roleSave", and both passkey-removal screens (an
+    // Administrator removing another user's, and Mi cuenta removing one's own) share "passkeyRemoval".
+    actions: {
+      roleSave: "Guardar un rol",
+      userCreate: "Crear un usuario",
+      emailChange: "Cambiar el correo de un usuario",
+      passkeyRemoval: "Dar de baja una passkey",
+      passkeyRegistration: "Agregar una passkey",
     },
   },
   help: {
