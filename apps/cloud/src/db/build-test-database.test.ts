@@ -8,6 +8,7 @@ import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
   backofficeRateLimitAttempts,
+  branchHours,
   branchSettings,
   categories,
   locations,
@@ -139,6 +140,13 @@ describe("buildTestDatabase", () => {
     }
 
     await db.insert(branchSettings).values({ locationId: otherLocation.id });
+    await db.insert(branchHours).values({
+      locationId: otherLocation.id,
+      dayOfWeek: 1,
+      position: 0,
+      opensAt: "09:00",
+      closesAt: "18:00",
+    });
     await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
     await db.insert(rolePermissions).values({ roleId: role.id, permissionKey: "sell_and_charge" });
     const [category] = await db

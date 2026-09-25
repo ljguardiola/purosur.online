@@ -162,6 +162,13 @@
       "when": 1790311313427,
       "tag": "0022_products",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790348102652,
+      "tag": "0023_branch_hours",
+      "breakpoints": true
     }
   ]
 }
