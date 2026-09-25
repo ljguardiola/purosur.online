@@ -137,7 +137,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("points a 10px ink diamond at its element, with the diamond's tip 8px clear of it", async () => {
+test("draws no arrow, only the box itself sitting 8px clear of its element", async () => {
   const screen = await render(
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -151,46 +151,20 @@ test("points a 10px ink diamond at its element, with the diamond's tip 8px clear
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
 
   const tooltip = tooltipElement(screen);
-  const arrow = tooltip.querySelector('[data-placement="bottom"]') as HTMLElement | null;
-  expect(arrow, "no OverlayArrow element found inside the tooltip").not.toBeNull();
-  const arrowSquare = (arrow as HTMLElement).firstElementChild as HTMLElement;
 
-  expect(getComputedStyle(arrowSquare).backgroundColor).toBe(tokenRgb("ink"));
-  // Tailwind v4's rotate-* utilities set the native CSS `rotate` property rather than composing
-  // a `transform: rotate(...)` matrix, so that's the property that actually paints the tilt.
-  expect(getComputedStyle(arrowSquare).rotate).toBe("45deg");
-  // The component computes how far the diamond sticks out past the box from this same size, but
-  // Tailwind's compiler only sees the literal in the class, so nothing but this pair of checks
-  // and the gap measured below keeps the drawn square and that computation on the same number.
-  expect(getComputedStyle(arrowSquare).width).toBe("10px");
-  expect(getComputedStyle(arrowSquare).height).toBe("10px");
+  // The description is plain text, so the box has no element children at all once no arrow (or
+  // any other shape) is drawn inside it.
+  expect(tooltip.children).toHaveLength(0);
 
-  // getBoundingClientRect on OverlayArrow's own wrapper would report its unrotated layout box
-  // (10x10): a CSS rotation repaints where a box's pixels land without enlarging any ancestor's
-  // layout size, so only the rotated square's own rect reflects what's actually on screen.
-  const arrowRect = arrowSquare.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // The diamond, not the box behind it, is the nearest thing to the element the user can see, so
-  // the 8px of air the tooltip is meant to leave is measured from the diamond's tip; measured
-  // against the box instead, the diamond ends up painted over the very element it points at.
-  // react-aria floors the box's position to a whole pixel after adding the offset, while the
-  // diamond's overhang past that box is an irrational multiple of its side, so the gap lands
-  // anywhere above 7px and up to 8px depending on where the element's own edge falls.
-  const gapPx = arrowRect.top - triggerRect.bottom;
-  expect(gapPx).toBeGreaterThan(7);
+  // The box itself is the nearest thing the user sees of the tooltip, so the design's 8px of air
+  // is measured straight from its own top edge. react-aria floors the offset position to a whole
+  // pixel, so the gap lands at 7 or 8 depending on where the element's own edge falls.
+  const gapPx = tooltipRect.top - triggerRect.bottom;
+  expect(gapPx).toBeGreaterThanOrEqual(7);
   expect(gapPx).toBeLessThanOrEqual(8);
-
-  // "Above, pointing at its element" for the default below-the-trigger placement: OverlayArrow's
-  // wrapper sits just outside the tooltip's top edge, so the square's center lies half a side
-  // above that edge, and once rotated the diamond's lower tip dips slightly into the box, which is
-  // what makes it look seamless against the fill. What "above" rules out is the center sitting at
-  // or below that edge, which a wrong placement would produce.
-  expect((arrowRect.top + arrowRect.bottom) / 2).toBeLessThan(tooltipRect.top);
-  // The rotated 10px square's bounding box is the 14x14 diamond the design draws.
-  expect(arrowRect.width).toBeGreaterThan(13);
-  expect(arrowRect.width).toBeLessThan(15);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
@@ -230,7 +204,7 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("appears on hover and disappears once the pointer leaves its element", async () => {
+test("appears on hover and disappears immediately once the pointer leaves its element", async () => {
   const screen = await render(
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
@@ -242,8 +216,47 @@ test("appears on hover and disappears once the pointer leaves its element", asyn
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  await userEvent.unhover(trigger);
-  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
+  // Both ends of the interval come from events in the page, the same way the hover-delay test
+  // below measures its own interval, so a lingering close (react-stately's own 500ms cooldown)
+  // shows up as elapsed time instead of this assertion racing that cooldown.
+  const watch = new AbortController();
+  let observer: MutationObserver | undefined;
+  const leftAt = new Promise<number>((resolve) => {
+    trigger.addEventListener("pointerleave", () => resolve(performance.now()), {
+      once: true,
+      signal: watch.signal,
+    });
+  });
+  const closedAt = new Promise<number>((resolve) => {
+    observer = new MutationObserver((records) => {
+      const tooltipRemoved = records.some((record) =>
+        Array.from(record.removedNodes).some(
+          (node) =>
+            node instanceof Element &&
+            (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
+        ),
+      );
+      if (tooltipRemoved) {
+        resolve(performance.now());
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+  let elapsedMs: number;
+  try {
+    await userEvent.unhover(trigger);
+    elapsedMs =
+      (await beforeDeadline(closedAt, "the tooltip was never removed from the page")) -
+      (await beforeDeadline(leftAt, "the pointer never left the element"));
+  } finally {
+    watch.abort();
+    observer?.disconnect();
+  }
+
+  // react-stately's own default close delay is 500ms; a bound this far under it distinguishes an
+  // immediate close from a lucky race against that cooldown.
+  expect(elapsedMs).toBeLessThan(100);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
