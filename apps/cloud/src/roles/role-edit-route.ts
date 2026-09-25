@@ -16,7 +16,13 @@ import {
   ROLE_NAME_TAKEN_RESPONSE,
   RoleNameTaken,
 } from "./role-creation-route.js";
-import { countRoleUsers, findEditableRole, toRoleDetailWire } from "./role-read-route.js";
+import {
+  type AssignedUser,
+  countRoleUsers,
+  findEditableRole,
+  listRoleUsers,
+  toRoleDetailWire,
+} from "./role-read-route.js";
 import {
   type RoleFieldValidationFailure,
   readRoleName,
@@ -96,6 +102,7 @@ export interface EditedRole {
   permissionKeys: string[];
   userCount: number;
   version: number;
+  assignedUsers: AssignedUser[];
 }
 
 export type EditRoleOutcome =
@@ -170,6 +177,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
             permissionKeys: PERMISSION_KEYS.filter((key) => currentPermissionSet.has(key)),
             userCount: 0,
             version: current.version,
+            assignedUsers: [],
           },
         };
       }
@@ -210,6 +218,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           permissionKeys: nextPermissionKeys,
           userCount: 0,
           version: nextVersion,
+          assignedUsers: [],
         },
       };
     })
@@ -224,7 +233,8 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
     return outcome;
   }
   const userCount = await countRoleUsers(db, input.id, input.locationId);
-  return { kind: "applied", role: { ...outcome.role, userCount } };
+  const assignedUsers = await listRoleUsers(db, input.id, input.locationId);
+  return { kind: "applied", role: { ...outcome.role, userCount, assignedUsers } };
 }
 
 /**

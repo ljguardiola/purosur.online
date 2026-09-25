@@ -36,6 +36,7 @@ const stock: RoleDetail = {
   permissionKeys: ["view_stock_balances"],
   userCount: 2,
   version: 1,
+  assignedUsers: [],
 };
 
 function renderScreen(

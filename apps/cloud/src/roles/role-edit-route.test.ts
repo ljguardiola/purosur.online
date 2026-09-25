@@ -378,7 +378,7 @@ describe("POST /roles/:id/edit", () => {
   it("updates the name, replaces the permissions, bumps the version, audits actor/previous/new, and returns 200", async () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
-    await insertUser({
+    const graceId = await insertUser({
       firstName: "Grace Hopper",
       email: "grace@example.com",
       roleId,
@@ -399,6 +399,7 @@ describe("POST /roles/:id/edit", () => {
       permissions: ["sell_and_charge", "adjust_stock"],
       user_count: 1,
       version: 2,
+      assigned_users: [{ id: graceId, name: "Grace Hopper" }],
     });
 
     const [row] = await db.select().from(roles).where(eq(roles.id, roleId));

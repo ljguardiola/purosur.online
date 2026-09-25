@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
@@ -24,16 +24,23 @@ const NOT_FOUND_RESPONSE = {
   message: "no editable role with that id",
 } as const;
 
+export interface AssignedUser {
+  id: string;
+  name: string;
+}
+
 export interface RoleDetailRow extends RoleSummaryRow {
   version: number;
+  assignedUsers: AssignedUser[];
 }
 
 export interface RoleDetailWire extends RoleSummaryWire {
   version: number;
+  assigned_users: AssignedUser[];
 }
 
 export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
-  return { ...toRoleSummaryWire(row), version: row.version };
+  return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
 }
 
 export async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
@@ -47,6 +54,21 @@ export async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
     .innerJoin(users, eq(users.id, userRoles.userId))
     .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`);
   return row?.count ?? 0;
+}
+
+/** The people holding this role at this branch, ordered by name, for the role editor's confirmation step. */
+export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  roleId: string,
+  locationId: string,
+): Promise<AssignedUser[]> {
+  const rows = await db
+    .select({ id: users.id, name: users.firstName })
+    .from(userRoles)
+    .innerJoin(users, eq(users.id, userRoles.userId))
+    .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`)
+    .orderBy(asc(users.firstName));
+  return rows;
 }
 
 /**
@@ -85,6 +107,7 @@ export async function findEditableRole<TQueryResult extends PgQueryResultHKT>(
     permissionKeys: PERMISSION_KEYS.filter((key) => storedKeys.has(key)),
     userCount: 0,
     version: role.version,
+    assignedUsers: [],
   };
 }
 
@@ -121,7 +144,8 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const userCount = await countRoleUsers(options.db, role.id, openSession.locationId);
-      await reply.code(200).send(toRoleDetailWire({ ...role, userCount }));
+      const assignedUsers = await listRoleUsers(options.db, role.id, openSession.locationId);
+      await reply.code(200).send(toRoleDetailWire({ ...role, userCount, assignedUsers }));
     },
   );
 }
