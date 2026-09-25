@@ -693,6 +693,7 @@ test("while a save is in flight, neither the close button nor Escape dismisses t
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
 
   expect(screen.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   await userEvent.keyboard("{Escape}");
   await settleLateResponse();
 
@@ -752,4 +753,43 @@ test("a confirmed save that fails after the editor moved on to another request l
 
   expect(screen.getByText("Ya existe un rol con este nombre.").query()).toBeNull();
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
+});
+
+test("ignores a passkey-authorized retry that resolves late after the editor moved on to another request", async () => {
+  const retry = deferred<CreateRoleOutcome>();
+  const services = createServices({
+    createRole: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "authorization_required" })
+      .mockReturnValueOnce(retry.promise),
+  });
+  grantAuthorization(services);
+  const onSaved = vi.fn();
+  const screen = await render(modalSavingTo({ kind: "new" }, services, onSaved));
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+  await expect.element(screen.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Usar mi passkey" }));
+  await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(2);
+  await screen.rerender(
+    modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved),
+  );
+
+  retry.resolve({
+    kind: "ok",
+    value: {
+      id: "role-new",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: [],
+      userCount: 0,
+    },
+  });
+  await settleLateResponse();
+
+  expect(onSaved).not.toHaveBeenCalled();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
 });
