@@ -156,7 +156,13 @@ export async function registerPasskey(
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "passkey_already_registered"
+    // A body that can't be read might have been passkey_already_registered (a known credential),
+    // which validation_failed is not: an unreadable body is ambiguous, exactly like recoveryApi's
+    // own tokenErrorOutcome treats it, so it falls back to failed instead.
+    if (!body) {
+      return { kind: "failed" };
+    }
+    return body.code === "passkey_already_registered"
       ? { kind: "already_registered" }
       : { kind: "validation_failed" };
   }
