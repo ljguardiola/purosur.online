@@ -143,9 +143,21 @@ const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:co
 const barcodeActionClassName =
   "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-base font-bold " +
   "text-brand-blue-strong shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
-  "outline-none transition-[background-color] hover:bg-surface-bone " +
-  "focus-visible:outline-[3px] focus-visible:outline-offset-3 focus-visible:outline-brand-blue-strong " +
-  "disabled:opacity-[0.45]";
+  "outline-none transition-[background-color]";
+
+// packages/ui Button's own focus ring. `outline-none` also clears the outline style, so the ring
+// needs `outline-solid` back to show at all. The scan control's ring sits on the whole control,
+// lit by the input inside it.
+const scanControlClassName =
+  `${barcodeActionClassName} min-w-0 cursor-text hover:bg-surface-bone ` +
+  "focus-within:outline-[3px] focus-within:outline-solid focus-within:outline-offset-3 " +
+  "focus-within:outline-brand-blue-strong";
+
+// `enabled:` keeps the hover fill off a disabled button, as packages/ui Button does.
+const generateButtonClassName =
+  `${barcodeActionClassName} enabled:hover:bg-surface-bone ` +
+  "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 " +
+  "focus-visible:outline-brand-blue-strong disabled:opacity-[0.45]";
 
 type BarcodeChipsProps = {
   barcodes: string[];
@@ -205,10 +217,12 @@ function BarcodeChips({
         </div>
       )}
       <div className="flex gap-3">
-        <div className={barcodeActionClassName}>
+        {/* A label, so a click anywhere on the control still lands in the input, which sizes to
+            its placeholder or typed text so the icon stays beside it, centered as one group. */}
+        <label className={scanControlClassName}>
           <ScanBarcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
           <input
-            className="min-w-0 flex-1 bg-transparent text-center outline-none placeholder:text-brand-blue-strong"
+            className="field-sizing-content min-w-0 max-w-full bg-transparent text-center outline-none placeholder:text-brand-blue-strong"
             value={scanInput}
             onChange={(event) => onScanInputChange(event.target.value)}
             onKeyDown={onScanKeyDown}
@@ -217,10 +231,10 @@ function BarcodeChips({
             aria-invalid={describedBy ? true : undefined}
             aria-describedby={describedBy || undefined}
           />
-        </div>
+        </label>
         <button
           type="button"
-          className={barcodeActionClassName}
+          className={generateButtonClassName}
           disabled={generateDisabled}
           onClick={onGenerate}
           aria-describedby={generateError ? generateErrorId : undefined}

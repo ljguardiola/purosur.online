@@ -1219,3 +1219,48 @@ test("shows the rate-limited notice when generating is refused for too many requ
     .element(editDialog.getByText("Se puede volver a intentar en 2 minutos."))
     .toBeVisible();
 });
+
+test("rings the whole scan control while its input has keyboard focus", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const input = scanInputOf(dialog).element() as HTMLInputElement;
+  const control = input.parentElement;
+  if (!control) {
+    throw new Error("the scan input has no enclosing control");
+  }
+  expect(getComputedStyle(control).outlineStyle).toBe("none");
+
+  input.focus();
+
+  await expect.poll(() => getComputedStyle(control).outlineStyle).toBe("solid");
+  expect(getComputedStyle(control).outlineWidth).toBe("3px");
+});
+
+test("fills the generate button on hover only while it is enabled", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const resolveGenerate = pendingGenerate(services);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const generateButton = generateButtonOf(dialog);
+  const unfilled = getComputedStyle(generateButton.element()).backgroundColor;
+  await userEvent.hover(generateButton);
+  await expect
+    .poll(() => getComputedStyle(generateButton.element()).backgroundColor)
+    .not.toBe(unfilled);
+
+  await userEvent.click(generateButton);
+  await expect.element(generateButton).toBeDisabled();
+  await userEvent.hover(generateButton);
+  // Outlasts the background transition, so a hover fill would already show.
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  expect(getComputedStyle(generateButton.element()).backgroundColor).toBe(unfilled);
+  resolveGenerate({ kind: "failed" });
+});
