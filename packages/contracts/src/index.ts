@@ -29,6 +29,7 @@ export type {
 export {
   ALERT_VIEW_PERMISSION_KEYS,
   isPermissionKey,
+  PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";

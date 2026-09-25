@@ -195,6 +195,7 @@ const stockDetailRow = {
   permissions: ["view_stock_balances"],
   user_count: 0,
   version: 3,
+  assigned_users: [],
 };
 const stockDetail = {
   id: "role-stock",
@@ -203,6 +204,7 @@ const stockDetail = {
   permissionKeys: ["view_stock_balances"],
   userCount: 0,
   version: 3,
+  assignedUsers: [],
 };
 
 test("fetchRole reads one role's current values and version on 200", async () => {
@@ -212,6 +214,33 @@ test("fetchRole reads one role's current values and version on 200", async () =>
 
   expect(outcome).toEqual({ kind: "ok", value: stockDetail });
   expect(fetch).toHaveBeenCalledWith("/roles/role-stock");
+});
+
+test("fetchRole parses the role's assigned people, in the order the server sent them", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      ...stockDetailRow,
+      user_count: 2,
+      assigned_users: [
+        { id: "user-1", name: "Amara Ortiz" },
+        { id: "user-2", name: "Zoe Almeida" },
+      ],
+    }),
+  );
+
+  const outcome = await fetchRole("role-stock");
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: {
+      ...stockDetail,
+      userCount: 2,
+      assignedUsers: [
+        { id: "user-1", name: "Amara Ortiz" },
+        { id: "user-2", name: "Zoe Almeida" },
+      ],
+    },
+  });
 });
 
 test("fetchRole returns not_found on 404", async () => {

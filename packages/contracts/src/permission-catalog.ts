@@ -74,6 +74,26 @@ export type PermissionArea =
   | "backups"
   | "branch";
 
+/** Every permission area, in the role editor's areas pane order — the same order the catalog
+ * below groups its permissions in. */
+export const PERMISSION_AREAS: readonly PermissionArea[] = [
+  "cashRegister",
+  "sale",
+  "returns",
+  "checkout",
+  "stock",
+  "purchasing",
+  "catalog",
+  "assembledProducts",
+  "users",
+  "fiscal",
+  "reports",
+  "alerts",
+  "devices",
+  "backups",
+  "branch",
+];
+
 /**
  * Whether using this permission at the register requires nothing beyond being signed in there
  * (`"register"`), requires another person's register PIN (`"register_with_another_persons_pin"`),

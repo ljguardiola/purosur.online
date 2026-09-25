@@ -6,7 +6,18 @@ import { RolesListScreen, type RolesListScreenServices } from "./RolesListScreen
 import type { RoleSummary } from "./rolesApi";
 
 function createServices(overrides: Partial<RolesListScreenServices> = {}): RolesListScreenServices {
-  return { fetchRoles: vi.fn(), ...overrides };
+  return {
+    fetchRoles: vi.fn(),
+    roleEditorModal: {
+      fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+      createRole: vi.fn(),
+      editRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
+    ...overrides,
+  };
 }
 
 const administrator: RoleSummary = {
@@ -73,8 +84,7 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });
 
-test("shows a duplicate action on every row, including Administrator, navigating to that role's duplicate page", async () => {
-  window.history.pushState(null, "", "/settings/roles");
+test("shows a duplicate action on every row, including Administrator, opening the editor modal pre-filled from that row", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({
     kind: "ok",
@@ -87,8 +97,10 @@ test("shows a duplicate action on every row, including Administrator, navigating
   expect(screen.getByRole("button", { name: /^Duplicar el rol/ }).elements()).toHaveLength(2);
   await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
 
-  expect(window.location.pathname).toBe("/settings/roles/role-stock/duplicate");
-  window.history.pushState(null, "", "/");
+  await expect.element(screen.getByRole("dialog").getByText("Duplicar rol")).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Depósito");
 });
 
 test("shows the duplicate action before the pencil action, on a hand-made role row", async () => {
@@ -123,21 +135,25 @@ test("shows the Rol, Permisos, Usuarios, and Acciones columns", async () => {
   ).toEqual(["Rol", "Permisos", "Usuarios", "Acciones"]);
 });
 
-test("shows a pencil edit action on a hand-made role row, navigating to its edit page", async () => {
-  window.history.pushState(null, "", "/settings/roles");
+test("shows a pencil edit action on a hand-made role row, opening the editor modal for that role's id", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({
     kind: "ok",
     value: [administrator, stock],
   });
+  const roleEditorModal = services.roleEditorModal;
+  if (!roleEditorModal) {
+    throw new Error("test setup: createServices always fills roleEditorModal");
+  }
+  vi.mocked(roleEditorModal.fetchRole).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("2 roles")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
 
-  expect(window.location.pathname).toBe("/settings/roles/role-stock/edit");
-  window.history.pushState(null, "", "/");
+  await expect.element(screen.getByRole("dialog").getByText("Editar rol")).toBeVisible();
+  expect(roleEditorModal.fetchRole).toHaveBeenCalledWith("role-stock");
 });
 
 test("shows no edit action on the Administrator row", async () => {
@@ -169,8 +185,7 @@ test("keeps the loaded list without refetching when the parent re-renders with a
   expect(services.fetchRoles).toHaveBeenCalledTimes(1);
 });
 
-test("the Nuevo rol button navigates to the new role page", async () => {
-  window.history.pushState(null, "", "/settings/roles");
+test("the Nuevo rol button opens the editor modal, empty, over the list", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderScreen(services);
@@ -178,8 +193,8 @@ test("the Nuevo rol button navigates to the new role page", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
 
-  expect(window.location.pathname).toBe("/settings/roles/new");
-  window.history.pushState(null, "", "/");
+  await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
 });
 
 test("shows a load error with a retry action when the roles fail to load", async () => {

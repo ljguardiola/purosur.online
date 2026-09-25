@@ -43,16 +43,6 @@ import {
 import { FISCAL_CONFIGURATION_PATH } from "./cashRoutes";
 import { CATEGORIES_LIST_PATH, PRODUCTS_LIST_PATH } from "./catalogRoutes";
 import {
-  DuplicateRoleScreen,
-  type DuplicateRoleScreenServices,
-  defaultDuplicateRoleScreenServices,
-} from "./DuplicateRoleScreen";
-import {
-  defaultEditRoleScreenServices,
-  EditRoleScreen,
-  type EditRoleScreenServices,
-} from "./EditRoleScreen";
-import {
   defaultFiscalConfigurationScreenServices,
   FiscalConfigurationScreen,
   type FiscalConfigurationScreenServices,
@@ -66,11 +56,6 @@ import {
   type MyAccountScreenServices,
 } from "./MyAccountScreen";
 import { messages } from "./messages";
-import {
-  defaultNewRoleScreenServices,
-  NewRoleScreen,
-  type NewRoleScreenServices,
-} from "./NewRoleScreen";
 import {
   defaultProductsListScreenServices,
   ProductsListScreen,
@@ -101,10 +86,7 @@ import { useSessionWatcher } from "./sessionWatcher";
 import {
   BRANCH_SETTINGS_PATH,
   MY_ACCOUNT_PATH,
-  matchRoleDuplicatePath,
-  matchRoleEditPath,
   matchUserDetailPath,
-  NEW_ROLE_PATH,
   ROLES_LIST_PATH,
   sendToMyAccount,
   USERS_LIST_PATH,
@@ -130,9 +112,6 @@ export type AppServices = {
   usersListScreen: UsersListScreenServices;
   userDetailScreen: UserDetailScreenServices;
   rolesListScreen: RolesListScreenServices;
-  newRoleScreen: NewRoleScreenServices;
-  editRoleScreen: EditRoleScreenServices;
-  duplicateRoleScreen: DuplicateRoleScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   productsListScreen: ProductsListScreenServices;
@@ -150,9 +129,6 @@ const defaultAppServices: AppServices = {
   usersListScreen: defaultUsersListScreenServices,
   userDetailScreen: defaultUserDetailScreenServices,
   rolesListScreen: defaultRolesListScreenServices,
-  newRoleScreen: defaultNewRoleScreenServices,
-  editRoleScreen: defaultEditRoleScreenServices,
-  duplicateRoleScreen: defaultDuplicateRoleScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
@@ -334,24 +310,12 @@ function HelpApp({
   );
 }
 
-type SettingsAppSection =
-  | "myAccount"
-  | "usersList"
-  | "userDetail"
-  | "rolesList"
-  | "newRole"
-  | "editRole"
-  | "duplicateRole"
-  | "branchSettings";
+type SettingsAppSection = "myAccount" | "usersList" | "userDetail" | "rolesList" | "branchSettings";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
   /** Only set for `section: "userDetail"`. */
   userDetailId?: string;
-  /** Only set for `section: "editRole"`. */
-  editRoleId?: string;
-  /** Only set for `section: "duplicateRole"`. */
-  duplicateRoleId?: string;
   signedInUserId: string;
   displayName: string;
   access: BackofficeAccess;
@@ -367,21 +331,17 @@ type SettingsAppProps = {
   usersListScreenServices: UsersListScreenServices;
   userDetailScreenServices: UserDetailScreenServices;
   rolesListScreenServices: RolesListScreenServices;
-  newRoleScreenServices: NewRoleScreenServices;
-  editRoleScreenServices: EditRoleScreenServices;
-  duplicateRoleScreenServices: DuplicateRoleScreenServices;
   branchSettingsScreenServices: BranchSettingsScreenServices;
 };
 
 /**
  * The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta"), Roles
- * (list, new/edit/duplicate role), and Sucursal (the branch's own settings).
+ * (list, with the new/edit/duplicate editor as a modal over it), and Sucursal (the branch's own
+ * settings).
  */
 function SettingsApp({
   section,
   userDetailId,
-  editRoleId,
-  duplicateRoleId,
   signedInUserId,
   displayName,
   access,
@@ -397,19 +357,13 @@ function SettingsApp({
   usersListScreenServices,
   userDetailScreenServices,
   rolesListScreenServices,
-  newRoleScreenServices,
-  editRoleScreenServices,
-  duplicateRoleScreenServices,
   branchSettingsScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
-        : section === "rolesList" ||
-            section === "newRole" ||
-            section === "editRole" ||
-            section === "duplicateRole"
+        : section === "rolesList"
           ? messages.settings.roles.documentTitle
           : section === "branchSettings"
             ? messages.settings.branch.documentTitle
@@ -473,12 +427,7 @@ function SettingsApp({
                 <SectionNavItem
                   label={messages.settings.rolesSectionLabel}
                   icon={<Shield />}
-                  active={
-                    section === "rolesList" ||
-                    section === "newRole" ||
-                    section === "editRole" ||
-                    section === "duplicateRole"
-                  }
+                  active={section === "rolesList"}
                   {...linkProps(ROLES_LIST_PATH)}
                 />
               </li>
@@ -522,23 +471,6 @@ function SettingsApp({
       )}
       {section === "rolesList" && (
         <RolesListScreen onSessionEnded={onSessionEnded} services={rolesListScreenServices} />
-      )}
-      {section === "newRole" && (
-        <NewRoleScreen onSessionEnded={onSessionEnded} services={newRoleScreenServices} />
-      )}
-      {section === "editRole" && editRoleId !== undefined && (
-        <EditRoleScreen
-          roleId={editRoleId}
-          onSessionEnded={onSessionEnded}
-          services={editRoleScreenServices}
-        />
-      )}
-      {section === "duplicateRole" && duplicateRoleId !== undefined && (
-        <DuplicateRoleScreen
-          roleId={duplicateRoleId}
-          onSessionEnded={onSessionEnded}
-          services={duplicateRoleScreenServices}
-        />
       )}
       {section === "branchSettings" && (
         <BranchSettingsScreen
@@ -735,9 +667,6 @@ export function App({ help, services }: AppProps) {
     usersListScreen,
     userDetailScreen,
     rolesListScreen,
-    newRoleScreen,
-    editRoleScreen,
-    duplicateRoleScreen,
     branchSettingsScreen,
     categoriesListScreen,
     productsListScreen,
@@ -793,25 +722,16 @@ export function App({ help, services }: AppProps) {
     route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
 
   const userDetailId = matchUserDetailPath(route);
-  const editRoleId = matchRoleEditPath(route);
-  const duplicateRoleId = matchRoleDuplicatePath(route);
   const isSettingsRoute =
     route === MY_ACCOUNT_PATH ||
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH ||
-    editRoleId !== undefined ||
-    duplicateRoleId !== undefined ||
     route === BRANCH_SETTINGS_PATH;
   // "Usuarios", "Roles" and "Sucursal" are only reachable through their own URLs; Mi cuenta
   // (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
-  const wantsRoles =
-    route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH ||
-    editRoleId !== undefined ||
-    duplicateRoleId !== undefined;
+  const wantsRoles = route === ROLES_LIST_PATH;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
   const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
@@ -944,19 +864,11 @@ export function App({ help, services }: AppProps) {
               ? "userDetail"
               : route === ROLES_LIST_PATH
                 ? "rolesList"
-                : route === NEW_ROLE_PATH
-                  ? "newRole"
-                  : editRoleId !== undefined
-                    ? "editRole"
-                    : duplicateRoleId !== undefined
-                      ? "duplicateRole"
-                      : route === BRANCH_SETTINGS_PATH
-                        ? "branchSettings"
-                        : "myAccount"
+                : route === BRANCH_SETTINGS_PATH
+                  ? "branchSettings"
+                  : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
-        {...(editRoleId !== undefined ? { editRoleId } : {})}
-        {...(duplicateRoleId !== undefined ? { duplicateRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
         access={access}
@@ -972,9 +884,6 @@ export function App({ help, services }: AppProps) {
         usersListScreenServices={usersListScreen}
         userDetailScreenServices={userDetailScreen}
         rolesListScreenServices={rolesListScreen}
-        newRoleScreenServices={newRoleScreen}
-        editRoleScreenServices={editRoleScreen}
-        duplicateRoleScreenServices={duplicateRoleScreen}
         branchSettingsScreenServices={branchSettingsScreen}
       />
     );

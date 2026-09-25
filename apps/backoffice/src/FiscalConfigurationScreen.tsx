@@ -198,7 +198,7 @@ type EditIssuerIdentificationModalProps = {
  * "Editar la identificación del emisor": the CUIT and tax status are always shown as plain text,
  * never editable, since both come from the tax authority; the other three fields are required,
  * since the incomplete state only exists before the first save. Saving is gated by the shared
- * passkey-authorization window, the same way `EditRoleScreen` is.
+ * passkey-authorization window, the same way `RoleEditorModal` is.
  */
 function EditIssuerIdentificationModal({
   target,
