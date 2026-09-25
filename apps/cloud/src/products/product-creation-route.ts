@@ -28,6 +28,15 @@ export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
   message: "categoryId must be an existing category's id",
 };
 
+// A leaf-only violation is a 409, not a 400 like `CATEGORY_NOT_FOUND_FAILURE`: unlike a malformed
+// or nonexistent id, `categoryId` here is well-formed and names a real category, so it is a
+// conflict with the tree's current state, the same way `barcode_taken` (below) is, not a
+// malformed request.
+export const CATEGORY_NOT_LEAF_RESPONSE = {
+  code: "category_not_leaf",
+  message: "categoryId must be a leaf category with no subcategories of its own",
+} as const;
+
 /**
  * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
  * `product_barcodes.code`, the same shape `isCategoryNameUniqueViolation`
@@ -91,6 +100,7 @@ export interface CreateProductInput {
 
 export type CreateProductOutcome =
   | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: ProductRow };
 
@@ -110,11 +120,16 @@ async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Creates a product and its barcodes in one transaction. The category's existence and the
- * barcode-uniqueness check both run first, inside the transaction; the database's own unique
- * index (`product_barcodes_code_key`) is the backstop for a code that lands concurrently, mapped
- * by `isBarcodeUniqueViolation`. On that race, which of this request's codes is now taken isn't
- * known from the violation itself, so it's re-read after the transaction rolls back.
+ * Creates a product and its barcodes in one transaction. The category is locked `FOR UPDATE`
+ * first (the same lock `createCategory`/`editCategory`, `category-*-route.ts`, take on a category
+ * they are about to give a child), so this and a concurrent `createCategory`/`editCategory`
+ * targeting the same category can never both slip past the other's check: either this sees the
+ * child that was just added and rejects as non-leaf, or the category create/move sees this
+ * product and rejects as having products. The barcode-uniqueness check runs next, inside the same
+ * transaction; the database's own unique index (`product_barcodes_code_key`) is the backstop for
+ * a code that lands concurrently, mapped by `isBarcodeUniqueViolation`. On that race, which of
+ * this request's codes is now taken isn't known from the violation itself, so it's re-read after
+ * the transaction rolls back.
  */
 export async function createProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -129,9 +144,17 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
         .select({ id: categories.id, name: categories.name })
         .from(categories)
         .where(eq(categories.id, input.categoryId))
-        .limit(1);
+        .for("update");
       if (!category) {
         return { kind: "category_not_found" };
+      }
+      const [childCategory] = await tx
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.parentId, input.categoryId))
+        .limit(1);
+      if (childCategory) {
+        return { kind: "category_not_leaf" };
       }
 
       const taken = await takenBarcodes(tx, input.barcodes);
@@ -232,6 +255,10 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
           message: CATEGORY_NOT_FOUND_FAILURE.message,
           details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
         });
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

@@ -1,7 +1,11 @@
 export interface CategoryFieldValidationFailure {
-  field: "name" | "version";
+  field: "name" | "version" | "parentId";
   message: string;
 }
+
+// Shared by the creation route (`parentId` in the body) and the edit route (`parentId` in the
+// body), the same shape `product-validation.ts`'s own `UUID_PATTERN` is duplicated for products.
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Mirrors `@purosur/contracts`'s category name limit because this app's `tsc` build (explicit
 // `rootDir`) cannot import that package's untranspiled source; `category-validation.test.ts`
@@ -19,6 +23,21 @@ export function readCategoryName(body: unknown): string | undefined {
   }
   const trimmed = raw.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Reads `parentId` from the request body: `null` for an absent or explicit `null` value (meaning
+ * a top-level category, the same "null/absent = top level" contract for both create and edit),
+ * the id string for any other non-empty string, and `undefined` for anything else (malformed).
+ * Whether a non-empty string is a well-formed id that names an existing category is checked
+ * later, against the database, the same way `readCategoryId` (`product-validation.ts`) defers it.
+ */
+export function readParentId(body: unknown): string | null | undefined {
+  const raw = (body as { parentId?: unknown } | undefined)?.parentId;
+  if (raw === undefined || raw === null) {
+    return null;
+  }
+  return typeof raw === "string" && raw.length > 0 ? raw : undefined;
 }
 
 export function categoryNameValidationFailure(

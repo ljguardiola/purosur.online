@@ -38,8 +38,8 @@ describe("creating two categories with the same name concurrently on a real Post
     const name = `Semillas ${suffix}`;
 
     const [first, second] = await Promise.all([
-      createCategory(db, { name }),
-      createCategory(db, { name: name.toUpperCase() }),
+      createCategory(db, { name, parentId: null }),
+      createCategory(db, { name: name.toUpperCase(), parentId: null }),
     ]);
 
     const outcomes = [first, second];
@@ -55,5 +55,29 @@ describe("creating two categories with the same name concurrently on a real Post
       .from(categories)
       .where(eq(categories.name, winner.category.name));
     expect(matchingCategories).toHaveLength(1);
+  });
+});
+
+describe("creating two categories with the same name under two different parents concurrently on a real Postgres", () => {
+  it("creates both, since sibling uniqueness is scoped per parent, not global", async () => {
+    const suffix = randomUUID();
+    const [parentA, parentB] = await Promise.all([
+      createCategory(db, { name: `Almacén ${suffix}`, parentId: null }),
+      createCategory(db, { name: `Limpieza ${suffix}`, parentId: null }),
+    ]);
+    if (parentA.kind !== "created" || parentB.kind !== "created") {
+      throw new Error("test setup: expected both parent categories to be created");
+    }
+    const name = `Repuesto ${suffix}`;
+
+    const [underA, underB] = await Promise.all([
+      createCategory(db, { name, parentId: parentA.category.id }),
+      createCategory(db, { name, parentId: parentB.category.id }),
+    ]);
+
+    expect(underA.kind).toBe("created");
+    expect(underB.kind).toBe("created");
+    const matchingCategories = await db.select().from(categories).where(eq(categories.name, name));
+    expect(matchingCategories).toHaveLength(2);
   });
 });

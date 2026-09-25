@@ -8,7 +8,11 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { CATEGORY_NOT_FOUND_FAILURE, isBarcodeUniqueViolation } from "./product-creation-route.js";
+import {
+  CATEGORY_NOT_FOUND_FAILURE,
+  CATEGORY_NOT_LEAF_RESPONSE,
+  isBarcodeUniqueViolation,
+} from "./product-creation-route.js";
 import {
   type ProductFieldValidationFailure,
   readBarcodes,
@@ -97,6 +101,7 @@ export interface EditProductInput {
 export type EditProductOutcome =
   | { kind: "stale_version" }
   | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: ProductRow };
 
@@ -151,13 +156,23 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
       if (!UUID_PATTERN.test(input.categoryId)) {
         return { kind: "category_not_found" };
       }
+      // Locked `FOR UPDATE` the same way `createProduct` (`product-creation-route.ts`) locks it,
+      // documented there.
       const [category] = await tx
         .select({ id: categories.id, name: categories.name })
         .from(categories)
         .where(eq(categories.id, input.categoryId))
-        .limit(1);
+        .for("update");
       if (!category) {
         return { kind: "category_not_found" };
+      }
+      const [childCategory] = await tx
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.parentId, input.categoryId))
+        .limit(1);
+      if (childCategory) {
+        return { kind: "category_not_leaf" };
       }
 
       // An inactive product's barcodes are written inactive below, and uniqueness only binds active
@@ -278,6 +293,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
           message: CATEGORY_NOT_FOUND_FAILURE.message,
           details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
         });
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

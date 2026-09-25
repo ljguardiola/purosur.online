@@ -8,6 +8,7 @@ import {
   categoryNameLength,
   categoryNameValidationFailure,
   readCategoryName,
+  readParentId,
 } from "./category-validation.js";
 
 describe("readCategoryName", () => {
@@ -19,6 +20,24 @@ describe("readCategoryName", () => {
     expect(readCategoryName({})).toBeUndefined();
     expect(readCategoryName({ name: 42 })).toBeUndefined();
     expect(readCategoryName({ name: "   " })).toBeUndefined();
+  });
+});
+
+describe("readParentId", () => {
+  it("reads null for an absent or explicitly null parentId, meaning top level", () => {
+    expect(readParentId({})).toBeNull();
+    expect(readParentId({ parentId: null })).toBeNull();
+  });
+
+  it("reads the id string for a non-empty string parentId", () => {
+    expect(readParentId({ parentId: "11111111-1111-1111-1111-111111111111" })).toBe(
+      "11111111-1111-1111-1111-111111111111",
+    );
+  });
+
+  it("reads undefined for a malformed parentId (not a string, or an empty string)", () => {
+    expect(readParentId({ parentId: 42 })).toBeUndefined();
+    expect(readParentId({ parentId: "" })).toBeUndefined();
   });
 });
 
