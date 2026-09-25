@@ -73,11 +73,10 @@ test("ends the session once the known deadline (plus its margin) passes", async 
 
 test("moves the deadline check out when an open status reports a later expiresAt", async () => {
   const fixedNow = new Date("2026-09-23T12:00:00.000Z");
-  const laterExpiresAt = () => new Date(fixedNow.getTime() + 150).toISOString();
+  const laterExpiresAt = new Date(fixedNow.getTime() + 500).toISOString();
   const checkStatus = vi
     .fn<() => Promise<SessionStatusOutcome>>()
-    .mockResolvedValueOnce({ kind: "ok", expiresAt: laterExpiresAt() })
-    .mockResolvedValue({ kind: "ok", expiresAt: laterExpiresAt() });
+    .mockResolvedValue({ kind: "ok", expiresAt: laterExpiresAt });
   const onEnded = vi.fn();
 
   const hook = await renderWatcher({
@@ -91,14 +90,14 @@ test("moves the deadline check out when an open status reports a later expiresAt
   });
   hooks.push(hook);
 
-  // The original ~15ms deadline fires the first check, which reports the session open until
-  // ~150ms out. Once rearmed, that stale ~15ms deadline must not fire a second check on its own.
+  // The original 15ms deadline fires the first check, which reports the session open until
+  // 500ms out. Once rearmed, that stale 15ms deadline must not fire a second check on its own.
   await expect.poll(() => checkStatus.mock.calls.length).toBe(1);
   await wait(60);
   expect(checkStatus).toHaveBeenCalledTimes(1);
   expect(onEnded).not.toHaveBeenCalled();
 
-  // The rescheduled ~150ms deadline fires a second check.
+  // The rescheduled 500ms deadline fires a second check.
   await expect.poll(() => checkStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
   expect(onEnded).not.toHaveBeenCalled();
 });
@@ -253,7 +252,7 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
 
   const hook = await renderWatcher({
     active: true,
-    initialExpiresAt: new Date(fixedNow.getTime() + 1_000).toISOString(),
+    initialExpiresAt: new Date(fixedNow.getTime() + 60_000).toISOString(),
     checkStatus,
     onEnded,
     intervalMs: 10_000,
@@ -338,15 +337,17 @@ test("checks nothing while the tab is hidden, and once as soon as it becomes vis
     .fn<() => Promise<SessionStatusOutcome>>()
     .mockImplementation(() => new Promise(() => {}));
   const restoreVisibility = setVisibilityState("hidden");
+  const fixedNow = new Date("2026-09-23T12:00:00.000Z");
 
   try {
     const hook = await renderWatcher({
       active: true,
-      initialExpiresAt: new Date(Date.now() + 10).toISOString(),
+      initialExpiresAt: new Date(fixedNow.getTime() + 10).toISOString(),
       checkStatus,
       onEnded: vi.fn(),
       intervalMs: 10,
       deadlineMarginMs: 0,
+      now: () => fixedNow,
     });
     hooks.push(hook);
 
