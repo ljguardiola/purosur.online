@@ -21,6 +21,7 @@ import {
 import {
   ARCA_CERTIFICATE_WITH_MALFORMED_SERIAL_NUMBER,
   ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT,
+  ARCA_CERTIFICATE_WITH_PLUS_INSIDE_A_VALUE,
   ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
@@ -90,6 +91,12 @@ describe("requireAuthorizedCuit", () => {
   it("throws when the certificate's subject has no serialNumber", () => {
     expect(() =>
       requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER }),
+    ).toThrow("ARCA_CERTIFICATE's subject has no serialNumber");
+  });
+
+  it("never reads a serialNumber out of a value that merely contains an escaped +", () => {
+    expect(() =>
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_PLUS_INSIDE_A_VALUE }),
     ).toThrow("ARCA_CERTIFICATE's subject has no serialNumber");
   });
 
