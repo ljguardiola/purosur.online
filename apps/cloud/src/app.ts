@@ -19,6 +19,7 @@ import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.
 import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
 import { registerProductEditRoute } from "./products/product-edit-route.js";
+import { registerProductLabelsRoute } from "./products/products-labels-route.js";
 import type { ProductsRouteOptions } from "./products/products-list-route.js";
 import { registerProductsListRoute } from "./products/products-list-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
@@ -120,11 +121,11 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   categories?: CategoriesRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, and `POST
-   * /products/internal-barcode`, the backoffice Products screen's list, create, edit, and
-   * internal-barcode-allocation sides: every one is gated by the
-   * `manage_products_and_categories` permission (an Administrator always holds it too), the same
-   * optional-feature-wiring shape `categories` uses above.
+   * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, `POST
+   * /products/internal-barcode`, and `POST /products/labels`, the backoffice Products screen's
+   * list, create, edit, internal-barcode-allocation, and printable-label-sheet sides: every one is
+   * gated by the `manage_products_and_categories` permission (an Administrator always holds it
+   * too), the same optional-feature-wiring shape `categories` uses above.
    */
   products?: ProductsRouteOptions<TQueryResult>;
 }
@@ -222,6 +223,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductCreationRoute(app, options.products);
     registerProductEditRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
+    registerProductLabelsRoute(app, options.products);
   }
 
   const staticDir = options.staticDir;
