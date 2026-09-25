@@ -1,6 +1,6 @@
 import type { PermissionArea, PermissionKey } from "@purosur/contracts";
 import { useState } from "react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
@@ -99,6 +99,17 @@ test("a permission requiring another person's PIN shows both Caja and PIN tags, 
   const row = screen.getByText("Reimprimir un ticket").element().closest("div");
   expect(row?.parentElement?.textContent).toContain("Caja");
   expect(row?.parentElement?.textContent).toContain("PIN");
+});
+
+test("exposes each tag to assistive technology with an accessible role and name, and warns of none", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const screen = await render(<Harness />);
+
+  await expect.element(screen.getByRole("img", { name: "Caja" }).first()).toBeInTheDocument();
+  await expect.element(screen.getByRole("img", { name: "PIN" }).first()).toBeInTheDocument();
+  expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("interactive ARIA role"));
+
+  warn.mockRestore();
 });
 
 function tagInRow(row: HTMLElement | null | undefined, label: string): HTMLElement {

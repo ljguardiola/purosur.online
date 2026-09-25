@@ -22,6 +22,15 @@ export type ModalContextTone =
   | "status-error-ui"
   | "status-warning-ui";
 
+// "none" is for a caller that lays out its own edge-to-edge regions (e.g. the role editor's areas
+// and detail panes) instead of a single padded block of content.
+export type ModalBodyPadding = "default" | "none";
+
+// "centered" stacks a circular icon above a centered title, with no context line: the design's
+// own confirmation-dialog layout (e.g. "¿Guardar los cambios?"), distinct from every other
+// modal's leading icon-beside-title header.
+export type ModalHeaderLayout = "leading" | "centered";
+
 type ModalCommonProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -30,8 +39,10 @@ type ModalCommonProps = {
   icon: ButtonIcon;
   context?: string;
   contextTone?: ModalContextTone;
+  headerLayout?: ModalHeaderLayout;
   title: string;
   children?: ReactNode;
+  bodyPadding?: ModalBodyPadding;
   footer: ReactNode;
 };
 
@@ -75,6 +86,10 @@ const contextToneClassName: Record<ModalContextTone, string> = {
 // See Button.tsx's iconWrapperClassName: each glyph's size is imposed by its own wrapper's CSS,
 // never by cloning a `size` prop onto the caller's (or this component's own) icon element.
 const headerIconWrapperClassName = "inline-flex size-6 shrink-0 [&>svg]:h-full [&>svg]:w-full";
+// The centered layout's own icon box is bigger (56px circle), so its icon glyph keeps the leading
+// layout's 1:2 ratio to its box (24px in 48px) rather than looking undersized inside it.
+const centeredHeaderIconWrapperClassName =
+  "inline-flex size-7 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 const closeIconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 // Whether a caller's body has anything to render: Children.toArray drops null, undefined and
@@ -103,8 +118,10 @@ export function Modal(props: ModalProps) {
     icon,
     context,
     contextTone = "brand-earth-ui",
+    headerLayout = "leading",
     title,
     children,
+    bodyPadding = "default",
     footer,
   } = props;
 
@@ -128,49 +145,90 @@ export function Modal(props: ModalProps) {
         ].join(" ")}
       >
         <AriaDialog className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center gap-4 border-b border-line pt-4 pr-4 pb-4 pl-6">
-            <span
-              aria-hidden="true"
-              className={[
-                "flex size-12 shrink-0 items-center justify-center rounded-[0.75rem]",
-                toneMessageBgClassName[tone],
-                toneStrongTextClassName[tone],
-              ].join(" ")}
-            >
-              <span className={headerIconWrapperClassName}>{icon}</span>
-            </span>
-            <div className="flex flex-1 flex-col gap-1">
-              {context && (
-                <p
-                  className={[
-                    "text-xs font-bold uppercase",
-                    contextToneClassName[contextTone],
-                  ].join(" ")}
+          {headerLayout === "centered" ? (
+            <div className="relative flex shrink-0 flex-col items-center gap-3 border-b border-line px-6 pt-6 pb-5">
+              {props.closable && (
+                <AriaButton
+                  aria-label={props.closeLabel}
+                  onPress={() => onOpenChange(false)}
+                  className={`${closeButtonClassName} absolute top-4 right-4`}
                 >
-                  {context}
-                </p>
+                  <span className={closeIconWrapperClassName}>
+                    <X aria-hidden="true" />
+                  </span>
+                </AriaButton>
               )}
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex size-14 shrink-0 items-center justify-center rounded-full",
+                  toneMessageBgClassName[tone],
+                  toneStrongTextClassName[tone],
+                ].join(" ")}
+              >
+                <span className={centeredHeaderIconWrapperClassName}>{icon}</span>
+              </span>
               <AriaHeading
                 slot="title"
-                className={["text-2xl font-bold", toneStrongTextClassName[tone]].join(" ")}
+                className={["text-center text-2xl font-bold", toneStrongTextClassName[tone]].join(
+                  " ",
+                )}
               >
                 {title}
               </AriaHeading>
             </div>
-            {props.closable && (
-              <AriaButton
-                aria-label={props.closeLabel}
-                onPress={() => onOpenChange(false)}
-                className={closeButtonClassName}
+          ) : (
+            <div className="flex shrink-0 items-center gap-4 border-b border-line pt-4 pr-4 pb-4 pl-6">
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex size-12 shrink-0 items-center justify-center rounded-[0.75rem]",
+                  toneMessageBgClassName[tone],
+                  toneStrongTextClassName[tone],
+                ].join(" ")}
               >
-                <span className={closeIconWrapperClassName}>
-                  <X aria-hidden="true" />
-                </span>
-              </AriaButton>
-            )}
-          </div>
+                <span className={headerIconWrapperClassName}>{icon}</span>
+              </span>
+              <div className="flex flex-1 flex-col gap-1">
+                {context && (
+                  <p
+                    className={[
+                      "text-xs font-bold uppercase",
+                      contextToneClassName[contextTone],
+                    ].join(" ")}
+                  >
+                    {context}
+                  </p>
+                )}
+                <AriaHeading
+                  slot="title"
+                  className={["text-2xl font-bold", toneStrongTextClassName[tone]].join(" ")}
+                >
+                  {title}
+                </AriaHeading>
+              </div>
+              {props.closable && (
+                <AriaButton
+                  aria-label={props.closeLabel}
+                  onPress={() => onOpenChange(false)}
+                  className={closeButtonClassName}
+                >
+                  <span className={closeIconWrapperClassName}>
+                    <X aria-hidden="true" />
+                  </span>
+                </AriaButton>
+              )}
+            </div>
+          )}
           {hasContent(children) && (
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
+            <div
+              className={[
+                "min-h-0 flex-1 overflow-y-auto",
+                bodyPadding === "none" ? "" : "p-6",
+              ].join(" ")}
+            >
+              {children}
+            </div>
           )}
           {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
               square corners over the panel's rounded ones. */}

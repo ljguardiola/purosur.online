@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Focusable } from "react-aria-components";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
@@ -60,12 +60,15 @@ test("renders no icon wrapper when none is given", async () => {
   expect(tag.querySelector("svg")).toBeNull();
 });
 
-test("wrapped in Focusable, becomes a working Tooltip trigger reachable by keyboard", async () => {
+test("wrapped in Focusable with an img role and label, becomes a working Tooltip trigger reachable by keyboard, warning of none", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   const screen = await render(
     <main>
       <Tooltip description="Se usa en la caja.">
         <Focusable>
-          <Tag tone="neutral">Caja</Tag>
+          <Tag tone="neutral" role="img" aria-label="Caja">
+            Caja
+          </Tag>
         </Focusable>
       </Tooltip>
     </main>,
@@ -73,9 +76,11 @@ test("wrapped in Focusable, becomes a working Tooltip trigger reachable by keybo
 
   await userEvent.tab();
 
-  expect(document.activeElement).toBe(screen.getByText("Caja").element());
+  expect(document.activeElement).toBe(screen.getByRole("img", { name: "Caja" }).element());
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Se usa en la caja.");
+  expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("interactive ARIA role"));
+  warn.mockRestore();
 
   await expectNoAccessibilityViolations(document.body, {
     checks: {

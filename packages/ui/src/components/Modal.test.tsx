@@ -243,6 +243,80 @@ test("gives the body 24px padding", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+test('gives the body no padding at all when bodyPadding is "none", for a caller laying out its own edge-to-edge regions', async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        bodyPadding: "none",
+        children: <p>Areas pane and detail pane, flush to the panel's edges</p>,
+      })}
+    />,
+  );
+  const body = screen
+    .getByText("Areas pane and detail pane, flush to the panel's edges", { exact: true })
+    .element().parentElement as HTMLElement;
+  const style = getComputedStyle(body);
+
+  expect(style.paddingTop).toBe("0px");
+  expect(style.paddingRight).toBe("0px");
+  expect(style.paddingBottom).toBe("0px");
+  expect(style.paddingLeft).toBe("0px");
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("centers the header's icon (as a 56px circle) and title, with no context line, when headerLayout is centered", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        headerLayout: "centered",
+        // A context line the design has no room for in this layout: proves it's dropped, not
+        // merely unstyled.
+        context: "Ignored in centered layout",
+      })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const iconBox = dialog.querySelector('[aria-hidden="true"]') as HTMLElement;
+  const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+
+  const boxRect = iconBox.getBoundingClientRect();
+  expect(boxRect.width).toBeGreaterThan(55);
+  expect(boxRect.width).toBeLessThan(57);
+  expect(boxRect.height).toBeGreaterThan(55);
+  expect(boxRect.height).toBeLessThan(57);
+  // `rounded-full` resolves to an arbitrarily large px radius rather than 50%, so what makes the
+  // box a circle is a radius of at least half its own size, not one exact value (see
+  // Toggle.test.tsx's own knob check for the same reasoning).
+  expect(Number.parseFloat(getComputedStyle(iconBox).borderRadius)).toBeGreaterThanOrEqual(
+    boxRect.width / 2,
+  );
+  expect(getComputedStyle(dialog.firstElementChild as HTMLElement).alignItems).toBe("center");
+  expect(getComputedStyle(title).textAlign).toBe("center");
+  expect(screen.getByText("Ignored in centered layout").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("keeps the close button reachable in the centered header layout", async () => {
+  const onOpenChange = vi.fn();
+  const screen = await render(
+    <Modal
+      {...baseProps({
+        headerLayout: "centered",
+        closable: true,
+        closeLabel: "Close",
+        onOpenChange,
+      })}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+  expect(onOpenChange).toHaveBeenCalledWith(false);
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("goes straight from the header to the footer when there is nothing to show in the body", async () => {
   const cases: Array<Partial<ModalProps>> = [
     { children: undefined },

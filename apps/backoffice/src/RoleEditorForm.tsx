@@ -78,13 +78,23 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
     <div className="flex shrink-0 items-center gap-1">
       <Tooltip description={editorMessages.cashRegisterTagTooltip}>
         <Focusable>
-          <Tag tone="neutral">{editorMessages.cashRegisterTag}</Tag>
+          {/* `img` is one of the few non-widget roles react-aria's own Focusable accepts, and one
+              of the roles it still announces aria-describedby on: this tag carries no action of
+              its own, only a name and (via the tooltip) a longer description. */}
+          <Tag tone="neutral" role="img" aria-label={editorMessages.cashRegisterTag}>
+            {editorMessages.cashRegisterTag}
+          </Tag>
         </Focusable>
       </Tooltip>
       {definition.registerMarker === "register_with_another_persons_pin" && (
         <Tooltip description={editorMessages.pinTagTooltip}>
           <Focusable>
-            <Tag tone="info" icon={<KeyRound aria-hidden="true" />}>
+            <Tag
+              tone="info"
+              icon={<KeyRound aria-hidden="true" />}
+              role="img"
+              aria-label={editorMessages.pinTag}
+            >
               {editorMessages.pinTag}
             </Tag>
           </Focusable>
@@ -236,7 +246,7 @@ export function RoleEditorForm({
   const { count, total } = areaSelectedCount(selectedArea, selected);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-line">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-line border-b bg-surface-white px-6 py-4">
         <TextField
           kind="plain-text"
@@ -259,7 +269,7 @@ export function RoleEditorForm({
             />
           ))}
         </div>
-        <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface-white p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface-white px-6 py-5">
           <h2 className="shrink-0 font-bold text-brand-blue-strong text-xl">
             {rolesMessages.areaLabels[selectedArea]}{" "}
             <span className="font-normal text-ink-secondary text-base">

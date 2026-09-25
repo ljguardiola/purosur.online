@@ -105,6 +105,31 @@ test("opening for a new role shows the empty form, the eyebrow, and the create s
   await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeVisible();
 });
 
+test("draws the name row and both panes flush to the panel's own edges, not inset by Modal's default body padding", async () => {
+  const services = createServices();
+  const screen = await renderModal({ kind: "new" }, services);
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const panel = dialog.parentElement as HTMLElement;
+  const panelRect = panel.getBoundingClientRect();
+
+  const nameRow = (
+    screen.getByRole("textbox", { name: /^Nombre del rol/ }).element() as HTMLElement
+  ).closest("div[class*='border-b']") as HTMLElement;
+  const areasPane = screen.getByRole("button", { name: /^Caja/ }).element()
+    .parentElement as HTMLElement;
+
+  const nameRowRect = nameRow.getBoundingClientRect();
+  const areasPaneRect = areasPane.getBoundingClientRect();
+
+  expect(nameRowRect.left).toBeCloseTo(panelRect.left, 0);
+  expect(nameRowRect.right).toBeCloseTo(panelRect.right, 0);
+  expect(areasPaneRect.left).toBeCloseTo(panelRect.left, 0);
+  // The areas pane runs flush from the name row's own bottom border to the footer's top border.
+  expect(areasPaneRect.top).toBeCloseTo(nameRowRect.bottom, 0);
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("opening to duplicate pre-fills the name and every permission from the row already on hand, without fetching", async () => {
   const services = createServices();
   const screen = await renderModal({ kind: "duplicate", source: stockSummary }, services);

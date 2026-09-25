@@ -119,6 +119,7 @@ function RoleSaveConfirmationModal({
       width="confirmation"
       tone="info"
       icon={<Users />}
+      headerLayout="centered"
       title={editorMessages.confirmTitle}
       closable
       closeLabel={editorMessages.closeLabel}
@@ -406,6 +407,9 @@ export function RoleEditorModal({
     (notice?.kind === "rateLimited" && notice.offersReload);
   const formReady = loadState.kind === "ready" || loadState.kind === "loaded";
   const canSubmit = !submitting && (mode !== "edit" || loadState.kind === "loaded");
+  // Notices and the load status are transient banners, not part of the design's edge-to-edge name
+  // row and panes, so they keep their own inset padding instead of the flush body's none.
+  const hasNoticeOrLoadStatus = notice !== null || !formReady;
 
   return (
     <>
@@ -423,6 +427,7 @@ export function RoleEditorModal({
         title={heading}
         closable
         closeLabel={editorMessages.closeLabel}
+        bodyPadding="none"
         footer={
           <div className="flex w-full items-center justify-between gap-3">
             <p className="text-ink-secondary text-sm">
@@ -444,92 +449,98 @@ export function RoleEditorModal({
           </div>
         }
       >
-        <div className="flex h-full min-h-0 flex-col gap-3">
-          {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={rolesMessages.editRole.attemptFailedTitle}
-              detail={rolesMessages.rolePage.attemptFailedDetail}
-            />
-          )}
-          {notice?.kind === "rateLimited" && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title={rolesMessages.rateLimitedTitle}
-              detail={rolesMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
-            />
-          )}
-          {notice?.kind === "staleVersion" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={rolesMessages.editRole.staleVersionTitle}
-              detail={rolesMessages.editRole.staleVersionDetail}
-            />
-          )}
-          {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={rolesMessages.editRole.reloadFailedTitle}
-              detail={rolesMessages.rolePage.attemptFailedDetail}
-            />
-          )}
-          {offersReload && (
-            <Button
-              variant="secondary"
-              icon={<RotateCcw />}
-              isDisabled={submitting}
-              onPress={() => void handleReload()}
-            >
-              {rolesMessages.editRole.reload}
-            </Button>
-          )}
-          {loadState.kind === "loading" && <p role="status">{rolesMessages.roleLoad.loading}</p>}
-          {loadState.kind === "notFound" && (
-            <InlineNotice
-              tone="error"
-              icon={<ShieldOff />}
-              title={rolesMessages.roleLoad.notFoundTitle}
-            />
-          )}
-          {loadState.kind === "loadError" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title={rolesMessages.roleLoad.loadErrorTitle}
-                detail={rolesMessages.roleLoad.loadErrorDetail}
-              />
-              <Button
-                variant="secondary"
-                onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
-              >
-                {rolesMessages.retry}
-              </Button>
-            </>
-          )}
-          {loadState.kind === "rate_limited" && (
-            <>
-              <InlineNotice
-                tone="error"
-                icon={<ShieldX />}
-                title={rolesMessages.rateLimitedTitle}
-                detail={rolesMessages.rateLimitedDetail({
-                  minutes: Math.ceil(loadState.retryAfterSeconds / 60),
-                })}
-              />
-              <Button
-                variant="secondary"
-                onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
-              >
-                {rolesMessages.retry}
-              </Button>
-            </>
+        <div className="flex h-full min-h-0 flex-col">
+          {hasNoticeOrLoadStatus && (
+            <div className="flex shrink-0 flex-col gap-3 px-6 pt-4">
+              {notice?.kind === "attemptFailed" && (
+                <InlineNotice
+                  tone="error"
+                  icon={<TriangleAlert />}
+                  title={rolesMessages.editRole.attemptFailedTitle}
+                  detail={rolesMessages.rolePage.attemptFailedDetail}
+                />
+              )}
+              {notice?.kind === "rateLimited" && (
+                <InlineNotice
+                  tone="error"
+                  icon={<ShieldX />}
+                  title={rolesMessages.rateLimitedTitle}
+                  detail={rolesMessages.rateLimitedDetail({
+                    minutes: Math.ceil(notice.retryAfterSeconds / 60),
+                  })}
+                />
+              )}
+              {notice?.kind === "staleVersion" && (
+                <InlineNotice
+                  tone="error"
+                  icon={<TriangleAlert />}
+                  title={rolesMessages.editRole.staleVersionTitle}
+                  detail={rolesMessages.editRole.staleVersionDetail}
+                />
+              )}
+              {notice?.kind === "reloadFailed" && (
+                <InlineNotice
+                  tone="error"
+                  icon={<TriangleAlert />}
+                  title={rolesMessages.editRole.reloadFailedTitle}
+                  detail={rolesMessages.rolePage.attemptFailedDetail}
+                />
+              )}
+              {offersReload && (
+                <Button
+                  variant="secondary"
+                  icon={<RotateCcw />}
+                  isDisabled={submitting}
+                  onPress={() => void handleReload()}
+                >
+                  {rolesMessages.editRole.reload}
+                </Button>
+              )}
+              {loadState.kind === "loading" && (
+                <p role="status">{rolesMessages.roleLoad.loading}</p>
+              )}
+              {loadState.kind === "notFound" && (
+                <InlineNotice
+                  tone="error"
+                  icon={<ShieldOff />}
+                  title={rolesMessages.roleLoad.notFoundTitle}
+                />
+              )}
+              {loadState.kind === "loadError" && (
+                <>
+                  <InlineNotice
+                    tone="error"
+                    icon={<TriangleAlert />}
+                    title={rolesMessages.roleLoad.loadErrorTitle}
+                    detail={rolesMessages.roleLoad.loadErrorDetail}
+                  />
+                  <Button
+                    variant="secondary"
+                    onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
+                  >
+                    {rolesMessages.retry}
+                  </Button>
+                </>
+              )}
+              {loadState.kind === "rate_limited" && (
+                <>
+                  <InlineNotice
+                    tone="error"
+                    icon={<ShieldX />}
+                    title={rolesMessages.rateLimitedTitle}
+                    detail={rolesMessages.rateLimitedDetail({
+                      minutes: Math.ceil(loadState.retryAfterSeconds / 60),
+                    })}
+                  />
+                  <Button
+                    variant="secondary"
+                    onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
+                  >
+                    {rolesMessages.retry}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
           {formReady && (
             <div className="min-h-0 flex-1">
