@@ -23,6 +23,7 @@ function createServices(
     fetchProducts: vi.fn(),
     createProduct: vi.fn(),
     editProduct: vi.fn(),
+    deactivateProduct: vi.fn(),
     fetchCategories: vi.fn(),
     generateInternalBarcode: vi.fn(),
     printLabels: vi.fn(),
@@ -40,6 +41,7 @@ const miel: ProductSummary = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
+  active: true,
   version: 1,
 };
 
@@ -50,6 +52,7 @@ const almendras: ProductSummary = {
   categoryName: "Frutos secos",
   saleUnit: "KG",
   barcodes: ["7790000000001"],
+  active: true,
   version: 1,
 };
 
@@ -97,14 +100,14 @@ test("shows the breadcrumb, heading, each product's data and the product count",
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Por unidad" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Por peso" })).toBeVisible();
-  await expect.element(screen.getByText("2 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 });
 
 test("the search field filters by name or barcode, case-insensitively", async () => {
   const services = createServices();
   mockLoaded(services, [miel, almendras]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("2 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
   await userEvent.fill(screen.getByPlaceholder("Buscar por nombre o código de barras"), "7790000");
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
@@ -119,7 +122,7 @@ test("the category filter narrows the list", async () => {
   const services = createServices();
   mockLoaded(services, [miel, almendras]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("2 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
   await userEvent.click(screen.getByRole("option", { name: "Frutos secos" }));
@@ -132,13 +135,62 @@ test("the unit filter narrows the list", async () => {
   const services = createServices();
   mockLoaded(services, [miel, almendras]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("2 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Unidad: Todas" }));
   await userEvent.click(screen.getByRole("option", { name: "Por peso" }));
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
+});
+
+test("the status filter defaults to active products and refetches with the selected status", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenLastCalledWith("active");
+
+  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({
+    kind: "ok",
+    value: [inactiveAlmendras],
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+
+  expect(services.fetchProducts).toHaveBeenLastCalledWith("inactive");
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+});
+
+test("shows an Estado column with an Activo or Inactivo tag", async () => {
+  const services = createServices();
+  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
+  mockLoaded(services, [miel, inactiveAlmendras]);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("cell", { name: "Activo" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: "Inactivo" })).toBeVisible();
+});
+
+test("the actions column offers the ban action only on an active row", async () => {
+  const services = createServices();
+  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
+  mockLoaded(services, [miel, inactiveAlmendras]);
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Editar el producto Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Desactivar el producto Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Editar el producto Almendras peladas" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Desactivar el producto Almendras peladas" }).query(),
+  ).toBeNull();
 });
 
 test("shows a blank empty state when there are no products yet", async () => {
@@ -172,7 +224,7 @@ test("shows a load error with a retry action when the products fail to load", as
   mockLoaded(services, [miel]);
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByText("1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 });
 
 test("shows the rate-limited notice with a retry action", async () => {
@@ -221,7 +273,7 @@ test("opens the create modal, and cancel closes it without calling the API", asy
   const services = createServices();
   mockLoaded(services, [miel]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await expect.element(dialog.getByRole("heading", { name: "Nuevo producto" })).toBeVisible();
@@ -242,6 +294,7 @@ test("creates a product and shows it in the list", async () => {
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    active: true,
     version: 1,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
@@ -527,7 +580,7 @@ test("has no accessibility violations once loaded, and with the create modal ope
   const services = createServices();
   mockLoaded(services, [miel]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 
   await openNewProductModal(screen);
@@ -536,6 +589,11 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 
   await openEditProductModal(screen, miel);
+  await expectNoAccessibilityViolations(document.body);
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await openDeactivateProductModal(screen, miel);
   await expectNoAccessibilityViolations(document.body);
 });
 
@@ -551,6 +609,127 @@ async function openEditProductModal(screen: Screen, product: ProductSummary) {
   await userEvent.click(screen.getByRole("button", { name: `Editar el producto ${product.name}` }));
   return screen.getByRole("dialog");
 }
+
+async function openDeactivateProductModal(screen: Screen, product: ProductSummary) {
+  await expect.element(screen.getByText(product.name)).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: `Desactivar el producto ${product.name}` }),
+  );
+  return screen.getByRole("dialog");
+}
+
+test("opens the deactivate confirmation modal, and cancel closes it without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+
+  const dialog = await openDeactivateProductModal(screen, miel);
+  await expect
+    .element(dialog.getByRole("heading", { name: "¿Desactivar Miel pura de abeja 1 kg?" }))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
+      ),
+    )
+    .toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.deactivateProduct).not.toHaveBeenCalled();
+});
+
+test("deactivates a product, closes the modal, and refreshes the list", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel, almendras]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [almendras] });
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  expect(services.deactivateProduct).toHaveBeenCalledWith("product-1");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchProducts).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
+});
+
+test("shows an already-deactivated notice on 404, and updating the list closes the modal", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivado");
+  expect(dialog.getByRole("button", { name: "Desactivar" }).query()).toBeNull();
+
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [] });
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+});
+
+test("shows a generic failure notice when deactivating fails", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByText("No se pudo desactivar el producto")).toBeVisible();
+});
+
+test("shows the rate-limited notice when deactivating is refused for too many requests", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+});
+
+test("navigates to Mi cuenta when deactivating comes back forbidden", async () => {
+  window.history.pushState(null, "", "/catalog/products");
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("ends the session when deactivating finds no open session", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  const dialog = await openDeactivateProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
 
 function scanInputOf(dialog: ScreenLocator) {
   return dialog.getByRole("textbox", { name: "Escanear otro código" });
@@ -800,7 +979,7 @@ test("marks the sale unit and barcode labels as required, like the name and cate
   const services = createServices();
   mockLoaded(services, [miel]);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
   const createDialog = await openNewProductModal(screen);
   for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
@@ -885,7 +1064,7 @@ test("marks the fallback category label as required when there are no categories
   const services = createServices();
   mockLoaded(services, [miel], []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto")).toBeVisible();
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
   const createDialog = await openNewProductModal(screen);
   const createLabel = createDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
@@ -916,6 +1095,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["2000000000015"],
+    active: true,
     version: 1,
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });

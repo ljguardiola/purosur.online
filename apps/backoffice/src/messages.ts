@@ -9,6 +9,7 @@ import {
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
+import type { ProductStatusFilter } from "./productsApi";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
 // browser's own clock, instead of drifting with wherever a device happens to be set to.
@@ -547,9 +548,28 @@ export const messages = defineMessages("es-AR", (f) => ({
       unitFilterLabel: "Unidad:",
       unitFilterAllOption: "Todas",
       unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
-      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD" },
-      count: (params: { count: number }) =>
-        f.plural(params.count, { one: "1 producto", other: `${params.count} productos` }),
+      statusFilterLabel: "Estado:",
+      statusFilterActiveOption: "Activos",
+      statusFilterInactiveOption: "Inactivos",
+      statusFilterAllOption: "Todos",
+      statusActive: "Activo",
+      statusInactive: "Inactivo",
+      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD", status: "ESTADO" },
+      count: (params: { count: number; status: ProductStatusFilter }) => {
+        if (params.status === "active") {
+          return f.plural(params.count, {
+            one: "1 producto activo",
+            other: `${params.count} productos activos`,
+          });
+        }
+        if (params.status === "inactive") {
+          return f.plural(params.count, {
+            one: "1 producto inactivo",
+            other: `${params.count} productos inactivos`,
+          });
+        }
+        return f.plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+      },
       emptyTitle: "Todavía no hay productos",
       emptyDetail: "Creá el primero para verlo en la lista.",
       noResultsTitle: "Sin resultados",
@@ -562,6 +582,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el producto ${params.name}`,
+      deactivateAria: (params: { name: string }) => `Desactivar el producto ${params.name}`,
       newProductModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Nuevo producto",
@@ -647,6 +668,20 @@ export const messages = defineMessages("es-AR", (f) => ({
         notFoundTitle: "Este producto ya no existe",
         reload: "Recargar el producto",
         reloadFailedTitle: "No se pudieron recargar los datos",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      deactivateModal: {
+        title: (params: { name: string }) => `¿Desactivar ${params.name}?`,
+        body: "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
+        cancel: CANCEL_LABEL,
+        confirm: "Desactivar",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo desactivar el producto",
+        attemptFailedDetail: "Probá de nuevo.",
+        alreadyInactiveTitle: "Ya estaba desactivado",
+        reload: "Actualizar la lista",
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>
           `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
