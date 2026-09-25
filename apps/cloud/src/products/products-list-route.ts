@@ -11,6 +11,23 @@ import {
 } from "../session/route-access.js";
 import type { SaleUnit } from "./product-validation.js";
 
+export type ProductStatusFilter = "active" | "inactive" | "all";
+
+const PRODUCT_STATUS_FILTERS: ProductStatusFilter[] = ["active", "inactive", "all"];
+
+/** Reads the `status` query param, defaulting to `active` when absent. */
+export function readProductStatusFilter(
+  raw: unknown,
+): ProductStatusFilter | { field: "status"; message: string } {
+  if (raw === undefined) {
+    return "active";
+  }
+  if (typeof raw === "string" && (PRODUCT_STATUS_FILTERS as string[]).includes(raw)) {
+    return raw as ProductStatusFilter;
+  }
+  return { field: "status", message: "status must be one of active, inactive, or all" };
+}
+
 export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
@@ -25,6 +42,7 @@ export interface ProductRow {
   categoryName: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  active: boolean;
   version: number;
 }
 
@@ -34,6 +52,7 @@ interface ProductWithoutBarcodes {
   categoryId: string;
   categoryName: string;
   saleUnit: string;
+  active: boolean;
   version: number;
 }
 
@@ -69,6 +88,7 @@ async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
 
 export async function listProducts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
+  status: ProductStatusFilter = "active",
 ): Promise<ProductRow[]> {
   const rows: ProductWithoutBarcodes[] = await db
     .select({
@@ -77,10 +97,12 @@ export async function listProducts<TQueryResult extends PgQueryResultHKT>(
       categoryId: products.categoryId,
       categoryName: categories.name,
       saleUnit: products.saleUnit,
+      active: products.active,
       version: products.version,
     })
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id))
+    .where(status === "all" ? undefined : eq(products.active, status === "active"))
     .orderBy(asc(products.name));
 
   const barcodes = await barcodesByProductId(
@@ -107,7 +129,7 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get(
+  app.get<{ Querystring: { status?: string } }>(
     "/products",
     {
       preHandler: originGuard((request, reply) =>
@@ -118,8 +140,18 @@ export function registerProductsListRoute<TQueryResult extends PgQueryResultHKT>
         sessionSource,
       },
     },
-    async (_request, reply) => {
-      const rows = await listProducts(options.db);
+    async (request, reply) => {
+      const status = readProductStatusFilter(request.query.status);
+      if (typeof status !== "string") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: status.message,
+          details: [{ field: status.field }],
+        });
+        return;
+      }
+
+      const rows = await listProducts(options.db, status);
       await reply.code(200).send(rows);
     },
   );

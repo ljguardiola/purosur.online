@@ -199,6 +199,8 @@ export const categories = pgTable(
 
 // A product's own name carries no uniqueness rule (unlike a category's), so only its sale unit is
 // constrained here; the rest is enforced by application code the same way category validation is.
+// `active` (#309) is one-way: a product is never deleted (the migration also rejects any `DELETE`
+// on this table outright), only deactivated, so its historical sale lines keep referencing it.
 export const products = pgTable(
   "products",
   {
@@ -208,6 +210,7 @@ export const products = pgTable(
       .notNull()
       .references(() => categories.id),
     saleUnit: text("sale_unit").notNull(),
+    active: boolean("active").notNull().default(true),
     // Optimistic concurrency for a product row, the same shape `categories.version` gives category
     // rows.
     version: integer("version").notNull().default(1),
@@ -215,9 +218,12 @@ export const products = pgTable(
   (table) => [check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`)],
 );
 
-// Every product is active until #309 lands, so a barcode's uniqueness is global for now; #309
-// narrows this index to active products only. `position` preserves the order barcodes were
-// submitted in, since the primary key alone (a random UUID on `products`, not this table) can't.
+// `active` (#309) mirrors its own product's `products.active`, kept in step in the same
+// transaction that deactivates the product: a partial unique index can't read another table's
+// column, so a barcode's uniqueness (below) is scoped to active products by carrying the flag
+// here instead. A deactivated product's barcode is left free for a different, active product to
+// take. `position` preserves the order barcodes were submitted in, since the primary key alone (a
+// random UUID on `products`, not this table) can't.
 export const productBarcodes = pgTable(
   "product_barcodes",
   {
@@ -226,10 +232,11 @@ export const productBarcodes = pgTable(
       .references(() => products.id),
     code: text("code").notNull(),
     position: integer("position").notNull(),
+    active: boolean("active").notNull().default(true),
   },
   (table) => [
     primaryKey({ columns: [table.productId, table.position] }),
-    uniqueIndex("product_barcodes_code_key").on(table.code),
+    uniqueIndex("product_barcodes_code_key").on(table.code).where(sql`${table.active} = true`),
   ],
 );
 

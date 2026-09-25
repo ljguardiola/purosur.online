@@ -1083,6 +1083,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/products/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
         url: "/products/internal-barcode",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1103,6 +1108,22 @@ describe("the route access inventory", () => {
     for (const route of app.routeAccessInventory()) {
       expect(route.access, `${route.method} ${route.url} has no declared access`).toBeDefined();
     }
+  });
+});
+
+describe("deleting a product", () => {
+  it("has no route in the fully wired app", async () => {
+    const app = fullyWiredApp();
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/products/00000000-0000-0000-0000-000000000000",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    // No session cookie is sent: any registered DELETE route would answer its own access check's
+    // 401 instead of Fastify's not-found response.
+    expect(response.statusCode).toBe(404);
   });
 });
 
