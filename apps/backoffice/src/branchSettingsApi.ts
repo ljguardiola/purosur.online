@@ -1,40 +1,63 @@
-export type BranchSettingsHours = { opensAt: string; closesAt: string } | null;
+export type BranchDay =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+// Monday through Sunday, the order the "Horario de atención" rows appear in and the order the
+// wire's own `<day>_hours` fields are read in.
+export const BRANCH_DAYS: readonly BranchDay[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+export type BranchHoursRange = { opensAt: string; closesAt: string };
 
 export type BranchSettings = {
   address: string;
   whatsappNumber: string;
   instagramHandle: string;
-  weekdayHours: BranchSettingsHours;
-  saturdayHours: BranchSettingsHours;
-  sundayHours: BranchSettingsHours;
+  hours: Record<BranchDay, BranchHoursRange[]>;
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
   version: number;
 };
 
-export type BranchSettingsHoursWire = { opens_at: string; closes_at: string } | null;
+export type BranchHoursRangeWire = { opens_at: string; closes_at: string };
+
+export type BranchSettingsDayField =
+  | "monday_hours"
+  | "tuesday_hours"
+  | "wednesday_hours"
+  | "thursday_hours"
+  | "friday_hours"
+  | "saturday_hours"
+  | "sunday_hours";
 
 export type BranchSettingsWire = {
   address: string;
   whatsapp_number: string;
   instagram_handle: string;
-  weekday_hours: BranchSettingsHoursWire;
-  saturday_hours: BranchSettingsHoursWire;
-  sunday_hours: BranchSettingsHoursWire;
   expiring_lot_alert_days: number;
   unreviewed_price_alert_days: number;
   good_condition_return_days: number;
   version: number;
-};
+} & Record<BranchSettingsDayField, BranchHoursRangeWire[]>;
 
 export type BranchSettingsField =
   | "address"
   | "whatsapp_number"
   | "instagram_handle"
-  | "weekday_hours"
-  | "saturday_hours"
-  | "sunday_hours"
+  | BranchSettingsDayField
   | "expiring_lot_alert_days"
   | "unreviewed_price_alert_days"
   | "good_condition_return_days"
@@ -54,22 +77,34 @@ export type SaveBranchSettingsOutcome =
   | { kind: "unauthenticated" }
   | { kind: "failed" };
 
-function hoursFromWire(hours: BranchSettingsHoursWire): BranchSettingsHours {
-  return hours === null ? null : { opensAt: hours.opens_at, closesAt: hours.closes_at };
+export const DAY_FIELD_OF: Record<BranchDay, BranchSettingsDayField> = {
+  monday: "monday_hours",
+  tuesday: "tuesday_hours",
+  wednesday: "wednesday_hours",
+  thursday: "thursday_hours",
+  friday: "friday_hours",
+  saturday: "saturday_hours",
+  sunday: "sunday_hours",
+};
+
+function rangesFromWire(ranges: BranchHoursRangeWire[]): BranchHoursRange[] {
+  return ranges.map((range) => ({ opensAt: range.opens_at, closesAt: range.closes_at }));
 }
 
-function hoursToWire(hours: BranchSettingsHours): BranchSettingsHoursWire {
-  return hours === null ? null : { opens_at: hours.opensAt, closes_at: hours.closesAt };
+function rangesToWire(ranges: BranchHoursRange[]): BranchHoursRangeWire[] {
+  return ranges.map((range) => ({ opens_at: range.opensAt, closes_at: range.closesAt }));
 }
 
 function branchSettingsFromWire(row: BranchSettingsWire): BranchSettings {
+  const hours = {} as Record<BranchDay, BranchHoursRange[]>;
+  for (const day of BRANCH_DAYS) {
+    hours[day] = rangesFromWire(row[DAY_FIELD_OF[day]]);
+  }
   return {
     address: row.address,
     whatsappNumber: row.whatsapp_number,
     instagramHandle: row.instagram_handle,
-    weekdayHours: hoursFromWire(row.weekday_hours),
-    saturdayHours: hoursFromWire(row.saturday_hours),
-    sundayHours: hoursFromWire(row.sunday_hours),
+    hours,
     expiringLotAlertDays: row.expiring_lot_alert_days,
     unreviewedPriceAlertDays: row.unreviewed_price_alert_days,
     goodConditionReturnDays: row.good_condition_return_days,
@@ -78,18 +113,19 @@ function branchSettingsFromWire(row: BranchSettingsWire): BranchSettings {
 }
 
 function branchSettingsToWire(settings: BranchSettings): BranchSettingsWire {
-  return {
+  const wire = {
     address: settings.address,
     whatsapp_number: settings.whatsappNumber,
     instagram_handle: settings.instagramHandle,
-    weekday_hours: hoursToWire(settings.weekdayHours),
-    saturday_hours: hoursToWire(settings.saturdayHours),
-    sunday_hours: hoursToWire(settings.sundayHours),
     expiring_lot_alert_days: settings.expiringLotAlertDays,
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
     version: settings.version,
-  };
+  } as BranchSettingsWire;
+  for (const day of BRANCH_DAYS) {
+    wire[DAY_FIELD_OF[day]] = rangesToWire(settings.hours[day]);
+  }
+  return wire;
 }
 
 function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | undefined {
@@ -97,9 +133,7 @@ function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | unde
     "address",
     "whatsapp_number",
     "instagram_handle",
-    "weekday_hours",
-    "saturday_hours",
-    "sunday_hours",
+    ...BRANCH_DAYS.map((day) => DAY_FIELD_OF[day]),
     "expiring_lot_alert_days",
     "unreviewed_price_alert_days",
     "good_condition_return_days",

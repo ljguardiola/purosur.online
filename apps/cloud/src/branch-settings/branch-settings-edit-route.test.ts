@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   auditLog,
+  branchHours,
   branchSettings,
   locations,
   rolePermissions,
@@ -17,6 +18,7 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings-edit-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-settings-validation.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -117,9 +119,13 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     address: "Av. Siempre Viva 742",
     whatsapp_number: "+54 9 11 5555-5555",
     instagram_handle: "@purosur",
-    weekday_hours: { opens_at: "09:00", closes_at: "19:00" },
-    saturday_hours: { opens_at: "09:00", closes_at: "13:00" },
-    sunday_hours: null,
+    monday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    tuesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    wednesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    thursday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    friday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
+    sunday_hours: [],
     expiring_lot_alert_days: 30,
     unreviewed_price_alert_days: 30,
     good_condition_return_days: 15,
@@ -274,7 +280,15 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
 
-    const response = await putBranchSettings(validBody(), rawSessionId);
+    const mondayHours = [
+      { opens_at: "09:00", closes_at: "13:00" },
+      { opens_at: "17:00", closes_at: "21:00" },
+    ];
+
+    const response = await putBranchSettings(
+      validBody({ monday_hours: mondayHours }),
+      rawSessionId,
+    );
 
     expect(response.statusCode).toBe(200);
     const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
@@ -282,9 +296,60 @@ describe("PUT /branch-settings", () => {
       entity: "branch_settings",
       entityId: locationId,
       actorId: administratorId,
-      previousValue: { address: "", version: 1 },
-      newValue: { address: "Av. Siempre Viva 742", version: 2 },
+      previousValue: {
+        address: "",
+        version: 1,
+        monday_hours: [],
+        tuesday_hours: [],
+        wednesday_hours: [],
+        thursday_hours: [],
+        friday_hours: [],
+        saturday_hours: [],
+        sunday_hours: [],
+      },
+      newValue: {
+        address: "Av. Siempre Viva 742",
+        version: 2,
+        monday_hours: mondayHours,
+        tuesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        wednesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        thursday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        friday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+        saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
+        sunday_hours: [],
+      },
     });
+  });
+
+  it("treats re-saving the same non-empty hours as a no-op: version unchanged, no new audit row", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+    const body = validBody({
+      monday_hours: [
+        { opens_at: "09:00", closes_at: "13:00" },
+        { opens_at: "17:00", closes_at: "21:00" },
+      ],
+    });
+    const first = await putBranchSettings(body, rawSessionId);
+    expect(first.statusCode).toBe(200);
+
+    const response = await putBranchSettings({ ...body, version: 2 }, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ...body, version: 2 });
+    const [row] = await db
+      .select()
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, locationId));
+    expect(row).toMatchObject({ version: 2 });
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
+    expect(audited).toHaveLength(1);
   });
 
   it("treats an unchanged save as a no-op: 200, version unchanged, no audit row", async () => {
@@ -300,9 +365,13 @@ describe("PUT /branch-settings", () => {
       address: "",
       whatsapp_number: "",
       instagram_handle: "",
-      weekday_hours: null,
-      saturday_hours: null,
-      sunday_hours: null,
+      monday_hours: [],
+      tuesday_hours: [],
+      wednesday_hours: [],
+      thursday_hours: [],
+      friday_hours: [],
+      saturday_hours: [],
+      sunday_hours: [],
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
@@ -340,7 +409,7 @@ describe("PUT /branch-settings", () => {
     expect(response.json()).toMatchObject({ good_condition_return_days: 0 });
   });
 
-  it("rejects an hours group where closing isn't later than opening, changing nothing", async () => {
+  it("rejects a range where closing isn't later than opening, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -351,23 +420,25 @@ describe("PUT /branch-settings", () => {
     const locationId = await seededLocationId(db);
 
     const response = await putBranchSettings(
-      validBody({ weekday_hours: { opens_at: "18:00", closes_at: "09:00" } }),
+      validBody({ monday_hours: [{ opens_at: "18:00", closes_at: "09:00" }] }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "weekday_hours" }],
+      details: [{ field: "monday_hours" }],
     });
-    const [row] = await db
+    const rows = await db.select().from(branchHours).where(eq(branchHours.locationId, locationId));
+    expect(rows).toHaveLength(0);
+    const [settingsRow] = await db
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ weekdayOpensAt: null, weekdayClosesAt: null, version: 1 });
+    expect(settingsRow).toMatchObject({ version: 1 });
   });
 
-  it("rejects an hours group with a closing time equal to its opening time, changing nothing", async () => {
+  it("rejects a range with a closing time equal to its opening time, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -377,7 +448,7 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ saturday_hours: { opens_at: "09:00", closes_at: "09:00" } }),
+      validBody({ saturday_hours: [{ opens_at: "09:00", closes_at: "09:00" }] }),
       rawSessionId,
     );
 
@@ -388,7 +459,7 @@ describe("PUT /branch-settings", () => {
     });
   });
 
-  it("rejects an hours group with a time that isn't a zero-padded HH:MM, changing nothing", async () => {
+  it("rejects a range with a time that isn't a zero-padded HH:MM, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -398,18 +469,18 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ weekday_hours: { opens_at: "9:00", closes_at: "19:00" } }),
+      validBody({ monday_hours: [{ opens_at: "9:00", closes_at: "19:00" }] }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "weekday_hours" }],
+      details: [{ field: "monday_hours" }],
     });
   });
 
-  it("rejects an hours group missing one of its two times, changing nothing", async () => {
+  it("rejects a range missing one of its two times, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -419,7 +490,7 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ sunday_hours: { opens_at: "09:00" } }),
+      validBody({ sunday_hours: [{ opens_at: "09:00" }] }),
       rawSessionId,
     );
 
@@ -430,7 +501,7 @@ describe("PUT /branch-settings", () => {
     });
   });
 
-  it("accepts every group closed (null), the seeded default", async () => {
+  it("rejects two overlapping ranges on the same day, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -440,15 +511,133 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ weekday_hours: null, saturday_hours: null, sunday_hours: null }),
+      validBody({
+        monday_hours: [
+          { opens_at: "09:00", closes_at: "14:00" },
+          { opens_at: "13:00", closes_at: "18:00" },
+        ],
+      }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "monday_hours" }],
+    });
+  });
+
+  it("saves more than one range on the same day, in the order they were sent", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({
+        monday_hours: [
+          { opens_at: "09:00", closes_at: "13:00" },
+          { opens_at: "17:00", closes_at: "21:00" },
+        ],
+      }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      weekday_hours: null,
-      saturday_hours: null,
-      sunday_hours: null,
+      monday_hours: [
+        { opens_at: "09:00", closes_at: "13:00" },
+        { opens_at: "17:00", closes_at: "21:00" },
+      ],
+    });
+  });
+
+  it("keeps each day's hours independent when only one day is changed", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const firstResponse = await putBranchSettings(validBody(), rawSessionId);
+    expect(firstResponse.statusCode).toBe(200);
+
+    const response = await putBranchSettings(
+      validBody({ friday_hours: [{ opens_at: "09:00", closes_at: "21:00" }], version: 2 }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      friday_hours: [{ opens_at: "09:00", closes_at: "21:00" }],
+      monday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+      tuesday_hours: [{ opens_at: "09:00", closes_at: "19:00" }],
+    });
+  });
+
+  it("accepts every day closed (an empty list), the seeded default", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({
+        monday_hours: [],
+        tuesday_hours: [],
+        wednesday_hours: [],
+        thursday_hours: [],
+        friday_hours: [],
+        saturday_hours: [],
+        sunday_hours: [],
+      }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      monday_hours: [],
+      tuesday_hours: [],
+      wednesday_hours: [],
+      thursday_hours: [],
+      friday_hours: [],
+      saturday_hours: [],
+      sunday_hours: [],
+    });
+  });
+
+  it(`rejects more than ${BRANCH_HOURS_RANGES_PER_DAY_MAX} ranges on the same day, changing nothing`, async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const tooManyRanges = Array.from(
+      { length: BRANCH_HOURS_RANGES_PER_DAY_MAX + 1 },
+      (_, index) => ({
+        opens_at: `0${index}:00`.slice(-5),
+        closes_at: `0${index}:30`.slice(-5),
+      }),
+    );
+
+    const response = await putBranchSettings(
+      validBody({ monday_hours: tooManyRanges }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "monday_hours" }],
     });
   });
 
@@ -633,49 +822,54 @@ describe("PUT /branch-settings", () => {
   });
 });
 
-describe("branch_settings' hours CHECK constraints, enforced at the database itself", () => {
-  it("rejects an hours group with only one of its two times set, even bypassing the route", async () => {
+describe("branch_hours' CHECK constraints, enforced at the database itself", () => {
+  it("rejects a day_of_week outside 1..7, even bypassing the route", async () => {
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) {
       throw new Error("test setup: seeding the other location returned no row");
     }
 
     await expect(
-      db.insert(branchSettings).values({
+      db.insert(branchHours).values({
         locationId: otherLocation.id,
-        weekdayOpensAt: "09:00",
+        dayOfWeek: 8,
+        position: 0,
+        opensAt: "09:00",
+        closesAt: "18:00",
       }),
     ).rejects.toThrow();
   });
 
-  it("rejects an hours group whose closing time isn't later than its opening time, even bypassing the route", async () => {
+  it("rejects a range whose closing time isn't later than its opening time, even bypassing the route", async () => {
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) {
       throw new Error("test setup: seeding the other location returned no row");
     }
 
     await expect(
-      db.insert(branchSettings).values({
+      db.insert(branchHours).values({
         locationId: otherLocation.id,
-        saturdayOpensAt: "13:00",
-        saturdayClosesAt: "09:00",
+        dayOfWeek: 6,
+        position: 0,
+        opensAt: "13:00",
+        closesAt: "09:00",
       }),
     ).rejects.toThrow();
   });
 
-  it("accepts a fully closed group and a fully open group", async () => {
+  it("accepts a valid range", async () => {
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
     if (!otherLocation) {
       throw new Error("test setup: seeding the other location returned no row");
     }
 
     await expect(
-      db.insert(branchSettings).values({
+      db.insert(branchHours).values({
         locationId: otherLocation.id,
-        sundayOpensAt: null,
-        sundayClosesAt: null,
-        weekdayOpensAt: "09:00",
-        weekdayClosesAt: "18:00",
+        dayOfWeek: 1,
+        position: 0,
+        opensAt: "09:00",
+        closesAt: "18:00",
       }),
     ).resolves.not.toThrow();
   });

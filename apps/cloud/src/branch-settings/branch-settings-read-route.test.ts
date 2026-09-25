@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
+  branchHours,
   branchSettings,
   locations,
   rolePermissions,
@@ -204,9 +205,13 @@ describe("GET /branch-settings", () => {
       address: "",
       whatsapp_number: "",
       instagram_handle: "",
-      weekday_hours: null,
-      saturday_hours: null,
-      sunday_hours: null,
+      monday_hours: [],
+      tuesday_hours: [],
+      wednesday_hours: [],
+      thursday_hours: [],
+      friday_hours: [],
+      saturday_hours: [],
+      sunday_hours: [],
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
@@ -214,12 +219,12 @@ describe("GET /branch-settings", () => {
     });
   });
 
-  it("returns a group's hours as opens_at/closes_at once it has both set", async () => {
+  it("returns a day's ranges as opens_at/closes_at, in position order", async () => {
     const ownLocationId = await seededLocationId(db);
-    await db
-      .update(branchSettings)
-      .set({ weekdayOpensAt: "09:00", weekdayClosesAt: "18:00" })
-      .where(eq(branchSettings.locationId, ownLocationId));
+    await db.insert(branchHours).values([
+      { locationId: ownLocationId, dayOfWeek: 1, position: 0, opensAt: "09:00", closesAt: "13:00" },
+      { locationId: ownLocationId, dayOfWeek: 1, position: 1, opensAt: "17:00", closesAt: "21:00" },
+    ]);
 
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -233,7 +238,39 @@ describe("GET /branch-settings", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      weekday_hours: { opens_at: "09:00", closes_at: "18:00" },
+      monday_hours: [
+        { opens_at: "09:00", closes_at: "13:00" },
+        { opens_at: "17:00", closes_at: "21:00" },
+      ],
+    });
+  });
+
+  it("keeps each day's hours independent of the others", async () => {
+    const ownLocationId = await seededLocationId(db);
+    await db.insert(branchHours).values([
+      {
+        locationId: ownLocationId,
+        dayOfWeek: 6,
+        position: 0,
+        opensAt: "09:00",
+        closesAt: "13:00",
+      },
+    ]);
+
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: ownLocationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getBranchSettings(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      saturday_hours: [{ opens_at: "09:00", closes_at: "13:00" }],
+      sunday_hours: [],
     });
   });
 

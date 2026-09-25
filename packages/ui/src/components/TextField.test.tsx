@@ -585,6 +585,91 @@ test("names the field by an external heading through labelledBy, while the visib
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps the label as the accessible name but paints nothing when labelVisuallyHidden", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Lunes, horario 1, abre"
+      value=""
+      onChange={() => {}}
+      labelVisuallyHidden
+    />,
+  );
+  const input = screen.getByRole("textbox", { name: "Lunes, horario 1, abre" });
+  await expect.element(input).toBeVisible();
+  const label = screen.getByText("Lunes, horario 1, abre").element() as HTMLElement;
+  const labelRect = label.getBoundingClientRect();
+
+  // Named for assistive technology, but not painted: the label's own box collapses to 1x1px
+  // (sr-only), the same technique and assertion as Table.tsx's own srLabel (see Table.test.tsx).
+  expect(labelRect.width).toBeLessThanOrEqual(1);
+  expect(labelRect.height).toBeLessThanOrEqual(1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the label as an ordinary visible caption when labelVisuallyHidden is left out", async () => {
+  const screen = await render(
+    <TextField kind="plain-text" label="Reason" value="" onChange={() => {}} />,
+  );
+  const label = screen.getByText("Reason").element() as HTMLElement;
+  const labelRect = label.getBoundingClientRect();
+
+  expect(labelRect.width).toBeGreaterThan(1);
+  expect(labelRect.height).toBeGreaterThan(1);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("exposes the field as invalid, described by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(
+    <>
+      <TextField
+        kind="plain-text"
+        label="Opens"
+        value=""
+        onChange={() => {}}
+        helperText="Should not be visible."
+        invalid
+        errorMessageId="day-error"
+      />
+      <p id="day-error">Enter the time as 9:00.</p>
+    </>,
+  );
+  const box = fieldBox(screen, "Opens");
+  const input = fieldInput(screen, "Opens");
+
+  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("status-error-ui", "2px")]);
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect(describedText(input)).toBe("Enter the time as 9:00.");
+  expect(screen.getByText("Should not be visible.").query()).toBeNull();
+  // The message renders once, outside the field: the field itself adds no copy of it.
+  expect(fieldWrapper(screen, "Opens").textContent).toBe("Opens");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("describes an invalid field by both its suffix and the shared message errorMessageId names", async () => {
+  const screen = await render(
+    <>
+      <TextField
+        kind="plain-text"
+        label="Days"
+        value=""
+        onChange={() => {}}
+        suffix="días"
+        invalid
+        errorMessageId="group-error"
+      />
+      <p id="group-error">Enter a number.</p>
+    </>,
+  );
+  const described = describedText(fieldInput(screen, "Days"));
+
+  expect(described).toContain("días");
+  expect(described).toContain("Enter a number.");
+});
+
 test("replaces the helper line with the field's message and exposes it as invalid, named by that message", async () => {
   const screen = await render(
     <TextField
@@ -882,6 +967,39 @@ test("does not accept an invalid field without an error message", () => {
     onChange: (value: string) => void;
     invalid: true;
   }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not accept an invalid field with both its own message and a shared one", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    invalid: true;
+    errorMessage: string;
+    errorMessageId: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("does not accept a shared error message id on a field that isn't invalid", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    errorMessageId: string;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+test("accepts an invalid field whose message is shared through errorMessageId", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    invalid: true;
+    errorMessageId: string;
+  }>().toExtend<TextFieldProps>();
 });
 
 test("does not accept a field without a label, a value or onChange", () => {
