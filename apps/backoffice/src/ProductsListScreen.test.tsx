@@ -193,13 +193,41 @@ test("the actions column offers the ban action only on an active row", async () 
   ).toBeNull();
 });
 
-test("shows a blank empty state when there are no products yet", async () => {
+test("shows a blank empty state naming active products when there are none", async () => {
   const services = createServices();
   mockLoaded(services, []);
 
   const screen = await renderScreen(services);
 
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+  await expect.element(screen.getByText("Creá uno para verlo en la lista.")).toBeVisible();
+});
+
+test("shows an empty state naming inactive products, with no create prompt, when there are none", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [] });
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+
+  await expect.element(screen.getByText("No hay productos inactivos")).toBeVisible();
+  expect(screen.getByText(/Creá/).query()).toBeNull();
+});
+
+test("shows the no-products-yet empty state when every status is listed and there are none", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+
   await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("Creá el primero para verlo en la lista.")).toBeVisible();
 });
 
 test("shows a filtered empty state when the search matches nothing", async () => {
@@ -299,7 +327,7 @@ test("creates a product and shows it in the list", async () => {
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
@@ -326,11 +354,48 @@ test("creates a product and shows it in the list", async () => {
   await expect.element(screen.getByText("Pasta de maní 380 g")).toBeVisible();
 });
 
+test("a product created while only inactive products are listed stays out of the list", async () => {
+  const services = createServices();
+  const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
+  mockLoaded(services, [inactiveAlmendras]);
+  const created: ProductSummary = {
+    id: "product-3",
+    name: "Pasta de maní 380 g",
+    categoryId: "category-1",
+    categoryName: "Almacén",
+    saleUnit: "UNIT",
+    barcodes: ["7790000000099"],
+    active: true,
+    version: 1,
+  };
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+  await expect.element(screen.getByText("1 producto inactivo")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: "Escanear otro código" }),
+    "7790000000099",
+  );
+  await userEvent.keyboard("{Enter}");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("1 producto inactivo")).toBeVisible();
+  expect(screen.getByText("Pasta de maní 380 g").query()).toBeNull();
+});
+
 test("opens the create modal with neither a category nor a sale unit pre-chosen", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
 
@@ -343,7 +408,7 @@ test("rejects creating a product without choosing a category, without calling th
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
@@ -361,7 +426,7 @@ test("rejects creating a product without choosing a sale unit, without calling t
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
@@ -380,7 +445,7 @@ test("shows no category selector when there are no categories yet, and still blo
   const services = createServices();
   mockLoaded(services, [], []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   expect(dialog.getByRole("button", { name: /Categoría/ }).query()).toBeNull();
@@ -399,7 +464,7 @@ test("rejects creating a product without a barcode, without calling the API", as
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
@@ -421,7 +486,7 @@ test("shows the barcode-taken error on create and does not add the product to th
     codes: ["7790000000099"],
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
@@ -446,7 +511,7 @@ test("pressing Enter in the scan input adds the code instead of submitting the f
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(
@@ -464,7 +529,7 @@ test("rejects adding an already-listed barcode inline, keeping a single chip", a
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const scanInput = dialog.getByRole("textbox", { name: "Escanear otro código" });
@@ -674,7 +739,7 @@ test("shows an already-deactivated notice on 404, and updating the list closes t
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 });
 
 test("shows a generic failure notice when deactivating fails", async () => {
@@ -739,7 +804,7 @@ test("rejects scanning a code with spaces inside it, without adding a chip", asy
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(scanInputOf(dialog), "779 0001");
@@ -755,7 +820,7 @@ test("rejects scanning a code longer than 64 characters, counting each emoji onc
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(scanInputOf(dialog), "🌱".repeat(64));
@@ -777,7 +842,7 @@ test("refuses scanning more than 20 codes for one product", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   for (let index = 1; index <= 21; index += 1) {
@@ -799,7 +864,7 @@ test("shows an invalid-code error, not the required one, when the cloud rejects 
     field: "barcodes",
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -836,7 +901,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
   mockLoaded(services, []);
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -856,7 +921,7 @@ test("creating is blocked when the code left in the scan input is invalid", asyn
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -907,7 +972,7 @@ test("shows a generic barcode-taken error when the cloud names no taken code", a
   mockLoaded(services, []);
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "barcode_taken", codes: [] });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -953,11 +1018,37 @@ test("reloading after a stale-version conflict retitles the modal with the fresh
     .toBeVisible();
 });
 
+test("reloading an inactive product after a stale-version conflict finds it", async () => {
+  const services = createServices();
+  const inactiveMiel: ProductSummary = { ...miel, active: false };
+  mockLoaded(services, [inactiveMiel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, inactiveMiel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = {
+    ...inactiveMiel,
+    name: "Miel pura de abeja 900 g",
+    version: 2,
+  };
+  vi.mocked(services.fetchProducts).mockImplementation(async (status) =>
+    status === "all" ? { kind: "ok", value: [freshened] } : { kind: "ok", value: [] },
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
+    .toBeVisible();
+});
+
 test("the scan input is marked invalid and described by the barcode field's error", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await expect.element(scanInputOf(dialog)).not.toHaveAttribute("aria-invalid", "true");
@@ -1006,7 +1097,7 @@ test("removing a chip clears the barcode-limit error once the product is back un
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   for (let index = 1; index <= 21; index += 1) {
@@ -1026,7 +1117,7 @@ test("editing the scan input clears the previous scan error", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(scanInputOf(dialog), "779 0001");
@@ -1044,7 +1135,7 @@ test("removing an unrelated chip keeps the error of a code still invalid in the 
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(scanInputOf(dialog), "7790001");
@@ -1100,7 +1191,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
   };
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Ensalada de fruta 300 g");
@@ -1164,7 +1255,7 @@ test("disables the generate button while its request is pending", async () => {
     }),
   );
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const generateButton = generateButtonOf(dialog);
@@ -1185,7 +1276,7 @@ test("disables generating another internal code once one is already listed, enab
     code: "2000000000015",
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const generateButton = generateButtonOf(dialog);
@@ -1205,7 +1296,7 @@ test("shows an inline error when generating fails, keeping the codes already ent
   mockLoaded(services, []);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(scanInputOf(dialog), "7790000000099");
@@ -1235,7 +1326,7 @@ test("keeps a code scanned while the internal code is being generated", async ()
   mockLoaded(services, []);
   const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(dialog));
@@ -1271,7 +1362,7 @@ test("drops an internal code that arrives after the create modal was closed and 
   mockLoaded(services, []);
   const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const firstDialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(firstDialog));
@@ -1313,7 +1404,7 @@ test("shows the 20-code limit instead of generating when the list is already ful
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   for (let index = 1; index <= 20; index += 1) {
@@ -1335,7 +1426,7 @@ test("ends the session when generating finds no open session", async () => {
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(dialog));
@@ -1349,7 +1440,7 @@ test("navigates to Mi cuenta when generating comes back forbidden", async () => 
   mockLoaded(services, []);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(dialog));
@@ -1363,7 +1454,7 @@ test("describes the generate button with its failure, so a screen reader announc
   mockLoaded(services, []);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(dialog));
@@ -1406,7 +1497,7 @@ test("rings the whole scan control while its input has keyboard focus", async ()
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const input = scanInputOf(dialog).element() as HTMLInputElement;
@@ -1427,7 +1518,7 @@ test("fills the generate button on hover only while it is enabled", async () => 
   mockLoaded(services, []);
   const resolveGenerate = pendingGenerate(services);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const generateButton = generateButtonOf(dialog);
@@ -1452,7 +1543,7 @@ test("announces a generate failure as an alert", async () => {
   mockLoaded(services, []);
   vi.mocked(services.generateInternalBarcode).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await userEvent.click(generateButtonOf(dialog));
@@ -1501,7 +1592,7 @@ test("keeps a rate-limited notice raised by saving when generating afterwards su
     code: "2000000000015",
   });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   await fillNewProductFieldsExceptBarcodes(dialog);
@@ -1529,7 +1620,7 @@ test("shows the scan placeholder only while the scan input is empty", async () =
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const input = scanInputOf(dialog).element() as HTMLInputElement;
@@ -1551,7 +1642,7 @@ test("hides the scan placeholder while the empty scan input has focus", async ()
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
   const input = scanInputOf(dialog).element() as HTMLInputElement;
@@ -1611,6 +1702,42 @@ test("lists only products with an internal barcode", async () => {
   await expect.element(dialog.getByText("Miel pura de abeja 1 kg").first()).toBeVisible();
   await expect.element(dialog.getByText("2000000000015")).toBeVisible();
   expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
+});
+
+test("does not list an inactive product, even with an internal barcode", async () => {
+  const services = createServices();
+  const inactiveAlmendras: ProductSummary = { ...almendrasConCodigoInterno, active: false };
+  mockLoaded(services, [mielConCodigoInterno, inactiveAlmendras]);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  expect(dialog.getByText("2000000000022").query()).toBeNull();
+});
+
+test("reloading the changed product list keeps the screen's own status filter", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Estado: Activos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
+
+  await expect.poll(() => dialog.getByText("La lista de productos cambió").query()).toBeNull();
+  expect(services.fetchProducts).toHaveBeenLastCalledWith("all");
 });
 
 test("shows an empty state when no product has an internal barcode", async () => {

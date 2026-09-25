@@ -158,9 +158,13 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         return { kind: "category_not_found" };
       }
 
-      const taken = await barcodesTakenByAnotherProduct(tx, input.barcodes, input.id);
-      if (taken.length > 0) {
-        return { kind: "barcode_taken", codes: taken };
+      // An inactive product's barcodes are written inactive below, and uniqueness only binds active
+      // barcodes, so a code an active product holds does not conflict with them.
+      if (current.active) {
+        const taken = await barcodesTakenByAnotherProduct(tx, input.barcodes, input.id);
+        if (taken.length > 0) {
+          return { kind: "barcode_taken", codes: taken };
+        }
       }
 
       const nextVersion = current.version + 1;

@@ -570,8 +570,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         }
         return f.plural(params.count, { one: "1 producto", other: `${params.count} productos` });
       },
-      emptyTitle: "Todavía no hay productos",
-      emptyDetail: "Creá el primero para verlo en la lista.",
+      empty: {
+        active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+        inactive: { title: "No hay productos inactivos" },
+        all: {
+          title: "Todavía no hay productos",
+          detail: "Creá el primero para verlo en la lista.",
+        },
+      } satisfies Record<ProductStatusFilter, { title: string; detail?: string }>,
       noResultsTitle: "Sin resultados",
       noResultsDetail: "Probá con otro nombre o código de barras.",
       loadErrorTitle: "No pudimos abrir los productos",

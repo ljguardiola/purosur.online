@@ -111,7 +111,7 @@ export type TableEmptyStateTone = "blank" | "filtered";
 export type TableEmptyStateProps = {
   icon: ButtonIcon;
   title: string;
-  detail: string;
+  detail?: string;
   tone: TableEmptyStateTone;
   actions?: ReactNode;
 };
@@ -323,7 +323,7 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
         </span>
       </span>
       <p className="max-w-[32.5rem] text-2xl font-bold text-brand-blue-strong">{title}</p>
-      <p className="max-w-[32.5rem] text-base text-ink-secondary">{detail}</p>
+      {detail && <p className="max-w-[32.5rem] text-base text-ink-secondary">{detail}</p>}
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>
   );

@@ -2367,6 +2367,21 @@ test("renders the empty state in secondary text when nothing matches the filters
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders only the title under the icon when the empty state has no detail", async () => {
+  const screen = await render(
+    <Table
+      {...commonProps}
+      columns={columns}
+      rows={emptyRows}
+      empty={{ icon: <PackageSearch />, title: "No archived products", tone: "filtered" }}
+    />,
+  );
+
+  const title = screen.getByText("No archived products");
+  await expect.element(title).toBeVisible();
+  expect(title.element().parentElement?.querySelectorAll("p")).toHaveLength(1);
+});
+
 test("renders the real rows, not the empty state, when both rows and an empty prop are given", async () => {
   const screen = await render(
     <Table

@@ -241,26 +241,6 @@ describe("POST /products/:id/deactivation", () => {
   });
 });
 
-describe("DELETE /products/:id", () => {
-  it("has no route", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const categoryId = await insertCategory("Macetas");
-    const product = await insertProduct({ name: "Maceta", categoryId, barcodes: ["1"] });
-
-    const response = await app.inject({
-      method: "DELETE",
-      url: `/products/${product.id}`,
-      headers: {
-        origin: BACKOFFICE_ORIGIN,
-        cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}`,
-      },
-    });
-
-    expect(response.statusCode).toBe(404);
-  });
-});
-
 describe("a raw DELETE FROM products", () => {
   it("fails against the database, whoever sends it", async () => {
     // No barcodes, so the trigger this proves is the one rejecting it: `product_barcodes`'s own

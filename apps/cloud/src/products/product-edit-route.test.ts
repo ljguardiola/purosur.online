@@ -524,4 +524,38 @@ describe("POST /products/:id/edit", () => {
       .where(eq(productBarcodes.productId, product.id));
     expect(barcodeRows).toMatchObject([{ code: "222", active: false }]);
   });
+
+  it("lets an inactive product keep a code an active product took after it was deactivated", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const deactivated = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, deactivated.id));
+    await db
+      .update(productBarcodes)
+      .set({ active: false })
+      .where(eq(productBarcodes.productId, deactivated.id));
+    await insertProduct({ name: "Maceta nueva", categoryId, saleUnit: "UNIT", barcodes: ["999"] });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, deactivated.id, {
+      name: "Maceta vieja",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+      version: deactivated.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: "Maceta vieja", active: false });
+    const barcodeRows = await db
+      .select()
+      .from(productBarcodes)
+      .where(eq(productBarcodes.productId, deactivated.id));
+    expect(barcodeRows).toMatchObject([{ code: "999", active: false }]);
+  });
 });

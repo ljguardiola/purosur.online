@@ -982,7 +982,7 @@ function EditProductModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchProducts();
+    const outcome = await fetchProducts("all");
     if (outcome.kind === "ok") {
       const fresh = outcome.value.find((product) => product.id === current.id);
       if (!fresh) {
@@ -1366,6 +1366,9 @@ type LabelableProduct = { product: ProductSummary; code: string };
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
   return products
     .flatMap((product) => {
+      if (!product.active) {
+        return [];
+      }
       const code = product.barcodes.find(isInternalBarcode);
       return code ? [{ product, code }] : [];
     })
@@ -1438,6 +1441,7 @@ type PrintLabelsModalProps = {
   onSessionEnded: () => void;
   products: ProductSummary[];
   onProductsReloaded: (products: ProductSummary[]) => void;
+  status: ProductStatusFilter;
   fetchProducts: typeof fetchProducts;
   printLabels: typeof printLabels;
 };
@@ -1453,6 +1457,7 @@ function PrintLabelsModal({
   onSessionEnded,
   products,
   onProductsReloaded,
+  status,
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
@@ -1552,7 +1557,7 @@ function PrintLabelsModal({
   async function handleReload() {
     setReloading(true);
     const requestId = printRequestIdRef.current;
-    const outcome = await fetchProducts();
+    const outcome = await fetchProducts(status);
     if (requestId !== printRequestIdRef.current) {
       return;
     }
@@ -1997,8 +2002,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 products.length === 0
                   ? {
                       icon: <Package />,
-                      title: productsMessages.emptyTitle,
-                      detail: productsMessages.emptyDetail,
+                      ...productsMessages.empty[statusFilter],
                       tone: "blank",
                     }
                   : {
@@ -2024,7 +2028,9 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
           setNewModalOpen(false);
           const current = listRef.current;
           if (current.kind === "loaded") {
-            setList({ kind: "loaded", products: [...current.products, product] });
+            if (statusFilter !== "inactive") {
+              setList({ kind: "loaded", products: [...current.products, product] });
+            }
           } else {
             void load();
           }
@@ -2076,6 +2082,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         onSessionEnded={onSessionEnded}
         products={products}
         onProductsReloaded={(reloaded) => setList({ kind: "loaded", products: reloaded })}
+        status={statusFilter}
         fetchProducts={fetchProductsService}
         printLabels={printLabelsService}
       />
