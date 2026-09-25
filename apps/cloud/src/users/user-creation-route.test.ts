@@ -203,6 +203,7 @@ describe("POST /users", () => {
       version: 1,
       role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
       passkey_count: 0,
+      is_last_active_administrator: false,
     });
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, body.id));

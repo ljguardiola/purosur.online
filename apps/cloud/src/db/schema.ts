@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -72,6 +73,38 @@ export const branchHours = pgTable(
   ],
 );
 
+// The one, fixed id `issuer_identification`'s single row ever carries; every read and write is
+// keyed by this exact constant rather than a lookup, since there is never a location (or any
+// other scope) to look one up by.
+export const ISSUER_IDENTIFICATION_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
+
+// The taxpayer identification a user with `change_fiscal_configuration` keeps from the
+// backoffice's fiscal configuration: the legal name, the gross-income tax registration and the
+// start-of-activity date. One row for the whole business, never per location: `id` is pinned to
+// `ISSUER_IDENTIFICATION_SINGLETON_ID` by its own default and CHECK, so a second row can never
+// exist (an insert with any other id fails the CHECK, and one with this same id collides on the
+// primary key). The migration seeds this one row with every field null, which `GET` reports as an
+// incomplete identification until the first save; the authorized CUIT and tax status shown
+// alongside it are deployment configuration, never stored here.
+export const issuerIdentification = pgTable(
+  "issuer_identification",
+  {
+    id: uuid("id").primaryKey().default(sql`'00000000-0000-0000-0000-000000000001'`),
+    legalName: text("legal_name"),
+    grossIncomeRegistration: text("gross_income_registration"),
+    activityStartDate: date("activity_start_date"),
+    // Optimistic concurrency for this row, the same shape `branch_settings.version` gives branch
+    // settings rows.
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    check(
+      "issuer_identification_single_row",
+      sql`${table.id} = '00000000-0000-0000-0000-000000000001'::uuid`,
+    ),
+  ],
+);
+
 export const users = pgTable(
   "users",
   {
@@ -84,7 +117,7 @@ export const users = pgTable(
       .references(() => locations.id),
     // Optimistic concurrency for a user row: starts at 1 and every update of that row increments
     // it. A caller sends back the version it last read; a mismatch means someone else changed the
-    // row since (the email-change route is the first writer to check it).
+    // row since (the user edit route checks it).
     version: integer("version").notNull().default(1),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],

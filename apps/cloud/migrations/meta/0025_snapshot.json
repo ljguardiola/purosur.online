@@ -1,5 +1,5 @@
 {
-  "id": "2f055c13-4b51-48f0-a40d-febaa6083080",
+  "id": "c57a9c67-9a7a-456a-b857-36a3cf823cb0",
   "prevId": "8c32c148-1051-4ae6-9590-32923703f5c3",
   "version": "7",
   "dialect": "postgresql",
@@ -347,6 +347,56 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.issuer_identification": {
+      "name": "issuer_identification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'00000000-0000-0000-0000-000000000001'"
+        },
+        "legal_name": {
+          "name": "legal_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gross_income_registration": {
+          "name": "gross_income_registration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_start_date": {
+          "name": "activity_start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "issuer_identification_single_row": {
+          "name": "issuer_identification_single_row",
+          "value": "\"issuer_identification\".\"id\" = '00000000-0000-0000-0000-000000000001'::uuid"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.locations": {
       "name": "locations",
       "schema": "",
@@ -579,13 +629,6 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         }
       },
       "indexes": {
@@ -600,7 +643,6 @@
             }
           ],
           "isUnique": true,
-          "where": "\"product_barcodes\".\"active\" = true",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -656,13 +698,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
         },
         "version": {
           "name": "version",

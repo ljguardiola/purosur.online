@@ -1,5 +1,15 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { LifeBuoy, Package, Settings, Shield, Store, Tags, Users } from "lucide-react";
+import {
+  LifeBuoy,
+  Package,
+  Settings,
+  Shield,
+  SlidersHorizontal,
+  Store,
+  Tags,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AccountFooter,
@@ -14,6 +24,7 @@ import {
 import {
   type BackofficeAccess,
   canSeeBranchArea,
+  canSeeCashArea,
   canSeeCatalogArea,
   canSeeRolesArea,
   canSeeUsersArea,
@@ -29,17 +40,13 @@ import {
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
 } from "./CategoriesListScreen";
+import { FISCAL_CONFIGURATION_PATH } from "./cashRoutes";
 import { CATEGORIES_LIST_PATH, PRODUCTS_LIST_PATH } from "./catalogRoutes";
 import {
-  DuplicateRoleScreen,
-  type DuplicateRoleScreenServices,
-  defaultDuplicateRoleScreenServices,
-} from "./DuplicateRoleScreen";
-import {
-  defaultEditRoleScreenServices,
-  EditRoleScreen,
-  type EditRoleScreenServices,
-} from "./EditRoleScreen";
+  defaultFiscalConfigurationScreenServices,
+  FiscalConfigurationScreen,
+  type FiscalConfigurationScreenServices,
+} from "./FiscalConfigurationScreen";
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
 import { linkProps } from "./linkProps";
@@ -49,11 +56,6 @@ import {
   type MyAccountScreenServices,
 } from "./MyAccountScreen";
 import { messages } from "./messages";
-import {
-  defaultNewRoleScreenServices,
-  NewRoleScreen,
-  type NewRoleScreenServices,
-} from "./NewRoleScreen";
 import {
   defaultProductsListScreenServices,
   ProductsListScreen,
@@ -84,10 +86,7 @@ import { useSessionWatcher } from "./sessionWatcher";
 import {
   BRANCH_SETTINGS_PATH,
   MY_ACCOUNT_PATH,
-  matchRoleDuplicatePath,
-  matchRoleEditPath,
   matchUserDetailPath,
-  NEW_ROLE_PATH,
   ROLES_LIST_PATH,
   sendToMyAccount,
   USERS_LIST_PATH,
@@ -113,12 +112,10 @@ export type AppServices = {
   usersListScreen: UsersListScreenServices;
   userDetailScreen: UserDetailScreenServices;
   rolesListScreen: RolesListScreenServices;
-  newRoleScreen: NewRoleScreenServices;
-  editRoleScreen: EditRoleScreenServices;
-  duplicateRoleScreen: DuplicateRoleScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   productsListScreen: ProductsListScreenServices;
+  fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -132,12 +129,10 @@ const defaultAppServices: AppServices = {
   usersListScreen: defaultUsersListScreenServices,
   userDetailScreen: defaultUserDetailScreenServices,
   rolesListScreen: defaultRolesListScreenServices,
-  newRoleScreen: defaultNewRoleScreenServices,
-  editRoleScreen: defaultEditRoleScreenServices,
-  duplicateRoleScreen: defaultDuplicateRoleScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
+  fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -216,10 +211,27 @@ function CatalogAreaItem({ active }: { active: boolean }) {
   );
 }
 
+/**
+ * Puro Sur's Caja area item — the single shared definition of its label, icon and link. Like
+ * Catálogo, it only shows for someone who unlocks it, and the design lists it right after Catálogo
+ * (the areas between them, Stock and Pedidos, don't exist in the backoffice yet).
+ */
+function CashAreaItem({ active }: { active: boolean }) {
+  return (
+    <AreaNavItem
+      label={messages.cash.areaLabel}
+      icon={<Wallet />}
+      active={active}
+      {...linkProps(FISCAL_CONFIGURATION_PATH)}
+    />
+  );
+}
+
 type HelpAppProps = {
   help: BackofficeHelpCatalog;
   displayName: string;
   canSeeCatalog: boolean;
+  canSeeCash: boolean;
   onSignedOut: () => void;
   accountFooterServices: AccountFooterServices;
 };
@@ -229,6 +241,7 @@ function HelpApp({
   help,
   displayName,
   canSeeCatalog,
+  canSeeCash,
   onSignedOut,
   accountFooterServices,
 }: HelpAppProps) {
@@ -266,6 +279,7 @@ function HelpApp({
       railAreas={
         <>
           {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
         </>
       }
@@ -296,24 +310,12 @@ function HelpApp({
   );
 }
 
-type SettingsAppSection =
-  | "myAccount"
-  | "usersList"
-  | "userDetail"
-  | "rolesList"
-  | "newRole"
-  | "editRole"
-  | "duplicateRole"
-  | "branchSettings";
+type SettingsAppSection = "myAccount" | "usersList" | "userDetail" | "rolesList" | "branchSettings";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
   /** Only set for `section: "userDetail"`. */
   userDetailId?: string;
-  /** Only set for `section: "editRole"`. */
-  editRoleId?: string;
-  /** Only set for `section: "duplicateRole"`. */
-  duplicateRoleId?: string;
   signedInUserId: string;
   displayName: string;
   access: BackofficeAccess;
@@ -321,6 +323,7 @@ type SettingsAppProps = {
   canSeeRoles: boolean;
   canSeeBranch: boolean;
   canSeeCatalog: boolean;
+  canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
@@ -328,21 +331,17 @@ type SettingsAppProps = {
   usersListScreenServices: UsersListScreenServices;
   userDetailScreenServices: UserDetailScreenServices;
   rolesListScreenServices: RolesListScreenServices;
-  newRoleScreenServices: NewRoleScreenServices;
-  editRoleScreenServices: EditRoleScreenServices;
-  duplicateRoleScreenServices: DuplicateRoleScreenServices;
   branchSettingsScreenServices: BranchSettingsScreenServices;
 };
 
 /**
  * The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta"), Roles
- * (list, new/edit/duplicate role), and Sucursal (the branch's own settings).
+ * (list, with the new/edit/duplicate editor as a modal over it), and Sucursal (the branch's own
+ * settings).
  */
 function SettingsApp({
   section,
   userDetailId,
-  editRoleId,
-  duplicateRoleId,
   signedInUserId,
   displayName,
   access,
@@ -350,6 +349,7 @@ function SettingsApp({
   canSeeRoles,
   canSeeBranch,
   canSeeCatalog,
+  canSeeCash,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
@@ -357,19 +357,13 @@ function SettingsApp({
   usersListScreenServices,
   userDetailScreenServices,
   rolesListScreenServices,
-  newRoleScreenServices,
-  editRoleScreenServices,
-  duplicateRoleScreenServices,
   branchSettingsScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
         ? messages.settings.users.documentTitle
-        : section === "rolesList" ||
-            section === "newRole" ||
-            section === "editRole" ||
-            section === "duplicateRole"
+        : section === "rolesList"
           ? messages.settings.roles.documentTitle
           : section === "branchSettings"
             ? messages.settings.branch.documentTitle
@@ -384,6 +378,7 @@ function SettingsApp({
       railAreas={
         <>
           {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active />
         </>
       }
@@ -432,12 +427,7 @@ function SettingsApp({
                 <SectionNavItem
                   label={messages.settings.rolesSectionLabel}
                   icon={<Shield />}
-                  active={
-                    section === "rolesList" ||
-                    section === "newRole" ||
-                    section === "editRole" ||
-                    section === "duplicateRole"
-                  }
+                  active={section === "rolesList"}
                   {...linkProps(ROLES_LIST_PATH)}
                 />
               </li>
@@ -482,23 +472,6 @@ function SettingsApp({
       {section === "rolesList" && (
         <RolesListScreen onSessionEnded={onSessionEnded} services={rolesListScreenServices} />
       )}
-      {section === "newRole" && (
-        <NewRoleScreen onSessionEnded={onSessionEnded} services={newRoleScreenServices} />
-      )}
-      {section === "editRole" && editRoleId !== undefined && (
-        <EditRoleScreen
-          roleId={editRoleId}
-          onSessionEnded={onSessionEnded}
-          services={editRoleScreenServices}
-        />
-      )}
-      {section === "duplicateRole" && duplicateRoleId !== undefined && (
-        <DuplicateRoleScreen
-          roleId={duplicateRoleId}
-          onSessionEnded={onSessionEnded}
-          services={duplicateRoleScreenServices}
-        />
-      )}
       {section === "branchSettings" && (
         <BranchSettingsScreen
           onSessionEnded={onSessionEnded}
@@ -511,6 +484,7 @@ function SettingsApp({
 
 type CatalogAppProps = {
   displayName: string;
+  canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
@@ -525,6 +499,7 @@ type CatalogAppProps = {
  */
 function CatalogApp({
   displayName,
+  canSeeCash,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
@@ -548,6 +523,7 @@ function CatalogApp({
       railAreas={
         <>
           <CatalogAreaItem active />
+          {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
         </>
       }
@@ -600,6 +576,86 @@ function CatalogApp({
   );
 }
 
+type CashAppProps = {
+  displayName: string;
+  canSeeCatalog: boolean;
+  onSignedOut: () => void;
+  onSessionEnded: () => void;
+  accountFooterServices: AccountFooterServices;
+  fiscalConfigurationScreenServices: FiscalConfigurationScreenServices;
+};
+
+/**
+ * The Caja-in-Shell part of the app: "Caja y fiscal", today holding only Configuración fiscal
+ * (its own landing). App.tsx only ever routes here for someone who unlocks the area, so
+ * `CashAreaItem` and "Configuración fiscal" always render active. The design also draws a CAJA
+ * and a TAREAS group above FISCAL, but neither has a section built yet, so only FISCAL's own
+ * group label and its one section show.
+ */
+function CashApp({
+  displayName,
+  canSeeCatalog,
+  onSignedOut,
+  onSessionEnded,
+  accountFooterServices,
+  fiscalConfigurationScreenServices,
+}: CashAppProps) {
+  useEffect(() => {
+    document.title = messages.cash.fiscalConfiguration.documentTitle;
+  }, []);
+
+  return (
+    <Shell
+      brandName={messages.shell.brandName}
+      areaRailLabel={messages.shell.areaRailLabel}
+      sectionColumnLabel={messages.cash.sectionsNavLabel}
+      railAreas={
+        <>
+          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          <CashAreaItem active />
+          <ConfigAreaItem active={false} />
+        </>
+      }
+      railFooter={
+        <>
+          <HelpAreaItem active={false} />
+          <AccountFooter
+            displayName={displayName}
+            onSignedOut={onSignedOut}
+            services={accountFooterServices}
+          />
+        </>
+      }
+      sectionColumn={
+        <>
+          <h2 className="font-bold text-brand-blue-strong text-xl">
+            {messages.cash.sectionsHeading}
+          </h2>
+          <div className="h-2.5" />
+          <p className="px-3 pt-3 pb-1 font-bold text-ink-secondary text-xs tracking-[1px]">
+            {messages.cash.fiscalGroupLabel}
+          </p>
+          <ul className="flex flex-col gap-1">
+            <li>
+              <SectionNavItem
+                label={messages.cash.fiscalConfigurationSectionLabel}
+                icon={<SlidersHorizontal />}
+                active
+                {...linkProps(FISCAL_CONFIGURATION_PATH)}
+              />
+            </li>
+          </ul>
+        </>
+      }
+    >
+      <FiscalConfigurationScreen
+        onSessionEnded={onSessionEnded}
+        services={fiscalConfigurationScreenServices}
+      />
+    </Shell>
+  );
+}
+
 export function App({ help, services }: AppProps) {
   const {
     fetchSession,
@@ -611,12 +667,10 @@ export function App({ help, services }: AppProps) {
     usersListScreen,
     userDetailScreen,
     rolesListScreen,
-    newRoleScreen,
-    editRoleScreen,
-    duplicateRoleScreen,
     branchSettingsScreen,
     categoriesListScreen,
     productsListScreen,
+    fiscalConfigurationScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -668,39 +722,34 @@ export function App({ help, services }: AppProps) {
     route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
 
   const userDetailId = matchUserDetailPath(route);
-  const editRoleId = matchRoleEditPath(route);
-  const duplicateRoleId = matchRoleDuplicatePath(route);
   const isSettingsRoute =
     route === MY_ACCOUNT_PATH ||
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH ||
-    editRoleId !== undefined ||
-    duplicateRoleId !== undefined ||
     route === BRANCH_SETTINGS_PATH;
   // "Usuarios", "Roles" and "Sucursal" are only reachable through their own URLs; Mi cuenta
   // (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
-  const wantsRoles =
-    route === ROLES_LIST_PATH ||
-    route === NEW_ROLE_PATH ||
-    editRoleId !== undefined ||
-    duplicateRoleId !== undefined;
+  const wantsRoles = route === ROLES_LIST_PATH;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
   const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
+  const isCashRoute = route === FISCAL_CONFIGURATION_PATH;
+  const wantsCash = isCashRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
   const canSeeRoles = canSeeRolesArea(access);
   const canSeeBranch = canSeeBranchArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
+  const canSeeCash = canSeeCashArea(access);
   const wantsUnlockedSection =
     (wantsUsers && !canSeeUsers) ||
     (wantsRoles && !canSeeRoles) ||
     (wantsBranch && !canSeeBranch) ||
-    (wantsCatalog && !canSeeCatalog);
+    (wantsCatalog && !canSeeCatalog) ||
+    (wantsCash && !canSeeCash);
 
   useEffect(() => {
     if (session.kind === "loading") {
@@ -815,19 +864,11 @@ export function App({ help, services }: AppProps) {
               ? "userDetail"
               : route === ROLES_LIST_PATH
                 ? "rolesList"
-                : route === NEW_ROLE_PATH
-                  ? "newRole"
-                  : editRoleId !== undefined
-                    ? "editRole"
-                    : duplicateRoleId !== undefined
-                      ? "duplicateRole"
-                      : route === BRANCH_SETTINGS_PATH
-                        ? "branchSettings"
-                        : "myAccount"
+                : route === BRANCH_SETTINGS_PATH
+                  ? "branchSettings"
+                  : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
-        {...(editRoleId !== undefined ? { editRoleId } : {})}
-        {...(duplicateRoleId !== undefined ? { duplicateRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
         access={access}
@@ -835,6 +876,7 @@ export function App({ help, services }: AppProps) {
         canSeeRoles={canSeeRoles}
         canSeeBranch={canSeeBranch}
         canSeeCatalog={canSeeCatalog}
+        canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
@@ -842,9 +884,6 @@ export function App({ help, services }: AppProps) {
         usersListScreenServices={usersListScreen}
         userDetailScreenServices={userDetailScreen}
         rolesListScreenServices={rolesListScreen}
-        newRoleScreenServices={newRoleScreen}
-        editRoleScreenServices={editRoleScreen}
-        duplicateRoleScreenServices={duplicateRoleScreen}
         branchSettingsScreenServices={branchSettingsScreen}
       />
     );
@@ -862,11 +901,33 @@ export function App({ help, services }: AppProps) {
     return (
       <CatalogApp
         displayName={session.displayName}
+        canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
         categoriesListScreenServices={categoriesListScreen}
         productsListScreenServices={productsListScreen}
+      />
+    );
+  }
+
+  if (isCashRoute) {
+    if (session.kind !== "signed-in") {
+      return null;
+    }
+    if (wantsUnlockedSection) {
+      // The effect above is already redirecting to Mi cuenta: never render the section itself,
+      // not even for one frame.
+      return null;
+    }
+    return (
+      <CashApp
+        displayName={session.displayName}
+        canSeeCatalog={canSeeCatalog}
+        onSignedOut={handleSignedOut}
+        onSessionEnded={handleSessionEnded}
+        accountFooterServices={accountFooter}
+        fiscalConfigurationScreenServices={fiscalConfigurationScreen}
       />
     );
   }
@@ -890,6 +951,7 @@ export function App({ help, services }: AppProps) {
           help={help}
           displayName={session.displayName}
           canSeeCatalog={canSeeCatalog}
+          canSeeCash={canSeeCash}
           onSignedOut={handleSignedOut}
           accountFooterServices={accountFooter}
         />

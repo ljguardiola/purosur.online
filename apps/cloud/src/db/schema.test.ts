@@ -4,7 +4,16 @@ import { join } from "node:path";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  inject,
+  it,
+  onTestFinished,
+} from "vitest";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import { locations, passkeyChallenges, roles, sessions, userRoles, users } from "./schema.js";
@@ -165,7 +174,10 @@ describe("migrating a database with a pending passkey challenge of a removed kin
 
   async function sessionOnDatabaseThrough0018() {
     const priorMigrationsFolder = await migrationsFolderThrough0018();
-    const client = await migrateFreshDatabase(priorMigrationsFolder);
+    const client = await migrateFreshDatabase(
+      priorMigrationsFolder,
+      inject("testDatabaseClusterDumpPath"),
+    );
     onTestFinished(() => client.close());
     const { rows: userRows } = await client.query<{ id: string }>(
       `insert into "users" ("first_name", "email", "location_id") values ('Ada', 'ada@example.com', (select id from locations limit 1)) returning "id"`,
@@ -241,7 +253,10 @@ describe("migrating a database that already has users", () => {
 
   it("backfills every existing user onto the seeded location", async () => {
     const priorMigrationsFolder = await migrationsFolderWithoutLocations();
-    const client = await migrateFreshDatabase(priorMigrationsFolder);
+    const client = await migrateFreshDatabase(
+      priorMigrationsFolder,
+      inject("testDatabaseClusterDumpPath"),
+    );
     onTestFinished(() => client.close());
     await client.query(
       `insert into "users" ("first_name", "email") values ('Ada', 'ada@example.com')`,

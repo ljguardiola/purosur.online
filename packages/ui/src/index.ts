@@ -1,3 +1,6 @@
+// Wraps a plain element (e.g. Tag) to make it a proper focusable target, most often a tooltip's
+// trigger, without that element knowing anything about focus or tooltips itself.
+export { Focusable } from "react-aria-components";
 export type { AreaNavItemIcon, AreaNavItemProps } from "./components/AreaNavItem";
 export { AreaNavItem } from "./components/AreaNavItem";
 export type {
@@ -24,7 +27,9 @@ export { InlineNotice } from "./components/InlineNotice";
 export type { ListFilterOption, ListFilterProps } from "./components/ListFilter";
 export { ListFilter } from "./components/ListFilter";
 export type {
+  ModalBodyPadding,
   ModalContextTone,
+  ModalHeaderLayout,
   ModalProps,
   ModalTone,
   ModalWidth,
@@ -87,6 +92,8 @@ export type {
   TableSortDirection,
 } from "./components/Table";
 export { Table, TableCellText } from "./components/Table";
+export type { TagProps, TagTone } from "./components/Tag";
+export { Tag } from "./components/Tag";
 export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";

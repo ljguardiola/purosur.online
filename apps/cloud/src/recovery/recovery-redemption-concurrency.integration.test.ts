@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
 import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 import { startServer } from "../server.js";
+import { VALID_ARCA_CERTIFICATE } from "../test-support/arca-certificate-fixtures.js";
 import { TEST_EDGE_ORIGIN_SECRET } from "../test-support/build-test-app.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { findFreePort } from "./find-free-port.js";
@@ -55,6 +56,7 @@ async function startRealServer(): Promise<StartedFixture> {
     RECOVERY_EMAIL_REPLY_TO: "purosur.comarca@gmail.com",
     BACKOFFICE_ORIGIN,
     EDGE_ORIGIN_SECRET: TEST_EDGE_ORIGIN_SECRET,
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
   });
   return { origin: `http://127.0.0.1:${port}`, close: () => app.close() };
 }

@@ -12,6 +12,9 @@ import { registerCategoriesListRoute } from "./categories/categories-list-route.
 import { registerCategoryCreationRoute } from "./categories/category-creation-route.js";
 import { registerCategoryEditRoute } from "./categories/category-edit-route.js";
 import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
+import { registerIssuerIdentificationEditRoute } from "./fiscal-configuration/issuer-identification-edit-route.js";
+import type { IssuerIdentificationRouteOptions } from "./fiscal-configuration/issuer-identification-read-route.js";
+import { registerIssuerIdentificationReadRoute } from "./fiscal-configuration/issuer-identification-read-route.js";
 import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
@@ -45,7 +48,7 @@ import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
-import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
+import { registerUserEditRoutes } from "./users/user-edit-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
 import { registerUserReadRoute } from "./users/user-read-route.js";
@@ -94,9 +97,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/email`, `GET
+   * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/edit`, `GET
    * /users/:id/passkeys`, and `POST /users/:id/passkeys/:passkeyId/remove`, the backoffice Users
-   * screen's read, create, email-edit, and passkey-removal sides: every mutating one is
+   * screen's read, create, email-and-role-edit, and passkey-removal sides: every mutating one is
    * Administrator-only, scoped to the session's own branch, and gated by the shared
    * passkey-authorization window, the same optional-feature-wiring shape `session` uses above.
    */
@@ -115,6 +118,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * `roles` uses above.
    */
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /fiscal-configuration/issuer-identification` and `PUT
+   * .../issuer-identification`, the backoffice fiscal configuration's business-wide taxpayer
+   * identification: both gated by `change_fiscal_configuration` (an Administrator always holds it
+   * implicitly), with `PUT` additionally requiring the shared passkey-authorization window before
+   * it saves, the same optional-feature-wiring shape `roles` uses above.
+   */
+  issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
   /**
    * Registers `GET /categories`, `POST /categories`, and `POST /categories/:id/edit`, the
    * backoffice Categories screen's list, create, and rename sides: every one is gated by the
@@ -198,7 +209,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUsersListRoute(app, options.users);
     registerUserReadRoute(app, options.users);
     registerUserCreationRoutes(app, options.users);
-    registerUserEmailChangeRoutes(app, options.users);
+    registerUserEditRoutes(app, options.users);
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
     registerUserDeactivationRoutes(app, options.users);
@@ -214,6 +225,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   if (options.branchSettings) {
     registerBranchSettingsReadRoute(app, options.branchSettings);
     registerBranchSettingsEditRoute(app, options.branchSettings);
+  }
+
+  if (options.issuerIdentification) {
+    registerIssuerIdentificationReadRoute(app, options.issuerIdentification);
+    registerIssuerIdentificationEditRoute(app, options.issuerIdentification);
   }
 
   if (options.categories) {

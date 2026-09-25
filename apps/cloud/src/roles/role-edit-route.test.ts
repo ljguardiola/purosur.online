@@ -2,7 +2,15 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { auditLog, rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
+import {
+  auditLog,
+  locations,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "../db/schema.js";
 import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
@@ -378,7 +386,7 @@ describe("POST /roles/:id/edit", () => {
   it("updates the name, replaces the permissions, bumps the version, audits actor/previous/new, and returns 200", async () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
-    await insertUser({
+    const graceId = await insertUser({
       firstName: "Grace Hopper",
       email: "grace@example.com",
       roleId,
@@ -399,6 +407,7 @@ describe("POST /roles/:id/edit", () => {
       permissions: ["sell_and_charge", "adjust_stock"],
       user_count: 1,
       version: 2,
+      assigned_users: [{ id: graceId, name: "Grace Hopper" }],
     });
 
     const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
@@ -417,6 +426,32 @@ describe("POST /roles/:id/edit", () => {
       actorId: administratorId,
       previousValue: { name: "Cajera", permissions: ["sell_and_charge"] },
       newValue: { name: "Cajera senior", permissions: ["sell_and_charge", "adjust_stock"] },
+    });
+  });
+
+  it("lists and counts a person holding the role at another branch, since roles are global", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other branch returned no row");
+    }
+    const someoneElseId = await insertUser({
+      firstName: "Someone Else",
+      email: "someone@example.com",
+      roleId,
+      locationId: otherLocation.id,
+    });
+
+    const response = await editRoleRequest(roleId, rawSessionId, {
+      name: "Cajera senior",
+      permissions: ["sell_and_charge"],
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      user_count: 1,
+      assigned_users: [{ id: someoneElseId, name: "Someone Else" }],
     });
   });
 

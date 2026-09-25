@@ -180,8 +180,15 @@
     {
       "idx": 25,
       "version": "7",
-      "when": 1790368057814,
-      "tag": "0025_deactivate_products",
+      "when": 1790357702752,
+      "tag": "0025_issuer_identification",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790376085604,
+      "tag": "0026_deactivate_products",
       "breakpoints": true
     }
   ]

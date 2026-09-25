@@ -1,6 +1,8 @@
 import {
   BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
@@ -378,8 +380,12 @@ export const messages = defineMessages("es-AR", (f) => ({
         onlyPasskeyWarning: (params: { name: string }) =>
           `Es su única passkey: para volver a entrar, ${params.name} va a tener que pedir el enlace de recuperación por correo.`,
       },
-      editEmailModal: {
+      editUserModal: {
         eyebrow: USERS_EYEBROW,
+        roleLabel: "Rol",
+        lockedRoleAria: "Por qué el rol está fijo",
+        lastAdministratorTooltip:
+          "Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.",
         emailLabel: EMAIL_LABEL,
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
@@ -391,6 +397,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Este usuario cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        lastAdministratorTitle: "Ahora es el único Administrador activo",
+        lastAdministratorDetail:
+          "Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona.",
+        unknownRoleTitle: "Ese rol ya no está disponible",
+        unknownRoleDetail: "Cerrá esta ventana y volvé a intentarlo.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
       },
@@ -417,66 +428,68 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      cashRegisterBadgeLabel: "Caja",
-      pinBadgeLabel: "Caja · con PIN de otra persona",
       areaLabels: AREA_LABELS,
       permissionLabels: PERMISSION_LABELS,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // Shared by the New, Edit and Duplicate role pages: the one role form they all render.
-      form: {
-        nameLabel: "Nombre del rol",
-        nameRequired: "Ingresá el nombre del rol.",
-        nameTooLong: ROLE_NAME_TOO_LONG,
-        nameReserved: "Ese nombre es del Administrador; elegí otro.",
-        nameFieldError: "Revisá el nombre del rol.",
-        nameTaken: "Ya existe un rol con este nombre.",
-        referencesPinHelper:
-          "Si quien está en la caja no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.",
-        administratorOnlyHelper:
-          "Crear y editar roles, dar de alta usuarios y asignarles un rol queda solo para el Administrador.",
-        areaCount: (params: { count: number; total: number }) =>
-          `${params.count} de ${params.total}`,
-        alertsNoneOption: "No ve alertas",
-        alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
-        alertsAllOption: VIEW_ALL_ALERTS_LABEL,
-        dismissAlertsOption: DISMISS_ALERTS_LABEL,
-      },
-      // Shared by every role page (New, Edit and Duplicate); a save that's rate limited shows the
-      // Roles area's own rateLimitedTitle/rateLimitedDetail above.
-      rolePage: {
-        breadcrumb: "Configuración · Roles",
+      // The role editor modal (New, Edit and Duplicate all open the same one), its form and its
+      // save confirmation step. A save that's rate limited shows the Roles area's own
+      // rateLimitedTitle/rateLimitedDetail above instead of a key from this group.
+      roleEditor: {
+        eyebrow: "Configuración · Roles",
+        closeLabel: CLOSE_LABEL,
+        newTitle: "Nuevo rol",
+        editTitle: "Editar rol",
+        duplicateTitle: "Duplicar rol",
+        // New and Duplicate both save by creating a role; only Edit saves by updating one.
+        createSave: "Guardar el rol",
+        editSave: "Guardar los cambios",
         cancel: CANCEL_LABEL,
-        attemptFailedDetail: "Probá de nuevo.",
-      },
-      // Shared by the Edit and Duplicate role pages, which both load a role before showing its form.
-      roleLoad: {
+        nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
         loading: "Cargando…",
         notFoundTitle: "No encontramos este rol",
         loadErrorTitle: "No pudimos abrir este rol",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
-      },
-      // Shared by the New and Duplicate role pages, which both save by creating a role.
-      roleCreation: {
-        save: "Guardar el rol",
-        attemptFailedTitle: "No se pudo crear el rol",
-      },
-      newRole: {
-        heading: "Nuevo rol",
-      },
-      editRole: {
-        heading: "Editar rol",
-        save: "Guardar los cambios",
         attemptFailedTitle: "No se pudo guardar el rol",
+        attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Este rol cambió mientras lo editabas",
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         reload: "Recargar",
         reloadFailedTitle: "No se pudieron recargar los datos",
-      },
-      duplicateRole: {
-        heading: "Duplicar rol",
-        nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
+        cashRegisterTag: "Caja",
+        pinTag: "PIN",
+        cashRegisterTagTooltip: "Se usa en la caja.",
+        pinTagTooltip:
+          "En la caja, si quien atiende no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.",
+        selectedCount: (params: { count: number }) =>
+          f.plural(params.count, {
+            one: "1 permiso elegido",
+            other: `${params.count} permisos elegidos`,
+          }),
+        confirmTitle: "¿Guardar los cambios?",
+        confirmText: (params: { count: number; roleName: string }) =>
+          `${f.plural(params.count, {
+            one: "Se aplica a la 1 persona",
+            other: `Se aplican a las ${params.count} personas`,
+          })} con el rol ${params.roleName}:`,
+        back: "Volver",
+        // The name field and the areas/permissions panes.
+        form: {
+          nameLabel: "Nombre del rol",
+          nameRequired: "Ingresá el nombre del rol.",
+          nameTooLong: ROLE_NAME_TOO_LONG,
+          nameReserved: "Ese nombre es del Administrador; elegí otro.",
+          nameFieldError: "Revisá el nombre del rol.",
+          nameTaken: "Ya existe un rol con este nombre.",
+          areasGroupLabel: "Áreas de permisos",
+          areaCount: (params: { count: number; total: number }) =>
+            `${params.count} de ${params.total}`,
+          alertsNoneOption: "No ve alertas",
+          alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
+          alertsAllOption: VIEW_ALL_ALERTS_LABEL,
+          dismissAlertsOption: DISMISS_ALERTS_LABEL,
+        },
       },
     },
     branch: {
@@ -779,6 +792,62 @@ export const messages = defineMessages("es-AR", (f) => ({
       },
     },
   },
+  cash: {
+    areaLabel: "Caja",
+    sectionsHeading: "Caja y fiscal",
+    sectionsNavLabel: "Caja y fiscal",
+    fiscalGroupLabel: "FISCAL",
+    fiscalConfigurationSectionLabel: "Configuración fiscal",
+    fiscalConfiguration: {
+      documentTitle: "Configuración fiscal · Puro Sur",
+      breadcrumb: "Caja y fiscal · Fiscal",
+      heading: "Configuración fiscal",
+      loading: "Cargando…",
+      loadErrorTitle: "No pudimos abrir la configuración fiscal",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      issuerIdentification: {
+        heading: "Identificación del emisor",
+        edit: "Editar",
+        legalNameLabel: "Razón social",
+        cuitLabel: "CUIT",
+        taxStatusLabel: "Condición frente al IVA",
+        grossIncomeRegistrationLabel: "Ingresos Brutos",
+        activityStartDateLabel: "Inicio de actividades",
+        printedNotice: "Lo imprime cada factura y nota de crédito.",
+        notLoaded: "Sin cargar",
+        incompleteTitle: "Las cajas no están emitiendo facturas ni notas de crédito",
+        incompleteDetail:
+          "Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando.",
+      },
+      editIssuerIdentificationModal: {
+        eyebrow: "CONFIGURACIÓN FISCAL",
+        title: "Identificación del emisor",
+        closeLabel: CLOSE_LABEL,
+        cancel: CANCEL_LABEL,
+        submit: "Guardar los cambios",
+        cuitLabel: "CUIT",
+        taxStatusLabel: "Condición frente al IVA",
+        legalNameLabel: "Razón social",
+        legalNameRequired: "Ingresá la razón social.",
+        legalNameTooLong: `Ingresá como mucho ${ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH} caracteres.`,
+        grossIncomeRegistrationLabel: "Ingresos Brutos",
+        grossIncomeRegistrationRequired: "Ingresá el número de Ingresos Brutos.",
+        grossIncomeRegistrationTooLong: `Ingresá como mucho ${ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH} caracteres.`,
+        activityStartDateLabel: "Inicio de actividades",
+        activityStartDateRequired: "Elegí la fecha de inicio de actividades.",
+        activityStartDateFuture: "La fecha no puede ser futura.",
+        printedNotice:
+          "Los comprobantes ya emitidos conservan los datos con los que se imprimieron.",
+        attemptFailedTitle: "No se pudo guardar el cambio",
+        attemptFailedDetail: "Probá de nuevo.",
+        staleVersionTitle: "La identificación del emisor cambió mientras la editabas",
+        staleVersionDetail: "Recargá los datos y volvé a hacer el cambio.",
+        reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
+      },
+    },
+  },
   // The shared authorization modal every sensitive backoffice action opens on
   // `authorization_required`, one instance of copy reused everywhere instead of per screen.
   passkeyAuthorization: {
@@ -799,10 +868,11 @@ export const messages = defineMessages("es-AR", (f) => ({
     actions: {
       roleSave: "Guardar un rol",
       userCreate: "Crear un usuario",
-      emailChange: "Cambiar el correo de un usuario",
+      userEdit: "Editar un usuario",
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",
+      issuerIdentificationSave: "Guardar la identificación del emisor",
     },
   },
   help: {

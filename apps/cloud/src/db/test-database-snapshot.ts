@@ -13,17 +13,16 @@ export const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pa
  * `buildTestDatabase` (when it has no matching snapshot to load) and by the "node" project's
  * global setup, which builds the one snapshot every test file starts from.
  *
- * With no `clusterDumpPath`, the instance starts from initdb, which dominates the cost of building
- * a test database. Given one (a dump of an empty, already-initialized cluster, see
- * `writeEmptyClusterDump`), it loads that dump instead, so initdb never runs in a test worker.
+ * `clusterDumpPath` (a dump of an empty, already-initialized cluster, see `writeEmptyClusterDump`)
+ * is required so no caller can pay initdb's cost, which dominates the cost of building a test
+ * database, by omitting it; the "node" project's global setup builds that dump once per test run,
+ * and every caller of this function runs only within that project.
  */
 export async function migrateFreshDatabase(
-  migrationsFolder: string = MIGRATIONS_FOLDER,
-  clusterDumpPath?: string,
+  migrationsFolder: string,
+  clusterDumpPath: string,
 ): Promise<PGlite> {
-  const client = clusterDumpPath
-    ? new PGlite({ loadDataDir: new Blob([await readFile(clusterDumpPath)]) })
-    : new PGlite();
+  const client = new PGlite({ loadDataDir: new Blob([await readFile(clusterDumpPath)]) });
   try {
     await migrate(drizzle(client), { migrationsFolder });
     return client;

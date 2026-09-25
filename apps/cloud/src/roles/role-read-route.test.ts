@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
+import { locations, rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -66,10 +66,16 @@ async function insertUser(input: {
   email: string;
   roleId: string;
   locationId: string;
+  id?: string;
 }): Promise<string> {
   const [user] = await db
     .insert(users)
-    .values({ firstName: input.firstName, email: input.email, locationId: input.locationId })
+    .values({
+      ...(input.id ? { id: input.id } : {}),
+      firstName: input.firstName,
+      email: input.email,
+      locationId: input.locationId,
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: seeding the user returned no row");
@@ -180,7 +186,7 @@ describe("GET /roles/:id", () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
     const cashierRoleId = await insertRole("Cajera", ["adjust_stock", "sell_and_charge"]);
-    await insertUser({
+    const graceId = await insertUser({
       firstName: "Grace Hopper",
       email: "grace@example.com",
       roleId: cashierRoleId,
@@ -197,10 +203,109 @@ describe("GET /roles/:id", () => {
       permissions: ["sell_and_charge", "adjust_stock"],
       user_count: 1,
       version: 1,
+      assigned_users: [{ id: graceId, name: "Grace Hopper" }],
     });
   });
 
-  it("counts only the role's active users, leaving a deactivated one out", async () => {
+  it("orders the assigned people by name and answers an empty list for nobody assigned", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+    const cashierRoleId = await insertRole("Cajera");
+    const zoeId = await insertUser({
+      firstName: "Zoe Almeida",
+      email: "zoe@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const amaraId = await insertUser({
+      firstName: "Amara Ortiz",
+      email: "amara@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const emptyRoleId = await insertRole("Depósito");
+
+    const response = await getRole(cashierRoleId, rawSessionId);
+    const emptyResponse = await getRole(emptyRoleId, rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      assigned_users: [
+        { id: amaraId, name: "Amara Ortiz" },
+        { id: zoeId, name: "Zoe Almeida" },
+      ],
+    });
+    expect(emptyResponse.json()).toMatchObject({ assigned_users: [] });
+  });
+
+  it("breaks a tie between people with the same name by id", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const locationId = await seededLocationId(db);
+    const cashierRoleId = await insertRole("Cajera");
+    const laterId = await insertUser({
+      id: "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      firstName: "Ana",
+      email: "ana.later@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const earlierId = await insertUser({
+      id: "00000000-0000-4000-8000-000000000001",
+      firstName: "Ana",
+      email: "ana.earlier@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+
+    const response = await getRole(cashierRoleId, rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      assigned_users: [
+        { id: earlierId, name: "Ana" },
+        { id: laterId, name: "Ana" },
+      ],
+    });
+  });
+
+  it("includes a person assigned to the role at a different branch, since roles are global", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other branch returned no row");
+    }
+    const cashierRoleId = await insertRole("Cajera");
+    const someoneElseId = await insertUser({
+      firstName: "Someone Else",
+      email: "someone@example.com",
+      roleId: cashierRoleId,
+      locationId: otherLocation.id,
+    });
+
+    const response = await getRole(cashierRoleId, rawSessionId);
+
+    expect(response.json()).toMatchObject({
+      assigned_users: [{ id: someoneElseId, name: "Someone Else" }],
+    });
+  });
+
+  it("counts and lists only the role's active users, leaving a deactivated one out", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -227,6 +332,9 @@ describe("GET /roles/:id", () => {
     const response = await getRole(cashierRoleId, rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ user_count: 1 });
+    expect(response.json()).toMatchObject({
+      user_count: 1,
+      assigned_users: [{ name: "Grace Hopper" }],
+    });
   });
 });

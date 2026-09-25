@@ -1227,3 +1227,99 @@ test("announces the chosen day's button as selected", async () => {
 
   await expectNoAccessibilityViolations(document.body);
 });
+
+function segmentsOf(group: HTMLElement): HTMLElement[] {
+  return Array.from(group.querySelectorAll('[role="spinbutton"]')) as HTMLElement[];
+}
+
+function describedTextOf(element: HTMLElement): string {
+  return (element.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter((id) => id !== "")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
+}
+
+for (const variant of ["register", "backoffice"] as const) {
+  test(`replaces the helper line with the caller's message and exposes the field as invalid, described by that message, in the ${variant} variant`, async () => {
+    const screen = await render(
+      <DateField
+        variant={variant}
+        label="Start"
+        value={null}
+        onChange={() => {}}
+        helperText="Should not be visible."
+        invalid
+        errorMessage="Choose a start date."
+      />,
+    );
+    const group = fieldGroup(screen, "Start");
+
+    expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("status-error-ui", "2px")]);
+    const message = screen.getByText("Choose a start date.");
+    await expect.element(message).toBeVisible();
+    expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
+    expect(screen.getByText("Should not be visible.").query()).toBeNull();
+    for (const segment of segmentsOf(group)) {
+      expect(segment.getAttribute("aria-invalid")).toBe("true");
+      expect(describedTextOf(segment)).toContain("Choose a start date.");
+    }
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+}
+
+test("shows the caller's message instead of the range message when both apply", async () => {
+  const screen = await render(
+    <DateField
+      variant="backoffice"
+      label="Start"
+      value={new CalendarDate(2027, 3, 15)}
+      onChange={() => {}}
+      maxValue={RANGE_MAX}
+      rangeMessage={RANGE_MESSAGE}
+      invalid
+      errorMessage="The date cannot be in the future."
+    />,
+  );
+
+  await expect.element(screen.getByText("The date cannot be in the future.")).toBeVisible();
+  expect(screen.getByText(RANGE_MESSAGE).query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("marks a required field with an asterisk and exposes it as required", async () => {
+  const screen = await render(
+    <DateField variant="backoffice" label="Start" value={null} onChange={() => {}} required />,
+  );
+  const label = screen.getByText("Start").element() as HTMLElement;
+  // The generated asterisk folds into the group's accessible name, as TextField.test.tsx notes.
+  const group = screen.getByRole("group", { name: /^Start/ }).element() as HTMLElement;
+
+  expect(getComputedStyle(label, "::after").content).toContain("*");
+  for (const segment of segmentsOf(group)) {
+    expect(segment.getAttribute("aria-required")).toBe("true");
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept an invalid field without the message it shows", () => {
+  expectTypeOf<{
+    variant: "backoffice";
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    invalid: true;
+  }>().not.toExtend<DateFieldProps>();
+  expectTypeOf<{
+    variant: "backoffice";
+    label: string;
+    value: CalendarDate | null;
+    onChange: (value: CalendarDate | null) => void;
+    invalid: true;
+    errorMessage: string;
+    required: true;
+  }>().toExtend<DateFieldProps>();
+});

@@ -35,7 +35,14 @@ type DateFieldCommonProps = {
   onChange: (value: CalendarDate | null) => void;
   helperText?: string;
   disabled?: boolean;
+  required?: boolean;
 };
+
+// An invalid field always names why, the same discipline as TextField.tsx's own
+// TextFieldValidityProps. The caller's message wins over the range message when both apply.
+type DateFieldValidityProps =
+  | { invalid: true; errorMessage: string }
+  | { invalid?: false; errorMessage?: undefined };
 
 // An allowed range always names why it refuses a date outside it: there is no min/max without the
 // message the field shows in its place (see TextField.tsx's own TextFieldValidityProps for the
@@ -45,7 +52,7 @@ type DateFieldRangeProps =
   | { minValue: CalendarDate; maxValue?: CalendarDate; rangeMessage: string }
   | { minValue?: CalendarDate; maxValue: CalendarDate; rangeMessage: string };
 
-export type DateFieldProps = DateFieldCommonProps & DateFieldRangeProps;
+export type DateFieldProps = DateFieldCommonProps & DateFieldValidityProps & DateFieldRangeProps;
 
 // The value reads as day, month and a four-digit year, and the calendar's month names are
 // Spanish, in both apps this package serves; see packages/ui/src/messages/formatters.ts.
@@ -60,6 +67,8 @@ const wrapperGapClassName: Record<DateFieldVariant, string> = {
 
 const registerLabelClassName = "text-base font-bold text-ink";
 const backofficeLabelClassName = "text-sm font-bold text-ink-secondary";
+// The same CSS-drawn asterisk TextField.tsx uses for a required field.
+const requiredLabelClassName = "after:ml-1 after:content-['*']";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
@@ -183,7 +192,8 @@ function CalendarToggleButton() {
 }
 
 export function DateField(props: DateFieldProps) {
-  const { variant, label, value, onChange, helperText, disabled = false } = props;
+  const { variant, label, value, onChange, helperText, disabled = false, required = false } = props;
+  const errorMessage = props.invalid ? props.errorMessage : undefined;
   // Names the open calendar's own dialog by the month and year it shows, instead of react-aria's
   // own default of reusing the field's label: that label already names the field itself.
   const calendarHeadingId = useId();
@@ -203,6 +213,9 @@ export function DateField(props: DateFieldProps) {
     value !== null &&
     ((minValue !== null && value.compare(minValue) < 0) ||
       (maxValue !== null && value.compare(maxValue) > 0));
+  const shownError = errorMessage ?? (outOfRange ? rangeMessage : undefined);
+  const invalid = shownError !== undefined;
+  const labelClassName = variant === "register" ? registerLabelClassName : backofficeLabelClassName;
 
   return (
     <I18nProvider locale={LOCALE}>
@@ -210,18 +223,19 @@ export function DateField(props: DateFieldProps) {
         value={value}
         onChange={onChange}
         isDisabled={disabled}
-        isInvalid={outOfRange}
+        isInvalid={invalid}
+        isRequired={required}
         minValue={minValue}
         maxValue={maxValue}
         className={`${wrapperBaseClassName} ${wrapperGapClassName[variant]}`}
       >
         <AriaLabel
-          className={variant === "register" ? registerLabelClassName : backofficeLabelClassName}
+          className={required ? `${labelClassName} ${requiredLabelClassName}` : labelClassName}
         >
           {label}
         </AriaLabel>
         <AriaGroup
-          className={`${boxBaseClassName} ${frameClassName[variant]} ${boxStateClassName(disabled, outOfRange)}`}
+          className={`${boxBaseClassName} ${frameClassName[variant]} ${boxStateClassName(disabled, invalid)}`}
         >
           {variant === "register" && <CalendarToggleButton />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName[variant]}`}>
@@ -238,9 +252,9 @@ export function DateField(props: DateFieldProps) {
           </AriaDateInput>
           {variant === "backoffice" && <CalendarToggleButton />}
         </AriaGroup>
-        {outOfRange ? (
+        {shownError !== undefined ? (
           <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
-            {rangeMessage}
+            {shownError}
           </AriaText>
         ) : (
           helperText !== undefined && (

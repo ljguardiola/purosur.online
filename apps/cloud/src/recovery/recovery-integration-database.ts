@@ -1,16 +1,12 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { inject } from "vitest";
-import { runMigrations } from "../migrate.js";
+import { CLOUD_APP_PASSWORD } from "../db/cloud-app-password.js";
 
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
-
-// `cloud_app` is one cluster-wide role shared by every database this run creates, so every file
-// that migrates one (this helper, and `migrate-cloud-app-role.integration.test.ts` directly) must
-// set it to this exact same password: two files running at once each set this same role's login
-// password as part of their own migration, and whichever write loses that race would otherwise
-// leave every other file's already-open assumption about that password wrong.
-export const CLOUD_APP_PASSWORD = "cloud-app-integration-test-password";
+// An arbitrary, stable key every `withExclusiveMigration` caller agrees on. It cannot collide with
+// the application's own advisory locks: those are taken inside each test file's database, never in
+// the shared admin database this one is taken in, and advisory locks are scoped per database.
+const MIGRATION_LOCK_KEY = 875_309;
 
 export interface IntegrationDatabase {
   /** Connects as `cloud_app`, the role the code under test must use, same as the deployed cloud. */
@@ -39,30 +35,34 @@ function asCloudApp(databaseUrl: string): string {
 }
 
 /**
- * Creates and migrates one fresh, isolated database on the single Testcontainers Postgres
- * instance `vitest.global-setup.postgres.ts` starts for the run, so each `*.integration.test.ts`
- * file gets its own database instead of sharing state with the others.
+ * Creates one fresh, isolated database on the single Testcontainers Postgres instance
+ * `vitest.global-setup.postgres.ts` starts for the run, as a copy of the template database that
+ * global setup migrates (`CREATE DATABASE ... TEMPLATE`), so each `*.integration.test.ts` file
+ * gets its own already-migrated database instead of migrating (and racing) its own on the shared
+ * cluster.
  *
- * Migrates as the admin role (`runMigrations`, the same production wiring `dist/migrate.js`
- * runs), but hands back a `cloud_app` connection URL: every `*.integration.test.ts` file that
- * exercises the server, its repositories, or graphile-worker through this database must run as
- * the same role the deployed cloud connects as, never as the role that applies schema changes.
+ * Hands back a `cloud_app` connection URL: every `*.integration.test.ts` file that exercises the
+ * server, its repositories, or graphile-worker through this database must run as the same role the
+ * deployed cloud connects as, never as the role that applies schema changes.
  */
 export async function createIntegrationDatabase(namePrefix: string): Promise<IntegrationDatabase> {
   const adminUrl = inject("recoveryPostgresAdminUrl");
+  const template = inject("cloudIntegrationTemplateDatabase");
+  if (template === undefined) {
+    throw new Error(
+      "the cloud integration template database could not be migrated; see the global setup's warning",
+    );
+  }
   const databaseName = `${namePrefix}_${randomUUID().replaceAll("-", "")}`;
 
   const admin = postgres(adminUrl, { max: 1 });
   try {
-    await admin.unsafe(`CREATE DATABASE "${databaseName}"`);
+    await admin.unsafe(`CREATE DATABASE "${databaseName}" TEMPLATE "${template}"`);
   } finally {
     await admin.end({ timeout: 1 });
   }
 
   const adminDatabaseUrl = databaseUrlFor(adminUrl, databaseName);
-  await runMigrations(adminDatabaseUrl, CLOUD_APP_PASSWORD, {
-    migrationsFolder: MIGRATIONS_FOLDER,
-  });
 
   return {
     databaseUrl: asCloudApp(adminDatabaseUrl),
@@ -76,4 +76,29 @@ export async function createIntegrationDatabase(namePrefix: string): Promise<Int
       }
     },
   };
+}
+
+/**
+ * Serializes a callback that calls `runMigrations` directly against the shared cluster (the few
+ * integration tests that must prove `runMigrations` itself works, rather than starting from an
+ * already-migrated database via `createIntegrationDatabase`): `runMigrations` ends by writing
+ * `cloud_app`'s password to the cluster-wide `pg_authid` catalog (`setCloudAppPassword` in
+ * migrate.ts), and two such calls running at once would race that write. Takes the lock on the
+ * shared admin database (`recoveryPostgresAdminUrl`'s own database) rather than on a database a
+ * caller is about to create: Postgres advisory locks are scoped per database, so a lock taken on a
+ * not-yet-created database would not block a caller already holding this same lock elsewhere.
+ */
+export async function withExclusiveMigration<T>(run: () => Promise<T>): Promise<T> {
+  const adminUrl = inject("recoveryPostgresAdminUrl");
+  const admin = postgres(adminUrl, { max: 1 });
+  try {
+    await admin`select pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
+    try {
+      return await run();
+    } finally {
+      await admin`select pg_advisory_unlock(${MIGRATION_LOCK_KEY})`;
+    }
+  } finally {
+    await admin.end({ timeout: 1 });
+  }
 }

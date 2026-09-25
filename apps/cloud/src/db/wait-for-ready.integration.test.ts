@@ -5,8 +5,9 @@ import { join } from "node:path";
 import postgres from "postgres";
 import { afterEach, describe, expect, inject, it, vi } from "vitest";
 import { runMigrations } from "../migrate.js";
-import { CLOUD_APP_PASSWORD } from "../recovery/recovery-integration-database.js";
+import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
 import { waitForReady } from "../wait-for-ready.js";
+import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 
 const REAL_MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
@@ -135,9 +136,11 @@ describe("waitForReady", () => {
     adminUrl = created.adminUrl;
     databaseName = created.databaseName;
 
-    await runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-      migrationsFolder: REAL_MIGRATIONS_FOLDER,
-    });
+    await withExclusiveMigration(() =>
+      runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
+        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+      }),
+    );
 
     await expect(
       waitForReady(asCloudApp(created.databaseUrl), {
@@ -158,9 +161,11 @@ describe("waitForReady", () => {
     try {
       // The database only ever gets the real, unmodified migrations: the extra one below exists
       // only in the image's own bundled folder, never applied to this database.
-      await runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
-      });
+      await withExclusiveMigration(() =>
+        runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
+          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        }),
+      );
       const clock = fakeClock();
 
       await expect(
@@ -186,9 +191,11 @@ describe("waitForReady", () => {
       const created = await createUnmigratedDatabase(namePrefix);
       adminUrl = created.adminUrl;
       databaseName = created.databaseName;
-      await runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
-      });
+      await withExclusiveMigration(() =>
+        runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
+          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        }),
+      );
       const admin = postgres(created.databaseUrl, { max: 1 });
       try {
         await undoAsAdmin(admin);

@@ -11,6 +11,7 @@ import {
   branchHours,
   branchSettings,
   categories,
+  issuerIdentification,
   locations,
   passkeyChallenges,
   passkeys,
@@ -65,9 +66,6 @@ async function snapshotPathWithMarkerRole(): Promise<string> {
 async function clusterDumpPathWithMarkerTable(): Promise<string> {
   // Starts from the run's own cluster dump, so building the marker dump pays no initdb either.
   const runClusterDumpPath = inject("testDatabaseClusterDumpPath");
-  if (!runClusterDumpPath) {
-    throw new Error("the node project's global setup provided no cluster dump");
-  }
   const client = new PGlite({ loadDataDir: new Blob([await readFile(runClusterDumpPath)]) });
   onTestFinished(() => client.close());
   await client.query('create table "cluster_dump_marker" ("id" integer primary key)');
@@ -115,12 +113,13 @@ describe("buildTestDatabase", () => {
     const baseline = await countsByTable(client);
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
-    // The migrations seed the single Administrator role, the single location, and that location's
-    // branch settings; the baseline must hold all three for the comparison below to prove clear()
-    // restores them.
+    // The migrations seed the single Administrator role, the single location, that location's
+    // branch settings, and the one issuer identification row; the baseline must hold all four for
+    // the comparison below to prove clear() restores them.
     expect(baseline.get("roles")).toBe(1);
     expect(baseline.get("locations")).toBe(1);
     expect(baseline.get("branch_settings")).toBe(1);
+    expect(baseline.get("issuer_identification")).toBe(1);
 
     const [user] = await db
       .insert(users)
@@ -216,17 +215,27 @@ describe("buildTestDatabase", () => {
       keyValue: "203.0.113.10",
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
+    // `issuer_identification` is a true singleton (a second row is impossible by construction), so
+    // its row count can never grow the way every other table's does below; changing its content
+    // instead is what this table's own version of "seeded before clear()" looks like.
+    await db.update(issuerIdentification).set({ legalName: "Temporary legal name" });
 
     const afterSeeding = await countsByTable(client);
     for (const [tablename, count] of afterSeeding) {
+      if (tablename === "issuer_identification") {
+        continue;
+      }
       expect(count, `table ${tablename} was not seeded before clear()`).toBeGreaterThan(
         baseline.get(tablename) ?? 0,
       );
     }
+    expect(afterSeeding.get("issuer_identification")).toBe(1);
 
     await clear();
 
     expect(await countsByTable(client)).toEqual(baseline);
+    const [restoredIssuerIdentification] = await db.select().from(issuerIdentification);
+    expect(restoredIssuerIdentification).toMatchObject({ legalName: null });
   });
 
   it("removes a row on clear(), so its unique values can be inserted again", async () => {

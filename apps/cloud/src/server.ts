@@ -1,3 +1,4 @@
+import { X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,7 @@ import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { type BuildAppOptions, buildApp } from "./app.js";
+import { parseCuit } from "./fiscal-configuration/cuit.js";
 import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
 import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
 import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
@@ -38,6 +40,14 @@ export interface ServerEnv {
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
   /** The value Cloudflare's edge sets on every request it forwards; see `edge-origin-guard.ts`. */
   EDGE_ORIGIN_SECRET?: string | undefined;
+  /**
+   * The PEM text of the ARCA X.509 certificate the business is authorized under at the tax
+   * authority: its subject carries the authorized CUIT (see `requireAuthorizedCuit`). Required
+   * once `DATABASE_URL` is configured, the same "required whenever the database-backed features
+   * wire up" shape `RECOVERY_EMAIL_FROM` and friends already have in `resolveRecoveryEnv`. #46
+   * will add the matching private key alongside it.
+   */
+  ARCA_CERTIFICATE?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -101,6 +111,67 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
     throw new Error("EDGE_ORIGIN_SECRET must be set");
   }
   return value;
+}
+
+const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (\d{11})$/;
+const SERIAL_NUMBER_PREFIX = "serialNumber=";
+
+/**
+ * Node renders each RDN of the subject on its own line, joining the attributes of a
+ * multi-valued RDN with ` + ` (a literal `+` inside a value comes out escaped as `\+`).
+ */
+function extractSerialNumber(subject: string): string | undefined {
+  for (const line of subject.split("\n")) {
+    for (const attribute of line.split(" + ")) {
+      if (attribute.startsWith(SERIAL_NUMBER_PREFIX)) {
+        return attribute.slice(SERIAL_NUMBER_PREFIX.length);
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Railway and GitHub deliver a multi-line variable either with real newlines or, when the
+ * delivery mechanism collapses them into one line, as the literal two-character sequence `\n`;
+ * both are accepted so the PEM parses either way.
+ */
+function normalizePemNewlines(pem: string): string {
+  return pem.includes("\\n") ? pem.replaceAll("\\n", "\n") : pem;
+}
+
+/**
+ * Parses `ARCA_CERTIFICATE` (the PEM text of the ARCA X.509 certificate) and returns the CUIT
+ * carried in its subject's `serialNumber` (ARCA's own `CUIT <11 digits>` form), normalized to
+ * `NN-NNNNNNNN-N`: called once `DATABASE_URL` is configured, so a missing or malformed
+ * certificate fails startup the same way a missing `RESEND_API_KEY` does in
+ * `resolveRecoveryEnv`, before any database or job-queue resource opens.
+ */
+export function requireAuthorizedCuit(env: ServerEnv): string {
+  const pem = env.ARCA_CERTIFICATE;
+  if (!pem) {
+    throw new Error("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
+  }
+  let certificate: X509Certificate;
+  try {
+    certificate = new X509Certificate(normalizePemNewlines(pem));
+  } catch (cause) {
+    throw new Error("ARCA_CERTIFICATE must be a valid X.509 certificate", { cause });
+  }
+  const serialNumber = extractSerialNumber(certificate.subject);
+  if (!serialNumber) {
+    throw new Error("ARCA_CERTIFICATE's subject has no serialNumber");
+  }
+  const match = CUIT_SERIAL_NUMBER_PATTERN.exec(serialNumber);
+  if (!match) {
+    throw new Error('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
+  }
+  const [, cuitDigits] = match as unknown as [string, string];
+  const normalized = parseCuit(cuitDigits);
+  if (!normalized) {
+    throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
+  }
+  return normalized;
 }
 
 const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
@@ -276,52 +347,62 @@ export async function startServer(
 
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const recoveryEnv = resolveRecoveryEnv(env);
-  const recovery = recoveryEnv ? await doSetUpRecovery(recoveryEnv) : undefined;
+  // Validated before any database or job-queue resource opens, the same "fails fast" shape
+  // `edgeOriginSecret` above has; gated on `DATABASE_URL` because the routes that need it only
+  // wire up alongside every other database-backed feature below.
+  const database = recoveryEnv
+    ? { authorizedCuit: requireAuthorizedCuit(env), recovery: await doSetUpRecovery(recoveryEnv) }
+    : undefined;
 
   const app = doBuildApp({
     version: resolveVersion(env),
     edgeOriginSecret,
     staticDir: resolveStaticDir(env, DEFAULT_STATIC_DIR),
-    ...(recovery
+    ...(database
       ? {
           recovery: {
-            db: recovery.db,
-            jobQueue: recovery.jobQueue,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            jobQueue: database.recovery.jobQueue,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           session: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           passkeys: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           users: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           roles: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           branchSettings: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+          },
+          issuerIdentification: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+            authorizedCuit: database.authorizedCuit,
           },
           categories: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
           products: {
-            db: recovery.db,
-            backofficeOrigin: recovery.backofficeOrigin,
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
           },
         }
       : {}),
   });
-  if (recovery) {
-    app.addHook("onClose", () => recovery.close());
+  if (database) {
+    app.addHook("onClose", () => database.recovery.close());
   }
   await app.listen({ port: resolvePort(env), host: "0.0.0.0" });
   return app;

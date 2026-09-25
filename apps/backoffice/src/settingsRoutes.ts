@@ -12,10 +12,10 @@ export function sendToMyAccount(): void {
 }
 /** The Users list, open to whoever `canSeeUsersArea` admits: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
 export const USERS_LIST_PATH = "/settings/users";
-/** The Roles list, an Administrator-only screen: the sidebar's "Roles" item opens this. */
+/** The Roles list, an Administrator-only screen: the sidebar's "Roles" item, and every role editor
+ * action (new, edit, duplicate), open this — the editor itself is a modal over it, never its own
+ * page or URL. */
 export const ROLES_LIST_PATH = "/settings/roles";
-/** The Roles list's "Nuevo rol" action's own target: a full page, not a modal. */
-export const NEW_ROLE_PATH = "/settings/roles/new";
 /** The Sucursal screen, gated by `configure_branch`: the sidebar's "Sucursal" item opens this. */
 export const BRANCH_SETTINGS_PATH = "/settings/branch";
 
@@ -38,41 +38,4 @@ export function matchUserDetailPath(path: string): string | undefined {
   }
   const rest = path.slice(prefix.length);
   return rest && !rest.includes("/") ? rest : undefined;
-}
-
-const ROLE_EDIT_SUFFIX = "/edit";
-const ROLE_DUPLICATE_SUFFIX = "/duplicate";
-
-/**
- * Extracts the id from a `/settings/roles/:id<suffix>` path, distinguishing it from the list itself,
- * from `NEW_ROLE_PATH` (`/settings/roles/new`) and from the role's paths under any other suffix,
- * which all share the same prefix.
- */
-function matchRolePathWithSuffix(path: string, suffix: string): string | undefined {
-  const prefix = `${ROLES_LIST_PATH}/`;
-  if (!path.startsWith(prefix) || !path.endsWith(suffix)) {
-    return undefined;
-  }
-  const rest = path.slice(prefix.length, -suffix.length);
-  return rest && !rest.includes("/") ? rest : undefined;
-}
-
-/** The Roles list row action's own target: one role's edit screen. */
-export function roleEditPath(id: string): string {
-  return `${ROLES_LIST_PATH}/${id}${ROLE_EDIT_SUFFIX}`;
-}
-
-/** Extracts the id from a `/settings/roles/:id/edit` path. */
-export function matchRoleEditPath(path: string): string | undefined {
-  return matchRolePathWithSuffix(path, ROLE_EDIT_SUFFIX);
-}
-
-/** The Roles list row action's own target: a new role's screen, pre-filled from this one. */
-export function roleDuplicatePath(id: string): string {
-  return `${ROLES_LIST_PATH}/${id}${ROLE_DUPLICATE_SUFFIX}`;
-}
-
-/** Extracts the id from a `/settings/roles/:id/duplicate` path. */
-export function matchRoleDuplicatePath(path: string): string | undefined {
-  return matchRolePathWithSuffix(path, ROLE_DUPLICATE_SUFFIX);
 }

@@ -31,7 +31,9 @@ export type CreateRoleOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type RoleDetail = RoleSummary & { version: number };
+export type AssignedUser = { id: string; name: string };
+
+export type RoleDetail = RoleSummary & { version: number; assignedUsers: AssignedUser[] };
 
 export type FetchRoleOutcome =
   | { kind: "ok"; value: RoleDetail }
@@ -192,8 +194,9 @@ function roleDetailFromWire(row: {
   permissions: string[];
   user_count: number;
   version: number;
+  assigned_users: AssignedUser[];
 }): RoleDetail {
-  return { ...roleSummaryFromWire(row), version: row.version };
+  return { ...roleSummaryFromWire(row), version: row.version, assignedUsers: row.assigned_users };
 }
 
 /** Reads one role's current name, permissions, user count and version, Administrator only (`GET /roles/:id`). */

@@ -1,6 +1,6 @@
 import { defineHelp } from "@purosur/ui";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { App, type AppServices } from "./App";
@@ -50,6 +50,14 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     rolesListScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
+      roleEditorModal: {
+        fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
+        createRole: vi.fn(),
+        editRole: vi.fn(),
+        fetchSessionAuthorizationOptions: vi.fn(),
+        authorizeSession: vi.fn(),
+        startAuthentication: vi.fn(),
+      },
     },
     categoriesListScreen: {
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -65,29 +73,10 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
     },
-    newRoleScreen: {
-      createRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    editRoleScreen: {
-      fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-      editRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
-    duplicateRoleScreen: {
-      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      createRole: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
-    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
-      changeUserEmail: vi.fn(),
+      editUser: vi.fn(),
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
       deactivateUser: vi.fn(),
@@ -98,6 +87,13 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     branchSettingsScreen: {
       fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
       saveBranchSettings: vi.fn(),
+    },
+    fiscalConfigurationScreen: {
+      fetchIssuerIdentification: vi.fn().mockReturnValue(new Promise(() => {})),
+      saveIssuerIdentification: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     ...overrides,
@@ -529,12 +525,14 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
     passkeyCount: 1,
+    isLastActiveAdministrator: false,
   };
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
     kind: "ok",
     value: [martina],
   });
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users");
   window.history.pushState(null, "", "/settings/users/user-2");
 
@@ -560,8 +558,10 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
     passkeyCount: 1,
+    isLastActiveAdministrator: true,
   };
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: lucas });
+  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
     kind: "ok",
     value: [
@@ -722,10 +722,10 @@ test("redirects a typed /settings/branch to Mi cuenta for a user without configu
   expect(services.branchSettingsScreen.fetchBranchSettings).not.toHaveBeenCalled();
 });
 
-test("opens the new role page at /settings/roles/new from the Nuevo rol button", async () => {
+test("opens the role editor modal, over the Roles list, from the Nuevo rol button", async () => {
   // This checks routing/wiring only, the same way every other screen's own test file (not
-  // App.test.tsx) owns its form-fill-and-submit behavior: NewRoleScreen.test.tsx already covers
-  // the full passkey step-up creation flow, and Cancelar's own navigation, in isolation.
+  // App.test.tsx) owns its form-fill-and-submit behavior: RoleEditorModal.test.tsx already covers
+  // the full passkey step-up creation flow, and Cancelar's own behavior, in isolation.
   window.history.pushState(null, "", "/settings/roles");
   const services = createServices();
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -734,39 +734,66 @@ test("opens the new role page at /settings/roles/new from the Nuevo rol button",
 
   await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/settings/roles/new");
-  expect(services.newRoleScreen.createRole).not.toHaveBeenCalled();
+  await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles");
+  expect(services.rolesListScreen.roleEditorModal?.createRole).not.toHaveBeenCalled();
 });
 
-test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the active sidebar item, and the browser's back button returns to the list", async () => {
-  // Routing/wiring only, the same way the user detail wiring test above navigates by URL rather
-  // than a row click: EditRoleScreen.test.tsx already covers the full pre-fill, passkey step-up,
-  // and stale-save flow in isolation, and RolesListScreen.test.tsx already covers the pencil
-  // action's own click and navigation.
+test("opens the role editor modal for editing, from a role's pencil action, with Roles still the active sidebar item", async () => {
+  // Routing/wiring only, the same way the user detail wiring test above checks its own row
+  // action: RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and
+  // stale-save flow in isolation. A desktop-sized viewport keeps this row action clear of the
+  // rail at the browser mode's own phone-sized default (see Tooltip.test.tsx's own comment).
+  await page.viewport(1280, 900);
   const services = createServices();
-  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  const roleEditorModal = services.rolesListScreen.roleEditorModal;
+  if (!roleEditorModal) {
+    throw new Error("test setup: createServices always fills roleEditorModal");
+  }
+  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "role-stock",
+        name: "Depósito",
+        isAdministrator: false,
+        permissionKeys: [],
+        userCount: 0,
+      },
+    ],
+  });
+  vi.mocked(roleEditorModal.fetchRole).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "role-stock",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: [],
+      userCount: 0,
+      version: 1,
+      assignedUsers: [],
+    },
+  });
   window.history.pushState(null, "", "/settings/roles");
-  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
-
   const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
-  await expect.element(screen.getByRole("heading", { name: "Editar rol", level: 1 })).toBeVisible();
-  expect(services.editRoleScreen.fetchRole).toHaveBeenCalledWith("role-stock");
+  await userEvent.click(screen.getByRole("button", { name: "Editar el rol Depósito" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("Editar rol")).toBeVisible();
+  expect(services.rolesListScreen.roleEditorModal?.fetchRole).toHaveBeenCalledWith("role-stock");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
-
-  window.history.back();
-
-  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/roles");
 });
 
-test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled from the source role", async () => {
-  // Routing/wiring only, the same way the edit page's own wiring test above navigates by URL:
-  // DuplicateRoleScreen.test.tsx already covers the full pre-fill, passkey step-up, and error
-  // states in isolation, and RolesListScreen.test.tsx already covers the copy action's own click.
+test("opens the role editor modal for duplicating, pre-filled from the source row, without refetching the list", async () => {
+  // Routing/wiring only, the same way the edit test above checks its own row action:
+  // RoleEditorModal.test.tsx already covers the full pre-fill, passkey step-up, and error states.
+  await page.viewport(1280, 900);
   const services = createServices();
-  vi.mocked(services.duplicateRoleScreen.fetchRoles).mockResolvedValue({
+  const fetchRoles = vi.mocked(services.rolesListScreen.fetchRoles);
+  fetchRoles.mockResolvedValue({
     kind: "ok",
     value: [
       {
@@ -779,22 +806,18 @@ test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled
     ],
   });
   window.history.pushState(null, "", "/settings/roles");
-  window.history.pushState(null, "", "/settings/roles/role-stock/duplicate");
-
   const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Duplicar rol", level: 1 }))
-    .toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Duplicar el rol Depósito" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("Duplicar rol")).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Copia de Depósito");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
-
-  window.history.back();
-
-  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
+  expect(fetchRoles).toHaveBeenCalledTimes(1);
 });
 
 test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
@@ -881,6 +904,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
         version: 1,
         role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
         passkeyCount: 0,
+        isLastActiveAdministrator: false,
       },
     ],
   });
@@ -917,6 +941,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       version: 1,
       role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
       passkeyCount: 0,
+      isLastActiveAdministrator: false,
     },
   });
   // Reading a user's passkeys is Administrator-only on the cloud.
@@ -942,18 +967,6 @@ test.each([
       services.userDetailScreen.fetchUser,
       services.userDetailScreen.fetchUserPasskeys,
     ],
-  },
-  {
-    path: "/settings/roles/new",
-    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.createRole],
-  },
-  {
-    path: "/settings/roles/role-stock/edit",
-    adminOnlyCalls: (services: AppServices) => [services.editRoleScreen.fetchRole],
-  },
-  {
-    path: "/settings/roles/role-stock/duplicate",
-    adminOnlyCalls: (services: AppServices) => [services.duplicateRoleScreen.fetchRoles],
   },
 ])(
   "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",
@@ -1242,4 +1255,138 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/users/me");
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
+});
+
+test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Configuración fiscal", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["change_fiscal_configuration"],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+});
+
+test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Caja" }).query()).toBeNull();
+});
+
+test.each([
+  "/help",
+  "/settings/users",
+  "/catalog/products",
+  "/cash-and-fiscal/fiscal-configuration",
+])("lists Catálogo, then Caja, then Config in the rail on %s", async (path) => {
+  window.history.pushState(null, "", path);
+  const services = createServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: {
+      legalName: "María Laura Fernández",
+      grossIncomeRegistration: "1284531-06",
+      activityStartDate: "2019-03-01",
+      authorizedCuit: "27-28453196-0",
+      taxStatus: "Responsable Monotributo",
+      version: 1,
+    },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const rail = screen.getByRole("navigation", { name: "Áreas" });
+  await expect.element(rail.getByRole("link", { name: "Caja" })).toBeVisible();
+  const labels = rail
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja"));
+  expect(labels.indexOf("Caja")).toBeLessThan(labels.indexOf("Config"));
+});
+
+test("following the rail's Caja item opens Configuración fiscal, with Caja and Configuración fiscal active", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["change_fiscal_configuration"],
+    }),
+  });
+  vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: {
+      legalName: null,
+      grossIncomeRegistration: null,
+      activityStartDate: null,
+      authorizedCuit: "27-28453196-0",
+      taxStatus: "Responsable Monotributo",
+      version: 1,
+    },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración fiscal", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/cash-and-fiscal/fiscal-configuration");
+  const cashItem = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  expect(cashItem.getAttribute("aria-current")).toBe("page");
+  const sectionItem = screen
+    .getByRole("link", { name: "Configuración fiscal" })
+    .element() as HTMLAnchorElement;
+  expect(sectionItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configuration to Mi cuenta, without loading it", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.fiscalConfigurationScreen.fetchIssuerIdentification).not.toHaveBeenCalled();
 });

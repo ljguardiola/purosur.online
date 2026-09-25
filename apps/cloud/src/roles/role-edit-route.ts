@@ -16,7 +16,12 @@ import {
   ROLE_NAME_TAKEN_RESPONSE,
   RoleNameTaken,
 } from "./role-creation-route.js";
-import { countRoleUsers, findEditableRole, toRoleDetailWire } from "./role-read-route.js";
+import {
+  type AssignedUser,
+  findEditableRole,
+  listRoleUsers,
+  toRoleDetailWire,
+} from "./role-read-route.js";
 import {
   type RoleFieldValidationFailure,
   readRoleName,
@@ -86,7 +91,6 @@ export interface EditRoleInput {
   permissionKeys: string[];
   version: number;
   actorId: string;
-  locationId: string;
 }
 
 export interface EditedRole {
@@ -96,6 +100,7 @@ export interface EditedRole {
   permissionKeys: string[];
   userCount: number;
   version: number;
+  assignedUsers: AssignedUser[];
 }
 
 export type EditRoleOutcome =
@@ -105,8 +110,8 @@ export type EditRoleOutcome =
 
 /**
  * Updates one hand-made role's name and permissions in one transaction, rejecting a save made over
- * a version someone else already changed the same way `changeUserEmail` (`user-email-change-
- * route.ts`) rejects a stale user save. A name that already belongs to another role is rejected
+ * a version someone else already changed the same way `user-edit-route.ts` rejects a stale user
+ * save. A name that already belongs to another role is rejected
  * the same way `createRole` (`role-creation-route.ts`) rejects one, including its own database
  * backstop for a name that lands concurrently. Leaving the name and permission set exactly as they
  * were is a no-op: the version does not bump and nothing is audited.
@@ -170,6 +175,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
             permissionKeys: PERMISSION_KEYS.filter((key) => currentPermissionSet.has(key)),
             userCount: 0,
             version: current.version,
+            assignedUsers: [],
           },
         };
       }
@@ -210,6 +216,7 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
           permissionKeys: nextPermissionKeys,
           userCount: 0,
           version: nextVersion,
+          assignedUsers: [],
         },
       };
     })
@@ -223,8 +230,11 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   if (outcome.kind !== "applied") {
     return outcome;
   }
-  const userCount = await countRoleUsers(db, input.id, input.locationId);
-  return { kind: "applied", role: { ...outcome.role, userCount } };
+  const assignedUsers = await listRoleUsers(db, input.id);
+  return {
+    kind: "applied",
+    role: { ...outcome.role, userCount: assignedUsers.length, assignedUsers },
+  };
 }
 
 /**
@@ -287,7 +297,6 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         permissionKeys: parsedBody.permissionKeys,
         version: parsedBody.version,
         actorId: openSession.userId,
-        locationId: openSession.locationId,
       });
 
       if (outcome.kind === "stale_version") {
