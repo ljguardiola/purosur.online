@@ -1293,7 +1293,7 @@ function PrintLabelsModal({
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
-  // Bumped whenever the modal opens or closes, so a print response still in flight from before
+  // Bumped whenever the modal opens or closes, so a print or reload response still in flight from before
   // can tell it no longer belongs to the modal on screen.
   const printRequestIdRef = useRef(0);
 
@@ -1383,7 +1383,11 @@ function PrintLabelsModal({
 
   async function handleReload() {
     setReloading(true);
+    const requestId = printRequestIdRef.current;
     const outcome = await fetchProducts();
+    if (requestId !== printRequestIdRef.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       onProductsReloaded(outcome.value);
       setCounts({});

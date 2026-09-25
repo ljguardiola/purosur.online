@@ -1877,6 +1877,64 @@ test("ignores a print success that arrives after the modal was closed and opened
   anchorClick.mockRestore();
 });
 
+async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsListScreenServices) {
+  const firstDialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    firstDialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await userEvent.click(
+    firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
+  );
+  let resolveReload: (
+    outcome: Awaited<ReturnType<ProductsListScreenServices["fetchProducts"]>>,
+  ) => void = () => {};
+  vi.mocked(services.fetchProducts).mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveReload = resolve;
+    }),
+  );
+  await userEvent.click(firstDialog.getByRole("button", { name: "Recargar la lista" }));
+  await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
+  return {
+    dialog,
+    resolveReload: (outcome: Parameters<typeof resolveReload>[0]) => resolveReload(outcome),
+  };
+}
+
+test("ignores a reload success that arrives after the modal was closed and opened again", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+
+  resolveReload({ kind: "ok", value: [mielConCodigoInterno] });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
+});
+
+test("ignores a reload failure that arrives after the modal was closed and opened again", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+
+  resolveReload({ kind: "failed" });
+  // Lets the late response settle before checking it left no trace.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  expect(dialog.getByText("No se pudo recargar la lista").query()).toBeNull();
+});
+
 test("ignores a print failure that arrives after the modal was closed and opened again", async () => {
   const services = createServices();
   mockLoaded(services, [mielConCodigoInterno]);
