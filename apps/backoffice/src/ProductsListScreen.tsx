@@ -241,8 +241,18 @@ function productFieldErrors(
 
 type PendingCodeResult = { ok: true; barcodes: string[]; added: boolean } | { ok: false };
 
-function scanErrorFor(code: string, listed: string[]): string | undefined {
-  const scanMessages = productsMessages.newProductModal;
+type ScanMessages = {
+  barcodeHasSpaces: string;
+  barcodeTooLong: string;
+  barcodeAlreadyListed: string;
+  barcodeLimitReached: string;
+};
+
+function scanErrorFor(
+  code: string,
+  listed: string[],
+  scanMessages: ScanMessages,
+): string | undefined {
   if (/\s/.test(code)) {
     return scanMessages.barcodeHasSpaces;
   }
@@ -277,7 +287,7 @@ function barcodeTakenError(
     : modalMessages.barcodeTakenUnnamed;
 }
 
-function useBarcodeChips(initial: string[]) {
+function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
   const [scanInput, setScanInput] = useState("");
   const [scanError, setScanError] = useState<string | undefined>(undefined);
@@ -290,8 +300,16 @@ function useBarcodeChips(initial: string[]) {
     setScanError(undefined);
   }, []);
 
+  // A scan error describes the code as last confirmed against the list as it stood, so any change
+  // to either makes it stale.
+  function changeScanInput(value: string) {
+    setScanInput(value);
+    setScanError(undefined);
+  }
+
   function remove(code: string) {
     setBarcodes((current) => current.filter((existing) => existing !== code));
+    setScanError(undefined);
   }
 
   // Adds the code still sitting in the scan input, if any, and returns the list as it stands
@@ -299,9 +317,10 @@ function useBarcodeChips(initial: string[]) {
   function commitPending(): PendingCodeResult {
     const trimmed = scanInput.trim();
     if (!trimmed) {
+      setScanError(undefined);
       return { ok: true, barcodes, added: false };
     }
-    const error = scanErrorFor(trimmed, barcodes);
+    const error = scanErrorFor(trimmed, barcodes, scanMessages);
     if (error) {
       setScanError(error);
       return { ok: false };
@@ -327,7 +346,7 @@ function useBarcodeChips(initial: string[]) {
   return {
     barcodes,
     scanInput,
-    setScanInput,
+    changeScanInput,
     scanError,
     reset,
     remove,
@@ -362,7 +381,7 @@ function NewProductModal({
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
-  const chips = useBarcodeChips([]);
+  const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
@@ -538,7 +557,7 @@ function NewProductModal({
           />
         ) : (
           <div className="flex flex-col gap-1">
-            <span className="text-base font-bold text-ink">{modalMessages.categoryLabel}</span>
+            <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
@@ -575,7 +594,7 @@ function NewProductModal({
           barcodes={chips.barcodes}
           onRemove={chips.remove}
           scanInput={chips.scanInput}
-          onScanInputChange={chips.setScanInput}
+          onScanInputChange={chips.changeScanInput}
           onScanKeyDown={(event) =>
             chips.handleScanKeyDown(event, () =>
               setErrors((current) => withFieldError(current, "barcodes", undefined)),
@@ -626,7 +645,7 @@ function EditProductModal({
   // The dialog's own title: the product's name as it was when the dialog opened (see
   // CategoriesListScreen.tsx's own EditCategoryModal for the same non-nullable-title reasoning).
   const [title, setTitle] = useState("");
-  const chips = useBarcodeChips([]);
+  const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -898,7 +917,7 @@ function EditProductModal({
             />
           ) : (
             <div className="flex flex-col gap-1">
-              <span className="text-base font-bold text-ink">{modalMessages.categoryLabel}</span>
+              <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
@@ -931,7 +950,7 @@ function EditProductModal({
             barcodes={chips.barcodes}
             onRemove={chips.remove}
             scanInput={chips.scanInput}
-            onScanInputChange={chips.setScanInput}
+            onScanInputChange={chips.changeScanInput}
             onScanKeyDown={(event) =>
               chips.handleScanKeyDown(event, () =>
                 setErrors((current) => withFieldError(current, "barcodes", undefined)),

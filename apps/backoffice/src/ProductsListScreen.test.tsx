@@ -805,3 +805,76 @@ test("marks the sale unit and barcode labels as required, like the name and cate
     .element(editDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
     .toHaveAttribute("aria-required", "true");
 });
+
+test("removing a chip clears the barcode-limit error once the product is back under the limit", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  for (let index = 1; index <= 21; index += 1) {
+    await userEvent.fill(scanInputOf(dialog), `code-${index}`);
+    await userEvent.keyboard("{Enter}");
+  }
+  const limitError = dialog.getByText("El producto puede tener hasta 20 códigos de barras.");
+  await expect.element(limitError).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el código code-1" }));
+
+  await expect.poll(() => limitError.query()).toBeNull();
+  await expect.element(scanInputOf(dialog)).not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("editing the scan input clears the previous scan error", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.keyboard("{Enter}");
+  const spacesError = dialog.getByText("El código de barras no puede tener espacios.");
+  await expect.element(spacesError).toBeVisible();
+
+  await userEvent.fill(scanInputOf(dialog), "7790001");
+
+  await expect.poll(() => spacesError.query()).toBeNull();
+  await expect.element(scanInputOf(dialog)).not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("confirming a blank scan input leaves no scan error behind", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.keyboard("{Enter}");
+  const spacesError = dialog.getByText("El código de barras no puede tener espacios.");
+  await expect.element(spacesError).toBeVisible();
+
+  await userEvent.fill(scanInputOf(dialog), "");
+  await userEvent.keyboard("{Enter}");
+
+  await expect.poll(() => spacesError.query()).toBeNull();
+});
+
+test("marks the fallback category label as required when there are no categories yet", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel], []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto")).toBeVisible();
+
+  const createDialog = await openNewProductModal(screen);
+  const createLabel = createDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(createLabel, "::after").content).toContain("*");
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  const editLabel = editDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(editLabel, "::after").content).toContain("*");
+});
