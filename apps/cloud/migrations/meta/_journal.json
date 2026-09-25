@@ -148,6 +148,13 @@
       "when": 1790304042950,
       "tag": "0020_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790308950361,
+      "tag": "0021_branch_settings",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { LifeBuoy, Package, Settings, Shield, Tags, Users } from "lucide-react";
+import { LifeBuoy, Package, Settings, Shield, Store, Tags, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AccountFooter,
@@ -13,11 +13,17 @@ import {
 } from "./AccountRecoveryScreen";
 import {
   type BackofficeAccess,
+  canSeeBranchArea,
   canSeeCatalogArea,
   canSeeRolesArea,
   canSeeUsersArea,
 } from "./access";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
+import {
+  BranchSettingsScreen,
+  type BranchSettingsScreenServices,
+  defaultBranchSettingsScreenServices,
+} from "./BranchSettingsScreen";
 import {
   CategoriesListScreen,
   type CategoriesListScreenServices,
@@ -71,6 +77,7 @@ import { checkSessionStatus, fetchSession } from "./sessionApi";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./sessionMarker";
 import { useSessionWatcher } from "./sessionWatcher";
 import {
+  BRANCH_SETTINGS_PATH,
   MY_ACCOUNT_PATH,
   matchRoleDuplicatePath,
   matchRoleEditPath,
@@ -104,6 +111,7 @@ export type AppServices = {
   newRoleScreen: NewRoleScreenServices;
   editRoleScreen: EditRoleScreenServices;
   duplicateRoleScreen: DuplicateRoleScreenServices;
+  branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   accountFooter: AccountFooterServices;
 };
@@ -121,6 +129,7 @@ const defaultAppServices: AppServices = {
   newRoleScreen: defaultNewRoleScreenServices,
   editRoleScreen: defaultEditRoleScreenServices,
   duplicateRoleScreen: defaultDuplicateRoleScreenServices,
+  branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
@@ -287,7 +296,8 @@ type SettingsAppSection =
   | "rolesList"
   | "newRole"
   | "editRole"
-  | "duplicateRole";
+  | "duplicateRole"
+  | "branchSettings";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
@@ -301,6 +311,7 @@ type SettingsAppProps = {
   displayName: string;
   canSeeUsers: boolean;
   canSeeRoles: boolean;
+  canSeeBranch: boolean;
   canSeeCatalog: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
@@ -312,9 +323,13 @@ type SettingsAppProps = {
   newRoleScreenServices: NewRoleScreenServices;
   editRoleScreenServices: EditRoleScreenServices;
   duplicateRoleScreenServices: DuplicateRoleScreenServices;
+  branchSettingsScreenServices: BranchSettingsScreenServices;
 };
 
-/** The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta") and Roles (list, new/edit/duplicate role). */
+/**
+ * The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta"), Roles
+ * (list, new/edit/duplicate role), and Sucursal (the branch's own settings).
+ */
 function SettingsApp({
   section,
   userDetailId,
@@ -324,6 +339,7 @@ function SettingsApp({
   displayName,
   canSeeUsers,
   canSeeRoles,
+  canSeeBranch,
   canSeeCatalog,
   onSignedOut,
   onSessionEnded,
@@ -335,6 +351,7 @@ function SettingsApp({
   newRoleScreenServices,
   editRoleScreenServices,
   duplicateRoleScreenServices,
+  branchSettingsScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
     document.title =
@@ -345,7 +362,9 @@ function SettingsApp({
             section === "editRole" ||
             section === "duplicateRole"
           ? messages.settings.roles.documentTitle
-          : messages.settings.myAccount.documentTitle;
+          : section === "branchSettings"
+            ? messages.settings.branch.documentTitle
+            : messages.settings.myAccount.documentTitle;
   }, [section]);
 
   return (
@@ -414,6 +433,16 @@ function SettingsApp({
                 />
               </li>
             )}
+            {canSeeBranch && (
+              <li>
+                <SectionNavItem
+                  label={messages.settings.branchSectionLabel}
+                  icon={<Store />}
+                  active={section === "branchSettings"}
+                  {...linkProps(BRANCH_SETTINGS_PATH)}
+                />
+              </li>
+            )}
           </ul>
         </>
       }
@@ -454,6 +483,12 @@ function SettingsApp({
           roleId={duplicateRoleId}
           onSessionEnded={onSessionEnded}
           services={duplicateRoleScreenServices}
+        />
+      )}
+      {section === "branchSettings" && (
+        <BranchSettingsScreen
+          onSessionEnded={onSessionEnded}
+          services={branchSettingsScreenServices}
         />
       )}
     </Shell>
@@ -546,6 +581,7 @@ export function App({ help, services }: AppProps) {
     newRoleScreen,
     editRoleScreen,
     duplicateRoleScreen,
+    branchSettingsScreen,
     categoriesListScreen,
     accountFooter,
   } = services ?? defaultAppServices;
@@ -607,25 +643,29 @@ export function App({ help, services }: AppProps) {
     route === ROLES_LIST_PATH ||
     route === NEW_ROLE_PATH ||
     editRoleId !== undefined ||
-    duplicateRoleId !== undefined;
-  // "Usuarios" and "Roles" are only reachable through their own URLs; Mi cuenta (self-service)
-  // never depends on either.
+    duplicateRoleId !== undefined ||
+    route === BRANCH_SETTINGS_PATH;
+  // "Usuarios", "Roles" and "Sucursal" are only reachable through their own URLs; Mi cuenta
+  // (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
   const wantsRoles =
     route === ROLES_LIST_PATH ||
     route === NEW_ROLE_PATH ||
     editRoleId !== undefined ||
     duplicateRoleId !== undefined;
+  const wantsBranch = route === BRANCH_SETTINGS_PATH;
   const isCatalogRoute = route === CATEGORIES_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
   const canSeeRoles = canSeeRolesArea(access);
+  const canSeeBranch = canSeeBranchArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
   const wantsUnlockedSection =
     (wantsUsers && !canSeeUsers) ||
     (wantsRoles && !canSeeRoles) ||
+    (wantsBranch && !canSeeBranch) ||
     (wantsCatalog && !canSeeCatalog);
 
   useEffect(() => {
@@ -747,7 +787,9 @@ export function App({ help, services }: AppProps) {
                     ? "editRole"
                     : duplicateRoleId !== undefined
                       ? "duplicateRole"
-                      : "myAccount"
+                      : route === BRANCH_SETTINGS_PATH
+                        ? "branchSettings"
+                        : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
         {...(editRoleId !== undefined ? { editRoleId } : {})}
@@ -756,6 +798,7 @@ export function App({ help, services }: AppProps) {
         displayName={session.displayName}
         canSeeUsers={canSeeUsers}
         canSeeRoles={canSeeRoles}
+        canSeeBranch={canSeeBranch}
         canSeeCatalog={canSeeCatalog}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
@@ -767,6 +810,7 @@ export function App({ help, services }: AppProps) {
         newRoleScreenServices={newRoleScreen}
         editRoleScreenServices={editRoleScreen}
         duplicateRoleScreenServices={duplicateRoleScreen}
+        branchSettingsScreenServices={branchSettingsScreen}
       />
     );
   }

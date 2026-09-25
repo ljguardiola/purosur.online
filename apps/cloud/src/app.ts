@@ -4,6 +4,9 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerBranchSettingsEditRoute } from "./branch-settings/branch-settings-edit-route.js";
+import type { BranchSettingsRouteOptions } from "./branch-settings/branch-settings-read-route.js";
+import { registerBranchSettingsReadRoute } from "./branch-settings/branch-settings-read-route.js";
 import type { CategoriesRouteOptions } from "./categories/categories-list-route.js";
 import { registerCategoriesListRoute } from "./categories/categories-list-route.js";
 import { registerCategoryCreationRoute } from "./categories/category-creation-route.js";
@@ -98,6 +101,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   roles?: RolesRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /branch-settings` and `PUT /branch-settings`, the backoffice Sucursal screen's
+   * read and save sides: both gated by `configure_branch` (an Administrator always holds it
+   * implicitly) and scoped to the session's own location, the same optional-feature-wiring shape
+   * `roles` uses above.
+   */
+  branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /categories`, `POST /categories`, and `POST /categories/:id/edit`, the
    * backoffice Categories screen's list, create, and rename sides: every one is gated by the
    * `manage_products_and_categories` permission (an Administrator always holds it too), the same
@@ -181,6 +191,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerRoleReadRoute(app, options.roles);
     registerRoleCreationRoutes(app, options.roles);
     registerRoleEditRoutes(app, options.roles);
+  }
+
+  if (options.branchSettings) {
+    registerBranchSettingsReadRoute(app, options.branchSettings);
+    registerBranchSettingsEditRoute(app, options.branchSettings);
   }
 
   if (options.categories) {

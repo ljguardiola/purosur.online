@@ -344,6 +344,10 @@ describe("startServer", () => {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
       },
+      branchSettings: {
+        db: fakeRecovery.db,
+        backofficeOrigin: fakeRecovery.backofficeOrigin,
+      },
       categories: {
         db: fakeRecovery.db,
         backofficeOrigin: fakeRecovery.backofficeOrigin,
