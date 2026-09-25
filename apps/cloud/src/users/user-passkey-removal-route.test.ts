@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator, {
   AuthenticatorEmulator,
@@ -7,6 +7,7 @@ import WebAuthnEmulator, {
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
+  alerts,
   auditLog,
   locations,
   passkeys,
@@ -249,6 +250,14 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     if (!passkeyA || !passkeyB) throw new Error("test setup: target passkeys not found");
     targetPasskeyAId = passkeyA.id;
     targetPasskeyBId = passkeyB.id;
+
+    // Redeeming the two setup passkeys above already opened (and, on the second, deduped into) the
+    // target's own backoffice_passkey_changed alert; closing it here keeps each test's own
+    // assertions about that alert free of this setup's side effect.
+    await db
+      .update(alerts)
+      .set({ resolvedAt: currentTime, resolvedBy: administratorId })
+      .where(eq(alerts.scope, targetId));
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
@@ -437,6 +446,61 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
       previousValue: { id: targetPasskeyAId, name: "Notebook de Grace", userId: targetId },
       newValue: null,
     });
+  });
+
+  it("opens a backoffice_passkey_changed alert scoped to the target user, recording the acting Administrator", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await removePasskey(targetId, targetPasskeyAId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: targetId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        action: "removed",
+        passkeyName: "Notebook de Grace",
+        actorId: administratorId,
+        via: "administrator",
+      },
+    });
+  });
+
+  it("dedups: removing the target's second passkey while the alert is still open opens nothing new", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    await removePasskey(targetId, targetPasskeyAId, rawSessionId);
+
+    await removePasskey(targetId, targetPasskeyBId, rawSessionId);
+
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(1);
+  });
+
+  it("opens no alert for a removal that answers not_found, deleting nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await removePasskey(
+      targetId,
+      "00000000-0000-0000-0000-000000000000",
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(404);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(0);
   });
 
   it("the removed passkey can no longer sign the target user in", async () => {
