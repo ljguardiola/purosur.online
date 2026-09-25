@@ -53,9 +53,11 @@ type SessionAuthenticationRejection =
   | typeof AUTHENTICATION_FAILED_RESPONSE
   | typeof UNKNOWN_PASSKEY_RESPONSE;
 
-// Floors every rejection's response time to roughly the same duration, so a fast rejection (an
-// unknown credential, resolved by one indexed lookup) does not visibly answer faster than a slow
-// one (a bad signature, resolved only after a full verification pass).
+// Floors every rejection's response time to roughly the same duration. The response body already
+// tells an unknown credential apart from a known one (unknown_passkey vs authentication_failed);
+// this floor now only keeps the known-passkey rejection reasons themselves indistinguishable from
+// each other (bad signature, deactivated account, clone-signal counter each take different
+// processing time before landing on the same code).
 const FAILURE_RESPONSE_FLOOR_MS = 200;
 
 function defaultDelay(ms: number): Promise<void> {
@@ -211,9 +213,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         return;
       }
 
-      // Spent before the credential is even looked up, so an assertion naming a registered
-      // credential id and one naming an unregistered id leave exactly the same behind: whether a
-      // challenge survives a rejection must not tell anyone which credentials exist.
+      // Spent before the credential is even looked up, so it is burned exactly the same way
+      // whether the assertion names a registered credential or not: a challenge can never be
+      // replayed against a second credential id guess just because the first one turned out to
+      // be unknown.
       const challengeIsLive = await consumeSignInChallenge(options.db, {
         challenge,
         now: attemptedAt,
