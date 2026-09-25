@@ -342,9 +342,8 @@ describe("POST /roles", () => {
     });
 
     it("does not count another session's authorization for the same account", async () => {
-      const otherRawSessionId = await insertSession(administratorId, NOON);
+      await insertSession(administratorId, NOON);
       const rawSessionId = await insertSession(administratorId, null);
-      void otherRawSessionId;
 
       const response = await createRole(rawSessionId, { name: "Depósito", permissions: [] });
 

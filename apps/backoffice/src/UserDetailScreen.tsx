@@ -2,7 +2,6 @@ import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui"
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
-  KeyRound,
   Laptop,
   Pencil,
   RotateCcw,

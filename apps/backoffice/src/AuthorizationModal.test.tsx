@@ -3,7 +3,12 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { type AuthorizationServices, useAuthorization } from "./AuthorizationModal";
+import {
+  type AuthorizationActionKey,
+  type AuthorizationServices,
+  useAuthorization,
+} from "./AuthorizationModal";
+import { messages } from "./messages";
 
 type FakeOutcome =
   | { kind: "ok"; value: string }
@@ -229,7 +234,7 @@ test("shows a rate-limited notice when authorizing itself is rate limited", asyn
   await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 });
 
-test("ends the session, without retrying, when fetching the authorization options finds the session already ended", async () => {
+test("ends the session, without retrying and settling run as cancelled, when fetching the authorization options finds the session already ended", async () => {
   const services = createServices();
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "unauthenticated",
@@ -248,9 +253,11 @@ test("ends the session, without retrying, when fetching the authorization option
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
   expect(attempt).toHaveBeenCalledTimes(1);
+  await expect.element(screen.getByText('{"kind":"cancelled"}')).toBeVisible();
+  expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
-test("ends the session, without retrying, when authorizing finds the session already ended", async () => {
+test("ends the session, without retrying and settling run as cancelled, when authorizing finds the session already ended", async () => {
   const services = createServices();
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -272,15 +279,25 @@ test("ends the session, without retrying, when authorizing finds the session alr
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
   expect(attempt).toHaveBeenCalledTimes(1);
+  await expect.element(screen.getByText('{"kind":"cancelled"}')).toBeVisible();
+  expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
-test("shows the correct action sentence for each catalog action key", async () => {
+test("shows each catalog action key's own sentence", async () => {
   const services = createServices();
   const attempt = vi
     .fn<() => Promise<FakeOutcome>>()
     .mockResolvedValue({ kind: "authorization_required" });
+  const expectedSentences: Record<AuthorizationActionKey, string> = {
+    roleSave: "Guardar un rol necesita tu autorización. Confirmala con tu passkey.",
+    userCreate: "Crear un usuario necesita tu autorización. Confirmala con tu passkey.",
+    emailChange:
+      "Cambiar el correo de un usuario necesita tu autorización. Confirmala con tu passkey.",
+    passkeyRemoval: "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
+    passkeyRegistration: "Agregar una passkey necesita tu autorización. Confirmala con tu passkey.",
+  };
 
-  function ActionHarness({ action }: { action: "userCreate" | "passkeyRegistration" }) {
+  function ActionHarness({ action }: { action: AuthorizationActionKey }) {
     const { run, modal } = useAuthorization<FakeOutcome>({
       action,
       onSessionEnded: () => {},
@@ -296,15 +313,16 @@ test("shows the correct action sentence for each catalog action key", async () =
     );
   }
 
-  const screen = await render(<ActionHarness action="userCreate" />);
-  await userEvent.click(screen.getByRole("button", { name: "Run" }));
-  await expect
-    .element(
-      screen
-        .getByRole("dialog")
-        .getByText("Crear un usuario necesita tu autorización. Confirmala con tu passkey."),
-    )
-    .toBeVisible();
+  const actionKeys = Object.keys(messages.passkeyAuthorization.actions) as AuthorizationActionKey[];
+  expect([...actionKeys].sort()).toEqual(Object.keys(expectedSentences).sort());
+  for (const action of actionKeys) {
+    const screen = await render(<ActionHarness action={action} />);
+    await userEvent.click(screen.getByRole("button", { name: "Run" }));
+    await expect
+      .element(screen.getByRole("dialog").getByText(expectedSentences[action]))
+      .toBeVisible();
+    await screen.unmount();
+  }
 });
 
 test("has no accessibility violations with the authorization modal open", async () => {

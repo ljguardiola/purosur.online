@@ -228,7 +228,7 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(challenges).toHaveLength(0);
   });
 
-  it("does not require an authorized session: registration itself needs no prior authorization", async () => {
+  it("returns 401 authorization_required and stores no challenge when the session was never authorized", async () => {
     const rawSessionId = await insertSession(userId, null);
 
     const response = await postJson(
@@ -237,7 +237,36 @@ describe("POST /users/passkeys/registration-options", () => {
       cookieHeader(rawSessionId),
     );
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
+  });
+
+  it("returns 401 authorization_required and stores no challenge one second past the 5-minute boundary", async () => {
+    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+    const rawSessionId = await insertSession(userId, authorizedAt);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
+  });
+
+  it("returns registration options and stores their challenge while the session's authorization is valid", async () => {
+    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
+    const rawSessionId = await insertSession(userId, authorizedAt);
+
+    const options = await requestOptions(rawSessionId);
+
+    const rows = await db.select().from(passkeyChallenges);
+    expect(rows.map((row) => row.registrationChallenge)).toEqual([
+      options.passkey_registration_options.challenge,
+    ]);
   });
 
   it("returns registration options excluding the account's existing passkeys", async () => {
@@ -525,14 +554,18 @@ describe("POST /users/passkeys", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and registers nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(userId, null);
+    it("returns 401 authorization_required and registers nothing when the session's authorization was cleared after the options request", async () => {
+      const rawSessionId = await insertSession(userId);
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
       const passkeyRegistration = newEmulator.createJSON(
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
+      await db
+        .update(sessions)
+        .set({ passkeyAuthorizedAt: null })
+        .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
 
       const response = await postJson(
         "/users/passkeys",
@@ -547,20 +580,14 @@ describe("POST /users/passkeys", () => {
     });
 
     it("allows the action at exactly the 5-minute boundary", async () => {
-      // The registration-options request itself needs no authorization, but it is timestamped, so
-      // it is issued first and the authorization boundary is measured from the same moment the
-      // registration request that follows it is attempted.
-      const rawSessionId = await insertSession(userId, null);
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
+      const rawSessionId = await insertSession(userId, authorizedAt);
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
       const passkeyRegistration = newEmulator.createJSON(
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
-      await db
-        .update(sessions)
-        .set({ passkeyAuthorizedAt: new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS) })
-        .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
 
       const response = await postJson(
         "/users/passkeys",
@@ -572,7 +599,7 @@ describe("POST /users/passkeys", () => {
     });
 
     it("returns 401 authorization_required one second past the 5-minute boundary, registering nothing", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
       const rawSessionId = await insertSession(userId, authorizedAt);
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
@@ -580,6 +607,7 @@ describe("POST /users/passkeys", () => {
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
+      currentTime = new Date(NOON.getTime() + 1000);
 
       const response = await postJson(
         "/users/passkeys",

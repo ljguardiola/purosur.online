@@ -227,21 +227,23 @@ test("registers a passkey directly, without the authorization modal, when the se
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 });
 
-test("opens the authorization modal on authorization_required, then authorizes and redoes the whole registration from fresh options", async () => {
+test("asks for the authorization before any creation ceremony when the registration options require one, then runs the ceremony exactly once", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   const dialog = await openRegisterModal(screen);
 
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+    kind: "authorization_required",
+  });
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
     kind: "ok",
     value: { registrationOptions },
   });
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValueOnce({ kind: "authorization_required" });
   grantAuthorization(services);
-  vi.mocked(services.registerPasskey).mockResolvedValueOnce({ kind: "ok", value: phone });
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
@@ -255,33 +257,32 @@ test("opens the authorization modal on authorization_required, then authorizes a
       ),
     )
     .toBeVisible();
+  expect(services.startRegistration).not.toHaveBeenCalled();
 
   await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  // The registration challenge is single-use and shares its session-scoped row with the
-  // authorization ceremony's own challenge, so redoing it means fetching fresh options and
-  // running the WebAuthn creation ceremony again, not just resending the same result.
-  await expect
-    .poll(() => vi.mocked(services.fetchPasskeyRegistrationChallenge).mock.calls.length)
-    .toBe(2);
-  expect(services.startRegistration).toHaveBeenCalledTimes(2);
-  await expect.poll(() => vi.mocked(services.registerPasskey).mock.calls.length).toBe(2);
+  await expect.poll(() => vi.mocked(services.registerPasskey).mock.calls.length).toBe(1);
+  expect(services.fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(2);
+  expect(services.startRegistration).toHaveBeenCalledTimes(1);
+  expect(services.startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
+  expect(vi.mocked(services.startAuthentication).mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(services.startRegistration).mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(services.registerPasskey).toHaveBeenCalledWith(newRegistration, "Teléfono de Lucía");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 });
 
-test("cancelling the authorization modal keeps the register modal open with its typed name, with no error", async () => {
+test("cancelling the authorization modal keeps the register modal open with its typed name, with no error and no creation ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   const dialog = await openRegisterModal(screen);
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { registrationOptions },
+    kind: "authorization_required",
   });
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "authorization_required" });
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
@@ -297,7 +298,8 @@ test("cancelling the authorization modal keeps the register modal open with its 
     .element(screen.getByRole("dialog", { name: "Registrar una passkey" }).getByRole("textbox"))
     .toHaveValue("Teléfono de Lucía");
   expect(screen.getByText("No se pudo registrar la passkey").query()).toBeNull();
-  expect(services.registerPasskey).toHaveBeenCalledTimes(1);
+  expect(services.startRegistration).not.toHaveBeenCalled();
+  expect(services.registerPasskey).not.toHaveBeenCalled();
 });
 
 test("requires a passkey name before registering, without fetching a challenge or calling the API", async () => {
@@ -453,11 +455,8 @@ test("ends the session when authorizing the registration finds it already closed
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { registrationOptions },
+    kind: "authorization_required",
   });
-  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "authorization_required" });
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "unauthenticated",
   });

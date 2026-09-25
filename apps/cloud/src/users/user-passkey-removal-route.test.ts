@@ -374,6 +374,15 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it("returns not_found for a malformed passkey id before asking for an authorization", async () => {
+    const rawSessionId = await insertSession(administratorId, null);
+
+    const response = await removePasskey(targetId, "not-a-uuid", rawSessionId);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
   it("removes the named passkey, ends every open session of the target, leaves the Administrator's own session untouched, and audits the actor", async () => {
     const targetSession1 = await insertSession(targetId);
     const targetSession2 = await insertSession(targetId);

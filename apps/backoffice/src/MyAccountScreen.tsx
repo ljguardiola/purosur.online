@@ -81,10 +81,9 @@ type RegisterPasskeyModalProps = {
 
 /**
  * Registers another passkey for the signed-in account, confirming with the shared
- * passkey-authorization modal only when the cloud asks for it. The registration challenge is
- * single-use and shares its session-scoped row with the authorization ceremony's own challenge, so
- * a retry after authorizing redoes the whole ceremony from fresh options rather than resubmitting
- * the first attempt's result.
+ * passkey-authorization modal only when the cloud asks for it. The cloud asks already on the
+ * registration options, so the creation ceremony runs only once the session is authorized, and
+ * exactly once per registration.
  */
 function RegisterPasskeyModal({
   isOpen,
@@ -119,9 +118,9 @@ function RegisterPasskeyModal({
     }
   }, [isOpen]);
 
-  // The whole options → creation ceremony → POST /users/passkeys attempt, redone in full on every
-  // retry: the registration challenge is single-use, so reusing an earlier ceremony's result would
-  // only work for the first attempt.
+  // The whole options → creation ceremony → POST /users/passkeys attempt, redone in full on a
+  // retry: the registration challenge shares its session-scoped row with the authorization
+  // ceremony's own challenge, so options fetched before authorizing are gone afterwards.
   async function attemptRegistration(trimmedName: string): Promise<RegisterPasskeyOutcome> {
     const challenge = await fetchPasskeyRegistrationChallenge();
     if (challenge.kind !== "ok") {

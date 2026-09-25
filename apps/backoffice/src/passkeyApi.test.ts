@@ -110,6 +110,14 @@ test("fetchPasskeyRegistrationChallenge reports unauthenticated on 401 and faile
   await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "failed" });
 });
 
+test("fetchPasskeyRegistrationChallenge reports authorization_required on a 401 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({
+    kind: "authorization_required",
+  });
+});
+
 test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "45" }),

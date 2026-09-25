@@ -22,7 +22,7 @@ export type RegistrationChallenge = {
 
 export type FetchPasskeyRegistrationChallengeOutcome =
   | { kind: "ok"; value: RegistrationChallenge }
-  | ErrorOutcome;
+  | GatedActionErrorOutcome;
 
 type ErrorOutcome =
   | { kind: "unauthenticated" }
@@ -93,7 +93,10 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   return { kind: "ok", value: body.map(passkeyFromRow) };
 }
 
-/** Hands back registration options for a new passkey (`POST /users/passkeys/registration-options`). */
+/**
+ * Hands back registration options for a new passkey, gated by the shared passkey-authorization
+ * window (`POST /users/passkeys/registration-options`).
+ */
 export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyRegistrationChallengeOutcome> {
   let response: Response;
   try {
@@ -101,14 +104,8 @@ export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyR
   } catch {
     return { kind: "failed" };
   }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
   if (!response.ok) {
-    return { kind: "failed" };
+    return gatedActionErrorOutcome(response);
   }
   const body = (await response.json()) as {
     passkey_registration_options: PublicKeyCredentialCreationOptionsJSON;

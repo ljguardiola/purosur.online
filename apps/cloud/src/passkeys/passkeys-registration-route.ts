@@ -45,9 +45,10 @@ function readPasskeyName(body: unknown): string | undefined {
  * Registers the two endpoints that add a passkey to an already-open session's account:
  * `registration-options` hands back a registration challenge (excluding the account's existing
  * credentials), and `POST /users/passkeys` verifies it before registering the new credential under
- * the given name — gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) instead of its own reauthentication step-up. Neither ever
- * revokes the session.
+ * the given name. Both are gated by the shared passkey-authorization window
+ * (`passkey-authorization-guard.ts`): gating the options too keeps the browser from running a
+ * creation ceremony (and leaving an orphan credential on the authenticator) before the cloud reveals
+ * that an authorization is missing. Neither ever revokes the session.
  */
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -74,6 +75,9 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
     const issuedAt = now();
     const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
     if (!openSession) {
+      return;
+    }
+    if (!(await requirePasskeyAuthorization(openSession, reply, issuedAt))) {
       return;
     }
 

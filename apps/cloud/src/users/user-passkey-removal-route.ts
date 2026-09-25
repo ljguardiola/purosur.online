@@ -95,13 +95,13 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
         return;
       }
 
-      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-        return;
-      }
-
       const passkeyId = request.params.passkeyId;
       if (!UUID_PATTERN.test(passkeyId)) {
         await reply.code(404).send(PASSKEY_NOT_FOUND_RESPONSE);
+        return;
+      }
+
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

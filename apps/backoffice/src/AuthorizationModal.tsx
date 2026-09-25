@@ -116,7 +116,9 @@ function AuthorizationModal({
  * and only when the cloud answers `authorization_required` opens this passkey-authorization modal.
  * "Usar mi passkey" confirms with `POST /users/session/authorization` and retries the given attempt
  * exactly once, resolving `run`'s promise with whatever that retry answers. Cancel resolves
- * `{ kind: "cancelled" }` and leaves the caller's own form untouched — nothing is retried. A failed
+ * `{ kind: "cancelled" }` and leaves the caller's own form untouched — nothing is retried; a session
+ * found already ended while authorizing also resolves `{ kind: "cancelled" }` after calling
+ * `onSessionEnded`. A failed
  * passkey ceremony or a rejected authorization shows an error inside the modal instead of closing
  * it, so the person can try again or cancel.
  */
@@ -159,13 +161,20 @@ export function useAuthorization<T extends Authorizable>({
     resolve?.({ kind: "cancelled" });
   }
 
+  // Settles `run` as cancelled so the caller stops waiting, and leaves ending the session to
+  // `onSessionEnded` alone, called exactly once here.
+  function endSession() {
+    cancel();
+    onSessionEnded();
+  }
+
   async function confirm() {
     setNotice(null);
     setSubmitting(true);
 
     const optionsOutcome = await fetchSessionAuthorizationOptions();
     if (optionsOutcome.kind === "unauthenticated") {
-      onSessionEnded();
+      endSession();
       return;
     }
     if (optionsOutcome.kind === "rate_limited") {
@@ -190,7 +199,7 @@ export function useAuthorization<T extends Authorizable>({
 
     const authorizeOutcome = await authorizeSession(assertion);
     if (authorizeOutcome.kind === "unauthenticated") {
-      onSessionEnded();
+      endSession();
       return;
     }
     if (authorizeOutcome.kind === "rate_limited") {

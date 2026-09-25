@@ -6,7 +6,7 @@ import WebAuthnEmulator, {
 } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { recoveryTokens, sessions, users } from "../db/schema.js";
+import { passkeyChallenges, recoveryTokens, sessions, users } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -270,44 +270,43 @@ describe("POST /users/session/authorization", () => {
     expect(row?.passkeyAuthorizedAt).toBeNull();
   });
 
-  it("rejects an authorization with no prior options request, setting nothing", async () => {
+  it("rejects a real passkey's assertion over a challenge the server never issued, setting nothing", async () => {
     const rawSessionId = await insertSession(userId);
-
-    const response = await authorize(rawSessionId, {
-      authorization: { id: "not-a-real-credential" },
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-  });
-
-  it("never accepts a registration challenge to authorize the session", async () => {
-    const rawSessionId = await insertSession(userId);
-    const registrationApp = Fastify();
-    const { registerPasskeyRegistrationRoutes } = await import(
-      "../passkeys/passkeys-registration-route.js"
-    );
-    registerPasskeyRegistrationRoutes(registrationApp, {
-      db,
-      backofficeOrigin: BACKOFFICE_ORIGIN,
-      now: () => currentTime,
-    });
-    const registrationOptionsResponse = await registrationApp.inject({
-      method: "POST",
-      url: "/users/passkeys/registration-options",
-      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
-    });
-    expect(registrationOptionsResponse.statusCode).toBe(200);
     const authorization = emulator.getJSON(BACKOFFICE_ORIGIN, {
-      ...registrationOptionsResponse.json().passkey_registration_options,
+      challenge: Buffer.from("a-challenge-never-issued").toString("base64url"),
+      rpId: new URL(BACKOFFICE_ORIGIN).hostname,
       allowCredentials: [],
+      userVerification: "required",
     });
-    await registrationApp.close();
 
     const response = await authorize(rawSessionId, { authorization });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const [row] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    expect(row?.passkeyAuthorizedAt).toBeNull();
+  });
+
+  it("never accepts a challenge pending under the registration kind to authorize the session, even one carrying an assertion challenge", async () => {
+    const rawSessionId = await insertSession(userId);
+    const options = await requestAuthorizationOptions(rawSessionId);
+    const authorization = emulator.getJSON(BACKOFFICE_ORIGIN, options.authorization_options);
+    // Only the kind separates this row from a genuine pending authorization: its
+    // reauthentication challenge is exactly the one the assertion above signed.
+    await db.update(passkeyChallenges).set({ kind: "registration" });
+
+    const response = await authorize(rawSessionId, { authorization });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    const [row] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+    expect(row?.passkeyAuthorizedAt).toBeNull();
   });
 
   it("rejects a replayed authorization (consumes the challenge on first use)", async () => {
