@@ -26,6 +26,10 @@ const STALE_VERSION_RESPONSE = {
   message: "these settings were changed since they were loaded",
 } as const;
 
+function normalizedTime(value: string | null): string | null {
+  return value === null ? null : value.slice(0, 5);
+}
+
 function isValidationFailure(
   value: BranchSettingsEditInput | BranchSettingsFieldValidationFailure,
 ): value is BranchSettingsFieldValidationFailure {
@@ -57,18 +61,18 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
     // change out from under this transaction while it holds the lock.
     const [current] = await tx
       .select({
-        businessName: branchSettings.businessName,
         address: branchSettings.address,
         whatsappNumber: branchSettings.whatsappNumber,
         instagramHandle: branchSettings.instagramHandle,
-        weekdayHours: branchSettings.weekdayHours,
-        saturdayHours: branchSettings.saturdayHours,
-        sundayHours: branchSettings.sundayHours,
-        timezone: branchSettings.timezone,
+        weekdayOpensAt: branchSettings.weekdayOpensAt,
+        weekdayClosesAt: branchSettings.weekdayClosesAt,
+        saturdayOpensAt: branchSettings.saturdayOpensAt,
+        saturdayClosesAt: branchSettings.saturdayClosesAt,
+        sundayOpensAt: branchSettings.sundayOpensAt,
+        sundayClosesAt: branchSettings.sundayClosesAt,
         expiringLotAlertDays: branchSettings.expiringLotAlertDays,
         unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
         goodConditionReturnDays: branchSettings.goodConditionReturnDays,
-        defectiveReturnDays: branchSettings.defectiveReturnDays,
         version: branchSettings.version,
       })
       .from(branchSettings)
@@ -85,32 +89,36 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
     }
 
     const next: Omit<BranchSettingsRow, "version"> = {
-      businessName: input.businessName,
       address: input.address,
       whatsappNumber: input.whatsappNumber,
       instagramHandle: input.instagramHandle,
-      weekdayHours: input.weekdayHours,
-      saturdayHours: input.saturdayHours,
-      sundayHours: input.sundayHours,
-      timezone: input.timezone,
+      weekdayOpensAt: input.weekdayHours.opensAt,
+      weekdayClosesAt: input.weekdayHours.closesAt,
+      saturdayOpensAt: input.saturdayHours.opensAt,
+      saturdayClosesAt: input.saturdayHours.closesAt,
+      sundayOpensAt: input.sundayHours.opensAt,
+      sundayClosesAt: input.sundayHours.closesAt,
       expiringLotAlertDays: input.expiringLotAlertDays,
       unreviewedPriceAlertDays: input.unreviewedPriceAlertDays,
       goodConditionReturnDays: input.goodConditionReturnDays,
-      defectiveReturnDays: input.defectiveReturnDays,
     };
+    // Postgres' own `time` type answers with seconds ("09:00:00") while every submitted value is
+    // plain "HH:MM", so a same-value save is compared on that shared HH:MM shape rather than on
+    // the raw column strings, which would never compare equal and would bump the version (and
+    // audit) on every no-op save.
     const unchanged =
-      current.businessName === next.businessName &&
       current.address === next.address &&
       current.whatsappNumber === next.whatsappNumber &&
       current.instagramHandle === next.instagramHandle &&
-      current.weekdayHours === next.weekdayHours &&
-      current.saturdayHours === next.saturdayHours &&
-      current.sundayHours === next.sundayHours &&
-      current.timezone === next.timezone &&
+      normalizedTime(current.weekdayOpensAt) === normalizedTime(next.weekdayOpensAt) &&
+      normalizedTime(current.weekdayClosesAt) === normalizedTime(next.weekdayClosesAt) &&
+      normalizedTime(current.saturdayOpensAt) === normalizedTime(next.saturdayOpensAt) &&
+      normalizedTime(current.saturdayClosesAt) === normalizedTime(next.saturdayClosesAt) &&
+      normalizedTime(current.sundayOpensAt) === normalizedTime(next.sundayOpensAt) &&
+      normalizedTime(current.sundayClosesAt) === normalizedTime(next.sundayClosesAt) &&
       current.expiringLotAlertDays === next.expiringLotAlertDays &&
       current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
-      current.goodConditionReturnDays === next.goodConditionReturnDays &&
-      current.defectiveReturnDays === next.defectiveReturnDays;
+      current.goodConditionReturnDays === next.goodConditionReturnDays;
 
     if (unchanged) {
       return { kind: "applied", row: { ...current } };

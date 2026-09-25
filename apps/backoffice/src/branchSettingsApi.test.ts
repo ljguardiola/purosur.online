@@ -14,34 +14,28 @@ afterEach(() => {
 });
 
 const wireRow = {
-  business_name: "Puro Sur",
   address: "Av. Belgrano 1450, CABA",
   whatsapp_number: "+54 9 11 3333-2211",
   instagram_handle: "@purosur.dietetica",
-  weekday_hours: "9:00 a 20:00",
-  saturday_hours: "9:00 a 13:30",
-  sunday_hours: "Cerrado",
-  timezone: "America/Argentina/Buenos_Aires",
+  weekday_hours: { opens_at: "09:00", closes_at: "20:00" },
+  saturday_hours: { opens_at: "09:00", closes_at: "13:30" },
+  sunday_hours: null,
   expiring_lot_alert_days: 30,
   unreviewed_price_alert_days: 30,
   good_condition_return_days: 15,
-  defective_return_days: 180,
   version: 1,
 };
 
 const settings: BranchSettings = {
-  businessName: "Puro Sur",
   address: "Av. Belgrano 1450, CABA",
   whatsappNumber: "+54 9 11 3333-2211",
   instagramHandle: "@purosur.dietetica",
-  weekdayHours: "9:00 a 20:00",
-  saturdayHours: "9:00 a 13:30",
-  sundayHours: "Cerrado",
-  timezone: "America/Argentina/Buenos_Aires",
+  weekdayHours: { opensAt: "09:00", closesAt: "20:00" },
+  saturdayHours: { opensAt: "09:00", closesAt: "13:30" },
+  sundayHours: null,
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
-  defectiveReturnDays: 180,
   version: 1,
 };
 
@@ -95,14 +89,15 @@ test("saveBranchSettings maps a 400 validation_failed to its field", async () =>
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, {
       code: "validation_failed",
-      message: "timezone must be a supported IANA time zone identifier",
-      details: [{ field: "timezone" }],
+      message:
+        "weekday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
+      details: [{ field: "weekday_hours" }],
     }),
   );
 
   expect(await saveBranchSettings(settings)).toEqual({
     kind: "validation_failed",
-    field: "timezone",
+    field: "weekday_hours",
   });
 });
 

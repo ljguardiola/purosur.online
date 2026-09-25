@@ -646,18 +646,15 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
   vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
     kind: "ok",
     value: {
-      businessName: "Puro Sur",
       address: "",
       whatsappNumber: "",
       instagramHandle: "",
-      weekdayHours: "",
-      saturdayHours: "",
-      sundayHours: "",
-      timezone: "America/Argentina/Buenos_Aires",
+      weekdayHours: null,
+      saturdayHours: null,
+      sundayHours: null,
       expiringLotAlertDays: 30,
       unreviewedPriceAlertDays: 30,
       goodConditionReturnDays: 15,
-      defectiveReturnDays: 180,
       version: 1,
     },
   });

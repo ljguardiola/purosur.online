@@ -1,58 +1,41 @@
 // No field-specific length is documented anywhere in the codebase (the same gap
 // `user-creation-route.ts` notes for `first_name`), so every free-text field here shares one
-// generous bound: long enough for a ticket header line or a schedule note, short enough to guard
-// against an unbounded payload.
+// generous bound: long enough for a ticket header line, short enough to guard against an
+// unbounded payload.
 export const BRANCH_SETTINGS_TEXT_MAX_LENGTH = 200;
 
-/**
- * `Intl.supportedValuesOf("timeZone")` only lists ICU's canonical zone names, not every valid IANA
- * identifier: it omits links like `America/Argentina/Buenos_Aires` (the schema's own seeded
- * default, an alias of the canonical `America/Buenos_Aires`), so checking membership in that list
- * would reject the very value every branch starts with. Constructing an `Intl.DateTimeFormat` with
- * the candidate as its `timeZone` throws for a genuinely invalid identifier while accepting both
- * canonical names and their aliases, so that is what actually validates "is this a real IANA time
- * zone id" here.
- */
-function isSupportedTimeZone(candidate: string): boolean {
-  try {
-    new Intl.DateTimeFormat(undefined, { timeZone: candidate });
-    return true;
-  } catch {
-    return false;
-  }
-}
+const HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export type BranchSettingsHoursGroup = "weekday_hours" | "saturday_hours" | "sunday_hours";
 
 export interface BranchSettingsFieldValidationFailure {
   field:
-    | "business_name"
     | "address"
     | "whatsapp_number"
     | "instagram_handle"
-    | "weekday_hours"
-    | "saturday_hours"
-    | "sunday_hours"
-    | "timezone"
+    | BranchSettingsHoursGroup
     | "expiring_lot_alert_days"
     | "unreviewed_price_alert_days"
     | "good_condition_return_days"
-    | "defective_return_days"
     | "version";
   message: string;
 }
 
+export interface BranchSettingsHours {
+  opensAt: string | null;
+  closesAt: string | null;
+}
+
 export interface BranchSettingsEditInput {
-  businessName: string;
   address: string;
   whatsappNumber: string;
   instagramHandle: string;
-  weekdayHours: string;
-  saturdayHours: string;
-  sundayHours: string;
-  timezone: string;
+  weekdayHours: BranchSettingsHours;
+  saturdayHours: BranchSettingsHours;
+  sundayHours: BranchSettingsHours;
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
-  defectiveReturnDays: number;
   version: number;
 }
 
@@ -65,24 +48,39 @@ function readText(body: unknown, key: string): string | undefined {
   return trimmed.length <= BRANCH_SETTINGS_TEXT_MAX_LENGTH ? trimmed : undefined;
 }
 
-function readTimezone(body: unknown): string | undefined {
-  const raw = (body as { timezone?: unknown } | undefined)?.timezone;
-  return typeof raw === "string" && raw.length > 0 && isSupportedTimeZone(raw) ? raw : undefined;
+/**
+ * Reads one hours group: `null` (closed) or `{ opens_at, closes_at }`, each a zero-padded 24h
+ * `HH:MM`, with `closes_at` strictly later than `opens_at`. Comparing the two as plain strings is
+ * enough because that format sorts the same way it reads: no calendar arithmetic is needed to
+ * tell "09:00" is before "18:00".
+ */
+function readHoursGroup(
+  body: unknown,
+  key: BranchSettingsHoursGroup,
+): BranchSettingsHours | undefined {
+  const raw = (body as Record<string, unknown> | undefined)?.[key];
+  if (raw === null) {
+    return { opensAt: null, closesAt: null };
+  }
+  if (typeof raw !== "object" || raw === undefined) {
+    return undefined;
+  }
+  const { opens_at: opensAt, closes_at: closesAt } = raw as Record<string, unknown>;
+  if (
+    typeof opensAt !== "string" ||
+    typeof closesAt !== "string" ||
+    !HOURS_TIME_PATTERN.test(opensAt) ||
+    !HOURS_TIME_PATTERN.test(closesAt) ||
+    closesAt <= opensAt
+  ) {
+    return undefined;
+  }
+  return { opensAt, closesAt };
 }
 
 function readNonNegativeInteger(body: unknown, key: string): number | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.[key];
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : undefined;
-}
-
-/**
- * The window for returning a defective product has a legal floor of 180 days (six months) that a
- * branch can never shorten, because it comes from a warranty the law doesn't allow reducing
- * against the buyer; the window for a product in good condition has no such floor.
- */
-function readDefectiveReturnDays(body: unknown): number | undefined {
-  const raw = (body as { defective_return_days?: unknown } | undefined)?.defective_return_days;
-  return typeof raw === "number" && Number.isInteger(raw) && raw >= 180 ? raw : undefined;
 }
 
 function readVersion(body: unknown): number | undefined {
@@ -92,19 +90,13 @@ function readVersion(body: unknown): number | undefined {
 
 /**
  * Parses and validates a `PUT /branch-settings` body, mirroring how `role-validation.ts` reads and
- * validates a role edit. Every text field may be empty: the ticket header and hours are optional
- * until the branch fills them in, the same way the seeded row's own defaults are empty strings.
+ * validates a role edit. Every text field may be empty and every hours group may be closed: the
+ * ticket header and hours are optional until the branch fills them in, the same way the seeded
+ * row's own defaults are empty strings and closed groups.
  */
 export function readBranchSettingsEditBody(
   body: unknown,
 ): BranchSettingsEditInput | BranchSettingsFieldValidationFailure {
-  const businessName = readText(body, "business_name");
-  if (businessName === undefined) {
-    return {
-      field: "business_name",
-      message: `business_name must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
-    };
-  }
   const address = readText(body, "address");
   if (address === undefined) {
     return {
@@ -126,32 +118,27 @@ export function readBranchSettingsEditBody(
       message: `instagram_handle must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
     };
   }
-  const weekdayHours = readText(body, "weekday_hours");
+  const weekdayHours = readHoursGroup(body, "weekday_hours");
   if (weekdayHours === undefined) {
     return {
       field: "weekday_hours",
-      message: `weekday_hours must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
+      message:
+        "weekday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
     };
   }
-  const saturdayHours = readText(body, "saturday_hours");
+  const saturdayHours = readHoursGroup(body, "saturday_hours");
   if (saturdayHours === undefined) {
     return {
       field: "saturday_hours",
-      message: `saturday_hours must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
+      message:
+        "saturday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
     };
   }
-  const sundayHours = readText(body, "sunday_hours");
+  const sundayHours = readHoursGroup(body, "sunday_hours");
   if (sundayHours === undefined) {
     return {
       field: "sunday_hours",
-      message: `sunday_hours must be a string of at most ${BRANCH_SETTINGS_TEXT_MAX_LENGTH} characters`,
-    };
-  }
-  const timezone = readTimezone(body);
-  if (timezone === undefined) {
-    return {
-      field: "timezone",
-      message: "timezone must be a supported IANA time zone identifier",
+      message: "sunday_hours must be null or an HH:MM opens_at/closes_at pair with closes_at later",
     };
   }
   const expiringLotAlertDays = readNonNegativeInteger(body, "expiring_lot_alert_days");
@@ -175,14 +162,6 @@ export function readBranchSettingsEditBody(
       message: "good_condition_return_days must be an integer of at least 0",
     };
   }
-  const defectiveReturnDays = readDefectiveReturnDays(body);
-  if (defectiveReturnDays === undefined) {
-    return {
-      field: "defective_return_days",
-      message:
-        "defective_return_days must be an integer of at least 180: the legal floor a branch can never shorten",
-    };
-  }
   const version = readVersion(body);
   if (version === undefined) {
     return {
@@ -192,18 +171,15 @@ export function readBranchSettingsEditBody(
   }
 
   return {
-    businessName,
     address,
     whatsappNumber,
     instagramHandle,
     weekdayHours,
     saturdayHours,
     sundayHours,
-    timezone,
     expiringLotAlertDays,
     unreviewedPriceAlertDays,
     goodConditionReturnDays,
-    defectiveReturnDays,
     version,
   };
 }

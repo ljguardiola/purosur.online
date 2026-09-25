@@ -201,19 +201,39 @@ describe("GET /branch-settings", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      business_name: "",
       address: "",
       whatsapp_number: "",
       instagram_handle: "",
-      weekday_hours: "",
-      saturday_hours: "",
-      sunday_hours: "",
-      timezone: "America/Argentina/Buenos_Aires",
+      weekday_hours: null,
+      saturday_hours: null,
+      sunday_hours: null,
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
-      defective_return_days: 180,
       version: 1,
+    });
+  });
+
+  it("returns a group's hours as opens_at/closes_at once it has both set", async () => {
+    const ownLocationId = await seededLocationId(db);
+    await db
+      .update(branchSettings)
+      .set({ weekdayOpensAt: "09:00", weekdayClosesAt: "18:00" })
+      .where(eq(branchSettings.locationId, ownLocationId));
+
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: ownLocationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getBranchSettings(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      weekday_hours: { opens_at: "09:00", closes_at: "18:00" },
     });
   });
 
@@ -221,7 +241,7 @@ describe("GET /branch-settings", () => {
     const ownLocationId = await seededLocationId(db);
     await db
       .update(branchSettings)
-      .set({ businessName: "Puro Sur - Centro" })
+      .set({ address: "Av. Centro 100" })
       .where(eq(branchSettings.locationId, ownLocationId));
 
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
@@ -230,7 +250,7 @@ describe("GET /branch-settings", () => {
     }
     await db.insert(branchSettings).values({
       locationId: otherLocation.id,
-      businessName: "Puro Sur - Norte",
+      address: "Av. Norte 200",
     });
 
     const administratorId = await insertUser({
@@ -244,6 +264,6 @@ describe("GET /branch-settings", () => {
     const response = await getBranchSettings(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ business_name: "Puro Sur - Centro" });
+    expect(response.json()).toMatchObject({ address: "Av. Centro 100" });
   });
 });

@@ -33,18 +33,15 @@ function editInput(locationId: string, actorId: string, overrides: Record<string
   return {
     locationId,
     actorId,
-    businessName: "",
     address: "",
     whatsappNumber: "",
     instagramHandle: "",
-    weekdayHours: "",
-    saturdayHours: "",
-    sundayHours: "",
-    timezone: "America/Argentina/Buenos_Aires",
+    weekdayHours: { opensAt: null, closesAt: null },
+    saturdayHours: { opensAt: null, closesAt: null },
+    sundayHours: { opensAt: null, closesAt: null },
     expiringLotAlertDays: 30,
     unreviewedPriceAlertDays: 30,
     goodConditionReturnDays: 15,
-    defectiveReturnDays: 180,
     version: 1,
     ...overrides,
   };
@@ -66,11 +63,11 @@ describe("two saves racing on the same branch's settings version, on a real Post
     const [first, second] = await Promise.all([
       editBranchSettings(
         db,
-        editInput(locationId, actorId, { businessName: "Puro Sur - Primera edición" }),
+        editInput(locationId, actorId, { address: "Puro Sur - Primera edición" }),
       ),
       editBranchSettings(
         db,
-        editInput(locationId, actorId, { businessName: "Puro Sur - Segunda edición" }),
+        editInput(locationId, actorId, { address: "Puro Sur - Segunda edición" }),
       ),
     ]);
 
@@ -88,7 +85,7 @@ describe("two saves racing on the same branch's settings version, on a real Post
     if (winner?.kind !== "applied") {
       throw new Error("test setup: expected one save to have won the race");
     }
-    expect(row?.businessName).toBe(winner.row.businessName);
+    expect(row?.address).toBe(winner.row.address);
 
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
     expect(audited.filter((entry) => entry.entity === "branch_settings")).toHaveLength(1);

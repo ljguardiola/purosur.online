@@ -1,48 +1,43 @@
+export type BranchSettingsHours = { opensAt: string; closesAt: string } | null;
+
 export type BranchSettings = {
-  businessName: string;
   address: string;
   whatsappNumber: string;
   instagramHandle: string;
-  weekdayHours: string;
-  saturdayHours: string;
-  sundayHours: string;
-  timezone: string;
+  weekdayHours: BranchSettingsHours;
+  saturdayHours: BranchSettingsHours;
+  sundayHours: BranchSettingsHours;
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
-  defectiveReturnDays: number;
   version: number;
 };
 
+export type BranchSettingsHoursWire = { opens_at: string; closes_at: string } | null;
+
 export type BranchSettingsWire = {
-  business_name: string;
   address: string;
   whatsapp_number: string;
   instagram_handle: string;
-  weekday_hours: string;
-  saturday_hours: string;
-  sunday_hours: string;
-  timezone: string;
+  weekday_hours: BranchSettingsHoursWire;
+  saturday_hours: BranchSettingsHoursWire;
+  sunday_hours: BranchSettingsHoursWire;
   expiring_lot_alert_days: number;
   unreviewed_price_alert_days: number;
   good_condition_return_days: number;
-  defective_return_days: number;
   version: number;
 };
 
 export type BranchSettingsField =
-  | "business_name"
   | "address"
   | "whatsapp_number"
   | "instagram_handle"
   | "weekday_hours"
   | "saturday_hours"
   | "sunday_hours"
-  | "timezone"
   | "expiring_lot_alert_days"
   | "unreviewed_price_alert_days"
   | "good_condition_return_days"
-  | "defective_return_days"
   | "version";
 
 export type FetchBranchSettingsOutcome =
@@ -59,56 +54,55 @@ export type SaveBranchSettingsOutcome =
   | { kind: "unauthenticated" }
   | { kind: "failed" };
 
+function hoursFromWire(hours: BranchSettingsHoursWire): BranchSettingsHours {
+  return hours === null ? null : { opensAt: hours.opens_at, closesAt: hours.closes_at };
+}
+
+function hoursToWire(hours: BranchSettingsHours): BranchSettingsHoursWire {
+  return hours === null ? null : { opens_at: hours.opensAt, closes_at: hours.closesAt };
+}
+
 function branchSettingsFromWire(row: BranchSettingsWire): BranchSettings {
   return {
-    businessName: row.business_name,
     address: row.address,
     whatsappNumber: row.whatsapp_number,
     instagramHandle: row.instagram_handle,
-    weekdayHours: row.weekday_hours,
-    saturdayHours: row.saturday_hours,
-    sundayHours: row.sunday_hours,
-    timezone: row.timezone,
+    weekdayHours: hoursFromWire(row.weekday_hours),
+    saturdayHours: hoursFromWire(row.saturday_hours),
+    sundayHours: hoursFromWire(row.sunday_hours),
     expiringLotAlertDays: row.expiring_lot_alert_days,
     unreviewedPriceAlertDays: row.unreviewed_price_alert_days,
     goodConditionReturnDays: row.good_condition_return_days,
-    defectiveReturnDays: row.defective_return_days,
     version: row.version,
   };
 }
 
 function branchSettingsToWire(settings: BranchSettings): BranchSettingsWire {
   return {
-    business_name: settings.businessName,
     address: settings.address,
     whatsapp_number: settings.whatsappNumber,
     instagram_handle: settings.instagramHandle,
-    weekday_hours: settings.weekdayHours,
-    saturday_hours: settings.saturdayHours,
-    sunday_hours: settings.sundayHours,
-    timezone: settings.timezone,
+    weekday_hours: hoursToWire(settings.weekdayHours),
+    saturday_hours: hoursToWire(settings.saturdayHours),
+    sunday_hours: hoursToWire(settings.sundayHours),
     expiring_lot_alert_days: settings.expiringLotAlertDays,
     unreviewed_price_alert_days: settings.unreviewedPriceAlertDays,
     good_condition_return_days: settings.goodConditionReturnDays,
-    defective_return_days: settings.defectiveReturnDays,
     version: settings.version,
   };
 }
 
 function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | undefined {
   const fields: readonly BranchSettingsField[] = [
-    "business_name",
     "address",
     "whatsapp_number",
     "instagram_handle",
     "weekday_hours",
     "saturday_hours",
     "sunday_hours",
-    "timezone",
     "expiring_lot_alert_days",
     "unreviewed_price_alert_days",
     "good_condition_return_days",
-    "defective_return_days",
     "version",
   ];
   return fields.find((candidate) => candidate === field);

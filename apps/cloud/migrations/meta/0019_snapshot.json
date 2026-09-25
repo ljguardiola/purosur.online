@@ -1,5 +1,5 @@
 {
-  "id": "3fd53576-1b12-4cb7-9ede-68c55490bd79",
+  "id": "515e5d3c-de88-4e2f-9584-217eac4b02e9",
   "prevId": "a520fcd0-411f-42ba-b1f4-a6cd31743382",
   "version": "7",
   "dialect": "postgresql",
@@ -163,13 +163,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "business_name": {
-          "name": "business_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
         "address": {
           "name": "address",
           "type": "text",
@@ -191,33 +184,41 @@
           "notNull": true,
           "default": "''"
         },
-        "weekday_hours": {
-          "name": "weekday_hours",
-          "type": "text",
+        "weekday_opens_at": {
+          "name": "weekday_opens_at",
+          "type": "time",
           "primaryKey": false,
-          "notNull": true,
-          "default": "''"
+          "notNull": false
         },
-        "saturday_hours": {
-          "name": "saturday_hours",
-          "type": "text",
+        "weekday_closes_at": {
+          "name": "weekday_closes_at",
+          "type": "time",
           "primaryKey": false,
-          "notNull": true,
-          "default": "''"
+          "notNull": false
         },
-        "sunday_hours": {
-          "name": "sunday_hours",
-          "type": "text",
+        "saturday_opens_at": {
+          "name": "saturday_opens_at",
+          "type": "time",
           "primaryKey": false,
-          "notNull": true,
-          "default": "''"
+          "notNull": false
         },
-        "timezone": {
-          "name": "timezone",
-          "type": "text",
+        "saturday_closes_at": {
+          "name": "saturday_closes_at",
+          "type": "time",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'America/Argentina/Buenos_Aires'"
+          "notNull": false
+        },
+        "sunday_opens_at": {
+          "name": "sunday_opens_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sunday_closes_at": {
+          "name": "sunday_closes_at",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
         },
         "expiring_lot_alert_days": {
           "name": "expiring_lot_alert_days",
@@ -239,13 +240,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 15
-        },
-        "defective_return_days": {
-          "name": "defective_return_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 180
         },
         "version": {
           "name": "version",
@@ -271,9 +265,17 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "branch_settings_defective_return_days_floor": {
-          "name": "branch_settings_defective_return_days_floor",
-          "value": "\"branch_settings\".\"defective_return_days\" >= 180"
+        "branch_settings_weekday_hours_shape": {
+          "name": "branch_settings_weekday_hours_shape",
+          "value": "(\"branch_settings\".\"weekday_opens_at\" IS NULL AND \"branch_settings\".\"weekday_closes_at\" IS NULL) OR (\"branch_settings\".\"weekday_opens_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" > \"branch_settings\".\"weekday_opens_at\")"
+        },
+        "branch_settings_saturday_hours_shape": {
+          "name": "branch_settings_saturday_hours_shape",
+          "value": "(\"branch_settings\".\"saturday_opens_at\" IS NULL AND \"branch_settings\".\"saturday_closes_at\" IS NULL) OR (\"branch_settings\".\"saturday_opens_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" > \"branch_settings\".\"saturday_opens_at\")"
+        },
+        "branch_settings_sunday_hours_shape": {
+          "name": "branch_settings_sunday_hours_shape",
+          "value": "(\"branch_settings\".\"sunday_opens_at\" IS NULL AND \"branch_settings\".\"sunday_closes_at\" IS NULL) OR (\"branch_settings\".\"sunday_opens_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" > \"branch_settings\".\"sunday_opens_at\")"
         }
       },
       "isRLSEnabled": false

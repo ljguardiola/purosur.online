@@ -114,18 +114,15 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    business_name: "Puro Sur - Centro",
     address: "Av. Siempre Viva 742",
     whatsapp_number: "+54 9 11 5555-5555",
     instagram_handle: "@purosur",
-    weekday_hours: "9 a 19",
-    saturday_hours: "9 a 13",
-    sunday_hours: "Cerrado",
-    timezone: "America/Argentina/Buenos_Aires",
+    weekday_hours: { opens_at: "09:00", closes_at: "19:00" },
+    saturday_hours: { opens_at: "09:00", closes_at: "13:00" },
+    sunday_hours: null,
     expiring_lot_alert_days: 30,
     unreviewed_price_alert_days: 30,
     good_condition_return_days: 15,
-    defective_return_days: 180,
     version: 1,
     ...overrides,
   };
@@ -198,7 +195,7 @@ describe("PUT /branch-settings", () => {
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ businessName: "", version: 1 });
+    expect(row).toMatchObject({ address: "", version: 1 });
   });
 
   it("allows the Administrator, who holds every permission implicitly", async () => {
@@ -248,7 +245,7 @@ describe("PUT /branch-settings", () => {
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ businessName: "Puro Sur - Centro", version: 2 });
+    expect(row).toMatchObject({ address: "Av. Siempre Viva 742", version: 2 });
   });
 
   it("makes the change visible to a subsequent GET /branch-settings", async () => {
@@ -285,8 +282,8 @@ describe("PUT /branch-settings", () => {
       entity: "branch_settings",
       entityId: locationId,
       actorId: administratorId,
-      previousValue: { business_name: "", version: 1 },
-      newValue: { business_name: "Puro Sur - Centro", version: 2 },
+      previousValue: { address: "", version: 1 },
+      newValue: { address: "Av. Siempre Viva 742", version: 2 },
     });
   });
 
@@ -300,18 +297,15 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
     const locationId = await seededLocationId(db);
     const seededDefaults = {
-      business_name: "",
       address: "",
       whatsapp_number: "",
       instagram_handle: "",
-      weekday_hours: "",
-      saturday_hours: "",
-      sunday_hours: "",
-      timezone: "America/Argentina/Buenos_Aires",
+      weekday_hours: null,
+      saturday_hours: null,
+      sunday_hours: null,
       expiring_lot_alert_days: 30,
       unreviewed_price_alert_days: 30,
       good_condition_return_days: 15,
-      defective_return_days: 180,
       version: 1,
     };
 
@@ -326,51 +320,6 @@ describe("PUT /branch-settings", () => {
     expect(row).toMatchObject({ version: 1 });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
     expect(audited).toHaveLength(0);
-  });
-
-  it("rejects a defective return window of 179 days, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-    const locationId = await seededLocationId(db);
-
-    const response = await putBranchSettings(
-      validBody({ defective_return_days: 179 }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "defective_return_days" }],
-    });
-    const [row] = await db
-      .select()
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ defectiveReturnDays: 180, version: 1 });
-  });
-
-  it("accepts a defective return window of exactly 180 days", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({ defective_return_days: 180 }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ defective_return_days: 180 });
   });
 
   it("accepts a good-condition return window of exactly 0 days, which has no floor", async () => {
@@ -391,7 +340,7 @@ describe("PUT /branch-settings", () => {
     expect(response.json()).toMatchObject({ good_condition_return_days: 0 });
   });
 
-  it("rejects a timezone that is not a supported IANA identifier, changing nothing", async () => {
+  it("rejects an hours group where closing isn't later than opening, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -402,20 +351,124 @@ describe("PUT /branch-settings", () => {
     const locationId = await seededLocationId(db);
 
     const response = await putBranchSettings(
-      validBody({ timezone: "Not/A_Real_Zone" }),
+      validBody({ weekday_hours: { opens_at: "18:00", closes_at: "09:00" } }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "timezone" }],
+      details: [{ field: "weekday_hours" }],
     });
     const [row] = await db
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ timezone: "America/Argentina/Buenos_Aires", version: 1 });
+    expect(row).toMatchObject({ weekdayOpensAt: null, weekdayClosesAt: null, version: 1 });
+  });
+
+  it("rejects an hours group with a closing time equal to its opening time, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ saturday_hours: { opens_at: "09:00", closes_at: "09:00" } }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "saturday_hours" }],
+    });
+  });
+
+  it("rejects an hours group with a time that isn't a zero-padded HH:MM, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ weekday_hours: { opens_at: "9:00", closes_at: "19:00" } }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "weekday_hours" }],
+    });
+  });
+
+  it("rejects an hours group missing one of its two times, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ sunday_hours: { opens_at: "09:00" } }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "sunday_hours" }],
+    });
+  });
+
+  it("accepts every group closed (null), the seeded default", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ weekday_hours: null, saturday_hours: null, sunday_hours: null }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      weekday_hours: null,
+      saturday_hours: null,
+      sunday_hours: null,
+    });
+  });
+
+  it("ignores fields removed from the contract, such as business_name or timezone, when a client still sends them", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await putBranchSettings(
+      validBody({ business_name: "Legacy name", timezone: "America/Argentina/Buenos_Aires" }),
+      rawSessionId,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).not.toHaveProperty("business_name");
+    expect(response.json()).not.toHaveProperty("timezone");
   });
 
   it("rejects a non-integer window value, changing nothing", async () => {
@@ -463,7 +516,7 @@ describe("PUT /branch-settings", () => {
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ businessName: "", version: 1 });
+    expect(row).toMatchObject({ address: "", version: 1 });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, locationId));
     expect(audited).toHaveLength(0);
   });
@@ -490,6 +543,54 @@ describe("PUT /branch-settings", () => {
       .select()
       .from(branchSettings)
       .where(eq(branchSettings.locationId, otherLocation.id));
-    expect(otherRow).toMatchObject({ businessName: "", version: 1 });
+    expect(otherRow).toMatchObject({ address: "", version: 1 });
+  });
+});
+
+describe("branch_settings' hours CHECK constraints, enforced at the database itself", () => {
+  it("rejects an hours group with only one of its two times set, even bypassing the route", async () => {
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other location returned no row");
+    }
+
+    await expect(
+      db.insert(branchSettings).values({
+        locationId: otherLocation.id,
+        weekdayOpensAt: "09:00",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects an hours group whose closing time isn't later than its opening time, even bypassing the route", async () => {
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other location returned no row");
+    }
+
+    await expect(
+      db.insert(branchSettings).values({
+        locationId: otherLocation.id,
+        saturdayOpensAt: "13:00",
+        saturdayClosesAt: "09:00",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("accepts a fully closed group and a fully open group", async () => {
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: seeding the other location returned no row");
+    }
+
+    await expect(
+      db.insert(branchSettings).values({
+        locationId: otherLocation.id,
+        sundayOpensAt: null,
+        sundayClosesAt: null,
+        weekdayOpensAt: "09:00",
+        weekdayClosesAt: "18:00",
+      }),
+    ).resolves.not.toThrow();
   });
 });

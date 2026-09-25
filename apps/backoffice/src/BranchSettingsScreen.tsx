@@ -1,7 +1,7 @@
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { Button, Checkbox, InlineNotice, TextField } from "@purosur/ui";
 import { Check, RotateCcw, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import type { BranchSettings, BranchSettingsField } from "./branchSettingsApi";
+import { useCallback, useEffect, useId, useState } from "react";
+import type { BranchSettings, BranchSettingsField, BranchSettingsHours } from "./branchSettingsApi";
 import { fetchBranchSettings, saveBranchSettings } from "./branchSettingsApi";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
@@ -29,59 +29,58 @@ type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" } | { kind:
 type DaysFieldName =
   | "expiringLotAlertDays"
   | "unreviewedPriceAlertDays"
-  | "goodConditionReturnDays"
-  | "defectiveReturnDays";
+  | "goodConditionReturnDays";
 
-type TextFieldName =
-  | "businessName"
-  | "address"
-  | "whatsappNumber"
-  | "instagramHandle"
-  | "weekdayHours"
-  | "saturdayHours"
-  | "sundayHours"
-  | "timezone";
+type TextFieldName = "address" | "whatsappNumber" | "instagramHandle";
 
-type FormValues = Record<TextFieldName, string> & Record<DaysFieldName, string>;
+type HoursGroupName = "weekday" | "saturday" | "sunday";
+
+type FieldErrorKey = TextFieldName | DaysFieldName | HoursGroupName;
+
+type HoursGroupValues = { opensAt: string; closesAt: string; closed: boolean };
+
+type FormValues = Record<TextFieldName, string> &
+  Record<DaysFieldName, string> &
+  Record<HoursGroupName, HoursGroupValues>;
 
 const branchMessages = messages.settings.branch;
 
-const WIRE_FIELD_OF: Record<TextFieldName | DaysFieldName, BranchSettingsField> = {
-  businessName: "business_name",
+const WIRE_FIELD_OF: Record<FieldErrorKey, BranchSettingsField> = {
   address: "address",
   whatsappNumber: "whatsapp_number",
   instagramHandle: "instagram_handle",
-  weekdayHours: "weekday_hours",
-  saturdayHours: "saturday_hours",
-  sundayHours: "sunday_hours",
-  timezone: "timezone",
+  weekday: "weekday_hours",
+  saturday: "saturday_hours",
+  sunday: "sunday_hours",
   expiringLotAlertDays: "expiring_lot_alert_days",
   unreviewedPriceAlertDays: "unreviewed_price_alert_days",
   goodConditionReturnDays: "good_condition_return_days",
-  defectiveReturnDays: "defective_return_days",
 };
 
-function fieldNameOfWire(field: BranchSettingsField): TextFieldName | DaysFieldName | undefined {
-  const entry = (
-    Object.entries(WIRE_FIELD_OF) as [TextFieldName | DaysFieldName, BranchSettingsField][]
-  ).find(([, wire]) => wire === field);
+function fieldNameOfWire(field: BranchSettingsField): FieldErrorKey | undefined {
+  const entry = (Object.entries(WIRE_FIELD_OF) as [FieldErrorKey, BranchSettingsField][]).find(
+    ([, wire]) => wire === field,
+  );
   return entry?.[0];
+}
+
+function hoursGroupValuesFrom(hours: BranchSettingsHours): HoursGroupValues {
+  return hours === null
+    ? { opensAt: "", closesAt: "", closed: true }
+    : { opensAt: hours.opensAt, closesAt: hours.closesAt, closed: false };
 }
 
 function valuesFrom(settings: BranchSettings): FormValues {
   return {
-    businessName: settings.businessName,
     address: settings.address,
     whatsappNumber: settings.whatsappNumber,
     instagramHandle: settings.instagramHandle,
-    weekdayHours: settings.weekdayHours,
-    saturdayHours: settings.saturdayHours,
-    sundayHours: settings.sundayHours,
-    timezone: settings.timezone,
+    weekday: hoursGroupValuesFrom(settings.weekdayHours),
+    saturday: hoursGroupValuesFrom(settings.saturdayHours),
+    sunday: hoursGroupValuesFrom(settings.sundayHours),
     expiringLotAlertDays: String(settings.expiringLotAlertDays),
     unreviewedPriceAlertDays: String(settings.unreviewedPriceAlertDays),
     goodConditionReturnDays: String(settings.goodConditionReturnDays),
-    defectiveReturnDays: String(settings.defectiveReturnDays),
   };
 }
 
@@ -90,93 +89,119 @@ function parseDays(value: string): number | undefined {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
 }
 
-/** Every days field's floor: 0 for every window but the defective one, whose legal floor is 180. */
-function daysFloor(field: DaysFieldName): number {
-  return field === "defectiveReturnDays" ? 180 : 0;
+/** Accepts "9:00" or "09:00" (a single- or zero-padded hour, always two-digit minutes) and answers
+ * the zero-padded "HH:MM" the server expects, or `undefined` for anything else. */
+function normalizedTime(value: string): string | undefined {
+  const match = /^([0-9]{1,2}):([0-5][0-9])$/.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const hour = Number(match[1]);
+  if (hour > 23) {
+    return undefined;
+  }
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
 }
 
-function daysFieldErrorMessage(field: DaysFieldName): string {
-  return field === "defectiveReturnDays"
-    ? branchMessages.defectiveDaysFieldError
-    : branchMessages.daysFieldError;
-}
-
-/**
- * Validates every days field client-side, mirroring the server (`branch-settings-validation.ts`):
- * an integer at or above its floor. Returns one error per invalid field, keyed by our own field
- * name so it lines up directly with the corresponding TextField's `invalid`/`errorMessage` props.
- */
+/** Validates every days field client-side, mirroring the server (`branch-settings-validation.ts`):
+ * an integer of 0 or more. Returns one error per invalid field, keyed by our own field name so it
+ * lines up directly with the corresponding TextField's `invalid`/`errorMessage` props. */
 function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, string>> {
   const errors: Partial<Record<DaysFieldName, string>> = {};
   const daysFields: readonly DaysFieldName[] = [
     "expiringLotAlertDays",
     "unreviewedPriceAlertDays",
     "goodConditionReturnDays",
-    "defectiveReturnDays",
   ];
   for (const field of daysFields) {
     const parsed = parseDays(values[field]);
-    if (parsed === undefined || parsed < daysFloor(field)) {
-      errors[field] = daysFieldErrorMessage(field);
+    if (parsed === undefined || parsed < 0) {
+      errors[field] = branchMessages.daysFieldError;
     }
   }
   return errors;
 }
 
+/** Validates every hours group client-side, mirroring the server: closed needs nothing, and an
+ * open group needs two valid HH:MM times with closing strictly later than opening. */
+function validateHoursFields(values: FormValues): Partial<Record<HoursGroupName, string>> {
+  const errors: Partial<Record<HoursGroupName, string>> = {};
+  const groups: readonly HoursGroupName[] = ["weekday", "saturday", "sunday"];
+  for (const group of groups) {
+    const groupValues = values[group];
+    if (groupValues.closed) {
+      continue;
+    }
+    const opensAt = normalizedTime(groupValues.opensAt);
+    const closesAt = normalizedTime(groupValues.closesAt);
+    if (opensAt === undefined || closesAt === undefined || closesAt <= opensAt) {
+      errors[group] = branchMessages.hoursFieldError;
+    }
+  }
+  return errors;
+}
+
+function hoursSettingsOf(groupValues: HoursGroupValues): BranchSettingsHours {
+  if (groupValues.closed) {
+    return null;
+  }
+  // Only reached once `validateHoursFields` found this group's times valid, so the fallback to ""
+  // never actually renders: it only satisfies the type checker.
+  return {
+    opensAt: normalizedTime(groupValues.opensAt) ?? "",
+    closesAt: normalizedTime(groupValues.closesAt) ?? "",
+  };
+}
+
 function settingsFrom(values: FormValues, version: number): BranchSettings {
   return {
-    businessName: values.businessName,
     address: values.address,
     whatsappNumber: values.whatsappNumber,
     instagramHandle: values.instagramHandle,
-    weekdayHours: values.weekdayHours,
-    saturdayHours: values.saturdayHours,
-    sundayHours: values.sundayHours,
-    timezone: values.timezone,
+    weekdayHours: hoursSettingsOf(values.weekday),
+    saturdayHours: hoursSettingsOf(values.saturday),
+    sundayHours: hoursSettingsOf(values.sunday),
     expiringLotAlertDays: Number(values.expiringLotAlertDays),
     unreviewedPriceAlertDays: Number(values.unreviewedPriceAlertDays),
     goodConditionReturnDays: Number(values.goodConditionReturnDays),
-    defectiveReturnDays: Number(values.defectiveReturnDays),
     version,
   };
 }
 
 /** The field's own error for a save the server rejected on it; `version` never renders inline. */
-function fieldErrorMessage(field: TextFieldName | DaysFieldName): string {
-  if (field === "timezone") {
-    return branchMessages.timezoneFieldError;
+function fieldErrorMessage(field: FieldErrorKey): string {
+  if (field === "weekday" || field === "saturday" || field === "sunday") {
+    return branchMessages.hoursFieldError;
   }
   if (
     field === "expiringLotAlertDays" ||
     field === "unreviewedPriceAlertDays" ||
-    field === "goodConditionReturnDays" ||
-    field === "defectiveReturnDays"
+    field === "goodConditionReturnDays"
   ) {
-    return daysFieldErrorMessage(field);
+    return branchMessages.daysFieldError;
   }
   return branchMessages.textFieldError;
 }
 
+const CLOSED_HOURS_GROUP: HoursGroupValues = { opensAt: "", closesAt: "", closed: true };
+
 const EMPTY_VALUES: FormValues = {
-  businessName: "",
   address: "",
   whatsappNumber: "",
   instagramHandle: "",
-  weekdayHours: "",
-  saturdayHours: "",
-  sundayHours: "",
-  timezone: "",
+  weekday: CLOSED_HOURS_GROUP,
+  saturday: CLOSED_HOURS_GROUP,
+  sunday: CLOSED_HOURS_GROUP,
   expiringLotAlertDays: "",
   unreviewedPriceAlertDays: "",
   goodConditionReturnDays: "",
-  defectiveReturnDays: "",
 };
 
 /**
- * "Sucursal": the branch's ticket header, hours, timezone, and alert/return windows, reserved to
- * `configure_branch` (an Administrator always holds it implicitly) the same way `EditRoleScreen`
- * is reserved to the Administrator. Unlike a role edit, saving here carries no passkey step-up
- * (see the feature document's decisions): it isn't a sensitive action.
+ * "Sucursal": the branch's ticket header, hours of attention, and alert/return windows, reserved
+ * to `configure_branch` (an Administrator always holds it implicitly) the same way
+ * `EditRoleScreen` is reserved to the Administrator. Unlike a role edit, saving here carries no
+ * passkey step-up (see the feature document's decisions): it isn't a sensitive action.
  */
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const { fetchBranchSettings, saveBranchSettings } =
@@ -184,11 +209,20 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [version, setVersion] = useState(0);
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
-  const [fieldErrors, setFieldErrors] = useState<
-    Partial<Record<TextFieldName | DaysFieldName, string>>
-  >({});
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldErrorKey, string>>>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // One id per group's row heading, named by React so it stays stable across renders (unlike a
+  // hand-rolled string, which react-hooks/rules-of-hooks would refuse from inside `hoursRow`, a
+  // plain helper rather than a component or a custom hook).
+  const weekdayHeadingId = useId();
+  const saturdayHeadingId = useId();
+  const sundayHeadingId = useId();
+  const hoursHeadingId: Record<HoursGroupName, string> = {
+    weekday: weekdayHeadingId,
+    saturday: saturdayHeadingId,
+    sunday: sundayHeadingId,
+  };
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -229,22 +263,50 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     setSubmitting(false);
   }
 
-  function setValue(field: TextFieldName | DaysFieldName, value: string) {
-    setValues((current) => ({ ...current, [field]: value }));
-    if (fieldErrors[field]) {
-      setFieldErrors((current) => {
-        const next = { ...current };
-        delete next[field];
-        return next;
-      });
+  function clearFieldError(field: FieldErrorKey) {
+    if (!fieldErrors[field]) {
+      return;
     }
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  function setTextValue(field: TextFieldName, value: string) {
+    setValues((current) => ({ ...current, [field]: value }));
+    clearFieldError(field);
+  }
+
+  function setDaysValue(field: DaysFieldName, value: string) {
+    setValues((current) => ({ ...current, [field]: value }));
+    clearFieldError(field);
+  }
+
+  function setHoursOpensAt(group: HoursGroupName, value: string) {
+    setValues((current) => ({ ...current, [group]: { ...current[group], opensAt: value } }));
+    clearFieldError(group);
+  }
+
+  function setHoursClosesAt(group: HoursGroupName, value: string) {
+    setValues((current) => ({ ...current, [group]: { ...current[group], closesAt: value } }));
+    clearFieldError(group);
+  }
+
+  function setHoursClosed(group: HoursGroupName, closed: boolean) {
+    setValues((current) => ({
+      ...current,
+      [group]: closed ? CLOSED_HOURS_GROUP : { opensAt: "", closesAt: "", closed: false },
+    }));
+    clearFieldError(group);
   }
 
   async function handleSubmit() {
     if (state.kind !== "loaded") {
       return;
     }
-    const errors = validateDaysFields(values);
+    const errors = { ...validateDaysFields(values), ...validateHoursFields(values) };
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -292,7 +354,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           kind="plain-text"
           label={label}
           value={values[field]}
-          onChange={(value) => setValue(field, value)}
+          onChange={(value) => setTextValue(field, value)}
           {...(error ? { invalid: true, errorMessage: error } : {})}
         />
       </div>
@@ -307,10 +369,55 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           kind="quantity"
           label={label}
           value={values[field]}
-          onChange={(value) => setValue(field, value)}
+          onChange={(value) => setDaysValue(field, value)}
           suffix={branchMessages.daysUnit}
           {...(error ? { invalid: true, errorMessage: error } : {})}
         />
+      </div>
+    );
+  }
+
+  function hoursRow(group: HoursGroupName, groupLabel: string) {
+    const groupValues = values[group];
+    const error = fieldErrors[group];
+    const headingId = hoursHeadingId[group];
+    return (
+      <div key={group} className="flex items-end gap-4">
+        <div className="flex h-[3.25rem] w-36 shrink-0 items-center">
+          <p id={headingId} className="font-semibold text-ink">
+            {groupLabel}
+          </p>
+        </div>
+        <div className="flex-1">
+          <TextField
+            kind="plain-text"
+            label={branchMessages.opensAtLabel}
+            labelledBy={headingId}
+            value={groupValues.opensAt}
+            onChange={(value) => setHoursOpensAt(group, value)}
+            disabled={groupValues.closed}
+          />
+        </div>
+        <div className="flex-1">
+          <TextField
+            kind="plain-text"
+            label={branchMessages.closesAtLabel}
+            labelledBy={headingId}
+            value={groupValues.closesAt}
+            onChange={(value) => setHoursClosesAt(group, value)}
+            disabled={groupValues.closed}
+            {...(error ? { invalid: true, errorMessage: error } : {})}
+          />
+        </div>
+        <div className="flex h-[3.25rem] items-center">
+          <Checkbox
+            isSelected={groupValues.closed}
+            onChange={(closed) => setHoursClosed(group, closed)}
+          >
+            <span aria-hidden="true">{branchMessages.closedLabel}</span>
+            <span className="sr-only">{branchMessages.closedAria({ group: groupLabel })}</span>
+          </Checkbox>
+        </div>
       </div>
     );
   }
@@ -390,11 +497,10 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               {branchMessages.ticketHeaderHeading}
             </h2>
             <div className="flex gap-4">
-              {textField("businessName", branchMessages.businessNameLabel)}
               {textField("address", branchMessages.addressLabel)}
+              {textField("whatsappNumber", branchMessages.whatsappLabel)}
             </div>
             <div className="flex gap-4">
-              {textField("whatsappNumber", branchMessages.whatsappLabel)}
               {textField("instagramHandle", branchMessages.instagramLabel)}
             </div>
           </div>
@@ -402,12 +508,9 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             <h2 className="font-bold text-brand-blue-strong text-lg">
               {branchMessages.hoursHeading}
             </h2>
-            <div className="flex gap-4">
-              {textField("weekdayHours", branchMessages.weekdayHoursLabel)}
-              {textField("saturdayHours", branchMessages.saturdayHoursLabel)}
-              {textField("sundayHours", branchMessages.sundayHoursLabel)}
-            </div>
-            <div className="flex gap-4">{textField("timezone", branchMessages.timezoneLabel)}</div>
+            {hoursRow("weekday", branchMessages.weekdayHoursLabel)}
+            {hoursRow("saturday", branchMessages.saturdayHoursLabel)}
+            {hoursRow("sunday", branchMessages.sundayHoursLabel)}
           </div>
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
             <h2 className="font-bold text-brand-blue-strong text-lg">
@@ -417,9 +520,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               {daysField("expiringLotAlertDays", branchMessages.expiringLotAlertDaysLabel)}
               {daysField("unreviewedPriceAlertDays", branchMessages.unreviewedPriceAlertDaysLabel)}
               {daysField("goodConditionReturnDays", branchMessages.goodConditionReturnDaysLabel)}
-              {daysField("defectiveReturnDays", branchMessages.defectiveReturnDaysLabel)}
             </div>
-            <p className="text-ink-secondary text-sm">{branchMessages.defectiveFloorHelper}</p>
           </div>
         </div>
       )}
