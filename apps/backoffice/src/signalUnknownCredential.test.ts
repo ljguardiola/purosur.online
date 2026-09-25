@@ -42,3 +42,27 @@ test("swallows a rejection from signalUnknownCredential instead of throwing", as
   // Lets the swallowed rejection's microtask settle before the test ends.
   await new Promise((resolve) => setTimeout(resolve, 0));
 });
+
+test("swallows signalUnknownCredential throwing synchronously instead of returning a promise", () => {
+  const signal = vi.fn(() => {
+    throw new Error("not allowed");
+  });
+  (globalThis as { PublicKeyCredential?: unknown }).PublicKeyCredential = {
+    signalUnknownCredential: signal,
+  };
+
+  expect(() =>
+    signalUnknownCredential({ rpId: "purosur.online", credentialId: "cred-1" }),
+  ).not.toThrow();
+});
+
+test("swallows signalUnknownCredential returning a non-promise value", () => {
+  const signal = vi.fn(() => undefined as never);
+  (globalThis as { PublicKeyCredential?: unknown }).PublicKeyCredential = {
+    signalUnknownCredential: signal,
+  };
+
+  expect(() =>
+    signalUnknownCredential({ rpId: "purosur.online", credentialId: "cred-1" }),
+  ).not.toThrow();
+});

@@ -22,5 +22,11 @@ export function signalUnknownCredential(signal: UnknownCredentialSignal): void {
   if (!credential || typeof credential.signalUnknownCredential !== "function") {
     return;
   }
-  void credential.signalUnknownCredential(signal).catch(() => {});
+  try {
+    // A browser's implementation might throw synchronously instead of returning a rejected
+    // promise, or return something that isn't a promise at all: `Promise.resolve` normalizes
+    // either into a promise this can `.catch`, and the surrounding try/catch swallows a
+    // synchronous throw the same way `.catch` swallows an asynchronous rejection.
+    void Promise.resolve(credential.signalUnknownCredential(signal)).catch(() => {});
+  } catch {}
 }
