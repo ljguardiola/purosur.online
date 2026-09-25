@@ -153,7 +153,6 @@ export function renderLabelSheetPdf(items: LabelSheetItem[]): Promise<Buffer> {
     const doc = new PDFDocument({
       size: [mm(A4_WIDTH_MM), mm(A4_HEIGHT_MM)],
       margins: { top: 0, bottom: 0, left: 0, right: 0 },
-      compress: false,
       autoFirstPage: false,
     });
     const chunks: Buffer[] = [];
