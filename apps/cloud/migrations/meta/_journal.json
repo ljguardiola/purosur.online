@@ -176,6 +176,13 @@
       "when": 1790353112370,
       "tag": "0024_branch_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790368057814,
+      "tag": "0025_deactivate_products",
+      "breakpoints": true
     }
   ]
 }

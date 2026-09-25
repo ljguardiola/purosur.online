@@ -100,6 +100,10 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: ProductRow };
 
+/**
+ * A code held only by another product's inactive (deactivated) barcode is free to reuse (#309): a
+ * barcode resolves to a single active product, so only an active barcode row counts as taken.
+ */
 async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],
@@ -109,7 +113,11 @@ async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultH
     .select({ code: productBarcodes.code })
     .from(productBarcodes)
     .where(
-      and(inArray(productBarcodes.code, codes), ne(productBarcodes.productId, excludingProductId)),
+      and(
+        inArray(productBarcodes.code, codes),
+        ne(productBarcodes.productId, excludingProductId),
+        eq(productBarcodes.active, true),
+      ),
     );
   return rows.map((row) => row.code);
 }
@@ -130,7 +138,7 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
     .transaction<EditProductOutcome>(async (tx) => {
       // Locks this one row so a concurrent edit against the same product waits instead of racing.
       const [current] = await tx
-        .select({ version: products.version })
+        .select({ version: products.version, active: products.active })
         .from(products)
         .where(eq(products.id, input.id))
         .for("update");
@@ -166,9 +174,17 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         })
         .where(eq(products.id, input.id));
       await tx.delete(productBarcodes).where(eq(productBarcodes.productId, input.id));
-      await tx
-        .insert(productBarcodes)
-        .values(input.barcodes.map((code, position) => ({ productId: input.id, code, position })));
+      await tx.insert(productBarcodes).values(
+        // Mirrors the product's own (unchanged) `active` flag onto every replaced barcode row
+        // (schema.ts comment on `productBarcodes`): editing an inactive product stays allowed, and
+        // its barcodes stay inactive, not silently reactivated by the default.
+        input.barcodes.map((code, position) => ({
+          productId: input.id,
+          code,
+          position,
+          active: current.active,
+        })),
+      );
 
       return {
         kind: "applied",
@@ -179,6 +195,7 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
           categoryName: category.name,
           saleUnit: input.saleUnit,
           barcodes: input.barcodes,
+          active: current.active,
           version: nextVersion,
         },
       };

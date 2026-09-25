@@ -998,6 +998,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/products/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
         url: "/products/internal-barcode",
         access: permissionAccess("manage_products_and_categories"),
       },

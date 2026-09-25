@@ -201,6 +201,7 @@ describe("POST /products", () => {
       categoryName: "Macetas",
       saleUnit: "UNIT",
       barcodes: ["222", "111"],
+      active: true,
       version: 1,
     });
     const created = await db.select().from(products).where(eq(products.id, body.id));
@@ -431,5 +432,24 @@ describe("POST /products", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "barcode_taken", codes: ["999"] });
     expect(await db.select().from(products)).toHaveLength(1);
+  });
+
+  it("accepts a barcode held only by an inactive product's barcode", async () => {
+    const categoryId = await insertCategory("Macetas");
+    await insertProductWithBarcode(categoryId, "999");
+    await db.update(products).set({ active: false });
+    await db.update(productBarcodes).set({ active: false });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ barcodes: ["999"] });
   });
 });
