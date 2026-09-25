@@ -145,6 +145,19 @@ test("requires a non-empty name that is not the Administrator's own, without cal
   expect(services.createRole).not.toHaveBeenCalled();
 });
 
+test("rejects a name longer than 100 characters, without calling the API", async () => {
+  const services = createServices();
+  const screen = await renderScreen(services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "a".repeat(101));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect
+    .element(screen.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createRole).not.toHaveBeenCalled();
+});
+
 test("Cancelar navigates back to the roles list without calling the API", async () => {
   window.history.pushState(null, "", "/settings/roles/new");
   const services = createServices();

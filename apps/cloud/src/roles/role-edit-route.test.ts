@@ -229,6 +229,24 @@ describe("POST /roles/:id/edit", () => {
     expect(row).toMatchObject({ name: "Cajera", version: 1 });
   });
 
+  it("rejects a name longer than 100 characters, changing nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await editRoleRequest(roleId, rawSessionId, {
+      name: "a".repeat(101),
+      permissions: [],
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "name" }],
+    });
+    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
+    expect(row).toMatchObject({ name: "Cajera", version: 1 });
+  });
+
   it("rejects the name Administrador, case-insensitively, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 

@@ -3,6 +3,7 @@ import {
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
@@ -33,6 +34,7 @@ const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -391,6 +393,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
+        nameTooLong: ROLE_NAME_TOO_LONG,
         nameReserved: "Ese nombre es del Administrador; elegí otro.",
         nameFieldError: "Revisá el nombre del rol.",
         nameTaken: "Ya existe un rol con este nombre.",
