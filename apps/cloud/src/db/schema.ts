@@ -24,6 +24,15 @@ export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
 });
 
+// A price list groups the `prices` rows a product is looked up in. The business runs a single
+// list today (the migration seeds its one row, "Lista general", the same way `locations` seeds
+// its own single row); `branch_settings.price_list_id` below decides which list a branch's Prices
+// screen works on.
+export const priceLists = pgTable("price_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+});
+
 // One row per location (1:1, `location_id` is both primary and foreign key), holding the settings
 // a user with `configure_branch` edits from the backoffice Sucursal screen: the ticket header, and
 // the alert and return windows, in days. The migration creates this row, with these defaults, for
@@ -40,6 +49,12 @@ export const branchSettings = pgTable("branch_settings", {
   expiringLotAlertDays: integer("expiring_lot_alert_days").notNull().default(30),
   unreviewedPriceAlertDays: integer("unreviewed_price_alert_days").notNull().default(30),
   goodConditionReturnDays: integer("good_condition_return_days").notNull().default(15),
+  // The price list the Prices screen works on for this branch. Not editable from this issue's
+  // Sucursal screen (there is a single list, so a dropdown would be a no-op); the migration
+  // backfills every existing row onto the seeded "Lista general" list.
+  priceListId: uuid("price_list_id")
+    .notNull()
+    .references(() => priceLists.id),
   // Optimistic concurrency for a branch settings row, the same shape `roles.version` gives role
   // rows: starts at 1 and every edit of that row increments it, so a save over a version someone
   // else already changed is rejected instead of silently overwriting their change. A change to
@@ -230,6 +245,67 @@ export const productBarcodes = pgTable(
   (table) => [
     primaryKey({ columns: [table.productId, table.position] }),
     uniqueIndex("product_barcodes_code_key").on(table.code),
+  ],
+);
+
+// A product's price at a point in time, in cents per unit or per kilogram (`products.sale_unit`
+// decides which). Append-only: changing a price always inserts a new row instead of touching an
+// old one, so the full history of what a product cost at any moment is never lost (drafts/docs
+// §6.1, D25). Enforced the same way `audit_log` enforces it (migration 0016): the migration
+// revokes UPDATE, DELETE, and TRUNCATE on this table from `cloud_app`, so the database itself
+// refuses a rewrite even from application code, not just by convention.
+export const prices = pgTable(
+  "prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    unitPrice: integer("unit_price").notNull(),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("prices_unit_price_positive", sql`${table.unitPrice} > 0`),
+    index("prices_product_id_price_list_id_valid_from_idx").on(
+      table.productId,
+      table.priceListId,
+      table.validFrom,
+    ),
+  ],
+);
+
+// One row per price review: setting a new price and confirming the current one without a change
+// both insert a row here (drafts/docs §6.1, D27), pointing at the price it reviewed. A product's
+// last-reviewed moment is the newest row here for it, never a column updated in place; append-only
+// for the same reason and the same way `prices` above is (migration revokes UPDATE, DELETE, and
+// TRUNCATE on this table from `cloud_app` too).
+export const priceReviews = pgTable(
+  "price_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    priceId: uuid("price_id")
+      .notNull()
+      .references(() => prices.id),
+  },
+  (table) => [
+    index("price_reviews_product_id_price_list_id_reviewed_at_idx").on(
+      table.productId,
+      table.priceListId,
+      table.reviewedAt,
+    ),
   ],
 );
 
