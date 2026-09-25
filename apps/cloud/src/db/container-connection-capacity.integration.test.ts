@@ -1,11 +1,9 @@
 import postgres from "postgres";
 import { expect, inject, it } from "vitest";
 
-// Every `*.integration.test.ts` file shares the one container and they run in parallel, each with
-// its own pool (the widest is `sign-in-lockout-concurrency`'s 80). When all of them overlap they
-// hold about 250 connections at once, so the container must leave room for more than that to
-// non-superuser roles like `cloud_app`, or whichever file loses the race fails with 53300.
-const PEAK_CONNECTIONS_WITH_MARGIN = 300;
+// The pools every integration file can open at once add up to about 300 (see
+// vitest.global-setup.postgres.ts); this leaves headroom above that for non-superuser roles.
+const PEAK_CONNECTIONS_WITH_MARGIN = 400;
 
 it("leaves room for every integration file's pool to be open at once", async () => {
   const admin = postgres(inject("recoveryPostgresAdminUrl"), { max: 1 });

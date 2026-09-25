@@ -18,7 +18,7 @@ declare module "vitest" {
 const POSTGRES_IMAGE = "postgres:18-alpine";
 
 // The integration files run in parallel on this one container, each with its own pool, and together
-// they can hold about 250 connections at once: Postgres's default limit of 100 would make whichever
+// they can hold about 300 connections at once: Postgres's default limit of 100 would make whichever
 // file loses that race fail with "remaining connection slots are reserved" (53300).
 const MAX_CONNECTIONS = 500;
 
