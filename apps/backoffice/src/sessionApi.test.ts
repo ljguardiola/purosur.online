@@ -235,6 +235,12 @@ test("authenticate reports failed on a rejected credential, an origin mismatch, 
   await expect(authenticate(assertion)).resolves.toEqual({ kind: "failed" });
 });
 
+test("authenticate reports unknown_passkey on a 401 carrying that code, discriminating it from any other rejection", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unknown_passkey" }));
+
+  await expect(authenticate(assertion)).resolves.toEqual({ kind: "unknown_passkey" });
+});
+
 test("signOut posts with no body and reports that the session was ended", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 

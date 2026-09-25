@@ -185,6 +185,13 @@ test("registerPasskey reports validation_failed on 400", async () => {
   });
 });
 
+test("registerPasskey reports already_registered on a 400 carrying that code, discriminating it from any other validation failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "passkey_already_registered" }));
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
+    kind: "already_registered",
+  });
+});
+
 test("registerPasskey reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
   await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
@@ -192,6 +199,17 @@ test("registerPasskey reports failed on any other status or a network failure", 
   });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
+    kind: "failed",
+  });
+});
+
+test("registerPasskey reports failed, not validation_failed, on a 400 whose body can't be read", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 400 }));
+
+  // An unreadable body could have been passkey_already_registered (a known credential), so this
+  // must never fall back to validation_failed: MyAccountScreen signals validation_failed as an
+  // unsaved credential, but must never signal one the cloud already knows.
   await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "failed",
   });

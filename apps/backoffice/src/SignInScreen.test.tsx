@@ -12,6 +12,7 @@ function createServices(overrides: Partial<SignInScreenServices> = {}): SignInSc
     fetchAuthenticationOptions: vi.fn(),
     authenticate: vi.fn(),
     startAuthentication: vi.fn(),
+    signalUnknownCredential: vi.fn(),
     ...overrides,
   };
 }
@@ -163,6 +164,63 @@ test("shows a generic failure notice when the cloud rejects the assertion", asyn
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
   await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
+});
+
+test("signals the device to forget an unknown passkey, without changing what the screen shows", async () => {
+  const signalUnknownCredential = vi.fn();
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
+    authenticate: vi.fn().mockResolvedValue({ kind: "unknown_passkey" }),
+    signalUnknownCredential,
+  });
+
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
+  expect(signalUnknownCredential).toHaveBeenCalledWith({
+    rpId: "purosur.online",
+    credentialId: "cred-1",
+  });
+});
+
+test("never signals the device when the authentication options carry no rp id", async () => {
+  const signalUnknownCredential = vi.fn();
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: { challenge: "abc" } as never }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
+    authenticate: vi.fn().mockResolvedValue({ kind: "unknown_passkey" }),
+    signalUnknownCredential,
+  });
+
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
+  expect(signalUnknownCredential).not.toHaveBeenCalled();
+});
+
+test("never signals the device on a sign-in failure that isn't an unknown passkey", async () => {
+  const signalUnknownCredential = vi.fn();
+  const services = createServices({
+    fetchAuthenticationOptions: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: authenticationOptions }),
+    startAuthentication: vi.fn().mockResolvedValue(assertionResponse),
+    authenticate: vi.fn().mockResolvedValue({ kind: "failed" }),
+    signalUnknownCredential,
+  });
+
+  const screen = await render(<SignInScreen onSignedIn={() => {}} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
+  expect(signalUnknownCredential).not.toHaveBeenCalled();
 });
 
 test("disables the submit button while a sign-in attempt is in flight", async () => {

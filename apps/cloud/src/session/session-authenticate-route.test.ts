@@ -299,7 +299,7 @@ describe("POST /users/session/authenticate", () => {
     expect(rows[0]?.revokedAt).toBeNull();
   });
 
-  it("rejects an unknown credential as authentication_failed", async () => {
+  it("rejects an unknown credential as unknown_passkey, so the backoffice can tell the device to forget it", async () => {
     const registeredEmulator = new WebAuthnEmulator();
     await registerPasskey(userId, registeredEmulator);
     // A distinct account whose registration this server never redeemed: its own emulator holds a
@@ -326,9 +326,45 @@ describe("POST /users/session/authenticate", () => {
 
     expect(authResponse.statusCode).toBe(401);
     expect(authResponse.json()).toEqual({
-      code: "authentication_failed",
+      code: "unknown_passkey",
       message: expect.any(String),
     });
+  });
+
+  it("counts an unknown credential's rejected attempt toward the per-source lockout, on the same timing floor as any other rejection", async () => {
+    const registeredEmulator = new WebAuthnEmulator();
+    await registerPasskey(userId, registeredEmulator);
+    const [strangerUser] = await db
+      .insert(users)
+      .values({
+        firstName: "Grace Hopper",
+        email: "grace@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!strangerUser) {
+      throw new Error("test setup: seeding the stranger user returned no row");
+    }
+    const unregisteredEmulator = new WebAuthnEmulator();
+    const { options: registrationOptions } = await requestRegistrationOptions(strangerUser.id);
+    unregisteredEmulator.createJSON(BACKOFFICE_ORIGIN, registrationOptions);
+
+    for (let i = 0; i < SIGN_IN_FAILURE_LIMIT; i++) {
+      const optionsResponse = await postOptions();
+      const authOptions = optionsResponse.json().passkey_authentication_options;
+      const assertion = unregisteredEmulator.getJSON(BACKOFFICE_ORIGIN, authOptions);
+      const response = await postAuthenticate({ assertion });
+      expect(response.statusCode).toBe(401);
+      expect(delaySpy).toHaveBeenCalled();
+    }
+
+    const optionsResponse = await postOptions();
+    const authOptions = optionsResponse.json().passkey_authentication_options;
+    const assertion = unregisteredEmulator.getJSON(BACKOFFICE_ORIGIN, authOptions);
+    const eleventh = await postAuthenticate({ assertion });
+
+    expect(eleventh.statusCode).toBe(429);
+    expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
   });
 
   it("consumes the challenge of an attempt whose credential id is unknown, leaving nothing to retry with", async () => {
@@ -357,7 +393,7 @@ describe("POST /users/session/authenticate", () => {
     expect(await db.select().from(signInChallenges)).toHaveLength(0);
   });
 
-  it("rejects a deactivated account's passkey as authentication_failed, identically to an unknown credential, and opens no session", async () => {
+  it("rejects a deactivated account's passkey as authentication_failed, indistinguishable from a bad signature or a counter mismatch, and opens no session", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
     await db.update(users).set({ active: false }).where(eq(users.id, userId));
@@ -393,7 +429,7 @@ describe("POST /users/session/authenticate", () => {
     expect(eleventh.json()).toMatchObject({ code: "rate_limited" });
   });
 
-  it("rejects a tampered signature as authentication_failed, identically to an unknown credential", async () => {
+  it("rejects a tampered signature as authentication_failed, indistinguishable from a deactivated account's passkey or a counter mismatch", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
     const assertion = await getAuthenticationAssertion(emulator);
@@ -580,7 +616,7 @@ describe("POST /users/session/authenticate", () => {
       });
 
       expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authentication_failed" });
+      expect(response.json()).toMatchObject({ code: "unknown_passkey" });
       expect(delaySpy).toHaveBeenCalled();
       expect(reportError).toHaveBeenCalled();
       await failing.close();

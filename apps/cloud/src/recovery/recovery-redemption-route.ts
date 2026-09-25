@@ -156,6 +156,20 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     await reply.code(400).send({ code: "validation_failed", ...body });
   }
 
+  // A distinct code from every other redemption rejection: the device already created a
+  // credential the cloud does know, so it must never be asked to forget it.
+  async function rejectRedemptionAsAlreadyRegistered(
+    reply: FastifyReply,
+    token: RecoveryTokenRow,
+  ): Promise<void> {
+    await auditRejectedAttempt(token, "redeem", "passkey_already_registered");
+    await reply.code(400).send({
+      code: "passkey_already_registered",
+      message: "this passkey is already registered",
+      details: [{ field: "passkey_registration" }],
+    });
+  }
+
   app.post(
     "/users/recovery/registration-options",
     { config: { access: PUBLIC_ACCESS } },
@@ -396,10 +410,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       });
 
       if ("credentialAlreadyRegistered" in outcome) {
-        await rejectRedemptionAsInvalid(reply, token, {
-          message: "this passkey is already registered",
-          details: [{ field: "passkey_registration" }],
-        });
+        await rejectRedemptionAsAlreadyRegistered(reply, token);
         return;
       }
       if (!outcome.burned) {

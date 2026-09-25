@@ -37,6 +37,7 @@ export type AuthenticationOptionsOutcome =
 
 export type AuthenticateOutcome =
   | { kind: "ok" }
+  | { kind: "unknown_passkey" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -154,7 +155,12 @@ export async function fetchAuthenticationOptions(): Promise<AuthenticationOption
   return { kind: "ok", value: body.passkey_authentication_options };
 }
 
-/** Verifies the browser's WebAuthn assertion and opens a fresh session on success; the cloud gives no distinction between an unknown credential and a bad signature. */
+/**
+ * Verifies the browser's WebAuthn assertion and opens a fresh session on success. The cloud gives
+ * no distinction between a bad signature, a deactivated account or any other rejection of a
+ * passkey it does know, but does single out a credential id it has no matching passkey for
+ * (`unknown_passkey`), so the caller can tell the device to forget it.
+ */
 export async function authenticate(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthenticateOutcome> {
@@ -172,6 +178,12 @@ export async function authenticate(
       kind: "rate_limited",
       retryAfterSeconds: retryAfterSeconds(response, LOCKOUT_FALLBACK_SECONDS),
     };
+  }
+  if (response.status === 401) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    if (body?.code === "unknown_passkey") {
+      return { kind: "unknown_passkey" };
+    }
   }
   return { kind: "failed" };
 }

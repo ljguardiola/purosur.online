@@ -12,7 +12,12 @@ export type RecoveryRequestOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type RecoveryTokenErrorKind = "invalid" | "burned" | "expired" | "validation_failed";
+export type RecoveryTokenErrorKind =
+  | "invalid"
+  | "burned"
+  | "expired"
+  | "validation_failed"
+  | "already_registered";
 
 export type RecoveryTokenOutcome<Value> =
   | { kind: "ok"; value: Value }
@@ -64,6 +69,7 @@ const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
   recovery_token_burned: "burned",
   recovery_token_expired: "expired",
   validation_failed: "validation_failed",
+  passkey_already_registered: "already_registered",
 };
 
 async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTokenOutcome<Value>> {

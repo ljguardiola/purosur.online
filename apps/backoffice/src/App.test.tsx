@@ -20,12 +20,14 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchAuthenticationOptions: vi.fn(),
       authenticate: vi.fn(),
       startAuthentication: vi.fn(),
+      signalUnknownCredential: vi.fn(),
     },
     accountRecoveryScreen: { requestRecoveryLink: vi.fn() },
     registerPasskeyScreen: {
       fetchRegistrationOptions: vi.fn().mockReturnValue(new Promise(() => {})),
       redeemRecovery: vi.fn(),
       startRegistration: vi.fn(),
+      signalUnknownCredential: vi.fn(),
     },
     myAccountScreen: {
       fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -36,6 +38,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
       startRegistration: vi.fn(),
+      signalUnknownCredential: vi.fn(),
     },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),

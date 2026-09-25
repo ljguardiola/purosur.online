@@ -429,6 +429,40 @@ describe("POST /users/passkeys", () => {
     expect(rows).toHaveLength(2);
   });
 
+  it("rejects a credential that is already registered as passkey_already_registered, storing nothing new", async () => {
+    const rawSessionId = await insertSession(userId);
+    const options = await requestOptions(rawSessionId);
+    const newEmulator = newDeviceEmulator();
+    const passkeyRegistration = newEmulator.createJSON(
+      BACKOFFICE_ORIGIN,
+      options.passkey_registration_options,
+    );
+    // A row for this exact credential id already exists, as if another request had already
+    // registered it (or the device replayed a creation it made before, ignoring excludeCredentials).
+    await db.insert(passkeys).values({
+      userId,
+      credentialId: passkeyRegistration.id,
+      publicKey: "unused-in-this-test",
+      counter: 0,
+      deviceType: "singleDevice",
+      backedUp: false,
+      name: "Existing passkey",
+    });
+
+    const response = await postJson(
+      "/users/passkeys",
+      { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "passkey_already_registered" });
+    // The account's first passkey (seeded in beforeEach) plus the one row this test inserted by
+    // hand: the rejected attempt stores nothing of its own.
+    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+    expect(rows).toHaveLength(2);
+  });
+
   it("rejects a challenge that aged past its lifetime, storing nothing", async () => {
     const rawSessionId = await insertSession(userId);
     const options = await requestOptions(rawSessionId);

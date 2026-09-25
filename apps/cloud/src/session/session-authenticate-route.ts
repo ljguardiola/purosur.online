@@ -32,17 +32,32 @@ export interface SessionAuthenticateRouteOptions<TQueryResult extends PgQueryRes
   reportError?: (error: unknown) => void;
 }
 
-// Every rejection reason (unknown credential, bad signature, stale challenge, clone-signal
-// counter) answers with this same code and message: nothing about the response may let someone
-// infer which accounts or credentials are registered.
+// Every rejection reason for a passkey the cloud does know (bad signature, stale challenge,
+// deactivated account, clone-signal counter) answers with this same code and message: nothing
+// about the response may let someone infer which of those actually happened.
 const AUTHENTICATION_FAILED_RESPONSE = {
   code: "authentication_failed",
   message: "the passkey could not be verified",
 } as const;
 
-// Floors every rejection's response time to roughly the same duration, so a fast rejection (an
-// unknown credential, resolved by one indexed lookup) does not visibly answer faster than a slow
-// one (a bad signature, resolved only after a full verification pass).
+// An assertion naming a credential id with no matching row answers this distinct code instead, so
+// the backoffice can tell the device to forget a passkey the cloud never saved. Credential ids are
+// random and unguessable, so telling this case apart from any other rejection leaks nothing usable
+// about which accounts or credentials exist.
+const UNKNOWN_PASSKEY_RESPONSE = {
+  code: "unknown_passkey",
+  message: "the passkey could not be verified",
+} as const;
+
+type SessionAuthenticationRejection =
+  | typeof AUTHENTICATION_FAILED_RESPONSE
+  | typeof UNKNOWN_PASSKEY_RESPONSE;
+
+// Floors every rejection's response time to roughly the same duration. The response body already
+// tells an unknown credential apart from a known one (unknown_passkey vs authentication_failed);
+// this floor now only keeps the known-passkey rejection reasons themselves indistinguishable from
+// each other (bad signature, deactivated account, clone-signal counter each take different
+// processing time before landing on the same code).
 const FAILURE_RESPONSE_FLOOR_MS = 200;
 
 function defaultDelay(ms: number): Promise<void> {
@@ -91,14 +106,21 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     return true;
   }
 
-  /** The one answer every rejection gets, never sooner than the floor every other one takes. */
-  async function rejectAuthentication(reply: FastifyReply, startedAt: number): Promise<void> {
+  /**
+   * The one answer every rejection gets, never sooner than the floor every other one takes.
+   * Defaults to the uniform known-passkey failure; only the unknown-credential path overrides it.
+   */
+  async function rejectAuthentication(
+    reply: FastifyReply,
+    startedAt: number,
+    response: SessionAuthenticationRejection = AUTHENTICATION_FAILED_RESPONSE,
+  ): Promise<void> {
     const elapsedMs = performance.now() - startedAt;
     if (elapsedMs < FAILURE_RESPONSE_FLOOR_MS) {
       await delay(FAILURE_RESPONSE_FLOOR_MS - elapsedMs);
     }
 
-    await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+    await reply.code(401).send(response);
   }
 
   /**
@@ -112,6 +134,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     attemptedAt: Date,
     reply: FastifyReply,
     startedAt: number,
+    response: SessionAuthenticationRejection = AUTHENTICATION_FAILED_RESPONSE,
   ): Promise<void> {
     try {
       const confirmed = await doConfirmRejectedSignInAttempt(options.db, {
@@ -125,7 +148,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       reportError(error);
     }
 
-    await rejectAuthentication(reply, startedAt);
+    await rejectAuthentication(reply, startedAt, response);
   }
 
   async function auditLockout(sourceAddress: string, lockout: TrippedSignInLockout): Promise<void> {
@@ -190,9 +213,10 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         return;
       }
 
-      // Spent before the credential is even looked up, so an assertion naming a registered
-      // credential id and one naming an unregistered id leave exactly the same behind: whether a
-      // challenge survives a rejection must not tell anyone which credentials exist.
+      // Spent before the credential is even looked up, so it is burned exactly the same way
+      // whether the assertion names a registered credential or not: a challenge can never be
+      // replayed against a second credential id guess just because the first one turned out to
+      // be unknown.
       const challengeIsLive = await consumeSignInChallenge(options.db, {
         challenge,
         now: attemptedAt,
@@ -213,12 +237,19 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         .where(eq(passkeys.credentialId, assertion.id))
         .limit(1);
       if (!passkey) {
-        await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
+        await rejectSignInAttempt(
+          sourceAddress,
+          attemptedAt,
+          reply,
+          startedAt,
+          UNKNOWN_PASSKEY_RESPONSE,
+        );
         return;
       }
       // A deactivated account's session ends immediately (drafts/docs/puro-sur-pos.md §12.3,
       // CA-ACC-19); the same rule blocks it from ever opening a new one. The rejection must not be
-      // distinguishable from an unknown credential, so it never runs signature verification either.
+      // distinguishable from any other known-passkey rejection (bad signature, counter mismatch),
+      // so it never runs signature verification either.
       if (!passkey.active) {
         await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
         return;

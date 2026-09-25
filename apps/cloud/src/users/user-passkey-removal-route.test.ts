@@ -444,7 +444,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     });
 
     expect(authenticateResponse.statusCode).toBe(401);
-    expect(authenticateResponse.json()).toMatchObject({ code: "authentication_failed" });
+    expect(authenticateResponse.json()).toMatchObject({ code: "unknown_passkey" });
   });
 
   it("answers not_found to a second removal of an already removed passkey, auditing only the first", async () => {

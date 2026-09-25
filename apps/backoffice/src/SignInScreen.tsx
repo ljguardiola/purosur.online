@@ -7,6 +7,7 @@ import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
+import { signalUnknownCredential } from "./signalUnknownCredential";
 
 /**
  * Why the app routed here: because the previous session ended (idle or absolute expiry), because
@@ -22,12 +23,14 @@ export type SignInScreenServices = {
   fetchAuthenticationOptions: typeof fetchAuthenticationOptions;
   authenticate: typeof authenticate;
   startAuthentication: typeof startAuthentication;
+  signalUnknownCredential: typeof signalUnknownCredential;
 };
 
 export const defaultSignInScreenServices: SignInScreenServices = {
   fetchAuthenticationOptions,
   authenticate,
   startAuthentication,
+  signalUnknownCredential,
 };
 
 export type SignInScreenProps = {
@@ -49,7 +52,7 @@ type Notice =
  * let someone infer which of those actually happened.
  */
 export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScreenProps) {
-  const { fetchAuthenticationOptions, authenticate, startAuthentication } =
+  const { fetchAuthenticationOptions, authenticate, startAuthentication, signalUnknownCredential } =
     services ?? defaultSignInScreenServices;
   const [notice, setNotice] = useState<Notice | null>(openingNotice ?? null);
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +86,9 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "blocked", retryAfterSeconds: outcome.retryAfterSeconds });
       return;
+    }
+    if (outcome.kind === "unknown_passkey" && optionsOutcome.value.rpId) {
+      signalUnknownCredential({ rpId: optionsOutcome.value.rpId, credentialId: assertion.id });
     }
     setNotice({ kind: "failed" });
   }
