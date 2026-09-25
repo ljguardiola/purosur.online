@@ -1,5 +1,5 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { LifeBuoy, Settings, Shield, Users } from "lucide-react";
+import { LifeBuoy, Package, Settings, Shield, Tags, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AccountFooter,
@@ -11,8 +11,19 @@ import {
   type AccountRecoveryScreenServices,
   defaultAccountRecoveryScreenServices,
 } from "./AccountRecoveryScreen";
-import { type BackofficeAccess, canSeeRolesArea, canSeeUsersArea } from "./access";
+import {
+  type BackofficeAccess,
+  canSeeCatalogArea,
+  canSeeRolesArea,
+  canSeeUsersArea,
+} from "./access";
 import { ACCOUNT_RECOVERY_PATH, REGISTER_PASSKEY_PATH, SIGN_IN_PATH } from "./accessRoutes";
+import {
+  CategoriesListScreen,
+  type CategoriesListScreenServices,
+  defaultCategoriesListScreenServices,
+} from "./CategoriesListScreen";
+import { CATEGORIES_LIST_PATH } from "./catalogRoutes";
 import {
   DuplicateRoleScreen,
   type DuplicateRoleScreenServices,
@@ -93,6 +104,7 @@ export type AppServices = {
   newRoleScreen: NewRoleScreenServices;
   editRoleScreen: EditRoleScreenServices;
   duplicateRoleScreen: DuplicateRoleScreenServices;
+  categoriesListScreen: CategoriesListScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -109,6 +121,7 @@ const defaultAppServices: AppServices = {
   newRoleScreen: defaultNewRoleScreenServices,
   editRoleScreen: defaultEditRoleScreenServices,
   duplicateRoleScreen: defaultDuplicateRoleScreenServices,
+  categoriesListScreen: defaultCategoriesListScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -171,15 +184,38 @@ function HelpAreaItem({ active }: { active: boolean }) {
   );
 }
 
+/**
+ * Puro Sur's Catálogo area item — the single shared definition of its label, icon and link.
+ * Unlike Config and Ayuda, it only shows for someone who unlocks it: the caller decides whether
+ * to render it at all.
+ */
+function CatalogAreaItem({ active }: { active: boolean }) {
+  return (
+    <AreaNavItem
+      label={messages.catalog.areaLabel}
+      icon={<Package />}
+      active={active}
+      {...linkProps(CATEGORIES_LIST_PATH)}
+    />
+  );
+}
+
 type HelpAppProps = {
   help: BackofficeHelpCatalog;
   displayName: string;
+  canSeeCatalog: boolean;
   onSignedOut: () => void;
   accountFooterServices: AccountFooterServices;
 };
 
 /** The Help-in-Shell part of the app, root for every path outside the access screens below. */
-function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: HelpAppProps) {
+function HelpApp({
+  help,
+  displayName,
+  canSeeCatalog,
+  onSignedOut,
+  accountFooterServices,
+}: HelpAppProps) {
   const route = useRoute();
   const helpRoute = resolveHelpPath(help, route);
   const [search, setSearch] = useState("");
@@ -211,7 +247,12 @@ function HelpApp({ help, displayName, onSignedOut, accountFooterServices }: Help
       brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.help.sectionsNavLabel}
-      railAreas={<ConfigAreaItem active={false} />}
+      railAreas={
+        <>
+          <ConfigAreaItem active={false} />
+          {canSeeCatalog && <CatalogAreaItem active={false} />}
+        </>
+      }
       railFooter={
         <>
           <HelpAreaItem active />
@@ -260,6 +301,7 @@ type SettingsAppProps = {
   displayName: string;
   canSeeUsers: boolean;
   canSeeRoles: boolean;
+  canSeeCatalog: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
@@ -282,6 +324,7 @@ function SettingsApp({
   displayName,
   canSeeUsers,
   canSeeRoles,
+  canSeeCatalog,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
@@ -310,7 +353,12 @@ function SettingsApp({
       brandName={messages.shell.brandName}
       areaRailLabel={messages.shell.areaRailLabel}
       sectionColumnLabel={messages.settings.sectionsNavLabel}
-      railAreas={<ConfigAreaItem active />}
+      railAreas={
+        <>
+          <ConfigAreaItem active />
+          {canSeeCatalog && <CatalogAreaItem active={false} />}
+        </>
+      }
       railFooter={
         <>
           <HelpAreaItem active={false} />
@@ -412,6 +460,78 @@ function SettingsApp({
   );
 }
 
+type CatalogAppProps = {
+  displayName: string;
+  onSignedOut: () => void;
+  onSessionEnded: () => void;
+  accountFooterServices: AccountFooterServices;
+  categoriesListScreenServices: CategoriesListScreenServices;
+};
+
+/**
+ * The Catálogo-in-Shell part of the app: Categorías, its only section today. App.tsx only ever
+ * routes here for someone who unlocks the area, so `CatalogAreaItem` and the sidebar's own
+ * "Categorías" item both always render active.
+ */
+function CatalogApp({
+  displayName,
+  onSignedOut,
+  onSessionEnded,
+  accountFooterServices,
+  categoriesListScreenServices,
+}: CatalogAppProps) {
+  useEffect(() => {
+    document.title = messages.catalog.categories.documentTitle;
+  }, []);
+
+  return (
+    <Shell
+      brandName={messages.shell.brandName}
+      areaRailLabel={messages.shell.areaRailLabel}
+      sectionColumnLabel={messages.catalog.sectionsNavLabel}
+      railAreas={
+        <>
+          <ConfigAreaItem active={false} />
+          <CatalogAreaItem active />
+        </>
+      }
+      railFooter={
+        <>
+          <HelpAreaItem active={false} />
+          <AccountFooter
+            displayName={displayName}
+            onSignedOut={onSignedOut}
+            services={accountFooterServices}
+          />
+        </>
+      }
+      sectionColumn={
+        <>
+          <h2 className="font-bold text-brand-blue-strong text-xl">
+            {messages.catalog.sectionsHeading}
+          </h2>
+          <div className="h-2.5" />
+          <ul className="flex flex-col gap-1">
+            <li>
+              <SectionNavItem
+                label={messages.catalog.categoriesSectionLabel}
+                icon={<Tags />}
+                active
+                {...linkProps(CATEGORIES_LIST_PATH)}
+              />
+            </li>
+          </ul>
+        </>
+      }
+    >
+      <CategoriesListScreen
+        onSessionEnded={onSessionEnded}
+        services={categoriesListScreenServices}
+      />
+    </Shell>
+  );
+}
+
 export function App({ help, services }: AppProps) {
   const {
     fetchSession,
@@ -426,6 +546,7 @@ export function App({ help, services }: AppProps) {
     newRoleScreen,
     editRoleScreen,
     duplicateRoleScreen,
+    categoriesListScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -495,11 +616,17 @@ export function App({ help, services }: AppProps) {
     route === NEW_ROLE_PATH ||
     editRoleId !== undefined ||
     duplicateRoleId !== undefined;
+  const isCatalogRoute = route === CATEGORIES_LIST_PATH;
+  const wantsCatalog = isCatalogRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
   const canSeeRoles = canSeeRolesArea(access);
-  const wantsUnlockedSection = (wantsUsers && !canSeeUsers) || (wantsRoles && !canSeeRoles);
+  const canSeeCatalog = canSeeCatalogArea(access);
+  const wantsUnlockedSection =
+    (wantsUsers && !canSeeUsers) ||
+    (wantsRoles && !canSeeRoles) ||
+    (wantsCatalog && !canSeeCatalog);
 
   useEffect(() => {
     if (session.kind === "loading") {
@@ -629,6 +756,7 @@ export function App({ help, services }: AppProps) {
         displayName={session.displayName}
         canSeeUsers={canSeeUsers}
         canSeeRoles={canSeeRoles}
+        canSeeCatalog={canSeeCatalog}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
@@ -639,6 +767,26 @@ export function App({ help, services }: AppProps) {
         newRoleScreenServices={newRoleScreen}
         editRoleScreenServices={editRoleScreen}
         duplicateRoleScreenServices={duplicateRoleScreen}
+      />
+    );
+  }
+
+  if (isCatalogRoute) {
+    if (session.kind !== "signed-in") {
+      return null;
+    }
+    if (wantsUnlockedSection) {
+      // The effect above is already redirecting to Mi cuenta: never render the section itself,
+      // not even for one frame.
+      return null;
+    }
+    return (
+      <CatalogApp
+        displayName={session.displayName}
+        onSignedOut={handleSignedOut}
+        onSessionEnded={handleSessionEnded}
+        accountFooterServices={accountFooter}
+        categoriesListScreenServices={categoriesListScreen}
       />
     );
   }
@@ -661,6 +809,7 @@ export function App({ help, services }: AppProps) {
         <HelpApp
           help={help}
           displayName={session.displayName}
+          canSeeCatalog={canSeeCatalog}
           onSignedOut={handleSignedOut}
           accountFooterServices={accountFooter}
         />

@@ -46,6 +46,11 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     rolesListScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    categoriesListScreen: {
+      fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      createCategory: vi.fn(),
+      editCategory: vi.fn(),
+    },
     newRoleScreen: {
       fetchRoleCreationChallenge: vi.fn(),
       createRole: vi.fn(),
@@ -266,7 +271,9 @@ test("opens every help page at the top of its content, not where the previous pa
   window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={longHelp} services={createServices()} />);
 
-  const link = screen.getByRole("link", { name: "Catálogo" });
+  // Scoped to the page body: the backoffice's own "Catálogo" area item in the rail shares this
+  // fixture article's title, now that an Administrator sees that item too.
+  const link = screen.getByRole("main").getByRole("link", { name: "Catálogo" });
   await expect.element(link).toBeInTheDocument();
   const firstBody = scrollingAncestor(link.element());
   expect(firstBody.scrollHeight).toBeGreaterThan(firstBody.clientHeight);
@@ -896,4 +903,81 @@ test("ends the session with the expired notice when real use of the open tab fin
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("shows the Catálogo item in the rail for a user holding manage_products_and_categories, linking to the categories list", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories"],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Catálogo" })).toBeVisible();
+});
+
+test("hides the Catálogo item in the rail for a user without the permission", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Catálogo" }).query()).toBeNull();
+});
+
+test("following the rail's Catálogo item opens the categories list, with Catálogo and Categorías active", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createServices();
+  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Catálogo" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Categorías", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/catalog/categories");
+  const catalogItem = screen.getByRole("link", { name: "Catálogo" }).element() as HTMLAnchorElement;
+  expect(catalogItem.getAttribute("aria-current")).toBe("page");
+  const categoriesItem = screen
+    .getByRole("link", { name: "Categorías" })
+    .element() as HTMLAnchorElement;
+  expect(categoriesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, without listing categories", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/categories");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });
