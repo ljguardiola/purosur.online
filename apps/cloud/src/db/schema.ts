@@ -99,6 +99,19 @@ export const userRoles = pgTable(
   ],
 );
 
+// Catalog categories aren't scoped to a branch (the business runs a single one today), so this is
+// a global, case-insensitive uniqueness rule, the same shape `roles.name` enforces.
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // Optimistic concurrency for a category row, the same shape `roles.version` gives role rows.
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {

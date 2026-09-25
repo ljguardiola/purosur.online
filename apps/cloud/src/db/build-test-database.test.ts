@@ -8,6 +8,7 @@ import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
   backofficeRateLimitAttempts,
+  categories,
   locations,
   passkeyChallenges,
   passkeys,
@@ -134,6 +135,7 @@ describe("buildTestDatabase", () => {
 
     await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
     await db.insert(rolePermissions).values({ roleId: role.id, permissionKey: "sell_and_charge" });
+    await db.insert(categories).values({ name: "Semillas" });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({
       userId: user.id,
