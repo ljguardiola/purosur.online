@@ -153,7 +153,8 @@ async function registerPasskey(userId: string, emulator: WebAuthnEmulator): Prom
   return row.id;
 }
 
-async function insertSession(userId: string): Promise<string> {
+/** Inserts a session, carrying a valid passkey authorization (the way a passkey sign-in would) unless `authorized` is `false`. */
+async function insertSession(userId: string, authorized = true): Promise<string> {
   const rawSessionId = generateSessionId();
   const now = new Date();
   await db.insert(sessions).values({
@@ -161,6 +162,7 @@ async function insertSession(userId: string): Promise<string> {
     sessionIdHash: hashSessionId(rawSessionId),
     createdAt: now,
     lastSeenAt: now,
+    passkeyAuthorizedAt: authorized ? now : null,
   });
   return rawSessionId;
 }
@@ -176,21 +178,11 @@ async function signedInAdministrator(): Promise<{ cookie: string; emulator: WebA
 async function prepareRemoval(targetId: string, passkeyId: string) {
   const administrator = await signedInAdministrator();
   const headers = { origin: BACKOFFICE_ORIGIN, cookie: administrator.cookie };
-  const options = await app.inject({
-    method: "POST",
-    url: `/users/${targetId}/passkeys/removal-options`,
-    headers,
-  });
-  const reauthentication = administrator.emulator.getJSON(
-    BACKOFFICE_ORIGIN,
-    options.json().reauthentication_options,
-  );
   return () =>
     app.inject({
       method: "POST",
       url: `/users/${targetId}/passkeys/${passkeyId}/remove`,
       headers,
-      payload: { reauthentication },
     });
 }
 

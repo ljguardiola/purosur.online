@@ -30,46 +30,56 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     myAccountScreen: {
       fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPasskeyRegistrationChallenge: vi.fn(),
-      fetchPasskeyRemovalChallenge: vi.fn(),
       registerPasskey: vi.fn(),
       removePasskey: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
       startRegistration: vi.fn(),
     },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserCreationChallenge: vi.fn(),
       createUser: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     rolesListScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    categoriesListScreen: {
+      fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
+      createCategory: vi.fn(),
+      editCategory: vi.fn(),
+    },
     newRoleScreen: {
-      fetchRoleCreationChallenge: vi.fn(),
       createRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     editRoleScreen: {
       fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchRoleEditChallenge: vi.fn(),
       editRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     duplicateRoleScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchRoleCreationChallenge: vi.fn(),
       createRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchEmailChangeChallenge: vi.fn(),
       changeUserEmail: vi.fn(),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserPasskeyRemovalChallenge: vi.fn(),
       removeUserPasskey: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     branchSettingsScreen: {
@@ -270,7 +280,9 @@ test("opens every help page at the top of its content, not where the previous pa
   window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={longHelp} services={createServices()} />);
 
-  const link = screen.getByRole("link", { name: "Catálogo" });
+  // Scoped to the page body: the backoffice's own "Catálogo" area item in the rail shares this
+  // fixture article's title, now that an Administrator sees that item too.
+  const link = screen.getByRole("main").getByRole("link", { name: "Catálogo" });
   await expect.element(link).toBeInTheDocument();
   const firstBody = scrollingAncestor(link.element());
   expect(firstBody.scrollHeight).toBeGreaterThan(firstBody.clientHeight);
@@ -705,7 +717,7 @@ test("opens the new role page at /settings/roles/new from the Nuevo rol button",
 
   await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/roles/new");
-  expect(services.newRoleScreen.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.newRoleScreen.createRole).not.toHaveBeenCalled();
 });
 
 test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the active sidebar item, and the browser's back button returns to the list", async () => {
@@ -840,7 +852,7 @@ test.each([
   },
   {
     path: "/settings/roles/new",
-    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.fetchRoleCreationChallenge],
+    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.createRole],
   },
   {
     path: "/settings/roles/role-stock/edit",
@@ -988,4 +1000,103 @@ test("ends the session with the expired notice when real use of the open tab fin
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("shows the Catálogo item in the rail for a user holding manage_products_and_categories, linking to the categories list", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories"],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Catálogo" })).toBeVisible();
+});
+
+test("hides the Catálogo item in the rail for a user without the permission", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Catálogo" }).query()).toBeNull();
+});
+
+test.each(["/help", "/settings/users", "/catalog/categories"])(
+  "lists Catálogo above Config in the rail on %s",
+  async (path) => {
+    window.history.pushState(null, "", path);
+    const services = createServices();
+    vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    const rail = screen.getByRole("navigation", { name: "Áreas" });
+    await expect.element(rail.getByRole("link", { name: "Catálogo" })).toBeVisible();
+    const labels = rail
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent);
+    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Config"));
+  },
+);
+
+test("following the rail's Catálogo item opens the categories list, with Catálogo and Categorías active", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createServices();
+  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Catálogo" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Categorías", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/catalog/categories");
+  const catalogItem = screen.getByRole("link", { name: "Catálogo" }).element() as HTMLAnchorElement;
+  expect(catalogItem.getAttribute("aria-current")).toBe("page");
+  const categoriesItem = screen
+    .getByRole("link", { name: "Categorías" })
+    .element() as HTMLAnchorElement;
+  expect(categoriesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a non-permitted user's typed /catalog/categories to Mi cuenta, without listing categories", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/categories");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });

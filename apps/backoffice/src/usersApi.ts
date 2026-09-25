@@ -1,8 +1,3 @@
-import type {
-  AuthenticationResponseJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/browser";
-
 // The backoffice API rate limiter counts a rolling one-hour window, the same fallback
 // passkeyApi.ts's own rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
@@ -33,24 +28,11 @@ export type FetchUserPasskeysOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type UserPasskeyRemovalChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchUserPasskeyRemovalChallengeOutcome =
-  | { kind: "ok"; value: UserPasskeyRemovalChallenge }
-  | { kind: "not_found" }
-  | { kind: "own_account" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
 export type RemoveUserPasskeyOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
   | { kind: "own_account" }
-  | { kind: "authentication_failed" }
+  | { kind: "authorization_required" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -71,18 +53,6 @@ export type FetchUserOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type EmailChangeChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchEmailChangeChallengeOutcome =
-  | { kind: "ok"; value: EmailChangeChallenge }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
 export type ChangeUserEmailInput = { email: string; version: number };
 
 export type ChangeUserEmailFieldError = "email" | "version";
@@ -95,18 +65,7 @@ export type ChangeUserEmailOutcome =
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
-  | { kind: "authentication_failed" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type UserCreationChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchUserCreationChallengeOutcome =
-  | { kind: "ok"; value: UserCreationChallenge }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
+  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -121,7 +80,7 @@ export type CreateUserOutcome =
   | { kind: "email_taken" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
-  | { kind: "authentication_failed" }
+  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -199,35 +158,6 @@ export async function fetchUsers(): Promise<FetchUsersOutcome> {
   return { kind: "ok", value: body.map(userFromWire) };
 }
 
-/** Hands back a fresh reauthentication challenge for creating a user (`POST /users/creation-options`). */
-export async function fetchUserCreationChallenge(): Promise<FetchUserCreationChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson("/users/creation-options");
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json().catch(() => undefined)) as
-    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
-}
-
 function fieldFromWire(field: unknown): CreateUserFieldError | undefined {
   if (field === "first_name") {
     return "firstName";
@@ -241,18 +171,43 @@ function fieldFromWire(field: unknown): CreateUserFieldError | undefined {
   return undefined;
 }
 
-/** Verifies the reauthentication and creates the user in the session's own branch with the chosen role (`POST /users`). */
-export async function createUser(
-  input: CreateUserInput,
-  reauthentication: AuthenticationResponseJSON,
-): Promise<CreateUserOutcome> {
+type GatedActionErrorOutcome =
+  | { kind: "unauthenticated" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+// Every sensitive user action is gated by the shared passkey-authorization window
+// (`passkey-authorization-guard.ts`) instead of its own step-up, so a 401 here means either the
+// session ended or that window has lapsed, never a rejected assertion.
+async function gatedActionErrorOutcome(response: Response): Promise<GatedActionErrorOutcome> {
+  if (response.status === 401) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "authorization_required"
+      ? { kind: "authorization_required" }
+      : { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
+/**
+ * Creates the user in the session's own branch with the chosen role, gated by the shared
+ * passkey-authorization window instead of its own reauthentication step-up (`POST /users`).
+ */
+export async function createUser(input: CreateUserInput): Promise<CreateUserOutcome> {
   let response: Response;
   try {
     response = await postJson("/users", {
       first_name: input.firstName,
       email: input.email,
       role_id: input.roleId,
-      reauthentication,
     });
   } catch {
     return { kind: "failed" };
@@ -284,19 +239,7 @@ export async function createUser(
   if (response.status === 409) {
     return { kind: "email_taken" };
   }
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  return { kind: "failed" };
+  return gatedActionErrorOutcome(response);
 }
 
 /** Reads one branch user by id, Administrator only (`GET /users/:id`). */
@@ -331,40 +274,6 @@ export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   return { kind: "ok", value: userFromWire(body) };
 }
 
-/** Hands back a fresh reauthentication challenge for changing a user's email (`POST /users/:id/email-change-options`). */
-export async function fetchEmailChangeChallenge(
-  id: string,
-): Promise<FetchEmailChangeChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson(`/users/${id}/email-change-options`);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json().catch(() => undefined)) as
-    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
-}
-
 function emailChangeFieldFromWire(field: unknown): ChangeUserEmailFieldError | undefined {
   if (field === "email") {
     return "email";
@@ -375,18 +284,20 @@ function emailChangeFieldFromWire(field: unknown): ChangeUserEmailFieldError | u
   return undefined;
 }
 
-/** Verifies the reauthentication and changes the user's email, rejecting a save over a newer version (`POST /users/:id/email`). */
+/**
+ * Changes the user's email, rejecting a save over a newer version, gated by the shared
+ * passkey-authorization window instead of its own reauthentication step-up
+ * (`POST /users/:id/email`).
+ */
 export async function changeUserEmail(
   id: string,
   input: ChangeUserEmailInput,
-  reauthentication: AuthenticationResponseJSON,
 ): Promise<ChangeUserEmailOutcome> {
   let response: Response;
   try {
     response = await postJson(`/users/${id}/email`, {
       email: input.email,
       version: input.version,
-      reauthentication,
     });
   } catch {
     return { kind: "failed" };
@@ -419,19 +330,7 @@ export async function changeUserEmail(
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
     return body?.code === "stale_version" ? { kind: "stale_version" } : { kind: "email_taken" };
   }
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  return { kind: "failed" };
+  return gatedActionErrorOutcome(response);
 }
 
 async function forbiddenOrOwnAccount(
@@ -474,54 +373,18 @@ export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOu
 }
 
 /**
- * Hands back a fresh reauthentication challenge for removing another user's passkey, against the
- * Administrator's own passkeys, never the target's (`POST /users/:id/passkeys/removal-options`).
- */
-export async function fetchUserPasskeyRemovalChallenge(
-  id: string,
-): Promise<FetchUserPasskeyRemovalChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson(`/users/${id}/passkeys/removal-options`);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return forbiddenOrOwnAccount(response);
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json().catch(() => undefined)) as
-    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
-}
-
-/**
- * Verifies the reauthentication and removes the target user's named passkey, ending every
- * backoffice session they have open (`POST /users/:id/passkeys/:passkeyId/remove`).
+ * Removes the target user's named passkey, ending every backoffice session they have open, gated
+ * by the shared passkey-authorization window (against the Administrator's own passkeys, never the
+ * target's) instead of its own reauthentication step-up
+ * (`POST /users/:id/passkeys/:passkeyId/remove`).
  */
 export async function removeUserPasskey(
   id: string,
   passkeyId: string,
-  reauthentication: AuthenticationResponseJSON,
 ): Promise<RemoveUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await postJson(`/users/${id}/passkeys/${passkeyId}/remove`, { reauthentication });
+    response = await postJson(`/users/${id}/passkeys/${passkeyId}/remove`);
   } catch {
     return { kind: "failed" };
   }
@@ -534,14 +397,5 @@ export async function removeUserPasskey(
   if (response.status === 403) {
     return forbiddenOrOwnAccount(response);
   }
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  return { kind: "failed" };
+  return gatedActionErrorOutcome(response);
 }

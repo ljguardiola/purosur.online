@@ -1,12 +1,13 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished } from "vitest";
+import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
-import { locations, roles, userRoles, users } from "./schema.js";
+import { locations, passkeyChallenges, roles, sessions, userRoles, users } from "./schema.js";
 import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
 
 let testDatabase: TestDatabase;
@@ -77,6 +78,138 @@ describe("user_roles", () => {
     await expect(
       db.insert(userRoles).values({ userId: user.id, roleId: managerRole.id }),
     ).rejects.toMatchObject({ cause: { constraint: "user_roles_user_id_key" } });
+  });
+});
+
+async function insertSession(userId: string): Promise<string> {
+  const rawSessionId = generateSessionId();
+  const [session] = await db
+    .insert(sessions)
+    .values({ userId, sessionIdHash: hashSessionId(rawSessionId) })
+    .returning({ id: sessions.id });
+  if (!session) {
+    throw new Error("test setup: inserting the session returned no row");
+  }
+  return session.id;
+}
+
+describe("sessions.passkey_authorized_at", () => {
+  it("defaults to null", async () => {
+    const user = await insertUser("ada@example.com");
+    const sessionId = await insertSession(user.id);
+
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+
+    expect(session?.passkeyAuthorizedAt).toBeNull();
+  });
+
+  it("stores the timestamp it is set to", async () => {
+    const user = await insertUser("ada@example.com");
+    const sessionId = await insertSession(user.id);
+    const authorizedAt = new Date("2026-01-05T12:00:00.000Z");
+
+    await db
+      .update(sessions)
+      .set({ passkeyAuthorizedAt: authorizedAt })
+      .where(eq(sessions.id, sessionId));
+
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+    expect(session?.passkeyAuthorizedAt).toEqual(authorizedAt);
+  });
+});
+
+describe("passkey_challenges.kind", () => {
+  it("accepts registration and session_authorization, rejecting a removed kind", async () => {
+    const user = await insertUser("ada@example.com");
+    const sessionId = await insertSession(user.id);
+
+    await expect(
+      db.insert(passkeyChallenges).values({
+        sessionId,
+        kind: "role_creation" as unknown as "registration",
+        registrationChallenge: "a-registration-challenge",
+      }),
+    ).rejects.toBeTruthy();
+
+    await db.insert(passkeyChallenges).values({
+      sessionId,
+      kind: "session_authorization",
+      reauthenticationChallenge: "an-assertion-challenge",
+    });
+    const [stored] = await db
+      .select()
+      .from(passkeyChallenges)
+      .where(eq(passkeyChallenges.sessionId, sessionId));
+    expect(stored).toMatchObject({ kind: "session_authorization" });
+  });
+});
+
+describe("migrating a database with a pending passkey challenge of a removed kind", () => {
+  async function migrationsFolderThrough0018(): Promise<string> {
+    const folder = await mkdtemp(join(tmpdir(), "migrations-through-0018-"));
+    onTestFinished(() => rm(folder, { recursive: true, force: true }));
+    await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
+    const journalPath = join(folder, "meta", "_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+      entries: { idx: number; tag: string }[];
+    };
+    const laterEntries = journal.entries.filter((entry) => entry.idx > 18);
+    for (const entry of laterEntries) {
+      await rm(join(folder, `${entry.tag}.sql`));
+      await rm(join(folder, "meta", `${String(entry.idx).padStart(4, "0")}_snapshot.json`));
+    }
+    journal.entries = journal.entries.filter((entry) => entry.idx <= 18);
+    await writeFile(journalPath, JSON.stringify(journal, null, 2));
+    return folder;
+  }
+
+  async function sessionOnDatabaseThrough0018() {
+    const priorMigrationsFolder = await migrationsFolderThrough0018();
+    const client = await migrateFreshDatabase(priorMigrationsFolder);
+    onTestFinished(() => client.close());
+    const { rows: userRows } = await client.query<{ id: string }>(
+      `insert into "users" ("first_name", "email", "location_id") values ('Ada', 'ada@example.com', (select id from locations limit 1)) returning "id"`,
+    );
+    const userId = userRows[0]?.id;
+    const { rows: sessionRows } = await client.query<{ id: string }>(
+      `insert into "sessions" ("user_id", "session_id_hash") values ('${userId}', 'a-session-hash') returning "id"`,
+    );
+    return { client, sessionId: sessionRows[0]?.id };
+  }
+
+  it("deletes a pending registration issued before passkey registration required an authorization", async () => {
+    const { client, sessionId } = await sessionOnDatabaseThrough0018();
+    await client.query(
+      `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge", "registration_challenge") values ('${sessionId}', 'registration', 'a-stale-reauthentication', 'a-stale-registration')`,
+    );
+
+    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const { rows: remaining } = await client.query(
+      `select * from "passkey_challenges" where "session_id" = '${sessionId}'`,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it("deletes the pending row instead of leaving a kind the new enum no longer has", async () => {
+    const { client, sessionId } = await sessionOnDatabaseThrough0018();
+    await client.query(
+      `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge") values ('${sessionId}', 'role_creation', 'a-stale-challenge')`,
+    );
+
+    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const { rows: remaining } = await client.query(
+      `select * from "passkey_challenges" where "session_id" = '${sessionId}'`,
+    );
+    expect(remaining).toHaveLength(0);
+    const { rows: enumValues } = await client.query<{ enumlabel: string }>(
+      `select enumlabel from pg_enum join pg_type on pg_enum.enumtypid = pg_type.oid where pg_type.typname = 'passkey_management_challenge_kind' order by enumsortorder`,
+    );
+    expect(enumValues.map((row) => row.enumlabel)).toEqual([
+      "registration",
+      "session_authorization",
+    ]);
   });
 });
 

@@ -430,7 +430,7 @@ describe("wiring the recovery routes", () => {
 });
 
 describe("wiring the session routes", () => {
-  it("does not register GET /users/session, its status route, or POST /users/session/sign-out when no session option is given", async () => {
+  it("does not register GET /users/session, its status route, POST /users/session/sign-out, or the authorization pair when no session option is given", async () => {
     const app = buildApp({ version: "abc1234" });
 
     const readResponse = await app.inject({ method: "GET", url: "/users/session" });
@@ -440,13 +440,25 @@ describe("wiring the session routes", () => {
       url: "/users/session/sign-out",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const authorizationOptionsResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/authorization-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const authorizationResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/authorization",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(readResponse.statusCode).toBe(404);
     expect(statusResponse.statusCode).toBe(404);
     expect(signOutResponse.statusCode).toBe(404);
+    expect(authorizationOptionsResponse.statusCode).toBe(404);
+    expect(authorizationResponse.statusCode).toBe(404);
   });
 
-  it("registers GET /users/session, its status route, and POST /users/session/sign-out when a session option is given", async () => {
+  it("registers GET /users/session, its status route, POST /users/session/sign-out, and the authorization pair when a session option is given", async () => {
     const app = buildApp({
       version: "abc1234",
       session: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
@@ -459,8 +471,18 @@ describe("wiring the session routes", () => {
       url: "/users/session/sign-out",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const authorizationOptionsResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/authorization-options",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const authorizationResponse = await app.inject({
+      method: "POST",
+      url: "/users/session/authorization",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
-    // No session cookie was sent in either case, so all three reach their own route handler's
+    // No session cookie was sent in any case, so every one reaches its own route handler's
     // 401 instead of Fastify's generic not-found response for an unregistered route.
     expect(readResponse.statusCode).toBe(401);
     expect(readResponse.json()).toMatchObject({ code: "unauthenticated" });
@@ -468,6 +490,10 @@ describe("wiring the session routes", () => {
     expect(statusResponse.json()).toMatchObject({ code: "unauthenticated" });
     expect(signOutResponse.statusCode).toBe(401);
     expect(signOutResponse.json()).toMatchObject({ code: "unauthenticated" });
+    expect(authorizationOptionsResponse.statusCode).toBe(401);
+    expect(authorizationOptionsResponse.json()).toMatchObject({ code: "unauthenticated" });
+    expect(authorizationResponse.statusCode).toBe(401);
+    expect(authorizationResponse.json()).toMatchObject({ code: "unauthenticated" });
   });
 });
 
@@ -480,19 +506,9 @@ describe("wiring the users routes", () => {
       method: "GET",
       url: "/users/00000000-0000-0000-0000-000000000000",
     });
-    const creationOptions = await app.inject({
-      method: "POST",
-      url: "/users/creation-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const create = await app.inject({
       method: "POST",
       url: "/users",
-      headers: { origin: "https://staging.purosur.online" },
-    });
-    const emailChangeOptions = await app.inject({
-      method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/email-change-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const emailChange = await app.inject({
@@ -504,11 +520,6 @@ describe("wiring the users routes", () => {
       method: "GET",
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
-    const userPasskeyRemovalOptions = await app.inject({
-      method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/removal-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const userPasskeyRemove = await app.inject({
       method: "POST",
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
@@ -517,12 +528,9 @@ describe("wiring the users routes", () => {
 
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
-    expect(creationOptions.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
-    expect(emailChangeOptions.statusCode).toBe(404);
     expect(emailChange.statusCode).toBe(404);
     expect(userPasskeys.statusCode).toBe(404);
-    expect(userPasskeyRemovalOptions.statusCode).toBe(404);
     expect(userPasskeyRemove.statusCode).toBe(404);
   });
 
@@ -537,19 +545,9 @@ describe("wiring the users routes", () => {
       method: "GET",
       url: "/users/00000000-0000-0000-0000-000000000000",
     });
-    const creationOptions = await app.inject({
-      method: "POST",
-      url: "/users/creation-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const create = await app.inject({
       method: "POST",
       url: "/users",
-      headers: { origin: "https://staging.purosur.online" },
-    });
-    const emailChangeOptions = await app.inject({
-      method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/email-change-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const emailChange = await app.inject({
@@ -561,11 +559,6 @@ describe("wiring the users routes", () => {
       method: "GET",
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys",
     });
-    const userPasskeyRemovalOptions = await app.inject({
-      method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/passkeys/removal-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const userPasskeyRemove = await app.inject({
       method: "POST",
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
@@ -576,12 +569,9 @@ describe("wiring the users routes", () => {
     // instead of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
-    expect(creationOptions.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
-    expect(emailChangeOptions.statusCode).toBe(401);
     expect(emailChange.statusCode).toBe(401);
     expect(userPasskeys.statusCode).toBe(401);
-    expect(userPasskeyRemovalOptions.statusCode).toBe(401);
     expect(userPasskeyRemove.statusCode).toBe(401);
   });
 });
@@ -595,19 +585,9 @@ describe("wiring the roles routes", () => {
       method: "GET",
       url: "/roles/00000000-0000-0000-0000-000000000000",
     });
-    const creationOptions = await app.inject({
-      method: "POST",
-      url: "/roles/creation-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const create = await app.inject({
       method: "POST",
       url: "/roles",
-      headers: { origin: "https://staging.purosur.online" },
-    });
-    const editOptions = await app.inject({
-      method: "POST",
-      url: "/roles/00000000-0000-0000-0000-000000000000/edit-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
@@ -618,9 +598,7 @@ describe("wiring the roles routes", () => {
 
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
-    expect(creationOptions.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
-    expect(editOptions.statusCode).toBe(404);
     expect(edit.statusCode).toBe(404);
   });
 
@@ -636,19 +614,9 @@ describe("wiring the roles routes", () => {
       url: "/roles/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
-    const creationOptions = await app.inject({
-      method: "POST",
-      url: "/roles/creation-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const create = await app.inject({
       method: "POST",
       url: "/roles",
-      headers: { origin: "https://staging.purosur.online" },
-    });
-    const editOptions = await app.inject({
-      method: "POST",
-      url: "/roles/00000000-0000-0000-0000-000000000000/edit-options",
       headers: { origin: "https://staging.purosur.online" },
     });
     const edit = await app.inject({
@@ -661,9 +629,54 @@ describe("wiring the roles routes", () => {
     // of Fastify's generic not-found response for an unregistered route.
     expect(list.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
-    expect(creationOptions.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
-    expect(editOptions.statusCode).toBe(401);
+    expect(edit.statusCode).toBe(401);
+  });
+});
+
+describe("wiring the categories routes", () => {
+  it("does not register the categories routes when no categories option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/categories" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/categories",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/categories/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(create.statusCode).toBe(404);
+    expect(edit.statusCode).toBe(404);
+  });
+
+  it("registers the categories routes when a categories option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      categories: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/categories" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/categories",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/categories/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
+    // of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(create.statusCode).toBe(401);
     expect(edit.statusCode).toBe(401);
   });
 });
@@ -753,14 +766,14 @@ describe("wiring the passkeys routes", () => {
       url: "/users/passkeys/registration-options",
       headers: { origin: "https://staging.purosur.online" },
     });
-    const removalOptions = await app.inject({
+    const remove = await app.inject({
       method: "POST",
-      url: "/users/passkeys/removal-options",
+      url: "/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
 
     expect(registrationOptions.statusCode).toBe(404);
-    expect(removalOptions.statusCode).toBe(404);
+    expect(remove.statusCode).toBe(404);
   });
 
   it("registers the registration and removal routes when a passkeys option is given", async () => {
@@ -774,11 +787,6 @@ describe("wiring the passkeys routes", () => {
       url: "/users/passkeys/registration-options",
       headers: { origin: "https://staging.purosur.online" },
     });
-    const removalOptions = await app.inject({
-      method: "POST",
-      url: "/users/passkeys/removal-options",
-      headers: { origin: "https://staging.purosur.online" },
-    });
     const remove = await app.inject({
       method: "POST",
       url: "/users/passkeys/00000000-0000-0000-0000-000000000000/remove",
@@ -788,7 +796,6 @@ describe("wiring the passkeys routes", () => {
     // No session cookie was sent in any case, so each reaches its own route handler's 401
     // instead of Fastify's generic not-found response for an unregistered route.
     expect(registrationOptions.statusCode).toBe(401);
-    expect(removalOptions.statusCode).toBe(401);
     expect(remove.statusCode).toBe(401);
   });
 });
@@ -821,6 +828,7 @@ function fullyWiredApp() {
     users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
 
@@ -839,23 +847,17 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/users/session", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
       { method: "POST", url: "/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
+      { method: "POST", url: "/users/session/authorization-options", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/session/authorization", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
-      { method: "POST", url: "/users/passkeys/removal-options", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/users", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/users/creation-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/users/:id/email-change-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/users/:id/email", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
-      {
-        method: "POST",
-        url: "/users/:id/passkeys/removal-options",
-        access: ADMINISTRATOR_ACCESS,
-      },
       {
         method: "POST",
         url: "/users/:id/passkeys/:passkeyId/remove",
@@ -863,9 +865,7 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/roles/creation-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/roles/:id/edit-options", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
       {
         method: "GET",
@@ -876,6 +876,21 @@ describe("the route access inventory", () => {
         method: "PUT",
         url: "/branch-settings",
         access: permissionAccess("configure_branch"),
+      },
+      {
+        method: "GET",
+        url: "/categories",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/categories",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/categories/:id/edit",
+        access: permissionAccess("manage_products_and_categories"),
       },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },

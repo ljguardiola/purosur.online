@@ -1,13 +1,9 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   type BranchUser,
   changeUserEmail,
   createUser,
-  fetchEmailChangeChallenge,
   fetchUser,
-  fetchUserCreationChallenge,
-  fetchUserPasskeyRemovalChallenge,
   fetchUserPasskeys,
   fetchUsers,
   removeUserPasskey,
@@ -108,63 +104,6 @@ test("fetchUsers reports failed on a 200 whose body is not JSON", async () => {
   await expect(fetchUsers()).resolves.toEqual({ kind: "failed" });
 });
 
-test("fetchUserCreationChallenge hands back reauthentication options on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: { challenge: "reauth" } }),
-  );
-
-  const outcome = await fetchUserCreationChallenge();
-
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: { reauthenticationOptions: { challenge: "reauth" } },
-  });
-  expect(fetch).toHaveBeenCalledWith(
-    "/users/creation-options",
-    expect.objectContaining({
-      method: "POST",
-    }),
-  );
-});
-
-test("fetchUserCreationChallenge reports forbidden on 403", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
-
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "forbidden" });
-});
-
-test("fetchUserCreationChallenge reports unauthenticated on 401", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "unauthenticated" });
-});
-
-test("fetchUserCreationChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "45" }),
-  );
-
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 45,
-  });
-});
-
-test("fetchUserCreationChallenge reports failed on any other status or a network failure", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "failed" });
-
-  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "failed" });
-});
-
-test("fetchUserCreationChallenge reports failed on a 200 whose body is not JSON", async () => {
-  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
-
-  await expect(fetchUserCreationChallenge()).resolves.toEqual({ kind: "failed" });
-});
-
-const reauthentication = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
 const creationInput = {
   firstName: "Martina Gómez",
   email: "martina@example.com",
@@ -174,7 +113,7 @@ const creationInput = {
 test("createUser posts the wire shape and returns the created user on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, administratorRow));
 
-  const outcome = await createUser(creationInput, reauthentication);
+  const outcome = await createUser(creationInput);
 
   expect(outcome).toEqual({ kind: "ok", value: administrator });
   expect(fetch).toHaveBeenCalledWith(
@@ -185,7 +124,6 @@ test("createUser posts the wire shape and returns the created user on 201", asyn
         first_name: "Martina Gómez",
         email: "martina@example.com",
         role_id: "role-admin",
-        reauthentication,
       }),
     }),
   );
@@ -194,7 +132,7 @@ test("createUser posts the wire shape and returns the created user on 201", asyn
 test("createUser reports failed on a 201 whose body is not JSON", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 201 }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({ kind: "failed" });
+  await expect(createUser(creationInput)).resolves.toEqual({ kind: "failed" });
 });
 
 test("createUser reports a validation_failed field on 400", async () => {
@@ -202,7 +140,7 @@ test("createUser reports a validation_failed field on 400", async () => {
     jsonResponse(400, { code: "validation_failed", details: [{ field: "email" }] }),
   );
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "validation_failed",
     field: "email",
   });
@@ -212,7 +150,7 @@ test("createUser maps every validation field to its camelCase name", async () =>
   vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "first_name" }] }),
   );
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "validation_failed",
     field: "firstName",
   });
@@ -220,7 +158,7 @@ test("createUser maps every validation field to its camelCase name", async () =>
   vi.mocked(fetch).mockResolvedValueOnce(
     jsonResponse(400, { code: "validation_failed", details: [{ field: "role_id" }] }),
   );
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "validation_failed",
     field: "roleId",
   });
@@ -229,7 +167,7 @@ test("createUser maps every validation field to its camelCase name", async () =>
 test("createUser reports unknown_role on 400", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "unknown_role" }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "unknown_role",
   });
 });
@@ -237,7 +175,7 @@ test("createUser reports unknown_role on 400", async () => {
 test("createUser reports email_taken on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "email_taken" }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "email_taken",
   });
 });
@@ -245,23 +183,23 @@ test("createUser reports email_taken on 409", async () => {
 test("createUser reports forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "forbidden",
   });
 });
 
-test("createUser reports authentication_failed on 401 with that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("createUser reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
-    kind: "authentication_failed",
+  await expect(createUser(creationInput)).resolves.toEqual({
+    kind: "authorization_required",
   });
 });
 
 test("createUser reports unauthenticated on 401 with the unauthenticated code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "unauthenticated",
   });
 });
@@ -271,7 +209,7 @@ test("createUser reports rate_limited with the Retry-After seconds on 429", asyn
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
   );
 
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({
+  await expect(createUser(creationInput)).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 30,
   });
@@ -279,10 +217,10 @@ test("createUser reports rate_limited with the Retry-After seconds on 429", asyn
 
 test("createUser reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({ kind: "failed" });
+  await expect(createUser(creationInput)).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(createUser(creationInput, reauthentication)).resolves.toEqual({ kind: "failed" });
+  await expect(createUser(creationInput)).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchUser hands back the user on 200", async () => {
@@ -337,91 +275,20 @@ test("fetchUser reports failed on a 200 whose body is not JSON", async () => {
   await expect(fetchUser("user-1")).resolves.toEqual({ kind: "failed" });
 });
 
-test("fetchEmailChangeChallenge hands back reauthentication options on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: { challenge: "reauth" } }),
-  );
-
-  const outcome = await fetchEmailChangeChallenge("user-1");
-
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: { reauthenticationOptions: { challenge: "reauth" } },
-  });
-  expect(fetch).toHaveBeenCalledWith(
-    "/users/user-1/email-change-options",
-    expect.objectContaining({ method: "POST" }),
-  );
-});
-
-test("fetchEmailChangeChallenge reports not_found on 404", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
-
-  await expect(fetchEmailChangeChallenge("missing")).resolves.toEqual({ kind: "not_found" });
-});
-
-test("fetchEmailChangeChallenge reports forbidden on 403", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
-
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({ kind: "forbidden" });
-});
-
-test("fetchEmailChangeChallenge reports unauthenticated on 401", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({ kind: "unauthenticated" });
-});
-
-test("fetchEmailChangeChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
-  );
-
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 40,
-  });
-});
-
-test("fetchEmailChangeChallenge reports failed on any other status or a network failure", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({ kind: "failed" });
-
-  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({ kind: "failed" });
-});
-
-test("fetchEmailChangeChallenge reports failed on a 200 whose body is not JSON", async () => {
-  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
-
-  await expect(fetchEmailChangeChallenge("user-1")).resolves.toEqual({ kind: "failed" });
-});
-
-const emailChangeReauthentication = {
-  id: "existing-cred",
-} as unknown as AuthenticationResponseJSON;
 const changedRow = { ...administratorRow, email: "new@example.com", version: 2 };
 const changedUser: BranchUser = { ...administrator, email: "new@example.com", version: 2 };
 
 test("changeUserEmail posts the wire shape and returns the updated user on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, changedRow));
 
-  const outcome = await changeUserEmail(
-    "user-1",
-    { email: "new@example.com", version: 1 },
-    emailChangeReauthentication,
-  );
+  const outcome = await changeUserEmail("user-1", { email: "new@example.com", version: 1 });
 
   expect(outcome).toEqual({ kind: "ok", value: changedUser });
   expect(fetch).toHaveBeenCalledWith(
     "/users/user-1/email",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({
-        email: "new@example.com",
-        version: 1,
-        reauthentication: emailChangeReauthentication,
-      }),
+      body: JSON.stringify({ email: "new@example.com", version: 1 }),
     }),
   );
 });
@@ -430,11 +297,7 @@ test("changeUserEmail reports failed on a 200 whose body is not JSON", async () 
   vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "failed" });
 });
 
@@ -443,9 +306,10 @@ test("changeUserEmail reports a validation_failed field on 400", async () => {
     jsonResponse(400, { code: "validation_failed", details: [{ field: "email" }] }),
   );
 
-  await expect(
-    changeUserEmail("user-1", { email: "not-an-email", version: 1 }, emailChangeReauthentication),
-  ).resolves.toEqual({ kind: "validation_failed", field: "email" });
+  await expect(changeUserEmail("user-1", { email: "not-an-email", version: 1 })).resolves.toEqual({
+    kind: "validation_failed",
+    field: "email",
+  });
 });
 
 test("changeUserEmail maps the version validation field to its camelCase name", async () => {
@@ -454,11 +318,7 @@ test("changeUserEmail maps the version validation field to its camelCase name", 
   );
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "validation_failed", field: "version" });
 });
 
@@ -466,11 +326,7 @@ test("changeUserEmail reports email_taken on 409 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "email_taken" }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "taken@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "taken@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "email_taken" });
 });
 
@@ -478,11 +334,7 @@ test("changeUserEmail reports stale_version on 409 with that code", async () => 
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "stale_version" });
 });
 
@@ -490,35 +342,23 @@ test("changeUserEmail reports not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 
   await expect(
-    changeUserEmail(
-      "missing",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("missing", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "not_found" });
 });
 
-test("changeUserEmail reports authentication_failed on 401 with that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("changeUserEmail reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
-  ).resolves.toEqual({ kind: "authentication_failed" });
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
+  ).resolves.toEqual({ kind: "authorization_required" });
 });
 
 test("changeUserEmail reports unauthenticated on 401 with the unauthenticated code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "unauthenticated" });
 });
 
@@ -526,11 +366,7 @@ test("changeUserEmail reports forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "forbidden" });
 });
 
@@ -540,31 +376,19 @@ test("changeUserEmail reports rate_limited with the Retry-After seconds on 429",
   );
 
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 50 });
 });
 
 test("changeUserEmail reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
   await expect(
-    changeUserEmail(
-      "user-1",
-      { email: "new@example.com", version: 1 },
-      emailChangeReauthentication,
-    ),
+    changeUserEmail("user-1", { email: "new@example.com", version: 1 }),
   ).resolves.toEqual({ kind: "failed" });
 });
 
@@ -639,135 +463,48 @@ test("fetchUserPasskeys reports failed on any other status or a network failure"
   await expect(fetchUserPasskeys("user-2")).resolves.toEqual({ kind: "failed" });
 });
 
-const userPasskeyRemovalReauthenticationOptions = { challenge: "reauth", rpId: "purosur.online" };
-
-test("fetchUserPasskeyRemovalChallenge posts with no body and returns the reauthentication options", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: userPasskeyRemovalReauthenticationOptions }),
-  );
-
-  const outcome = await fetchUserPasskeyRemovalChallenge("user-2");
-
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: { reauthenticationOptions: userPasskeyRemovalReauthenticationOptions },
-  });
-  expect(fetch).toHaveBeenCalledWith(
-    "/users/user-2/passkeys/removal-options",
-    expect.objectContaining({ method: "POST" }),
-  );
-});
-
-test("fetchUserPasskeyRemovalChallenge reports failed on a 200 whose body is not JSON", async () => {
-  vi.mocked(fetch).mockResolvedValue(new Response("<!doctype html>", { status: 200 }));
-
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports own_account on 403 with that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "own_account" }));
-
-  await expect(fetchUserPasskeyRemovalChallenge("user-1")).resolves.toEqual({
-    kind: "own_account",
-  });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports forbidden on 403 for a non-Administrator", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
-
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "forbidden" });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports not_found on 404", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
-
-  await expect(fetchUserPasskeyRemovalChallenge("missing")).resolves.toEqual({ kind: "not_found" });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports unauthenticated on 401", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({
-    kind: "unauthenticated",
-  });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
-  );
-
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 30,
-  });
-});
-
-test("fetchUserPasskeyRemovalChallenge reports failed on any other status or a network failure", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
-
-  vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(fetchUserPasskeyRemovalChallenge("user-2")).resolves.toEqual({ kind: "failed" });
-});
-
-const userPasskeyRemovalReauthentication = {
-  id: "existing-cred",
-} as unknown as AuthenticationResponseJSON;
-
-test("removeUserPasskey posts the reauthentication and returns ok on 200", async () => {
+test("removeUserPasskey posts with no body and returns ok on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
-  const outcome = await removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication);
+  const outcome = await removeUserPasskey("user-2", "pk-1");
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/user-2/passkeys/pk-1/remove",
-    expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({ reauthentication: userPasskeyRemovalReauthentication }),
-    }),
+    expect.objectContaining({ method: "POST" }),
   );
 });
 
 test("removeUserPasskey reports not_found on 404 for an unknown user or passkey", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
 
-  await expect(
-    removeUserPasskey("user-2", "missing", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "not_found" });
+  await expect(removeUserPasskey("user-2", "missing")).resolves.toEqual({ kind: "not_found" });
 });
 
 test("removeUserPasskey reports own_account on 403 with that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "own_account" }));
 
-  await expect(
-    removeUserPasskey("user-1", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "own_account" });
+  await expect(removeUserPasskey("user-1", "pk-1")).resolves.toEqual({ kind: "own_account" });
 });
 
 test("removeUserPasskey reports forbidden on 403 for a non-Administrator", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
 
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "forbidden" });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "forbidden" });
 });
 
-test("removeUserPasskey reports authentication_failed on 401 with that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("removeUserPasskey reports authorization_required on 401 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "authentication_failed" });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({
+    kind: "authorization_required",
+  });
 });
 
 test("removeUserPasskey reports unauthenticated on 401 with the unauthenticated code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
 
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "unauthenticated" });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "unauthenticated" });
 });
 
 test("removeUserPasskey reports rate_limited with the Retry-After seconds on 429", async () => {
@@ -775,19 +512,16 @@ test("removeUserPasskey reports rate_limited with the Retry-After seconds on 429
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
   );
 
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 40 });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
 });
 
 test("removeUserPasskey reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "failed" });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("network down"));
-  await expect(
-    removeUserPasskey("user-2", "pk-1", userPasskeyRemovalReauthentication),
-  ).resolves.toEqual({ kind: "failed" });
+  await expect(removeUserPasskey("user-2", "pk-1")).resolves.toEqual({ kind: "failed" });
 });

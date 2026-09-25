@@ -150,6 +150,19 @@ export const userRoles = pgTable(
   ],
 );
 
+// Catalog categories aren't scoped to a branch (the business runs a single one today), so this is
+// a global, case-insensitive uniqueness rule, the same shape `roles.name` enforces.
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    // Optimistic concurrency for a category row, the same shape `roles.version` gives role rows.
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
+);
+
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
@@ -283,7 +296,10 @@ export const recoveryRejectedAttemptAccumulator = pgTable(
 // `created_at` anchors the session's absolute expiry, `last_seen_at` its idle expiry, and
 // `revoked_at` covers every way a session stops early (sign-out, a redeemed recovery link ending
 // every open session of the account, or any future forced termination) without a separate events
-// table.
+// table. `passkey_authorized_at` is the session's own step-up window: set by a passkey sign-in (which opens the session) or by `POST
+// /users/session/authorization`, it covers every sensitive action for 5 minutes from that moment,
+// checked by `requirePasskeyAuthorization` and never itself consumed by a covered action. Redeeming
+// a recovery link never sets it, since redemption never opens a session.
 export const sessions = pgTable(
   "sessions",
   {
@@ -295,45 +311,34 @@ export const sessions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    passkeyAuthorizedAt: timestamp("passkey_authorized_at", { withTimezone: true }),
   },
   (table) => [uniqueIndex("sessions_session_id_hash_key").on(table.sessionIdHash)],
 );
 
+// Every sensitive backoffice action used to run its own per-action step-up (a `removal`,
+// `user_creation`, `user_email_change`, `user_passkey_removal`, `role_creation`, or `role_edit`
+// challenge, one per route); those all moved onto the shared `sessions.passkey_authorized_at`
+// window instead (migration 0019), leaving only the two kinds a `passkey_challenges` row can still
+// hold: `registration` (a new passkey's own registration challenge) and `session_authorization`
+// (the assertion challenge behind `POST /users/session/authorization`, which refreshes that
+// window).
 export const passkeyManagementChallengeKind = pgEnum("passkey_management_challenge_kind", [
   "registration",
-  "removal",
-  // Step-up reauthentication an Administrator must pass before `POST /users` creates a new
-  // backoffice user: challenged against the Administrator's own passkeys, exactly
-  // like `removal`, never against the user being created (who has none yet).
-  "user_creation",
-  // Step-up reauthentication an Administrator must pass before their edit to another user's
-  // email is applied: challenged against the Administrator's own passkeys, exactly
-  // like `user_creation`, never against the user whose email is changing.
-  "user_email_change",
-  // Step-up reauthentication an Administrator must pass before removing another branch user's
-  // passkey: challenged against the Administrator's own passkeys, exactly like
-  // `user_email_change`, never against the target user's.
-  "user_passkey_removal",
-  // Step-up reauthentication an Administrator must pass before `POST /roles` creates a new role:
-  // challenged against the Administrator's own passkeys, exactly like `user_creation`.
-  "role_creation",
-  // Step-up reauthentication an Administrator must pass before their edit to an existing role's
-  // name or permissions is applied: challenged against the Administrator's own passkeys, exactly
-  // like `role_creation`.
-  "role_edit",
+  "session_authorization",
 ]);
 
-// One row per open session with a pending passkey self-management (or step-up) challenge:
-// registering or removing a passkey, creating a new backoffice user, or changing another user's
-// email always requires a fresh reauthentication with one of the
-// account's existing passkeys, so `reauthentication_challenge` is always set; `registration`
-// additionally stores `registration_challenge` for the new credential itself, which stays null for
-// a `removal`, `user_creation`, or `user_email_change` row. Keyed by `session_id` rather than by
-// challenge value the way
-// `sign_in_challenges` is, because these options requests are never discoverable (an open session
-// already identifies the account): `passkey_challenges_session_id_key` allows only one live row
-// per session, so a fresh options request replaces whatever that session had pending. A row is
-// deleted once consumed (or once it has aged past its short lifetime).
+// One row per open session per pending-challenge kind: `registration` stores only
+// `registration_challenge` (for a new credential; no reauthentication is asked for it, since
+// registering a passkey is itself gated by the shared step-up guard), and `session_authorization`
+// stores only `reauthentication_challenge` (an assertion against the account's existing passkeys,
+// verified by `POST /users/session/authorization`). Keyed by `(session_id, kind)` rather than by
+// challenge value the way `sign_in_challenges` is, because these options requests are never
+// discoverable (an open session already identifies the account). The pair is unique per kind, not
+// per session (`passkey_challenges_session_id_kind_key`), so a `session_authorization` challenge
+// requested from another tab of the same session never overwrites an in-flight `registration`
+// challenge (or the reverse): a fresh options request replaces only its own kind's pending row. A
+// row is deleted once consumed (or once it has aged past its short lifetime).
 export const passkeyChallenges = pgTable(
   "passkey_challenges",
   {
@@ -342,11 +347,13 @@ export const passkeyChallenges = pgTable(
       .notNull()
       .references(() => sessions.id),
     kind: passkeyManagementChallengeKind("kind").notNull(),
-    reauthenticationChallenge: text("reauthentication_challenge").notNull(),
+    reauthenticationChallenge: text("reauthentication_challenge"),
     registrationChallenge: text("registration_challenge"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("passkey_challenges_session_id_key").on(table.sessionId)],
+  (table) => [
+    uniqueIndex("passkey_challenges_session_id_kind_key").on(table.sessionId, table.kind),
+  ],
 );
 
 // One row per short-lived WebAuthn authentication challenge `POST

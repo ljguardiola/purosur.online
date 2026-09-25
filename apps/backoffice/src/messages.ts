@@ -1,4 +1,10 @@
-import { PERMISSION_KEYS, type PermissionArea, type PermissionKey } from "@purosur/contracts";
+import {
+  CATEGORY_NAME_MAX_LENGTH,
+  PERMISSION_KEYS,
+  type PermissionArea,
+  type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
+} from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -26,6 +32,9 @@ const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
 const CANCEL_LABEL = "Cancelar";
 const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
+
+const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -300,7 +309,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
         emailTaken: EMAIL_TAKEN,
-        reauthNotice: "Se pide tu passkey para confirmar.",
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
         closeLabel: CLOSE_LABEL,
@@ -342,7 +350,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailRequired: EMAIL_REQUIRED,
         emailInvalid: EMAIL_INVALID,
         emailTaken: EMAIL_TAKEN,
-        reauthNotice: "Al guardar, el navegador te pide usar tu passkey para confirmar el cambio.",
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
         closeLabel: CLOSE_LABEL,
@@ -387,6 +394,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
+        nameTooLong: ROLE_NAME_TOO_LONG,
         nameReserved: "Ese nombre es del Administrador; elegí otro.",
         nameFieldError: "Revisá el nombre del rol.",
         nameTaken: "Ya existe un rol con este nombre.",
@@ -400,7 +408,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         alertsBranchOption: VIEW_BRANCH_ALERTS_LABEL,
         alertsAllOption: VIEW_ALL_ALERTS_LABEL,
         dismissAlertsOption: DISMISS_ALERTS_LABEL,
-        reauthNotice: "Se pide tu passkey para confirmar.",
       },
       // Shared by every role page (New, Edit and Duplicate); a save that's rate limited shows the
       // Roles area's own rateLimitedTitle/rateLimitedDetail above.
@@ -475,6 +482,95 @@ export const messages = defineMessages("es-AR", (f) => ({
       hoursFormatError: "Ingresá la hora como 9:00 o 21:30.",
       daysFieldError: "Ingresá un número entero de 0 días o más.",
       daysTooLargeError: "Ingresá un número de días más chico.",
+    },
+  },
+  catalog: {
+    areaLabel: "Catálogo",
+    sectionsHeading: "Catálogo",
+    sectionsNavLabel: "Catálogo",
+    categoriesSectionLabel: "Categorías",
+    categories: {
+      documentTitle: "Categorías · Puro Sur",
+      breadcrumb: "Catálogo",
+      heading: "Categorías",
+      newCategoryButton: "Nueva categoría",
+      searchPlaceholder: "Buscar una categoría",
+      columns: { category: "Categoría" },
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 categoría", other: `${params.count} categorías` }),
+      emptyTitle: "Todavía no hay categorías",
+      emptyDetail: "Creá la primera para poder darle una a un producto.",
+      noResultsTitle: "Sin resultados",
+      noResultsDetail: "Probá con otro nombre.",
+      loadErrorTitle: "No pudimos abrir las categorías",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      editAria: (params: { name: string }) => `Editar la categoría ${params.name}`,
+      newCategoryModal: {
+        eyebrow: "Catálogo",
+        heading: "Nueva categoría",
+        nameLabel: "Nombre de la categoría",
+        nameRequired: "Ingresá el nombre de la categoría.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
+        nameTaken: "Ya existe una categoría con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Crear la categoría",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear la categoría",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      editCategoryModal: {
+        eyebrow: "Catálogo · Categorías",
+        nameLabel: "Nombre de la categoría",
+        nameRequired: "Ingresá el nombre de la categoría.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
+        nameTaken: "Ya existe una categoría con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Guardar los cambios",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo guardar el cambio",
+        attemptFailedDetail: "Probá de nuevo.",
+        staleVersionTitle: "Esta categoría cambió mientras la editabas",
+        staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        notFoundTitle: "Esta categoría ya no existe",
+        reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+    },
+  },
+  // The shared authorization modal every sensitive backoffice action opens on
+  // `authorization_required`, one instance of copy reused everywhere instead of per screen.
+  passkeyAuthorization: {
+    title: "Autorizá este cambio",
+    body: (params: { action: string }) =>
+      `${params.action} necesita tu autorización. Confirmala con tu passkey.`,
+    cancel: CANCEL_LABEL,
+    confirm: "Usar mi passkey",
+    closeLabel: CLOSE_LABEL,
+    attemptFailedTitle: "No se pudo confirmar con tu passkey",
+    attemptFailedDetail: "Probá de nuevo.",
+    rateLimitedTitle: "Demasiadas solicitudes",
+    rateLimitedDetail: (params: { minutes: number }) =>
+      `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+    // One action sentence per call site; role create/edit/duplicate all save through the same
+    // creation or edit request, so they share "roleSave", and both passkey-removal screens (an
+    // Administrator removing another user's, and Mi cuenta removing one's own) share "passkeyRemoval".
+    actions: {
+      roleSave: "Guardar un rol",
+      userCreate: "Crear un usuario",
+      emailChange: "Cambiar el correo de un usuario",
+      passkeyRemoval: "Dar de baja una passkey",
+      passkeyRegistration: "Agregar una passkey",
     },
   },
   help: {

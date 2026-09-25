@@ -4,16 +4,18 @@ import { Check, X } from "lucide-react";
 import { messages } from "./messages";
 import { RoleCreationNoticeView, type RoleCreationServices, useRoleCreation } from "./RoleCreation";
 import { RoleForm } from "./RoleForm";
-import { createRole, fetchRoleCreationChallenge } from "./rolesApi";
+import { createRole } from "./rolesApi";
 import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type NewRoleScreenServices = RoleCreationServices;
 
 export const defaultNewRoleScreenServices: NewRoleScreenServices = {
-  fetchRoleCreationChallenge,
   createRole,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -78,6 +80,7 @@ export function NewRoleScreen({ onSessionEnded, services }: NewRoleScreenProps) 
         selected={creation.selected}
         onSelectedChange={creation.setSelected}
       />
+      {creation.modal}
     </ScreenLayout>
   );
 }

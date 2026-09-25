@@ -1,14 +1,5 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import {
-  createRole,
-  editRole,
-  fetchRole,
-  fetchRoleCreationChallenge,
-  fetchRoleEditChallenge,
-  fetchRoles,
-  type RoleSummary,
-} from "./rolesApi";
+import { createRole, editRole, fetchRole, fetchRoles, type RoleSummary } from "./rolesApi";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -105,51 +96,7 @@ test("fetchRoles returns failed on a malformed body", async () => {
   expect(await fetchRoles()).toEqual({ kind: "failed" });
 });
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
-const reauthentication = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
-
-test("fetchRoleCreationChallenge hands back the reauthentication options on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: reauthenticationOptions }),
-  );
-
-  const outcome = await fetchRoleCreationChallenge();
-
-  expect(outcome).toEqual({ kind: "ok", value: { reauthenticationOptions } });
-  expect(fetch).toHaveBeenCalledWith(
-    "/roles/creation-options",
-    expect.objectContaining({ method: "POST" }),
-  );
-});
-
-test("fetchRoleCreationChallenge returns unauthenticated on 401", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
-
-  expect(await fetchRoleCreationChallenge()).toEqual({ kind: "unauthenticated" });
-});
-
-test("fetchRoleCreationChallenge returns forbidden on 403", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
-
-  expect(await fetchRoleCreationChallenge()).toEqual({ kind: "forbidden" });
-});
-
-test("fetchRoleCreationChallenge returns rate_limited with the Retry-After header on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "45" }));
-
-  expect(await fetchRoleCreationChallenge()).toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 45,
-  });
-});
-
-test("fetchRoleCreationChallenge returns failed when the request throws", async () => {
-  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
-
-  expect(await fetchRoleCreationChallenge()).toEqual({ kind: "failed" });
-});
-
-test("createRole posts the name, permissions and reauthentication, returning the created role on 201", async () => {
+test("createRole posts the name and permissions, returning the created role on 201", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(201, {
       id: "role-stock",
@@ -160,10 +107,7 @@ test("createRole posts the name, permissions and reauthentication, returning the
     }),
   );
 
-  const outcome = await createRole(
-    { name: "Depósito", permissionKeys: ["view_stock_balances"] },
-    reauthentication,
-  );
+  const outcome = await createRole({ name: "Depósito", permissionKeys: ["view_stock_balances"] });
 
   expect(outcome).toEqual({
     kind: "ok",
@@ -179,11 +123,7 @@ test("createRole posts the name, permissions and reauthentication, returning the
     "/roles",
     expect.objectContaining({
       method: "POST",
-      body: JSON.stringify({
-        name: "Depósito",
-        permissions: ["view_stock_balances"],
-        reauthentication,
-      }),
+      body: JSON.stringify({ name: "Depósito", permissions: ["view_stock_balances"] }),
     }),
   );
 });
@@ -193,7 +133,7 @@ test("createRole returns validation_failed on the field the server names", async
     jsonResponse(400, { code: "validation_failed", details: [{ field: "name" }] }),
   );
 
-  expect(await createRole({ name: "", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "", permissionKeys: [] })).toEqual({
     kind: "validation_failed",
     field: "name",
   });
@@ -202,23 +142,23 @@ test("createRole returns validation_failed on the field the server names", async
 test("createRole returns name_taken on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "role_name_taken" }));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
     kind: "name_taken",
   });
 });
 
-test("createRole returns authentication_failed when the reauthentication itself is rejected", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("createRole returns authorization_required when the session has no valid passkey authorization", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
-    kind: "authentication_failed",
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
+    kind: "authorization_required",
   });
 });
 
-test("createRole returns unauthenticated on a 401 with no code", async () => {
+test("createRole returns unauthenticated on a 401 with no matching code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
     kind: "unauthenticated",
   });
 });
@@ -226,7 +166,7 @@ test("createRole returns unauthenticated on a 401 with no code", async () => {
 test("createRole returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
     kind: "forbidden",
   });
 });
@@ -234,7 +174,7 @@ test("createRole returns forbidden on 403", async () => {
 test("createRole returns rate_limited with the Retry-After header on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 30,
   });
@@ -243,7 +183,7 @@ test("createRole returns rate_limited with the Retry-After header on 429", async
 test("createRole returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-  expect(await createRole({ name: "Depósito", permissionKeys: [] }, reauthentication)).toEqual({
+  expect(await createRole({ name: "Depósito", permissionKeys: [] })).toEqual({
     kind: "failed",
   });
 });
@@ -304,61 +244,14 @@ test("fetchRole returns failed when the request throws", async () => {
   expect(await fetchRole("role-stock")).toEqual({ kind: "failed" });
 });
 
-test("fetchRoleEditChallenge hands back the reauthentication options on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: reauthenticationOptions }),
-  );
-
-  const outcome = await fetchRoleEditChallenge("role-stock");
-
-  expect(outcome).toEqual({ kind: "ok", value: { reauthenticationOptions } });
-  expect(fetch).toHaveBeenCalledWith(
-    "/roles/role-stock/edit-options",
-    expect.objectContaining({ method: "POST" }),
-  );
-});
-
-test("fetchRoleEditChallenge returns not_found on 404", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(404));
-
-  expect(await fetchRoleEditChallenge("role-stock")).toEqual({ kind: "not_found" });
-});
-
-test("fetchRoleEditChallenge returns unauthenticated on 401", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
-
-  expect(await fetchRoleEditChallenge("role-stock")).toEqual({ kind: "unauthenticated" });
-});
-
-test("fetchRoleEditChallenge returns forbidden on 403", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
-
-  expect(await fetchRoleEditChallenge("role-stock")).toEqual({ kind: "forbidden" });
-});
-
-test("fetchRoleEditChallenge returns rate_limited with the Retry-After header on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "15" }));
-
-  expect(await fetchRoleEditChallenge("role-stock")).toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 15,
-  });
-});
-
-test("fetchRoleEditChallenge returns failed when the request throws", async () => {
-  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
-
-  expect(await fetchRoleEditChallenge("role-stock")).toEqual({ kind: "failed" });
-});
-
-test("editRole posts the name, permissions, version and reauthentication, returning the updated role on 200", async () => {
+test("editRole posts the name, permissions and version, returning the updated role on 200", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, stockDetailRow));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: ["view_stock_balances"], version: 2 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: ["view_stock_balances"],
+    version: 2,
+  });
 
   expect(outcome).toEqual({ kind: "ok", value: stockDetail });
   expect(fetch).toHaveBeenCalledWith(
@@ -369,7 +262,6 @@ test("editRole posts the name, permissions, version and reauthentication, return
         name: "Depósito",
         permissions: ["view_stock_balances"],
         version: 2,
-        reauthentication,
       }),
     }),
   );
@@ -380,11 +272,11 @@ test("editRole returns validation_failed on the field the server names", async (
     jsonResponse(400, { code: "validation_failed", details: [{ field: "version" }] }),
   );
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "validation_failed", field: "version" });
 });
@@ -392,11 +284,11 @@ test("editRole returns validation_failed on the field the server names", async (
 test("editRole returns name_taken on a 409 role_name_taken", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "role_name_taken" }));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "name_taken" });
 });
@@ -404,11 +296,11 @@ test("editRole returns name_taken on a 409 role_name_taken", async () => {
 test("editRole returns stale_version on a 409 stale_version", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "stale_version" });
 });
@@ -416,35 +308,35 @@ test("editRole returns stale_version on a 409 stale_version", async () => {
 test("editRole returns not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "not_found" });
 });
 
-test("editRole returns authentication_failed when the reauthentication itself is rejected", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("editRole returns authorization_required when the session has no valid passkey authorization", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
-  expect(outcome).toEqual({ kind: "authentication_failed" });
+  expect(outcome).toEqual({ kind: "authorization_required" });
 });
 
-test("editRole returns unauthenticated on a 401 with no code", async () => {
+test("editRole returns unauthenticated on a 401 with no matching code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "unauthenticated" });
 });
@@ -452,11 +344,11 @@ test("editRole returns unauthenticated on a 401 with no code", async () => {
 test("editRole returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "forbidden" });
 });
@@ -464,11 +356,11 @@ test("editRole returns forbidden on 403", async () => {
 test("editRole returns rate_limited with the Retry-After header on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "20" }));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "rate_limited", retryAfterSeconds: 20 });
 });
@@ -476,11 +368,11 @@ test("editRole returns rate_limited with the Retry-After header on 429", async (
 test("editRole returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-  const outcome = await editRole(
-    "role-stock",
-    { name: "Depósito", permissionKeys: [], version: 1 },
-    reauthentication,
-  );
+  const outcome = await editRole("role-stock", {
+    name: "Depósito",
+    permissionKeys: [],
+    version: 1,
+  });
 
   expect(outcome).toEqual({ kind: "failed" });
 });

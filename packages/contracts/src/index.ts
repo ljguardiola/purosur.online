@@ -1,3 +1,4 @@
+export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name";
 export type {
   CoreStatusMessage,
   MainHealthCheckMessage,
@@ -24,3 +25,4 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";
+export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";

@@ -8,15 +8,26 @@ import type { RoleDetail } from "./rolesApi";
 function createServices(overrides: Partial<EditRoleScreenServices> = {}): EditRoleScreenServices {
   return {
     fetchRole: vi.fn(),
-    fetchRoleEditChallenge: vi.fn(),
     editRole: vi.fn(),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     ...overrides,
   };
 }
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
-const reauthAssertion = { id: "existing-cred" } as never;
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
+function grantAuthorization(services: EditRoleScreenServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
 
 const stock: RoleDetail = {
   id: "role-stock",
@@ -74,17 +85,39 @@ test("navigates to Mi cuenta when the role read comes back forbidden", async () 
   window.history.pushState(null, "", "/");
 });
 
-test("navigates to Mi cuenta when the edit challenge comes back forbidden", async () => {
+test("navigates to Mi cuenta, without the authorization modal, when saving the edit comes back forbidden", async () => {
   window.history.pushState(null, "", "/settings/roles/role-stock/edit");
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({ kind: "forbidden" });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Depósito");
 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when the edit retried after the authorization comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Usar mi passkey" }),
+  );
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   window.history.pushState(null, "", "/");
@@ -137,7 +170,7 @@ test("Cancelar navigates back to the roles list without calling editRole", async
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
   expect(window.location.pathname).toBe("/settings/roles");
-  expect(services.fetchRoleEditChallenge).not.toHaveBeenCalled();
+  expect(services.editRole).not.toHaveBeenCalled();
   window.history.pushState(null, "", "/");
 });
 
@@ -153,18 +186,30 @@ test("requires a non-empty name that is not the Administrator's own, without cal
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(screen.getByText("Ingresá el nombre del rol.")).toBeVisible();
-  expect(services.fetchRoleEditChallenge).not.toHaveBeenCalled();
+  expect(services.editRole).not.toHaveBeenCalled();
 });
 
-test("saves the edit through the passkey step-up and returns to the roles list", async () => {
+test("rejects a name longer than 100 characters, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "a".repeat(101));
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.editRole).not.toHaveBeenCalled();
+});
+
+test("saves the edit directly, without the authorization modal, when the session already has one", async () => {
   window.history.pushState(null, "", "/settings/roles/role-stock/edit");
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.editRole).mockResolvedValue({ kind: "ok", value: { ...stock, version: 2 } });
   const screen = await renderScreen(services);
   await expect
@@ -176,27 +221,67 @@ test("saves the edit through the passkey step-up and returns to the roles list",
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
-  expect(services.editRole).toHaveBeenCalledWith(
-    "role-stock",
-    {
-      name: "Depósito senior",
-      permissionKeys: ["view_stock_balances", "adjust_stock"],
-      version: 1,
-    },
-    reauthAssertion,
-  );
+  expect(services.editRole).toHaveBeenCalledWith("role-stock", {
+    name: "Depósito senior",
+    permissionKeys: ["view_stock_balances", "adjust_stock"],
+    version: 1,
+  });
+  await expect.poll(() => window.location.pathname).toBe("/settings/roles");
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  window.history.pushState(null, "", "/");
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries the save", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.editRole).mockResolvedValueOnce({
+    kind: "ok",
+    value: { ...stock, version: 2 },
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(2);
   await expect.poll(() => window.location.pathname).toBe("/settings/roles");
   window.history.pushState(null, "", "/");
+});
+
+test("cancelling the authorization modal keeps the typed edit exactly as it was, with no error", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "authorization_required" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito senior");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito senior");
+  expect(screen.getByText("No se pudo guardar el rol").query()).toBeNull();
 });
 
 test("shows name_taken as a field error and keeps the form", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.editRole).mockResolvedValue({ kind: "name_taken" });
   const screen = await renderScreen(services);
   await expect
@@ -210,36 +295,44 @@ test("shows name_taken as a field error and keeps the form", async () => {
   await expect.element(screen.getByRole("heading", { name: "Editar rol", level: 1 })).toBeVisible();
 });
 
-test("shows a notice, not calling editRole, when the passkey prompt is cancelled", async () => {
+test("shows an error inside the authorization modal, not calling editRole again, when the browser cancels the passkey ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions },
+    value: authorizationOptions,
   });
   vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Depósito");
-
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  const dialog = screen.getByRole("dialog");
 
-  await expect.element(screen.getByText("No se pudo guardar el rol")).toBeVisible();
-  expect(services.editRole).not.toHaveBeenCalled();
+  await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
+  expect(services.editRole).toHaveBeenCalledTimes(1);
 });
 
-test("ends the session when edit-options finds it closed", async () => {
+test("ends the session when authorizing finds it closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "unauthenticated",
+  });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Depósito");
-
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -247,11 +340,6 @@ test("ends the session when edit-options finds it closed", async () => {
 test("shows a stale_version notice, and Recargar refetches the role so the second save sends the new version", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
   const screen = await renderScreen(services);
   await expect
@@ -281,21 +369,16 @@ test("shows a stale_version notice, and Recargar refetches the role so the secon
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(2);
-  expect(services.editRole).toHaveBeenLastCalledWith(
-    "role-stock",
-    { name: "Depósito recargado", permissionKeys: ["view_stock_balances"], version: 5 },
-    reauthAssertion,
-  );
+  expect(services.editRole).toHaveBeenLastCalledWith("role-stock", {
+    name: "Depósito recargado",
+    permissionKeys: ["view_stock_balances"],
+    version: 5,
+  });
 });
 
 test("shows a reload-failed notice when Recargar cannot reach the role, and Recargar again refetches", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
   const screen = await renderScreen(services);
   await expect
@@ -315,13 +398,10 @@ test("shows a reload-failed notice when Recargar cannot reach the role, and Reca
   await expect.poll(() => screen.getByText("No se pudieron recargar los datos").query()).toBeNull();
 });
 
-test("a rate-limited save at edit-options shows the wait without offering Recargar, keeping the typed edits", async () => {
+test("a rate-limited save shows the wait without offering Recargar, keeping the typed edits", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
   const screen = await renderScreen(services);
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
@@ -330,41 +410,16 @@ test("a rate-limited save at edit-options shows the wait without offering Recarg
   await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito nuevo");
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
   expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Depósito nuevo");
 });
 
-test("a rate-limited save at the edit itself shows the wait without offering Recargar", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.editRole).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
-  const screen = await renderScreen(services);
-  await expect
-    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
-    .toHaveValue("Depósito");
-
-  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.element(screen.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
-});
-
 test("a rate-limited Recargar keeps offering Recargar", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValueOnce({ kind: "ok", value: stock });
-  vi.mocked(services.fetchRoleEditChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "stale_version" });
   const screen = await renderScreen(services);
   await expect

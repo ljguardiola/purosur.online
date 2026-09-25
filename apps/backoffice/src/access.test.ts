@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { canSeeBranchArea, canSeeRolesArea, canSeeUsersArea } from "./access";
+import { canSeeBranchArea, canSeeCatalogArea, canSeeRolesArea, canSeeUsersArea } from "./access";
 
 test("canSeeUsersArea is true for an Administrator", () => {
   expect(canSeeUsersArea({ isAdministrator: true, permissions: [] })).toBe(true);
@@ -31,4 +31,21 @@ test("canSeeBranchArea is true for a non-Administrator holding configure_branch"
 
 test("canSeeBranchArea is false for a non-Administrator without configure_branch", () => {
   expect(canSeeBranchArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
+});
+
+test("canSeeCatalogArea is true for an Administrator", () => {
+  expect(canSeeCatalogArea({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canSeeCatalogArea is true for a non-Administrator holding manage_products_and_categories", () => {
+  expect(
+    canSeeCatalogArea({
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories"],
+    }),
+  ).toBe(true);
+});
+
+test("canSeeCatalogArea is false for a non-Administrator without manage_products_and_categories", () => {
+  expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
 });

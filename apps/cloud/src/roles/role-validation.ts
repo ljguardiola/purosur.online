@@ -3,6 +3,15 @@ import { ALERT_VIEW_PERMISSION_KEYS, isPermissionKey } from "./permission-catalo
 /** The Administrator role's own reserved name, checked case-insensitively; shared by creation and edit. */
 export const ADMINISTRATOR_NAME = "administrador";
 
+// Mirrors `@purosur/contracts`'s role name limit because this app's `tsc` build (explicit
+// `rootDir`) cannot import that package's untranspiled source; `role-validation.test.ts` guards
+// against drift.
+export const ROLE_NAME_MAX_LENGTH = 100;
+
+export function roleNameLength(name: string): number {
+  return Array.from(name).length;
+}
+
 export interface RoleFieldValidationFailure {
   field: "name" | "permissions" | "version";
   message: string;
@@ -25,12 +34,18 @@ export function readRolePermissionKeys(body: unknown): string[] | undefined {
   return raw;
 }
 
-/** Empty (after trimming) or the Administrator role's own reserved name, case-insensitively. */
+/**
+ * Empty (after trimming), longer than `ROLE_NAME_MAX_LENGTH`, or the Administrator role's own
+ * reserved name, case-insensitively.
+ */
 export function roleNameValidationFailure(
   name: string | undefined,
 ): RoleFieldValidationFailure | undefined {
   if (!name) {
     return { field: "name", message: "name must not be empty" };
+  }
+  if (roleNameLength(name) > ROLE_NAME_MAX_LENGTH) {
+    return { field: "name", message: `name must be at most ${ROLE_NAME_MAX_LENGTH} characters` };
   }
   if (name.toLowerCase() === ADMINISTRATOR_NAME) {
     return { field: "name", message: "name must not be the Administrator role's own name" };

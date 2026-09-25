@@ -1,5 +1,5 @@
 {
-  "id": "515e5d3c-de88-4e2f-9584-217eac4b02e9",
+  "id": "8d4c8b2f-8371-4441-a38a-7411b83df1b3",
   "prevId": "a520fcd0-411f-42ba-b1f4-a6cd31743382",
   "version": "7",
   "dialect": "postgresql",
@@ -153,133 +153,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.branch_settings": {
-      "name": "branch_settings",
-      "schema": "",
-      "columns": {
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "whatsapp_number": {
-          "name": "whatsapp_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "instagram_handle": {
-          "name": "instagram_handle",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "weekday_opens_at": {
-          "name": "weekday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "weekday_closes_at": {
-          "name": "weekday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "saturday_opens_at": {
-          "name": "saturday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "saturday_closes_at": {
-          "name": "saturday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sunday_opens_at": {
-          "name": "sunday_opens_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sunday_closes_at": {
-          "name": "sunday_closes_at",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expiring_lot_alert_days": {
-          "name": "expiring_lot_alert_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 30
-        },
-        "unreviewed_price_alert_days": {
-          "name": "unreviewed_price_alert_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 30
-        },
-        "good_condition_return_days": {
-          "name": "good_condition_return_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 15
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "branch_settings_location_id_locations_id_fk": {
-          "name": "branch_settings_location_id_locations_id_fk",
-          "tableFrom": "branch_settings",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "branch_settings_weekday_hours_shape": {
-          "name": "branch_settings_weekday_hours_shape",
-          "value": "(\"branch_settings\".\"weekday_opens_at\" IS NULL AND \"branch_settings\".\"weekday_closes_at\" IS NULL) OR (\"branch_settings\".\"weekday_opens_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" IS NOT NULL AND \"branch_settings\".\"weekday_closes_at\" > \"branch_settings\".\"weekday_opens_at\")"
-        },
-        "branch_settings_saturday_hours_shape": {
-          "name": "branch_settings_saturday_hours_shape",
-          "value": "(\"branch_settings\".\"saturday_opens_at\" IS NULL AND \"branch_settings\".\"saturday_closes_at\" IS NULL) OR (\"branch_settings\".\"saturday_opens_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" IS NOT NULL AND \"branch_settings\".\"saturday_closes_at\" > \"branch_settings\".\"saturday_opens_at\")"
-        },
-        "branch_settings_sunday_hours_shape": {
-          "name": "branch_settings_sunday_hours_shape",
-          "value": "(\"branch_settings\".\"sunday_opens_at\" IS NULL AND \"branch_settings\".\"sunday_closes_at\" IS NULL) OR (\"branch_settings\".\"sunday_opens_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" IS NOT NULL AND \"branch_settings\".\"sunday_closes_at\" > \"branch_settings\".\"sunday_opens_at\")"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.locations": {
       "name": "locations",
       "schema": "",
@@ -328,7 +201,7 @@
           "name": "reauthentication_challenge",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "registration_challenge": {
           "name": "registration_challenge",
@@ -345,11 +218,17 @@
         }
       },
       "indexes": {
-        "passkey_challenges_session_id_key": {
-          "name": "passkey_challenges_session_id_key",
+        "passkey_challenges_session_id_kind_key": {
+          "name": "passkey_challenges_session_id_kind_key",
           "columns": [
             {
               "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -952,6 +831,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "passkey_authorized_at": {
+          "name": "passkey_authorized_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1307,15 +1192,7 @@
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",
       "schema": "public",
-      "values": [
-        "registration",
-        "removal",
-        "user_creation",
-        "user_email_change",
-        "user_passkey_removal",
-        "role_creation",
-        "role_edit"
-      ]
+      "values": ["registration", "session_authorization"]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",

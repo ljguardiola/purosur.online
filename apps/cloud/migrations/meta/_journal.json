@@ -138,8 +138,22 @@
     {
       "idx": 19,
       "version": "7",
-      "when": 1790304560491,
-      "tag": "0019_branch_settings",
+      "when": 1790298478979,
+      "tag": "0019_reuse_passkey_authorization",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790304042950,
+      "tag": "0020_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790308950361,
+      "tag": "0021_branch_settings",
       "breakpoints": true
     }
   ]

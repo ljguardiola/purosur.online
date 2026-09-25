@@ -3,6 +3,8 @@ import {
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
 } from "@purosur/contracts";
 import { Checkbox, RadioGroup, TextField } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
@@ -50,11 +52,17 @@ const AREA_COLUMNS = everyAreaPlaced([
 
 const ALERTS_TOTAL = definitionsByArea("alerts").length;
 
-/** Empty (after trimming) or the Administrator role's own reserved name, case-insensitively. */
+/**
+ * Empty (after trimming), longer than `ROLE_NAME_MAX_LENGTH`, or the Administrator role's own
+ * reserved name, case-insensitively.
+ */
 export function validateRoleName(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
     return formMessages.nameRequired;
+  }
+  if (roleNameLength(trimmed) > ROLE_NAME_MAX_LENGTH) {
+    return formMessages.nameTooLong;
   }
   if (trimmed.toLowerCase() === rolesMessages.administratorRoleName.toLowerCase()) {
     return formMessages.nameReserved;
@@ -180,10 +188,10 @@ export type RoleFormProps = {
 
 /**
  * The role form New, Edit and Duplicate all render: the name field, the "Referencias" block, every
- * permission area grouped into the design's three columns (with a running "N de M" count), the
- * Alertas area's radio and manual-dismiss checkbox, and the passkey reauthentication notice. Fully
- * controlled: the caller owns `name` and `selected`, so it decides what happens next (validation,
- * submission, pre-filling from a loaded role).
+ * permission area grouped into the design's three columns (with a running "N de M" count), and the
+ * Alertas area's radio and manual-dismiss checkbox. Fully controlled: the caller owns `name` and
+ * `selected`, so it decides what happens next (validation, submission, pre-filling from a loaded
+ * role).
  */
 export function RoleForm({
   name,
@@ -266,7 +274,6 @@ export function RoleForm({
           </div>
         ))}
       </div>
-      <p className="text-sm text-ink-secondary">{formMessages.reauthNotice}</p>
     </>
   );
 }

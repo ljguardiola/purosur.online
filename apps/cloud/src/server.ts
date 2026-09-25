@@ -309,6 +309,10 @@ export async function startServer(
             db: recovery.db,
             backofficeOrigin: recovery.backofficeOrigin,
           },
+          categories: {
+            db: recovery.db,
+            backofficeOrigin: recovery.backofficeOrigin,
+          },
         }
       : {}),
   });

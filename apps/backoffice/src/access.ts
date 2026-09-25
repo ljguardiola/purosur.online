@@ -29,3 +29,11 @@ export function canSeeRolesArea(access: BackofficeAccess): boolean {
 export function canSeeBranchArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("configure_branch");
 }
+
+/**
+ * Whether "Catálogo" and its pages show at all. Unlike Usuarios and Roles, this is delegable: a
+ * non-Administrator whose role holds `manage_products_and_categories` sees it too.
+ */
+export function canSeeCatalogArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
+}

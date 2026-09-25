@@ -1,8 +1,7 @@
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/browser";
+import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   fetchPasskeyRegistrationChallenge,
-  fetchPasskeyRemovalChallenge,
   fetchPasskeys,
   registerPasskey,
   removePasskey,
@@ -84,23 +83,16 @@ test("fetchPasskeys reports rate_limited with the Retry-After seconds on 429", a
   await expect(fetchPasskeys()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 180 });
 });
 
-const reauthenticationOptions = { challenge: "reauth", rpId: "purosur.online" };
 const registrationOptions = { challenge: "reg", rp: { id: "purosur.online" } };
 
-test("fetchPasskeyRegistrationChallenge posts with no body and returns both option sets", async () => {
+test("fetchPasskeyRegistrationChallenge posts with no body and returns the registration options", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, {
-      reauthentication_options: reauthenticationOptions,
-      passkey_registration_options: registrationOptions,
-    }),
+    jsonResponse(200, { passkey_registration_options: registrationOptions }),
   );
 
   const outcome = await fetchPasskeyRegistrationChallenge();
 
-  expect(outcome).toEqual({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
+  expect(outcome).toEqual({ kind: "ok", value: { registrationOptions } });
   expect(fetch).toHaveBeenCalledWith(
     "/users/passkeys/registration-options",
     expect.objectContaining({ method: "POST" }),
@@ -118,10 +110,12 @@ test("fetchPasskeyRegistrationChallenge reports unauthenticated on 401 and faile
   await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "failed" });
 });
 
-test("fetchPasskeyRegistrationChallenge reports no_passkey when the account has no passkey to reauthenticate with", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+test("fetchPasskeyRegistrationChallenge reports authorization_required on a 401 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
 
-  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({ kind: "no_passkey" });
+  await expect(fetchPasskeyRegistrationChallenge()).resolves.toEqual({
+    kind: "authorization_required",
+  });
 });
 
 test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
@@ -135,43 +129,9 @@ test("fetchPasskeyRegistrationChallenge reports rate_limited with the Retry-Afte
   });
 });
 
-test("fetchPasskeyRemovalChallenge posts with no body and returns the reauthentication options", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { reauthentication_options: reauthenticationOptions }),
-  );
-
-  const outcome = await fetchPasskeyRemovalChallenge();
-
-  expect(outcome).toEqual({ kind: "ok", value: { reauthenticationOptions } });
-  expect(fetch).toHaveBeenCalledWith(
-    "/users/passkeys/removal-options",
-    expect.objectContaining({ method: "POST" }),
-  );
-});
-
-test("fetchPasskeyRemovalChallenge reports unauthenticated on 401 and failed otherwise", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-  await expect(fetchPasskeyRemovalChallenge()).resolves.toEqual({ kind: "unauthenticated" });
-
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(fetchPasskeyRemovalChallenge()).resolves.toEqual({ kind: "failed" });
-});
-
-test("fetchPasskeyRemovalChallenge reports rate_limited with the Retry-After seconds on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "60" }),
-  );
-
-  await expect(fetchPasskeyRemovalChallenge()).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 60,
-  });
-});
-
-const reauthentication = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
 const passkeyRegistration = { id: "new-cred" } as unknown as RegistrationResponseJSON;
 
-test("registerPasskey posts the reauthentication, registration and trimmed name, returning the new passkey", async () => {
+test("registerPasskey posts the registration and trimmed name, returning the new passkey", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, {
       id: "pk-3",
@@ -181,7 +141,7 @@ test("registerPasskey posts the reauthentication, registration and trimmed name,
     }),
   );
 
-  const outcome = await registerPasskey(reauthentication, passkeyRegistration, "Teléfono de Lucía");
+  const outcome = await registerPasskey(passkeyRegistration, "Teléfono de Lucía");
 
   expect(outcome).toEqual({
     kind: "ok",
@@ -197,7 +157,6 @@ test("registerPasskey posts the reauthentication, registration and trimmed name,
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({
-        reauthentication,
         passkey_registration: passkeyRegistration,
         passkey_name: "Teléfono de Lucía",
       }),
@@ -207,33 +166,33 @@ test("registerPasskey posts the reauthentication, registration and trimmed name,
 
 test("registerPasskey reports unauthenticated when the session ended", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "unauthenticated",
   });
 });
 
-test("registerPasskey reports authentication_failed when the reauthentication did not verify", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
-    kind: "authentication_failed",
+test("registerPasskey reports authorization_required when the session has no valid passkey authorization", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
+    kind: "authorization_required",
   });
 });
 
 test("registerPasskey reports validation_failed on 400", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "validation_failed",
   });
 });
 
 test("registerPasskey reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "failed",
   });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "failed",
   });
 });
@@ -243,49 +202,49 @@ test("registerPasskey reports rate_limited with the Retry-After seconds on 429, 
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "30" }),
   );
 
-  await expect(registerPasskey(reauthentication, passkeyRegistration, "Nombre")).resolves.toEqual({
+  await expect(registerPasskey(passkeyRegistration, "Nombre")).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 30,
   });
 });
 
-test("removePasskey posts the reauthentication to the passkey's own removal endpoint", async () => {
+test("removePasskey posts to the passkey's own removal endpoint with no body", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
 
-  const outcome = await removePasskey("pk-1", reauthentication);
+  const outcome = await removePasskey("pk-1");
 
   expect(outcome).toEqual({ kind: "ok" });
   expect(fetch).toHaveBeenCalledWith(
     "/users/passkeys/pk-1/remove",
-    expect.objectContaining({ method: "POST", body: JSON.stringify({ reauthentication }) }),
+    expect.objectContaining({ method: "POST" }),
   );
 });
 
 test("removePasskey reports unauthenticated when the session ended", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({
+  await expect(removePasskey("pk-1")).resolves.toEqual({
     kind: "unauthenticated",
   });
 });
 
-test("removePasskey reports authentication_failed when the reauthentication did not verify", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({
-    kind: "authentication_failed",
+test("removePasskey reports authorization_required when the session has no valid passkey authorization", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
+  await expect(removePasskey("pk-1")).resolves.toEqual({
+    kind: "authorization_required",
   });
 });
 
 test("removePasskey reports not_found on 404", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({ kind: "not_found" });
+  await expect(removePasskey("pk-1")).resolves.toEqual({ kind: "not_found" });
 });
 
 test("removePasskey reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({ kind: "failed" });
+  await expect(removePasskey("pk-1")).resolves.toEqual({ kind: "failed" });
 
   vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({ kind: "failed" });
+  await expect(removePasskey("pk-1")).resolves.toEqual({ kind: "failed" });
 });
 
 test("removePasskey reports rate_limited with the Retry-After seconds on 429, removing nothing", async () => {
@@ -293,7 +252,7 @@ test("removePasskey reports rate_limited with the Retry-After seconds on 429, re
     jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "90" }),
   );
 
-  await expect(removePasskey("pk-1", reauthentication)).resolves.toEqual({
+  await expect(removePasskey("pk-1")).resolves.toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 90,
   });
