@@ -114,8 +114,9 @@ export default defineRailway((ctx) => {
     domains: CUSTOM_DOMAINS[environment] ?? [],
     deploy: {
       registryCredentials,
-      // Read-only: waits, connected as `cloud_app`, until the schema `Schema Migrations` applied matches
-      // this image's bundled migrations, instead of applying any schema change itself. Railway
+      // Read-only: waits, connected as `cloud_app`, until the schema that `Schema Migrations`
+      // applied matches this image's bundled migrations, instead of applying any schema change
+      // itself. Railway
       // accepts a single command string here (at most one array item), and only `apply` rejects
       // more, not `plan`.
       preDeployCommand: ["node dist/wait-for-ready.js"],

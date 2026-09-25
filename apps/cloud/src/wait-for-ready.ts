@@ -25,7 +25,7 @@ export interface WaitForReadyOptions {
 }
 
 const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
-// Above the migrate service's own worst case (a fresh image pull, its 60 s wait for the database,
+// Above the Schema Migrations service's own worst case (a fresh image pull, its 60 s wait for the database,
 // then every migration), yet under the 600 s the deploy workflow allows the whole deploy.
 const DEFAULT_WAIT_FOR_READY_SECONDS = 480;
 const DEFAULT_WAIT_INTERVAL_MS = 1000;
