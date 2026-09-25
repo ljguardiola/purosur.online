@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import {
@@ -225,7 +225,7 @@ test("Editar opens the modal prefilled, with CUIT and tax status as plain text, 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
     .toHaveValue("1284531-06");
-  const dateGroup = dialog.getByRole("group", { name: "Inicio de actividades" }).element();
+  const dateGroup = dialog.getByRole("group", { name: /^Inicio de actividades/ }).element();
   expect(dateGroup.textContent).toContain("1");
   expect(dateGroup.textContent).toContain("3");
   expect(dateGroup.textContent).toContain("2019");
@@ -280,6 +280,68 @@ test("requires the three fields, without calling the API", async () => {
   await expect.element(dialog.getByText("Ingresá el número de Ingresos Brutos.")).toBeVisible();
   await expect.element(dialog.getByText("Elegí la fecha de inicio de actividades.")).toBeVisible();
   expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
+});
+
+function dateSegments(dialog: Locator): HTMLElement[] {
+  const group = dialog.getByRole("group", { name: /^Inicio de actividades/ }).element();
+  return Array.from(group.querySelectorAll('[role="spinbutton"]')) as HTMLElement[];
+}
+
+function describedTextOf(element: HTMLElement): string {
+  return (element.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .filter((id) => id !== "")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
+}
+
+test("marks the activity start date required, and invalid and described by its own message once refused", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  for (const segment of dateSegments(dialog)) {
+    expect(segment.getAttribute("aria-required")).toBe("true");
+  }
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Elegí la fecha de inicio de actividades.")).toBeVisible();
+  for (const segment of dateSegments(dialog)) {
+    expect(segment.getAttribute("aria-invalid")).toBe("true");
+    expect(describedTextOf(segment)).toContain("Elegí la fecha de inicio de actividades.");
+  }
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("offers no day after Argentina's today in the activity start date's calendar", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: incomplete,
+  });
+  await page.viewport(1440, 1000);
+  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog")
+      .getByRole("group", { name: /^Inicio de actividades/ })
+      .getByRole("button"),
+  );
+
+  const calendar = screen.getByRole("grid");
+  await expect.element(calendar).toBeVisible();
+  const dayButton = (day: string) =>
+    Array.from(calendar.element().querySelectorAll('[role="button"]')).find(
+      (cell) => cell.textContent?.trim() === day,
+    ) as HTMLElement;
+  expect(dayButton("25").getAttribute("aria-disabled")).toBeNull();
+  expect(dayButton("26").getAttribute("aria-disabled")).toBe("true");
 });
 
 test("saves the edit directly, without the authorization modal, when the session already has one, and updates the screen", async () => {

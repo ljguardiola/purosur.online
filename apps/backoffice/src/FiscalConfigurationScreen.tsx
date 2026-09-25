@@ -327,6 +327,8 @@ function EditIssuerIdentificationModal({
   }
 
   const offersReload = notice?.kind === "staleVersion" || notice?.kind === "reloadFailed";
+  const activityStartDateValidity: { invalid: true; errorMessage: string } | { invalid?: false } =
+    errors.activityStartDate ? { invalid: true, errorMessage: errors.activityStartDate } : {};
 
   return (
     <>
@@ -438,7 +440,7 @@ function EditIssuerIdentificationModal({
                     : {})}
                 />
               </div>
-              <div className="flex flex-1 flex-col gap-1">
+              <div className="flex-1">
                 <DateField
                   variant="backoffice"
                   label={modalMessages.activityStartDateLabel}
@@ -447,12 +449,11 @@ function EditIssuerIdentificationModal({
                     setValues((current) => ({ ...current, activityStartDate: value }));
                     clearFieldError("activityStartDate");
                   }}
+                  required
+                  maxValue={todayCalendarDate(now())}
+                  rangeMessage={modalMessages.activityStartDateFuture}
+                  {...activityStartDateValidity}
                 />
-                {errors.activityStartDate && (
-                  <p className="font-normal text-status-error-ui text-sm">
-                    {errors.activityStartDate}
-                  </p>
-                )}
               </div>
             </div>
             <InlineNotice tone="info" icon={<Info />} detail={modalMessages.printedNotice} />
