@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
+  alerts,
   auditLog,
   locations,
   recoveryTokens,
@@ -372,6 +373,8 @@ describe("POST /users/:id/edit", () => {
     expect(row).toMatchObject({ email: "grace@example.com", version: 1 });
     const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, targetId));
     expect(audited).toHaveLength(0);
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
+    expect(opened).toHaveLength(0);
   });
 
   it("returns 409 email_taken and changes nothing when another user already has that email", async () => {
@@ -393,6 +396,8 @@ describe("POST /users/:id/edit", () => {
     expect(response.json()).toMatchObject({ code: "email_taken" });
     const [row] = await db.select().from(users).where(eq(users.id, targetId));
     expect(row).toMatchObject({ email: "grace@example.com", version: 1 });
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
+    expect(opened).toHaveLength(0);
   });
 
   it("accepts the same normalized email and the same role as a no-op: 200, version unchanged, no audit row", async () => {
@@ -445,6 +450,20 @@ describe("POST /users/:id/edit", () => {
       actorId: administratorId,
       previousValue: { email: "grace@example.com" },
       newValue: { email: "new.email@example.com" },
+    });
+
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: targetId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        previousEmail: "grace@example.com",
+        newEmail: "new.email@example.com",
+        actorId: administratorId,
+      },
     });
 
     const redemption = await recoveryApp.inject({
@@ -525,6 +544,8 @@ describe("POST /users/:id/edit", () => {
       previousValue: { roleId: cashierRoleId },
       newValue: { roleId: encargadaRoleId },
     });
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
+    expect(opened).toHaveLength(0);
 
     const redemption = await recoveryApp.inject({
       method: "POST",
@@ -563,6 +584,24 @@ describe("POST /users/:id/edit", () => {
         newValue: { roleId: encargadaRoleId },
       }),
     );
+  });
+
+  it("dedups: editing the email again while the alert is still open opens nothing new", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    await editUser(targetId, rawSessionId, {
+      email: "first.new@example.com",
+      role_id: cashierRoleId,
+      version: 1,
+    });
+
+    await editUser(targetId, rawSessionId, {
+      email: "second.new@example.com",
+      role_id: cashierRoleId,
+      version: 2,
+    });
+
+    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
+    expect(opened).toHaveLength(1);
   });
 
   it("answers with the edit it applied even when the user is deactivated right after it commits", async () => {

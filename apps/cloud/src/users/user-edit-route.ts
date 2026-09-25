@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, recoveryTokens, roles, userRoles, users } from "../db/schema.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
@@ -285,6 +286,20 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
               previousValue: { email: currentUser.email },
               newValue: { email: parsedBody.email },
             });
+
+            await openAlert(
+              tx,
+              {
+                kind: "user_email_changed",
+                scope: target.id,
+                detail: {
+                  previousEmail: currentUser.email,
+                  newEmail: parsedBody.email,
+                  actorId: openSession.userId,
+                },
+              },
+              { now },
+            );
           }
 
           if (roleChanged) {
