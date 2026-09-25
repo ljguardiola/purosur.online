@@ -6,6 +6,15 @@ import {
   HUMAN_READABLE_HEIGHT_MM,
 } from "./ean13-barcode-geometry.js";
 import {
+  CONTENT_GAP_MM,
+  layoutLabelContent,
+  NAME_FONT_SIZE_PT,
+  NAME_LINE_HEIGHT_MM,
+  NAME_MAX_LINES,
+  PADDING_TOP_BOTTOM_MM,
+  PT_PER_MM,
+} from "./label-content-layout.js";
+import {
   LABEL_HEIGHT_MM,
   LABEL_WIDTH_MM,
   type LabelSheetItem,
@@ -15,14 +24,9 @@ import {
 
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
-const PT_PER_MM = 72 / 25.4;
 
-const PADDING_TOP_BOTTOM_MM = 4.5;
 const PADDING_LEFT_RIGHT_MM = 6;
-const CONTENT_GAP_MM = 1.5;
-const NAME_FONT_SIZE_PT = 12;
-const NAME_LINE_HEIGHT_PT = NAME_FONT_SIZE_PT * 1.2;
-const NAME_BLOCK_HEIGHT_MM = (NAME_LINE_HEIGHT_PT * 2) / PT_PER_MM;
+const BARCODE_HEIGHT_MM = BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM + HUMAN_READABLE_HEIGHT_MM;
 const CUT_LINE_WIDTH_MM = 0.2;
 const CUT_LINE_COLOR = "#999999";
 // The six-digit half of a barcode's own module width (6 digits × 7 modules × the module width).
@@ -56,14 +60,32 @@ function drawCutLines(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
   doc.restore();
 }
 
-function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
+const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
+
+/**
+ * How many lines `name` actually wraps to at the label's content width (capped at
+ * `NAME_MAX_LINES`, since that's as many as `drawName` ever draws): a single `widthOfString`
+ * check against a name that fits on one line, rather than a fixed line count, is what lets a short
+ * name's group center lower than a long one's the way the proof's own text flow did.
+ */
+function measuredNameLineCount(doc: PDFKit.PDFDocument, name: string): number {
+  doc.font("Helvetica-Bold").fontSize(NAME_FONT_SIZE_PT);
+  return doc.widthOfString(name) > mm(CONTENT_WIDTH_MM) ? NAME_MAX_LINES : 1;
+}
+
+function drawName(
+  doc: PDFKit.PDFDocument,
+  label: PositionedLabel,
+  topMm: number,
+  heightMm: number,
+): void {
   doc
     .font("Helvetica-Bold")
     .fontSize(NAME_FONT_SIZE_PT)
     .fillColor("#000000")
     .text(label.name, mm(label.xMm + PADDING_LEFT_RIGHT_MM), mm(topMm), {
-      width: mm(LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM),
-      height: mm(NAME_BLOCK_HEIGHT_MM),
+      width: mm(CONTENT_WIDTH_MM),
+      height: mm(heightMm),
       align: "center",
       ellipsis: true,
     });
@@ -71,9 +93,8 @@ function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number
 
 function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
   const geometry = ean13BarcodeGeometry(label.code);
-  const contentWidthMm = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
   const originXMm =
-    label.xMm + PADDING_LEFT_RIGHT_MM + (contentWidthMm - geometry.totalWidthMm) / 2;
+    label.xMm + PADDING_LEFT_RIGHT_MM + (CONTENT_WIDTH_MM - geometry.totalWidthMm) / 2;
 
   doc.fillColor("#000000");
   for (const bar of geometry.bars) {
@@ -82,7 +103,8 @@ function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: num
 
   const digitsTopMm = topMm + BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM;
   const fontSizePt = HUMAN_READABLE_HEIGHT_MM * PT_PER_MM;
-  doc.font("Courier").fontSize(fontSizePt).fillColor("#000000");
+  // Bold, not the proof's plain weight, to read at print size the way the proof's own digits did.
+  doc.font("Courier-Bold").fontSize(fontSizePt).fillColor("#000000");
 
   const firstDigitBoxWidthMm = FIRST_DIGIT_BOX_WIDTH_MM;
   doc.text(
@@ -104,14 +126,18 @@ function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: num
 function drawLabel(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
   drawCutLines(doc, label);
 
-  const geometry = ean13BarcodeGeometry(label.code);
-  const contentHeightMm = NAME_BLOCK_HEIGHT_MM + CONTENT_GAP_MM + geometry.totalHeightMm;
-  const availableHeightMm = LABEL_HEIGHT_MM - 2 * PADDING_TOP_BOTTOM_MM;
-  const contentTopMm =
-    label.yMm + PADDING_TOP_BOTTOM_MM + (availableHeightMm - contentHeightMm) / 2;
+  const nameLineCount = measuredNameLineCount(doc, label.name);
+  const layout = layoutLabelContent({
+    labelHeightMm: LABEL_HEIGHT_MM,
+    paddingTopBottomMm: PADDING_TOP_BOTTOM_MM,
+    nameLineCount,
+    nameLineHeightMm: NAME_LINE_HEIGHT_MM,
+    gapMm: CONTENT_GAP_MM,
+    barcodeHeightMm: BARCODE_HEIGHT_MM,
+  });
 
-  drawName(doc, label, contentTopMm);
-  drawBarcode(doc, label, contentTopMm + NAME_BLOCK_HEIGHT_MM + CONTENT_GAP_MM);
+  drawName(doc, label, label.yMm + layout.nameTopMm, layout.nameHeightMm);
+  drawBarcode(doc, label, label.yMm + layout.barcodeTopMm);
 }
 
 /**

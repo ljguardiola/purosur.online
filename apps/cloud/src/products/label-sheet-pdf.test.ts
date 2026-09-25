@@ -20,6 +20,15 @@ function pageCount(pdf: Buffer): number {
   return match?.[1] ? Number(match[1]) : 0;
 }
 
+/** The y (in points) of the first drawn bar rectangle: `<x> <y> <w> <h> re`. */
+function firstBarY(pdf: Buffer): number {
+  const match = pdf.toString("latin1").match(/[\d.]+ ([\d.]+) [\d.]+ [\d.]+ re/);
+  if (!match?.[1]) {
+    throw new Error("no bar rectangle found in the rendered PDF");
+  }
+  return Number(match[1]);
+}
+
 describe("renderLabelSheetPdf", () => {
   it("produces a valid PDF document", async () => {
     const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
@@ -61,5 +70,28 @@ describe("renderLabelSheetPdf", () => {
 
     expect(texts).toContain("Semillas de chía");
     expect(texts).toContain("Ñandú");
+  });
+
+  it("renders the human-readable digits in a bold monospace font, matching the proof's weight", async () => {
+    const pdf = await renderLabelSheetPdf([{ name: "Maceta", code: "2000000000015", count: 1 }]);
+    const content = pdf.toString("latin1");
+
+    expect(content).toContain("/BaseFont /Courier-Bold");
+    expect(/\/BaseFont \/Courier(?!-)/.test(content)).toBe(false);
+  });
+
+  it("centers the whole content group, so a 2-line name pushes its barcode lower than a 1-line name's", async () => {
+    const oneLinePdf = await renderLabelSheetPdf([
+      { name: "Maceta", code: "2000000000015", count: 1 },
+    ]);
+    const twoLinePdf = await renderLabelSheetPdf([
+      {
+        name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido",
+        code: "2000000000015",
+        count: 1,
+      },
+    ]);
+
+    expect(firstBarY(twoLinePdf)).toBeGreaterThan(firstBarY(oneLinePdf));
   });
 });

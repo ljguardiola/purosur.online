@@ -50,4 +50,29 @@ describe("ean13BarcodeGeometry", () => {
       xMm: expect.closeTo(27.06, 4),
     });
   });
+
+  it("sizes the human-readable digits at 3.1mm, the proof's own digit height", () => {
+    expect(geometry.fontSizeMm).toBe(3.1);
+  });
+
+  it("keeps the first digit clear of the start guard bar", () => {
+    const [firstBar] = geometry.bars;
+
+    expect(firstBar).toBeDefined();
+    expect(geometry.firstDigitText.xMm).toBeLessThan(firstBar?.xMm ?? 0);
+  });
+
+  it("keeps each 6-digit group's center within its own half, clear of the guard bars", () => {
+    // Start guard ends and the left half begins at module 3; the center guard begins at module 45.
+    const leftHalfStartMm = 3.63 + 3 * 0.33;
+    const centerGuardStartMm = 3.63 + 45 * 0.33;
+    expect(geometry.leftGroupText.xMm).toBeGreaterThan(leftHalfStartMm);
+    expect(geometry.leftGroupText.xMm).toBeLessThan(centerGuardStartMm);
+
+    // The center guard ends and the right half begins at module 50; the end guard begins at 92.
+    const rightHalfStartMm = 3.63 + 50 * 0.33;
+    const endGuardStartMm = 3.63 + 92 * 0.33;
+    expect(geometry.rightGroupText.xMm).toBeGreaterThan(rightHalfStartMm);
+    expect(geometry.rightGroupText.xMm).toBeLessThan(endGuardStartMm);
+  });
 });
