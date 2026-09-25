@@ -1,6 +1,7 @@
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  ean13Modules,
   isInternalBarcode,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
@@ -23,10 +24,13 @@ import {
 import {
   Barcode,
   Check,
+  Download,
+  Minus,
   Package,
   PackagePlus,
   Pencil,
   Plus,
+  Printer,
   RotateCcw,
   Scale,
   ScanBarcode,
@@ -55,6 +59,7 @@ import {
   generateInternalBarcode,
   type ProductSaleUnit,
   type ProductSummary,
+  printLabels,
 } from "./productsApi";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -65,6 +70,7 @@ export type ProductsListScreenServices = {
   editProduct: typeof editProduct;
   fetchCategories: typeof fetchCategories;
   generateInternalBarcode: typeof generateInternalBarcode;
+  printLabels: typeof printLabels;
 };
 
 export const defaultProductsListScreenServices: ProductsListScreenServices = {
@@ -73,6 +79,7 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   editProduct,
   fetchCategories,
   generateInternalBarcode,
+  printLabels,
 };
 
 export type ProductsListScreenProps = {
@@ -1182,6 +1189,354 @@ function EditProductModal({
   );
 }
 
+type LabelableProduct = { product: ProductSummary; code: string };
+
+// Only a product's first internal barcode counts (a product can carry more than one code once
+// it has ever been re-generated), sorted the same way the table's own default sort reads.
+function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
+  return products
+    .flatMap((product) => {
+      const code = product.barcodes.find(isInternalBarcode);
+      return code ? [{ product, code }] : [];
+    })
+    .sort((a, b) => nameCollator(a.product, b.product));
+}
+
+// The standard EAN-13 human-readable layout: the first digit alone, then the left and right
+// halves of six digits each.
+function groupedEan13Digits(code: string): string {
+  return `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7, 13)}`;
+}
+
+// Merges adjacent "1" modules into a single wider bar (fewer elements than one <rect> per
+// module), each keyed by its own start position, a real domain value rather than a raw loop
+// index.
+function barRuns(modules: string): { start: number; width: number }[] {
+  const runs: { start: number; width: number }[] = [];
+  let position = 0;
+  while (position < modules.length) {
+    if (modules[position] !== "1") {
+      position += 1;
+      continue;
+    }
+    const start = position;
+    while (position < modules.length && modules[position] === "1") {
+      position += 1;
+    }
+    runs.push({ start, width: position - start });
+  }
+  return runs;
+}
+
+// A decorative preview of the printed label's bars: the digits beside it are the code's own
+// accessible text, so the bars carry aria-hidden instead of repeating it.
+function LabelPreviewBars({ code }: { code: string }) {
+  const modules = ean13Modules(code);
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox={`0 0 ${modules.length} 40`}
+      preserveAspectRatio="none"
+      className="h-10 w-full text-ink"
+    >
+      {barRuns(modules).map((run) => (
+        <rect
+          key={run.start}
+          x={run.start}
+          y={0}
+          width={run.width}
+          height={40}
+          fill="currentColor"
+        />
+      ))}
+    </svg>
+  );
+}
+
+const MAX_LABEL_COUNT_PER_PRODUCT = 999;
+
+type PrintNotice =
+  | { kind: "attemptFailed" }
+  | { kind: "productsChanged" }
+  | { kind: "reloadFailed" }
+  | { kind: "rateLimited"; retryAfterSeconds: number };
+
+type PrintLabelsModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onSessionEnded: () => void;
+  products: ProductSummary[];
+  onProductsReloaded: (products: ProductSummary[]) => void;
+  fetchProducts: typeof fetchProducts;
+  printLabels: typeof printLabels;
+};
+
+/**
+ * Downloads a printable A4 sheet of internal-barcode labels for the chosen products and counts;
+ * no passkey step-up. The product list comes from the screen's own already-loaded products (no
+ * separate fetch), so a product added, renamed or removed elsewhere is only reflected on reload.
+ */
+function PrintLabelsModal({
+  isOpen,
+  onClose,
+  onSessionEnded,
+  products,
+  onProductsReloaded,
+  fetchProducts,
+  printLabels,
+}: PrintLabelsModalProps) {
+  const modalMessages = productsMessages.printLabelsModal;
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [notice, setNotice] = useState<PrintNotice | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [reloading, setReloading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setCounts({});
+      setNotice(null);
+      setPrinting(false);
+      setReloading(false);
+    }
+  }, [isOpen]);
+
+  const rows = useMemo(() => labelableProducts(products), [products]);
+  const total = rows.reduce((sum, row) => sum + (counts[row.product.id] ?? 0), 0);
+  const previewRow = rows.find((row) => (counts[row.product.id] ?? 0) > 0) ?? rows[0];
+  const busy = printing || reloading;
+
+  function changeCount(productId: string, delta: 1 | -1) {
+    setCounts((current) => {
+      const next = (current[productId] ?? 0) + delta;
+      return { ...current, [productId]: Math.max(0, Math.min(MAX_LABEL_COUNT_PER_PRODUCT, next)) };
+    });
+  }
+
+  async function handleDownload() {
+    const entries = rows
+      .map((row) => ({ productId: row.product.id, count: counts[row.product.id] ?? 0 }))
+      .filter((entry) => entry.count > 0);
+    if (entries.length === 0) {
+      return;
+    }
+    setNotice(null);
+    setPrinting(true);
+    const outcome = await printLabels(entries);
+    if (outcome.kind === "ok") {
+      const url = URL.createObjectURL(outcome.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "etiquetas.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      // Closes instead of staying open: the products just printed came from a snapshot that can
+      // now be stale (someone edited a product meanwhile), and reopening re-syncs with the
+      // screen's current list instead of carrying that snapshot (and the chosen counts) forward.
+      setPrinting(false);
+      onClose();
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setPrinting(false);
+      return;
+    }
+    if (
+      outcome.kind === "product_not_found" ||
+      outcome.kind === "product_without_internal_barcode"
+    ) {
+      setNotice({ kind: "productsChanged" });
+      setPrinting(false);
+      return;
+    }
+    setNotice({ kind: "attemptFailed" });
+    setPrinting(false);
+  }
+
+  async function handleReload() {
+    setReloading(true);
+    const outcome = await fetchProducts();
+    if (outcome.kind === "ok") {
+      onProductsReloaded(outcome.value);
+      setCounts({});
+      setNotice(null);
+      setReloading(false);
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setReloading(false);
+      return;
+    }
+    setNotice({ kind: "reloadFailed" });
+    setReloading(false);
+  }
+
+  const offersReload = notice?.kind === "productsChanged" || notice?.kind === "reloadFailed";
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      width="standard"
+      tone="info"
+      icon={<Printer />}
+      context={modalMessages.eyebrow}
+      title={modalMessages.heading}
+      closable
+      closeLabel={modalMessages.closeLabel}
+      footer={
+        <>
+          <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>
+            {modalMessages.cancel}
+          </Button>
+          <Button
+            variant="primary"
+            size="large"
+            icon={<Download />}
+            fullWidth
+            isDisabled={busy || total === 0}
+            onPress={() => void handleDownload()}
+          >
+            {modalMessages.download}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {notice?.kind === "attemptFailed" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.attemptFailedTitle}
+            detail={modalMessages.attemptFailedDetail}
+          />
+        )}
+        {notice?.kind === "rateLimited" && (
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title={modalMessages.rateLimitedTitle}
+            detail={modalMessages.rateLimitedDetail({
+              minutes: Math.ceil(notice.retryAfterSeconds / 60),
+            })}
+          />
+        )}
+        {notice?.kind === "productsChanged" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.productsChangedTitle}
+            detail={modalMessages.productsChangedDetail}
+          />
+        )}
+        {notice?.kind === "reloadFailed" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.reloadFailedTitle}
+            detail={modalMessages.reloadFailedDetail}
+          />
+        )}
+        {offersReload && (
+          <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
+            {modalMessages.reload}
+          </Button>
+        )}
+        <p className="text-base text-ink">{modalMessages.intro}</p>
+        {rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-bone px-4 py-8 text-center">
+            <Package aria-hidden="true" className="size-6 text-ink-secondary" />
+            <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
+            <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+              {rows.map(({ product, code }) => {
+                const count = counts[product.id] ?? 0;
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between gap-3 rounded-lg bg-surface-bone px-3 py-2"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-base font-bold text-ink">{product.name}</span>
+                      <span className="truncate font-mono text-sm text-ink-secondary">{code}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <IconButton
+                        icon={<Minus />}
+                        aria-label={modalMessages.decreaseAria({ name: product.name })}
+                        isDisabled={count === 0}
+                        onPress={() => changeCount(product.id, -1)}
+                      />
+                      <span className="w-8 text-center font-mono text-base text-ink">{count}</span>
+                      <IconButton
+                        icon={<Plus />}
+                        aria-label={modalMessages.increaseAria({ name: product.name })}
+                        isDisabled={count === MAX_LABEL_COUNT_PER_PRODUCT}
+                        onPress={() => changeCount(product.id, 1)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {previewRow && (
+              // A <fieldset> carries the implicit "group" role a plain div would need role="group"
+              // for; Tailwind's preflight strips its native border/padding/margin, so the
+              // component's own classes are all that paint it.
+              <fieldset
+                aria-label={modalMessages.previewAria}
+                className="flex items-center gap-4 rounded-lg border border-line p-3"
+              >
+                <div className="flex w-36 shrink-0 flex-col items-center gap-2 rounded border border-line p-3">
+                  <span className="line-clamp-2 text-center text-xs font-bold text-ink">
+                    {previewRow.product.name}
+                  </span>
+                  <LabelPreviewBars code={previewRow.code} />
+                  <span className="font-mono text-xs text-ink">
+                    {groupedEan13Digits(previewRow.code)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-xl font-bold text-brand-blue-strong">
+                    {modalMessages.summary({ count: total })}
+                  </p>
+                  <p className="text-sm text-ink-secondary">{modalMessages.summaryDetail}</p>
+                </div>
+              </fieldset>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /**
  * "Productos": the catalog's products, listed with their category and sale unit, searchable by
  * name or barcode, filterable and editable in place. Gated by `manage_products_and_categories`:
@@ -1195,6 +1550,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     editProduct: editProductService,
     fetchCategories: fetchCategoriesService,
     generateInternalBarcode: generateInternalBarcodeService,
+    printLabels: printLabelsService,
   } = services ?? defaultProductsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useRef(list);
@@ -1208,6 +1564,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     direction: "ascending",
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
@@ -1332,9 +1689,18 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 {productsMessages.heading}
               </h1>
             </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              {productsMessages.newProductButton}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                icon={<Printer />}
+                onPress={() => setPrintModalOpen(true)}
+              >
+                {productsMessages.printLabelsButton}
+              </Button>
+              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+                {productsMessages.newProductButton}
+              </Button>
+            </div>
           </div>
         }
         bodyClassName="gap-4 p-6"
@@ -1461,6 +1827,15 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         editProduct={editProductService}
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
+      />
+      <PrintLabelsModal
+        isOpen={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        onSessionEnded={onSessionEnded}
+        products={products}
+        onProductsReloaded={(reloaded) => setList({ kind: "loaded", products: reloaded })}
+        fetchProducts={fetchProductsService}
+        printLabels={printLabelsService}
       />
     </>
   );

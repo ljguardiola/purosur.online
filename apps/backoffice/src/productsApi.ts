@@ -195,6 +195,57 @@ export async function generateInternalBarcode(): Promise<GenerateInternalBarcode
   return { kind: "failed" };
 }
 
+export type PrintLabelEntry = { productId: string; count: number };
+
+export type PrintLabelsOutcome =
+  | { kind: "ok"; blob: Blob }
+  | { kind: "product_not_found" }
+  | { kind: "product_without_internal_barcode" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+/**
+ * Downloads a printable A4 sheet of internal-barcode labels for the requested products and
+ * counts, gated by `manage_products_and_categories`; no passkey step-up (`POST /products/labels`).
+ */
+export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/products/labels", { labels });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const blob = await response.blob().catch(() => undefined);
+    if (!blob) {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", blob };
+  }
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    if (body?.code === "product_not_found") {
+      return { kind: "product_not_found" };
+    }
+    if (body?.code === "product_without_internal_barcode") {
+      return { kind: "product_without_internal_barcode" };
+    }
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
 /** Edits a product and replaces its barcodes, rejecting a save over a newer version, gated by `manage_products_and_categories`; no passkey step-up (`POST /products/:id/edit`). */
 export async function editProduct(
   id: string,

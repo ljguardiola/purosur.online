@@ -24,6 +24,7 @@ function createServices(
     editProduct: vi.fn(),
     fetchCategories: vi.fn(),
     generateInternalBarcode: vi.fn(),
+    printLabels: vi.fn(),
     ...overrides,
   };
 }
@@ -1380,4 +1381,357 @@ test("hides the scan placeholder while the empty scan input has focus", async ()
 
   await moveFocusOutOfScanInput(dialog);
   await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+});
+
+// "2000000000015" is the internal-barcode sample used in the label design's own proof; the
+// second code is another valid check-digit code in the same restricted-circulation range.
+const mielConCodigoInterno: ProductSummary = {
+  ...miel,
+  id: "product-20",
+  barcodes: ["2000000000015"],
+};
+const almendrasConCodigoInterno: ProductSummary = {
+  ...almendras,
+  id: "product-21",
+  barcodes: ["2000000000022"],
+};
+const sinCodigoInterno: ProductSummary = {
+  ...miel,
+  id: "product-22",
+  name: "Producto sin código interno",
+  barcodes: ["7790000000123"],
+};
+
+async function openPrintLabelsModal(screen: Screen) {
+  await userEvent.click(screen.getByRole("button", { name: "Imprimir etiquetas" }));
+  return screen.getByRole("dialog");
+}
+
+test("the header button opens the print labels modal", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByRole("heading", { name: "Imprimir etiquetas" })).toBeVisible();
+});
+
+test("lists only products with an internal barcode", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno, sinCodigoInterno]);
+  const screen = await renderScreen(services);
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  // The single labelable product's own name is repeated by the preview card below, so its code
+  // (not grouped there the same way) is what proves the row itself is listed.
+  await expect.element(dialog.getByText("Miel pura de abeja 1 kg").first()).toBeVisible();
+  await expect.element(dialog.getByText("2000000000015")).toBeVisible();
+  expect(dialog.getByText("Producto sin código interno").query()).toBeNull();
+});
+
+test("shows an empty state when no product has an internal barcode", async () => {
+  const services = createServices();
+  mockLoaded(services, [sinCodigoInterno]);
+  const screen = await renderScreen(services);
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("No hay productos con código interno")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
+    .toBeDisabled();
+});
+
+test("the stepper increments and decrements between 0 and 999, disabling each bound", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  const decrease = dialog.getByRole("button", {
+    name: `Restar una etiqueta de ${mielConCodigoInterno.name}`,
+  });
+  const increase = dialog.getByRole("button", {
+    name: `Sumar una etiqueta a ${mielConCodigoInterno.name}`,
+  });
+  await expect.element(decrease).toBeDisabled();
+
+  await userEvent.click(increase);
+  await expect.element(decrease).toBeEnabled();
+  await expect.element(dialog.getByText("1", { exact: true })).toBeVisible();
+
+  await userEvent.click(decrease);
+  await expect.element(decrease).toBeDisabled();
+
+  // Reaching the 999 upper bound one click at a time through userEvent would drive the same
+  // number of real pointer interactions; a direct native click still goes through the same
+  // handler (react-aria's usePress falls back to the "click" event), so the loop stays fast
+  // without weakening what it proves.
+  for (let clickIndex = 0; clickIndex < 999; clickIndex += 1) {
+    (increase.element() as HTMLButtonElement).click();
+  }
+  await expect.poll(() => dialog.getByText("999", { exact: true }).query()).not.toBeNull();
+  await expect.element(increase).toBeDisabled();
+
+  (increase.element() as HTMLButtonElement).click();
+  await expect.poll(() => dialog.getByText("999", { exact: true }).query()).not.toBeNull();
+});
+
+test("totals and pluralizes the summary as counts change", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${almendrasConCodigoInterno.name}` }),
+  );
+  await expect.element(dialog.getByText("2 etiquetas")).toBeVisible();
+});
+
+test("previews the first product with a count above zero, defaulting to the first row", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  const preview = dialog.getByRole("group", { name: "Vista previa de la etiqueta" });
+  // Sorted by name, "Almendras peladas" comes first and is the default preview while every
+  // count is still 0.
+  await expect.element(preview.getByText(almendrasConCodigoInterno.name)).toBeVisible();
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await expect.element(preview.getByText(mielConCodigoInterno.name)).toBeVisible();
+  expect(preview.getByText(almendrasConCodigoInterno.name).query()).toBeNull();
+});
+
+test("the download action is disabled while the total is zero", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect
+    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
+    .toBeDisabled();
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await expect
+    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
+    .toBeEnabled();
+});
+
+test("downloads only the products with a count above zero, then closes the modal", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno, almendrasConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({
+    kind: "ok",
+    blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+  });
+  const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
+  const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.poll(() => vi.mocked(services.printLabels).mock.calls.length).toBe(1);
+  expect(services.printLabels).toHaveBeenCalledWith([
+    { productId: mielConCodigoInterno.id, count: 1 },
+  ]);
+  expect(createObjectURL).toHaveBeenCalledTimes(1);
+  expect(anchorClick).toHaveBeenCalledTimes(1);
+  await expect.poll(() => revokeObjectURL.mock.calls.length).toBe(1);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  createObjectURL.mockRestore();
+  revokeObjectURL.mockRestore();
+  anchorClick.mockRestore();
+});
+
+test("the download action is disabled while the request is pending", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  let resolvePrint: (outcome: { kind: "failed" }) => void = () => {};
+  vi.mocked(services.printLabels).mockReturnValue(
+    new Promise((resolve) => {
+      resolvePrint = resolve;
+    }),
+  );
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  const download = dialog.getByRole("button", { name: "Descargar la hoja para imprimir" });
+
+  await userEvent.click(download);
+
+  await expect.element(download).toBeDisabled();
+  resolvePrint({ kind: "failed" });
+  await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
+});
+
+test("shows the products-changed notice and offers a reload on product_not_found", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
+  const reload = dialog.getByRole("button", { name: "Recargar la lista" });
+  await expect.element(reload).toBeVisible();
+
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({
+    kind: "ok",
+    value: [almendrasConCodigoInterno],
+  });
+  await userEvent.click(reload);
+
+  // The reloaded row's own code (unlike its name, not repeated by the preview card's grouped
+  // "2 000000 000022" digits) uniquely identifies it as listed again.
+  await expect
+    .element(dialog.getByText(almendrasConCodigoInterno.barcodes[0] as string))
+    .toBeVisible();
+  expect(dialog.getByText("La lista de productos cambió").query()).toBeNull();
+});
+
+test("shows the products-changed notice on product_without_internal_barcode", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_without_internal_barcode" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
+});
+
+test("shows the rate-limited notice when printing is refused for too many requests", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 90,
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+});
+
+test("shows a generic failure notice when printing fails", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
+});
+
+test("ends the session when printing comes back unauthenticated", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when printing comes back forbidden", async () => {
+  window.history.pushState(null, "", "/catalog/products");
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("cancel closes the print labels modal without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.printLabels).not.toHaveBeenCalled();
+});
+
+test("has no accessibility violations with the print labels modal open, loaded and empty", async () => {
+  const services = createServices();
+  mockLoaded(services, [mielConCodigoInterno]);
+  const screen = await renderScreen(services);
+  const dialog = await openPrintLabelsModal(screen);
+  await expect.element(dialog.getByText(mielConCodigoInterno.barcodes[0] as string)).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${mielConCodigoInterno.name}` }),
+  );
+  await expectNoAccessibilityViolations(document.body);
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await screen.unmount();
+
+  const emptyServices = createServices();
+  mockLoaded(emptyServices, [sinCodigoInterno]);
+  const emptyScreen = await renderScreen(emptyServices);
+  const emptyDialog = await openPrintLabelsModal(emptyScreen);
+  await expect.element(emptyDialog.getByText("No hay productos con código interno")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
 });
