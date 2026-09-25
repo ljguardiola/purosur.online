@@ -15,7 +15,7 @@ const OTHER_IMAGE =
 
 const APPLY_STARTED_AT = Date.parse("2026-09-21T15:14:00.000Z");
 
-// Trimmed from a real `railway deployment list --service cloud --json` (newest first).
+// Trimmed from a real `railway deployment list --service "Cloud Server" --json` (newest first).
 const DEPLOYMENT_LIST_FIXTURE = [
   {
     id: "b6b6f6d2-6e2a-4b8a-9c3a-2a2a2a2a2a2a",

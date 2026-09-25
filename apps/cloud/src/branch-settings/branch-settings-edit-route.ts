@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { auditLog, branchSettings } from "../db/schema.js";
+import { auditLog, branchHours, branchSettings } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   openSessionOf,
@@ -11,11 +11,13 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import type {
+  BranchHoursRow,
   BranchSettingsRouteOptions,
   BranchSettingsRow,
 } from "./branch-settings-read-route.js";
 import { toBranchSettingsWire } from "./branch-settings-read-route.js";
 import {
+  type BranchHoursRange,
   type BranchSettingsEditInput,
   type BranchSettingsFieldValidationFailure,
   readBranchSettingsEditBody,
@@ -25,10 +27,6 @@ const STALE_VERSION_RESPONSE = {
   code: "stale_version",
   message: "these settings were changed since they were loaded",
 } as const;
-
-function normalizedTime(value: string | null): string | null {
-  return value === null ? null : value.slice(0, 5);
-}
 
 function isValidationFailure(
   value: BranchSettingsEditInput | BranchSettingsFieldValidationFailure,
@@ -45,11 +43,69 @@ export type EditBranchSettingsOutcome =
   | { kind: "stale_version" }
   | { kind: "applied"; row: BranchSettingsRow };
 
+/** The submitted day fields, in Monday..Sunday order, matching `day_of_week` (1 = Monday). */
+function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
+  return [
+    input.mondayHours,
+    input.tuesdayHours,
+    input.wednesdayHours,
+    input.thursdayHours,
+    input.fridayHours,
+    input.saturdayHours,
+    input.sundayHours,
+  ];
+}
+
+/** The currently stored hours, grouped by day (index 0 = Monday) in position order. */
+function currentOrderedDayHours(hours: BranchHoursRow[]): BranchHoursRange[][] {
+  const byDay: BranchHoursRange[][] = Array.from({ length: 7 }, () => []);
+  for (const row of hours) {
+    byDay[row.dayOfWeek - 1]?.push({
+      opensAt: row.opensAt.slice(0, 5),
+      closesAt: row.closesAt.slice(0, 5),
+    });
+  }
+  return byDay;
+}
+
+function rangesEqual(a: BranchHoursRange[], b: BranchHoursRange[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (range, index) =>
+        range.opensAt === b[index]?.opensAt && range.closesAt === b[index]?.closesAt,
+    )
+  );
+}
+
 /**
- * Updates one branch's settings row in one transaction, rejecting a save made over a version
- * someone else already changed the same way `editRole` (`role-edit-route.ts`) rejects a stale
- * role save. Leaving every field exactly as it was is a no-op: the version does not bump and
- * nothing is audited.
+ * Compares the currently stored hours against the submitted ones, day by day and in order: a
+ * day's ranges reordered without changing their times still counts as a change, since the server
+ * never reorders them either way.
+ */
+function hoursUnchanged(current: BranchHoursRow[], input: BranchSettingsEditInput): boolean {
+  const currentDays = currentOrderedDayHours(current);
+  const nextDays = orderedDayHours(input);
+  return currentDays.every((ranges, day) => rangesEqual(ranges, nextDays[day] ?? []));
+}
+
+/** The full replacement row set for `branch_hours`, in Monday..Sunday, position order. */
+function nextHoursRows(input: BranchSettingsEditInput): BranchHoursRow[] {
+  return orderedDayHours(input).flatMap((ranges, dayIndex) =>
+    ranges.map((range, position) => ({
+      dayOfWeek: dayIndex + 1,
+      position,
+      opensAt: range.opensAt,
+      closesAt: range.closesAt,
+    })),
+  );
+}
+
+/**
+ * Updates one branch's settings row and its hours in one transaction, rejecting a save made over a
+ * version someone else already changed the same way `editRole` (`role-edit-route.ts`) rejects a
+ * stale role save. Leaving every field and every day's hours exactly as they were is a no-op: the
+ * version does not bump and nothing is audited.
  */
 export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -57,19 +113,14 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
 ): Promise<EditBranchSettingsOutcome> {
   return db.transaction<EditBranchSettingsOutcome>(async (tx) => {
     // Locks this one row so a concurrent save against the same branch waits instead of racing:
-    // the version check below and the write it may lead to happen against a value that cannot
-    // change out from under this transaction while it holds the lock.
+    // the version check below, the hours read that follows, and the write they may lead to all
+    // happen against a value that cannot change out from under this transaction while it holds
+    // the lock.
     const [current] = await tx
       .select({
         address: branchSettings.address,
         whatsappNumber: branchSettings.whatsappNumber,
         instagramHandle: branchSettings.instagramHandle,
-        weekdayOpensAt: branchSettings.weekdayOpensAt,
-        weekdayClosesAt: branchSettings.weekdayClosesAt,
-        saturdayOpensAt: branchSettings.saturdayOpensAt,
-        saturdayClosesAt: branchSettings.saturdayClosesAt,
-        sundayOpensAt: branchSettings.sundayOpensAt,
-        sundayClosesAt: branchSettings.sundayClosesAt,
         expiringLotAlertDays: branchSettings.expiringLotAlertDays,
         unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
         goodConditionReturnDays: branchSettings.goodConditionReturnDays,
@@ -88,40 +139,36 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
       return { kind: "stale_version" };
     }
 
-    const next: Omit<BranchSettingsRow, "version"> = {
+    const currentHours = await tx
+      .select({
+        dayOfWeek: branchHours.dayOfWeek,
+        position: branchHours.position,
+        opensAt: branchHours.opensAt,
+        closesAt: branchHours.closesAt,
+      })
+      .from(branchHours)
+      .where(eq(branchHours.locationId, input.locationId))
+      .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
+
+    const next: Omit<BranchSettingsRow, "version" | "hours"> = {
       address: input.address,
       whatsappNumber: input.whatsappNumber,
       instagramHandle: input.instagramHandle,
-      weekdayOpensAt: input.weekdayHours.opensAt,
-      weekdayClosesAt: input.weekdayHours.closesAt,
-      saturdayOpensAt: input.saturdayHours.opensAt,
-      saturdayClosesAt: input.saturdayHours.closesAt,
-      sundayOpensAt: input.sundayHours.opensAt,
-      sundayClosesAt: input.sundayHours.closesAt,
       expiringLotAlertDays: input.expiringLotAlertDays,
       unreviewedPriceAlertDays: input.unreviewedPriceAlertDays,
       goodConditionReturnDays: input.goodConditionReturnDays,
     };
-    // Postgres' own `time` type answers with seconds ("09:00:00") while every submitted value is
-    // plain "HH:MM", so a same-value save is compared on that shared HH:MM shape rather than on
-    // the raw column strings, which would never compare equal and would bump the version (and
-    // audit) on every no-op save.
     const unchanged =
       current.address === next.address &&
       current.whatsappNumber === next.whatsappNumber &&
       current.instagramHandle === next.instagramHandle &&
-      normalizedTime(current.weekdayOpensAt) === normalizedTime(next.weekdayOpensAt) &&
-      normalizedTime(current.weekdayClosesAt) === normalizedTime(next.weekdayClosesAt) &&
-      normalizedTime(current.saturdayOpensAt) === normalizedTime(next.saturdayOpensAt) &&
-      normalizedTime(current.saturdayClosesAt) === normalizedTime(next.saturdayClosesAt) &&
-      normalizedTime(current.sundayOpensAt) === normalizedTime(next.sundayOpensAt) &&
-      normalizedTime(current.sundayClosesAt) === normalizedTime(next.sundayClosesAt) &&
       current.expiringLotAlertDays === next.expiringLotAlertDays &&
       current.unreviewedPriceAlertDays === next.unreviewedPriceAlertDays &&
-      current.goodConditionReturnDays === next.goodConditionReturnDays;
+      current.goodConditionReturnDays === next.goodConditionReturnDays &&
+      hoursUnchanged(currentHours, input);
 
     if (unchanged) {
-      return { kind: "applied", row: { ...current } };
+      return { kind: "applied", row: { ...current, hours: currentHours } };
     }
 
     const nextVersion = current.version + 1;
@@ -130,15 +177,23 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
       .set({ ...next, version: nextVersion })
       .where(eq(branchSettings.locationId, input.locationId));
 
+    await tx.delete(branchHours).where(eq(branchHours.locationId, input.locationId));
+    const nextHours = nextHoursRows(input);
+    if (nextHours.length > 0) {
+      await tx
+        .insert(branchHours)
+        .values(nextHours.map((row) => ({ ...row, locationId: input.locationId })));
+    }
+
     await tx.insert(auditLog).values({
       entity: "branch_settings",
       entityId: input.locationId,
       actorId: input.actorId,
-      previousValue: toBranchSettingsWire(current),
-      newValue: toBranchSettingsWire({ ...next, version: nextVersion }),
+      previousValue: toBranchSettingsWire({ ...current, hours: currentHours }),
+      newValue: toBranchSettingsWire({ ...next, version: nextVersion, hours: nextHours }),
     });
 
-    return { kind: "applied", row: { ...next, version: nextVersion } };
+    return { kind: "applied", row: { ...next, version: nextVersion, hours: nextHours } };
   });
 }
 

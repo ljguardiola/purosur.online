@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { branchSettings } from "../db/schema.js";
+import { branchHours, branchSettings } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   openSessionOf,
@@ -10,6 +10,10 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
+import {
+  BRANCH_SETTINGS_DAY_FIELDS,
+  type BranchSettingsDayField,
+} from "./branch-settings-validation.js";
 
 export interface BranchSettingsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -18,67 +22,89 @@ export interface BranchSettingsRouteOptions<TQueryResult extends PgQueryResultHK
   now?: () => Date;
 }
 
+/** One row of `branch_hours`, in the shape the table itself stores it. */
+export interface BranchHoursRow {
+  dayOfWeek: number;
+  position: number;
+  opensAt: string;
+  closesAt: string;
+}
+
 export interface BranchSettingsRow {
   address: string;
   whatsappNumber: string;
   instagramHandle: string;
-  weekdayOpensAt: string | null;
-  weekdayClosesAt: string | null;
-  saturdayOpensAt: string | null;
-  saturdayClosesAt: string | null;
-  sundayOpensAt: string | null;
-  sundayClosesAt: string | null;
+  hours: BranchHoursRow[];
   expiringLotAlertDays: number;
   unreviewedPriceAlertDays: number;
   goodConditionReturnDays: number;
   version: number;
 }
 
-export type BranchSettingsHoursWire = { opens_at: string; closes_at: string } | null;
+export type BranchHoursRangeWire = { opens_at: string; closes_at: string };
 
-export interface BranchSettingsWire {
+export type BranchSettingsWire = {
   address: string;
   whatsapp_number: string;
   instagram_handle: string;
-  weekday_hours: BranchSettingsHoursWire;
-  saturday_hours: BranchSettingsHoursWire;
-  sunday_hours: BranchSettingsHoursWire;
   expiring_lot_alert_days: number;
   unreviewed_price_alert_days: number;
   good_condition_return_days: number;
   version: number;
-}
+} & Record<BranchSettingsDayField, BranchHoursRangeWire[]>;
 
 // Postgres' own `time` type answers with seconds ("09:00:00"); the wire only ever speaks the
 // zero-padded HH:MM a caller sent, so this slices the trailing ":00" back off.
-function hoursWireOf(opensAt: string | null, closesAt: string | null): BranchSettingsHoursWire {
-  return opensAt !== null && closesAt !== null
-    ? { opens_at: opensAt.slice(0, 5), closes_at: closesAt.slice(0, 5) }
-    : null;
+function normalizedTime(value: string): string {
+  return value.slice(0, 5);
+}
+
+/** `dayOfWeek`'s own ranges, in position order, as the wire speaks them. */
+function dayHoursWire(hours: BranchHoursRow[], dayOfWeek: number): BranchHoursRangeWire[] {
+  return hours
+    .filter((row) => row.dayOfWeek === dayOfWeek)
+    .sort((a, b) => a.position - b.position)
+    .map((row) => ({
+      opens_at: normalizedTime(row.opensAt),
+      closes_at: normalizedTime(row.closesAt),
+    }));
 }
 
 export function toBranchSettingsWire(row: BranchSettingsRow): BranchSettingsWire {
-  return {
+  const wire = {
     address: row.address,
     whatsapp_number: row.whatsappNumber,
     instagram_handle: row.instagramHandle,
-    weekday_hours: hoursWireOf(row.weekdayOpensAt, row.weekdayClosesAt),
-    saturday_hours: hoursWireOf(row.saturdayOpensAt, row.saturdayClosesAt),
-    sunday_hours: hoursWireOf(row.sundayOpensAt, row.sundayClosesAt),
     expiring_lot_alert_days: row.expiringLotAlertDays,
     unreviewed_price_alert_days: row.unreviewedPriceAlertDays,
     good_condition_return_days: row.goodConditionReturnDays,
     version: row.version,
-  };
+  } as BranchSettingsWire;
+  BRANCH_SETTINGS_DAY_FIELDS.forEach((field, index) => {
+    wire[field] = dayHoursWire(row.hours, index + 1);
+  });
+  return wire;
 }
 
 /**
- * Reads `locationId`'s branch settings, for `GET /branch-settings` and for the edit route
- * `branch-settings-edit-route.ts` will add. Every location gets its row from the migration that
- * creates this table, so a missing row here means that invariant broke, not a legitimate "not
- * found" a caller should ever see.
+ * Reads `locationId`'s branch settings for `GET /branch-settings`. Every location gets its row
+ * from the migration that creates this table, so a missing row here means that invariant broke,
+ * not a legitimate "not found" a caller should ever see.
+ *
+ * Both reads share one repeatable-read snapshot: a save committing between them would otherwise
+ * pair the settings from before it with the hours from after it.
  */
 export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  locationId: string,
+): Promise<BranchSettingsRow> {
+  return db.transaction((tx) => readBranchSettings(tx, locationId), {
+    isolationLevel: "repeatable read",
+    accessMode: "read only",
+  });
+}
+
+async function readBranchSettings<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
 ): Promise<BranchSettingsRow> {
@@ -87,12 +113,6 @@ export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
       address: branchSettings.address,
       whatsappNumber: branchSettings.whatsappNumber,
       instagramHandle: branchSettings.instagramHandle,
-      weekdayOpensAt: branchSettings.weekdayOpensAt,
-      weekdayClosesAt: branchSettings.weekdayClosesAt,
-      saturdayOpensAt: branchSettings.saturdayOpensAt,
-      saturdayClosesAt: branchSettings.saturdayClosesAt,
-      sundayOpensAt: branchSettings.sundayOpensAt,
-      sundayClosesAt: branchSettings.sundayClosesAt,
       expiringLotAlertDays: branchSettings.expiringLotAlertDays,
       unreviewedPriceAlertDays: branchSettings.unreviewedPriceAlertDays,
       goodConditionReturnDays: branchSettings.goodConditionReturnDays,
@@ -103,7 +123,17 @@ export async function findBranchSettings<TQueryResult extends PgQueryResultHKT>(
   if (!row) {
     throw new Error(`branch settings missing for location ${locationId}`);
   }
-  return row;
+  const hours = await db
+    .select({
+      dayOfWeek: branchHours.dayOfWeek,
+      position: branchHours.position,
+      opensAt: branchHours.opensAt,
+      closesAt: branchHours.closesAt,
+    })
+    .from(branchHours)
+    .where(eq(branchHours.locationId, locationId))
+    .orderBy(asc(branchHours.dayOfWeek), asc(branchHours.position));
+  return { ...row, hours };
 }
 
 /**

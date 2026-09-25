@@ -13,7 +13,7 @@ declare module "vitest" {
 }
 
 // Matches the Postgres major version Railway's own template deploys
-// (ghcr.io/railwayapp-templates/postgres-ssl:18, see .railway/railway.ts's `postgres("postgres", ...)`),
+// (ghcr.io/railwayapp-templates/postgres-ssl:18, see .railway/railway.ts's `postgres(...)`),
 // pinned to an explicit tag rather than a moving one.
 const POSTGRES_IMAGE = "postgres:18-alpine";
 
