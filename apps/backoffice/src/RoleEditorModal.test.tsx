@@ -51,6 +51,15 @@ const stockDetail: RoleDetail = {
   assignedUsers: [],
 };
 
+const stockDetailWithPeople: RoleDetail = {
+  ...stockDetail,
+  userCount: 2,
+  assignedUsers: [
+    { id: "user-amara", name: "Amara Ortiz" },
+    { id: "user-zoe", name: "Zoe Almeida" },
+  ],
+};
+
 const stockSummary: RoleSummary = {
   id: "role-stock",
   name: "Depósito",
@@ -301,5 +310,129 @@ test("has no accessibility violations", async () => {
   const screen = await renderModal({ kind: "new" }, services);
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("editing a role with people assigned opens a confirmation step before saving, listing their names", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
+  await expect
+    .element(screen.getByText("Se aplican a las 2 personas con el rol Depósito:"))
+    .toBeVisible();
+  await expect.element(screen.getByText("Amara Ortiz")).toBeVisible();
+  await expect.element(screen.getByText("Zoe Almeida")).toBeVisible();
+  expect(services.editRole).not.toHaveBeenCalled();
+});
+
+test("Volver returns to the editor with edits intact, without saving", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito senior");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+  await expect.poll(() => screen.getByText("¿Guardar los cambios?").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito senior");
+  expect(services.editRole).not.toHaveBeenCalled();
+});
+
+test("confirming the confirmation step proceeds with the normal save", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  vi.mocked(services.editRole).mockResolvedValue({
+    kind: "ok",
+    value: { ...stockDetailWithPeople, version: 4 },
+  });
+  const onSaved = vi.fn();
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services, { onSaved });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
+
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "¿Guardar los cambios?" })
+      .getByRole("button", { name: "Guardar los cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
+  expect(services.editRole).toHaveBeenCalledWith("role-stock", {
+    name: "Depósito",
+    permissionKeys: ["view_stock_balances"],
+    version: 3,
+  });
+  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+});
+
+test("editing a role with nobody assigned saves directly, without the confirmation step", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });
+  vi.mocked(services.editRole).mockResolvedValue({
+    kind: "ok",
+    value: { ...stockDetail, version: 4 },
+  });
+  const onSaved = vi.fn();
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services, { onSaved });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  expect(screen.getByText("¿Guardar los cambios?").query()).toBeNull();
+  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+});
+
+test("creating a role never shows the confirmation step", async () => {
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "role-new",
+      name: "Depósito",
+      isAdministrator: false,
+      permissionKeys: [],
+      userCount: 0,
+    },
+  });
+  const onSaved = vi.fn();
+  const screen = await renderModal({ kind: "new" }, services, { onSaved });
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  expect(screen.getByText("¿Guardar los cambios?").query()).toBeNull();
+  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+});
+
+test("the confirmation step has no accessibility violations", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });

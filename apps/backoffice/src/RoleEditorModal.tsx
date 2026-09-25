@@ -1,7 +1,18 @@
 import type { PermissionArea, PermissionKey } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  RotateCcw,
+  Shield,
+  ShieldOff,
+  ShieldX,
+  TriangleAlert,
+  User,
+  Users,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { messages } from "./messages";
@@ -9,6 +20,7 @@ import { RoleEditorForm, roleFieldErrorMessage, validateRoleName } from "./RoleE
 import { failedRoleLoadStatus } from "./RoleLoadStatus";
 import { withOneAlertView } from "./rolePermissions";
 import {
+  type AssignedUser,
   type CreateRoleOutcome,
   createRole,
   type EditRoleOutcome,
@@ -73,6 +85,88 @@ function sourceDisplayName(role: RoleSummary): string {
   return role.isAdministrator ? rolesMessages.administratorRoleName : (role.name ?? "");
 }
 
+type RoleSaveConfirmationModalProps = {
+  isOpen: boolean;
+  roleName: string;
+  assignedUsers: AssignedUser[];
+  submitting: boolean;
+  onBack: () => void;
+  onConfirm: () => void;
+};
+
+/**
+ * "¿Guardar los cambios?": the confirmation step an edit with people assigned opens before any
+ * other authorization, listing everyone the change applies to. "Volver" returns to the editor
+ * with its edits untouched; "Guardar los cambios" here proceeds with the normal save (and its own
+ * passkey step-up, if the session needs one).
+ */
+function RoleSaveConfirmationModal({
+  isOpen,
+  roleName,
+  assignedUsers,
+  submitting,
+  onBack,
+  onConfirm,
+}: RoleSaveConfirmationModalProps) {
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onBack();
+        }
+      }}
+      width="confirmation"
+      tone="info"
+      icon={<Users />}
+      title={editorMessages.confirmTitle}
+      closable
+      closeLabel={editorMessages.closeLabel}
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            size="large"
+            icon={<ArrowLeft />}
+            fullWidth
+            isDisabled={submitting}
+            onPress={onBack}
+          >
+            {editorMessages.back}
+          </Button>
+          <Button
+            variant="primary"
+            size="large"
+            icon={<Check />}
+            fullWidth
+            isDisabled={submitting}
+            onPress={onConfirm}
+          >
+            {rolesMessages.editRole.save}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col items-center gap-4 text-center">
+        <p className="text-base text-ink-secondary">
+          {editorMessages.confirmText({ count: assignedUsers.length, roleName })}
+        </p>
+        <div className="max-h-60 w-full overflow-y-auto rounded-lg border border-line text-left">
+          {assignedUsers.map((user) => (
+            <div
+              key={user.id}
+              className="flex items-center gap-2 border-line border-b px-4 py-2 last:border-b-0"
+            >
+              <User aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+              <span>{user.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /**
  * "Nuevo rol" / "Editar rol" / "Duplicar rol": one modal over the Roles list for all three,
  * organized by permission area. Edit loads the role fresh (for its version and assigned people);
@@ -104,6 +198,7 @@ export function RoleEditorModal({
   const [loadState, setLoadState] = useState<LoadState>({ kind: "ready" });
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingSave, setConfirmingSave] = useState(false);
 
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
@@ -146,6 +241,7 @@ export function RoleEditorModal({
     setNameError(undefined);
     setNotice(null);
     setSubmitting(false);
+    setConfirmingSave(false);
     if (request.kind === "new") {
       setName("");
       setSelected(new Set());
@@ -277,6 +373,23 @@ export function RoleEditorModal({
     if (error) {
       return;
     }
+    if (
+      request.kind === "edit" &&
+      loadState.kind === "loaded" &&
+      loadState.role.assignedUsers.length > 0
+    ) {
+      setConfirmingSave(true);
+      return;
+    }
+    await save();
+  }
+
+  function backFromConfirmation() {
+    setConfirmingSave(false);
+  }
+
+  async function confirmSave() {
+    setConfirmingSave(false);
     await save();
   }
 
@@ -438,6 +551,14 @@ export function RoleEditorModal({
           )}
         </div>
       </Modal>
+      <RoleSaveConfirmationModal
+        isOpen={confirmingSave}
+        roleName={name}
+        assignedUsers={loadState.kind === "loaded" ? loadState.role.assignedUsers : []}
+        submitting={submitting}
+        onBack={backFromConfirmation}
+        onConfirm={() => void confirmSave()}
+      />
       {authorizationModal}
     </>
   );
