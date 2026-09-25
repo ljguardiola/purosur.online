@@ -78,6 +78,7 @@ const frameClassName: Record<TextFieldValueKind, string> = {
 
 // The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
 // right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
+// Plain text is left-aligned unless it carries a suffix (see plainTextSuffixedValueClassName).
 const valueClassName: Record<TextFieldValueKind, string> = {
   amount: "text-right text-3xl font-bold text-ink",
   "counted-cash": "text-right text-3xl font-bold text-ink",
@@ -86,6 +87,10 @@ const valueClassName: Record<TextFieldValueKind, string> = {
   quantity: "text-right text-3xl font-bold text-ink",
   "plain-text": "text-left text-base font-normal text-ink",
 };
+
+// A plain-text value with a suffix sits immediately before it ("30 días"), like every other kind
+// that takes one, instead of leaving the input's empty width between the value and its unit.
+const plainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
 
@@ -164,7 +169,7 @@ export function TextField(props: TextFieldProps) {
   // whatever `aria-describedby` the caller passes to TextField itself, in that order, so handing
   // it this id here reaches the input without the caller ever repeating the unit in the label.
   const affixId = useId();
-  // Left out entirely rather than set to `undefined` for a plain-text field: AriaTextField's own
+  // Left out entirely rather than set to `undefined` for a field with no affix: AriaTextField's own
   // `aria-describedby` prop type doesn't accept `undefined` under this project's
   // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
   const affixDescribedByProps =
@@ -213,7 +218,11 @@ export function TextField(props: TextFieldProps) {
           </span>
         )}
         <AriaInput
-          className={`${inputBaseClassName} ${valueClassName[kind]}`}
+          className={`${inputBaseClassName} ${
+            kind === "plain-text" && suffix !== undefined
+              ? plainTextSuffixedValueClassName
+              : valueClassName[kind]
+          }`}
           {...labelledByProps}
         />
         {suffix !== undefined && (

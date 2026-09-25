@@ -159,7 +159,7 @@ const kindCases: KindCase[] = [
     label: "Reason",
     height: 52,
     paddingX: 16,
-    gap: null,
+    gap: 8,
     valueAlign: "left",
     valueFontSize: 16,
   },
@@ -649,6 +649,8 @@ test("renders an optional suffix on the plain text kind at its own text-base sca
   const suffixStyle = getComputedStyle(suffixElement);
 
   expect(box.getBoundingClientRect().height).toBeCloseTo(52, 0);
+  expect(getComputedStyle(input).textAlign).toBe("right");
+  expect(Math.round(Number.parseFloat(getComputedStyle(box).columnGap))).toBe(8);
   expect(Math.round(Number.parseFloat(suffixStyle.fontSize))).toBe(16);
   expect(suffixStyle.color).toBe(tokenRgb("ink-secondary"));
   expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
