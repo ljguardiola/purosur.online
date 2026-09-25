@@ -6,6 +6,7 @@ import { RoleCreationNoticeView, type RoleCreationServices, useRoleCreation } fr
 import { RoleForm } from "./RoleForm";
 import { createRole, fetchRoleCreationChallenge } from "./rolesApi";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { ROLES_LIST_PATH } from "./settingsRoutes";
 
 export type NewRoleScreenServices = RoleCreationServices;
@@ -36,43 +37,47 @@ export function NewRoleScreen({ onSessionEnded, services }: NewRoleScreenProps) 
   });
 
   return (
-    <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{rolesMessages.rolePage.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">
-            {rolesMessages.newRole.heading}
-          </h1>
+    <ScreenLayout
+      topBar={
+        <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex flex-col justify-center">
+            <p className="text-ink-secondary text-sm">{rolesMessages.rolePage.breadcrumb}</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">
+              {rolesMessages.newRole.heading}
+            </h1>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        <RoleCreationNoticeView notice={creation.notice} />
-        <RoleForm
-          name={creation.name}
-          onNameChange={creation.changeName}
-          {...(creation.nameError ? { nameError: creation.nameError } : {})}
-          selected={creation.selected}
-          onSelectedChange={creation.setSelected}
-        />
-      </div>
-      <div className="flex shrink-0 items-center justify-end gap-3 border-line border-t bg-surface-white px-8 py-4">
-        <Button
-          variant="secondary"
-          icon={<X />}
-          isDisabled={creation.submitting}
-          onPress={() => navigate(ROLES_LIST_PATH)}
-        >
-          {rolesMessages.rolePage.cancel}
-        </Button>
-        <Button
-          variant="primary"
-          icon={<Check />}
-          isDisabled={creation.submitting}
-          onPress={() => void creation.submit()}
-        >
-          {rolesMessages.roleCreation.save}
-        </Button>
-      </div>
-    </>
+      }
+      bodyClassName="gap-6 p-6"
+      footer={
+        <div className="flex shrink-0 items-center justify-end gap-3 border-line border-t bg-surface-white px-8 py-4">
+          <Button
+            variant="secondary"
+            icon={<X />}
+            isDisabled={creation.submitting}
+            onPress={() => navigate(ROLES_LIST_PATH)}
+          >
+            {rolesMessages.rolePage.cancel}
+          </Button>
+          <Button
+            variant="primary"
+            icon={<Check />}
+            isDisabled={creation.submitting}
+            onPress={() => void creation.submit()}
+          >
+            {rolesMessages.roleCreation.save}
+          </Button>
+        </div>
+      }
+    >
+      <RoleCreationNoticeView notice={creation.notice} />
+      <RoleForm
+        name={creation.name}
+        onNameChange={creation.changeName}
+        {...(creation.nameError ? { nameError: creation.nameError } : {})}
+        selected={creation.selected}
+        onSelectedChange={creation.setSelected}
+      />
+    </ScreenLayout>
   );
 }

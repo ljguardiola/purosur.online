@@ -268,3 +268,24 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(document.body);
 });
+
+test("keeps the heading in view after scrolling the permission form to the bottom", async () => {
+  const services = createServices();
+  const screen = await render(
+    <main style={{ height: "320px" }} className="flex flex-col overflow-hidden">
+      <NewRoleScreen services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
+
+  const heading = screen.getByRole("heading", { name: "Nuevo rol", level: 1 });
+  await expect.element(heading).toBeVisible();
+  const headingTopBefore = heading.element().getBoundingClientRect().top;
+
+  const main = heading.element().closest("main") as HTMLElement;
+  const body = main.children[1] as HTMLElement;
+  expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+  body.scrollTop = body.scrollHeight;
+
+  await expect.element(heading).toBeVisible();
+  expect(heading.element().getBoundingClientRect().top).toBe(headingTopBefore);
+});

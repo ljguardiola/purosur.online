@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount, USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
@@ -640,13 +641,17 @@ export function UserDetailScreen({
 
   return (
     <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{detailMessages.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
-        </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+            <div className="flex flex-col justify-center">
+              <p className="text-ink-secondary text-sm">{detailMessages.breadcrumb}</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
+            </div>
+          </div>
+        }
+        bodyClassName="gap-4 p-6"
+      >
         {state.kind === "loading" && <p role="status">{detailMessages.loading}</p>}
         {state.kind === "notFound" && (
           <>
@@ -783,7 +788,7 @@ export function UserDetailScreen({
               ))}
           </div>
         )}
-      </div>
+      </ScreenLayout>
       {state.kind === "loaded" && (
         <RemoveUserPasskeyModal
           target={removeTarget}

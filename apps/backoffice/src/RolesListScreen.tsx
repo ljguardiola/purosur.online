@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { NEW_ROLE_PATH, roleDuplicatePath, roleEditPath, sendToMyAccount } from "./settingsRoutes";
 
 export type RolesListScreenServices = {
@@ -124,59 +125,61 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   const roles = list.kind === "loaded" ? list.roles : [];
 
   return (
-    <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{rolesMessages.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{rolesMessages.heading}</h1>
+    <ScreenLayout
+      topBar={
+        <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex flex-col justify-center">
+            <p className="text-ink-secondary text-sm">{rolesMessages.breadcrumb}</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">{rolesMessages.heading}</h1>
+          </div>
+          <Button variant="primary" icon={<Plus />} onPress={() => navigate(NEW_ROLE_PATH)}>
+            {rolesMessages.newRoleButton}
+          </Button>
         </div>
-        <Button variant="primary" icon={<Plus />} onPress={() => navigate(NEW_ROLE_PATH)}>
-          {rolesMessages.newRoleButton}
-        </Button>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        {list.kind === "loadError" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={rolesMessages.loadErrorTitle}
-              detail={rolesMessages.loadErrorDetail}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              {rolesMessages.retry}
-            </Button>
-          </>
-        )}
-        {list.kind === "rate_limited" && (
-          <>
-            <InlineNotice
-              tone="error"
-              icon={<ShieldX />}
-              title={rolesMessages.rateLimitedTitle}
-              detail={rolesMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
-            />
-            <Button variant="secondary" onPress={() => void load()}>
-              {rolesMessages.retry}
-            </Button>
-          </>
-        )}
-        {(list.kind === "loading" || list.kind === "loaded") && (
-          <Table
-            aria-label={rolesMessages.heading}
-            columns={columns}
-            loading={list.kind === "loading" ? "initial" : false}
-            rows={roles.map((role) => ({ id: role.id, item: role }))}
-            footer={
-              <p className="text-ink-secondary text-sm">
-                {rolesMessages.count({ count: roles.length })}
-              </p>
-            }
+      }
+      bodyClassName="gap-4 p-6"
+    >
+      {list.kind === "loadError" && (
+        <>
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={rolesMessages.loadErrorTitle}
+            detail={rolesMessages.loadErrorDetail}
           />
-        )}
-      </div>
-    </>
+          <Button variant="secondary" onPress={() => void load()}>
+            {rolesMessages.retry}
+          </Button>
+        </>
+      )}
+      {list.kind === "rate_limited" && (
+        <>
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title={rolesMessages.rateLimitedTitle}
+            detail={rolesMessages.rateLimitedDetail({
+              minutes: Math.ceil(list.retryAfterSeconds / 60),
+            })}
+          />
+          <Button variant="secondary" onPress={() => void load()}>
+            {rolesMessages.retry}
+          </Button>
+        </>
+      )}
+      {(list.kind === "loading" || list.kind === "loaded") && (
+        <Table
+          aria-label={rolesMessages.heading}
+          columns={columns}
+          loading={list.kind === "loading" ? "initial" : false}
+          rows={roles.map((role) => ({ id: role.id, item: role }))}
+          footer={
+            <p className="text-ink-secondary text-sm">
+              {rolesMessages.count({ count: roles.length })}
+            </p>
+          }
+        />
+      )}
+    </ScreenLayout>
   );
 }
