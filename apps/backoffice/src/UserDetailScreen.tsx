@@ -1,8 +1,9 @@
-import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
+import { Button, IconButton, InlineNotice, Modal, Select, TextField, Tooltip } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
   Laptop,
+  Lock,
   Pencil,
   RotateCcw,
   ShieldX,
@@ -17,6 +18,8 @@ import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canDeactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
+import { roleDisplayName, roleOptions } from "./roleDisplay";
+import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
@@ -24,10 +27,10 @@ import { sendToMyAccount, USERS_LIST_PATH } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
-  type ChangeUserEmailOutcome,
-  changeUserEmail,
   type DeactivateUserOutcome,
   deactivateUser,
+  type EditUserOutcome,
+  editUser,
   fetchUser,
   fetchUserPasskeys,
   type RemoveUserPasskeyOutcome,
@@ -37,7 +40,8 @@ import {
 
 export type UserDetailScreenServices = {
   fetchUser: typeof fetchUser;
-  changeUserEmail: typeof changeUserEmail;
+  editUser: typeof editUser;
+  fetchRoles: typeof fetchRoles;
   fetchUserPasskeys: typeof fetchUserPasskeys;
   removeUserPasskey: typeof removeUserPasskey;
   deactivateUser: typeof deactivateUser;
@@ -48,7 +52,8 @@ export type UserDetailScreenServices = {
 
 export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUser,
-  changeUserEmail,
+  editUser,
+  fetchRoles,
   fetchUserPasskeys,
   removeUserPasskey,
   deactivateUser,
@@ -75,7 +80,7 @@ type DetailState =
   | { kind: "notFound" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; user: BranchUser };
+  | { kind: "loaded"; user: BranchUser; roles: BranchUserRole[] };
 
 type PasskeysState =
   | { kind: "loading" }
@@ -85,7 +90,7 @@ type PasskeysState =
 
 const usersMessages = messages.settings.users;
 const detailMessages = usersMessages.detail;
-const modalMessages = usersMessages.editEmailModal;
+const modalMessages = usersMessages.editUserModal;
 // The row detail formatting, the section title and the remove button's aria-label are grammar-
 // neutral ("Registrada el…", "Passkeys", "Dar de baja la passkey «X»"), so this screen reuses Mi
 // cuenta's own passkeys copy instead of duplicating it for a third person.
@@ -102,55 +107,62 @@ function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
   });
 }
 
-function roleDisplayName(role: BranchUserRole): string {
-  return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
-}
-
 const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
 
-type EditEmailModalNotice =
+type EditUserModalNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number; offersReload: boolean }
   | { kind: "staleVersion" }
+  | { kind: "lastAdministrator" }
+  | { kind: "unknownRole" }
   | { kind: "reloadFailed" };
 
-type EditEmailModalProps = {
+type EditUserModalProps = {
   isOpen: boolean;
   user: BranchUser;
+  roles: BranchUserRole[];
   onClose: () => void;
   onSaved: (user: BranchUser) => void;
   onReloaded: (user: BranchUser) => void;
   onReloadRejected: (state: "notFound") => void;
   onSessionEnded: () => void;
   fetchUser: typeof fetchUser;
-  changeUserEmail: typeof changeUserEmail;
+  editUser: typeof editUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
 };
 
-/** Changes one user's email, confirming with the shared passkey-authorization modal only when the cloud asks for it, and rejecting a save over a newer version. */
-function EditEmailModal({
+/**
+ * Changes one user's email and role together in a single save, confirming with the shared
+ * passkey-authorization modal only when the cloud asks for it, and rejecting a save over a newer
+ * version. The last active Administrator's Rol field is shown locked instead of offered, since
+ * the server refuses that change regardless (see the `last_administrator` notice below, for the
+ * race where the server still refuses after this screen loaded a stale, unlocked view).
+ */
+function EditUserModal({
   isOpen,
   user,
+  roles,
   onClose,
   onSaved,
   onReloaded,
   onReloadRejected,
   onSessionEnded,
   fetchUser,
-  changeUserEmail,
+  editUser,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,
-}: EditEmailModalProps) {
+}: EditUserModalProps) {
   const [email, setEmail] = useState(user.email);
+  const [roleId, setRoleId] = useState(user.role.id);
   const [version, setVersion] = useState(user.version);
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
-  const [notice, setNotice] = useState<EditEmailModalNotice | null>(null);
+  const [notice, setNotice] = useState<EditUserModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { run, modal } = useAuthorization<ChangeUserEmailOutcome>({
-    action: "emailChange",
+  const { run, modal } = useAuthorization<EditUserOutcome>({
+    action: "userEdit",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -162,12 +174,15 @@ function EditEmailModal({
   useEffect(() => {
     if (isOpen) {
       setEmail(userRef.current.email);
+      setRoleId(userRef.current.role.id);
       setVersion(userRef.current.version);
       setEmailError(undefined);
       setNotice(null);
       setSubmitting(false);
     }
   }, [isOpen]);
+
+  const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 
   async function handleSubmit() {
     const validationError = validateEmail(email, EMAIL_ERRORS);
@@ -178,7 +193,7 @@ function EditEmailModal({
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await run(() => changeUserEmail(user.id, { email: email.trim(), version }));
+    const outcome = await run(() => editUser(user.id, { email: email.trim(), roleId, version }));
     if (outcome.kind === "cancelled") {
       setSubmitting(false);
       return;
@@ -198,6 +213,8 @@ function EditEmailModal({
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "email") {
         setEmailError(modalMessages.emailInvalid);
+      } else if (outcome.field === "roleId") {
+        setNotice({ kind: "unknownRole" });
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -211,6 +228,11 @@ function EditEmailModal({
     }
     if (outcome.kind === "stale_version") {
       setNotice({ kind: "staleVersion" });
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "last_administrator") {
+      setNotice({ kind: "lastAdministrator" });
       setSubmitting(false);
       return;
     }
@@ -232,6 +254,7 @@ function EditEmailModal({
     const outcome = await fetchUser(user.id);
     if (outcome.kind === "ok") {
       setEmail(outcome.value.email);
+      setRoleId(outcome.value.role.id);
       setVersion(outcome.value.version);
       setNotice(null);
       setSubmitting(false);
@@ -331,6 +354,22 @@ function EditEmailModal({
               detail={modalMessages.staleVersionDetail}
             />
           )}
+          {notice?.kind === "lastAdministrator" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.lastAdministratorTitle}
+              detail={modalMessages.lastAdministratorDetail}
+            />
+          )}
+          {notice?.kind === "unknownRole" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.unknownRoleTitle}
+              detail={modalMessages.unknownRoleDetail}
+            />
+          )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
@@ -340,6 +379,7 @@ function EditEmailModal({
             />
           )}
           {(notice?.kind === "staleVersion" ||
+            notice?.kind === "lastAdministrator" ||
             notice?.kind === "reloadFailed" ||
             (notice?.kind === "rateLimited" && notice.offersReload)) && (
             <Button
@@ -350,6 +390,29 @@ function EditEmailModal({
             >
               {modalMessages.reload}
             </Button>
+          )}
+          {user.isLastActiveAdministrator ? (
+            <div className="flex flex-col gap-1">
+              <p className="font-bold text-ink text-sm">{modalMessages.roleLabel}</p>
+              <div className="flex h-12 min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border-2 border-line bg-surface-bone px-3">
+                <span className="min-w-0 flex-1 truncate text-left font-semibold text-base text-ink">
+                  {roleDisplayName(user.role)}
+                </span>
+                <Tooltip description={modalMessages.lastAdministratorTooltip}>
+                  <IconButton icon={<Lock />} aria-label={modalMessages.lockedRoleAria} />
+                </Tooltip>
+              </div>
+            </div>
+          ) : (
+            roleSelectOptions && (
+              <Select
+                label={modalMessages.roleLabel}
+                options={roleSelectOptions}
+                value={roleId}
+                onChange={setRoleId}
+                required
+              />
+            )
           )}
           <TextField
             kind="plain-text"
@@ -691,7 +754,8 @@ export function UserDetailScreen({
 }: UserDetailScreenProps) {
   const {
     fetchUser,
-    changeUserEmail,
+    editUser,
+    fetchRoles,
     fetchUserPasskeys,
     removeUserPasskey,
     deactivateUser,
@@ -728,28 +792,46 @@ export function UserDetailScreen({
     }
   }, [userId, endSession, fetchUserPasskeys]);
 
-  // Passkey management is Administrator-only, and so is reading a user's passkeys on the cloud.
+  // Passkey management and the Rol selector are both Administrator-only, and so is reading a
+  // user's passkeys or the role catalog on the cloud; a non-Administrator viewer (only reachable
+  // holding `deactivate_users`) never opens the edit modal, so it never needs the roles.
   const showsPasskeys = access.isAdministrator;
+  const needsRoles = access.isAdministrator;
   const load = useCallback(async () => {
     setState({ kind: "loading" });
-    const outcome = await fetchUser(userId);
-    if (outcome.kind === "ok") {
-      setState({ kind: "loaded", user: outcome.value });
+    const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
+    const [userOutcome, rolesOutcome] = await Promise.all([
+      fetchUser(userId),
+      needsRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
+    ]);
+    if (userOutcome.kind === "unauthenticated" || rolesOutcome.kind === "unauthenticated") {
+      endSession();
+      return;
+    }
+    if (userOutcome.kind === "not_found") {
+      setState({ kind: "notFound" });
+      return;
+    }
+    const rateLimited = [userOutcome, rolesOutcome].flatMap((outcome) =>
+      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
+    );
+    if (rateLimited.length > 0) {
+      setState({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
+      return;
+    }
+    if (userOutcome.kind === "forbidden" || rolesOutcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (userOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
+      setState({ kind: "loaded", user: userOutcome.value, roles: rolesOutcome.value });
       if (showsPasskeys) {
         void loadPasskeys();
       }
-    } else if (outcome.kind === "not_found") {
-      setState({ kind: "notFound" });
-    } else if (outcome.kind === "unauthenticated") {
-      endSession();
-    } else if (outcome.kind === "rate_limited") {
-      setState({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      setState({ kind: "loadError" });
+      return;
     }
-  }, [userId, endSession, fetchUser, loadPasskeys, showsPasskeys]);
+    setState({ kind: "loadError" });
+  }, [userId, endSession, fetchUser, fetchRoles, needsRoles, loadPasskeys, showsPasskeys]);
 
   useEffect(() => {
     void load();
@@ -951,22 +1033,23 @@ export function UserDetailScreen({
         />
       )}
       {state.kind === "loaded" && (
-        <EditEmailModal
+        <EditUserModal
           isOpen={modalOpen}
           user={state.user}
+          roles={state.roles}
           onClose={() => setModalOpen(false)}
           onSaved={(user) => {
-            setState({ kind: "loaded", user });
+            setState({ kind: "loaded", user, roles: state.roles });
             setModalOpen(false);
           }}
-          onReloaded={(user) => setState({ kind: "loaded", user })}
+          onReloaded={(user) => setState({ kind: "loaded", user, roles: state.roles })}
           onReloadRejected={(kind) => {
             setState({ kind });
             setModalOpen(false);
           }}
           onSessionEnded={endSession}
           fetchUser={fetchUser}
-          changeUserEmail={changeUserEmail}
+          editUser={editUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}

@@ -86,7 +86,8 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
-      changeUserEmail: vi.fn(),
+      editUser: vi.fn(),
+      fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
       deactivateUser: vi.fn(),
@@ -528,12 +529,14 @@ test("opens a user's detail screen at /settings/users/:id, with Usuarios still t
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
     passkeyCount: 1,
+    isLastActiveAdministrator: false,
   };
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
     kind: "ok",
     value: [martina],
   });
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users");
   window.history.pushState(null, "", "/settings/users/user-2");
 
@@ -559,8 +562,10 @@ test("passes the signed-in Administrator's own id to the user detail screen, hid
     version: 1,
     role: { id: "role-admin", isAdministrator: true, name: null },
     passkeyCount: 1,
+    isLastActiveAdministrator: true,
   };
   vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: lucas });
+  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
     kind: "ok",
     value: [
@@ -880,6 +885,7 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
         version: 1,
         role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
         passkeyCount: 0,
+        isLastActiveAdministrator: false,
       },
     ],
   });
@@ -916,6 +922,7 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       version: 1,
       role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
       passkeyCount: 0,
+      isLastActiveAdministrator: false,
     },
   });
   // Reading a user's passkeys is Administrator-only on the cloud.

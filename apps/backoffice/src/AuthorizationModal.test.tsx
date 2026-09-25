@@ -291,8 +291,7 @@ test("shows each catalog action key's own sentence", async () => {
   const expectedSentences: Record<AuthorizationActionKey, string> = {
     roleSave: "Guardar un rol necesita tu autorización. Confirmala con tu passkey.",
     userCreate: "Crear un usuario necesita tu autorización. Confirmala con tu passkey.",
-    emailChange:
-      "Cambiar el correo de un usuario necesita tu autorización. Confirmala con tu passkey.",
+    userEdit: "Editar un usuario necesita tu autorización. Confirmala con tu passkey.",
     passkeyRemoval: "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
     passkeyRegistration: "Agregar una passkey necesita tu autorización. Confirmala con tu passkey.",
     userDeactivation: "Desactivar un usuario necesita tu autorización. Confirmala con tu passkey.",

@@ -38,6 +38,7 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 2,
+  isLastActiveAdministrator: true,
 };
 
 const martina: BranchUser = {
@@ -47,6 +48,7 @@ const martina: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 1,
+  isLastActiveAdministrator: false,
 };
 
 const tomas: BranchUser = {
@@ -56,6 +58,7 @@ const tomas: BranchUser = {
   version: 1,
   role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
   passkeyCount: 0,
+  isLastActiveAdministrator: false,
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;
