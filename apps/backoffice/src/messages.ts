@@ -1,4 +1,9 @@
-import { PERMISSION_KEYS, type PermissionArea, type PermissionKey } from "@purosur/contracts";
+import {
+  CATEGORY_NAME_MAX_LENGTH,
+  PERMISSION_KEYS,
+  type PermissionArea,
+  type PermissionKey,
+} from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -26,6 +31,8 @@ const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
 const CANCEL_LABEL = "Cancelar";
 const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
+
+const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
@@ -432,6 +439,70 @@ export const messages = defineMessages("es-AR", (f) => ({
       duplicateRole: {
         heading: "Duplicar rol",
         nameFromOriginal: (params: { name: string }) => `Copia de ${params.name}`,
+      },
+    },
+  },
+  catalog: {
+    areaLabel: "Catálogo",
+    sectionsHeading: "Catálogo",
+    sectionsNavLabel: "Catálogo",
+    categoriesSectionLabel: "Categorías",
+    categories: {
+      documentTitle: "Categorías · Puro Sur",
+      breadcrumb: "Catálogo",
+      heading: "Categorías",
+      newCategoryButton: "Nueva categoría",
+      searchPlaceholder: "Buscar una categoría",
+      columns: { category: "Categoría" },
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 categoría", other: `${params.count} categorías` }),
+      emptyTitle: "Todavía no hay categorías",
+      emptyDetail: "Creá la primera para poder darle una a un producto.",
+      noResultsTitle: "Sin resultados",
+      noResultsDetail: "Probá con otro nombre.",
+      loadErrorTitle: "No pudimos abrir las categorías",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      editAria: (params: { name: string }) => `Editar la categoría ${params.name}`,
+      newCategoryModal: {
+        eyebrow: "Catálogo",
+        heading: "Nueva categoría",
+        nameLabel: "Nombre de la categoría",
+        nameRequired: "Ingresá el nombre de la categoría.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
+        nameTaken: "Ya existe una categoría con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Crear la categoría",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear la categoría",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      editCategoryModal: {
+        eyebrow: "Catálogo · Categorías",
+        nameLabel: "Nombre de la categoría",
+        nameRequired: "Ingresá el nombre de la categoría.",
+        nameTooLong: CATEGORY_NAME_TOO_LONG,
+        nameTaken: "Ya existe una categoría con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Guardar los cambios",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo guardar el cambio",
+        attemptFailedDetail: "Probá de nuevo.",
+        staleVersionTitle: "Esta categoría cambió mientras la editabas",
+        staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+        notFoundTitle: "Esta categoría ya no existe",
+        reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
   },

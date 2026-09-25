@@ -1,3 +1,4 @@
+export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name";
 export type {
   CoreStatusMessage,
   MainHealthCheckMessage,

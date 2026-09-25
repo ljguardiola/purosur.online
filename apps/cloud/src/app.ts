@@ -4,6 +4,10 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import type { CategoriesRouteOptions } from "./categories/categories-list-route.js";
+import { registerCategoriesListRoute } from "./categories/categories-list-route.js";
+import { registerCategoryCreationRoute } from "./categories/category-creation-route.js";
+import { registerCategoryEditRoute } from "./categories/category-edit-route.js";
 import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
 import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
@@ -93,6 +97,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * optional-feature-wiring shape `users` uses above.
    */
   roles?: RolesRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /categories`, `POST /categories`, and `POST /categories/:id/edit`, the
+   * backoffice Categories screen's list, create, and rename sides: every one is gated by the
+   * `manage_products_and_categories` permission (an Administrator always holds it too), the same
+   * optional-feature-wiring shape `roles` uses above.
+   */
+  categories?: CategoriesRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -170,6 +181,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerRoleReadRoute(app, options.roles);
     registerRoleCreationRoutes(app, options.roles);
     registerRoleEditRoutes(app, options.roles);
+  }
+
+  if (options.categories) {
+    registerCategoriesListRoute(app, options.categories);
+    registerCategoryCreationRoute(app, options.categories);
+    registerCategoryEditRoute(app, options.categories);
   }
 
   const staticDir = options.staticDir;

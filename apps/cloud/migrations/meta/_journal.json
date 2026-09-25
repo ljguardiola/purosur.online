@@ -141,6 +141,13 @@
       "when": 1790298478979,
       "tag": "0019_reuse_passkey_authorization",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790304042950,
+      "tag": "0020_categories",
+      "breakpoints": true
     }
   ]
 }
