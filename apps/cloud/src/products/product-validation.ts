@@ -1,11 +1,25 @@
 export type SaleUnit = "UNIT" | "KG";
 
+export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
+
+export interface NetContentInput {
+  quantity: number;
+  unit: NetContentUnit;
+}
+
 // Shared by the creation route (`categoryId` in the body) and the edit route (both the `:id`
 // path parameter and `categoryId` in the body), the same shape `category-edit-route.ts` uses.
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface ProductFieldValidationFailure {
-  field: "name" | "categoryId" | "saleUnit" | "barcodes" | "version";
+  field:
+    | "name"
+    | "categoryId"
+    | "saleUnit"
+    | "barcodes"
+    | "version"
+    | "netContent"
+    | "netContentQuantity";
   message: string;
 }
 
@@ -15,6 +29,17 @@ export interface ProductFieldValidationFailure {
 export const PRODUCT_NAME_MAX_LENGTH = 100;
 export const BARCODE_MAX_LENGTH = 64;
 export const PRODUCT_BARCODES_MAX_COUNT = 20;
+export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];
+export const NET_CONTENT_QUANTITY_MAX = 100_000;
+const NET_CONTENT_QUANTITY_MAX_DECIMALS = 3;
+
+export function isValidNetContentQuantity(quantity: number): boolean {
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > NET_CONTENT_QUANTITY_MAX) {
+    return false;
+  }
+  const scale = 10 ** NET_CONTENT_QUANTITY_MAX_DECIMALS;
+  return Math.round(quantity * scale) / scale === quantity;
+}
 
 export function productNameLength(name: string): number {
   return Array.from(name).length;
@@ -43,6 +68,30 @@ export function readSaleUnit(body: unknown): SaleUnit | undefined {
   return raw === "UNIT" || raw === "KG" ? raw : undefined;
 }
 
+/**
+ * Reads the `netContent` object from the request body: `undefined` when the key is absent or
+ * explicitly `null` (no net content, and on edit, clearing it), the literal `"invalid"` when
+ * exactly one of `quantity`/`unit` is present or `unit` is not a listed one, or the parsed
+ * `{ quantity, unit }` pair otherwise. `quantity`'s own bounds (positive, at most 3 decimals) are
+ * checked by `validateProductFields`, the same split `readProductName` and its length limit use.
+ */
+export function readNetContent(body: unknown): NetContentInput | "invalid" | undefined {
+  const raw = (body as { netContent?: unknown } | undefined)?.netContent;
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== "object") {
+    return "invalid";
+  }
+  const { quantity, unit } = raw as { quantity?: unknown; unit?: unknown };
+  const quantityPresent = typeof quantity === "number";
+  const unitPresent = typeof unit === "string" && (NET_CONTENT_UNITS as string[]).includes(unit);
+  if (!quantityPresent || !unitPresent) {
+    return "invalid";
+  }
+  return { quantity, unit: unit as NetContentUnit };
+}
+
 /** Reads trimmed, non-blank barcodes from the request body; duplicates are left for the caller. */
 export function readBarcodes(body: unknown): string[] | undefined {
   const raw = (body as { barcodes?: unknown } | undefined)?.barcodes;
@@ -68,12 +117,13 @@ export interface ProductFieldsInput {
   categoryId: string | undefined;
   saleUnit: SaleUnit | undefined;
   barcodes: string[] | undefined;
+  netContent?: NetContentInput | "invalid" | undefined;
 }
 
 /**
  * Validates the fields shared by product creation and edit, in the order the backoffice's form
- * fields appear: name, category, sale unit, then barcodes. Whether `categoryId` names an existing
- * category is checked separately against the database, not here.
+ * fields appear: name, category, sale unit, barcodes, then net content. Whether `categoryId` names
+ * an existing category is checked separately against the database, not here.
  */
 export function validateProductFields(
   input: ProductFieldsInput,
@@ -117,6 +167,18 @@ export function validateProductFields(
       return { field: "barcodes", message: "the same barcode was sent more than once" };
     }
     seen.add(code);
+  }
+  if (input.netContent === "invalid") {
+    return {
+      field: "netContent",
+      message: "netContent must be an object with a quantity and a listed unit, or absent/null",
+    };
+  }
+  if (input.netContent && !isValidNetContentQuantity(input.netContent.quantity)) {
+    return {
+      field: "netContentQuantity",
+      message: `netContent's quantity must be a positive number of at most ${NET_CONTENT_QUANTITY_MAX_DECIMALS} decimals, at most ${NET_CONTENT_QUANTITY_MAX}`,
+    };
   }
   return undefined;
 }

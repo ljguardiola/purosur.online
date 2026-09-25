@@ -21,3 +21,31 @@ export const LABELS_MAX_COUNT_PER_PRODUCT = 999;
 
 // 100 sheets of 24 labels each, generous headroom over a real print run.
 export const LABELS_MAX_TOTAL_COUNT = 2400;
+
+export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
+
+export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];
+
+export function isNetContentUnit(value: unknown): value is NetContentUnit {
+  return typeof value === "string" && (NET_CONTENT_UNITS as readonly string[]).includes(value);
+}
+
+// Generous headroom over any package a store would realistically stock, while still bounding the
+// column instead of leaving it unlimited.
+export const NET_CONTENT_QUANTITY_MAX = 100_000;
+
+export const NET_CONTENT_QUANTITY_MAX_DECIMALS = 3;
+
+/**
+ * True for a positive, finite quantity of at most `NET_CONTENT_QUANTITY_MAX_DECIMALS` decimal
+ * places, capped at `NET_CONTENT_QUANTITY_MAX`. Scaling and rounding (rather than formatting the
+ * number as a string) avoids floating-point noise from the multiplication itself, the same trick a
+ * money amount would use if this repository stored one this way.
+ */
+export function isValidNetContentQuantity(quantity: number): boolean {
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > NET_CONTENT_QUANTITY_MAX) {
+    return false;
+  }
+  const scale = 10 ** NET_CONTENT_QUANTITY_MAX_DECIMALS;
+  return Math.round(quantity * scale) / scale === quantity;
+}

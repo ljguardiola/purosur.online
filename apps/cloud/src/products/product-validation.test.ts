@@ -1,19 +1,26 @@
 import {
   BARCODE_MAX_LENGTH as SHARED_BARCODE_MAX_LENGTH,
+  NET_CONTENT_QUANTITY_MAX as SHARED_NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_UNITS as SHARED_NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT as SHARED_PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH as SHARED_PRODUCT_NAME_MAX_LENGTH,
   barcodeLength as sharedBarcodeLength,
+  isValidNetContentQuantity as sharedIsValidNetContentQuantity,
   productNameLength as sharedProductNameLength,
 } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  isValidNetContentQuantity,
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
   readBarcodes,
   readCategoryId,
+  readNetContent,
   readProductName,
   readSaleUnit,
   validateProductFields,
@@ -52,6 +59,30 @@ describe("readSaleUnit", () => {
     expect(readSaleUnit({})).toBeUndefined();
     expect(readSaleUnit({ saleUnit: "unit" })).toBeUndefined();
     expect(readSaleUnit({ saleUnit: "LITER" })).toBeUndefined();
+  });
+});
+
+describe("readNetContent", () => {
+  it("reads a quantity and unit object from the request body", () => {
+    expect(readNetContent({ netContent: { quantity: 1.5, unit: "KG" } })).toEqual({
+      quantity: 1.5,
+      unit: "KG",
+    });
+  });
+
+  it("reads none when the key is absent or explicitly null", () => {
+    expect(readNetContent({})).toBeUndefined();
+    expect(readNetContent({ netContent: null })).toBeUndefined();
+  });
+
+  it("reads invalid when only one of quantity or unit is present", () => {
+    expect(readNetContent({ netContent: { quantity: 1 } })).toBe("invalid");
+    expect(readNetContent({ netContent: { unit: "KG" } })).toBe("invalid");
+  });
+
+  it("reads invalid when the unit is not a listed unit or the quantity is not a number", () => {
+    expect(readNetContent({ netContent: { quantity: 1, unit: "LB" } })).toBe("invalid");
+    expect(readNetContent({ netContent: { quantity: "1", unit: "KG" } })).toBe("invalid");
   });
 });
 
@@ -181,6 +212,66 @@ describe("validateProductFields", () => {
       }),
     ).toMatchObject({ field: "barcodes" });
   });
+
+  it("accepts a fully valid net content", () => {
+    expect(
+      validateProductFields({
+        name: "Maceta",
+        categoryId: "cat-1",
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        netContent: { quantity: 1.5, unit: "KG" },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("accepts no net content", () => {
+    expect(
+      validateProductFields({
+        name: "Maceta",
+        categoryId: "cat-1",
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        netContent: undefined,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("rejects a malformed net content", () => {
+    expect(
+      validateProductFields({
+        name: "Maceta",
+        categoryId: "cat-1",
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        netContent: "invalid",
+      }),
+    ).toMatchObject({ field: "netContent" });
+  });
+
+  it("rejects a net content quantity with more than 3 decimals", () => {
+    expect(
+      validateProductFields({
+        name: "Maceta",
+        categoryId: "cat-1",
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        netContent: { quantity: 1.2345, unit: "KG" },
+      }),
+    ).toMatchObject({ field: "netContentQuantity" });
+  });
+
+  it("rejects a non-positive net content quantity", () => {
+    expect(
+      validateProductFields({
+        name: "Maceta",
+        categoryId: "cat-1",
+        saleUnit: "UNIT",
+        barcodes: ["111"],
+        netContent: { quantity: 0, unit: "KG" },
+      }),
+    ).toMatchObject({ field: "netContentQuantity" });
+  });
 });
 
 describe("the cloud's local product limits", () => {
@@ -188,6 +279,14 @@ describe("the cloud's local product limits", () => {
     expect(PRODUCT_NAME_MAX_LENGTH).toBe(SHARED_PRODUCT_NAME_MAX_LENGTH);
     expect(BARCODE_MAX_LENGTH).toBe(SHARED_BARCODE_MAX_LENGTH);
     expect(PRODUCT_BARCODES_MAX_COUNT).toBe(SHARED_PRODUCT_BARCODES_MAX_COUNT);
+    expect(NET_CONTENT_UNITS).toEqual(SHARED_NET_CONTENT_UNITS);
+    expect(NET_CONTENT_QUANTITY_MAX).toBe(SHARED_NET_CONTENT_QUANTITY_MAX);
+  });
+
+  it("validates net content quantities the same way the shared contract does", () => {
+    for (const quantity of [1, 0.5, 1.234, 0, -1, 1.2345, NET_CONTENT_QUANTITY_MAX + 1]) {
+      expect(isValidNetContentQuantity(quantity)).toBe(sharedIsValidNetContentQuantity(quantity));
+    }
   });
 
   it("count length the same way the shared contract does", () => {

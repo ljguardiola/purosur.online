@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgSequence,
   pgTable,
@@ -201,6 +202,11 @@ export const categories = pgTable(
 // constrained here; the rest is enforced by application code the same way category validation is.
 // `active` (#309) is one-way: a product is never deleted (the migration also rejects any `DELETE`
 // on this table outright), only deactivated, so its historical sale lines keep referencing it.
+// `netContentQuantity`/`netContentUnit` (#334) are purely informational (never read by pricing or
+// stock) and optional: both null together, for a product with no fixed content, or both set
+// together, never one without the other — application code (`product-validation.ts`) already
+// guarantees this before either route ever writes, so the checks below are only the database's own
+// backstop.
 export const products = pgTable(
   "products",
   {
@@ -211,11 +217,28 @@ export const products = pgTable(
       .references(() => categories.id),
     saleUnit: text("sale_unit").notNull(),
     active: boolean("active").notNull().default(true),
+    netContentQuantity: numeric("net_content_quantity", {
+      precision: 10,
+      scale: 3,
+      mode: "number",
+    }),
+    netContentUnit: text("net_content_unit"),
     // Optimistic concurrency for a product row, the same shape `categories.version` gives category
     // rows.
     version: integer("version").notNull().default(1),
   },
-  (table) => [check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`)],
+  (table) => [
+    check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+    check(
+      "products_net_content_unit_check",
+      sql`${table.netContentUnit} in ('G', 'KG', 'ML', 'L', 'UNIT')`,
+    ),
+    check(
+      "products_net_content_both_or_neither_check",
+      sql`(${table.netContentQuantity} is null) = (${table.netContentUnit} is null)`,
+    ),
+    check("products_net_content_quantity_positive_check", sql`${table.netContentQuantity} > 0`),
+  ],
 );
 
 // `active` (#309) mirrors its own product's `products.active`, kept in step in the same

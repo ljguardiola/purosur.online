@@ -112,10 +112,18 @@ async function insertProduct(input: {
   categoryId: string;
   saleUnit: "UNIT" | "KG";
   barcodes: string[];
+  netContentQuantity?: number;
+  netContentUnit?: string;
 }): Promise<{ id: string; version: number }> {
   const [product] = await db
     .insert(products)
-    .values({ name: input.name, categoryId: input.categoryId, saleUnit: input.saleUnit })
+    .values({
+      name: input.name,
+      categoryId: input.categoryId,
+      saleUnit: input.saleUnit,
+      netContentQuantity: input.netContentQuantity,
+      netContentUnit: input.netContentUnit,
+    })
     .returning({ id: products.id, version: products.version });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");
@@ -253,6 +261,7 @@ describe("POST /products/:id/edit", () => {
       categoryName: "Semillas",
       saleUnit: "KG",
       barcodes: ["333"],
+      netContent: null,
       active: true,
       version: 2,
     });
@@ -284,6 +293,110 @@ describe("POST /products/:id/edit", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ barcodes: ["111"] });
+  });
+
+  it("sets a net content that the product did not have", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      version: product.version,
+      netContent: { quantity: 1.5, unit: "KG" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ netContent: { quantity: 1.5, unit: "KG" } });
+  });
+
+  it("clears an existing net content when sent explicit null", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContentQuantity: 1.5,
+      netContentUnit: "KG",
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      version: product.version,
+      netContent: null,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ netContent: null });
+  });
+
+  it("clears an existing net content when the field is left absent", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContentQuantity: 1.5,
+      netContentUnit: "KG",
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ netContent: null });
+  });
+
+  it("rejects a net content missing its quantity, changing nothing", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      version: product.version,
+      netContent: { unit: "KG" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "netContent" }],
+    });
+    const [unchanged] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(unchanged).toMatchObject({ version: product.version });
   });
 
   it("returns 404 not_found for an id that does not exist, changing nothing", async () => {
