@@ -125,10 +125,12 @@ async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultH
 /**
  * Edits one product and replaces its barcode set in one transaction, rejecting a save made over a
  * version someone else already changed the same way `editCategory` (`category-edit-route.ts`)
- * rejects one. A code already held by another active product is rejected the same way
- * `createProduct` rejects one, including its own database backstop for a code that lands
- * concurrently; a code the product already holds is left alone. Unlike `editCategory`, this always bumps the version:
- * replacing the barcode set is a write on every call, so there is no meaningful no-op to detect.
+ * rejects one. When the edited product is itself active, a code already held by another active
+ * product is rejected the same way `createProduct` rejects one, including its own database
+ * backstop for a code that lands concurrently; an inactive product's codes never collide, and a
+ * code the product already holds is left alone. Unlike `editCategory`, this always bumps the
+ * version: replacing the barcode set is a write on every call, so there is no meaningful no-op to
+ * detect.
  */
 export async function editProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
