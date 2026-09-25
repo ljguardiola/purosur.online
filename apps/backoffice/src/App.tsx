@@ -316,6 +316,7 @@ type SettingsAppProps = {
   duplicateRoleId?: string;
   signedInUserId: string;
   displayName: string;
+  access: BackofficeAccess;
   canSeeUsers: boolean;
   canSeeRoles: boolean;
   canSeeBranch: boolean;
@@ -344,6 +345,7 @@ function SettingsApp({
   duplicateRoleId,
   signedInUserId,
   displayName,
+  access,
   canSeeUsers,
   canSeeRoles,
   canSeeBranch,
@@ -455,12 +457,17 @@ function SettingsApp({
       }
     >
       {section === "usersList" && (
-        <UsersListScreen onSessionEnded={onSessionEnded} services={usersListScreenServices} />
+        <UsersListScreen
+          access={access}
+          onSessionEnded={onSessionEnded}
+          services={usersListScreenServices}
+        />
       )}
       {section === "userDetail" && userDetailId !== undefined && (
         <UserDetailScreen
           userId={userDetailId}
           signedInUserId={signedInUserId}
+          access={access}
           onSessionEnded={onSessionEnded}
           services={userDetailScreenServices}
         />
@@ -823,6 +830,7 @@ export function App({ help, services }: AppProps) {
         {...(duplicateRoleId !== undefined ? { duplicateRoleId } : {})}
         signedInUserId={session.userId}
         displayName={session.displayName}
+        access={access}
         canSeeUsers={canSeeUsers}
         canSeeRoles={canSeeRoles}
         canSeeBranch={canSeeBranch}

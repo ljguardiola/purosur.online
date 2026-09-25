@@ -43,6 +43,7 @@ import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
+import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
@@ -198,6 +199,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUserEmailChangeRoutes(app, options.users);
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
+    registerUserDeactivationRoutes(app, options.users);
   }
 
   if (options.roles) {

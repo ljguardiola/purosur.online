@@ -10,7 +10,7 @@ export const MY_ACCOUNT_PATH = "/settings/users/me";
 export function sendToMyAccount(): void {
   navigate(MY_ACCOUNT_PATH, { replace: true });
 }
-/** The Users list, an Administrator-only screen: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
+/** The Users list, open to whoever `canSeeUsersArea` admits: the sidebar's "Usuarios" item now opens this, not `MY_ACCOUNT_PATH`. */
 export const USERS_LIST_PATH = "/settings/users";
 /** The Roles list, an Administrator-only screen: the sidebar's "Roles" item opens this. */
 export const ROLES_LIST_PATH = "/settings/roles";
