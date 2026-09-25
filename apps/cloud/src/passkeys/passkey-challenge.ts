@@ -1,4 +1,4 @@
-import { eq, inArray, lte } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeyChallenges } from "../db/schema.js";
 
@@ -24,20 +24,23 @@ export interface StorePendingPasskeyChallengeInput {
 }
 
 export interface PendingPasskeyChallenge {
-  kind: PasskeyChallengeKind;
   reauthenticationChallenge: string | null;
   registrationChallenge: string | null;
 }
 
 export interface ConsumePendingPasskeyChallengeInput {
   sessionId: string;
+  /** Only this kind's pending row is looked up, deleted, and returned; the other kind's row (if any) is untouched. */
+  kind: PasskeyChallengeKind;
   now: Date;
 }
 
 /**
- * Stores the freshly issued challenge(s) for a session's pending passkey self-management request,
- * replacing whatever that session already had pending: `passkey_challenges_session_id_key` allows
- * only one live row per session, so this always upserts on `session_id` instead of inserting.
+ * Stores the freshly issued challenge for a session's pending passkey self-management request of
+ * this kind, replacing whatever that session already had pending under the same kind:
+ * `passkey_challenges_session_id_kind_key` allows only one live row per `(session_id, kind)`, so
+ * this always upserts on that pair instead of inserting. A pending row of the other kind, if any,
+ * is left alone.
  */
 export async function storePendingPasskeyChallenge<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -53,14 +56,18 @@ export async function storePendingPasskeyChallenge<TQueryResult extends PgQueryR
   await db
     .insert(passkeyChallenges)
     .values(values)
-    .onConflictDoUpdate({ target: passkeyChallenges.sessionId, set: values });
+    .onConflictDoUpdate({
+      target: [passkeyChallenges.sessionId, passkeyChallenges.kind],
+      set: values,
+    });
 }
 
 /**
- * Reports the session's pending passkey challenge, if it has one that is still within its
- * lifetime, and deletes its row either way: a passkey challenge is redeemable at most once,
- * whether the attempt that spends it succeeds or not (the same single-use shape
- * `consumeSignInChallenge` gives sign-in's own challenge).
+ * Reports the session's pending passkey challenge of exactly `kind`, if it has one that is still
+ * within its lifetime, and deletes its row either way: a passkey challenge is redeemable at most
+ * once, whether the attempt that spends it succeeds or not (the same single-use shape
+ * `consumeSignInChallenge` gives sign-in's own challenge). A pending row of the other kind, if
+ * any, is left alone: it is looked up, deleted, and consumed independently.
  */
 export async function consumePendingPasskeyChallenge<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -68,9 +75,10 @@ export async function consumePendingPasskeyChallenge<TQueryResult extends PgQuer
 ): Promise<PendingPasskeyChallenge | undefined> {
   const [row] = await db
     .delete(passkeyChallenges)
-    .where(eq(passkeyChallenges.sessionId, input.sessionId))
+    .where(
+      and(eq(passkeyChallenges.sessionId, input.sessionId), eq(passkeyChallenges.kind, input.kind)),
+    )
     .returning({
-      kind: passkeyChallenges.kind,
       reauthenticationChallenge: passkeyChallenges.reauthenticationChallenge,
       registrationChallenge: passkeyChallenges.registrationChallenge,
       createdAt: passkeyChallenges.createdAt,
@@ -82,7 +90,6 @@ export async function consumePendingPasskeyChallenge<TQueryResult extends PgQuer
     return undefined;
   }
   return {
-    kind: row.kind,
     reauthenticationChallenge: row.reauthenticationChallenge,
     registrationChallenge: row.registrationChallenge,
   };

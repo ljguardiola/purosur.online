@@ -264,14 +264,16 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   "session_authorization",
 ]);
 
-// One row per open session with a pending passkey challenge: `registration` stores only
+// One row per open session per pending-challenge kind: `registration` stores only
 // `registration_challenge` (for a new credential; no reauthentication is asked for it, since
 // registering a passkey is itself gated by the shared step-up guard), and `session_authorization`
 // stores only `reauthentication_challenge` (an assertion against the account's existing passkeys,
-// verified by `POST /users/session/authorization`). Keyed by `session_id` rather than by challenge
-// value the way `sign_in_challenges` is, because these options requests are never discoverable (an
-// open session already identifies the account): `passkey_challenges_session_id_key` allows only one
-// live row per session, so a fresh options request replaces whatever that session had pending. A
+// verified by `POST /users/session/authorization`). Keyed by `(session_id, kind)` rather than by
+// challenge value the way `sign_in_challenges` is, because these options requests are never
+// discoverable (an open session already identifies the account). The pair is unique per kind, not
+// per session (`passkey_challenges_session_id_kind_key`), so a `session_authorization` challenge
+// requested from another tab of the same session never overwrites an in-flight `registration`
+// challenge (or the reverse): a fresh options request replaces only its own kind's pending row. A
 // row is deleted once consumed (or once it has aged past its short lifetime).
 export const passkeyChallenges = pgTable(
   "passkey_challenges",
@@ -285,7 +287,9 @@ export const passkeyChallenges = pgTable(
     registrationChallenge: text("registration_challenge"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("passkey_challenges_session_id_key").on(table.sessionId)],
+  (table) => [
+    uniqueIndex("passkey_challenges_session_id_kind_key").on(table.sessionId, table.kind),
+  ],
 );
 
 // One row per short-lived WebAuthn authentication challenge `POST

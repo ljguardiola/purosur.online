@@ -119,9 +119,10 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
 
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
+      kind: "session_authorization",
       now: attemptedAt,
     });
-    if (pending?.kind !== "session_authorization" || !pending.reauthenticationChallenge) {
+    if (!pending?.reauthenticationChallenge) {
       await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
       return;
     }

@@ -1,5 +1,5 @@
 {
-  "id": "7ebdbb7c-7cbd-487c-9045-66e199d06bf6",
+  "id": "8d4c8b2f-8371-4441-a38a-7411b83df1b3",
   "prevId": "a520fcd0-411f-42ba-b1f4-a6cd31743382",
   "version": "7",
   "dialect": "postgresql",
@@ -218,11 +218,17 @@
         }
       },
       "indexes": {
-        "passkey_challenges_session_id_key": {
-          "name": "passkey_challenges_session_id_key",
+        "passkey_challenges_session_id_kind_key": {
+          "name": "passkey_challenges_session_id_kind_key",
           "columns": [
             {
               "expression": "session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

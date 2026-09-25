@@ -553,8 +553,8 @@ describe("POST /users/passkeys", () => {
     expect(ownPasskeys.map((row) => row.name)).toContain("Passkey ajena");
   });
 
-  describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and registers nothing when the session's authorization was cleared after the options request", async () => {
+  describe("registration surviving the authorization window lapsing after registration-options", () => {
+    it("registers the passkey even though the session's authorization was cleared after the options request", async () => {
       const rawSessionId = await insertSession(userId);
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
@@ -573,21 +573,22 @@ describe("POST /users/passkeys", () => {
         cookieHeader(rawSessionId),
       );
 
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      expect(response.statusCode).toBe(200);
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-      expect(rows).toHaveLength(1);
+      expect(rows).toHaveLength(2);
     });
 
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
+    it("registers the passkey and writes an audit row when the window lapses between registration-options (issued at 4:59) and the mutation (attempted at 5:30)", async () => {
+      const authorizedAt = new Date(NOON.getTime() - (4 * 60 * 1000 + 59 * 1000));
       const rawSessionId = await insertSession(userId, authorizedAt);
+      currentTime = new Date(authorizedAt.getTime() + (4 * 60 * 1000 + 59 * 1000));
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
       const passkeyRegistration = newEmulator.createJSON(
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
+      currentTime = new Date(authorizedAt.getTime() + (5 * 60 * 1000 + 30 * 1000));
 
       const response = await postJson(
         "/users/passkeys",
@@ -596,18 +597,26 @@ describe("POST /users/passkeys", () => {
       );
 
       expect(response.statusCode).toBe(200);
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+      const newRow = rows.find((row) => row.name === "Teléfono del local");
+      expect(newRow).toBeDefined();
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "passkey"));
+      expect(
+        audited.some((row) => (row.newValue as { id?: string } | null)?.id === newRow?.id),
+      ).toBe(true);
     });
 
-    it("returns 401 authorization_required one second past the 5-minute boundary, registering nothing", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(userId, authorizedAt);
+    it("never completes a registration using a challenge pending under the session_authorization kind, even one carrying a registration challenge value", async () => {
+      const rawSessionId = await insertSession(userId);
       const options = await requestOptions(rawSessionId);
       const newEmulator = newDeviceEmulator();
       const passkeyRegistration = newEmulator.createJSON(
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
-      currentTime = new Date(NOON.getTime() + 1000);
+      // Only the kind separates this row from a genuine pending registration: its registration
+      // challenge is exactly the one the credential above was created against.
+      await db.update(passkeyChallenges).set({ kind: "session_authorization" });
 
       const response = await postJson(
         "/users/passkeys",
@@ -615,8 +624,8 @@ describe("POST /users/passkeys", () => {
         cookieHeader(rawSessionId),
       );
 
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "validation_failed" });
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
       expect(rows).toHaveLength(1);
     });

@@ -45,10 +45,14 @@ function readPasskeyName(body: unknown): string | undefined {
  * Registers the two endpoints that add a passkey to an already-open session's account:
  * `registration-options` hands back a registration challenge (excluding the account's existing
  * credentials), and `POST /users/passkeys` verifies it before registering the new credential under
- * the given name. Both are gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`): gating the options too keeps the browser from running a
- * creation ceremony (and leaving an orphan credential on the authenticator) before the cloud reveals
- * that an authorization is missing. Neither ever revokes the session.
+ * the given name. Registration is checked against the shared passkey-authorization window
+ * (`passkey-authorization-guard.ts`) once, when it starts: `registration-options` is gated so the
+ * browser never runs a creation ceremony (and leaves an orphan credential on the authenticator)
+ * before the cloud reveals that an authorization is missing. `POST /users/passkeys` no longer
+ * re-checks that window: its protection is consuming the pending registration challenge that only
+ * the gated options endpoint can issue, so a ceremony that started under a valid authorization
+ * still completes even if the window lapses while the person interacts with their authenticator.
+ * Neither ever revokes the session.
  */
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -155,15 +159,12 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       return;
     }
 
-    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-      return;
-    }
-
     const pending = await consumePendingPasskeyChallenge(options.db, {
       sessionId: openSession.sessionId,
+      kind: "registration",
       now: attemptedAt,
     });
-    if (pending?.kind !== "registration" || !pending.registrationChallenge) {
+    if (!pending?.registrationChallenge) {
       await reply.code(400).send(REGISTRATION_FAILED_RESPONSE);
       return;
     }
