@@ -5,6 +5,7 @@ import type { Ref } from "react";
 import { articleHref, type BackofficeHelpCatalog, sectionHref } from "./helpRoutes";
 import { linkProps } from "./linkProps";
 import { messages } from "./messages";
+import { ScreenLayout } from "./ScreenLayout";
 import { searchArticles } from "./searchHelp";
 import { sectionIcon } from "./sectionIcons";
 
@@ -224,51 +225,51 @@ export function HelpContent({
   const idleTitle = hasArticles ? messages.help.pickSectionTitle : messages.help.emptyTitle;
 
   return (
-    <>
-      <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-        {activeArticle && activeCategory && (
-          <p className="text-ink-secondary text-sm">
-            {messages.help.breadcrumb({ section: activeCategory.label })}
-          </p>
-        )}
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className={`font-bold text-2xl text-brand-blue-strong ${focusRingClassName}`}
-        >
-          {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
-        </h1>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        <div className="w-[26.25rem]">
-          <SearchField
-            variant="backoffice"
-            value={search}
-            onChange={onSearchChange}
-            placeholder={messages.help.searchPlaceholder}
-            icon={<Search />}
-          />
+    <ScreenLayout
+      topBar={
+        <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
+          {activeArticle && activeCategory && (
+            <p className="text-ink-secondary text-sm">
+              {messages.help.breadcrumb({ section: activeCategory.label })}
+            </p>
+          )}
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className={`font-bold text-2xl text-brand-blue-strong ${focusRingClassName}`}
+          >
+            {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
+          </h1>
         </div>
-        {isSearching ? (
-          results.length > 0 ? (
-            <ArticleList articles={results} />
-          ) : (
-            <EmptyState title={messages.help.noResultsTitle} body={messages.help.noResultsBody} />
-          )
-        ) : activeArticle ? (
-          <ArticleView help={help} article={activeArticle} />
-        ) : activeCategory && categoryId ? (
-          <ArticleList
-            articles={Object.entries(help.articles).filter(
-              ([, article]) => article.category === categoryId,
-            )}
-          />
-        ) : (
-          <EmptyState
-            body={hasArticles ? messages.help.pickSectionBody : messages.help.emptyBody}
-          />
-        )}
+      }
+      bodyClassName="gap-4 p-6"
+    >
+      <div className="w-[26.25rem]">
+        <SearchField
+          variant="backoffice"
+          value={search}
+          onChange={onSearchChange}
+          placeholder={messages.help.searchPlaceholder}
+          icon={<Search />}
+        />
       </div>
-    </>
+      {isSearching ? (
+        results.length > 0 ? (
+          <ArticleList articles={results} />
+        ) : (
+          <EmptyState title={messages.help.noResultsTitle} body={messages.help.noResultsBody} />
+        )
+      ) : activeArticle ? (
+        <ArticleView help={help} article={activeArticle} />
+      ) : activeCategory && categoryId ? (
+        <ArticleList
+          articles={Object.entries(help.articles).filter(
+            ([, article]) => article.category === categoryId,
+          )}
+        />
+      ) : (
+        <EmptyState body={hasArticles ? messages.help.pickSectionBody : messages.help.emptyBody} />
+      )}
+    </ScreenLayout>
   );
 }

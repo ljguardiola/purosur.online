@@ -243,6 +243,47 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
     .toHaveFocus();
 });
 
+function scrollingAncestor(element: Element): HTMLElement {
+  let ancestor = element.parentElement;
+  while (ancestor && getComputedStyle(ancestor).overflowY !== "auto") {
+    ancestor = ancestor.parentElement;
+  }
+  if (!ancestor) throw new Error("the element has no scrolling ancestor");
+  return ancestor;
+}
+
+test("opens every help page at the top of its content, not where the previous page was scrolled", async () => {
+  const longBody = Array.from({ length: 40 }, (_, index) => ({
+    kind: "paragraph" as const,
+    text: `Paso ${index + 1} de la guía.`,
+  }));
+  const longHelp = defineHelp("es-AR", {
+    categories: { getting_started: { label: "Primeros pasos" } },
+    articles: {
+      intro: {
+        category: "getting_started",
+        title: "Bienvenida",
+        body: [...longBody, { kind: "articleLink", article: "catalog" }],
+      },
+      catalog: { category: "getting_started", title: "Catálogo", body: longBody },
+    },
+  });
+  window.history.pushState(null, "", "/help/getting_started/intro");
+  const screen = await render(<App help={longHelp} services={createServices()} />);
+
+  const link = screen.getByRole("link", { name: "Catálogo" });
+  await expect.element(link).toBeInTheDocument();
+  const firstBody = scrollingAncestor(link.element());
+  expect(firstBody.scrollHeight).toBeGreaterThan(firstBody.clientHeight);
+  firstBody.scrollTop = firstBody.scrollHeight;
+  await expect.poll(() => firstBody.scrollTop).toBeGreaterThan(0);
+
+  await userEvent.click(link);
+
+  await expect.element(screen.getByRole("heading", { name: "Catálogo", level: 1 })).toHaveFocus();
+  expect(scrollingAncestor(screen.getByRole("searchbox").element()).scrollTop).toBe(0);
+});
+
 test("routes /sign-in to the sign-in screen, outside the Shell, when no session is live", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
@@ -638,38 +679,182 @@ test("opens a role's duplicate page at /settings/roles/:id/duplicate, pre-filled
   await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
 });
 
-test("shows a forbidden notice on the roles list for a signed-in non-Administrator", async () => {
+test("redirects a non-Administrator's typed /settings/roles to Mi cuenta, without listing roles", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
       displayName: "Grace Hopper",
       isAdministrator: false,
+      permissions: [],
     }),
   });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/roles");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
   expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
 });
 
-test("shows a forbidden notice, without listing users, for a signed-in non-Administrator", async () => {
+test("redirects a non-Administrator's typed /settings/users to Mi cuenta, without listing users", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({
       kind: "ok",
       userId: "user-2",
       displayName: "Grace Hopper",
       isAdministrator: false,
+      permissions: [],
     }),
   });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/settings/users");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
   expect(services.usersListScreen.fetchUsers).not.toHaveBeenCalled();
+});
+
+test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administrator", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  const myAccountItem = screen
+    .getByRole("link", { name: "Mi cuenta" })
+    .element() as HTMLAnchorElement;
+  expect(myAccountItem.getAttribute("aria-current")).toBe("page");
+  expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+});
+
+test.each([
+  {
+    path: "/settings/users/user-3",
+    adminOnlyCalls: (services: AppServices) => [
+      services.userDetailScreen.fetchUser,
+      services.userDetailScreen.fetchUserPasskeys,
+    ],
+  },
+  {
+    path: "/settings/roles/new",
+    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.createRole],
+  },
+  {
+    path: "/settings/roles/role-stock/edit",
+    adminOnlyCalls: (services: AppServices) => [services.editRoleScreen.fetchRole],
+  },
+  {
+    path: "/settings/roles/role-stock/duplicate",
+    adminOnlyCalls: (services: AppServices) => [services.duplicateRoleScreen.fetchRoles],
+  },
+])(
+  "redirects a non-Administrator's typed $path to Mi cuenta, without calling its API",
+  async ({ path, adminOnlyCalls }) => {
+    const services = createServices({
+      fetchSession: vi.fn().mockResolvedValue({
+        kind: "ok",
+        userId: "user-2",
+        displayName: "Grace Hopper",
+        isAdministrator: false,
+        permissions: [],
+      }),
+    });
+    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(window.location.pathname).toBe("/settings/users/me");
+    for (const call of adminOnlyCalls(services)) {
+      expect(call).not.toHaveBeenCalled();
+    }
+  },
+);
+
+test("follows a demotion reported by real use of the open tab: Usuarios and Roles leave the rail and the Users list gives way to Mi cuenta", async () => {
+  const services = createServices();
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    isAdministrator: false,
+    permissions: [],
+  });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    window.dispatchEvent(new KeyboardEvent("keydown"));
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(window.location.pathname).toBe("/settings/users/me");
+    expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+    expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("follows a promotion reported by real use of the open tab: Usuarios and Roles join the rail", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/users/me");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+
+  vi.mocked(services.fetchSession).mockResolvedValue({
+    kind: "ok",
+    userId: "user-2",
+    displayName: "Grace Hopper",
+    isAdministrator: true,
+    permissions: [],
+  });
+  // Past the activity reporter's throttle window, so the next real use touches the session.
+  vi.setSystemTime(Date.now() + 120_000);
+  try {
+    window.dispatchEvent(new KeyboardEvent("keydown"));
+
+    await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {

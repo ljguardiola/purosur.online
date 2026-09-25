@@ -13,8 +13,12 @@ export type SessionActivityReporterOptions = {
   active: boolean;
   /** Touches the session the same way a signed-in screen's own reads do (`fetchSession`). */
   touchSession: () => Promise<SessionOutcome>;
-  /** Called with the deadline a successful touch reports, so the watcher's own deadline can follow it. */
-  onTouched: (expiresAt: string) => void;
+  /**
+   * Called with the session a successful touch reports: its deadline, so the watcher's own deadline
+   * can follow it, and its current Administrator flag and permissions, so what the tab shows
+   * follows a role change made while it stays open.
+   */
+  onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
   /** Called once a touch finds the session no longer open. */
   onEnded: () => void;
   /** Milliseconds a burst of activity is collapsed into at most one touch. */
@@ -69,8 +73,8 @@ export function useSessionActivityReporter({
           onEndedRef.current();
           return;
         }
-        if (outcome.kind === "ok" && outcome.expiresAt !== undefined) {
-          onTouchedRef.current(outcome.expiresAt);
+        if (outcome.kind === "ok") {
+          onTouchedRef.current(outcome);
         }
       } finally {
         sending = false;

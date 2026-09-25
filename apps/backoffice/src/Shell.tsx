@@ -38,7 +38,9 @@ export function Shell({
       >
         {sectionColumn}
       </nav>
-      <main className="flex flex-1 flex-col overflow-auto">{children}</main>
+      {/* Never a scroll container itself: each screen's own ScreenLayout owns the one scroll
+          region (its body), so a screen's top bar and action footer can't scroll away with it. */}
+      <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );
 }

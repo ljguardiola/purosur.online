@@ -2,9 +2,14 @@ import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, rolePermissions, roles } from "../db/schema.js";
-import { requireOpenSession } from "../session/open-session.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import {
   type RoleFieldValidationFailure,
   readRoleName,
@@ -172,6 +177,8 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
   options: RolesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -184,48 +191,42 @@ export function registerRoleCreationRoutes<TQueryResult extends PgQueryResultHKT
     return true;
   }
 
-  app.post("/roles", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
+  app.post(
+    "/roles",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
 
-    const parsedBody = readCreationBody(request.body);
-    if (isValidationFailure(parsedBody)) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: parsedBody.message,
-        details: [{ field: parsedBody.field }],
+      const parsedBody = readCreationBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
+
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
+
+      const outcome = await createRole(options.db, {
+        name: parsedBody.name,
+        permissionKeys: parsedBody.permissionKeys,
+        actorId: openSession.userId,
       });
-      return;
-    }
 
-    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-      return;
-    }
+      if (outcome.kind === "name_taken") {
+        await reply.code(409).send(ROLE_NAME_TAKEN_RESPONSE);
+        return;
+      }
 
-    const outcome = await createRole(options.db, {
-      name: parsedBody.name,
-      permissionKeys: parsedBody.permissionKeys,
-      actorId: openSession.userId,
-    });
-
-    if (outcome.kind === "name_taken") {
-      await reply.code(409).send(ROLE_NAME_TAKEN_RESPONSE);
-      return;
-    }
-
-    await reply.code(201).send(toRoleSummaryWire(outcome.role));
-  });
+      await reply.code(201).send(toRoleSummaryWire(outcome.role));
+    },
+  );
 }

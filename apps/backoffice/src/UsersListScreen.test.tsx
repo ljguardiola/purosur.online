@@ -71,7 +71,7 @@ function grantAuthorization(services: UsersListScreenServices) {
 function renderScreen(services: UsersListScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
-      <UsersListScreen isAdministrator services={services} onSessionEnded={onSessionEnded} />
+      <UsersListScreen services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
@@ -180,14 +180,17 @@ test("shows the rate-limited notice with a retry action when the roles request i
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("shows the forbidden notice when the roles request is forbidden", async () => {
+test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
-  const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("ends the session when the users request finds no open session", async () => {
@@ -198,20 +201,6 @@ test("ends the session when the users request finds no open session", async () =
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
-  const services = createServices();
-
-  const screen = await render(
-    <main>
-      <UsersListScreen isAdministrator={false} services={services} onSessionEnded={() => {}} />
-    </main>,
-  );
-
-  await expect.element(screen.getByText("No tenés acceso a Usuarios")).toBeVisible();
-  expect(services.fetchUsers).not.toHaveBeenCalled();
-  expect(services.fetchRoles).not.toHaveBeenCalled();
 });
 
 async function openNewUserModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
@@ -235,6 +224,19 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(services.createUser).not.toHaveBeenCalled();
+});
+
+test("shows no helper line under Correo in the create modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+
+  const dialog = await openNewUserModal(screen);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Correo/ }))
+    .not.toHaveAccessibleDescription();
 });
 
 test("offers a role held by no users yet in the create-user selector", async () => {
@@ -431,7 +433,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 
   await screen.rerender(
     <main>
-      <UsersListScreen isAdministrator services={services} onSessionEnded={() => {}} />
+      <UsersListScreen services={services} onSessionEnded={() => {}} />
     </main>,
   );
 
@@ -522,6 +524,48 @@ test("ends the session when authorizing finds the session already ended", async 
   await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta, without the authorization modal, when creating the user comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "forbidden" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when creating the user retried after the authorization comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "forbidden" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+  await userEvent.click(
+    screen
+      .getByRole("dialog", { name: "Autorizá este cambio" })
+      .getByRole("button", { name: "Usar mi passkey" }),
+  );
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {

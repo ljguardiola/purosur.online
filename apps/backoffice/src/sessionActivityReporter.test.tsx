@@ -243,10 +243,16 @@ test("ends the session when a touch finds it no longer open", async () => {
   await expect.poll(() => onEnded.mock.calls.length).toBe(1);
 });
 
-test("hands the new expiresAt to onTouched after a successful touch", async () => {
-  const touchSession = vi
-    .fn<() => Promise<SessionOutcome>>()
-    .mockResolvedValue(okOutcome("2099-06-01T00:00:00.000Z"));
+test("hands the refreshed session, with its new expiresAt and current access, to onTouched after a successful touch", async () => {
+  const refreshed: SessionOutcome = {
+    kind: "ok",
+    userId: "user-1",
+    displayName: "Lucas Guardiola",
+    isAdministrator: false,
+    expiresAt: "2099-06-01T00:00:00.000Z",
+    permissions: ["void_sale"],
+  };
+  const touchSession = vi.fn<() => Promise<SessionOutcome>>().mockResolvedValue(refreshed);
   const onTouched = vi.fn();
 
   const hook = await renderReporter({
@@ -262,7 +268,7 @@ test("hands the new expiresAt to onTouched after a successful touch", async () =
   window.dispatchEvent(new Event("pointerdown"));
 
   await expect.poll(() => onTouched.mock.calls.length).toBe(1);
-  expect(onTouched).toHaveBeenCalledWith("2099-06-01T00:00:00.000Z");
+  expect(onTouched).toHaveBeenCalledWith(refreshed);
 });
 
 test("leaves the tab signed in when a touch only finds network trouble or a rate limit", async () => {

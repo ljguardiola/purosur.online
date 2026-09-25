@@ -38,23 +38,10 @@ const createdRole = {
 function renderScreen(services: NewRoleScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
     <main>
-      <NewRoleScreen isAdministrator services={services} onSessionEnded={onSessionEnded} />
+      <NewRoleScreen services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
-
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
-  const services = createServices();
-
-  const screen = await render(
-    <main>
-      <NewRoleScreen isAdministrator={false} services={services} onSessionEnded={() => {}} />
-    </main>,
-  );
-
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.createRole).not.toHaveBeenCalled();
-});
 
 test("shows the breadcrumb, heading, name field, and every permission area with a starting 0 count", async () => {
   const services = createServices();
@@ -273,10 +260,63 @@ test("ends the session when creating the role finds the session already ended", 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
+test("navigates to Mi cuenta, without the authorization modal, when saving the role comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/new");
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when the save retried after the authorization comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/new");
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.createRole).mockResolvedValueOnce({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Usar mi passkey" }),
+  );
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
 test("has no accessibility violations", async () => {
   const services = createServices();
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("keeps the heading in view after scrolling the permission form to the bottom", async () => {
+  const services = createServices();
+  const screen = await render(
+    <main style={{ height: "320px" }} className="flex flex-col overflow-hidden">
+      <NewRoleScreen services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
+
+  const heading = screen.getByRole("heading", { name: "Nuevo rol", level: 1 });
+  await expect.element(heading).toBeVisible();
+  const headingTopBefore = heading.element().getBoundingClientRect().top;
+
+  const main = heading.element().closest("main") as HTMLElement;
+  const body = main.children[1] as HTMLElement;
+  expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+  body.scrollTop = body.scrollHeight;
+
+  await expect.element(heading).toBeVisible();
+  expect(heading.element().getBoundingClientRect().top).toBe(headingTopBefore);
 });

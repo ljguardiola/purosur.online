@@ -2,11 +2,16 @@ import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, roles, userRoles, users } from "../db/schema.js";
-import { requireOpenSession } from "../session/open-session.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
-import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -82,6 +87,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
   options: UsersRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -94,97 +101,91 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
     return true;
   }
 
-  app.post("/users", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
+  app.post(
+    "/users",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
 
-    const parsedBody = readCreationBody(request.body);
-    if (isValidationFailure(parsedBody)) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: parsedBody.message,
-        details: [{ field: parsedBody.field }],
-      });
-      return;
-    }
+      const parsedBody = readCreationBody(request.body);
+      if (isValidationFailure(parsedBody)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: parsedBody.message,
+          details: [{ field: parsedBody.field }],
+        });
+        return;
+      }
 
-    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-      return;
-    }
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
 
-    const [role] = await options.db
-      .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-      .from(roles)
-      .where(eq(roles.id, parsedBody.roleId))
-      .limit(1);
-    if (!role) {
-      await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);
-      return;
-    }
+      const [role] = await options.db
+        .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
+        .from(roles)
+        .where(eq(roles.id, parsedBody.roleId))
+        .limit(1);
+      if (!role) {
+        await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);
+        return;
+      }
 
-    const created = await options.db
-      .transaction(async (tx) => {
-        const [newUser] = await tx
-          .insert(users)
-          .values({
-            firstName: parsedBody.firstName,
-            email: parsedBody.email,
-            locationId: openSession.locationId,
-          })
-          .onConflictDoNothing({ target: users.email })
-          .returning({ id: users.id });
-        if (!newUser) {
-          throw new EmailAlreadyTaken();
-        }
+      const created = await options.db
+        .transaction(async (tx) => {
+          const [newUser] = await tx
+            .insert(users)
+            .values({
+              firstName: parsedBody.firstName,
+              email: parsedBody.email,
+              locationId: openSession.locationId,
+            })
+            .onConflictDoNothing({ target: users.email })
+            .returning({ id: users.id });
+          if (!newUser) {
+            throw new EmailAlreadyTaken();
+          }
 
-        await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
+          await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
 
-        await tx.insert(auditLog).values({
-          entity: "user",
-          entityId: newUser.id,
-          actorId: openSession.userId,
-          previousValue: null,
-          newValue: { firstName: parsedBody.firstName, email: parsedBody.email, roleId: role.id },
+          await tx.insert(auditLog).values({
+            entity: "user",
+            entityId: newUser.id,
+            actorId: openSession.userId,
+            previousValue: null,
+            newValue: { firstName: parsedBody.firstName, email: parsedBody.email, roleId: role.id },
+          });
+
+          return newUser;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof EmailAlreadyTaken) {
+            return undefined;
+          }
+          throw error;
         });
 
-        return newUser;
-      })
-      .catch((error: unknown) => {
-        if (error instanceof EmailAlreadyTaken) {
-          return undefined;
-        }
-        throw error;
-      });
+      if (!created) {
+        await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
+        return;
+      }
 
-    if (!created) {
-      await reply.code(409).send(EMAIL_TAKEN_RESPONSE);
-      return;
-    }
-
-    await reply.code(201).send(
-      toBranchUserWire({
-        id: created.id,
-        firstName: parsedBody.firstName,
-        email: parsedBody.email,
-        version: 1,
-        roleId: role.id,
-        roleName: role.name,
-        roleIsAdministrator: role.isAdministrator,
-        passkeyCount: 0,
-      }),
-    );
-  });
+      await reply.code(201).send(
+        toBranchUserWire({
+          id: created.id,
+          firstName: parsedBody.firstName,
+          email: parsedBody.email,
+          version: 1,
+          roleId: role.id,
+          roleName: role.name,
+          roleIsAdministrator: role.isAdministrator,
+          passkeyCount: 0,
+        }),
+      );
+    },
+  );
 }

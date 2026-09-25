@@ -3,13 +3,30 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp as buildRealApp } from "./app.js";
 import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
+import { rolePermissions, roles, sessions, userRoles, users } from "./db/schema.js";
+import { PERMISSION_KEYS } from "./roles/permission-catalog.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  OPEN_SESSION_ACCESS,
+  OPEN_SESSION_PEEK_ACCESS,
+  PUBLIC_ACCESS,
+  permissionAccess,
+  type RouteAccess,
+  type RouteAccessEntry,
+  routeSessionSource,
+  SESSION_COOKIE_ACCESS,
+} from "./session/route-access.js";
+import { SESSION_COOKIE_NAME } from "./session/session-cookie.js";
+import { generateSessionId, hashSessionId } from "./session/session-id.js";
 import {
   buildTestApp as buildApp,
   TEST_EDGE_ORIGIN_SECRET,
 } from "./test-support/build-test-app.js";
+import { seededLocationId } from "./test-support/seeded-location.js";
 
 let testDatabase: TestDatabase;
 
@@ -176,7 +193,7 @@ describe("Sentry error handler wiring", () => {
     });
 
     const app = buildApp({ version: "abc1234", setupFastifyErrorHandler });
-    app.get("/boom", async () => {
+    app.get("/boom", { config: { access: PUBLIC_ACCESS } }, async () => {
       throw new Error("boom");
     });
 
@@ -679,5 +696,283 @@ describe("wiring the passkeys routes", () => {
     // instead of Fastify's generic not-found response for an unregistered route.
     expect(registrationOptions.statusCode).toBe(401);
     expect(remove.statusCode).toBe(401);
+  });
+});
+
+const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+
+const productionStaticDirs: string[] = [];
+
+afterAll(() => {
+  for (const dir of productionStaticDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** Wired exactly as production is, including the backoffice's static build. */
+function fullyWiredApp() {
+  const staticDir = mkdtempSync(join(tmpdir(), "cloud-static-"));
+  productionStaticDirs.push(staticDir);
+  writeFileSync(join(staticDir, "index.html"), "<!doctype html><title>backoffice</title>");
+  return buildApp({
+    version: "abc1234",
+    staticDir,
+    recovery: {
+      db: testDatabase.db,
+      jobQueue: { async enqueueRecoveryRequest() {} },
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+    },
+    session: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    passkeys: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    users: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+  });
+}
+
+describe("the route access inventory", () => {
+  it("declares exactly one access level for every registered route", async () => {
+    const app = fullyWiredApp();
+    await app.ready();
+
+    expect(app.routeAccessInventory()).toEqual([
+      { method: "GET", url: "/health", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/request", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/registration-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/recovery/redeem", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/session/authentication-options", access: PUBLIC_ACCESS },
+      { method: "POST", url: "/users/session/authenticate", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/users/session", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users/session/status", access: OPEN_SESSION_PEEK_ACCESS },
+      { method: "POST", url: "/users/session/sign-out", access: SESSION_COOKIE_ACCESS },
+      { method: "POST", url: "/users/session/authorization-options", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/session/authorization", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
+      { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/users", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/users/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users/:id/email", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
+      {
+        method: "POST",
+        url: "/users/:id/passkeys/:passkeyId/remove",
+        access: ADMINISTRATOR_ACCESS,
+      },
+      { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/roles/:id/edit", access: ADMINISTRATOR_ACCESS },
+      { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
+      { method: "GET", url: "/*", access: PUBLIC_ACCESS },
+    ]);
+  });
+
+  it("never registers a route with no declared access", async () => {
+    const app = fullyWiredApp();
+    await app.ready();
+
+    for (const route of app.routeAccessInventory()) {
+      expect(route.access, `${route.method} ${route.url} has no declared access`).toBeDefined();
+    }
+  });
+});
+
+describe("every route enforces the access it declares", () => {
+  const ENDED_BEFORE = new Date("2020-01-01T00:00:00.000Z");
+
+  /** The fully wired app plus a test-only route declaring a permission, since no production route needs one yet. */
+  function sweptApp() {
+    const app = fullyWiredApp();
+    app.get(
+      "/test-only/void-sale",
+      {
+        config: {
+          access: permissionAccess("void_sale"),
+          sessionSource: routeSessionSource({ db: testDatabase.db }),
+        },
+      },
+      async (_request, reply) => {
+        await reply.code(200).send({ ok: true });
+      },
+    );
+    return app;
+  }
+
+  function routesDeclaring(app: ReturnType<typeof buildApp>, levels: RouteAccess["level"][]) {
+    const routes = app
+      .routeAccessInventory()
+      .filter((route) => route.access !== undefined && levels.includes(route.access.level));
+    expect(routes.length, `no route declares ${levels.join(" or ")}`).toBeGreaterThan(0);
+    return routes;
+  }
+
+  function resolvedPath(url: string): string {
+    return url.replace(/:\w+/g, "00000000-0000-0000-0000-000000000000").replace(/\*$/, "help");
+  }
+
+  function send(app: ReturnType<typeof buildApp>, route: RouteAccessEntry, rawSessionId?: string) {
+    return app.inject({
+      method: route.method as "GET" | "HEAD" | "POST",
+      url: resolvedPath(route.url),
+      headers: {
+        origin: BACKOFFICE_ORIGIN,
+        ...(rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {}),
+      },
+    });
+  }
+
+  function codeOf(body: string): unknown {
+    try {
+      return (JSON.parse(body) as { code?: unknown }).code;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async function signedInWithRole(permissionKeys: readonly string[]): Promise<string> {
+    const db = testDatabase.db;
+    const [role] = await db
+      .insert(roles)
+      .values({ name: `Rol ${generateSessionId()}`, isAdministrator: false })
+      .returning({ id: roles.id });
+    if (!role) {
+      throw new Error("test setup: seeding the role returned no row");
+    }
+    if (permissionKeys.length > 0) {
+      await db
+        .insert(rolePermissions)
+        .values(permissionKeys.map((permissionKey) => ({ roleId: role.id, permissionKey })));
+    }
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: "Grace Hopper",
+        email: `${generateSessionId()}@example.com`,
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
+    const rawSessionId = generateSessionId();
+    await db.insert(sessions).values({
+      userId: user.id,
+      sessionIdHash: hashSessionId(rawSessionId),
+      createdAt: new Date(),
+      lastSeenAt: new Date(),
+    });
+    return rawSessionId;
+  }
+
+  it("sweeps every access level a route declares", async () => {
+    const app = sweptApp();
+    await app.ready();
+
+    const declaredLevels = new Set(app.routeAccessInventory().map((route) => route.access?.level));
+
+    expect(declaredLevels).toEqual(
+      new Set([
+        "public",
+        "open_session",
+        "open_session_peek",
+        "session_cookie",
+        "administrator",
+        "permission",
+      ]),
+    );
+  });
+
+  it("lets every public route through without a session", async () => {
+    const app = sweptApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, ["public"])) {
+      const response = await send(app, route);
+
+      expect(
+        ["unauthenticated", "forbidden"].includes(String(codeOf(response.body))),
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(false);
+    }
+  });
+
+  it("answers 401 unauthenticated on every session route without a session", async () => {
+    const app = sweptApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, [
+      "open_session",
+      "open_session_peek",
+      "session_cookie",
+      "administrator",
+      "permission",
+    ])) {
+      const response = await send(app, route);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(401);
+      expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    }
+  });
+
+  it("answers 401 unauthenticated on every open-session route to an already ended session", async () => {
+    const app = sweptApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, ["open_session", "open_session_peek"])) {
+      const rawSessionId = await signedInWithRole([]);
+      await testDatabase.db
+        .update(sessions)
+        .set({ createdAt: ENDED_BEFORE, lastSeenAt: ENDED_BEFORE })
+        .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+
+      const response = await send(app, route, rawSessionId);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(401);
+    }
+  });
+
+  it("answers 403 forbidden on every Administrator-only route to a non-Administrator holding every permission", async () => {
+    const app = sweptApp();
+    await app.ready();
+    const rawSessionId = await signedInWithRole(PERMISSION_KEYS);
+
+    for (const route of routesDeclaring(app, ["administrator"])) {
+      const response = await send(app, route, rawSessionId);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(403);
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+    }
+  });
+
+  it("answers 403 forbidden on every permission route to a user whose role lacks that permission", async () => {
+    const app = sweptApp();
+    await app.ready();
+
+    for (const route of routesDeclaring(app, ["permission"])) {
+      const access = route.access as Extract<RouteAccess, { level: "permission" }>;
+      const rawSessionId = await signedInWithRole(
+        PERMISSION_KEYS.filter((key) => key !== access.permission),
+      );
+
+      const response = await send(app, route, rawSessionId);
+
+      expect(
+        response.statusCode,
+        `${route.method} ${route.url} responded ${response.statusCode}, body: ${response.body}`,
+      ).toBe(403);
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+    }
   });
 });

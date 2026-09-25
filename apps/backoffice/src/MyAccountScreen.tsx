@@ -15,6 +15,7 @@ import {
   removePasskey,
 } from "./passkeyApi";
 import { validatePasskeyName } from "./passkeyName";
+import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 
 export type MyAccountScreenServices = {
@@ -460,15 +461,19 @@ export function MyAccountScreen({
 
   return (
     <>
-      <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-        <p className="text-ink-secondary text-sm">
-          {messages.settings.myAccount.breadcrumb({ name: displayName })}
-        </p>
-        <h1 className="font-bold text-2xl text-brand-blue-strong">
-          {messages.settings.myAccount.heading}
-        </h1>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
+            <p className="text-ink-secondary text-sm">
+              {messages.settings.myAccount.breadcrumb({ name: displayName })}
+            </p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">
+              {messages.settings.myAccount.heading}
+            </h1>
+          </div>
+        }
+        bodyClassName="gap-4 p-6"
+      >
         <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
           <div className="flex items-center gap-3">
             <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
@@ -547,7 +552,7 @@ export function MyAccountScreen({
             </>
           )}
         </div>
-      </div>
+      </ScreenLayout>
       <RegisterPasskeyModal
         isOpen={registerModalOpen}
         onClose={() => setRegisterModalOpen(false)}

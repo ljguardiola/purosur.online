@@ -1,8 +1,11 @@
+import { Checkbox } from "@purosur/ui";
+import type { ReactNode } from "react";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { ScreenLayout } from "./ScreenLayout";
 import { Shell } from "./Shell";
 
-function renderShell() {
+function renderShell(content: ReactNode = <p>main content</p>) {
   return render(
     <Shell
       brandName="Puro Sur"
@@ -12,7 +15,7 @@ function renderShell() {
       railFooter={<p>rail footer</p>}
       sectionColumn={<p>section content</p>}
     >
-      <p>main content</p>
+      {content}
     </Shell>,
   );
 }
@@ -106,4 +109,23 @@ test("pins the rail footer to the rail's foot, above its 16px bottom padding", a
     16,
     0,
   );
+});
+
+test("keeps the page itself from scrolling when a screen's content overflows with checkboxes, scrolling only the screen's body", async () => {
+  const labels = Array.from({ length: 80 }, (_, index) => `Permission ${index + 1}`);
+  const screen = await renderShell(
+    <ScreenLayout topBar={<p>screen bar</p>} bodyClassName="gap-2 p-4">
+      {labels.map((label) => (
+        <Checkbox key={label} isSelected={false} onChange={() => {}}>
+          {label}
+        </Checkbox>
+      ))}
+    </ScreenLayout>,
+  );
+
+  const body = screen.getByText("screen bar").element().nextElementSibling as HTMLElement;
+  expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+
+  const page = document.documentElement;
+  expect(page.scrollHeight).toBeLessThanOrEqual(page.clientHeight);
 });

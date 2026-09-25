@@ -45,12 +45,7 @@ function renderScreen(
 ) {
   return render(
     <main>
-      <EditRoleScreen
-        roleId={roleId}
-        isAdministrator
-        services={services}
-        onSessionEnded={onSessionEnded}
-      />
+      <EditRoleScreen roleId={roleId} services={services} onSessionEnded={onSessionEnded} />
     </main>,
   );
 }
@@ -79,22 +74,53 @@ test("shows a not-found state for a missing or Administrator id", async () => {
   await expect.element(screen.getByRole("alert")).toHaveTextContent("No encontramos este rol");
 });
 
-test("shows a forbidden notice, without calling the API, for a non-Administrator", async () => {
+test("navigates to Mi cuenta when the role read comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
   const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "forbidden" });
 
-  const screen = await render(
-    <main>
-      <EditRoleScreen
-        roleId="role-stock"
-        isAdministrator={false}
-        services={services}
-        onSessionEnded={() => {}}
-      />
-    </main>,
+  await renderScreen(services);
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta, without the authorization modal, when saving the edit comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("navigates to Mi cuenta when the edit retried after the authorization comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/roles/role-stock/edit");
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stock });
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.editRole).mockResolvedValueOnce({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.element(screen.getByText("No tenés acceso a Roles")).toBeVisible();
-  expect(services.fetchRole).not.toHaveBeenCalled();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
 });
 
 test("shows a load error, and Reintentar loads the role again", async () => {

@@ -2,8 +2,14 @@ import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
-import { checkRequestIsSameOrigin, requireOpenSession } from "../session/open-session.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+import { checkRequestIsSameOrigin } from "../session/open-session.js";
+import {
+  ADMINISTRATOR_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 import { PERMISSION_KEYS } from "./permission-catalog.js";
 import type { RoleSummaryRow, RoleSummaryWire, RolesRouteOptions } from "./roles-list-route.js";
 import { toRoleSummaryWire } from "./roles-list-route.js";
@@ -93,32 +99,29 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
   options: RolesRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get("/roles/:id", async (request, reply) => {
-    if (!checkRequestIsSameOrigin(request, reply, options.backofficeOrigin)) {
-      return;
-    }
-    const checkedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: checkedAt,
-    });
-    if (!openSession) {
-      return;
-    }
-    if (!openSession.isAdministrator) {
-      await reply.code(403).send(FORBIDDEN_RESPONSE);
-      return;
-    }
+  app.get(
+    "/roles/:id",
+    {
+      preHandler: originGuard((request, reply) =>
+        checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
+      ),
+      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const openSession = openSessionOf(request);
 
-    const targetId = (request.params as { id: string }).id;
-    const role = await findEditableRole(options.db, targetId);
-    if (!role) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
+      const targetId = (request.params as { id: string }).id;
+      const role = await findEditableRole(options.db, targetId);
+      if (!role) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    const userCount = await countRoleUsers(options.db, role.id, openSession.locationId);
-    await reply.code(200).send(toRoleDetailWire({ ...role, userCount }));
-  });
+      const userCount = await countRoleUsers(options.db, role.id, openSession.locationId);
+      await reply.code(200).send(toRoleDetailWire({ ...role, userCount }));
+    },
+  );
 }

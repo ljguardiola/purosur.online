@@ -11,7 +11,13 @@ import {
 } from "../passkeys/passkey-challenge.js";
 import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
-import { requireOpenSession } from "./open-session.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "./route-access.js";
 
 export interface SessionAuthorizationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -49,6 +55,8 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
   options: SessionAuthorizationRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
   const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
@@ -62,88 +70,87 @@ export function registerSessionAuthorizationRoutes<TQueryResult extends PgQueryR
     return true;
   }
 
-  app.post("/users/session/authorization-options", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const issuedAt = now();
-    const openSession = await requireOpenSession(request, reply, { db: options.db, now: issuedAt });
-    if (!openSession) {
-      return;
-    }
+  app.post(
+    "/users/session/authorization-options",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const issuedAt = now();
+      const openSession = openSessionOf(request);
 
-    const existingPasskeys = await options.db
-      .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-      .from(passkeys)
-      .where(eq(passkeys.userId, openSession.userId));
+      const existingPasskeys = await options.db
+        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
+        .from(passkeys)
+        .where(eq(passkeys.userId, openSession.userId));
 
-    const authorizationOptions = await generateAuthenticationOptions({
-      rpID: webAuthnConfig.rpID,
-      allowCredentials: existingPasskeys.map((passkey) => ({
-        id: passkey.credentialId,
-        ...(passkey.transports ? { transports: passkey.transports } : {}),
-      })),
-      userVerification: "required",
-      timeout: AUTHENTICATION_TIMEOUT_MS,
-    });
+      const authorizationOptions = await generateAuthenticationOptions({
+        rpID: webAuthnConfig.rpID,
+        allowCredentials: existingPasskeys.map((passkey) => ({
+          id: passkey.credentialId,
+          ...(passkey.transports ? { transports: passkey.transports } : {}),
+        })),
+        userVerification: "required",
+        timeout: AUTHENTICATION_TIMEOUT_MS,
+      });
 
-    await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-    await storePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "session_authorization",
-      reauthenticationChallenge: authorizationOptions.challenge,
-      now: issuedAt,
-    });
+      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
+      await storePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "session_authorization",
+        reauthenticationChallenge: authorizationOptions.challenge,
+        now: issuedAt,
+      });
 
-    await reply.code(200).send({ authorization_options: authorizationOptions });
-  });
+      await reply.code(200).send({ authorization_options: authorizationOptions });
+    },
+  );
 
-  app.post("/users/session/authorization", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
+  app.post(
+    "/users/session/authorization",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
 
-    const assertion = readAssertion(request.body);
-    if (!assertion) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const assertion = readAssertion(request.body);
+      if (!assertion) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-    const pending = await consumePendingPasskeyChallenge(options.db, {
-      sessionId: openSession.sessionId,
-      kind: "session_authorization",
-      now: attemptedAt,
-    });
-    if (!pending?.reauthenticationChallenge) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const pending = await consumePendingPasskeyChallenge(options.db, {
+        sessionId: openSession.sessionId,
+        kind: "session_authorization",
+        now: attemptedAt,
+      });
+      if (!pending?.reauthenticationChallenge) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-    const authorization = await verifyPasskeyReauthentication(options.db, {
-      userId: openSession.userId,
-      assertion,
-      expectedChallenge: pending.reauthenticationChallenge,
-      webAuthnConfig,
-      now: attemptedAt,
-    });
-    if (!authorization.verified) {
-      await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-      return;
-    }
+      const authorization = await verifyPasskeyReauthentication(options.db, {
+        userId: openSession.userId,
+        assertion,
+        expectedChallenge: pending.reauthenticationChallenge,
+        webAuthnConfig,
+        now: attemptedAt,
+      });
+      if (!authorization.verified) {
+        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+        return;
+      }
 
-    await options.db
-      .update(sessions)
-      .set({ passkeyAuthorizedAt: attemptedAt })
-      .where(eq(sessions.id, openSession.sessionId));
+      await options.db
+        .update(sessions)
+        .set({ passkeyAuthorizedAt: attemptedAt })
+        .where(eq(sessions.id, openSession.sessionId));
 
-    await reply.code(200).send();
-  });
+      await reply.code(200).send();
+    },
+  );
 }

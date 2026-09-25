@@ -6,16 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { messages } from "./messages";
 import { RoleForm, roleFieldErrorMessage, validateRoleName } from "./RoleForm";
-import {
-  failedRoleLoadStatus,
-  type RoleLoadStatus,
-  RoleLoadStatusView,
-  RolesForbiddenNotice,
-} from "./RoleLoadStatus";
+import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from "./RoleLoadStatus";
 import { type EditRoleOutcome, editRole, fetchRole, type RoleDetail } from "./rolesApi";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
-import { ROLES_LIST_PATH } from "./settingsRoutes";
+import { ROLES_LIST_PATH, sendToMyAccount } from "./settingsRoutes";
 
 export type EditRoleScreenServices = {
   fetchRole: typeof fetchRole;
@@ -35,8 +31,6 @@ export const defaultEditRoleScreenServices: EditRoleScreenServices = {
 
 export type EditRoleScreenProps = {
   roleId: string;
-  /** From the session: only an Administrator can reach this page at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: EditRoleScreenServices;
@@ -54,13 +48,13 @@ const rolesMessages = messages.settings.roles;
 const pageMessages = rolesMessages.editRole;
 const formMessages = rolesMessages.form;
 
-/** "Editar rol": pre-filled with a hand-made role's current name and permissions, confirming with a passkey to save. */
-export function EditRoleScreen({
-  roleId,
-  isAdministrator,
-  onSessionEnded,
-  services,
-}: EditRoleScreenProps) {
+/**
+ * "Editar rol": pre-filled with a hand-made role's current name and permissions, confirming with a
+ * passkey to save. Reserved to the Administrator: App.tsx only ever routes here for one, and a
+ * `forbidden` read or save (a role change mid-session) sends the browser to Mi cuenta instead of
+ * showing a notice.
+ */
+export function EditRoleScreen({ roleId, onSessionEnded, services }: EditRoleScreenProps) {
   const {
     fetchRole,
     editRole,
@@ -68,9 +62,7 @@ export function EditRoleScreen({
     authorizeSession,
     startAuthentication,
   } = services ?? defaultEditRoleScreenServices;
-  const [state, setState] = useState<LoadState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<ReadonlySet<PermissionKey>>(new Set());
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -105,20 +97,16 @@ export function EditRoleScreen({
       setNotice(null);
     } else if (outcome.kind === "unauthenticated") {
       endSession();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
     } else {
       setState(failedRoleLoadStatus(outcome));
     }
   }, [roleId, endSession, fetchRole, fillFrom]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
-
-  if (state.kind === "forbidden") {
-    return <RolesForbiddenNotice />;
-  }
+    void load();
+  }, [load]);
 
   async function handleReload() {
     setSubmitting(true);
@@ -140,8 +128,7 @@ export function EditRoleScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      setState({ kind: "forbidden" });
-      setSubmitting(false);
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -193,6 +180,10 @@ export function EditRoleScreen({
       setSubmitting(false);
       return;
     }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
     if (outcome.kind === "name_taken") {
       setNameError(formMessages.nameTaken);
       setSubmitting(false);
@@ -230,93 +221,97 @@ export function EditRoleScreen({
     (notice?.kind === "rateLimited" && notice.offersReload);
 
   return (
-    <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{rolesMessages.rolePage.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{pageMessages.heading}</h1>
+    <ScreenLayout
+      topBar={
+        <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+          <div className="flex flex-col justify-center">
+            <p className="text-ink-secondary text-sm">{rolesMessages.rolePage.breadcrumb}</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">{pageMessages.heading}</h1>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col gap-6 p-6">
-        {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={pageMessages.attemptFailedTitle}
-            detail={rolesMessages.rolePage.attemptFailedDetail}
-          />
-        )}
-        {notice?.kind === "rateLimited" && (
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title={rolesMessages.rateLimitedTitle}
-            detail={rolesMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
-          />
-        )}
-        {notice?.kind === "staleVersion" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={pageMessages.staleVersionTitle}
-            detail={pageMessages.staleVersionDetail}
-          />
-        )}
-        {notice?.kind === "reloadFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={pageMessages.reloadFailedTitle}
-            detail={rolesMessages.rolePage.attemptFailedDetail}
-          />
-        )}
-        {offersReload && (
+      }
+      bodyClassName="gap-6 p-6"
+      footer={
+        <div className="flex shrink-0 items-center justify-end gap-3 border-line border-t bg-surface-white px-8 py-4">
           <Button
             variant="secondary"
-            icon={<RotateCcw />}
+            icon={<X />}
             isDisabled={submitting}
-            onPress={() => void handleReload()}
+            onPress={() => navigate(ROLES_LIST_PATH)}
           >
-            {pageMessages.reload}
+            {rolesMessages.rolePage.cancel}
           </Button>
-        )}
-        <RoleLoadStatusView state={state} onRetry={() => void load()} />
-        {state.kind === "loaded" && (
-          <RoleForm
-            name={name}
-            onNameChange={(value) => {
-              setName(value);
-              if (nameError) {
-                setNameError(validateRoleName(value));
-              }
-            }}
-            {...(nameError ? { nameError } : {})}
-            selected={selected}
-            onSelectedChange={setSelected}
-          />
-        )}
-      </div>
-      <div className="flex shrink-0 items-center justify-end gap-3 border-line border-t bg-surface-white px-8 py-4">
+          <Button
+            variant="primary"
+            icon={<Check />}
+            isDisabled={submitting || state.kind !== "loaded"}
+            onPress={() => void handleSubmit()}
+          >
+            {pageMessages.save}
+          </Button>
+        </div>
+      }
+    >
+      {notice?.kind === "attemptFailed" && (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title={pageMessages.attemptFailedTitle}
+          detail={rolesMessages.rolePage.attemptFailedDetail}
+        />
+      )}
+      {notice?.kind === "rateLimited" && (
+        <InlineNotice
+          tone="error"
+          icon={<ShieldX />}
+          title={rolesMessages.rateLimitedTitle}
+          detail={rolesMessages.rateLimitedDetail({
+            minutes: Math.ceil(notice.retryAfterSeconds / 60),
+          })}
+        />
+      )}
+      {notice?.kind === "staleVersion" && (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title={pageMessages.staleVersionTitle}
+          detail={pageMessages.staleVersionDetail}
+        />
+      )}
+      {notice?.kind === "reloadFailed" && (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title={pageMessages.reloadFailedTitle}
+          detail={rolesMessages.rolePage.attemptFailedDetail}
+        />
+      )}
+      {offersReload && (
         <Button
           variant="secondary"
-          icon={<X />}
+          icon={<RotateCcw />}
           isDisabled={submitting}
-          onPress={() => navigate(ROLES_LIST_PATH)}
+          onPress={() => void handleReload()}
         >
-          {rolesMessages.rolePage.cancel}
+          {pageMessages.reload}
         </Button>
-        <Button
-          variant="primary"
-          icon={<Check />}
-          isDisabled={submitting || state.kind !== "loaded"}
-          onPress={() => void handleSubmit()}
-        >
-          {pageMessages.save}
-        </Button>
-      </div>
+      )}
+      <RoleLoadStatusView state={state} onRetry={() => void load()} />
+      {state.kind === "loaded" && (
+        <RoleForm
+          name={name}
+          onNameChange={(value) => {
+            setName(value);
+            if (nameError) {
+              setNameError(validateRoleName(value));
+            }
+          }}
+          {...(nameError ? { nameError } : {})}
+          selected={selected}
+          onSelectedChange={setSelected}
+        />
+      )}
       {modal}
-    </>
+    </ScreenLayout>
   );
 }

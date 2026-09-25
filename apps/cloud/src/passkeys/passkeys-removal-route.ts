@@ -2,8 +2,14 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys } from "../db/schema.js";
-import { requireOpenSession } from "../session/open-session.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
+import {
+  OPEN_SESSION_ACCESS,
+  openSessionOf,
+  originGuard,
+  registerRouteAccess,
+  routeSessionSource,
+} from "../session/route-access.js";
 
 export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -31,6 +37,8 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   options: PasskeyRemovalRouteOptions<TQueryResult>,
 ): void {
   const now = options.now ?? (() => new Date());
+  registerRouteAccess(app);
+  const sessionSource = routeSessionSource({ db: options.db, now });
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -43,50 +51,48 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
     return true;
   }
 
-  app.post("/users/passkeys/:id/remove", async (request, reply) => {
-    if (!checkOrigin(request, reply)) {
-      return;
-    }
-    const attemptedAt = now();
-    const openSession = await requireOpenSession(request, reply, {
-      db: options.db,
-      now: attemptedAt,
-    });
-    if (!openSession) {
-      return;
-    }
+  app.post(
+    "/users/passkeys/:id/remove",
+    {
+      preHandler: originGuard(checkOrigin),
+      config: { access: OPEN_SESSION_ACCESS, sessionSource },
+    },
+    async (request, reply) => {
+      const attemptedAt = now();
+      const openSession = openSessionOf(request);
 
-    const targetId = (request.params as { id: string }).id;
-    if (!UUID_PATTERN.test(targetId)) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
+      const targetId = (request.params as { id: string }).id;
+      if (!UUID_PATTERN.test(targetId)) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
-      return;
-    }
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
+        return;
+      }
 
-    const [target] = await options.db
-      .select({ id: passkeys.id, name: passkeys.name })
-      .from(passkeys)
-      .where(and(eq(passkeys.id, targetId), eq(passkeys.userId, openSession.userId)))
-      .limit(1);
-    if (!target) {
-      await reply.code(404).send(NOT_FOUND_RESPONSE);
-      return;
-    }
+      const [target] = await options.db
+        .select({ id: passkeys.id, name: passkeys.name })
+        .from(passkeys)
+        .where(and(eq(passkeys.id, targetId), eq(passkeys.userId, openSession.userId)))
+        .limit(1);
+      if (!target) {
+        await reply.code(404).send(NOT_FOUND_RESPONSE);
+        return;
+      }
 
-    await options.db.transaction(async (tx) => {
-      await tx.delete(passkeys).where(eq(passkeys.id, target.id));
-      await tx.insert(auditLog).values({
-        entity: "passkey",
-        entityId: target.id,
-        actorId: openSession.userId,
-        previousValue: { id: target.id, name: target.name },
-        newValue: null,
+      await options.db.transaction(async (tx) => {
+        await tx.delete(passkeys).where(eq(passkeys.id, target.id));
+        await tx.insert(auditLog).values({
+          entity: "passkey",
+          entityId: target.id,
+          actorId: openSession.userId,
+          previousValue: { id: target.id, name: target.name },
+          newValue: null,
+        });
       });
-    });
 
-    await reply.code(200).send();
-  });
+      await reply.code(200).send();
+    },
+  );
 }

@@ -16,8 +16,9 @@ import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
+import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
-import { userDetailPath } from "./settingsRoutes";
+import { sendToMyAccount, userDetailPath } from "./settingsRoutes";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -46,8 +47,6 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
-  /** From the session: only an Administrator sees the list at all. */
-  isAdministrator: boolean;
   onSessionEnded: () => void;
   /** Injected in tests so user management doesn't call the real API or WebAuthn. */
   services?: UsersListScreenServices;
@@ -57,7 +56,6 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "forbidden" }
   | { kind: "loaded"; users: BranchUser[] };
 
 const usersMessages = messages.settings.users;
@@ -190,6 +188,10 @@ function NewUserModal({
     }
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
       return;
     }
     if (outcome.kind === "validation_failed") {
@@ -326,7 +328,6 @@ function NewUserModal({
                 );
               }
             }}
-            helperText={modalMessages.emailHelper}
             required
             {...(fieldErrors.email ? { invalid: true, errorMessage: fieldErrors.email } : {})}
           />
@@ -337,12 +338,12 @@ function NewUserModal({
   );
 }
 
-/** "Usuarios": the branch's backoffice users, listed with their role, Administrator only. */
-export function UsersListScreen({
-  isAdministrator,
-  onSessionEnded,
-  services,
-}: UsersListScreenProps) {
+/**
+ * "Usuarios": the branch's backoffice users, listed with their role. Reserved to the
+ * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change
+ * mid-session) sends the browser to Mi cuenta instead of showing a notice.
+ */
+export function UsersListScreen({ onSessionEnded, services }: UsersListScreenProps) {
   const {
     fetchUsers,
     fetchRoles,
@@ -351,9 +352,7 @@ export function UsersListScreen({
     authorizeSession,
     startAuthentication,
   } = services ?? defaultUsersListScreenServices;
-  const [list, setList] = useState<ListState>(
-    isAdministrator ? { kind: "loading" } : { kind: "forbidden" },
-  );
+  const [list, setList] = useState<ListState>({ kind: "loading" });
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
@@ -379,7 +378,7 @@ export function UsersListScreen({
     if (rateLimited.length > 0) {
       setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
     } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
-      setList({ kind: "forbidden" });
+      sendToMyAccount();
     } else if (usersOutcome.kind === "ok" && rolesOutcome.kind === "ok") {
       setRoles(rolesOutcome.value);
       setList({ kind: "loaded", users: usersOutcome.value });
@@ -389,10 +388,8 @@ export function UsersListScreen({
   }, [fetchUsers, fetchRoles]);
 
   useEffect(() => {
-    if (isAdministrator) {
-      void load();
-    }
-  }, [isAdministrator, load]);
+    void load();
+  }, [load]);
 
   const users = list.kind === "loaded" ? list.users : [];
 
@@ -430,29 +427,25 @@ export function UsersListScreen({
 
   return (
     <>
-      <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
-        <div className="flex flex-col justify-center">
-          <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
-          <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
-        </div>
-        <Button
-          variant="primary"
-          icon={<Plus />}
-          isDisabled={list.kind !== "loaded" || roles.length === 0}
-          onPress={() => setModalOpen(true)}
-        >
-          {usersMessages.newUserButton}
-        </Button>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 p-6">
-        {list.kind === "forbidden" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={usersMessages.forbiddenTitle}
-            detail={usersMessages.forbiddenDetail}
-          />
-        )}
+      <ScreenLayout
+        topBar={
+          <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
+            <div className="flex flex-col justify-center">
+              <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
+            </div>
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              isDisabled={list.kind !== "loaded" || roles.length === 0}
+              onPress={() => setModalOpen(true)}
+            >
+              {usersMessages.newUserButton}
+            </Button>
+          </div>
+        }
+        bodyClassName="gap-4 p-6"
+      >
         {list.kind === "loadError" && (
           <>
             <InlineNotice
@@ -494,7 +487,7 @@ export function UsersListScreen({
             }
           />
         )}
-      </div>
+      </ScreenLayout>
       <NewUserModal
         isOpen={modalOpen}
         roles={roles}
