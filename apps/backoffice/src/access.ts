@@ -62,3 +62,24 @@ export function canSeeCatalogArea(access: BackofficeAccess): boolean {
 export function canSeeCashArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
 }
+
+/**
+ * Whether "Alertas" shows at all: the Administrator, or a role delegated `view_branch_alerts` or
+ * `view_all_alerts` — the same coarse gate the cloud's `GET /alerts` and `GET /alerts/:id` enforce
+ * (`canSeeAnyAlerts`, `alert-visibility.ts`) before filtering by audience.
+ */
+export function canSeeAlertsArea(access: BackofficeAccess): boolean {
+  return (
+    access.isAdministrator ||
+    access.permissions.includes("view_branch_alerts") ||
+    access.permissions.includes("view_all_alerts")
+  );
+}
+
+/**
+ * Whether the signed-in session can close an alert by hand: the Administrator or a role delegated
+ * `dismiss_alerts_manually`, the same permission the cloud's `POST /alerts/:id/close` gates on.
+ */
+export function canCloseAlertsManually(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("dismiss_alerts_manually");
+}

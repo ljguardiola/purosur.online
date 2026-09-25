@@ -1,6 +1,8 @@
 import { expect, test } from "vitest";
 import {
+  canCloseAlertsManually,
   canDeactivateUser,
+  canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCatalogArea,
   canSeeRolesArea,
@@ -85,4 +87,40 @@ test("canSeeCatalogArea is true for a non-Administrator holding manage_products_
 
 test("canSeeCatalogArea is false for a non-Administrator without manage_products_and_categories", () => {
   expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
+});
+
+test("canSeeAlertsArea is true for an Administrator", () => {
+  expect(canSeeAlertsArea({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canSeeAlertsArea is true for a non-Administrator holding view_branch_alerts", () => {
+  expect(canSeeAlertsArea({ isAdministrator: false, permissions: ["view_branch_alerts"] })).toBe(
+    true,
+  );
+});
+
+test("canSeeAlertsArea is true for a non-Administrator holding view_all_alerts", () => {
+  expect(canSeeAlertsArea({ isAdministrator: false, permissions: ["view_all_alerts"] })).toBe(true);
+});
+
+test("canSeeAlertsArea is false for a non-Administrator holding neither alert-view permission", () => {
+  expect(
+    canSeeAlertsArea({ isAdministrator: false, permissions: ["dismiss_alerts_manually"] }),
+  ).toBe(false);
+});
+
+test("canCloseAlertsManually is true for an Administrator", () => {
+  expect(canCloseAlertsManually({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canCloseAlertsManually is true for a non-Administrator holding dismiss_alerts_manually", () => {
+  expect(
+    canCloseAlertsManually({ isAdministrator: false, permissions: ["dismiss_alerts_manually"] }),
+  ).toBe(true);
+});
+
+test("canCloseAlertsManually is false for a non-Administrator without dismiss_alerts_manually", () => {
+  expect(canCloseAlertsManually({ isAdministrator: false, permissions: ["view_all_alerts"] })).toBe(
+    false,
+  );
 });
