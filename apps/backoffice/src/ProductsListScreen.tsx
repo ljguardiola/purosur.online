@@ -149,7 +149,7 @@ const barcodeActionClassName =
 // needs `outline-solid` back to show at all. The scan control's ring sits on the whole control,
 // lit by the input inside it.
 const scanControlClassName =
-  `${barcodeActionClassName} min-w-0 cursor-text hover:bg-surface-bone ` +
+  `${barcodeActionClassName} relative min-w-0 cursor-text hover:bg-surface-bone ` +
   "focus-within:outline-[3px] focus-within:outline-solid focus-within:outline-offset-3 " +
   "focus-within:outline-brand-blue-strong";
 
@@ -217,16 +217,24 @@ function BarcodeChips({
         </div>
       )}
       <div className="flex gap-3">
-        {/* A label, so a click anywhere on the control still lands in the input, which sizes to
-            its placeholder or typed text so the icon stays beside it, centered as one group. */}
+        {/* The input fills the whole control for clicks and typing, with its text centered; while
+            it is empty, the icon and the placeholder text sit under it as one centered group, which
+            a native placeholder can't do without the input sizing itself to its content. */}
         <label className={scanControlClassName}>
-          <ScanBarcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
+          {!scanInput && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
+            >
+              <ScanBarcode className="size-[1.125rem] shrink-0" />
+              <span className="truncate">{labels.scanInputLabel}</span>
+            </span>
+          )}
           <input
-            className="field-sizing-content min-w-0 max-w-full bg-transparent text-center outline-none placeholder:text-brand-blue-strong"
+            className="absolute inset-0 size-full rounded-lg bg-transparent px-3 text-center outline-none"
             value={scanInput}
             onChange={(event) => onScanInputChange(event.target.value)}
             onKeyDown={onScanKeyDown}
-            placeholder={labels.scanInputLabel}
             aria-label={labels.scanInputLabel}
             aria-invalid={describedBy ? true : undefined}
             aria-describedby={describedBy || undefined}
