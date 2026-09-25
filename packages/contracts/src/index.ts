@@ -14,7 +14,7 @@ export {
   rendererPingMessageSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages";
-export { appendEan13CheckDigit, ean13CheckDigit, isInternalBarcode } from "./ean13";
+export { appendEan13CheckDigit, ean13CheckDigit, ean13Modules, isInternalBarcode } from "./ean13";
 export type {
   PermissionArea,
   PermissionDefinition,
@@ -30,6 +30,8 @@ export {
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,

@@ -16,3 +16,8 @@ export function barcodeLength(code: string): number {
 }
 
 export const PRODUCT_BARCODES_MAX_COUNT = 20;
+
+export const LABELS_MAX_COUNT_PER_PRODUCT = 999;
+
+// 100 sheets of 24 labels each, generous headroom over a real print run.
+export const LABELS_MAX_TOTAL_COUNT = 2400;
