@@ -1,6 +1,7 @@
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  isInternalBarcode,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
@@ -319,25 +320,6 @@ function barcodeTakenError(
   return codes.length > 0
     ? modalMessages.barcodeTaken({ codes })
     : modalMessages.barcodeTakenUnnamed;
-}
-
-// GS1's 20-29 restricted-circulation prefix with a valid EAN-13 check digit: mirrors the cloud's
-// own recognition of a code it allocated (`internal-barcode-route.ts`), so a manufacturer barcode
-// that happens to start with 2 is never mistaken for one.
-const INTERNAL_BARCODE_PATTERN = /^2\d{12}$/;
-
-function ean13CheckDigit(twelveDigitBody: string): number {
-  let weightedSum = 0;
-  for (let index = 0; index < twelveDigitBody.length; index += 1) {
-    weightedSum += Number(twelveDigitBody[index]) * (index % 2 === 0 ? 1 : 3);
-  }
-  return (10 - (weightedSum % 10)) % 10;
-}
-
-function isInternalBarcode(code: string): boolean {
-  return (
-    INTERNAL_BARCODE_PATTERN.test(code) && Number(code[12]) === ean13CheckDigit(code.slice(0, 12))
-  );
 }
 
 function hasInternalBarcode(barcodes: string[]): boolean {
