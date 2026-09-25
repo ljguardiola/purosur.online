@@ -16,6 +16,8 @@ export const USERS_LIST_PATH = "/settings/users";
 export const ROLES_LIST_PATH = "/settings/roles";
 /** The Roles list's "Nuevo rol" action's own target: a full page, not a modal. */
 export const NEW_ROLE_PATH = "/settings/roles/new";
+/** The Sucursal screen, gated by `configure_branch`: the sidebar's "Sucursal" item opens this. */
+export const BRANCH_SETTINGS_PATH = "/settings/branch";
 
 /** The Users list row action's own target: one user's detail screen. */
 export function userDetailPath(id: string): string {

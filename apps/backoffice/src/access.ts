@@ -21,3 +21,11 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
 export function canSeeRolesArea(access: BackofficeAccess): boolean {
   return access.isAdministrator;
 }
+
+/**
+ * Whether "Sucursal" and its screen show at all: the Administrator (who holds every permission
+ * implicitly) or a role that was delegated `configure_branch`.
+ */
+export function canSeeBranchArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("configure_branch");
+}
