@@ -29,7 +29,7 @@ import {
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
 } from "./CategoriesListScreen";
-import { CATEGORIES_LIST_PATH } from "./catalogRoutes";
+import { CATEGORIES_LIST_PATH, PRODUCTS_LIST_PATH } from "./catalogRoutes";
 import {
   DuplicateRoleScreen,
   type DuplicateRoleScreenServices,
@@ -54,6 +54,11 @@ import {
   NewRoleScreen,
   type NewRoleScreenServices,
 } from "./NewRoleScreen";
+import {
+  defaultProductsListScreenServices,
+  ProductsListScreen,
+  type ProductsListScreenServices,
+} from "./ProductsListScreen";
 import {
   defaultRegisterPasskeyScreenServices,
   RegisterPasskeyScreen,
@@ -113,6 +118,7 @@ export type AppServices = {
   duplicateRoleScreen: DuplicateRoleScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
+  productsListScreen: ProductsListScreenServices;
   accountFooter: AccountFooterServices;
 };
 
@@ -131,6 +137,7 @@ const defaultAppServices: AppServices = {
   duplicateRoleScreen: defaultDuplicateRoleScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
+  productsListScreen: defaultProductsListScreenServices,
   accountFooter: defaultAccountFooterServices,
 };
 
@@ -204,7 +211,7 @@ function CatalogAreaItem({ active }: { active: boolean }) {
       label={messages.catalog.areaLabel}
       icon={<Package />}
       active={active}
-      {...linkProps(CATEGORIES_LIST_PATH)}
+      {...linkProps(PRODUCTS_LIST_PATH)}
     />
   );
 }
@@ -501,12 +508,13 @@ type CatalogAppProps = {
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
   categoriesListScreenServices: CategoriesListScreenServices;
+  productsListScreenServices: ProductsListScreenServices;
 };
 
 /**
- * The Catálogo-in-Shell part of the app: Categorías, its only section today. App.tsx only ever
- * routes here for someone who unlocks the area, so `CatalogAreaItem` and the sidebar's own
- * "Categorías" item both always render active.
+ * The Catálogo-in-Shell part of the app: Productos (its own landing) and Categorías. App.tsx only
+ * ever routes here for someone who unlocks the area, so `CatalogAreaItem` always renders active;
+ * which of its two sections does depends on the current route.
  */
 function CatalogApp({
   displayName,
@@ -514,10 +522,16 @@ function CatalogApp({
   onSessionEnded,
   accountFooterServices,
   categoriesListScreenServices,
+  productsListScreenServices,
 }: CatalogAppProps) {
+  const route = useRoute();
+  const isCategoriesRoute = route === CATEGORIES_LIST_PATH;
+
   useEffect(() => {
-    document.title = messages.catalog.categories.documentTitle;
-  }, []);
+    document.title = isCategoriesRoute
+      ? messages.catalog.categories.documentTitle
+      : messages.catalog.products.documentTitle;
+  }, [isCategoriesRoute]);
 
   return (
     <Shell
@@ -549,9 +563,17 @@ function CatalogApp({
           <ul className="flex flex-col gap-1">
             <li>
               <SectionNavItem
+                label={messages.catalog.productsSectionLabel}
+                icon={<Package />}
+                active={!isCategoriesRoute}
+                {...linkProps(PRODUCTS_LIST_PATH)}
+              />
+            </li>
+            <li>
+              <SectionNavItem
                 label={messages.catalog.categoriesSectionLabel}
                 icon={<Tags />}
-                active
+                active={isCategoriesRoute}
                 {...linkProps(CATEGORIES_LIST_PATH)}
               />
             </li>
@@ -559,10 +581,14 @@ function CatalogApp({
         </>
       }
     >
-      <CategoriesListScreen
-        onSessionEnded={onSessionEnded}
-        services={categoriesListScreenServices}
-      />
+      {isCategoriesRoute ? (
+        <CategoriesListScreen
+          onSessionEnded={onSessionEnded}
+          services={categoriesListScreenServices}
+        />
+      ) : (
+        <ProductsListScreen onSessionEnded={onSessionEnded} services={productsListScreenServices} />
+      )}
     </Shell>
   );
 }
@@ -583,6 +609,7 @@ export function App({ help, services }: AppProps) {
     duplicateRoleScreen,
     branchSettingsScreen,
     categoriesListScreen,
+    productsListScreen,
     accountFooter,
   } = services ?? defaultAppServices;
   const route = useRoute();
@@ -654,7 +681,7 @@ export function App({ help, services }: AppProps) {
     editRoleId !== undefined ||
     duplicateRoleId !== undefined;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
-  const isCatalogRoute = route === CATEGORIES_LIST_PATH;
+  const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
@@ -831,6 +858,7 @@ export function App({ help, services }: AppProps) {
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
         categoriesListScreenServices={categoriesListScreen}
+        productsListScreenServices={productsListScreen}
       />
     );
   }

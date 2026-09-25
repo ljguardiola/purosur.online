@@ -1,8 +1,11 @@
 import {
+  BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
+  PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
@@ -34,6 +37,20 @@ const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
+const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
+const PRODUCT_CATEGORY_LABEL = "Categoría";
+const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
+const PRODUCT_UNIT_LABEL = "Unidad de venta";
+const PRODUCT_BARCODES_LABEL = "Códigos de barras";
+const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
+const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
+const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
+const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
+const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`;
+const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
+const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
+const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
@@ -489,6 +506,119 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsHeading: "Catálogo",
     sectionsNavLabel: "Catálogo",
     categoriesSectionLabel: "Categorías",
+    productsSectionLabel: "Productos",
+    products: {
+      documentTitle: "Productos · Puro Sur",
+      breadcrumb: "Catálogo",
+      heading: "Productos",
+      newProductButton: "Nuevo producto",
+      searchPlaceholder: "Buscar por nombre o código de barras",
+      categoryFilterLabel: "Categoría:",
+      categoryFilterAllOption: "Todas",
+      unitFilterLabel: "Unidad:",
+      unitFilterAllOption: "Todas",
+      unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
+      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD" },
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 producto", other: `${params.count} productos` }),
+      emptyTitle: "Todavía no hay productos",
+      emptyDetail: "Creá el primero para verlo en la lista.",
+      noResultsTitle: "Sin resultados",
+      noResultsDetail: "Probá con otro nombre o código de barras.",
+      loadErrorTitle: "No pudimos abrir los productos",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      editAria: (params: { name: string }) => `Editar el producto ${params.name}`,
+      newProductModal: {
+        eyebrow: PRODUCT_MODAL_EYEBROW,
+        heading: "Nuevo producto",
+        nameLabel: "Nombre",
+        nameRequired: "Ingresá el nombre del producto.",
+        nameTooLong: PRODUCT_NAME_TOO_LONG,
+        categoryLabel: PRODUCT_CATEGORY_LABEL,
+        categoryPlaceholder: "Elegí una categoría",
+        categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        unitLabel: PRODUCT_UNIT_LABEL,
+        unitRequired: "Elegí la unidad de venta.",
+        unitOptionUnitTitle: "Por unidad",
+        unitOptionUnitHelp: "Se vende de a uno",
+        unitOptionWeightTitle: "Por peso",
+        unitOptionWeightHelp: "Se pesa en la balanza",
+        barcodesLabel: PRODUCT_BARCODES_LABEL,
+        scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+        barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
+        barcodeRequired: PRODUCT_BARCODE_REQUIRED,
+        barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+        barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+        barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+        barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+        barcodeInvalid: PRODUCT_BARCODE_INVALID,
+        barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
+        barcodeTaken: (params: { codes: string[] }) => {
+          const list = params.codes.join(", ");
+          return f.plural(params.codes.length, {
+            one: `El código ${list} ya es de otro producto.`,
+            other: `Los códigos ${list} ya son de otro producto.`,
+          });
+        },
+        cancel: CANCEL_LABEL,
+        submit: "Crear el producto",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear el producto",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      editProductModal: {
+        eyebrow: PRODUCT_MODAL_EYEBROW,
+        nameLabel: "Nombre",
+        nameRequired: "Ingresá el nombre del producto.",
+        nameTooLong: PRODUCT_NAME_TOO_LONG,
+        categoryLabel: PRODUCT_CATEGORY_LABEL,
+        categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        unitLabel: PRODUCT_UNIT_LABEL,
+        unitOptionUnitTitle: "Por unidad",
+        unitOptionUnitHelp: "Se vende de a uno",
+        unitOptionWeightTitle: "Por peso",
+        unitOptionWeightHelp: "Se pesa en la balanza",
+        barcodesLabel: PRODUCT_BARCODES_LABEL,
+        scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+        barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
+        barcodeRequired: PRODUCT_BARCODE_REQUIRED,
+        barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+        barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+        barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+        barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+        barcodeInvalid: PRODUCT_BARCODE_INVALID,
+        barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
+        barcodeTaken: (params: { codes: string[] }) => {
+          const list = params.codes.join(", ");
+          return f.plural(params.codes.length, {
+            one: `El código ${list} ya es de otro producto.`,
+            other: `Los códigos ${list} ya son de otro producto.`,
+          });
+        },
+        cancel: CANCEL_LABEL,
+        submit: "Guardar los cambios",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo guardar el cambio",
+        attemptFailedDetail: "Probá de nuevo.",
+        staleVersionTitle: "Otra persona cambió este producto",
+        staleVersionDetail:
+          "Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos.",
+        notFoundTitle: "Este producto ya no existe",
+        reload: "Recargar el producto",
+        reloadFailedTitle: "No se pudieron recargar los datos",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+    },
     categories: {
       documentTitle: "Categorías · Puro Sur",
       breadcrumb: "Catálogo",

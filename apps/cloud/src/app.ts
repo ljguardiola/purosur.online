@@ -16,6 +16,10 @@ import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
+import { registerProductCreationRoute } from "./products/product-creation-route.js";
+import { registerProductEditRoute } from "./products/product-edit-route.js";
+import type { ProductsRouteOptions } from "./products/products-list-route.js";
+import { registerProductsListRoute } from "./products/products-list-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
@@ -114,6 +118,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * optional-feature-wiring shape `roles` uses above.
    */
   categories?: CategoriesRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /products`, `POST /products`, and `POST /products/:id/edit`, the backoffice
+   * Products screen's list, create, and edit sides: every one is gated by the
+   * `manage_products_and_categories` permission (an Administrator always holds it too), the same
+   * optional-feature-wiring shape `categories` uses above.
+   */
+  products?: ProductsRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -202,6 +213,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerCategoriesListRoute(app, options.categories);
     registerCategoryCreationRoute(app, options.categories);
     registerCategoryEditRoute(app, options.categories);
+  }
+
+  if (options.products) {
+    registerProductsListRoute(app, options.products);
+    registerProductCreationRoute(app, options.products);
+    registerProductEditRoute(app, options.products);
   }
 
   const staticDir = options.staticDir;

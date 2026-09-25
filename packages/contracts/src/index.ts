@@ -25,4 +25,11 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";
+export {
+  BARCODE_MAX_LENGTH,
+  barcodeLength,
+  PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
+  productNameLength,
+} from "./product";
 export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";

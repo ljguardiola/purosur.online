@@ -471,3 +471,79 @@ test("cannot widen V through `value` at a real call site with no explicit type a
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
 });
+
+test("renders with no card chosen when value is null", async () => {
+  const screen = await render(<OptionCardGroup {...baseProps({ value: null })} />);
+
+  for (const option of options) {
+    expect(radioInput(screen, option.title).checked).toBe(false);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("choosing a card when nothing is chosen yet calls onChange with that card's value", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<OptionCardGroup {...baseProps({ value: null, onChange })} />);
+
+  await userEvent.click(radioCard(screen, "Expense"));
+
+  expect(onChange).toHaveBeenCalledWith("expense");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the error message and marks the group invalid when nothing is chosen", async () => {
+  const screen = await render(
+    <OptionCardGroup {...baseProps({ value: null })} invalid errorMessage="Elegí una opción." />,
+  );
+
+  await expect.element(screen.getByText("Elegí una opción.")).toBeVisible();
+  const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
+  expect(group.getAttribute("aria-invalid")).toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not show an error message when not invalid", async () => {
+  const screen = await render(<OptionCardGroup {...baseProps({ value: null })} />);
+
+  expect(screen.getByText("Elegí una opción.").query()).toBeNull();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("exposes a required group as required, and an optional one as not required", async () => {
+  const screen = await render(
+    <>
+      <OptionCardGroup {...baseProps({ label: "Required group", required: true })} />
+      <OptionCardGroup {...baseProps({ label: "Optional group" })} />
+    </>,
+  );
+
+  const required = screen.getByRole("radiogroup", { name: "Required group" }).element();
+  const optional = screen.getByRole("radiogroup", { name: "Optional group" }).element();
+  expect(required.getAttribute("aria-required")).toBe("true");
+  expect(optional.getAttribute("aria-required")).not.toBe("true");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("accepts a null value for no selection yet", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: null;
+    onChange: (value: MovementValue) => void;
+  }>().toExtend<OptionCardGroupProps<MovementValue>>();
+});
+
+test("does not accept an invalid group without an error message", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: MovementValue;
+    onChange: (value: MovementValue) => void;
+    invalid: true;
+  }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
+});

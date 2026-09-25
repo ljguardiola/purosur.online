@@ -52,6 +52,7 @@ export default defineConfig(({ mode }) => {
         "/roles": cloudApiProxy,
         "/branch-settings": cloudApiProxy,
         "/categories": cloudApiProxy,
+        "/products": cloudApiProxy,
       },
     },
   };

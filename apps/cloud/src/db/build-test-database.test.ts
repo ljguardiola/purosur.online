@@ -13,6 +13,8 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  productBarcodes,
+  products,
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
@@ -139,7 +141,21 @@ describe("buildTestDatabase", () => {
     await db.insert(branchSettings).values({ locationId: otherLocation.id });
     await db.insert(userRoles).values({ userId: user.id, roleId: role.id });
     await db.insert(rolePermissions).values({ roleId: role.id, permissionKey: "sell_and_charge" });
-    await db.insert(categories).values({ name: "Semillas" });
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Semillas" })
+      .returning({ id: categories.id });
+    if (!category) {
+      throw new Error("seeding categories returned no row");
+    }
+    const [product] = await db
+      .insert(products)
+      .values({ name: "Alpiste", categoryId: category.id, saleUnit: "KG" })
+      .returning({ id: products.id });
+    if (!product) {
+      throw new Error("seeding products returned no row");
+    }
+    await db.insert(productBarcodes).values({ productId: product.id, code: "111", position: 0 });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({
       userId: user.id,

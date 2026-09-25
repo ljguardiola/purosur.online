@@ -31,12 +31,16 @@ type SelectValidityProps =
 
 // `options` is a non-empty tuple and `value`/`onChange` are pinned to V (inferred from `options`,
 // wrapped in NoInfer so `value` can't itself widen it), the same guarantee ListFilter.tsx's own
-// options give: no representable "nothing chosen" or "chosen outside the list" state.
+// options give: no representable "chosen outside the list" state. `value` may also be `null` for
+// "nothing chosen yet" (e.g. a required field the caller won't default, so a real choice is
+// forced); `onChange` itself never reports null back, since a chosen option is always one of V.
 export type SelectProps<V extends string> = SelectCommonProps &
   SelectValidityProps & {
     options: readonly [SelectOption<V>, ...SelectOption<V>[]];
-    value: NoInfer<V>;
+    value: NoInfer<V> | null;
     onChange: (value: NoInfer<V>) => void;
+    /** Shown in place of a value while `value` is null. Defaults to AriaSelect's own localized text. */
+    placeholder?: string;
   };
 
 const wrapperClassName = "flex flex-col gap-1 data-[disabled]:opacity-[0.45]";
@@ -119,7 +123,16 @@ function isOptionValue<V extends string>(key: Key, options: readonly SelectOptio
 }
 
 export function Select<V extends string>(props: SelectProps<V>) {
-  const { label, options, value, onChange, helperText, disabled = false, required = false } = props;
+  const {
+    label,
+    options,
+    value,
+    onChange,
+    helperText,
+    placeholder,
+    disabled = false,
+    required = false,
+  } = props;
   const invalid = props.invalid ?? false;
   const errorMessage = props.invalid ? props.errorMessage : undefined;
 
@@ -127,6 +140,10 @@ export function Select<V extends string>(props: SelectProps<V>) {
   // contrast minimum doesn't apply to an inactive component's own text, and axe-core's own
   // color-contrast check only honors that for a node whose OWN aria-disabled says so.
   const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
+  // Left out entirely rather than set to `undefined` for a caller who never opts into a null
+  // value: AriaSelect's own `placeholder` prop type doesn't accept `undefined` under this
+  // project's `exactOptionalPropertyTypes` (see disabledTextProps above for the same technique).
+  const placeholderProps = placeholder !== undefined ? { placeholder } : {};
 
   return (
     <AriaSelect
@@ -136,6 +153,7 @@ export function Select<V extends string>(props: SelectProps<V>) {
           onChange(key);
         }
       }}
+      {...placeholderProps}
       isDisabled={disabled}
       isRequired={required}
       isInvalid={invalid}

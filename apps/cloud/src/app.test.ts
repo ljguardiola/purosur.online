@@ -681,6 +681,53 @@ describe("wiring the categories routes", () => {
   });
 });
 
+describe("wiring the products routes", () => {
+  it("does not register the products routes when no products option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/products" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/products",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(create.statusCode).toBe(404);
+    expect(edit.statusCode).toBe(404);
+  });
+
+  it("registers the products routes when a products option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      products: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/products" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/products",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const edit = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/edit",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
+    // of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(create.statusCode).toBe(401);
+    expect(edit.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the branch settings routes", () => {
   it("does not register GET /branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -829,6 +876,7 @@ function fullyWiredApp() {
     roles: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     branchSettings: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
 
@@ -890,6 +938,21 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/categories/:id/edit",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "GET",
+        url: "/products",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/products",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
+        url: "/products/:id/edit",
         access: permissionAccess("manage_products_and_categories"),
       },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },

@@ -163,6 +163,42 @@ export const categories = pgTable(
   (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
 );
 
+// A product's own name carries no uniqueness rule (unlike a category's), so only its sale unit is
+// constrained here; the rest is enforced by application code the same way category validation is.
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id),
+    saleUnit: text("sale_unit").notNull(),
+    // Optimistic concurrency for a product row, the same shape `categories.version` gives category
+    // rows.
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`)],
+);
+
+// Every product is active until #309 lands, so a barcode's uniqueness is global for now; #309
+// narrows this index to active products only. `position` preserves the order barcodes were
+// submitted in, since the primary key alone (a random UUID on `products`, not this table) can't.
+export const productBarcodes = pgTable(
+  "product_barcodes",
+  {
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    code: text("code").notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.position] }),
+    uniqueIndex("product_barcodes_code_key").on(table.code),
+  ],
+);
+
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
