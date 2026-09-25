@@ -16,6 +16,7 @@ import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
+import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
 import { registerProductEditRoute } from "./products/product-edit-route.js";
 import type { ProductsRouteOptions } from "./products/products-list-route.js";
@@ -119,8 +120,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   categories?: CategoriesRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /products`, `POST /products`, and `POST /products/:id/edit`, the backoffice
-   * Products screen's list, create, and edit sides: every one is gated by the
+   * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, and `POST
+   * /products/internal-barcode`, the backoffice Products screen's list, create, edit, and
+   * internal-barcode-allocation sides: every one is gated by the
    * `manage_products_and_categories` permission (an Administrator always holds it too), the same
    * optional-feature-wiring shape `categories` uses above.
    */
@@ -219,6 +221,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductsListRoute(app, options.products);
     registerProductCreationRoute(app, options.products);
     registerProductEditRoute(app, options.products);
+    registerInternalBarcodeRoute(app, options.products);
   }
 
   const staticDir = options.staticDir;
