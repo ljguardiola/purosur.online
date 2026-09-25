@@ -1,9 +1,5 @@
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
-import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-} from "@simplewebauthn/server";
+import type { RegistrationResponseJSON } from "@simplewebauthn/server";
+import { generateRegistrationOptions, verifyRegistrationResponse } from "@simplewebauthn/server";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -11,6 +7,7 @@ import { auditLog, passkeys, users } from "../db/schema.js";
 import { deriveUserHandle } from "../recovery/recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
 import { UNAUTHENTICATED_RESPONSE } from "../session/open-session.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -23,7 +20,6 @@ import {
   pruneExpiredPasskeyChallenges,
   storePendingPasskeyChallenge,
 } from "./passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "./passkey-reauthentication.js";
 
 export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -32,15 +28,12 @@ export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryRes
   now?: () => Date;
 }
 
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
 const PASSKEY_NAME_MAX_LENGTH = 40;
 
-// Every reauthentication rejection reason (unverified signature, another account's credential, a
-// missing/expired/consumed challenge) answers with this same code, the same uniform shape
-// session-authenticate-route.ts's sign-in check answers a failed assertion with.
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
+const REGISTRATION_FAILED_RESPONSE = {
+  code: "validation_failed",
+  message: "the passkey registration did not verify against the backoffice's origin",
+  details: [{ field: "passkey_registration" }],
 } as const;
 
 class CredentialAlreadyRegistered extends Error {}
@@ -55,18 +48,17 @@ function readPasskeyName(body: unknown): string | undefined {
   return trimmed.length >= 1 && trimmed.length <= PASSKEY_NAME_MAX_LENGTH ? trimmed : undefined;
 }
 
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
-}
-
 /**
  * Registers the two endpoints that add a passkey to an already-open session's account:
- * `registration-options` hands back both a reauthentication challenge (against the account's
- * existing passkeys) and a registration challenge (excluding them), and `POST /users/passkeys`
- * verifies both, in that order, before registering the new credential under the given name.
+ * `registration-options` hands back a registration challenge (excluding the account's existing
+ * credentials), and `POST /users/passkeys` verifies it before registering the new credential under
+ * the given name. Registration is checked against the shared passkey-authorization window
+ * (`passkey-authorization-guard.ts`) once, when it starts: `registration-options` is gated so the
+ * browser never runs a creation ceremony (and leaves an orphan credential on the authenticator)
+ * before the cloud reveals that an authorization is missing. `POST /users/passkeys` no longer
+ * re-checks that window: its protection is consuming the pending registration challenge that only
+ * the gated options endpoint can issue, so a ceremony that started under a valid authorization
+ * still completes even if the window lapses while the person interacts with their authenticator.
  * Neither ever revokes the session.
  */
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -98,6 +90,9 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
     async (request, reply) => {
       const issuedAt = now();
       const openSession = openSessionOf(request);
+      if (!(await requirePasskeyAuthorization(openSession, reply, issuedAt))) {
+        return;
+      }
 
       const [account] = await options.db
         .select({ firstName: users.firstName, email: users.email })
@@ -113,20 +108,6 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
         .from(passkeys)
         .where(eq(passkeys.userId, openSession.userId));
-      if (existingPasskeys.length === 0) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const reauthenticationOptions = await generateAuthenticationOptions({
-        rpID: webAuthnConfig.rpID,
-        allowCredentials: existingPasskeys.map((passkey) => ({
-          id: passkey.credentialId,
-          ...(passkey.transports ? { transports: passkey.transports } : {}),
-        })),
-        userVerification: "required",
-        timeout: AUTHENTICATION_TIMEOUT_MS,
-      });
 
       const registrationOptions = await generateRegistrationOptions({
         rpName: webAuthnConfig.rpName,
@@ -146,15 +127,11 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
       await storePendingPasskeyChallenge(options.db, {
         sessionId: openSession.sessionId,
         kind: "registration",
-        reauthenticationChallenge: reauthenticationOptions.challenge,
         registrationChallenge: registrationOptions.challenge,
         now: issuedAt,
       });
 
-      await reply.code(200).send({
-        reauthentication_options: reauthenticationOptions,
-        passkey_registration_options: registrationOptions,
-      });
+      await reply.code(200).send({ passkey_registration_options: registrationOptions });
     },
   );
 
@@ -189,30 +166,13 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         return;
       }
 
-      const assertion = readAssertion(request.body);
-      if (!assertion) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
       const pending = await consumePendingPasskeyChallenge(options.db, {
         sessionId: openSession.sessionId,
+        kind: "registration",
         now: attemptedAt,
       });
-      if (pending?.kind !== "registration" || !pending.registrationChallenge) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const reauthentication = await verifyPasskeyReauthentication(options.db, {
-        userId: openSession.userId,
-        assertion,
-        expectedChallenge: pending.reauthenticationChallenge,
-        webAuthnConfig,
-        now: attemptedAt,
-      });
-      if (!reauthentication.verified) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      if (!pending?.registrationChallenge) {
+        await reply.code(400).send(REGISTRATION_FAILED_RESPONSE);
         return;
       }
 
@@ -224,11 +184,7 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         requireUserVerification: true,
       }).catch(() => ({ verified: false as const }));
       if (!verification.verified) {
-        await reply.code(400).send({
-          code: "validation_failed",
-          message: "the passkey registration did not verify against the backoffice's origin",
-          details: [{ field: "passkey_registration" }],
-        });
+        await reply.code(400).send(REGISTRATION_FAILED_RESPONSE);
         return;
       }
       const { registrationInfo } = verification;

@@ -17,6 +17,7 @@ import {
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
+import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -84,27 +85,15 @@ afterEach(async () => {
   await recoveryApp.close();
 });
 
-let tokenSequence = 0;
-
-/**
- * A `WebAuthnEmulator` backed by its own isolated credential store, standing in for a genuinely
- * different physical authenticator. `nid-webauthn-emulator`'s default constructor shares one
- * static in-memory repository across every instance that doesn't override it, so two `new
- * WebAuthnEmulator()` calls would otherwise see each other's credentials and reject `excludeCredentials`
- * on a device that never actually held that credential.
- */
 function newDeviceEmulator(): WebAuthnEmulator {
   return new WebAuthnEmulator(
     new AuthenticatorEmulator({ credentialsRepository: new PasskeysCredentialsMemoryRepository() }),
   );
 }
 
-/**
- * Registers a real first passkey for `forUserId`, backed by `emulator`, through the actual
- * recovery redeem route — the same way `session-authenticate-route.test.ts` seeds a genuine
- * credential, so every WebAuthn value this test hands to the passkey routes crossed the same JSON
- * boundary a real browser would.
- */
+let tokenSequence = 0;
+
+/** Registers a real first passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulator): Promise<void> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -146,13 +135,15 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   }
 }
 
-async function insertSession(forUserId: string): Promise<string> {
+/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
+async function insertSession(forUserId: string, authorizedAt: Date | null = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId: forUserId,
     sessionIdHash: hashSessionId(rawSessionId),
     createdAt: NOON,
     lastSeenAt: NOON,
+    passkeyAuthorizedAt: authorizedAt,
   });
   return rawSessionId;
 }
@@ -175,10 +166,9 @@ function cookieHeader(rawSessionId: string): Record<string, string> {
 }
 
 /**
- * Returned untyped (matching `session-authenticate-route.test.ts`'s own `requestRegistrationOptions`):
- * `nid-webauthn-emulator`'s own bundled WebAuthn JSON types don't structurally match
- * `@simplewebauthn/server`'s exports one-for-one, so this crosses the same JSON boundary a real
- * browser would instead of being typed directly against either package's types.
+ * Returned untyped: `nid-webauthn-emulator`'s own bundled WebAuthn JSON types don't structurally
+ * match `@simplewebauthn/server`'s exports one-for-one, so this crosses the same JSON boundary a
+ * real browser would instead of being typed directly against either package's types.
  */
 async function requestOptions(rawSessionId: string) {
   const response = await postJson(
@@ -238,7 +228,48 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(challenges).toHaveLength(0);
   });
 
-  it("returns reauthentication options allowing only the account's own passkeys", async () => {
+  it("returns 401 authorization_required and stores no challenge when the session was never authorized", async () => {
+    const rawSessionId = await insertSession(userId, null);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
+  });
+
+  it("returns 401 authorization_required and stores no challenge one second past the 5-minute boundary", async () => {
+    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+    const rawSessionId = await insertSession(userId, authorizedAt);
+
+    const response = await postJson(
+      "/users/passkeys/registration-options",
+      {},
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ code: "authorization_required" });
+    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
+  });
+
+  it("returns registration options and stores their challenge while the session's authorization is valid", async () => {
+    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
+    const rawSessionId = await insertSession(userId, authorizedAt);
+
+    const options = await requestOptions(rawSessionId);
+
+    const rows = await db.select().from(passkeyChallenges);
+    expect(rows.map((row) => row.registrationChallenge)).toEqual([
+      options.passkey_registration_options.challenge,
+    ]);
+  });
+
+  it("returns registration options excluding the account's existing passkeys", async () => {
     const emulator = new WebAuthnEmulator();
     await registerFirstPasskey(userId, emulator);
     const rawSessionId = await insertSession(userId);
@@ -246,9 +277,10 @@ describe("POST /users/passkeys/registration-options", () => {
 
     const options = await requestOptions(rawSessionId);
 
-    expect(options.reauthentication_options).toMatchObject({ userVerification: "required" });
-    const allowCredentials = options.reauthentication_options.allowCredentials as { id: string }[];
-    expect(allowCredentials.map((c) => c.id)).toEqual([ownPasskey?.credentialId]);
+    const excludeCredentials = options.passkey_registration_options.excludeCredentials as {
+      id: string;
+    }[];
+    expect(excludeCredentials.map((c) => c.id)).toEqual([ownPasskey?.credentialId]);
   });
 
   it("prunes other sessions' passkey challenges that aged past their lifetime", async () => {
@@ -262,8 +294,8 @@ describe("POST /users/passkeys/registration-options", () => {
     if (!staleSession) throw new Error("test setup: stale session not found");
     await db.insert(passkeyChallenges).values({
       sessionId: staleSession.id,
-      kind: "removal",
-      reauthenticationChallenge: "stale-challenge",
+      kind: "registration",
+      registrationChallenge: "stale-challenge",
       createdAt: new Date(NOON.getTime() - PASSKEY_CHALLENGE_TTL_MS),
     });
     const rawSessionId = await insertSession(userId);
@@ -271,35 +303,19 @@ describe("POST /users/passkeys/registration-options", () => {
     const options = await requestOptions(rawSessionId);
 
     const rows = await db.select().from(passkeyChallenges);
-    expect(rows.map((row) => row.reauthenticationChallenge)).toEqual([
-      options.reauthentication_options.challenge,
+    expect(rows.map((row) => row.registrationChallenge)).toEqual([
+      options.passkey_registration_options.challenge,
     ]);
   });
 
-  it("rejects an account with no passkey to reauthenticate with, storing no challenge", async () => {
-    const rawSessionId = await insertSession(userId);
-
-    const response = await postJson(
-      "/users/passkeys/registration-options",
-      {},
-      cookieHeader(rawSessionId),
-    );
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    await expect(db.select().from(passkeyChallenges)).resolves.toEqual([]);
-  });
-
   it("replaces a previously pending challenge with a fresh one", async () => {
-    const emulator = new WebAuthnEmulator();
-    await registerFirstPasskey(userId, emulator);
     const rawSessionId = await insertSession(userId);
 
     const first = await requestOptions(rawSessionId);
     const second = await requestOptions(rawSessionId);
 
-    expect(first.reauthentication_options.challenge).not.toBe(
-      second.reauthentication_options.challenge,
+    expect(first.passkey_registration_options.challenge).not.toBe(
+      second.passkey_registration_options.challenge,
     );
     const rows = await db.select().from(passkeyChallenges);
     expect(rows).toHaveLength(1);
@@ -309,11 +325,6 @@ describe("POST /users/passkeys/registration-options", () => {
 describe("POST /users/passkeys", () => {
   async function registerSecondPasskey(rawSessionId: string, name = "Teléfono del local") {
     const options = await requestOptions(rawSessionId);
-    const reauthEmulator = registeredEmulator;
-    const reauthentication = reauthEmulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      options.reauthentication_options,
-    );
     const newEmulator = newDeviceEmulator();
     const passkeyRegistration = newEmulator.createJSON(
       BACKOFFICE_ORIGIN,
@@ -321,17 +332,14 @@ describe("POST /users/passkeys", () => {
     );
     const response = await postJson(
       "/users/passkeys",
-      { reauthentication, passkey_registration: passkeyRegistration, passkey_name: name },
+      { passkey_registration: passkeyRegistration, passkey_name: name },
       cookieHeader(rawSessionId),
     );
     return { response, newEmulator };
   }
 
-  let registeredEmulator: WebAuthnEmulator;
-
   beforeEach(async () => {
-    registeredEmulator = new WebAuthnEmulator();
-    await registerFirstPasskey(userId, registeredEmulator);
+    await registerFirstPasskey(userId, new WebAuthnEmulator());
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
@@ -367,7 +375,7 @@ describe("POST /users/passkeys", () => {
     expect((await db.select().from(passkeys)).length).toBe(beforeCount);
   });
 
-  it("registers a second passkey with a valid reauthentication, writing an audit row", async () => {
+  it("registers a second passkey with a valid registration, writing an audit row", async () => {
     const rawSessionId = await insertSession(userId);
 
     const { response } = await registerSecondPasskey(rawSessionId);
@@ -389,19 +397,6 @@ describe("POST /users/passkeys", () => {
     });
   });
 
-  it("updates the reauthenticating passkey's counter and last_used_at", async () => {
-    const rawSessionId = await insertSession(userId);
-    currentTime = new Date(NOON.getTime() + 60 * 1000);
-
-    await registerSecondPasskey(rawSessionId);
-
-    const [reauthPasskey] = await db
-      .select()
-      .from(passkeys)
-      .where(eq(passkeys.name, "Notebook del local"));
-    expect(reauthPasskey?.lastUsedAt).toEqual(currentTime);
-  });
-
   it("does not revoke the session on a successful registration", async () => {
     const rawSessionId = await insertSession(userId);
 
@@ -414,30 +409,22 @@ describe("POST /users/passkeys", () => {
     expect(row?.revokedAt).toBeNull();
   });
 
-  it("consumes the pending challenge, rejecting a second use of the same reauthentication and registration", async () => {
+  it("consumes the pending challenge, rejecting a second use of the same registration", async () => {
     const rawSessionId = await insertSession(userId);
     const options = await requestOptions(rawSessionId);
-    const reauthentication = registeredEmulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      options.reauthentication_options,
-    );
     const newEmulator = newDeviceEmulator();
     const passkeyRegistration = newEmulator.createJSON(
       BACKOFFICE_ORIGIN,
       options.passkey_registration_options,
     );
-    const body = {
-      reauthentication,
-      passkey_registration: passkeyRegistration,
-      passkey_name: "Teléfono del local",
-    };
+    const body = { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" };
     const first = await postJson("/users/passkeys", body, cookieHeader(rawSessionId));
     expect(first.statusCode).toBe(200);
 
     const second = await postJson("/users/passkeys", body, cookieHeader(rawSessionId));
 
-    expect(second.statusCode).toBe(401);
-    expect(second.json()).toMatchObject({ code: "authentication_failed" });
+    expect(second.statusCode).toBe(400);
+    expect(second.json()).toMatchObject({ code: "validation_failed" });
     const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(rows).toHaveLength(2);
   });
@@ -445,10 +432,6 @@ describe("POST /users/passkeys", () => {
   it("rejects a challenge that aged past its lifetime, storing nothing", async () => {
     const rawSessionId = await insertSession(userId);
     const options = await requestOptions(rawSessionId);
-    const reauthentication = registeredEmulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      options.reauthentication_options,
-    );
     const newEmulator = newDeviceEmulator();
     const passkeyRegistration = newEmulator.createJSON(
       BACKOFFICE_ORIGIN,
@@ -458,12 +441,12 @@ describe("POST /users/passkeys", () => {
 
     const response = await postJson(
       "/users/passkeys",
-      { reauthentication, passkey_registration: passkeyRegistration, passkey_name: "Teléfono" },
+      { passkey_registration: passkeyRegistration, passkey_name: "Teléfono" },
       cookieHeader(rawSessionId),
     );
 
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
     const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(rows).toHaveLength(1);
   });
@@ -473,85 +456,12 @@ describe("POST /users/passkeys", () => {
 
     const response = await postJson(
       "/users/passkeys",
-      { reauthentication: {}, passkey_registration: {}, passkey_name: "Teléfono" },
+      { passkey_registration: {}, passkey_name: "Teléfono" },
       cookieHeader(rawSessionId),
     );
 
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-    expect(rows).toHaveLength(1);
-  });
-
-  it("rejects a reauthentication whose signature was tampered with, storing nothing", async () => {
-    const rawSessionId = await insertSession(userId);
-    const options = await requestOptions(rawSessionId);
-    const reauthentication = registeredEmulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      options.reauthentication_options,
-    );
-    const tampered = {
-      ...reauthentication,
-      response: {
-        ...reauthentication.response,
-        signature: `${reauthentication.response.signature.slice(0, -4)}AAAA`,
-      },
-    };
-    const newEmulator = newDeviceEmulator();
-    const passkeyRegistration = newEmulator.createJSON(
-      BACKOFFICE_ORIGIN,
-      options.passkey_registration_options,
-    );
-
-    const response = await postJson(
-      "/users/passkeys",
-      { reauthentication: tampered, passkey_registration: passkeyRegistration, passkey_name: "X" },
-      cookieHeader(rawSessionId),
-    );
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-    expect(rows).toHaveLength(1);
-  });
-
-  it("rejects a reauthentication carrying another account's credential, storing nothing", async () => {
-    const [strangerUser] = await db
-      .insert(users)
-      .values({
-        firstName: "Grace Hopper",
-        email: "grace@example.com",
-        locationId: await seededLocationId(db),
-      })
-      .returning({ id: users.id });
-    if (!strangerUser) {
-      throw new Error("test setup: seeding the stranger user returned no row");
-    }
-    const strangerEmulator = newDeviceEmulator();
-    await registerFirstPasskey(strangerUser.id, strangerEmulator);
-    const rawSessionId = await insertSession(userId);
-    const options = await requestOptions(rawSessionId);
-    // The stranger's own authenticator presents its own resident credential once allowCredentials
-    // stops filtering it out; the assertion is genuine and well-signed, just for a credential this
-    // account never registered.
-    const reauthentication = strangerEmulator.getJSON(BACKOFFICE_ORIGIN, {
-      ...options.reauthentication_options,
-      allowCredentials: [],
-    });
-    const newEmulator = newDeviceEmulator();
-    const passkeyRegistration = newEmulator.createJSON(
-      BACKOFFICE_ORIGIN,
-      options.passkey_registration_options,
-    );
-
-    const response = await postJson(
-      "/users/passkeys",
-      { reauthentication, passkey_registration: passkeyRegistration, passkey_name: "X" },
-      cookieHeader(rawSessionId),
-    );
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
     const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(rows).toHaveLength(1);
   });
@@ -562,10 +472,6 @@ describe("POST /users/passkeys", () => {
       async (name) => {
         const rawSessionId = await insertSession(userId);
         const options = await requestOptions(rawSessionId);
-        const reauthentication = registeredEmulator.getJSON(
-          BACKOFFICE_ORIGIN,
-          options.reauthentication_options,
-        );
         const newEmulator = newDeviceEmulator();
         const passkeyRegistration = newEmulator.createJSON(
           BACKOFFICE_ORIGIN,
@@ -575,7 +481,6 @@ describe("POST /users/passkeys", () => {
         const response = await postJson(
           "/users/passkeys",
           {
-            reauthentication,
             passkey_registration: passkeyRegistration,
             ...(name === undefined ? {} : { passkey_name: name }),
           },
@@ -588,87 +493,6 @@ describe("POST /users/passkeys", () => {
         expect(rows).toHaveLength(1);
       },
     );
-
-    it("keeps the pending challenge redeemable after a request rejected for its body", async () => {
-      const rawSessionId = await insertSession(userId);
-      const options = await requestOptions(rawSessionId);
-      const reauthentication = registeredEmulator.getJSON(
-        BACKOFFICE_ORIGIN,
-        options.reauthentication_options,
-      );
-      const newEmulator = newDeviceEmulator();
-      const passkeyRegistration = newEmulator.createJSON(
-        BACKOFFICE_ORIGIN,
-        options.passkey_registration_options,
-      );
-      const missingRegistration = await postJson(
-        "/users/passkeys",
-        { reauthentication, passkey_name: "Teléfono del local" },
-        cookieHeader(rawSessionId),
-      );
-      expect(missingRegistration.statusCode).toBe(400);
-      const blankName = await postJson(
-        "/users/passkeys",
-        { reauthentication, passkey_registration: passkeyRegistration, passkey_name: " " },
-        cookieHeader(rawSessionId),
-      );
-      expect(blankName.statusCode).toBe(400);
-
-      const response = await postJson(
-        "/users/passkeys",
-        {
-          reauthentication,
-          passkey_registration: passkeyRegistration,
-          passkey_name: "Teléfono del local",
-        },
-        cookieHeader(rawSessionId),
-      );
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("keeps the pending challenge redeemable after a request with a missing or malformed reauthentication", async () => {
-      const rawSessionId = await insertSession(userId);
-      const options = await requestOptions(rawSessionId);
-      const reauthentication = registeredEmulator.getJSON(
-        BACKOFFICE_ORIGIN,
-        options.reauthentication_options,
-      );
-      const newEmulator = newDeviceEmulator();
-      const passkeyRegistration = newEmulator.createJSON(
-        BACKOFFICE_ORIGIN,
-        options.passkey_registration_options,
-      );
-      const missingReauthentication = await postJson(
-        "/users/passkeys",
-        { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
-        cookieHeader(rawSessionId),
-      );
-      expect(missingReauthentication.statusCode).toBe(401);
-      expect(missingReauthentication.json()).toMatchObject({ code: "authentication_failed" });
-      const malformedReauthentication = await postJson(
-        "/users/passkeys",
-        {
-          reauthentication: { id: 42 },
-          passkey_registration: passkeyRegistration,
-          passkey_name: "Teléfono del local",
-        },
-        cookieHeader(rawSessionId),
-      );
-      expect(malformedReauthentication.statusCode).toBe(401);
-
-      const response = await postJson(
-        "/users/passkeys",
-        {
-          reauthentication,
-          passkey_registration: passkeyRegistration,
-          passkey_name: "Teléfono del local",
-        },
-        cookieHeader(rawSessionId),
-      );
-
-      expect(response.statusCode).toBe(200);
-    });
 
     it("rejects a passkey_name over 40 characters once trimmed", async () => {
       const rawSessionId = await insertSession(userId);
@@ -689,7 +513,7 @@ describe("POST /users/passkeys", () => {
     });
   });
 
-  it("never registers a passkey on another account, even when the request body names one: neither route reads a target id, so a passkey always lands on the session's own account", async () => {
+  it("never registers a passkey on another account, even when the request body names one: the route reads no target id, so a passkey always lands on the session's own account", async () => {
     const [otherUser] = await db
       .insert(users)
       .values({
@@ -700,17 +524,7 @@ describe("POST /users/passkeys", () => {
       .returning({ id: users.id });
     if (!otherUser) throw new Error("test setup: seeding the other user returned no row");
     const rawSessionId = await insertSession(userId);
-    const optionsResponse = await postJson(
-      "/users/passkeys/registration-options",
-      { user_id: otherUser.id, id: otherUser.id, target_id: otherUser.id },
-      cookieHeader(rawSessionId),
-    );
-    expect(optionsResponse.statusCode).toBe(200);
-    const options = optionsResponse.json();
-    const reauthentication = registeredEmulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      options.reauthentication_options,
-    );
+    const options = await requestOptions(rawSessionId);
     const newEmulator = newDeviceEmulator();
     const passkeyRegistration = newEmulator.createJSON(
       BACKOFFICE_ORIGIN,
@@ -720,7 +534,6 @@ describe("POST /users/passkeys", () => {
     const response = await postJson(
       "/users/passkeys",
       {
-        reauthentication,
         passkey_registration: passkeyRegistration,
         passkey_name: "Passkey ajena",
         user_id: otherUser.id,
@@ -738,5 +551,83 @@ describe("POST /users/passkeys", () => {
     expect(otherUserPasskeys).toHaveLength(0);
     const ownPasskeys = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(ownPasskeys.map((row) => row.name)).toContain("Passkey ajena");
+  });
+
+  describe("registration surviving the authorization window lapsing after registration-options", () => {
+    it("registers the passkey even though the session's authorization was cleared after the options request", async () => {
+      const rawSessionId = await insertSession(userId);
+      const options = await requestOptions(rawSessionId);
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+      await db
+        .update(sessions)
+        .set({ passkeyAuthorizedAt: null })
+        .where(eq(sessions.sessionIdHash, hashSessionId(rawSessionId)));
+
+      const response = await postJson(
+        "/users/passkeys",
+        { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(200);
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+      expect(rows).toHaveLength(2);
+    });
+
+    it("registers the passkey and writes an audit row when the window lapses between registration-options (issued at 4:59) and the mutation (attempted at 5:30)", async () => {
+      const authorizedAt = new Date(NOON.getTime() - (4 * 60 * 1000 + 59 * 1000));
+      const rawSessionId = await insertSession(userId, authorizedAt);
+      currentTime = new Date(authorizedAt.getTime() + (4 * 60 * 1000 + 59 * 1000));
+      const options = await requestOptions(rawSessionId);
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+      currentTime = new Date(authorizedAt.getTime() + (5 * 60 * 1000 + 30 * 1000));
+
+      const response = await postJson(
+        "/users/passkeys",
+        { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(200);
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+      const newRow = rows.find((row) => row.name === "Teléfono del local");
+      expect(newRow).toBeDefined();
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "passkey"));
+      expect(
+        audited.some((row) => (row.newValue as { id?: string } | null)?.id === newRow?.id),
+      ).toBe(true);
+    });
+
+    it("never completes a registration using a challenge pending under the session_authorization kind, even one carrying a registration challenge value", async () => {
+      const rawSessionId = await insertSession(userId);
+      const options = await requestOptions(rawSessionId);
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+      // Only the kind separates this row from a genuine pending registration: its registration
+      // challenge is exactly the one the credential above was created against.
+      await db.update(passkeyChallenges).set({ kind: "session_authorization" });
+
+      const response = await postJson(
+        "/users/passkeys",
+        { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+        cookieHeader(rawSessionId),
+      );
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "validation_failed" });
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+      expect(rows).toHaveLength(1);
+    });
   });
 });

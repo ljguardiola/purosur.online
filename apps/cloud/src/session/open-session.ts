@@ -28,6 +28,8 @@ export interface OpenSession {
   locationId: string;
   /** Whether the signed-in user's role has `roles.is_administrator` set. */
   isAdministrator: boolean;
+  /** When this session last passed a passkey authorization, or `null` if it never did. See `passkey-authorization-guard.ts`. */
+  passkeyAuthorizedAt: Date | null;
   /**
    * The permission keys the signed-in user's role currently holds, in catalog order. An
    * Administrator holds every catalog key implicitly (its role stores no `role_permissions` rows),
@@ -76,6 +78,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       createdAt: sessions.createdAt,
       lastSeenAt: sessions.lastSeenAt,
       revokedAt: sessions.revokedAt,
+      passkeyAuthorizedAt: sessions.passkeyAuthorizedAt,
       firstName: users.firstName,
       active: users.active,
       locationId: users.locationId,
@@ -126,6 +129,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       locationId: session.locationId,
       isAdministrator,
       permissionKeys,
+      passkeyAuthorizedAt: session.passkeyAuthorizedAt,
     },
   };
 }

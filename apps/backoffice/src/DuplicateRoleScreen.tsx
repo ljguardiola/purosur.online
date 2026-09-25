@@ -8,9 +8,10 @@ import { RoleCreationNoticeView, type RoleCreationServices, useRoleCreation } fr
 import { RoleForm } from "./RoleForm";
 import { failedRoleLoadStatus, type RoleLoadStatus, RoleLoadStatusView } from "./RoleLoadStatus";
 import { withOneAlertView } from "./rolePermissions";
-import { createRole, fetchRoleCreationChallenge, fetchRoles, type RoleSummary } from "./rolesApi";
+import { createRole, fetchRoles, type RoleSummary } from "./rolesApi";
 import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
+import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { ROLES_LIST_PATH, sendToMyAccount } from "./settingsRoutes";
 
 export type DuplicateRoleScreenServices = RoleCreationServices & {
@@ -19,8 +20,9 @@ export type DuplicateRoleScreenServices = RoleCreationServices & {
 
 export const defaultDuplicateRoleScreenServices: DuplicateRoleScreenServices = {
   fetchRoles,
-  fetchRoleCreationChallenge,
   createRole,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
   startAuthentication,
 };
 
@@ -142,6 +144,7 @@ export function DuplicateRoleScreen({
           onSelectedChange={creation.setSelected}
         />
       )}
+      {creation.modal}
     </ScreenLayout>
   );
 }

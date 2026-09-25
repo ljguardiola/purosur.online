@@ -1,6 +1,6 @@
 {
-  "id": "8d4c8b2f-8371-4441-a38a-7411b83df1b3",
-  "prevId": "a520fcd0-411f-42ba-b1f4-a6cd31743382",
+  "id": "aae7838b-1cc2-4b0a-baef-a9b9b008e046",
+  "prevId": "8d4c8b2f-8371-4441-a38a-7411b83df1b3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -141,6 +141,55 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.categories": {
+      "name": "categories",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "categories_name_lower_key": {
+          "name": "categories_name_lower_key",
+          "columns": [
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -1,10 +1,8 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, passkeys } from "../db/schema.js";
-import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
@@ -12,47 +10,27 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "./passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "./passkey-reauthentication.js";
 
 export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the issued challenge's stored lifetime and audited timestamps are deterministic. */
+  /** Injected in tests so audited timestamps are deterministic. */
   now?: () => Date;
 }
 
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Same uniform code and message the registration route rejects a bad reauthentication with.
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
-} as const;
 
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no passkey with that id belongs to this account",
 } as const;
 
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
-}
-
 /**
- * Registers the two endpoints that remove a passkey from an already-open session's account:
- * `removal-options` hands back a reauthentication challenge against the account's existing
- * passkeys, and `POST /users/passkeys/:id/remove` verifies it before deleting the named passkey —
- * which may be the very one that reauthenticated. Neither ever revokes the session, and removing
- * the account's only remaining passkey is allowed.
+ * Registers `POST /users/passkeys/:id/remove`: removes a passkey from an already-open session's
+ * account — which may be the very one used to (re)authorize — gated by the shared
+ * passkey-authorization window (`passkey-authorization-guard.ts`) instead of its own per-action
+ * step-up. Never revokes the session, and removing the account's only remaining passkey is
+ * allowed.
  */
 export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -61,7 +39,6 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -73,43 +50,6 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
     }
     return true;
   }
-
-  app.post(
-    "/users/passkeys/removal-options",
-    {
-      preHandler: originGuard(checkOrigin),
-      config: { access: OPEN_SESSION_ACCESS, sessionSource },
-    },
-    async (request, reply) => {
-      const issuedAt = now();
-      const openSession = openSessionOf(request);
-
-      const existingPasskeys = await options.db
-        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys)
-        .where(eq(passkeys.userId, openSession.userId));
-
-      const reauthenticationOptions = await generateAuthenticationOptions({
-        rpID: webAuthnConfig.rpID,
-        allowCredentials: existingPasskeys.map((passkey) => ({
-          id: passkey.credentialId,
-          ...(passkey.transports ? { transports: passkey.transports } : {}),
-        })),
-        userVerification: "required",
-        timeout: AUTHENTICATION_TIMEOUT_MS,
-      });
-
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "removal",
-        reauthenticationChallenge: reauthenticationOptions.challenge,
-        now: issuedAt,
-      });
-
-      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-    },
-  );
 
   app.post(
     "/users/passkeys/:id/remove",
@@ -127,30 +67,7 @@ export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultH
         return;
       }
 
-      const assertion = readAssertion(request.body);
-      if (!assertion) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        now: attemptedAt,
-      });
-      if (pending?.kind !== "removal") {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const reauthentication = await verifyPasskeyReauthentication(options.db, {
-        userId: openSession.userId,
-        assertion,
-        expectedChallenge: pending.reauthenticationChallenge,
-        webAuthnConfig,
-        now: attemptedAt,
-      });
-      if (!reauthentication.verified) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

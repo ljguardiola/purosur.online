@@ -30,17 +30,19 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     myAccountScreen: {
       fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPasskeyRegistrationChallenge: vi.fn(),
-      fetchPasskeyRemovalChallenge: vi.fn(),
       registerPasskey: vi.fn(),
       removePasskey: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
       startRegistration: vi.fn(),
     },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserCreationChallenge: vi.fn(),
       createUser: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     rolesListScreen: {
@@ -52,29 +54,32 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       editCategory: vi.fn(),
     },
     newRoleScreen: {
-      fetchRoleCreationChallenge: vi.fn(),
       createRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     editRoleScreen: {
       fetchRole: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchRoleEditChallenge: vi.fn(),
       editRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     duplicateRoleScreen: {
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchRoleCreationChallenge: vi.fn(),
       createRole: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchEmailChangeChallenge: vi.fn(),
       changeUserEmail: vi.fn(),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchUserPasskeyRemovalChallenge: vi.fn(),
       removeUserPasskey: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
@@ -620,7 +625,7 @@ test("opens the new role page at /settings/roles/new from the Nuevo rol button",
 
   await expect.element(screen.getByRole("heading", { name: "Nuevo rol", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/roles/new");
-  expect(services.newRoleScreen.fetchRoleCreationChallenge).not.toHaveBeenCalled();
+  expect(services.newRoleScreen.createRole).not.toHaveBeenCalled();
 });
 
 test("opens a role's edit page at /settings/roles/:id/edit, with Roles still the active sidebar item, and the browser's back button returns to the list", async () => {
@@ -755,7 +760,7 @@ test.each([
   },
   {
     path: "/settings/roles/new",
-    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.fetchRoleCreationChallenge],
+    adminOnlyCalls: (services: AppServices) => [services.newRoleScreen.createRole],
   },
   {
     path: "/settings/roles/role-stock/edit",

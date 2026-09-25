@@ -1,16 +1,8 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, rolePermissions, roles } from "../db/schema.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "../passkeys/passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
-import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { auditLog, rolePermissions, roles } from "../db/schema.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
@@ -34,13 +26,6 @@ import {
 } from "./role-validation.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
-
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
-} as const;
-
 // Same reasoning `role-read-route.ts` gives: the Administrator role, a missing id, and a
 // malformed one all answer alike, so none of the three ever leaks which one it was.
 const NOT_FOUND_RESPONSE = {
@@ -62,13 +47,6 @@ interface EditRequestBody {
 function readVersion(body: unknown): number | undefined {
   const raw = (body as { version?: unknown } | undefined)?.version;
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
-}
-
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
 }
 
 function readEditBody(body: unknown): EditRequestBody | RoleFieldValidationFailure {
@@ -250,11 +228,9 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Registers the two endpoints that let an Administrator edit an existing hand-made role's name or
- * permissions, mirroring `user-email-change-route.ts`'s own shape: `edit-options` hands back a
- * reauthentication challenge against the Administrator's own existing passkeys, and
- * `POST /roles/:id/edit` verifies it before applying the change. The Administrator role is never a
- * valid target for either route.
+ * Registers `POST /roles/:id/edit`: applies a change to an existing hand-made role's name or
+ * permissions, gated by the shared passkey-authorization window (`passkey-authorization-guard.ts`)
+ * instead of its own per-action step-up. The Administrator role is never a valid target.
  */
 export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -263,7 +239,6 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   function checkOrigin(request: FastifyRequest, reply: FastifyReply): boolean {
     if (request.headers.origin !== options.backofficeOrigin) {
@@ -275,49 +250,6 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     return true;
   }
-
-  app.post<{ Params: { id: string } }>(
-    "/roles/:id/edit-options",
-    {
-      preHandler: originGuard(checkOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
-    },
-    async (request, reply) => {
-      const issuedAt = now();
-      const openSession = openSessionOf(request);
-
-      const target = await findEditableRole(options.db, request.params.id);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      const existingPasskeys = await options.db
-        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys)
-        .where(eq(passkeys.userId, openSession.userId));
-
-      const reauthenticationOptions = await generateAuthenticationOptions({
-        rpID: webAuthnConfig.rpID,
-        allowCredentials: existingPasskeys.map((passkey) => ({
-          id: passkey.credentialId,
-          ...(passkey.transports ? { transports: passkey.transports } : {}),
-        })),
-        userVerification: "required",
-        timeout: AUTHENTICATION_TIMEOUT_MS,
-      });
-
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "role_edit",
-        reauthenticationChallenge: reauthenticationOptions.challenge,
-        now: issuedAt,
-      });
-
-      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-    },
-  );
 
   app.post<{ Params: { id: string } }>(
     "/roles/:id/edit",
@@ -345,30 +277,7 @@ export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const assertion = readAssertion(request.body);
-      if (!assertion) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        now: attemptedAt,
-      });
-      if (pending?.kind !== "role_edit") {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const reauthentication = await verifyPasskeyReauthentication(options.db, {
-        userId: openSession.userId,
-        assertion,
-        expectedChallenge: pending.reauthenticationChallenge,
-        webAuthnConfig,
-        now: attemptedAt,
-      });
-      if (!reauthentication.verified) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 

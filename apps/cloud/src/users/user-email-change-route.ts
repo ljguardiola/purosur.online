@@ -1,16 +1,8 @@
-import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
-import { generateAuthenticationOptions } from "@simplewebauthn/server";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { auditLog, passkeys, recoveryTokens, users } from "../db/schema.js";
-import {
-  consumePendingPasskeyChallenge,
-  pruneExpiredPasskeyChallenges,
-  storePendingPasskeyChallenge,
-} from "../passkeys/passkey-challenge.js";
-import { verifyPasskeyReauthentication } from "../passkeys/passkey-reauthentication.js";
-import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
+import { auditLog, recoveryTokens, users } from "../db/schema.js";
+import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
   ADMINISTRATOR_ACCESS,
   openSessionOf,
@@ -22,15 +14,7 @@ import { findBranchUser, toBranchUserWire } from "./branch-users.js";
 import { readEmail } from "./email-validation.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
-const AUTHENTICATION_TIMEOUT_MS = 60_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Same uniform code and message the other passkey step-up routes reject a bad reauthentication
-// with.
-const AUTHENTICATION_FAILED_RESPONSE = {
-  code: "authentication_failed",
-  message: "the passkey reauthentication could not be verified",
-} as const;
 
 // Same shape (and same "malformed/missing/other-branch are indistinguishable" reasoning)
 // `user-read-route.ts` answers with; both this route and its options route check the target
@@ -91,13 +75,6 @@ function readVersion(body: unknown): number | undefined {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
 }
 
-function readAssertion(body: unknown): AuthenticationResponseJSON | undefined {
-  const assertion = (body as { reauthentication?: unknown } | undefined)?.reauthentication as
-    | AuthenticationResponseJSON
-    | undefined;
-  return assertion && typeof assertion.id === "string" ? assertion : undefined;
-}
-
 function readEmailChangeBody(body: unknown): EmailChangeRequestBody | ValidationFailure {
   const email = readEmail(body);
   if (!email) {
@@ -122,13 +99,9 @@ type EmailChangeOutcome =
   | { kind: "applied"; email: string; version: number };
 
 /**
- * Registers the two endpoints that let an Administrator change another branch user's email,
- * behind the same fresh-reauthentication step-up `user-creation-route.ts` uses:
- * `email-change-options` hands back a reauthentication challenge against the Administrator's own
- * existing passkeys (never the target user's), and `POST /users/:id/email` verifies it before
- * writing the change. Both routes check the target belongs to the session's own branch before
- * doing anything else, so an id from another branch answers identically to a missing one from
- * either route.
+ * Registers `POST /users/:id/email`: changes another branch user's email, gated by the shared
+ * passkey-authorization window (`passkey-authorization-guard.ts`) instead of its own per-action
+ * step-up. Checks the target belongs to the session's own branch before doing anything else.
  */
 export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -137,7 +110,6 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
   const now = options.now ?? (() => new Date());
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const webAuthnConfig = resolveWebAuthnConfig(options.backofficeOrigin);
 
   /** A malformed id would otherwise reach the database as an invalid uuid input error (500); this
    * folds it into the same 404 a missing or another branch's id gets, matching `user-read-route.ts`. */
@@ -158,49 +130,6 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
     }
     return true;
   }
-
-  app.post<{ Params: { id: string } }>(
-    "/users/:id/email-change-options",
-    {
-      preHandler: originGuard(checkOrigin),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
-    },
-    async (request, reply) => {
-      const issuedAt = now();
-      const openSession = openSessionOf(request);
-
-      const target = await findTarget(openSession.locationId, request.params.id);
-      if (!target) {
-        await reply.code(404).send(NOT_FOUND_RESPONSE);
-        return;
-      }
-
-      const existingPasskeys = await options.db
-        .select({ credentialId: passkeys.credentialId, transports: passkeys.transports })
-        .from(passkeys)
-        .where(eq(passkeys.userId, openSession.userId));
-
-      const reauthenticationOptions = await generateAuthenticationOptions({
-        rpID: webAuthnConfig.rpID,
-        allowCredentials: existingPasskeys.map((passkey) => ({
-          id: passkey.credentialId,
-          ...(passkey.transports ? { transports: passkey.transports } : {}),
-        })),
-        userVerification: "required",
-        timeout: AUTHENTICATION_TIMEOUT_MS,
-      });
-
-      await pruneExpiredPasskeyChallenges(options.db, issuedAt);
-      await storePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        kind: "user_email_change",
-        reauthenticationChallenge: reauthenticationOptions.challenge,
-        now: issuedAt,
-      });
-
-      await reply.code(200).send({ reauthentication_options: reauthenticationOptions });
-    },
-  );
 
   app.post<{ Params: { id: string } }>(
     "/users/:id/email",
@@ -228,30 +157,7 @@ export function registerUserEmailChangeRoutes<TQueryResult extends PgQueryResult
         return;
       }
 
-      const assertion = readAssertion(request.body);
-      if (!assertion) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const pending = await consumePendingPasskeyChallenge(options.db, {
-        sessionId: openSession.sessionId,
-        now: attemptedAt,
-      });
-      if (pending?.kind !== "user_email_change") {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
-        return;
-      }
-
-      const reauthentication = await verifyPasskeyReauthentication(options.db, {
-        userId: openSession.userId,
-        assertion,
-        expectedChallenge: pending.reauthenticationChallenge,
-        webAuthnConfig,
-        now: attemptedAt,
-      });
-      if (!reauthentication.verified) {
-        await reply.code(401).send(AUTHENTICATION_FAILED_RESPONSE);
+      if (!(await requirePasskeyAuthorization(openSession, reply, attemptedAt))) {
         return;
       }
 
