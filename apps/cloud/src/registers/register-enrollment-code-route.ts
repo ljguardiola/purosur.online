@@ -72,10 +72,17 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
 
   await db.transaction(async (tx) => {
     const [previous] = await tx
-      .select({ expiresAt: registerEnrollmentCodes.expiresAt })
+      .select({
+        expiresAt: registerEnrollmentCodes.expiresAt,
+        redeemedAt: registerEnrollmentCodes.redeemedAt,
+      })
       .from(registerEnrollmentCodes)
       .where(eq(registerEnrollmentCodes.registerId, input.registerId))
       .for("update");
+    const replacedPendingCode =
+      previous && previous.redeemedAt === null && previous.expiresAt > input.now
+        ? previous
+        : undefined;
 
     await tx
       .insert(registerEnrollmentCodes)
@@ -102,7 +109,9 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
       entity: "register_enrollment_code",
       entityId: input.registerId,
       actorId: input.actorId,
-      previousValue: previous ? { expires_at: previous.expiresAt.toISOString() } : null,
+      previousValue: replacedPendingCode
+        ? { expires_at: replacedPendingCode.expiresAt.toISOString() }
+        : null,
       newValue: { expires_at: expiresAt.toISOString() },
     });
   });

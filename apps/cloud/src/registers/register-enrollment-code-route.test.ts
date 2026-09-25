@@ -313,6 +313,73 @@ describe("POST /registers/:id/enrollment-code", () => {
     });
     const serialized = JSON.stringify(entry);
     expect(serialized).not.toContain(response.json().code);
+    expect(serialized).not.toContain(
+      createHash("sha256").update(response.json().code).digest("base64url"),
+    );
+  });
+
+  async function insertPreviousCode(
+    registerId: string,
+    previous: { expiresAt: Date; redeemedAt: Date | null },
+  ): Promise<void> {
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeHash: createHash("sha256").update("PREVIOUSCODE2345").digest("base64url"),
+      issuedAt: new Date(previous.expiresAt.getTime() - REGISTER_ENROLLMENT_CODE_WINDOW_MS),
+      expiresAt: previous.expiresAt,
+      redeemedAt: previous.redeemedAt,
+      failedAttempts: 0,
+    });
+  }
+
+  async function auditedPreviousValue(registerId: string): Promise<unknown> {
+    const [entry] = await db.select().from(auditLog).where(eq(auditLog.entityId, registerId));
+    return entry?.previousValue;
+  }
+
+  it("audits the replaced code's expires_at when it was still pending", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    const previousExpiresAt = new Date(NOON.getTime() + 60_000);
+    await insertPreviousCode(registerId, { expiresAt: previousExpiresAt, redeemedAt: null });
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await auditedPreviousValue(registerId)).toEqual({
+      expires_at: previousExpiresAt.toISOString(),
+    });
+  });
+
+  it("audits no previous value when the replaced code had already expired", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    await insertPreviousCode(registerId, { expiresAt: NOON, redeemedAt: null });
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await auditedPreviousValue(registerId)).toBeNull();
+  });
+
+  it("audits no previous value when the replaced code had already been redeemed", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+    await insertPreviousCode(registerId, {
+      expiresAt: new Date(NOON.getTime() + 60_000),
+      redeemedAt: new Date(NOON.getTime() - 60_000),
+    });
+
+    const response = await emitCode(registerId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(await auditedPreviousValue(registerId)).toBeNull();
   });
 
   it("replaces a previous pending code when re-emitted, keeping exactly one row", async () => {
