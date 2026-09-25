@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import { BranchSettingsScreen, type BranchSettingsScreenServices } from "./BranchSettingsScreen";
@@ -312,4 +312,25 @@ test("has no accessibility violations once loaded", async () => {
   await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("fits the three deadline fields inside their card at the backoffice's content width", async () => {
+  await page.viewport(1440, 1000);
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+
+  const screen = await render(
+    <main style={{ width: 1104, height: 1000, display: "flex", flexDirection: "column" }}>
+      <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+    </main>,
+  );
+
+  const lastField = screen.getByLabelText("Cambio en buen estado");
+  await expect.element(lastField).toBeVisible();
+  const card = screen.getByRole("heading", { name: "Plazos" }).element()
+    .parentElement as HTMLElement;
+
+  expect(lastField.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+    card.getBoundingClientRect().right,
+  );
 });
