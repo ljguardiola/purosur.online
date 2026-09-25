@@ -9,7 +9,6 @@ import {
   CONTENT_GAP_MM,
   layoutLabelContent,
   NAME_FONT_SIZE_PT,
-  NAME_LINE_HEIGHT_MM,
   NAME_MAX_LINES,
   PADDING_TOP_BOTTOM_MM,
   PT_PER_MM,
@@ -63,14 +62,18 @@ function drawCutLines(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
 const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
 
 /**
- * How many lines `name` actually wraps to at the label's content width (capped at
- * `NAME_MAX_LINES`, since that's as many as `drawName` ever draws): a single `widthOfString`
- * check against a name that fits on one line, rather than a fixed line count, is what lets a short
- * name's group center lower than a long one's the way the proof's own text flow did.
+ * The name's own rendered height at the label's content width, word-wrapped up to
+ * `NAME_MAX_LINES` lines and clamped there (`drawName`'s `ellipsis: true` then truncates whatever
+ * doesn't fit). Measured with pdfkit's own `heightOfString`/`currentLineHeight`, the exact metric
+ * `drawName` renders with: reserving a height computed from a different (e.g. CSS-derived)
+ * per-line estimate would under- or over-shoot pdfkit's real wrapping and either clip a line that
+ * should have shown, or leave a gap above a name that didn't need the full box.
  */
-function measuredNameLineCount(doc: PDFKit.PDFDocument, name: string): number {
+function measuredNameHeightMm(doc: PDFKit.PDFDocument, name: string): number {
   doc.font("Helvetica-Bold").fontSize(NAME_FONT_SIZE_PT);
-  return doc.widthOfString(name) > mm(CONTENT_WIDTH_MM) ? NAME_MAX_LINES : 1;
+  const maxHeightPt = doc.currentLineHeight(true) * NAME_MAX_LINES;
+  const naturalHeightPt = doc.heightOfString(name, { width: mm(CONTENT_WIDTH_MM) });
+  return Math.min(naturalHeightPt, maxHeightPt) / PT_PER_MM;
 }
 
 function drawName(
@@ -126,12 +129,11 @@ function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: num
 function drawLabel(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
   drawCutLines(doc, label);
 
-  const nameLineCount = measuredNameLineCount(doc, label.name);
+  const nameHeightMm = measuredNameHeightMm(doc, label.name);
   const layout = layoutLabelContent({
     labelHeightMm: LABEL_HEIGHT_MM,
     paddingTopBottomMm: PADDING_TOP_BOTTOM_MM,
-    nameLineCount,
-    nameLineHeightMm: NAME_LINE_HEIGHT_MM,
+    nameHeightMm,
     gapMm: CONTENT_GAP_MM,
     barcodeHeightMm: BARCODE_HEIGHT_MM,
   });

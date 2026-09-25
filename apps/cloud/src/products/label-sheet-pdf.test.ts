@@ -94,4 +94,35 @@ describe("renderLabelSheetPdf", () => {
 
     expect(firstBarY(twoLinePdf)).toBeGreaterThan(firstBarY(oneLinePdf));
   });
+
+  it("wraps a name across two lines by words instead of truncating it to one", async () => {
+    const pdf = await renderLabelSheetPdf([
+      {
+        name: "Harina de almendras integral orgánica sin gluten",
+        code: "2000000000015",
+        count: 1,
+      },
+    ]);
+    const texts = renderedTexts(pdf).map((text) => text.trim());
+
+    expect(texts).toContain("Harina de almendras");
+    expect(texts).toContain("integral orgánica sin gluten");
+    // pdfkit's ellipsis is a single WinAnsi byte (0x85), which `latin1` decodes as U+0085.
+    expect(texts.some((text) => text.includes("\u0085"))).toBe(false);
+  });
+
+  it("ellipsizes only the second line when a name still doesn't fit in two lines", async () => {
+    const pdf = await renderLabelSheetPdf([
+      {
+        name: "Harina de almendras integral orgánica sin gluten y sin azúcar añadido nunca jamás",
+        code: "2000000000015",
+        count: 1,
+      },
+    ]);
+    const nameLines = renderedTexts(pdf).filter((text) => /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}/.test(text));
+
+    expect(nameLines).toHaveLength(2);
+    expect(nameLines[0]).not.toContain("\u0085");
+    expect(nameLines[1]).toContain("\u0085");
+  });
 });
