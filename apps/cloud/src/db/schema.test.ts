@@ -165,7 +165,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
     return folder;
   }
 
-  it("deletes the pending row instead of leaving a kind the new enum no longer has", async () => {
+  async function sessionOnDatabaseThrough0018() {
     const priorMigrationsFolder = await migrationsFolderThrough0018();
     const client = await migrateFreshDatabase(priorMigrationsFolder);
     onTestFinished(() => client.close());
@@ -176,7 +176,25 @@ describe("migrating a database with a pending passkey challenge of a removed kin
     const { rows: sessionRows } = await client.query<{ id: string }>(
       `insert into "sessions" ("user_id", "session_id_hash") values ('${userId}', 'a-session-hash') returning "id"`,
     );
-    const sessionId = sessionRows[0]?.id;
+    return { client, sessionId: sessionRows[0]?.id };
+  }
+
+  it("deletes a pending registration issued before passkey registration required an authorization", async () => {
+    const { client, sessionId } = await sessionOnDatabaseThrough0018();
+    await client.query(
+      `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge", "registration_challenge") values ('${sessionId}', 'registration', 'a-stale-reauthentication', 'a-stale-registration')`,
+    );
+
+    await migrate(drizzle(client), { migrationsFolder: MIGRATIONS_FOLDER });
+
+    const { rows: remaining } = await client.query(
+      `select * from "passkey_challenges" where "session_id" = '${sessionId}'`,
+    );
+    expect(remaining).toHaveLength(0);
+  });
+
+  it("deletes the pending row instead of leaving a kind the new enum no longer has", async () => {
+    const { client, sessionId } = await sessionOnDatabaseThrough0018();
     await client.query(
       `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge") values ('${sessionId}', 'role_creation', 'a-stale-challenge')`,
     );
