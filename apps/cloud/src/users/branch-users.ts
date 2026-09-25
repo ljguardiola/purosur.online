@@ -11,6 +11,9 @@ export interface BranchUserRow {
   roleName: string | null;
   roleIsAdministrator: boolean;
   passkeyCount: number;
+  /** True only for the one active user, in this branch, who currently holds the Administrator
+   * role while no one else does: the backoffice locks their role field on this. */
+  isLastActiveAdministrator: boolean;
 }
 
 export interface BranchUserWire {
@@ -20,6 +23,7 @@ export interface BranchUserWire {
   version: number;
   role: { id: string; is_administrator: boolean; name: string | null };
   passkey_count: number;
+  is_last_active_administrator: boolean;
 }
 
 export function toBranchUserWire(row: BranchUserRow): BranchUserWire {
@@ -30,6 +34,7 @@ export function toBranchUserWire(row: BranchUserRow): BranchUserWire {
     version: row.version,
     role: { id: row.roleId, is_administrator: row.roleIsAdministrator, name: row.roleName },
     passkey_count: row.passkeyCount,
+    is_last_active_administrator: row.isLastActiveAdministrator,
   };
 }
 
@@ -56,6 +61,20 @@ const BRANCH_USER_GROUP_BY = [
   roles.isAdministrator,
 ];
 
+type RawBranchUserRow = Omit<BranchUserRow, "isLastActiveAdministrator">;
+
+/** Stamps `isLastActiveAdministrator` on every row from a count of active Administrator holders
+ * already known for their branch, instead of each row computing its own subquery. */
+function withLastActiveAdministratorFlag(
+  rows: RawBranchUserRow[],
+  activeAdministratorCount: number,
+): BranchUserRow[] {
+  return rows.map((row) => ({
+    ...row,
+    isLastActiveAdministrator: row.roleIsAdministrator && activeAdministratorCount === 1,
+  }));
+}
+
 /**
  * Lists every active user of `locationId`, ordered by first name, with the role each one holds and
  * how many passkeys they have registered. A user created outside
@@ -68,7 +87,7 @@ export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
 ): Promise<BranchUserRow[]> {
-  return db
+  const rows = await db
     .select(BRANCH_USER_SELECTION)
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
@@ -77,6 +96,10 @@ export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
     .where(and(eq(users.locationId, locationId), eq(users.active, true)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .orderBy(asc(users.firstName));
+  // Every row here is already one of this branch's active users, so counting the Administrators
+  // among them is counting every active Administrator this branch has, with no extra query.
+  const activeAdministratorCount = rows.filter((row) => row.roleIsAdministrator).length;
+  return withLastActiveAdministratorFlag(rows, activeAdministratorCount);
 }
 
 /**
@@ -97,5 +120,29 @@ export async function findBranchUser<TQueryResult extends PgQueryResultHKT>(
     .where(and(eq(users.id, userId), eq(users.locationId, locationId), eq(users.active, true)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .limit(1);
-  return row;
+  if (!row) {
+    return undefined;
+  }
+  const activeAdministratorCount = await countActiveAdministrators(db, locationId);
+  return withLastActiveAdministratorFlag([row], activeAdministratorCount)[0];
+}
+
+/** How many active users of `locationId` currently hold the Administrator role. */
+async function countActiveAdministrators<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  locationId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(users)
+    .innerJoin(userRoles, eq(userRoles.userId, users.id))
+    .innerJoin(roles, eq(roles.id, userRoles.roleId))
+    .where(
+      and(
+        eq(users.locationId, locationId),
+        eq(users.active, true),
+        eq(roles.isAdministrator, true),
+      ),
+    );
+  return row?.count ?? 0;
 }

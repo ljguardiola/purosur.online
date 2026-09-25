@@ -164,6 +164,7 @@ describe("GET /users", () => {
         version: 1,
         role: { id: roleId, is_administrator: false, name: "Encargada" },
         passkey_count: 0,
+        is_last_active_administrator: false,
       },
     ]);
   });
@@ -198,6 +199,7 @@ describe("GET /users", () => {
         version: 1,
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
+        is_last_active_administrator: true,
       },
     ]);
   });
@@ -243,6 +245,7 @@ describe("GET /users", () => {
         version: 1,
         role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
         passkey_count: 2,
+        is_last_active_administrator: false,
       },
       {
         id: administratorId,
@@ -251,6 +254,7 @@ describe("GET /users", () => {
         version: 1,
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
+        is_last_active_administrator: true,
       },
     ]);
   });

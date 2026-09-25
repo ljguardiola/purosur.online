@@ -511,9 +511,9 @@ describe("wiring the users routes", () => {
       url: "/users",
       headers: { origin: "https://staging.purosur.online" },
     });
-    const emailChange = await app.inject({
+    const edit = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/email",
+      url: "/users/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -534,7 +534,7 @@ describe("wiring the users routes", () => {
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
     expect(create.statusCode).toBe(404);
-    expect(emailChange.statusCode).toBe(404);
+    expect(edit.statusCode).toBe(404);
     expect(userPasskeys.statusCode).toBe(404);
     expect(userPasskeyRemove.statusCode).toBe(404);
     expect(deactivation.statusCode).toBe(404);
@@ -556,9 +556,9 @@ describe("wiring the users routes", () => {
       url: "/users",
       headers: { origin: "https://staging.purosur.online" },
     });
-    const emailChange = await app.inject({
+    const edit = await app.inject({
       method: "POST",
-      url: "/users/00000000-0000-0000-0000-000000000000/email",
+      url: "/users/00000000-0000-0000-0000-000000000000/edit",
       headers: { origin: "https://staging.purosur.online" },
     });
     const userPasskeys = await app.inject({
@@ -581,7 +581,7 @@ describe("wiring the users routes", () => {
     expect(list.statusCode).toBe(401);
     expect(read.statusCode).toBe(401);
     expect(create.statusCode).toBe(401);
-    expect(emailChange.statusCode).toBe(401);
+    expect(edit.statusCode).toBe(401);
     expect(userPasskeys.statusCode).toBe(401);
     expect(userPasskeyRemove.statusCode).toBe(401);
     expect(deactivation.statusCode).toBe(401);
@@ -940,7 +940,7 @@ describe("the route access inventory", () => {
       { method: "GET", url: "/users", access: permissionAccess("deactivate_users") },
       { method: "GET", url: "/users/:id", access: permissionAccess("deactivate_users") },
       { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
-      { method: "POST", url: "/users/:id/email", access: ADMINISTRATOR_ACCESS },
+      { method: "POST", url: "/users/:id/edit", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
       {
         method: "POST",

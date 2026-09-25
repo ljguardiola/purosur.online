@@ -95,7 +95,7 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Locks this row before checking it, the same way `user-email-change-route.ts` does: a
+        // Locks this row before checking it, the same way `user-edit-route.ts` does: a
         // concurrent deactivation of the same target waits instead of racing, and re-reads
         // `active` under the lock so a second request against an already-deactivated target
         // never re-revokes sessions or re-audits.

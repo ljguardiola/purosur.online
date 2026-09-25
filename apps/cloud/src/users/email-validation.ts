@@ -6,8 +6,8 @@ export const EMAIL_MAX_LENGTH = 254;
 /**
  * Trims and lowercases `email` off a request body and requires it look like `local@domain` within
  * `EMAIL_MAX_LENGTH`. Shared by every route that accepts an email from an Administrator
- * (`user-creation-route.ts`, `user-email-change-route.ts`), so normalization and validation never
- * drift between them.
+ * (`user-creation-route.ts`, `user-edit-route.ts`), so normalization and validation never drift
+ * between them.
  */
 export function readEmail(body: unknown): string | undefined {
   const raw = (body as { email?: unknown } | undefined)?.email;

@@ -44,7 +44,7 @@ import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
-import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
+import { registerUserEditRoutes } from "./users/user-edit-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
 import { registerUserReadRoute } from "./users/user-read-route.js";
@@ -93,9 +93,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   passkeys?: PasskeysListRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/email`, `GET
+   * Registers `GET /users`, `GET /users/:id`, `POST /users`, `POST /users/:id/edit`, `GET
    * /users/:id/passkeys`, and `POST /users/:id/passkeys/:passkeyId/remove`, the backoffice Users
-   * screen's read, create, email-edit, and passkey-removal sides: every mutating one is
+   * screen's read, create, email-and-role-edit, and passkey-removal sides: every mutating one is
    * Administrator-only, scoped to the session's own branch, and gated by the shared
    * passkey-authorization window, the same optional-feature-wiring shape `session` uses above.
    */
@@ -196,7 +196,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUsersListRoute(app, options.users);
     registerUserReadRoute(app, options.users);
     registerUserCreationRoutes(app, options.users);
-    registerUserEmailChangeRoutes(app, options.users);
+    registerUserEditRoutes(app, options.users);
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
     registerUserDeactivationRoutes(app, options.users);
