@@ -38,6 +38,15 @@ export type RemoveUserPasskeyOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type DeactivateUserOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 export type FetchUsersOutcome =
   | { kind: "ok"; value: BranchUser[] }
   | { kind: "forbidden" }
@@ -396,6 +405,28 @@ export async function removeUserPasskey(
   }
   if (response.status === 403) {
     return forbiddenOrOwnAccount(response);
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+/**
+ * Deactivates the target user, ending every backoffice session they have open, gated by the shared
+ * passkey-authorization window instead of its own reauthentication step-up
+ * (`POST /users/:id/deactivation`). The cloud answers the same `not_found` for a malformed,
+ * missing, other-branch, already-inactive, or Administrator target.
+ */
+export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/users/${id}/deactivation`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
   }
   return gatedActionErrorOutcome(response);
 }

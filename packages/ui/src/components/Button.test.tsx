@@ -300,6 +300,51 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders the destructive tone of the secondary variant with a white fill and error-ui border and text, as the design draws it", async () => {
+  const screen = await render(
+    <div style={{ backgroundColor: tokenRgb("surface-white") }}>
+      <Button variant="secondary" tone="destructive">
+        Desactivar
+      </Button>
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: "Desactivar" }).element() as HTMLElement;
+  const behind = getComputedStyle(button.parentElement as HTMLElement).backgroundColor;
+
+  expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(getComputedStyle(button).borderWidth).toBe("1px");
+  expect(getComputedStyle(button).borderColor).toBe(tokenRgb("status-error-ui"));
+  expect(getComputedStyle(button).color).toBe(tokenRgb("status-error-ui"));
+
+  const ratio = contrastRatio(rgbToHex(getComputedStyle(button).color), rgbToHex(behind));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The design leaves this state undrawn. The default secondary tone and the text variant's own
+// destructive tone both turn their transparent background to bone on hover while keeping their
+// tone color unchanged (see their own hover tests above), so the destructive secondary follows
+// that same outline-form convention rather than the primary destructive's filled-background one,
+// which has no bone equivalent to switch to.
+test("keeps the destructive secondary variant's hover background at bone, like the default secondary and the text destructive form, and keeps its error-ui border and text readable", async () => {
+  const screen = await render(
+    <Button variant="secondary" tone="destructive">
+      Desactivar
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Desactivar" }).element() as HTMLElement;
+
+  await userEvent.hover(button);
+  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-bone"));
+
+  const hovered = getComputedStyle(button);
+  expect(hovered.borderColor).toBe(tokenRgb("status-error-ui"));
+  expect(hovered.color).toBe(tokenRgb("status-error-ui"));
+  const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
+  expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {
   const screen = await render(<Button tone="destructive">Void sale</Button>);
   const button = screen.getByRole("button", { name: "Void sale" }).element() as HTMLElement;
@@ -433,11 +478,11 @@ test("does not accept a button without text, since it would have no accessible n
   expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<ButtonProps>();
 });
 
-test("does not accept a destructive tone on the secondary variant", () => {
+test("accepts a destructive tone on the secondary variant, since the design draws it", () => {
   expectTypeOf<{
     variant: "secondary";
     tone: "destructive";
-  }>().not.toExtend<ButtonPropsWithoutText>();
+  }>().toExtend<ButtonPropsWithoutText>();
 });
 
 test("an empty label from a variable leaves the button nameless, and the accessibility check catches it", async () => {

@@ -212,6 +212,39 @@ describe("GET /roles", () => {
     ]);
   });
 
+  it("counts only active users, leaving a deactivated one out", async () => {
+    const locationId = await seededLocationId(db);
+    const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
+    const administratorId = await insertUser({
+      firstName: "Zoe Admin",
+      email: "zoe@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId,
+    });
+    await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const deactivatedId = await insertUser({
+      firstName: "Bea Deactivated",
+      email: "bea@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getRoles(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([
+      { is_administrator: true, user_count: 1 },
+      { id: cashierRoleId, user_count: 1 },
+    ]);
+  });
+
   it("returns a role's permissions in catalog order, whatever order they were stored in", async () => {
     const locationId = await seededLocationId(db);
     const cashierRoleId = await insertRole("Cajera", [

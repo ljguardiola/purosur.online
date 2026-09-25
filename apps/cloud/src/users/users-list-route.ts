@@ -2,9 +2,9 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
-  ADMINISTRATOR_ACCESS,
   openSessionOf,
   originGuard,
+  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
@@ -18,10 +18,9 @@ export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
 }
 
 /**
- * Registers `GET /users`: requires an open session (the same open-session check
- * `GET /users/passkeys` uses, including its same-origin guard), then lists the users of the
- * session's own branch with their role. Administrator-only until a wider permission model exists,
- * so a non-Administrator gets 403 `forbidden` instead of a list.
+ * Registers `GET /users`: gated by the `deactivate_users` permission (an Administrator always
+ * holds it too), so a user who can deactivate a colleague can also list who to deactivate; then
+ * lists the active users of the session's own branch with their role.
  */
 export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -37,7 +36,7 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
       preHandler: originGuard((request, reply) =>
         checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
       ),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: permissionAccess("deactivate_users"), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);

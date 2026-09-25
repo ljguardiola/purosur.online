@@ -2,8 +2,11 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
+import type { BackofficeAccess } from "./access";
 import { UsersListScreen, type UsersListScreenServices } from "./UsersListScreen";
 import type { BranchUser } from "./usersApi";
+
+const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
 function createServices(overrides: Partial<UsersListScreenServices> = {}): UsersListScreenServices {
   const services: UsersListScreenServices = {
@@ -68,10 +71,14 @@ function grantAuthorization(services: UsersListScreenServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
-function renderScreen(services: UsersListScreenServices, onSessionEnded: () => void = () => {}) {
+function renderScreen(
+  services: UsersListScreenServices,
+  onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+) {
   return render(
     <main>
-      <UsersListScreen services={services} onSessionEnded={onSessionEnded} />
+      <UsersListScreen services={services} onSessionEnded={onSessionEnded} access={access} />
     </main>,
   );
 }
@@ -433,7 +440,11 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
 
   await screen.rerender(
     <main>
-      <UsersListScreen services={services} onSessionEnded={() => {}} />
+      <UsersListScreen
+        services={services}
+        onSessionEnded={() => {}}
+        access={ADMINISTRATOR_ACCESS}
+      />
     </main>,
   );
 
@@ -577,4 +588,43 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
   await openNewUserModal(screen);
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  // The roles read is Administrator-only on the cloud: were the screen to ask for it, this
+  // viewer would be sent to Mi cuenta instead of seeing the list.
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, tomas] });
+
+  const screen = await renderScreen(services, () => {}, {
+    isAdministrator: false,
+    permissions: ["deactivate_users"],
+  });
+
+  await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+  expect(services.fetchRoles).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users");
+  window.history.pushState(null, "", "/");
+});
+
+test("offers a view action, not an edit one, to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
+
+  const screen = await renderScreen(services, () => {}, {
+    isAdministrator: false,
+    permissions: ["deactivate_users"],
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Ver a Tomás Ruiz" }));
+  expect(screen.getByRole("button", { name: "Editar a Tomás Ruiz" }).query()).toBeNull();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/user-3");
+  window.history.pushState(null, "", "/");
 });
