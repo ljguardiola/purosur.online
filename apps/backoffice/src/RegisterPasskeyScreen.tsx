@@ -7,8 +7,27 @@ import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { messages } from "./messages";
 import { validatePasskeyName } from "./passkeyName";
+import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
+
+// An explicit allowlist instead of excluding "ok"/"already_registered"/"failed": a future outcome
+// kind the exclusion list doesn't know about would otherwise signal by default. The exhaustive
+// switch (no default case) makes the compiler refuse a kind this doesn't decide for.
+function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
+  switch (outcome.kind) {
+    case "invalid":
+    case "burned":
+    case "expired":
+    case "validation_failed":
+    case "rate_limited":
+      return true;
+    case "ok":
+    case "already_registered":
+    case "failed":
+      return false;
+  }
+}
 
 type ReadyPhase = {
   kind: "ready";
@@ -191,11 +210,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
     // registered" (the cloud already knows it) means the cloud never saved it, so the device
     // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
     // save may have landed — and never signals.
-    if (
-      outcome.kind !== "ok" &&
-      outcome.kind !== "already_registered" &&
-      outcome.kind !== "failed"
-    ) {
+    if (isDefinitiveRejection(outcome)) {
       const rpId = readyPhase.options.rp.id;
       if (rpId) {
         signalUnknownCredential({ rpId, credentialId: registration.id });

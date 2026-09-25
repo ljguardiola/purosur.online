@@ -295,6 +295,27 @@ test.each([
   },
 );
 
+test("never signals the device when the registration options carry no rp id", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: {
+        displayName: "Lucía Pérez",
+        options: { challenge: "abc", rp: {} } as never,
+      },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "validation_failed" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
+});
+
 test("never signals the device when the credential is already registered", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({

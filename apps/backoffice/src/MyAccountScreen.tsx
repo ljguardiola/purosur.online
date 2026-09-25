@@ -19,6 +19,23 @@ import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
+// An explicit allowlist instead of excluding "ok"/"already_registered"/"failed": a future outcome
+// kind the exclusion list doesn't know about would otherwise signal by default. The exhaustive
+// switch (no default case) makes the compiler refuse a kind this doesn't decide for.
+function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
+  switch (outcome.kind) {
+    case "validation_failed":
+    case "unauthenticated":
+    case "authorization_required":
+    case "rate_limited":
+      return true;
+    case "ok":
+    case "already_registered":
+    case "failed":
+      return false;
+  }
+}
+
 export type MyAccountScreenServices = {
   fetchPasskeys: typeof fetchPasskeys;
   fetchPasskeyRegistrationChallenge: typeof fetchPasskeyRegistrationChallenge;
@@ -143,11 +160,7 @@ function RegisterPasskeyModal({
     // registered" (the cloud already knows it) means the cloud never saved it, so the device
     // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
     // save may have landed — and never signals.
-    if (
-      outcome.kind !== "ok" &&
-      outcome.kind !== "already_registered" &&
-      outcome.kind !== "failed"
-    ) {
+    if (isDefinitiveRejection(outcome)) {
       const rpId = challenge.value.registrationOptions.rp.id;
       if (rpId) {
         signalUnknownCredential({ rpId, credentialId: passkeyRegistration.id });

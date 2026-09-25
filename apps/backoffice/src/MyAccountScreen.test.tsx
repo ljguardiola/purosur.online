@@ -402,6 +402,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 test.each([
   ["validation_failed", { kind: "validation_failed" }],
   ["unauthenticated", { kind: "unauthenticated" }],
+  ["authorization_required", { kind: "authorization_required" }],
 ] as const)(
   "signals the device to forget the credential it just created when registering itself answers %s",
   async (_, outcome) => {
@@ -427,6 +428,26 @@ test.each([
     });
   },
 );
+
+test("never signals the device when the registration options carry no rp id", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "ok",
+    value: { registrationOptions: { challenge: "reg", rp: {} } as never },
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "validation_failed" });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
+});
 
 test("never signals the device when the credential is already registered", async () => {
   const services = createServices();
