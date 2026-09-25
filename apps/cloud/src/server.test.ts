@@ -20,6 +20,7 @@ import {
 } from "./server.js";
 import {
   ARCA_CERTIFICATE_WITH_MALFORMED_SERIAL_NUMBER,
+  ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT,
   ARCA_CERTIFICATE_WITH_WRONG_CHECK_DIGIT,
   ARCA_CERTIFICATE_WITHOUT_SERIAL_NUMBER,
   VALID_ARCA_CERTIFICATE,
@@ -62,6 +63,12 @@ describe("requireAuthorizedCuit", () => {
     );
   });
 
+  it("finds the serialNumber inside a multi-valued subject RDN", () => {
+    expect(
+      requireAuthorizedCuit({ ARCA_CERTIFICATE: ARCA_CERTIFICATE_WITH_MULTI_VALUED_SUBJECT }),
+    ).toBe("20-12345678-6");
+  });
+
   it("throws when ARCA_CERTIFICATE is not set", () => {
     expect(() => requireAuthorizedCuit({})).toThrow(
       "ARCA_CERTIFICATE must be set once DATABASE_URL is configured",
@@ -71,6 +78,12 @@ describe("requireAuthorizedCuit", () => {
   it("throws when ARCA_CERTIFICATE is not a parseable certificate", () => {
     expect(() => requireAuthorizedCuit({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
       "ARCA_CERTIFICATE must be a valid X.509 certificate",
+    );
+  });
+
+  it("keeps the parser's reason as the cause of an unparseable certificate's error", () => {
+    expect(() => requireAuthorizedCuit({ ARCA_CERTIFICATE: "not a certificate" })).toThrow(
+      expect.objectContaining({ cause: expect.any(Error) }),
     );
   });
 

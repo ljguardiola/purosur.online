@@ -116,10 +116,16 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
 const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (\d{11})$/;
 const SERIAL_NUMBER_PREFIX = "serialNumber=";
 
+/**
+ * Node renders each RDN of the subject on its own line, joining the attributes of a
+ * multi-valued RDN with ` + ` (a literal `+` inside a value comes out escaped as `\+`).
+ */
 function extractSerialNumber(subject: string): string | undefined {
   for (const line of subject.split("\n")) {
-    if (line.startsWith(SERIAL_NUMBER_PREFIX)) {
-      return line.slice(SERIAL_NUMBER_PREFIX.length);
+    for (const attribute of line.split(" + ")) {
+      if (attribute.startsWith(SERIAL_NUMBER_PREFIX)) {
+        return attribute.slice(SERIAL_NUMBER_PREFIX.length);
+      }
     }
   }
   return undefined;
@@ -149,8 +155,8 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
   let certificate: X509Certificate;
   try {
     certificate = new X509Certificate(normalizePemNewlines(pem));
-  } catch {
-    throw new Error("ARCA_CERTIFICATE must be a valid X.509 certificate");
+  } catch (cause) {
+    throw new Error("ARCA_CERTIFICATE must be a valid X.509 certificate", { cause });
   }
   const serialNumber = extractSerialNumber(certificate.subject);
   if (!serialNumber) {
