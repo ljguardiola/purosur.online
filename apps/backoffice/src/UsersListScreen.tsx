@@ -9,7 +9,7 @@ import {
   TextField,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
+import { Eye, KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import type { BackofficeAccess } from "./access";
@@ -342,8 +342,9 @@ function NewUserModal({
 }
 
 /**
- * "Usuarios": the branch's backoffice users, listed with their role. Reserved to the
- * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change
+ * "Usuarios": the branch's backoffice users, listed with their role. Open to whoever
+ * `canSeeUsersArea` admits: the Administrator, who can also create users, or a role delegated
+ * `deactivate_users`, who can only open each user's detail. A `forbidden` read (a role change
  * mid-session) sends the browser to Mi cuenta instead of showing a notice.
  */
 export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
@@ -366,10 +367,16 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
 
   // Every role is offered here, not just the ones some existing user already holds, so a role
   // that was just created with nobody in it yet can still be picked right away. Users and roles
-  // load (and retry) together: the create action needs both.
+  // load (and retry) together: the create action needs both. Only the Administrator can create a
+  // user, and reading the roles is Administrator-only, so any other viewer loads the users alone.
+  const needsRoles = access.isAdministrator;
   const load = useCallback(async () => {
     setList({ kind: "loading" });
-    const [usersOutcome, rolesOutcome] = await Promise.all([fetchUsers(), fetchRoles()]);
+    const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
+    const [usersOutcome, rolesOutcome] = await Promise.all([
+      fetchUsers(),
+      needsRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
+    ]);
     const outcomes = [usersOutcome, rolesOutcome];
     if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
       onSessionEndedRef.current();
@@ -388,7 +395,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles]);
+  }, [fetchUsers, fetchRoles, needsRoles]);
 
   useEffect(() => {
     void load();
@@ -420,8 +427,10 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
       srLabel: usersMessages.rowActionsLabel,
       actions: [
         (item: BranchUser) => ({
-          icon: <Pencil />,
-          "aria-label": usersMessages.editAria({ name: item.firstName }),
+          icon: access.isAdministrator ? <Pencil /> : <Eye />,
+          "aria-label": access.isAdministrator
+            ? usersMessages.editAria({ name: item.firstName })
+            : usersMessages.viewAria({ name: item.firstName }),
           onPress: () => navigate(userDetailPath(item.id)),
         }),
       ],

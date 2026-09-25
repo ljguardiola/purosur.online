@@ -882,18 +882,8 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
       },
     ],
   });
-  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({
-    kind: "ok",
-    value: [
-      {
-        id: "role-shift",
-        isAdministrator: false,
-        name: "Atención de caja",
-        permissionKeys: [],
-        userCount: 1,
-      },
-    ],
-  });
+  // Reading the roles is Administrator-only on the cloud.
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -901,6 +891,8 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
   await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+  expect(services.usersListScreen.fetchRoles).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users");
   window.history.pushState(null, "", "/");
 });
 
@@ -925,10 +917,8 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       passkeyCount: 0,
     },
   });
-  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
+  // Reading a user's passkeys is Administrator-only on the cloud.
+  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users/user-3");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -938,6 +928,8 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
     .element(screen.getByRole("button", { name: "Desactivar a Tomás Ruiz" }))
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  expect(services.userDetailScreen.fetchUserPasskeys).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users/user-3");
   window.history.pushState(null, "", "/");
 });
 

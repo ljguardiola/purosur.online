@@ -591,7 +591,12 @@ test("has no accessibility violations once loaded, and with the create modal ope
 });
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
-  const services = createServices();
+  window.history.pushState(null, "", "/settings/users");
+  // The roles read is Administrator-only on the cloud: were the screen to ask for it, this
+  // viewer would be sent to Mi cuenta instead of seeing the list.
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, tomas] });
 
   const screen = await renderScreen(services, () => {}, {
@@ -601,10 +606,16 @@ test("hides Nuevo usuario for a non-Administrator holding only deactivate_users"
 
   await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+  expect(services.fetchRoles).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users");
+  window.history.pushState(null, "", "/");
 });
 
-test("still offers the row action to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
-  const services = createServices();
+test("offers a view action, not an edit one, to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
+  window.history.pushState(null, "", "/settings/users");
+  const services = createServices({
+    fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [tomas] });
 
   const screen = await renderScreen(services, () => {}, {
@@ -612,5 +623,8 @@ test("still offers the row action to reach a user's detail for a non-Administrat
     permissions: ["deactivate_users"],
   });
 
-  await expect.element(screen.getByRole("button", { name: "Editar a Tomás Ruiz" })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Ver a Tomás Ruiz" }));
+  expect(screen.getByRole("button", { name: "Editar a Tomás Ruiz" }).query()).toBeNull();
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/user-3");
+  window.history.pushState(null, "", "/");
 });

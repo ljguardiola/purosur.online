@@ -29,10 +29,10 @@ type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
  * Registers `POST /users/:id/deactivation`: lets a holder of `deactivate_users` (an Administrator
  * always holds it too) deactivate another branch user, gated by the shared passkey-authorization
  * window (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Checks the
- * target belongs to the session's own branch, is still active, and is not an Administrator before
- * doing anything else (identical 404 for a malformed, missing, other-branch, inactive, or
- * Administrator id — an Administrator is never deactivated through this permission, not even by
- * another Administrator). A successful deactivation ends every backoffice session already open on
+ * target belongs to the session's own branch, is still active, is not an Administrator, and is not
+ * the actor themselves before doing anything else (identical 404 for a malformed, missing,
+ * other-branch, inactive, Administrator, or own id — an Administrator is never deactivated through
+ * this permission, not even by another Administrator). A successful deactivation ends every backoffice session already open on
  * the target's account, the same way removing their last passkey would, and audits the target's id
  * alongside the actor who did it.
  */
@@ -55,13 +55,16 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
     return true;
   }
 
-  /** Folds a malformed id, and an Administrator target, into the same 404 a missing id gets. */
-  async function findTarget(locationId: string, targetId: string) {
+  /**
+   * Folds a malformed id, an Administrator target, and the actor's own account (a deactivation
+   * cannot be undone) into the same 404 a missing id gets.
+   */
+  async function findTarget(locationId: string, actorId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
     }
     const row = await findBranchUser(options.db, locationId, targetId);
-    if (!row || row.roleIsAdministrator) {
+    if (!row || row.roleIsAdministrator || row.id === actorId) {
       return undefined;
     }
     return row;
@@ -77,7 +80,11 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       const attemptedAt = now();
       const openSession = openSessionOf(request);
 
-      const target = await findTarget(openSession.locationId, request.params.id);
+      const target = await findTarget(
+        openSession.locationId,
+        openSession.userId,
+        request.params.id,
+      );
       if (!target) {
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
         return;

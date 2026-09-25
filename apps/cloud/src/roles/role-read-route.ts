@@ -45,7 +45,9 @@ export async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
     .select({ count: sql<number>`count(*)::int` })
     .from(userRoles)
     .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`);
+    .where(
+      sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId} and ${users.active}`,
+    );
   return row?.count ?? 0;
 }
 

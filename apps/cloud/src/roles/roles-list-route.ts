@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
@@ -77,7 +77,7 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
     .select({ roleId: userRoles.roleId, count: sql<number>`count(*)::int` })
     .from(userRoles)
     .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(eq(users.locationId, locationId))
+    .where(and(eq(users.locationId, locationId), eq(users.active, true)))
     .groupBy(userRoles.roleId);
   const userCountByRole = new Map(userCountRows.map((row) => [row.roleId, row.count]));
 

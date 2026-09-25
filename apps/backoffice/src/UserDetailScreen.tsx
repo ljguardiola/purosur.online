@@ -677,8 +677,9 @@ function DeactivateUserModal({
  * "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email
  * edit, passkey removal, and deactivation. Every action here is gated by `access`: an Administrator
  * can do everything; a role delegated only `deactivate_users` can reach this screen but sees just
- * the Desactivar row (never against another Administrator). A `forbidden` read (a role change
- * mid-session) sends the browser to Mi cuenta instead of showing a notice.
+ * Datos and the Desactivar row (never against another Administrator, nor on their own account).
+ * A `forbidden` read (a role change mid-session) sends the browser to Mi cuenta instead of showing
+ * a notice.
  */
 export function UserDetailScreen({
   userId,
@@ -727,12 +728,16 @@ export function UserDetailScreen({
     }
   }, [userId, endSession, fetchUserPasskeys]);
 
+  // Passkey management is Administrator-only, and so is reading a user's passkeys on the cloud.
+  const showsPasskeys = access.isAdministrator;
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     const outcome = await fetchUser(userId);
     if (outcome.kind === "ok") {
       setState({ kind: "loaded", user: outcome.value });
-      void loadPasskeys();
+      if (showsPasskeys) {
+        void loadPasskeys();
+      }
     } else if (outcome.kind === "not_found") {
       setState({ kind: "notFound" });
     } else if (outcome.kind === "unauthenticated") {
@@ -744,7 +749,7 @@ export function UserDetailScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [userId, endSession, fetchUser, loadPasskeys]);
+  }, [userId, endSession, fetchUser, loadPasskeys, showsPasskeys]);
 
   useEffect(() => {
     void load();
@@ -836,7 +841,7 @@ export function UserDetailScreen({
             </div>
           </div>
         )}
-        {state.kind === "loaded" && (
+        {state.kind === "loaded" && showsPasskeys && (
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
             <div className="flex items-center gap-3">
               <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
@@ -906,7 +911,7 @@ export function UserDetailScreen({
               ))}
           </div>
         )}
-        {state.kind === "loaded" && canDeactivateUser(access, state.user.role) && (
+        {state.kind === "loaded" && canDeactivateUser(access, state.user.role) && !isOwnAccount && (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-ink-secondary text-sm">
               {detailMessages.deactivateHelp({ name: state.user.firstName })}

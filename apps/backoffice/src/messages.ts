@@ -318,6 +318,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar a ${params.name}`,
+      viewAria: (params: { name: string }) => `Ver a ${params.name}`,
       newUserModal: {
         eyebrow: USERS_EYEBROW,
         heading: "Nuevo usuario",

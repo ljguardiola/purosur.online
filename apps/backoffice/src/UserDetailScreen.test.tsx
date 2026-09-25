@@ -991,13 +991,14 @@ const adminTarget: BranchUser = {
   passkeyCount: 1,
 };
 
-test("hides Editar and every passkey remove button for a non-Administrator", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [notebook, phone],
+test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  // The passkeys read is Administrator-only on the cloud: were the screen to ask for it, this
+  // viewer would be sent to Mi cuenta instead of staying on the user.
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
 
   const screen = await renderScreen(
     services,
@@ -1007,11 +1008,12 @@ test("hides Editar and every passkey remove button for a non-Administrator", asy
     DEACTIVATE_USERS_ACCESS,
   );
 
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Desactivar a Lucía" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  expect(
-    screen.getByRole("button", { name: `Dar de baja la passkey «${notebook.name}»` }).query(),
-  ).toBeNull();
+  expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
+  expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users/user-1");
+  window.history.pushState(null, "", "/");
 });
 
 test("shows the Desactivar row for an Administrator viewer against a non-Administrator target", async () => {
@@ -1030,9 +1032,13 @@ test("shows the Desactivar row for an Administrator viewer against a non-Adminis
     .toBeVisible();
 });
 
-test("shows the Desactivar row for a non-Administrator holding deactivate_users", async () => {
-  const services = createServices();
+test("lets a non-Administrator holding deactivate_users deactivate the user, back to Usuarios on success", async () => {
+  window.history.pushState(null, "", "/settings/users/user-1");
+  const services = createServices({
+    fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+  vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "ok" });
 
   const screen = await renderScreen(
     services,
@@ -1041,8 +1047,34 @@ test("shows the Desactivar row for a non-Administrator holding deactivate_users"
     "user-2",
     DEACTIVATE_USERS_ACCESS,
   );
+  const dialog = await openDeactivateModal(screen);
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  await expect.element(screen.getByRole("button", { name: "Desactivar a Lucía" })).toBeVisible();
+  await expect.poll(() => vi.mocked(services.deactivateUser).mock.calls.length).toBe(1);
+  expect(services.deactivateUser).toHaveBeenCalledWith("user-1");
+  await expect.poll(() => window.location.pathname).toBe("/settings/users");
+  expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
+  window.history.pushState(null, "", "/");
+});
+
+test("hides the Desactivar row on the viewer's own account, even when its id arrives in another case", async () => {
+  const signedInUserId = "3f2b8c1e-9d4a-4e6b-8a7c-1b2d3e4f5a6b";
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...lucia, id: signedInUserId },
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    signedInUserId.toUpperCase(),
+    signedInUserId,
+    DEACTIVATE_USERS_ACCESS,
+  );
+
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Desactivar a Lucía" }).query()).toBeNull();
 });
 
 test("hides the Desactivar row for a non-Administrator without deactivate_users", async () => {

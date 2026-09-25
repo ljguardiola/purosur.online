@@ -236,6 +236,31 @@ describe("POST /users/:id/deactivation", () => {
     expect(row?.active).toBe(true);
   });
 
+  it("answers the same 404 for the holder's own account as for a missing one, in any letter case, leaving them active", async () => {
+    const holderRoleId = await insertRole("Encargada", ["deactivate_users"]);
+    const holderId = await insertUser({
+      firstName: "Barbara Liskov",
+      email: "barbara@example.com",
+      roleId: holderRoleId,
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(holderId);
+
+    const ownResponse = await deactivateUser(holderId, rawSessionId);
+    const ownUpperCaseResponse = await deactivateUser(holderId.toUpperCase(), rawSessionId);
+    const missingResponse = await deactivateUser(
+      "00000000-0000-0000-0000-000000000000",
+      rawSessionId,
+    );
+
+    expect(ownResponse.statusCode).toBe(404);
+    expect(ownUpperCaseResponse.statusCode).toBe(404);
+    expect(ownResponse.json()).toEqual(missingResponse.json());
+    expect(ownUpperCaseResponse.json()).toEqual(missingResponse.json());
+    const [row] = await db.select().from(users).where(eq(users.id, holderId));
+    expect(row?.active).toBe(true);
+  });
+
   it("deactivates a non-admin target, bumps its version, ends every open session of the target, leaves the actor's own session untouched, and audits the actor", async () => {
     const targetSession1 = await insertSession(targetId);
     const targetSession2 = await insertSession(targetId);
