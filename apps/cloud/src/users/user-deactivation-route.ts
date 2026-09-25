@@ -32,9 +32,9 @@ type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
  * target belongs to the session's own branch, is still active, is not an Administrator, and is not
  * the actor themselves before doing anything else (identical 404 for a malformed, missing,
  * other-branch, inactive, Administrator, or own id — an Administrator is never deactivated through
- * this permission, not even by another Administrator). A successful deactivation ends every backoffice session already open on
- * the target's account, the same way removing their last passkey would, and audits the target's id
- * alongside the actor who did it.
+ * this permission, not even by another Administrator). A successful deactivation ends every
+ * backoffice session already open on the target's account, the same way removing their last passkey
+ * would, and audits the target's id alongside the actor who did it.
  */
 export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
