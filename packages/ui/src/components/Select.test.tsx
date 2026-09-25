@@ -361,3 +361,58 @@ test("does not accept an invalid select without an error message", () => {
     invalid: true;
   }>().not.toExtend<SelectProps<Role>>();
 });
+
+test("accepts a null value for no selection yet", () => {
+  expectTypeOf<{
+    label: string;
+    options: typeof options;
+    value: null;
+    onChange: (value: Role) => void;
+  }>().toExtend<SelectProps<Role>>();
+});
+
+test("shows the caller's placeholder as the trigger's value, styled as inert placeholder text, when nothing is chosen", async () => {
+  const screen = await render(
+    <Select {...baseProps({ value: null, placeholder: "Elegí un rol" })} />,
+  );
+  const trigger = screen.getByRole("button", { name: "Elegí un rol Rol" }).element() as HTMLElement;
+
+  await expect.element(screen.getByRole("button", { name: "Elegí un rol Rol" })).toBeVisible();
+  const valueEl = trigger.querySelector("[data-placeholder]") as HTMLElement;
+  expect(valueEl).not.toBeNull();
+  expect(getComputedStyle(valueEl).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not call onChange or select anything on its own when the value starts out null", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <Select {...baseProps({ value: null, placeholder: "Elegí un rol", onChange })} />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Elegí un rol Rol" })).toBeVisible();
+  expect(onChange).not.toHaveBeenCalled();
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the error message and closes-with-choice still works when the value starts out null", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <Select
+      {...baseProps({ value: null, placeholder: "Elegí un rol", onChange })}
+      invalid
+      errorMessage="Elegí un rol."
+    />,
+  );
+
+  expect(screen.getByText("Elegí un rol.").element()).toBeTruthy();
+
+  await screen.getByRole("button", { name: /Rol/ }).click();
+  await screen.getByRole("option", { name: "Atención de caja" }).click();
+
+  expect(onChange).toHaveBeenCalledWith("cashier");
+
+  await expectNoAccessibilityViolations(screen.container);
+});

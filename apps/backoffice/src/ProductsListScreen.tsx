@@ -178,7 +178,7 @@ function BarcodeChips({
   );
 }
 
-type ProductFieldErrors = { name?: string; category?: string; barcodes?: string };
+type ProductFieldErrors = { name?: string; category?: string; unit?: string; barcodes?: string };
 type ProductFieldErrorKey = keyof ProductFieldErrors;
 
 // Deletes the key rather than setting it to `undefined`, since `exactOptionalPropertyTypes`
@@ -197,11 +197,13 @@ function withFieldError(
 function productFieldErrors(
   name: string | undefined,
   category: string | undefined,
+  unit: string | undefined,
   barcodes: string | undefined,
 ): ProductFieldErrors {
   let next: ProductFieldErrors = {};
   next = withFieldError(next, "name", name);
   next = withFieldError(next, "category", category);
+  next = withFieldError(next, "unit", unit);
   next = withFieldError(next, "barcodes", barcodes);
   return next;
 }
@@ -264,11 +266,13 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
-  const categoriesRef = useRef(categories);
-  categoriesRef.current = categories;
+  // Neither starts pre-chosen: defaulting to the first category or a fixed unit would let someone
+  // save a product in a category or unit nobody actually picked, which is exactly what the
+  // "neither can be left out" rule guards against (a KG product silently saved as UNIT, or filed
+  // under the wrong category, breaks pricing and category promotions).
   const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [saleUnit, setSaleUnit] = useState<ProductSaleUnit>("UNIT");
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
   const chips = useBarcodeChips([]);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
@@ -279,8 +283,8 @@ function NewProductModal({
   useEffect(() => {
     if (isOpen) {
       setName("");
-      setCategoryId(categoriesRef.current[0]?.id ?? "");
-      setSaleUnit("UNIT");
+      setCategoryId(null);
+      setSaleUnit(null);
       chips.reset([]);
       setErrors({});
       setNotice(null);
@@ -293,9 +297,10 @@ function NewProductModal({
   async function handleSubmit() {
     const nameError = productNameError(name, modalMessages);
     const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
+    const unitError = saleUnit ? undefined : modalMessages.unitRequired;
     const barcodesError = chips.barcodes.length > 0 ? undefined : modalMessages.barcodeRequired;
-    setErrors(productFieldErrors(nameError, categoryError, barcodesError));
-    if (nameError || categoryError || barcodesError) {
+    setErrors(productFieldErrors(nameError, categoryError, unitError, barcodesError));
+    if (!categoryId || !saleUnit || nameError || barcodesError) {
       return;
     }
     setNotice(null);
@@ -325,6 +330,8 @@ function NewProductModal({
         setErrors((current) => withFieldError(current, "name", modalMessages.nameRequired));
       } else if (outcome.field === "categoryId") {
         setErrors((current) => withFieldError(current, "category", modalMessages.categoryRequired));
+      } else if (outcome.field === "saleUnit") {
+        setErrors((current) => withFieldError(current, "unit", modalMessages.unitRequired));
       } else if (outcome.field === "barcodes") {
         setErrors((current) => withFieldError(current, "barcodes", modalMessages.barcodeRequired));
       } else {
@@ -426,6 +433,7 @@ function NewProductModal({
         {categoryOptions ? (
           <Select
             label={modalMessages.categoryLabel}
+            placeholder={modalMessages.categoryPlaceholder}
             options={categoryOptions}
             value={categoryId}
             onChange={(value) => {
@@ -462,7 +470,11 @@ function NewProductModal({
               },
             ]}
             value={saleUnit}
-            onChange={setSaleUnit}
+            onChange={(value) => {
+              setSaleUnit(value);
+              setErrors((current) => withFieldError(current, "unit", undefined));
+            }}
+            {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
         </div>
         <BarcodeChips
@@ -551,7 +563,9 @@ function EditProductModal({
     const nameError = productNameError(name, modalMessages);
     const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
     const barcodesError = chips.barcodes.length > 0 ? undefined : modalMessages.barcodeRequired;
-    setErrors(productFieldErrors(nameError, categoryError, barcodesError));
+    // Category and sale unit are already the product's own current values here (never chosen
+    // through this modal for the first time), so unlike NewProductModal, `unit` is never invalid.
+    setErrors(productFieldErrors(nameError, categoryError, undefined, barcodesError));
     if (nameError || categoryError || barcodesError) {
       return;
     }

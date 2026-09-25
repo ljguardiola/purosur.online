@@ -238,6 +238,8 @@ test("creates a product and shows it in the list", async () => {
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
   await userEvent.click(radioLabel(dialog, "Por peso"));
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),
@@ -259,14 +261,66 @@ test("creates a product and shows it in the list", async () => {
   await expect.element(screen.getByText("Pasta de maní 380 g")).toBeVisible();
 });
 
-test("rejects creating a product without a category when none exist, without calling the API", async () => {
+test("opens the create modal with neither a category nor a sale unit pre-chosen", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+
+  await expect.element(dialog.getByRole("button", { name: /^Elegí una categoría/ })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).not.toBeChecked();
+  await expect.element(dialog.getByRole("radio", { name: "Por peso" })).not.toBeChecked();
+});
+
+test("rejects creating a product without choosing a category, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Elegí una categoría.")).toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("rejects creating a product without choosing a sale unit, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Elegí la unidad de venta.")).toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("shows no category selector when there are no categories yet, and still blocks creating without one", async () => {
   const services = createServices();
   mockLoaded(services, [], []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
+  expect(dialog.getByRole("button", { name: /Categoría/ }).query()).toBeNull();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
   await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
   await userEvent.keyboard("{Enter}");
 
@@ -284,6 +338,9 @@ test("rejects creating a product without a barcode, without calling the API", as
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
@@ -303,6 +360,9 @@ test("shows the barcode-taken error on create and does not add the product to th
 
   const dialog = await openNewProductModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),
     "7790000000099",
