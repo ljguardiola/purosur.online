@@ -258,6 +258,26 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
 });
 
+test("behaves exactly like any other rejected attempt when the credential is already registered", async () => {
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "already_registered" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegistrationOptions).mock.calls.length).toBe(2);
+});
+
 test("retries with fresh options after another tab replaced this link's challenge", async () => {
   const staleOptions = { challenge: "from-this-tab", rp: { id: "purosur.online" } } as never;
   const freshOptions = { challenge: "fetched-again", rp: { id: "purosur.online" } } as never;

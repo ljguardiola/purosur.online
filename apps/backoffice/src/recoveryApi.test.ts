@@ -154,6 +154,7 @@ test.each([
   [410, "recovery_token_burned", "burned"],
   [410, "recovery_token_expired", "expired"],
   [400, "validation_failed", "validation_failed"],
+  [400, "passkey_already_registered", "already_registered"],
 ])(
   "redeemRecovery maps status %d code %s to %s, discriminating by code",
   async (status, code, kind) => {

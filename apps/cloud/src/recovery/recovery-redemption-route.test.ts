@@ -751,7 +751,7 @@ describe("recovery redemption for a deactivated account", () => {
 });
 
 describe("recovery redemption with a credential that is already registered", () => {
-  it("rejects it as validation_failed without burning the token", async () => {
+  it("rejects it as passkey_already_registered without burning the token", async () => {
     const rawToken = await issueToken();
     const options = await getRegistrationOptions(rawToken);
     const credential = new WebAuthnEmulator().createJSON(BACKOFFICE_ORIGIN, options);
@@ -764,7 +764,7 @@ describe("recovery redemption with a credential that is already registered", () 
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    expect(response.json()).toMatchObject({ code: "passkey_already_registered" });
     expect(await tokenUsedAt(rawToken)).toBeNull();
   });
 });
@@ -852,7 +852,7 @@ describe("auditing rejected recovery redemptions", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       actorId: userId,
-      newValue: { attempt: "redeem", rejectedWith: "validation_failed" },
+      newValue: { attempt: "redeem", rejectedWith: "passkey_already_registered" },
     });
   });
 

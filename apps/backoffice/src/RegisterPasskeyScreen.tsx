@@ -194,7 +194,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
       setPhase({ kind: outcome.kind });
     } else if (outcome.kind === "rate_limited") {
       setPhase({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
-    } else if (outcome.kind === "validation_failed") {
+    } else if (outcome.kind === "validation_failed" || outcome.kind === "already_registered") {
       await refreshAfterRejectedAttempt(token, readyPhase);
     } else {
       setPhase({ ...readyPhase, attemptFailed: true, submitting: false });

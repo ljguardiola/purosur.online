@@ -233,8 +233,10 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         });
 
       if (!inserted) {
+        // A distinct code from every other rejection this route sends: the device already
+        // created a credential the cloud does know, so it must never be asked to forget it.
         await reply.code(400).send({
-          code: "validation_failed",
+          code: "passkey_already_registered",
           message: "this passkey is already registered",
           details: [{ field: "passkey_registration" }],
         });

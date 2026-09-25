@@ -40,6 +40,7 @@ type GatedActionErrorOutcome =
 export type RegisterPasskeyOutcome =
   | { kind: "ok"; value: Passkey }
   | { kind: "validation_failed" }
+  | { kind: "already_registered" }
   | GatedActionErrorOutcome;
 
 export type RemovePasskeyOutcome = { kind: "ok" } | { kind: "not_found" } | GatedActionErrorOutcome;
@@ -154,7 +155,10 @@ export async function registerPasskey(
     return { kind: "ok", value: passkeyFromRow(body) };
   }
   if (response.status === 400) {
-    return { kind: "validation_failed" };
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "passkey_already_registered"
+      ? { kind: "already_registered" }
+      : { kind: "validation_failed" };
   }
   return gatedActionErrorOutcome(response);
 }
