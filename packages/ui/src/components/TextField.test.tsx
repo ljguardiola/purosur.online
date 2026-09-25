@@ -97,7 +97,7 @@ type KindCase = {
   label: string;
   height: number;
   paddingX: number;
-  gap: number | null;
+  gap: number;
   valueAlign: "left" | "right";
   valueFontSize: number;
   affix?: { position: "prefix" | "suffix"; content: string; fontSize: number };
@@ -159,7 +159,7 @@ const kindCases: KindCase[] = [
     label: "Reason",
     height: 52,
     paddingX: 16,
-    gap: null,
+    gap: 8,
     valueAlign: "left",
     valueFontSize: 16,
   },
@@ -192,9 +192,7 @@ for (const kindCase of kindCases) {
     expect(rect.height).toBeCloseTo(kindCase.height, 0);
     expect(Math.round(Number.parseFloat(boxStyle.paddingLeft))).toBe(kindCase.paddingX);
     expect(Math.round(Number.parseFloat(boxStyle.paddingRight))).toBe(kindCase.paddingX);
-    if (kindCase.gap !== null) {
-      expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(kindCase.gap);
-    }
+    expect(Math.round(Number.parseFloat(boxStyle.columnGap))).toBe(kindCase.gap);
     expect(inputStyle.textAlign).toBe(kindCase.valueAlign);
     expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(kindCase.valueFontSize);
     expect(inputStyle.color).toBe(tokenRgb("ink"));
@@ -639,6 +637,26 @@ test("wires the money prefix into the input's own description for assistive tech
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders an optional suffix on the plain text kind at its own text-base scale, exposed in its description", async () => {
+  const screen = await render(
+    <TextField kind="plain-text" label="Plazo" value="30" onChange={() => {}} suffix="días" />,
+  );
+  const box = fieldBox(screen, "Plazo");
+  const input = fieldInput(screen, "Plazo");
+  const suffixElement = screen.getByText("días").element() as HTMLElement;
+  const suffixStyle = getComputedStyle(suffixElement);
+
+  expect(box.getBoundingClientRect().height).toBeCloseTo(52, 0);
+  expect(getComputedStyle(input).textAlign).toBe("right");
+  expect(Math.round(Number.parseFloat(getComputedStyle(box).columnGap))).toBe(8);
+  expect(Math.round(Number.parseFloat(suffixStyle.fontSize))).toBe(16);
+  expect(suffixStyle.color).toBe(tokenRgb("ink-secondary"));
+  expect(suffixElement.getAttribute("aria-hidden")).toBe("true");
+  expect(describedText(input)).toContain("días");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("wires the kg suffix into the input's own description for assistive technology", async () => {
   const screen = await render(
     <TextField kind="weight" label="Weight in kilos" value="" onChange={() => {}} suffix="kg" />,
@@ -823,14 +841,14 @@ test("does not accept a prefix on the plain text kind", () => {
   }>().not.toExtend<TextFieldProps>();
 });
 
-test("does not accept a suffix on the plain text kind", () => {
+test("accepts an optional suffix on the plain text kind", () => {
   expectTypeOf<{
     kind: "plain-text";
     label: string;
     value: string;
     onChange: (value: string) => void;
     suffix: string;
-  }>().not.toExtend<TextFieldProps>();
+  }>().toExtend<TextFieldProps>();
 });
 
 test("accepts each kind with exactly the affix it calls for", () => {

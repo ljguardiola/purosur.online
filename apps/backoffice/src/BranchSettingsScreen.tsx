@@ -1,6 +1,6 @@
 import { Button, Checkbox, InlineNotice, TextField } from "@purosur/ui";
 import { Check, RotateCcw, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { BranchSettings, BranchSettingsField, BranchSettingsHours } from "./branchSettingsApi";
 import { fetchBranchSettings, saveBranchSettings } from "./branchSettingsApi";
 import { messages } from "./messages";
@@ -249,6 +249,12 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     sunday: sundayHeadingId,
   };
 
+  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
+  // (each session-activity touch re-renders it), which would otherwise reload the settings and
+  // discard whatever was typed and not yet saved.
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
+
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     const outcome = await fetchBranchSettings();
@@ -259,13 +265,13 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       setNotice(null);
       setState({ kind: "loaded" });
     } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+      onSessionEndedRef.current();
     } else if (outcome.kind === "forbidden") {
       sendToMyAccount();
     } else {
       setState({ kind: "loadError" });
     }
-  }, [fetchBranchSettings, onSessionEnded]);
+  }, [fetchBranchSettings]);
 
   useEffect(() => {
     void load();
@@ -398,7 +404,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     return (
       <div className="min-w-0 flex-1">
         <TextField
-          kind="quantity"
+          kind="plain-text"
           label={label}
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
