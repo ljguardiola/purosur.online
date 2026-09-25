@@ -374,7 +374,7 @@ test("marks both times of a group when neither is a valid time", async () => {
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
-test("rejects a days value above 2147483647 with the days error inline, without saving", async () => {
+test("rejects a days value above 2147483647 with an error that asks for a smaller number, without saving", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
@@ -388,7 +388,7 @@ test("rejects a days value above 2147483647 with the days error inline, without 
   await expect
     .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
     .toHaveAttribute("aria-invalid", "true");
-  await expect.element(screen.getByText("Ingresá un número entero de 0 días o más.")).toBeVisible();
+  await expect.element(screen.getByText("Ingresá un número de días más chico.")).toBeVisible();
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 

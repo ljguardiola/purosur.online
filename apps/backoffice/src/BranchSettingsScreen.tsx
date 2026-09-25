@@ -124,8 +124,10 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
   ];
   for (const field of daysFields) {
     const parsed = parseDays(values[field]);
-    if (parsed === undefined || parsed > DAYS_MAX) {
+    if (parsed === undefined) {
       errors[field] = branchMessages.daysFieldError;
+    } else if (parsed > DAYS_MAX) {
+      errors[field] = branchMessages.daysTooLargeError;
     }
   }
   return errors;
