@@ -20,6 +20,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchAuthenticationOptions: vi.fn(),
       authenticate: vi.fn(),
       startAuthentication: vi.fn(),
+      signalUnknownCredential: vi.fn(),
     },
     accountRecoveryScreen: { requestRecoveryLink: vi.fn() },
     registerPasskeyScreen: {
