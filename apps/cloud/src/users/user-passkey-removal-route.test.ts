@@ -310,6 +310,23 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     expect(rows).toHaveLength(2);
   });
 
+  it("answers the same 404 for a deactivated target as for a missing one, deleting nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    await db.update(users).set({ active: false }).where(eq(users.id, targetId));
+
+    const deactivatedResponse = await removePasskey(targetId, targetPasskeyAId, rawSessionId);
+    const missingResponse = await removePasskey(
+      "00000000-0000-0000-0000-000000000000",
+      targetPasskeyAId,
+      rawSessionId,
+    );
+
+    expect(deactivatedResponse.statusCode).toBe(404);
+    expect(deactivatedResponse.json()).toEqual(missingResponse.json());
+    const rows = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
+    expect(rows).toHaveLength(2);
+  });
+
   it("rejects the session's own user as the target with 403 own_account, changing nothing", async () => {
     // Registered before the session: redeeming a recovery link (how `registerPasskey` seeds a real
     // credential) ends every session already open on the account.

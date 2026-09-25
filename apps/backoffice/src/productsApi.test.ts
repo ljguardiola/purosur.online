@@ -5,6 +5,7 @@ import {
   fetchProducts,
   generateInternalBarcode,
   type ProductSummary,
+  printLabels,
 } from "./productsApi";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
@@ -258,4 +259,77 @@ test("generateInternalBarcode returns failed when the request throws", async () 
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await generateInternalBarcode()).toEqual({ kind: "failed" });
+});
+
+const labelRequest = [{ productId: "product-1", count: 3 }];
+
+test("printLabels posts the requested labels and returns the pdf blob on 200", async () => {
+  const pdf = new Blob(["%PDF-1.4"], { type: "application/pdf" });
+  vi.mocked(fetch).mockResolvedValue(new Response(pdf, { status: 200 }));
+
+  const outcome = await printLabels(labelRequest);
+
+  expect(outcome.kind).toBe("ok");
+  expect(outcome.kind === "ok" && outcome.blob).toBeInstanceOf(Blob);
+  expect(fetch).toHaveBeenCalledWith("/products/labels", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ labels: labelRequest }),
+  });
+});
+
+test("printLabels returns product_not_found on a 400 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "product_not_found", message: "no product", productId: "product-1" }),
+  );
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "product_not_found" });
+});
+
+test("printLabels returns product_without_internal_barcode on a 400 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "product_without_internal_barcode",
+      message: "no internal barcode",
+      productId: "product-1",
+    }),
+  );
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "product_without_internal_barcode" });
+});
+
+test("printLabels returns failed on a 400 with an unrecognized code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "validation_failed",
+      message: "invalid",
+      details: [{ field: "labels" }],
+    }),
+  );
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+test("printLabels returns unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "unauthenticated" });
+});
+
+test("printLabels returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "forbidden" });
+});
+
+test("printLabels returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "50" }));
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "rate_limited", retryAfterSeconds: 50 });
+});
+
+test("printLabels returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
 });

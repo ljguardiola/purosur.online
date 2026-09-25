@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product";
@@ -20,6 +22,18 @@ describe("productNameLength", () => {
   it("counts each emoji as one character", () => {
     expect(productNameLength("🌱".repeat(3))).toBe(3);
     expect(productNameLength("Café 🌱")).toBe(6);
+  });
+});
+
+describe("LABELS_MAX_COUNT_PER_PRODUCT", () => {
+  it("allows up to 999 labels of one product in a single sheet request", () => {
+    expect(LABELS_MAX_COUNT_PER_PRODUCT).toBe(999);
+  });
+});
+
+describe("LABELS_MAX_TOTAL_COUNT", () => {
+  it("allows up to 2400 labels, 100 sheets of 24, in a single sheet request", () => {
+    expect(LABELS_MAX_TOTAL_COUNT).toBe(2400);
   });
 });
 

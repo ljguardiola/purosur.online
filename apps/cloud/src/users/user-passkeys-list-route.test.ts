@@ -215,6 +215,34 @@ describe("GET /users/:id/passkeys", () => {
     expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
+  it("answers the same 404 for a deactivated target as for a missing one", async () => {
+    const locationId = await seededLocationId(db);
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const targetId = await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: await insertCashierRole("Cajera"),
+      locationId,
+    });
+    await insertPasskey({ forUserId: targetId, name: "Notebook", createdAt: NOON });
+    await db.update(users).set({ active: false }).where(eq(users.id, targetId));
+
+    const deactivatedResponse = await getUserPasskeys(targetId, rawSessionId);
+    const missingResponse = await getUserPasskeys(
+      "00000000-0000-0000-0000-000000000000",
+      rawSessionId,
+    );
+
+    expect(deactivatedResponse.statusCode).toBe(404);
+    expect(deactivatedResponse.json()).toEqual(missingResponse.json());
+  });
+
   it("rejects an Origin that is not the backoffice's own", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({

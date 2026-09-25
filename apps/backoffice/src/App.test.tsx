@@ -70,12 +70,14 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       editProduct: vi.fn(),
       fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
       generateInternalBarcode: vi.fn(),
+      printLabels: vi.fn(),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       changeUserEmail: vi.fn(),
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
+      deactivateUser: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
@@ -83,6 +85,13 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
     branchSettingsScreen: {
       fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
       saveBranchSettings: vi.fn(),
+    },
+    fiscalConfigurationScreen: {
+      fetchIssuerIdentification: vi.fn().mockReturnValue(new Promise(() => {})),
+      saveIssuerIdentification: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     ...overrides,
@@ -869,6 +878,80 @@ test("shows Mi cuenta's own sidebar entry instead of Usuarios for a non-Administ
   expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
 });
 
+test("lets a non-Administrator holding deactivate_users open Usuarios, without Nuevo usuario", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["deactivate_users"],
+    }),
+  });
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: "user-3",
+        firstName: "Tomás Ruiz",
+        email: "tomas@example.com",
+        version: 1,
+        role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+        passkeyCount: 0,
+      },
+    ],
+  });
+  // Reading the roles is Administrator-only on the cloud.
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "forbidden" });
+  window.history.pushState(null, "", "/settings/users");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
+  expect(services.usersListScreen.fetchRoles).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users");
+  window.history.pushState(null, "", "/");
+});
+
+test("opens a user's detail for a non-Administrator holding deactivate_users, offering only Desactivar", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["deactivate_users"],
+    }),
+  });
+  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: {
+      id: "user-3",
+      firstName: "Tomás Ruiz",
+      email: "tomas@example.com",
+      version: 1,
+      role: { id: "role-shift", isAdministrator: false, name: "Atención de caja" },
+      passkeyCount: 0,
+    },
+  });
+  // Reading a user's passkeys is Administrator-only on the cloud.
+  vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
+  window.history.pushState(null, "", "/settings/users/user-3");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Tomás Ruiz", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Desactivar a Tomás Ruiz" }))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  expect(services.userDetailScreen.fetchUserPasskeys).not.toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/settings/users/user-3");
+  window.history.pushState(null, "", "/");
+});
+
 test.each([
   {
     path: "/settings/users/user-3",
@@ -1164,4 +1247,138 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/users/me");
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
+});
+
+test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Configuración fiscal", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["change_fiscal_configuration"],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+});
+
+test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Caja" }).query()).toBeNull();
+});
+
+test.each([
+  "/help",
+  "/settings/users",
+  "/catalog/products",
+  "/cash-and-fiscal/fiscal-configuration",
+])("lists Catálogo, then Caja, then Config in the rail on %s", async (path) => {
+  window.history.pushState(null, "", path);
+  const services = createServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: {
+      legalName: "María Laura Fernández",
+      grossIncomeRegistration: "1284531-06",
+      activityStartDate: "2019-03-01",
+      authorizedCuit: "27-28453196-0",
+      taxStatus: "Responsable Monotributo",
+      version: 1,
+    },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const rail = screen.getByRole("navigation", { name: "Áreas" });
+  await expect.element(rail.getByRole("link", { name: "Caja" })).toBeVisible();
+  const labels = rail
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja"));
+  expect(labels.indexOf("Caja")).toBeLessThan(labels.indexOf("Config"));
+});
+
+test("following the rail's Caja item opens Configuración fiscal, with Caja and Configuración fiscal active", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["change_fiscal_configuration"],
+    }),
+  });
+  vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: {
+      legalName: null,
+      grossIncomeRegistration: null,
+      activityStartDate: null,
+      authorizedCuit: "27-28453196-0",
+      taxStatus: "Responsable Monotributo",
+      version: 1,
+    },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración fiscal", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/cash-and-fiscal/fiscal-configuration");
+  const cashItem = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  expect(cashItem.getAttribute("aria-current")).toBe("page");
+  const sectionItem = screen
+    .getByRole("link", { name: "Configuración fiscal" })
+    .element() as HTMLAnchorElement;
+  expect(sectionItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a non-permitted user's typed /cash-and-fiscal/fiscal-configuration to Mi cuenta, without loading it", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/cash-and-fiscal/fiscal-configuration");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.fiscalConfigurationScreen.fetchIssuerIdentification).not.toHaveBeenCalled();
 });

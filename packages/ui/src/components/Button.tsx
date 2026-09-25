@@ -39,13 +39,13 @@ type ButtonCommonProps = Omit<AriaButtonProps, "className" | "children"> & {
 };
 
 // Each variant admits only the combinations the design draws for it, so asking for one it has no
-// drawing for fails to compile instead of being silently ignored: there is no destructive
-// secondary button; the text variant exists in no other tone, at no other size, and always with
-// the same "x", so it carries that icon itself rather than taking one from the caller.
+// drawing for fails to compile instead of being silently ignored: the text variant exists in no
+// other tone, at no other size, and always with the same "x", so it carries that icon itself
+// rather than taking one from the caller.
 export type ButtonProps = ButtonCommonProps &
   (
     | { variant?: "primary"; tone?: ButtonTone; size?: ButtonSize; icon?: ButtonIcon }
-    | { variant: "secondary"; tone?: undefined; size?: ButtonSize; icon?: ButtonIcon }
+    | { variant: "secondary"; tone?: ButtonTone; size?: ButtonSize; icon?: ButtonIcon }
     | { variant: "text"; tone: "destructive"; size?: ButtonTextSize; icon?: undefined }
   );
 
@@ -101,17 +101,25 @@ const defaultSize: { primary: ButtonSize; secondary: ButtonSize; text: ButtonTex
   text: "small",
 };
 
-// Only the primary variant carries a tone: the secondary button has no destructive rendering,
-// and the text variant is destructive by definition, carrying its color in its own classes.
+// The primary variant fills its whole background with its tone, so its hover state darkens that
+// fill (bg-brand-blue-strong / bg-status-error-strong). The secondary variant paints no
+// background of its own at rest, so its tone instead colors its border and text, the same way the
+// text variant's destructive tone colors its label and icon; both keep the same bone hover
+// background as the secondary's default tone (see variantClassName below) rather than switching
+// to a tone-darkened fill, since there is no fill of their own to darken.
 const primaryToneClassName: Record<ButtonTone, string> = {
   default: "bg-brand-blue-ui data-[hovered]:bg-brand-blue-strong",
   destructive: "bg-status-error-ui data-[hovered]:bg-status-error-strong",
 };
 
+const secondaryToneClassName: Record<ButtonTone, string> = {
+  default: "border-brand-earth-ui text-ink",
+  destructive: "border-status-error-ui text-status-error-ui",
+};
+
 const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-surface-white",
-  secondary:
-    "gap-2 rounded-md border border-brand-earth-ui bg-transparent font-bold text-ink data-[hovered]:bg-surface-bone",
+  secondary: "gap-2 rounded-md border bg-transparent font-bold data-[hovered]:bg-surface-bone",
   // With no background and no border of its own, this form has no drawn corner radius: the one
   // here rounds the bone background it takes on hover, so it is the secondary button's.
   text: "gap-2 rounded-md bg-transparent font-semibold text-status-error-ui data-[hovered]:bg-surface-bone",
@@ -142,6 +150,7 @@ export function Button({
     fullWidth ? stretchedHeightClassName[resolvedSize] : "",
     variantClassName[variant],
     variant === "primary" ? primaryToneClassName[tone] : "",
+    variant === "secondary" ? secondaryToneClassName[tone] : "",
   ]
     .filter(Boolean)
     .join(" ");

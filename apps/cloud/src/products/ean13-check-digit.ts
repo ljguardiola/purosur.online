@@ -12,3 +12,12 @@ function ean13CheckDigit(twelveDigitBody: string): number {
 export function appendEan13CheckDigit(twelveDigitBody: string): string {
   return `${twelveDigitBody}${ean13CheckDigit(twelveDigitBody)}`;
 }
+
+const RESTRICTED_CIRCULATION_EAN13_PATTERN = /^2\d{12}$/;
+
+export function isInternalBarcode(code: string): boolean {
+  return (
+    RESTRICTED_CIRCULATION_EAN13_PATTERN.test(code) &&
+    Number(code[12]) === ean13CheckDigit(code.slice(0, 12))
+  );
+}

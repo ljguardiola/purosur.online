@@ -5,12 +5,28 @@ export type BackofficeAccess = {
 };
 
 /**
- * Whether "Usuarios" and its screens show at all. Every Users action is Administrator-only today,
- * so this is just the Administrator flag; a delegable permission there (e.g. `deactivate_users`)
- * will extend this once one ships.
+ * Whether "Usuarios" and its screens show at all: the Administrator, or a role delegated
+ * `deactivate_users` — the only Users action a non-Administrator can perform today. Every other
+ * action inside those screens (creating a user, editing an email, removing a passkey) stays
+ * Administrator-only and is gated on its own inside the screen that offers it.
  */
 export function canSeeUsersArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator;
+  return access.isAdministrator || access.permissions.includes("deactivate_users");
+}
+
+/**
+ * Whether the signed-in session can deactivate the given user: the Administrator (who holds every
+ * permission implicitly) or a role delegated `deactivate_users`, and never against an
+ * Administrator target — the same rule the cloud's own route enforces.
+ */
+export function canDeactivateUser(
+  access: BackofficeAccess,
+  target: { isAdministrator: boolean },
+): boolean {
+  if (target.isAdministrator) {
+    return false;
+  }
+  return access.isAdministrator || access.permissions.includes("deactivate_users");
 }
 
 /**
@@ -36,4 +52,13 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
  */
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
+}
+
+/**
+ * Whether "Caja" and its "Caja y fiscal" section show at all: the Administrator or a role that was
+ * delegated `change_fiscal_configuration`. The same permission also gates the cloud's own read and
+ * edit routes, so a `forbidden` answer can only ever mean the permission changed mid-session.
+ */
+export function canSeeCashArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
 }

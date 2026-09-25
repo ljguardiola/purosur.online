@@ -57,10 +57,12 @@ const BRANCH_USER_GROUP_BY = [
 ];
 
 /**
- * Lists every user of `locationId`, ordered by first name, with the role each one holds and how
- * many passkeys they have registered. A user created outside
+ * Lists every active user of `locationId`, ordered by first name, with the role each one holds and
+ * how many passkeys they have registered. A user created outside
  * `createFirstAdministrator`/`POST /users` without a `user_roles` row is excluded by the inner
- * join, the same way it would be invisible to any other branch-scoped read.
+ * join, the same way it would be invisible to any other branch-scoped read. A deactivated user is
+ * excluded the same way: never deleted, but invisible here so every caller (list, detail, and
+ * every user-mutation target lookup) treats it as gone, the same 404 a missing user gets.
  */
 export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -72,12 +74,15 @@ export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
     .leftJoin(passkeys, eq(passkeys.userId, users.id))
-    .where(eq(users.locationId, locationId))
+    .where(and(eq(users.locationId, locationId), eq(users.active, true)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .orderBy(asc(users.firstName));
 }
 
-/** Finds `userId` only when it belongs to `locationId`; otherwise `undefined`, same as a missing id. */
+/**
+ * Finds `userId` only when it belongs to `locationId` and is still active; otherwise `undefined`,
+ * same as a missing id (see `listBranchUsers` for why a deactivated user is excluded).
+ */
 export async function findBranchUser<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -89,7 +94,7 @@ export async function findBranchUser<TQueryResult extends PgQueryResultHKT>(
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
     .leftJoin(passkeys, eq(passkeys.userId, users.id))
-    .where(and(eq(users.id, userId), eq(users.locationId, locationId)))
+    .where(and(eq(users.id, userId), eq(users.locationId, locationId), eq(users.active, true)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .limit(1);
   return row;

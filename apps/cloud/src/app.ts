@@ -12,6 +12,9 @@ import { registerCategoriesListRoute } from "./categories/categories-list-route.
 import { registerCategoryCreationRoute } from "./categories/category-creation-route.js";
 import { registerCategoryEditRoute } from "./categories/category-edit-route.js";
 import { registerEdgeOriginGuard } from "./edge-origin-guard.js";
+import { registerIssuerIdentificationEditRoute } from "./fiscal-configuration/issuer-identification-edit-route.js";
+import type { IssuerIdentificationRouteOptions } from "./fiscal-configuration/issuer-identification-read-route.js";
+import { registerIssuerIdentificationReadRoute } from "./fiscal-configuration/issuer-identification-read-route.js";
 import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
@@ -19,6 +22,7 @@ import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.
 import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
 import { registerProductEditRoute } from "./products/product-edit-route.js";
+import { registerProductLabelsRoute } from "./products/products-labels-route.js";
 import type { ProductsRouteOptions } from "./products/products-list-route.js";
 import { registerProductsListRoute } from "./products/products-list-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
@@ -42,6 +46,7 @@ import { registerSessionReadRoute } from "./session/session-read-route.js";
 import { registerSessionSignOutRoute } from "./session/session-sign-out-route.js";
 import { registerSessionStatusRoute } from "./session/session-status-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
+import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEmailChangeRoutes } from "./users/user-email-change-route.js";
 import { registerUserPasskeyRemovalRoutes } from "./users/user-passkey-removal-route.js";
 import { registerUserPasskeysListRoute } from "./users/user-passkeys-list-route.js";
@@ -113,6 +118,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   branchSettings?: BranchSettingsRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /fiscal-configuration/issuer-identification` and `PUT
+   * .../issuer-identification`, the backoffice fiscal configuration's business-wide taxpayer
+   * identification: both gated by `change_fiscal_configuration` (an Administrator always holds it
+   * implicitly), with `PUT` additionally requiring the shared passkey-authorization window before
+   * it saves, the same optional-feature-wiring shape `roles` uses above.
+   */
+  issuerIdentification?: IssuerIdentificationRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /categories`, `POST /categories`, and `POST /categories/:id/edit`, the
    * backoffice Categories screen's list, create, and rename sides: every one is gated by the
    * `manage_products_and_categories` permission (an Administrator always holds it too), the same
@@ -120,11 +133,11 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   categories?: CategoriesRouteOptions<TQueryResult>;
   /**
-   * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, and `POST
-   * /products/internal-barcode`, the backoffice Products screen's list, create, edit, and
-   * internal-barcode-allocation sides: every one is gated by the
-   * `manage_products_and_categories` permission (an Administrator always holds it too), the same
-   * optional-feature-wiring shape `categories` uses above.
+   * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, `POST
+   * /products/internal-barcode`, and `POST /products/labels`, the backoffice Products screen's
+   * list, create, edit, internal-barcode-allocation, and printable-label-sheet sides: every one is
+   * gated by the `manage_products_and_categories` permission (an Administrator always holds it
+   * too), the same optional-feature-wiring shape `categories` uses above.
    */
   products?: ProductsRouteOptions<TQueryResult>;
 }
@@ -197,6 +210,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerUserEmailChangeRoutes(app, options.users);
     registerUserPasskeysListRoute(app, options.users);
     registerUserPasskeyRemovalRoutes(app, options.users);
+    registerUserDeactivationRoutes(app, options.users);
   }
 
   if (options.roles) {
@@ -211,6 +225,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerBranchSettingsEditRoute(app, options.branchSettings);
   }
 
+  if (options.issuerIdentification) {
+    registerIssuerIdentificationReadRoute(app, options.issuerIdentification);
+    registerIssuerIdentificationEditRoute(app, options.issuerIdentification);
+  }
+
   if (options.categories) {
     registerCategoriesListRoute(app, options.categories);
     registerCategoryCreationRoute(app, options.categories);
@@ -222,6 +241,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductCreationRoute(app, options.products);
     registerProductEditRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
+    registerProductLabelsRoute(app, options.products);
   }
 
   const staticDir = options.staticDir;

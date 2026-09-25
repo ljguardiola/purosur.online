@@ -1,7 +1,7 @@
-import { asc, desc, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { rolePermissions, roles, userRoles } from "../db/schema.js";
+import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   ADMINISTRATOR_ACCESS,
@@ -75,6 +75,8 @@ export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   const userCountRows = await db
     .select({ roleId: userRoles.roleId, count: sql<number>`count(*)::int` })
     .from(userRoles)
+    .innerJoin(users, eq(users.id, userRoles.userId))
+    .where(eq(users.active, true))
     .groupBy(userRoles.roleId);
   const userCountByRole = new Map(userCountRows.map((row) => [row.roleId, row.count]));
 

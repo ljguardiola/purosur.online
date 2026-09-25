@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { rolePermissions, roles, userRoles, users } from "../db/schema.js";
@@ -54,7 +54,7 @@ export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
     .select({ id: users.id, name: users.firstName })
     .from(userRoles)
     .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(eq(userRoles.roleId, roleId))
+    .where(and(eq(userRoles.roleId, roleId), eq(users.active, true)))
     .orderBy(asc(users.firstName), asc(users.id));
   return rows;
 }

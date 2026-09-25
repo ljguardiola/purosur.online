@@ -304,4 +304,37 @@ describe("GET /roles/:id", () => {
       assigned_users: [{ id: someoneElseId, name: "Someone Else" }],
     });
   });
+
+  it("counts and lists only the role's active users, leaving a deactivated one out", async () => {
+    const locationId = await seededLocationId(db);
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId,
+    });
+    const rawSessionId = await insertSession(administratorId);
+    const cashierRoleId = await insertRole("Cajera", ["sell_and_charge"]);
+    await insertUser({
+      firstName: "Grace Hopper",
+      email: "grace@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    const deactivatedId = await insertUser({
+      firstName: "Bea Deactivated",
+      email: "bea@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
+
+    const response = await getRole(cashierRoleId, rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      user_count: 1,
+      assigned_users: [{ name: "Grace Hopper" }],
+    });
+  });
 });

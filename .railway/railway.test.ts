@@ -10,6 +10,7 @@ const REQUIRED_ENV: Record<string, string> = {
   RESEND_API_KEY: "resend-api-key",
   EDGE_ORIGIN_SECRET: "edge-origin-secret",
   CLOUD_APP_DATABASE_PASSWORD: "cloud-app-password",
+  ARCA_CERTIFICATE: "arca-certificate-pem",
 };
 
 beforeEach(() => {
@@ -89,6 +90,14 @@ describe("the Cloud Server service's environment", () => {
       `postgresql://cloud_app:cloud-app-password@\${{Database.PGHOST}}:\${{Database.PGPORT}}/\${{Database.PGDATABASE}}`,
     );
     expect(databaseUrl.value).not.toContain("[object Object]");
+  });
+
+  it("carries the ARCA certificate from the deploying environment", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
+    expect(cloud.variables?.ARCA_CERTIFICATE).toEqual({
+      type: "literal",
+      value: "arca-certificate-pem",
+    });
   });
 
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {
