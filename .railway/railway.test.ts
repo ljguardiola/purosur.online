@@ -41,20 +41,27 @@ function findService(definition: ProjectDefinition, name: string): ServiceNode {
   return resource;
 }
 
-describe("the cloud service's environment", () => {
-  it("holds no reference to the postgres resource", async () => {
-    const cloud = findService(await compile(), "cloud");
+describe("the project's resources", () => {
+  it("are named for what each one is", async () => {
+    const names = ((await compile()).resources ?? []).flat().map((resource) => resource.name);
+    expect(names).toEqual(["Database", "Media Storage", "Schema Migrations", "Cloud Server"]);
+  });
+});
+
+describe("the Cloud Server service's environment", () => {
+  it("holds no reference to the database resource", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
     const variables = cloud.variables ?? {};
 
     for (const [key, value] of Object.entries(variables)) {
       if (value.type === "reference") {
-        expect(value.resource, `${key} references a resource`).not.toBe("database.postgres");
+        expect(value.resource, `${key} references a resource`).not.toBe("database.Database");
       }
     }
   });
 
-  it("embeds only the postgres host, port and database name in its literal values, never a credential", async () => {
-    const cloud = findService(await compile(), "cloud");
+  it("embeds only the database host, port and database name in its literal values, never a credential", async () => {
+    const cloud = findService(await compile(), "Cloud Server");
     const allowedFields = ["PGHOST", "PGPORT", "PGDATABASE"];
 
     for (const [key, value] of Object.entries(cloud.variables ?? {})) {
@@ -62,37 +69,37 @@ describe("the cloud service's environment", () => {
         continue;
       }
       for (const [, field] of (value.value ?? "").matchAll(
-        /\$\{\{\s*postgres\.([^}\s]+)\s*\}\}/g,
+        /\$\{\{\s*Database\.([^}\s]+)\s*\}\}/g,
       )) {
-        expect(allowedFields, `${key} embeds postgres.${field}`).toContain(field);
+        expect(allowedFields, `${key} embeds Database.${field}`).toContain(field);
       }
     }
   });
 
   it("builds cloud_app's DATABASE_URL as a literal string, never a stringified reference object", async () => {
-    const cloud = findService(await compile(), "cloud");
+    const cloud = findService(await compile(), "Cloud Server");
     const databaseUrl = cloud.variables?.DATABASE_URL;
     if (databaseUrl?.type !== "literal") {
-      throw new Error("cloud's DATABASE_URL is not a literal variable");
+      throw new Error("Cloud Server's DATABASE_URL is not a literal variable");
     }
 
     expect(databaseUrl.value).toBe(
       // A literal `${{...}}` placeholder, not JS interpolation: escaped so the string reads the
       // same as what railway.ts itself writes into the compiled config.
-      `postgresql://cloud_app:cloud-app-password@\${{postgres.PGHOST}}:\${{postgres.PGPORT}}/\${{postgres.PGDATABASE}}`,
+      `postgresql://cloud_app:cloud-app-password@\${{Database.PGHOST}}:\${{Database.PGPORT}}/\${{Database.PGDATABASE}}`,
     );
     expect(databaseUrl.value).not.toContain("[object Object]");
   });
 
   it("waits for the schema to be ready instead of applying any migration itself before deploying", async () => {
-    const cloud = findService(await compile(), "cloud");
+    const cloud = findService(await compile(), "Cloud Server");
     expect(cloud.deploy?.preDeployCommand).toEqual(["node dist/wait-for-ready.js"]);
   });
 });
 
-describe("the migrate service", () => {
+describe("the Schema Migrations service", () => {
   it("runs the schema migration once, as the admin role, and never restarts", async () => {
-    const migrate = findService(await compile(), "migrate");
+    const migrate = findService(await compile(), "Schema Migrations");
 
     expect(migrate.deploy?.startCommand).toBe("node dist/migrate.js");
     expect(migrate.deploy?.restartPolicyType).toBe("NEVER");
@@ -100,11 +107,11 @@ describe("the migrate service", () => {
     expect(migrate.networking?.customDomains).toBeUndefined();
   });
 
-  it("holds the postgres resource's admin credential", async () => {
-    const migrate = findService(await compile(), "migrate");
+  it("holds the database resource's admin credential", async () => {
+    const migrate = findService(await compile(), "Schema Migrations");
     expect(migrate.variables?.DATABASE_URL).toEqual({
       type: "reference",
-      resource: "database.postgres",
+      resource: "database.Database",
       output: "DATABASE_URL",
     });
   });
