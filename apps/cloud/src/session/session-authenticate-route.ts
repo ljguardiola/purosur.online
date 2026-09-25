@@ -282,11 +282,13 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
             .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
         }
 
+        // A passkey sign-in counts as a successful passkey authorization for the session it opens.
         await tx.insert(sessions).values({
           userId: passkey.userId,
           sessionIdHash: hashSessionId(rawSessionId),
           createdAt: attemptedAt,
           lastSeenAt: attemptedAt,
+          passkeyAuthorizedAt: attemptedAt,
         });
 
         // This attempt was no rejected sign-in, so it gives its slot of the address's lockout

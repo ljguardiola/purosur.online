@@ -1,8 +1,3 @@
-import type {
-  AuthenticationResponseJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/browser";
-
 // The backoffice API rate limiter counts a rolling one-hour window, the same fallback
 // usersApi.ts's own rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
@@ -22,17 +17,6 @@ export type FetchRolesOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type RoleCreationChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchRoleCreationChallengeOutcome =
-  | { kind: "ok"; value: RoleCreationChallenge }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
 export type CreateRoleInput = { name: string; permissionKeys: string[] };
 
 export type CreateRoleFieldError = "name" | "permissions";
@@ -43,7 +27,7 @@ export type CreateRoleOutcome =
   | { kind: "name_taken" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
-  | { kind: "authentication_failed" }
+  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -51,18 +35,6 @@ export type RoleDetail = RoleSummary & { version: number };
 
 export type FetchRoleOutcome =
   | { kind: "ok"; value: RoleDetail }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type RoleEditChallenge = {
-  reauthenticationOptions: PublicKeyCredentialRequestOptionsJSON;
-};
-
-export type FetchRoleEditChallengeOutcome =
-  | { kind: "ok"; value: RoleEditChallenge }
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -81,7 +53,7 @@ export type EditRoleOutcome =
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
-  | { kind: "authentication_failed" }
+  | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
@@ -144,16 +116,24 @@ export async function fetchRoles(): Promise<FetchRolesOutcome> {
   return { kind: "ok", value: body.map(roleSummaryFromWire) };
 }
 
-/** Hands back a fresh reauthentication challenge for creating a role (`POST /roles/creation-options`). */
-export async function fetchRoleCreationChallenge(): Promise<FetchRoleCreationChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson("/roles/creation-options");
-  } catch {
-    return { kind: "failed" };
-  }
+function roleFieldFromWire(field: unknown): CreateRoleFieldError | undefined {
+  return field === "name" || field === "permissions" ? field : undefined;
+}
+
+async function roleActionErrorOutcome(
+  response: Response,
+): Promise<
+  | { kind: "unauthenticated" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" }
+> {
   if (response.status === 401) {
-    return { kind: "unauthenticated" };
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "authorization_required"
+      ? { kind: "authorization_required" }
+      : { kind: "unauthenticated" };
   }
   if (response.status === 403) {
     return { kind: "forbidden" };
@@ -161,33 +141,19 @@ export async function fetchRoleCreationChallenge(): Promise<FetchRoleCreationCha
   if (response.status === 429) {
     return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
   }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json().catch(() => undefined)) as
-    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
+  return { kind: "failed" };
 }
 
-function roleFieldFromWire(field: unknown): CreateRoleFieldError | undefined {
-  return field === "name" || field === "permissions" ? field : undefined;
-}
-
-/** Verifies the reauthentication and creates the role with its hand-picked permissions (`POST /roles`). */
-export async function createRole(
-  input: CreateRoleInput,
-  reauthentication: AuthenticationResponseJSON,
-): Promise<CreateRoleOutcome> {
+/**
+ * Creates the role with its hand-picked permissions, gated by the shared passkey-authorization
+ * window instead of its own reauthentication step-up (`POST /roles`).
+ */
+export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutcome> {
   let response: Response;
   try {
     response = await postJson("/roles", {
       name: input.name,
       permissions: input.permissionKeys,
-      reauthentication,
     });
   } catch {
     return { kind: "failed" };
@@ -216,19 +182,7 @@ export async function createRole(
   if (response.status === 409) {
     return { kind: "name_taken" };
   }
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  return { kind: "failed" };
+  return roleActionErrorOutcome(response);
 }
 
 function roleDetailFromWire(row: {
@@ -274,55 +228,22 @@ export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
   return { kind: "ok", value: roleDetailFromWire(body) };
 }
 
-/** Hands back a fresh reauthentication challenge for editing a role (`POST /roles/:id/edit-options`). */
-export async function fetchRoleEditChallenge(id: string): Promise<FetchRoleEditChallengeOutcome> {
-  let response: Response;
-  try {
-    response = await postJson(`/roles/${id}/edit-options`);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  if (!response.ok) {
-    return { kind: "failed" };
-  }
-  const body = (await response.json().catch(() => undefined)) as
-    | { reauthentication_options: PublicKeyCredentialRequestOptionsJSON }
-    | undefined;
-  if (!body) {
-    return { kind: "failed" };
-  }
-  return { kind: "ok", value: { reauthenticationOptions: body.reauthentication_options } };
-}
-
 function editRoleFieldFromWire(field: unknown): EditRoleFieldError | undefined {
   return field === "name" || field === "permissions" || field === "version" ? field : undefined;
 }
 
-/** Verifies the reauthentication and applies the edit, rejecting a save over a newer version (`POST /roles/:id/edit`). */
-export async function editRole(
-  id: string,
-  input: EditRoleInput,
-  reauthentication: AuthenticationResponseJSON,
-): Promise<EditRoleOutcome> {
+/**
+ * Applies the edit, rejecting a save over a newer version, gated by the shared
+ * passkey-authorization window instead of its own reauthentication step-up
+ * (`POST /roles/:id/edit`).
+ */
+export async function editRole(id: string, input: EditRoleInput): Promise<EditRoleOutcome> {
   let response: Response;
   try {
     response = await postJson(`/roles/${id}/edit`, {
       name: input.name,
       permissions: input.permissionKeys,
       version: input.version,
-      reauthentication,
     });
   } catch {
     return { kind: "failed" };
@@ -355,17 +276,5 @@ export async function editRole(
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
     return body?.code === "stale_version" ? { kind: "stale_version" } : { kind: "name_taken" };
   }
-  if (response.status === 401) {
-    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "authentication_failed"
-      ? { kind: "authentication_failed" }
-      : { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
-  }
-  return { kind: "failed" };
+  return roleActionErrorOutcome(response);
 }

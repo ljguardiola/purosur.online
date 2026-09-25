@@ -2,9 +2,11 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   authenticate,
+  authorizeSession,
   checkSessionStatus,
   fetchAuthenticationOptions,
   fetchSession,
+  fetchSessionAuthorizationOptions,
   signOut,
 } from "./sessionApi";
 
@@ -266,4 +268,87 @@ test("signOut reports rate_limited with the Retry-After seconds on 429, leaving 
   );
 
   await expect(signOut()).resolves.toEqual({ kind: "rate_limited", retryAfterSeconds: 300 });
+});
+
+test("fetchSessionAuthorizationOptions posts with no body and returns the WebAuthn options", async () => {
+  const options = { challenge: "session-auth", rpId: "purosur.online" };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { authorization_options: options }));
+
+  const outcome = await fetchSessionAuthorizationOptions();
+
+  expect(outcome).toEqual({ kind: "ok", value: options });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/session/authorization-options",
+    expect.objectContaining({ method: "POST" }),
+  );
+});
+
+test("fetchSessionAuthorizationOptions reports unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("fetchSessionAuthorizationOptions reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "120" }),
+  );
+
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+});
+
+test("fetchSessionAuthorizationOptions reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
+  await expect(fetchSessionAuthorizationOptions()).resolves.toEqual({ kind: "failed" });
+});
+
+const authorization = { id: "existing-cred" } as unknown as AuthenticationResponseJSON;
+
+test("authorizeSession posts the authorization and reports ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await authorizeSession(authorization);
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith(
+    "/users/session/authorization",
+    expect.objectContaining({ method: "POST", body: JSON.stringify({ authorization }) }),
+  );
+});
+
+test("authorizeSession reports authentication_failed when the assertion did not verify", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authentication_failed" }));
+
+  await expect(authorizeSession(authorization)).resolves.toEqual({ kind: "authentication_failed" });
+});
+
+test("authorizeSession reports unauthenticated when the session ended", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
+
+  await expect(authorizeSession(authorization)).resolves.toEqual({ kind: "unauthenticated" });
+});
+
+test("authorizeSession reports rate_limited with the Retry-After seconds on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "60" }),
+  );
+
+  await expect(authorizeSession(authorization)).resolves.toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 60,
+  });
+});
+
+test("authorizeSession reports failed on any other status or a network failure", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
+  await expect(authorizeSession(authorization)).resolves.toEqual({ kind: "failed" });
+
+  vi.mocked(fetch).mockRejectedValue(new TypeError("down"));
+  await expect(authorizeSession(authorization)).resolves.toEqual({ kind: "failed" });
 });

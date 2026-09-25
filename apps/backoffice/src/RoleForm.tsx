@@ -180,10 +180,10 @@ export type RoleFormProps = {
 
 /**
  * The role form New, Edit and Duplicate all render: the name field, the "Referencias" block, every
- * permission area grouped into the design's three columns (with a running "N de M" count), the
- * Alertas area's radio and manual-dismiss checkbox, and the passkey reauthentication notice. Fully
- * controlled: the caller owns `name` and `selected`, so it decides what happens next (validation,
- * submission, pre-filling from a loaded role).
+ * permission area grouped into the design's three columns (with a running "N de M" count), and the
+ * Alertas area's radio and manual-dismiss checkbox. Fully controlled: the caller owns `name` and
+ * `selected`, so it decides what happens next (validation, submission, pre-filling from a loaded
+ * role).
  */
 export function RoleForm({
   name,
@@ -266,7 +266,6 @@ export function RoleForm({
           </div>
         ))}
       </div>
-      <p className="text-sm text-ink-secondary">{formMessages.reauthNotice}</p>
     </>
   );
 }

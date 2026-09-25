@@ -9,9 +9,10 @@ function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAcc
   return {
     fetchPasskeys: vi.fn(),
     fetchPasskeyRegistrationChallenge: vi.fn(),
-    fetchPasskeyRemovalChallenge: vi.fn(),
     registerPasskey: vi.fn(),
     removePasskey: vi.fn(),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     startRegistration: vi.fn(),
     ...overrides,
@@ -34,10 +35,20 @@ const phone: Passkey = {
   lastUsedAt: null,
 };
 
-const reauthenticationOptions = { challenge: "reauth" } as never;
 const registrationOptions = { challenge: "reg" } as never;
-const reauthAssertion = { id: "existing-cred" } as never;
 const newRegistration = { id: "new-cred" } as never;
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
+function grantAuthorization(services: MyAccountScreenServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
 
 function renderScreen(services: MyAccountScreenServices, onSessionEnded: () => void = () => {}) {
   return render(
@@ -169,7 +180,7 @@ test("has no accessibility violations once the passkeys are loaded", async () =>
 
 async function openRegisterModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
   await userEvent.click(screen.getByRole("button", { name: "Registrar otra passkey" }));
-  return screen.getByRole("dialog");
+  return screen.getByRole("dialog", { name: "Registrar una passkey" });
 }
 
 test("opens the register modal ready, with the name field visible without waiting on a challenge fetch", async () => {
@@ -189,22 +200,17 @@ test("opens the register modal ready, with the name field visible without waitin
   expect(services.fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
 });
 
-test("opens the register modal and submits a new passkey, refreshing the list on success", async () => {
+test("registers a passkey directly, without the authorization modal, when the session already has one", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRegisterModal(screen);
 
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
+    value: { registrationOptions },
   });
-  const dialog = await openRegisterModal(screen);
-  await expect
-    .element(dialog.getByRole("heading", { name: "Registrar una passkey" }))
-    .toBeVisible();
-
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
   vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
@@ -213,19 +219,87 @@ test("opens the register modal and submits a new passkey, refreshing the list on
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
   expect(services.fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(1);
-  expect(services.startAuthentication).toHaveBeenCalledWith({
-    optionsJSON: reauthenticationOptions,
-  });
   expect(services.startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
   await expect.poll(() => vi.mocked(services.registerPasskey).mock.calls.length).toBe(1);
-  expect(services.registerPasskey).toHaveBeenCalledWith(
-    reauthAssertion,
-    newRegistration,
-    "Teléfono de Lucía",
-  );
+  expect(services.registerPasskey).toHaveBeenCalledWith(newRegistration, "Teléfono de Lucía");
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+});
+
+test("asks for the authorization before any creation ceremony when the registration options require one, then runs the ceremony exactly once", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRegisterModal(screen);
+
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+    kind: "authorization_required",
+  });
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+    kind: "ok",
+    value: { registrationOptions },
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+  grantAuthorization(services);
+  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Agregar una passkey necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+  expect(services.startRegistration).not.toHaveBeenCalled();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.registerPasskey).mock.calls.length).toBe(1);
+  expect(services.fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(2);
+  expect(services.startRegistration).toHaveBeenCalledTimes(1);
+  expect(services.startRegistration).toHaveBeenCalledWith({ optionsJSON: registrationOptions });
+  expect(vi.mocked(services.startAuthentication).mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(services.startRegistration).mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(services.registerPasskey).toHaveBeenCalledWith(newRegistration, "Teléfono de Lucía");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+});
+
+test("cancelling the authorization modal keeps the register modal open with its typed name, with no error and no creation ceremony", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  const dialog = await openRegisterModal(screen);
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "authorization_required",
+  });
+  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect
+    .element(screen.getByRole("dialog", { name: "Registrar una passkey" }).getByRole("textbox"))
+    .toHaveValue("Teléfono de Lucía");
+  expect(screen.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  expect(services.startRegistration).not.toHaveBeenCalled();
+  expect(services.registerPasskey).not.toHaveBeenCalled();
 });
 
 test("requires a passkey name before registering, without fetching a challenge or calling the API", async () => {
@@ -239,7 +313,6 @@ test("requires a passkey name before registering, without fetching a challenge o
 
   await expect.element(dialog.getByText("Ingresá un nombre para la passkey.")).toBeVisible();
   expect(services.fetchPasskeyRegistrationChallenge).not.toHaveBeenCalled();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
   expect(services.registerPasskey).not.toHaveBeenCalled();
 });
 
@@ -260,36 +333,20 @@ test("rejects a passkey name over 40 characters once trimmed", async () => {
   expect(services.registerPasskey).not.toHaveBeenCalled();
 });
 
-test("shows an attempt-failed notice when the registration challenge fails to fetch, then lets the person retry", async () => {
+test("shows an attempt-failed notice when the registration challenge fails to fetch", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({ kind: "failed" });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
+  expect(services.startRegistration).not.toHaveBeenCalled();
   expect(services.registerPasskey).not.toHaveBeenCalled();
-
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "ok", value: phone });
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
-
-  await expect
-    .poll(() => vi.mocked(services.fetchPasskeyRegistrationChallenge).mock.calls.length)
-    .toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("shows a rate-limited notice, instead of a generic attempt-failed one, when the registration challenge is rate limited", async () => {
@@ -297,7 +354,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 60,
   });
@@ -309,7 +366,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
   expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
+  expect(services.startRegistration).not.toHaveBeenCalled();
 });
 
 test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited", async () => {
@@ -319,9 +376,8 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
+    value: { registrationOptions },
   });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
   vi.mocked(services.registerPasskey).mockResolvedValue({
     kind: "rate_limited",
@@ -336,58 +392,23 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
-test("lets the person retry, keeping the same challenge, after the browser cancels a registration step", async () => {
+test("shows an attempt-failed notice when the browser cancels the registration ceremony itself", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
+    value: { registrationOptions },
   });
-  vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
+  vi.mocked(services.startRegistration).mockRejectedValue(new Error("NotAllowedError"));
   const dialog = await openRegisterModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
-  expect(services.fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(1);
   expect(services.registerPasskey).not.toHaveBeenCalled();
-});
-
-// Every attempt fetches its own challenge (passkeys-registration-route.ts consumes it once it
-// reaches the cloud), so a retry after a rejected attempt needs no separate refresh path: the
-// next press just fetches another one, the same way the first press did.
-test("fetches a fresh challenge on every registration attempt, including a retry after the reauthentication fails to verify", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
-  vi.mocked(services.registerPasskey).mockResolvedValueOnce({ kind: "authentication_failed" });
-  const dialog = await openRegisterModal(screen);
-  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
-
-  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
-  expect(services.fetchPasskeyRegistrationChallenge).toHaveBeenCalledTimes(1);
-
-  vi.mocked(services.registerPasskey).mockResolvedValueOnce({ kind: "ok", value: phone });
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
-
-  await expect
-    .poll(() => vi.mocked(services.fetchPasskeyRegistrationChallenge).mock.calls.length)
-    .toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
 test("ends the session when the registration challenge finds the session already ended", async () => {
@@ -407,38 +428,7 @@ test("ends the session when the registration challenge finds the session already
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("keeps the session open and shows the no-passkey state when the account has no passkey left to reauthenticate with", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook] });
-  const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({ kind: "no_passkey" });
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [] });
-  const dialog = await openRegisterModal(screen);
-
-  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
-
-  await expect
-    .element(
-      dialog
-        .getByText(
-          "No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo.",
-        )
-        .first(),
-    )
-    .toBeVisible();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
-  await expect.poll(() => vi.mocked(services.fetchPasskeys).mock.calls.length).toBe(2);
-  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
-  await expect
-    .element(screen.getByRole("button", { name: "Registrar otra passkey" }))
-    .toBeDisabled();
-  expect(onSessionEnded).not.toHaveBeenCalled();
-});
-
-test("ends the session when registering finds the session already ended", async () => {
+test("ends the session when registering itself finds the session already ended", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const onSessionEnded = vi.fn();
@@ -446,15 +436,36 @@ test("ends the session when registering finds the session already ended", async 
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions, registrationOptions },
+    value: { registrationOptions },
   });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.startRegistration).mockResolvedValue(newRegistration);
   vi.mocked(services.registerPasskey).mockResolvedValue({ kind: "unauthenticated" });
   const dialog = await openRegisterModal(screen);
 
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("ends the session when authorizing the registration finds it already closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({
+    kind: "authorization_required",
+  });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "unauthenticated",
+  });
+  const dialog = await openRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -485,7 +496,7 @@ test("has no accessibility violations with the register modal open", async () =>
 
 async function openRemoveModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await userEvent.click(screen.getByRole("button", { name: `Dar de baja la passkey «${name}»` }));
-  return screen.getByRole("dialog");
+  return screen.getByRole("dialog", { name: "¿Dar de baja la passkey?" });
 }
 
 test("opens the remove modal ready, with the confirmation text visible without waiting on a challenge fetch", async () => {
@@ -493,7 +504,6 @@ test("opens the remove modal ready, with the confirmation text visible without w
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockReturnValue(new Promise(() => {}));
 
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
@@ -504,41 +514,78 @@ test("opens the remove modal ready, with the confirmation text visible without w
     .element(dialog.getByText("«Notebook del local» deja de servir para entrar."))
     .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Dar de baja" })).toBeEnabled();
-  expect(services.fetchPasskeyRemovalChallenge).not.toHaveBeenCalled();
 });
 
-test("opens the remove modal naming the passkey and confirms the removal, refreshing the list on success", async () => {
+test("opens the remove modal naming the passkey and confirms the removal directly, refreshing the list on success", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
 
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-  await expect
-    .element(dialog.getByRole("heading", { name: "¿Dar de baja la passkey?" }))
-    .toBeVisible();
-  await expect
-    .element(dialog.getByText("«Notebook del local» deja de servir para entrar."))
-    .toBeVisible();
-
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removePasskey).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  expect(services.fetchPasskeyRemovalChallenge).toHaveBeenCalledTimes(1);
-  expect(services.startAuthentication).toHaveBeenCalledWith({
-    optionsJSON: reauthenticationOptions,
-  });
   await expect.poll(() => vi.mocked(services.removePasskey).mock.calls.length).toBe(1);
-  expect(services.removePasskey).toHaveBeenCalledWith("pk-1", reauthAssertion);
+  expect(services.removePasskey).toHaveBeenCalledWith("pk-1");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByText("Notebook del local").query()).toBeNull();
+});
+
+test("opens the authorization modal on authorization_required, then authorizes and retries the removal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+
+  vi.mocked(services.removePasskey).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.removePasskey).mockResolvedValueOnce({ kind: "ok" });
+  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.removePasskey).mock.calls.length).toBe(2);
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText("Notebook del local").query()).toBeNull();
+});
+
+test("cancelling the authorization modal keeps the remove modal open, removing nothing", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "authorization_required" });
+  const dialog = await openRemoveModal(screen, "Notebook del local");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
+    .toBeNull();
+  await expect
+    .element(screen.getByRole("dialog", { name: "¿Dar de baja la passkey?" }))
+    .toBeVisible();
+  expect(services.removePasskey).toHaveBeenCalledTimes(1);
+  await expect.element(screen.getByText("Notebook del local")).toBeVisible();
 });
 
 test("warns in the remove modal when it is the account's only passkey", async () => {
@@ -577,11 +624,6 @@ async function removeNotebookThenRefresh(
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removePasskey).mockResolvedValue({ kind: "ok" });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce(refreshOutcome);
   const dialog = await openRemoveModal(screen, "Notebook del local");
@@ -616,11 +658,6 @@ test("treats a not_found removal as already done and refreshes the list", async 
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removePasskey).mockResolvedValue({ kind: "not_found" });
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
   const dialog = await openRemoveModal(screen, "Notebook del local");
@@ -631,84 +668,32 @@ test("treats a not_found removal as already done and refreshes the list", async 
   expect(screen.getByText("Notebook del local").query()).toBeNull();
 });
 
-test("lets the person retry the removal, keeping the same challenge, after the browser cancels", async () => {
+test("shows an error inside the authorization modal, not calling removePasskey again, when the browser cancels the passkey ceremony", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
-    value: { reauthenticationOptions },
+    value: authorizationOptions,
   });
   vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
-  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
-  expect(services.fetchPasskeyRemovalChallenge).toHaveBeenCalledTimes(1);
-  expect(services.removePasskey).not.toHaveBeenCalled();
+  await expect.element(authDialog.getByText("No se pudo confirmar con tu passkey")).toBeVisible();
+  expect(services.removePasskey).toHaveBeenCalledTimes(1);
 });
 
-test("shows an attempt-failed notice when the removal challenge fails to fetch, then lets the person retry", async () => {
+test("shows a rate-limited notice when removing itself is rate limited", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValueOnce({ kind: "failed" });
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
-  expect(services.removePasskey).not.toHaveBeenCalled();
-
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValueOnce({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "ok" });
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect
-    .poll(() => vi.mocked(services.fetchPasskeyRemovalChallenge).mock.calls.length)
-    .toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-});
-
-test("shows a rate-limited notice, instead of a generic attempt-failed one, when the removal challenge is rate limited", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValueOnce({
-    kind: "rate_limited",
-    retryAfterSeconds: 60,
-  });
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  expect(dialog.getByText("No se pudo dar de baja la passkey").query()).toBeNull();
-  expect(services.startAuthentication).not.toHaveBeenCalled();
-});
-
-test("shows a rate-limited notice, instead of a generic attempt-failed one, when removing itself is rate limited", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removePasskey).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 60,
@@ -721,63 +706,31 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
-// Every attempt fetches its own challenge (passkeys-removal-route.ts consumes it once it reaches
-// the cloud), so a retry after a rejected attempt needs no separate refresh path: the next press
-// just fetches another one, the same way the first press did.
-test("fetches a fresh challenge on every removal attempt, including a retry after the reauthentication fails to verify", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
-  vi.mocked(services.removePasskey).mockResolvedValueOnce({ kind: "authentication_failed" });
-  const dialog = await openRemoveModal(screen, "Notebook del local");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
-  expect(services.fetchPasskeyRemovalChallenge).toHaveBeenCalledTimes(1);
-
-  vi.mocked(services.removePasskey).mockResolvedValueOnce({ kind: "ok" });
-  vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [phone] });
-
-  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
-
-  await expect
-    .poll(() => vi.mocked(services.fetchPasskeyRemovalChallenge).mock.calls.length)
-    .toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-});
-
-test("ends the session when the removal challenge finds the session already ended", async () => {
+test("ends the session when authorizing the removal finds it already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "authorization_required" });
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "unauthenticated",
+  });
   const dialog = await openRemoveModal(screen, "Notebook del local");
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("ends the session when removing finds the session already ended", async () => {
+test("ends the session when removing finds it already closed", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
   await expect.element(screen.getByText("Teléfono de Lucía")).toBeVisible();
-  vi.mocked(services.fetchPasskeyRemovalChallenge).mockResolvedValue({
-    kind: "ok",
-    value: { reauthenticationOptions },
-  });
-  vi.mocked(services.startAuthentication).mockResolvedValue(reauthAssertion);
   vi.mocked(services.removePasskey).mockResolvedValue({ kind: "unauthenticated" });
   const dialog = await openRemoveModal(screen, "Notebook del local");
 

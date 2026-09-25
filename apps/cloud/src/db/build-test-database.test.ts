@@ -171,7 +171,7 @@ describe("buildTestDatabase", () => {
     await db.insert(passkeyChallenges).values({
       sessionId: session.id,
       kind: "registration",
-      reauthenticationChallenge: "reauthentication-challenge-1",
+      registrationChallenge: "registration-challenge-1",
     });
     await db.insert(signInChallenges).values({ challenge: "challenge-1" });
     await db

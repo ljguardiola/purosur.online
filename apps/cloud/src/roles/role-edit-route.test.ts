@@ -1,38 +1,20 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
-import WebAuthnEmulator, {
-  AuthenticatorEmulator,
-  PasskeysCredentialsMemoryRepository,
-} from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import {
-  auditLog,
-  passkeys,
-  recoveryTokens,
-  rolePermissions,
-  roles,
-  sessions,
-  userRoles,
-  users,
-} from "../db/schema.js";
-import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
-import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
+import { auditLog, rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
+import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerRoleCreationRoutes } from "./role-creation-route.js";
 import { registerRoleEditRoutes } from "./role-edit-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
-let creationApp: FastifyInstance;
-let recoveryApp: FastifyInstance;
 let administratorId: string;
 let currentTime: Date;
 
@@ -88,13 +70,15 @@ async function insertUser(input: {
   return user.id;
 }
 
-async function insertSession(userId: string): Promise<string> {
+/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
+async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId,
     sessionIdHash: hashSessionId(rawSessionId),
     createdAt: NOON,
     lastSeenAt: NOON,
+    passkeyAuthorizedAt: authorizedAt,
   });
   return rawSessionId;
 }
@@ -117,83 +101,6 @@ function postJson(
   });
 }
 
-let tokenSequence = 0;
-
-function newDeviceEmulator(): WebAuthnEmulator {
-  return new WebAuthnEmulator(
-    new AuthenticatorEmulator({ credentialsRepository: new PasskeysCredentialsMemoryRepository() }),
-  );
-}
-
-async function registerPasskey(
-  forUserId: string,
-  emulator: WebAuthnEmulator,
-  name = "Notebook del local",
-): Promise<void> {
-  tokenSequence += 1;
-  const rawToken = `raw-token-${tokenSequence}`;
-  await db.insert(recoveryTokens).values({
-    userId: forUserId,
-    tokenHash: hashRecoveryToken(rawToken),
-    issuedAt: currentTime,
-    expiresAt: new Date(currentTime.getTime() + FIFTEEN_MINUTES_MS),
-  });
-  const optionsResponse = await recoveryApp.inject({
-    method: "POST",
-    url: "/users/recovery/registration-options",
-    headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
-    payload: { recovery_token: rawToken },
-  });
-  if (optionsResponse.statusCode !== 200) {
-    throw new Error(
-      `test setup: registration-options failed: ${optionsResponse.statusCode} ${optionsResponse.body}`,
-    );
-  }
-  const credential = emulator.createJSON(
-    BACKOFFICE_ORIGIN,
-    optionsResponse.json().passkey_registration_options,
-  );
-  const redeemResponse = await recoveryApp.inject({
-    method: "POST",
-    url: "/users/recovery/redeem",
-    headers: { origin: BACKOFFICE_ORIGIN, "x-real-ip": "203.0.113.10" },
-    payload: { recovery_token: rawToken, passkey_registration: credential, passkey_name: name },
-  });
-  if (redeemResponse.statusCode !== 200) {
-    throw new Error(
-      `test setup: redeem failed: ${redeemResponse.statusCode} ${redeemResponse.body}`,
-    );
-  }
-}
-
-function getEditOptions(roleId: string, rawSessionId?: string) {
-  return app.inject({
-    method: "POST",
-    url: `/roles/${roleId}/edit-options`,
-    headers: {
-      origin: BACKOFFICE_ORIGIN,
-      ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
-    },
-  });
-}
-
-async function requestEditOptionsOrThrow(roleId: string, rawSessionId: string) {
-  const response = await getEditOptions(roleId, rawSessionId);
-  if (response.statusCode !== 200) {
-    throw new Error(`test setup: edit-options failed: ${response.statusCode} ${response.body}`);
-  }
-  return response.json();
-}
-
-async function reauthenticationFor(
-  roleId: string,
-  rawSessionId: string,
-  emulator: WebAuthnEmulator,
-) {
-  const options = await requestEditOptionsOrThrow(roleId, rawSessionId);
-  return emulator.getJSON(BACKOFFICE_ORIGIN, options.reauthentication_options);
-}
-
 function editRoleRequest(
   roleId: string,
   rawSessionId: string | undefined,
@@ -210,7 +117,6 @@ function editRoleRequest(
 
 beforeEach(async () => {
   await testDatabase.clear();
-  tokenSequence = 0;
 
   const locationId = await seededLocationId(db);
   administratorId = await insertUser({
@@ -223,111 +129,16 @@ beforeEach(async () => {
   currentTime = NOON;
   app = Fastify();
   registerRoleEditRoutes(app, { db, backofficeOrigin: BACKOFFICE_ORIGIN, now: () => currentTime });
-  creationApp = Fastify();
-  registerRoleCreationRoutes(creationApp, {
-    db,
-    backofficeOrigin: BACKOFFICE_ORIGIN,
-    now: () => currentTime,
-  });
-  recoveryApp = Fastify();
-  registerRecoveryRedemptionRoutes(recoveryApp, {
-    db,
-    backofficeOrigin: BACKOFFICE_ORIGIN,
-    now: () => currentTime,
-  });
 });
 
 afterEach(async () => {
   await app.close();
-  await creationApp.close();
-  await recoveryApp.close();
-});
-
-describe("POST /roles/:id/edit-options", () => {
-  it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const roleId = await insertRole("Cajera");
-
-    const response = await getEditOptions(roleId);
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "unauthenticated" });
-  });
-
-  it("rejects an Origin that is not the backoffice's own", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    const roleId = await insertRole("Cajera");
-
-    const response = await app.inject({
-      method: "POST",
-      url: `/roles/${roleId}/edit-options`,
-      headers: { origin: "https://attacker.example", ...cookieHeader(rawSessionId) },
-    });
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "origin_rejected" });
-  });
-
-  it("rejects a non-Administrator with 403 forbidden", async () => {
-    const cashierRoleId = await insertRole("Cajera");
-    const cashierId = await insertUser({
-      firstName: "Grace Hopper",
-      email: "grace@example.com",
-      roleId: cashierRoleId,
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(cashierId);
-
-    const response = await getEditOptions(cashierRoleId, rawSessionId);
-
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "forbidden" });
-  });
-
-  it("answers the identical 404 for the Administrator role, a missing id, and a malformed one", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const administratorResponse = await getEditOptions(
-      await seededAdministratorRoleId(),
-      rawSessionId,
-    );
-    const missingResponse = await getEditOptions(
-      "00000000-0000-0000-0000-000000000000",
-      rawSessionId,
-    );
-    const malformedResponse = await getEditOptions("not-a-uuid", rawSessionId);
-
-    expect(administratorResponse.statusCode).toBe(404);
-    expect(missingResponse.statusCode).toBe(404);
-    expect(malformedResponse.statusCode).toBe(404);
-    expect(administratorResponse.json()).toEqual(missingResponse.json());
-    expect(missingResponse.json()).toEqual(malformedResponse.json());
-  });
-
-  it("returns reauthentication options allowing only the Administrator's own passkeys", async () => {
-    const emulator = newDeviceEmulator();
-    await registerPasskey(administratorId, emulator);
-    const rawSessionId = await insertSession(administratorId);
-    const roleId = await insertRole("Cajera");
-    const [ownPasskey] = await db
-      .select()
-      .from(passkeys)
-      .where(eq(passkeys.userId, administratorId));
-
-    const options = await requestEditOptionsOrThrow(roleId, rawSessionId);
-
-    expect(options.reauthentication_options).toMatchObject({ userVerification: "required" });
-    const allowCredentials = options.reauthentication_options.allowCredentials as { id: string }[];
-    expect(allowCredentials.map((c) => c.id)).toEqual([ownPasskey?.credentialId]);
-  });
 });
 
 describe("POST /roles/:id/edit", () => {
-  let emulator: WebAuthnEmulator;
   let roleId: string;
 
   beforeEach(async () => {
-    emulator = newDeviceEmulator();
-    await registerPasskey(administratorId, emulator);
     roleId = await insertRole("Cajera", ["sell_and_charge"]);
   });
 
@@ -402,13 +213,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("rejects an empty name, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "   ",
       permissions: [],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(400);
@@ -422,13 +231,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("rejects the name Administrador, case-insensitively, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "ADMINISTRADOR",
       permissions: [],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(400);
@@ -440,13 +247,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("rejects an unknown permission key, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["not_a_real_permission"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(400);
@@ -458,13 +263,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("rejects both alert-view permissions together, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["view_branch_alerts", "view_all_alerts"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(400);
@@ -476,13 +279,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("rejects a missing or non-positive version, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: [],
       version: 0,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(400);
@@ -492,152 +293,13 @@ describe("POST /roles/:id/edit", () => {
     });
   });
 
-  it("rejects a missing reauthentication, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera nueva",
-      permissions: [],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera", version: 1 });
-  });
-
-  it("rejects a reauthentication with no prior options request, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera nueva",
-      permissions: [],
-      version: 1,
-      reauthentication: { id: "not-a-real-credential" },
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-  });
-
-  it("rejects a replayed reauthentication (consumes the challenge on first use), applying only one change", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
-    const body = { name: "Cajera nueva", permissions: [], version: 1, reauthentication };
-
-    const first = await editRoleRequest(roleId, rawSessionId, body);
-    expect(first.statusCode).toBe(200);
-
-    const second = await editRoleRequest(roleId, rawSessionId, {
-      ...body,
-      name: "Segundo intento",
-      version: 2,
-    });
-
-    expect(second.statusCode).toBe(401);
-    expect(second.json()).toMatchObject({ code: "authentication_failed" });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera nueva", version: 2 });
-  });
-
-  it("never accepts a role_creation challenge to edit a role, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    const creationOptionsResponse = await creationApp.inject({
-      method: "POST",
-      url: "/roles/creation-options",
-      headers: { origin: BACKOFFICE_ORIGIN, ...cookieHeader(rawSessionId) },
-    });
-    if (creationOptionsResponse.statusCode !== 200) {
-      throw new Error(`test setup: creation-options failed: ${creationOptionsResponse.statusCode}`);
-    }
-    const reauthentication = emulator.getJSON(
-      BACKOFFICE_ORIGIN,
-      creationOptionsResponse.json().reauthentication_options,
-    );
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera nueva",
-      permissions: [],
-      version: 1,
-      reauthentication,
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera", version: 1 });
-  });
-
-  it("rejects a reauthentication whose signature was tampered with, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
-    const tampered = {
-      ...reauthentication,
-      response: {
-        ...reauthentication.response,
-        signature: `${reauthentication.response.signature.slice(0, -4)}AAAA`,
-      },
-    };
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera nueva",
-      permissions: [],
-      version: 1,
-      reauthentication: tampered,
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera", version: 1 });
-    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
-    expect(audited).toHaveLength(0);
-  });
-
-  it("rejects a reauthentication carrying another account's credential, changing nothing", async () => {
-    const [strangerUser] = await db
-      .insert(users)
-      .values({
-        firstName: "Stranger",
-        email: "stranger-account@example.com",
-        locationId: await seededLocationId(db),
-      })
-      .returning({ id: users.id });
-    if (!strangerUser) throw new Error("test setup: seeding the stranger user returned no row");
-    const strangerEmulator = newDeviceEmulator();
-    await registerPasskey(strangerUser.id, strangerEmulator, "Passkey de una extraña");
-    const rawSessionId = await insertSession(administratorId);
-    const options = await requestEditOptionsOrThrow(roleId, rawSessionId);
-    const reauthentication = strangerEmulator.getJSON(BACKOFFICE_ORIGIN, {
-      ...options.reauthentication_options,
-      allowCredentials: [],
-    });
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera nueva",
-      permissions: [],
-      version: 1,
-      reauthentication,
-    });
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authentication_failed" });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera", version: 1 });
-    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
-    expect(audited).toHaveLength(0);
-  });
-
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera nueva",
       permissions: [],
       version: 2,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(409);
@@ -651,13 +313,11 @@ describe("POST /roles/:id/edit", () => {
   it("returns 409 role_name_taken and changes nothing when another role already has that name", async () => {
     await insertRole("Depósito");
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "DEPÓSITO",
       permissions: [],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(409);
@@ -668,13 +328,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("allows renaming a role to its own name in another case", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "CAJERA",
       permissions: ["sell_and_charge"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(200);
@@ -684,13 +342,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("accepts an unchanged name and permission set as a no-op: 200, version unchanged, no audit row", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["sell_and_charge"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(200);
@@ -703,7 +359,6 @@ describe("POST /roles/:id/edit", () => {
 
   it("updates the name, replaces the permissions, bumps the version, audits actor/previous/new, and returns 200", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
     const locationId = await seededLocationId(db);
     await insertUser({
       firstName: "Grace Hopper",
@@ -716,7 +371,6 @@ describe("POST /roles/:id/edit", () => {
       name: "Cajera senior",
       permissions: ["sell_and_charge", "adjust_stock"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(200);
@@ -750,13 +404,11 @@ describe("POST /roles/:id/edit", () => {
 
   it("answers and audits the new permissions in catalog order, whatever order they were sent in", async () => {
     const rawSessionId = await insertSession(administratorId);
-    const reauthentication = await reauthenticationFor(roleId, rawSessionId, emulator);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["adjust_stock", "view_stock_balances", "sell_and_charge"],
       version: 1,
-      reauthentication,
     });
 
     expect(response.statusCode).toBe(200);
@@ -769,6 +421,54 @@ describe("POST /roles/:id/edit", () => {
     expect(editAudit?.newValue).toEqual({
       name: "Cajera",
       permissions: ["sell_and_charge", "view_stock_balances", "adjust_stock"],
+    });
+  });
+
+  describe("the shared passkey-authorization guard", () => {
+    it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
+      const rawSessionId = await insertSession(administratorId, null);
+
+      const response = await editRoleRequest(roleId, rawSessionId, {
+        name: "Cajera nueva",
+        permissions: [],
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
+      expect(row).toMatchObject({ name: "Cajera", version: 1 });
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
+      expect(audited).toHaveLength(0);
+    });
+
+    it("allows the action at exactly the 5-minute boundary", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await editRoleRequest(roleId, rawSessionId, {
+        name: "Cajera nueva",
+        permissions: [],
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
+
+      const response = await editRoleRequest(roleId, rawSessionId, {
+        name: "Cajera nueva",
+        permissions: [],
+        version: 1,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
+      expect(row).toMatchObject({ name: "Cajera", version: 1 });
     });
   });
 });

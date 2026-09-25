@@ -219,6 +219,18 @@ describe("POST /users/session/authenticate", () => {
     expect(rows[0]?.revokedAt).toBeNull();
   });
 
+  it("counts as a passkey authorization, setting passkey_authorized_at to the moment the session opened", async () => {
+    const emulator = new WebAuthnEmulator();
+    await registerPasskey(userId, emulator);
+    const assertion = await getAuthenticationAssertion(emulator);
+
+    const response = await postAuthenticate({ assertion });
+
+    expect(response.statusCode).toBe(200);
+    const [row] = await db.select().from(sessions).where(eq(sessions.userId, userId));
+    expect(row?.passkeyAuthorizedAt).toEqual(currentTime);
+  });
+
   it("stamps the used passkey's last_used_at with the injected clock", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
