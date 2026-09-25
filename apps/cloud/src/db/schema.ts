@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgEnum,
+  pgSequence,
   pgTable,
   primaryKey,
   text,
@@ -198,6 +199,18 @@ export const productBarcodes = pgTable(
     uniqueIndex("product_barcodes_code_key").on(table.code),
   ],
 );
+
+// Backs a product's internal barcode, allocated for a product with no manufacturer barcode
+// (`internal-barcode-route.ts`): each value is a 12-digit EAN-13 body inside GS1's 20-29
+// restricted-circulation prefix range, handed out once and never cycled back to the start once
+// the range is exhausted.
+export const internalBarcodeSequence = pgSequence("internal_barcode_sequence", {
+  minValue: "200000000001",
+  maxValue: "299999999999",
+  startWith: "200000000001",
+  increment: 1,
+  cycle: false,
+});
 
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).

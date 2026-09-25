@@ -58,6 +58,13 @@ export type EditProductOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
+export type GenerateInternalBarcodeOutcome =
+  | { kind: "ok"; code: string }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
@@ -145,6 +152,36 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   }
   if (response.status === 409) {
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
+/**
+ * Allocates a fresh internal EAN-13 barcode for a product with no manufacturer code, gated by
+ * `manage_products_and_categories`; no passkey step-up (`POST /products/internal-barcode`).
+ */
+export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
+  let response: Response;
+  try {
+    response = await postJson("/products/internal-barcode");
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const body = (await response.json().catch(() => undefined)) as { code?: unknown } | undefined;
+    if (typeof body?.code !== "string") {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", code: body.code };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
