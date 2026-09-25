@@ -43,19 +43,6 @@ export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
   return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
 }
 
-export async function countRoleUsers<TQueryResult extends PgQueryResultHKT>(
-  db: PgDatabase<TQueryResult>,
-  roleId: string,
-  locationId: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(userRoles)
-    .innerJoin(users, eq(users.id, userRoles.userId))
-    .where(sql`${userRoles.roleId} = ${roleId} and ${users.locationId} = ${locationId}`);
-  return row?.count ?? 0;
-}
-
 /** The people holding this role at this branch, ordered by name, for the role editor's confirmation step. */
 export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -143,9 +130,10 @@ export function registerRoleReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const userCount = await countRoleUsers(options.db, role.id, openSession.locationId);
       const assignedUsers = await listRoleUsers(options.db, role.id, openSession.locationId);
-      await reply.code(200).send(toRoleDetailWire({ ...role, userCount, assignedUsers }));
+      await reply
+        .code(200)
+        .send(toRoleDetailWire({ ...role, userCount: assignedUsers.length, assignedUsers }));
     },
   );
 }

@@ -27,7 +27,9 @@ export { InlineNotice } from "./components/InlineNotice";
 export type { ListFilterOption, ListFilterProps } from "./components/ListFilter";
 export { ListFilter } from "./components/ListFilter";
 export type {
+  ModalBodyPadding,
   ModalContextTone,
+  ModalHeaderLayout,
   ModalProps,
   ModalTone,
   ModalWidth,

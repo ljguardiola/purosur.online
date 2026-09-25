@@ -18,7 +18,6 @@ import {
 } from "./role-creation-route.js";
 import {
   type AssignedUser,
-  countRoleUsers,
   findEditableRole,
   listRoleUsers,
   toRoleDetailWire,
@@ -232,9 +231,11 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   if (outcome.kind !== "applied") {
     return outcome;
   }
-  const userCount = await countRoleUsers(db, input.id, input.locationId);
   const assignedUsers = await listRoleUsers(db, input.id, input.locationId);
-  return { kind: "applied", role: { ...outcome.role, userCount, assignedUsers } };
+  return {
+    kind: "applied",
+    role: { ...outcome.role, userCount: assignedUsers.length, assignedUsers },
+  };
 }
 
 /**

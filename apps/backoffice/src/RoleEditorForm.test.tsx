@@ -69,6 +69,20 @@ test("selecting another area on the left shows its own title and permissions on 
   await expect.element(screen.getByText("Ver saldos")).toBeVisible();
 });
 
+test("the detail pane's title names only the shown area, leaving its count to the areas pane", async () => {
+  const screen = await render(<Harness initialArea="alerts" />);
+
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
+});
+
+test("groups the area buttons under an accessible name that says what they choose", async () => {
+  const screen = await render(<Harness />);
+
+  const areas = screen.getByRole("group", { name: "Áreas de permisos" });
+  await expect.element(areas.getByRole("button", { name: /^Caja/ })).toBeVisible();
+  await expect.element(areas.getByRole("button", { name: /^Sucursal/ })).toBeVisible();
+});
+
 test("checking a permission updates its area's n de m count", async () => {
   const screen = await render(<Harness />);
 
@@ -152,24 +166,16 @@ test("the Alertas area keeps its radio and separate dismiss checkbox, counted to
   const screen = await render(<Harness initialArea="alerts" />);
 
   await expect.element(screen.getByRole("radio", { name: "No ve alertas" })).toBeChecked();
-  await expect
-    .element(screen.getByRole("heading", { name: "Alertas 0 de 3", level: 2 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /^Alertas.*0 de 3$/ })).toBeVisible();
 
   await userEvent.click(screen.getByText("Ver alertas del local").element());
-  await expect
-    .element(screen.getByRole("heading", { name: "Alertas 1 de 3", level: 2 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /^Alertas.*1 de 3$/ })).toBeVisible();
 
   await userEvent.click(screen.getByText("Cerrar alertas a mano").element());
-  await expect
-    .element(screen.getByRole("heading", { name: "Alertas 2 de 3", level: 2 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /^Alertas.*2 de 3$/ })).toBeVisible();
 
   await userEvent.click(screen.getByText("Ver todas las alertas").element());
-  await expect
-    .element(screen.getByRole("heading", { name: "Alertas 2 de 3", level: 2 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /^Alertas.*2 de 3$/ })).toBeVisible();
   await expect
     .element(screen.getByRole("radio", { name: "Ver alertas del local" }))
     .not.toBeChecked();

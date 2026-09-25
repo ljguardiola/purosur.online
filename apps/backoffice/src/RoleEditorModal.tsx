@@ -122,7 +122,6 @@ function RoleSaveConfirmationModal({
       headerLayout="centered"
       title={editorMessages.confirmTitle}
       closable
-      closeLabel={editorMessages.closeLabel}
       footer={
         <>
           <Button
@@ -148,21 +147,19 @@ function RoleSaveConfirmationModal({
         </>
       }
     >
-      <div className="flex flex-col items-center gap-4 text-center">
-        <p className="text-base text-ink-secondary">
-          {editorMessages.confirmText({ count: assignedUsers.length, roleName })}
-        </p>
-        <div className="max-h-60 w-full overflow-y-auto rounded-lg border border-line text-left">
-          {assignedUsers.map((user) => (
-            <div
-              key={user.id}
-              className="flex items-center gap-2 border-line border-b px-4 py-2 last:border-b-0"
-            >
-              <User aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
-              <span>{user.name}</span>
-            </div>
-          ))}
-        </div>
+      <p className="text-center text-base text-ink-secondary">
+        {editorMessages.confirmText({ count: assignedUsers.length, roleName })}
+      </p>
+      <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-line text-left">
+        {assignedUsers.map((user) => (
+          <div
+            key={user.id}
+            className="flex items-center gap-2 border-line border-b px-4 py-2 last:border-b-0"
+          >
+            <User aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
+            <span>{user.name}</span>
+          </div>
+        ))}
       </div>
     </Modal>
   );
@@ -201,6 +198,10 @@ export function RoleEditorModal({
   const [submitting, setSubmitting] = useState(false);
   const [confirmingSave, setConfirmingSave] = useState(false);
 
+  // Bumped whenever the request changes, so a fetch started for an earlier request (one since
+  // closed or replaced by another) knows its late response no longer belongs here.
+  const sessionRef = useRef(0);
+
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
   const endSession = useCallback(() => onSessionEndedRef.current(), []);
@@ -213,8 +214,12 @@ export function RoleEditorModal({
 
   const loadEditRole = useCallback(
     async (roleId: string) => {
+      const session = sessionRef.current;
       setLoadState({ kind: "loading" });
       const outcome = await fetchRole(roleId);
+      if (session !== sessionRef.current) {
+        return;
+      }
       if (outcome.kind === "ok") {
         setLoadState({ kind: "loaded", role: outcome.value });
         setName(outcome.value.name ?? "");
@@ -235,6 +240,7 @@ export function RoleEditorModal({
   );
 
   useEffect(() => {
+    sessionRef.current += 1;
     if (!request) {
       return;
     }
@@ -264,8 +270,12 @@ export function RoleEditorModal({
     if (request?.kind !== "edit") {
       return;
     }
+    const session = sessionRef.current;
     setSubmitting(true);
     const outcome = await fetchRole(request.roleId);
+    if (session !== sessionRef.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       setLoadState({ kind: "loaded", role: outcome.value });
       setName(outcome.value.name ?? "");
@@ -449,7 +459,7 @@ export function RoleEditorModal({
           </div>
         }
       >
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col">
           {hasNoticeOrLoadStatus && (
             <div className="flex shrink-0 flex-col gap-3 px-6 pt-4">
               {notice?.kind === "attemptFailed" && (
@@ -543,7 +553,7 @@ export function RoleEditorModal({
             </div>
           )}
           {formReady && (
-            <div className="min-h-0 flex-1">
+            <div className="flex min-h-0 flex-1 flex-col">
               <RoleEditorForm
                 name={name}
                 onNameChange={(value) => {
@@ -564,7 +574,7 @@ export function RoleEditorModal({
       </Modal>
       <RoleSaveConfirmationModal
         isOpen={confirmingSave}
-        roleName={name}
+        roleName={loadState.kind === "loaded" ? sourceDisplayName(loadState.role) : ""}
         assignedUsers={loadState.kind === "loaded" ? loadState.role.assignedUsers : []}
         submitting={submitting}
         onBack={backFromConfirmation}

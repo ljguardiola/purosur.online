@@ -298,23 +298,81 @@ test("centers the header's icon (as a 56px circle) and title, with no context li
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("keeps the close button reachable in the centered header layout", async () => {
+test("draws no close button in the centered header layout, yet still closes on Escape when closable", async () => {
   const onOpenChange = vi.fn();
   const screen = await render(
-    <Modal
-      {...baseProps({
-        headerLayout: "centered",
-        closable: true,
-        closeLabel: "Close",
-        onOpenChange,
-      })}
-    />,
+    <Modal {...baseProps({ headerLayout: "centered", closable: true, onOpenChange })} />,
   );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
 
-  await userEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(dialog.querySelectorAll("button")).toHaveLength(0);
+
+  await userEvent.keyboard("{Escape}");
 
   expect(onOpenChange).toHaveBeenCalledWith(false);
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("draws the centered layout's icon, title and body as one 24px-padded, centered column with 12px gaps and no divider", async () => {
+  const screen = await render(
+    <Modal
+      {...baseProps({ headerLayout: "centered", children: <p>The text below the title</p> })}
+    />,
+  );
+  const dialog = screen.getByRole("dialog").element() as HTMLElement;
+  const column = dialog.firstElementChild as HTMLElement;
+  const iconBox = column.querySelector('[aria-hidden="true"]') as HTMLElement;
+  const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+  const text = screen.getByText("The text below the title").element() as HTMLElement;
+  const columnStyle = getComputedStyle(column);
+
+  expect(column.contains(text)).toBe(true);
+  expect(columnStyle.borderBottomWidth).toBe("0px");
+  expect(columnStyle.paddingTop).toBe("24px");
+  expect(columnStyle.paddingRight).toBe("24px");
+  expect(columnStyle.paddingBottom).toBe("24px");
+  expect(columnStyle.paddingLeft).toBe("24px");
+  expect(columnStyle.alignItems).toBe("center");
+  expect(title.getBoundingClientRect().top - iconBox.getBoundingClientRect().bottom).toBeCloseTo(
+    12,
+    0,
+  );
+  expect(text.getBoundingClientRect().top - title.getBoundingClientRect().bottom).toBeCloseTo(
+    12,
+    0,
+  );
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test('lays a flush body out as a column its content can fill, so an inner region scrolls instead of the body, when bodyPadding is "none"', async () => {
+  await page.viewport(1280, 400);
+  try {
+    const screen = await render(
+      <Modal
+        {...baseProps({
+          bodyPadding: "none",
+          children: (
+            <div
+              data-testid="inner-region"
+              style={{ flex: "1 1 0%", minHeight: 0, overflowY: "auto" }}
+            >
+              <div style={{ height: 2000 }} />
+            </div>
+          ),
+        })}
+      />,
+    );
+    const inner = screen.getByTestId("inner-region").element() as HTMLElement;
+    const body = inner.parentElement as HTMLElement;
+
+    expect(body.scrollHeight).toBe(body.clientHeight);
+    expect(inner.scrollHeight).toBeGreaterThan(inner.clientHeight);
+
+    await expectNoAccessibilityViolations(document.body);
+  } finally {
+    await page.viewport(1280, 900);
+  }
 });
 
 test("goes straight from the header to the footer when there is nothing to show in the body", async () => {
@@ -803,4 +861,12 @@ test("does not accept a closable modal without a close label", () => {
 
 test("does not accept a close label on a non-closable modal", () => {
   expectTypeOf<{ closable: false; closeLabel: string }>().not.toExtend<ModalCloseFields>();
+});
+
+test("does not accept a close label in the centered header layout, which draws no close button", () => {
+  expectTypeOf<{
+    headerLayout: "centered";
+    closable: true;
+    closeLabel: string;
+  }>().not.toExtend<ModalCloseFields>();
 });

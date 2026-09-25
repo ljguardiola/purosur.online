@@ -243,10 +243,9 @@ export function RoleEditorForm({
   }
 
   const definitions = definitionsByArea(selectedArea);
-  const { count, total } = areaSelectedCount(selectedArea, selected);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-line border-b bg-surface-white px-6 py-4">
         <TextField
           kind="plain-text"
@@ -258,7 +257,10 @@ export function RoleEditorForm({
         />
       </div>
       <div className="flex min-h-0 flex-1">
-        <div className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-line border-r bg-surface-bone p-3">
+        <fieldset
+          aria-label={formMessages.areasGroupLabel}
+          className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-line border-r bg-surface-bone p-3"
+        >
           {PERMISSION_AREAS.map((area) => (
             <AreaRow
               key={area}
@@ -268,13 +270,10 @@ export function RoleEditorForm({
               selected={selected}
             />
           ))}
-        </div>
+        </fieldset>
         <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface-white px-6 py-5">
           <h2 className="shrink-0 font-bold text-brand-blue-strong text-xl">
-            {rolesMessages.areaLabels[selectedArea]}{" "}
-            <span className="font-normal text-ink-secondary text-base">
-              {formMessages.areaCount({ count, total })}
-            </span>
+            {rolesMessages.areaLabels[selectedArea]}
           </h2>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-line">
             {selectedArea === "alerts" ? (

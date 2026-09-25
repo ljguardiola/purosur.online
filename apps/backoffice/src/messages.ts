@@ -408,7 +408,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // Shared by the New, Edit and Duplicate role pages: the one role form they all render.
+      // The role editor modal's own form: its name field and its areas and permissions panes.
       form: {
         nameLabel: "Nombre del rol",
         nameRequired: "Ingresá el nombre del rol.",
@@ -416,10 +416,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameReserved: "Ese nombre es del Administrador; elegí otro.",
         nameFieldError: "Revisá el nombre del rol.",
         nameTaken: "Ya existe un rol con este nombre.",
-        referencesPinHelper:
-          "Si quien está en la caja no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.",
-        administratorOnlyHelper:
-          "Crear y editar roles, dar de alta usuarios y asignarles un rol queda solo para el Administrador.",
+        areasGroupLabel: "Áreas de permisos",
         areaCount: (params: { count: number; total: number }) =>
           `${params.count} de ${params.total}`,
         alertsNoneOption: "No ve alertas",
@@ -427,24 +424,22 @@ export const messages = defineMessages("es-AR", (f) => ({
         alertsAllOption: VIEW_ALL_ALERTS_LABEL,
         dismissAlertsOption: DISMISS_ALERTS_LABEL,
       },
-      // Shared by every role page (New, Edit and Duplicate); a save that's rate limited shows the
-      // Roles area's own rateLimitedTitle/rateLimitedDetail above.
+      // Shared by the role editor modal in all three modes (New, Edit and Duplicate); a save
+      // that's rate limited shows the Roles area's own rateLimitedTitle/rateLimitedDetail above.
       rolePage: {
-        breadcrumb: "Configuración · Roles",
         cancel: CANCEL_LABEL,
         attemptFailedDetail: "Probá de nuevo.",
       },
-      // Shared by the Edit and Duplicate role pages, which both load a role before showing its form.
+      // Editing loads the role before showing its form.
       roleLoad: {
         loading: "Cargando…",
         notFoundTitle: "No encontramos este rol",
         loadErrorTitle: "No pudimos abrir este rol",
         loadErrorDetail: "Probá de nuevo en unos minutos.",
       },
-      // Shared by the New and Duplicate role pages, which both save by creating a role.
+      // New and Duplicate both save by creating a role.
       roleCreation: {
         save: "Guardar el rol",
-        attemptFailedTitle: "No se pudo crear el rol",
       },
       newRole: {
         heading: "Nuevo rol",

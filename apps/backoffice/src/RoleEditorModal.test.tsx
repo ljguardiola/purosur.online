@@ -7,7 +7,7 @@ import {
   type RoleEditorModalServices,
   type RoleEditorRequest,
 } from "./RoleEditorModal";
-import type { RoleDetail, RoleSummary } from "./rolesApi";
+import type { FetchRoleOutcome, RoleDetail, RoleSummary } from "./rolesApi";
 
 // The editor modal is 1040px wide, wider than the browser mode's own phone-sized default
 // viewport (see Tooltip.test.tsx's own comment on that default), which leaves its footer's save
@@ -460,4 +460,193 @@ test("the confirmation step has no accessibility violations", async () => {
 
   await expect.element(screen.getByText("¿Guardar los cambios?")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+function deferredFetch() {
+  let resolve: (outcome: FetchRoleOutcome) => void = () => {};
+  const promise = new Promise<FetchRoleOutcome>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function modalFor(request: RoleEditorRequest | null, services: RoleEditorModalServices) {
+  return (
+    <main>
+      <RoleEditorModal
+        request={request}
+        onClose={() => {}}
+        onSaved={() => {}}
+        onSessionEnded={() => {}}
+        services={services}
+      />
+    </main>
+  );
+}
+
+/** Lets a late response settle and React commit whatever it would set, before asserting it didn't. */
+async function settleLateResponse() {
+  await new Promise((done) => setTimeout(done, 50));
+}
+
+const cashDetail: RoleDetail = {
+  id: "role-cash",
+  name: "Caja",
+  isAdministrator: false,
+  permissionKeys: ["sell_and_charge", "view_sales_history"],
+  userCount: 0,
+  version: 8,
+  assignedUsers: [],
+};
+
+test("ignores a role that arrives late for an edit already replaced by editing another role", async () => {
+  const first = deferredFetch();
+  const second = deferredFetch();
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(second.promise);
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "ok", value: cashDetail });
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await screen.rerender(modalFor({ kind: "edit", roleId: "role-cash" }, services));
+
+  second.resolve({ kind: "ok", value: cashDetail });
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Caja");
+  first.resolve({ kind: "ok", value: stockDetail });
+  await settleLateResponse();
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Caja");
+  await expect.element(screen.getByText("2 permisos elegidos")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
+  expect(services.editRole).toHaveBeenCalledWith("role-cash", {
+    name: "Caja",
+    permissionKeys: ["sell_and_charge", "view_sales_history"],
+    version: 8,
+  });
+});
+
+test("ignores a role that arrives late for an edit already closed and replaced by a new role", async () => {
+  const first = deferredFetch();
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockReturnValueOnce(first.promise);
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await screen.rerender(modalFor(null, services));
+  await screen.rerender(modalFor({ kind: "new" }, services));
+
+  first.resolve({ kind: "ok", value: stockDetail });
+  await settleLateResponse();
+
+  await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
+  await expect.element(screen.getByText("0 permisos elegidos")).toBeVisible();
+});
+
+test("ignores a reload that arrives late for an edit already replaced by a new role", async () => {
+  const reload = deferredFetch();
+  const services = createServices();
+  vi.mocked(services.fetchRole)
+    .mockResolvedValueOnce({ kind: "ok", value: stockDetail })
+    .mockReturnValueOnce(reload.promise);
+  vi.mocked(services.editRole).mockResolvedValue({ kind: "stale_version" });
+  const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
+  await screen.rerender(modalFor({ kind: "new" }, services));
+
+  reload.resolve({ kind: "ok", value: { ...stockDetail, name: "Depósito recargado" } });
+  await settleLateResponse();
+
+  await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
+  await expect.element(screen.getByText("0 permisos elegidos")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeEnabled();
+});
+
+test("the confirmation step names the role as it is stored, not the name being typed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito senior");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(screen.getByText("Se aplican a las 2 personas con el rol Depósito:"))
+    .toBeVisible();
+});
+
+test("draws the confirmation step as one centered column, 12px apart, with only Volver and Guardar los cambios, and Escape still goes back", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetailWithPeople });
+  const screen = await renderModal({ kind: "edit", roleId: "role-stock" }, services);
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+  const confirmation = screen.getByRole("dialog", { name: "¿Guardar los cambios?" });
+  await expect.element(confirmation).toBeVisible();
+
+  const buttonNames = Array.from(
+    (confirmation.element() as HTMLElement).querySelectorAll("button"),
+    (button) => button.textContent,
+  );
+  expect(buttonNames).toEqual(["Volver", "Guardar los cambios"]);
+  const title = confirmation.getByRole("heading").element().getBoundingClientRect();
+  const text = confirmation
+    .getByText(/^Se aplican/)
+    .element()
+    .getBoundingClientRect();
+  const names = (confirmation.getByText("Amara Ortiz").element().parentElement as HTMLElement)
+    .parentElement as HTMLElement;
+  expect(text.top - title.bottom).toBeCloseTo(12, 0);
+  expect(names.getBoundingClientRect().top - text.bottom).toBeCloseTo(12, 0);
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.poll(() => screen.getByText("¿Guardar los cambios?").query()).toBeNull();
+  expect(services.editRole).not.toHaveBeenCalled();
+});
+
+test("at a short desktop viewport, the areas list and the permissions list each scroll on their own while the name row, area title and footer stay put", async () => {
+  for (const height of [720, 600]) {
+    await page.viewport(1280, height);
+    const services = createServices();
+    const screen = await renderModal({ kind: "new" }, services);
+    await userEvent.click(screen.getByRole("button", { name: /^Compras/ }));
+
+    const dialog = screen.getByRole("dialog").element() as HTMLElement;
+    const modalBody = dialog.children[1] as HTMLElement;
+    const nameRow = (
+      screen.getByRole("textbox", { name: /^Nombre del rol/ }).element() as HTMLElement
+    ).closest("div[class*='border-b']") as HTMLElement;
+    const areasPane = screen.getByRole("button", { name: /^Caja/ }).element()
+      .parentElement as HTMLElement;
+    const areaTitle = screen.getByRole("heading", { name: /^Compras/ }).element() as HTMLElement;
+    const permissionsList = areaTitle.nextElementSibling as HTMLElement;
+    const footer = dialog.lastElementChild as HTMLElement;
+    const fixedTops = () =>
+      [nameRow, areaTitle, footer].map((element) => element.getBoundingClientRect().top);
+
+    expect(modalBody.scrollHeight, `modal body at ${height}px`).toBe(modalBody.clientHeight);
+    for (const pane of [areasPane, permissionsList]) {
+      expect(pane.scrollHeight, `pane at ${height}px`).toBeGreaterThan(pane.clientHeight);
+      const before = fixedTops();
+      pane.scrollTop = pane.scrollHeight;
+      await expect.poll(() => pane.scrollTop).toBeGreaterThan(0);
+      expect(fixedTops()).toEqual(before);
+      expect(modalBody.scrollTop).toBe(0);
+    }
+
+    await screen.unmount();
+  }
 });
