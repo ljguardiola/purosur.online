@@ -2,7 +2,15 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { locations, passkeys, roles, sessions, userRoles, users } from "../db/schema.js";
+import {
+  locations,
+  passkeys,
+  rolePermissions,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -46,12 +54,17 @@ async function seededAdministratorRoleId(): Promise<string> {
   return administratorRole.id;
 }
 
-async function insertCashierRole(name: string): Promise<string> {
+async function insertCashierRole(name: string, permissionKeys: string[] = []): Promise<string> {
   const [role] = await db.insert(roles).values({ name, isAdministrator: false }).returning({
     id: roles.id,
   });
   if (!role) {
     throw new Error("test setup: seeding the role returned no row");
+  }
+  if (permissionKeys.length > 0) {
+    await db
+      .insert(rolePermissions)
+      .values(permissionKeys.map((permissionKey) => ({ roleId: role.id, permissionKey })));
   }
   return role.id;
 }
@@ -112,7 +125,7 @@ describe("GET /users", () => {
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
   });
 
-  it("rejects a non-Administrator with 403 forbidden", async () => {
+  it("rejects a user without the deactivate_users permission with 403 forbidden", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const locationId = await seededLocationId(db);
     const cashierId = await insertUser({
@@ -127,6 +140,66 @@ describe("GET /users", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("lists users for a holder of deactivate_users though not an Administrator", async () => {
+    const locationId = await seededLocationId(db);
+    const roleId = await insertCashierRole("Encargada", ["deactivate_users"]);
+    const userId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId,
+      locationId,
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      {
+        id: userId,
+        first_name: "Ada Lovelace",
+        email: "ada@example.com",
+        version: 1,
+        role: { id: roleId, is_administrator: false, name: "Encargada" },
+        passkey_count: 0,
+      },
+    ]);
+  });
+
+  it("excludes an inactive user from the list", async () => {
+    const locationId = await seededLocationId(db);
+    const administratorRoleId = await seededAdministratorRoleId();
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const administratorId = await insertUser({
+      firstName: "Zoe Admin",
+      email: "zoe@example.com",
+      roleId: administratorRoleId,
+      locationId,
+    });
+    const inactiveId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      {
+        id: administratorId,
+        first_name: "Zoe Admin",
+        email: "zoe@example.com",
+        version: 1,
+        role: { id: administratorRoleId, is_administrator: true, name: null },
+        passkey_count: 0,
+      },
+    ]);
   });
 
   it("lists only the session branch's users, ordered by first name, with their role and passkey count", async () => {

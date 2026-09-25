@@ -206,6 +206,21 @@ describe("POST /users/:id/email", () => {
     expect(row?.email).toBe("grace@example.com");
   });
 
+  it("answers not_found for an inactive target, changing nothing", async () => {
+    const rawSessionId = await insertSession(administratorId);
+    await db.update(users).set({ active: false }).where(eq(users.id, targetId));
+
+    const response = await changeEmail(targetId, rawSessionId, {
+      email: "new@example.com",
+      version: 1,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+    const [row] = await db.select().from(users).where(eq(users.id, targetId));
+    expect(row?.email).toBe("grace@example.com");
+  });
+
   it("answers the identical 404 for another branch's target id, a missing one, and a malformed one, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
     const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });

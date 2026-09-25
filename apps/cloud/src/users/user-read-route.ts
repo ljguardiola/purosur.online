@@ -2,9 +2,9 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
-  ADMINISTRATOR_ACCESS,
   openSessionOf,
   originGuard,
+  permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
@@ -21,10 +21,10 @@ const NOT_FOUND_RESPONSE = {
 } as const;
 
 /**
- * Registers `GET /users/:id`: same session, origin, and Administrator-only guard as
- * `GET /users`, then answers that one user's shape only when they belong to the session's own
- * branch. A malformed id, a missing id, and an id from another branch all get the identical 404
- * `not_found`.
+ * Registers `GET /users/:id`: same session, origin, and `deactivate_users`-permission guard as
+ * `GET /users`, then answers that one active user's shape only when they belong to the session's
+ * own branch. A malformed id, a missing id, an inactive id, and an id from another branch all get
+ * the identical 404 `not_found`.
  */
 export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -40,7 +40,7 @@ export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
       preHandler: originGuard((request, reply) =>
         checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
       ),
-      config: { access: ADMINISTRATOR_ACCESS, sessionSource },
+      config: { access: permissionAccess("deactivate_users"), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);

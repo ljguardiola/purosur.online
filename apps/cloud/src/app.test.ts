@@ -525,6 +525,11 @@ describe("wiring the users routes", () => {
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const deactivation = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/deactivation",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     expect(list.statusCode).toBe(404);
     expect(read.statusCode).toBe(404);
@@ -532,6 +537,7 @@ describe("wiring the users routes", () => {
     expect(emailChange.statusCode).toBe(404);
     expect(userPasskeys.statusCode).toBe(404);
     expect(userPasskeyRemove.statusCode).toBe(404);
+    expect(deactivation.statusCode).toBe(404);
   });
 
   it("registers the users routes when a users option is given", async () => {
@@ -564,6 +570,11 @@ describe("wiring the users routes", () => {
       url: "/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000/remove",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const deactivation = await app.inject({
+      method: "POST",
+      url: "/users/00000000-0000-0000-0000-000000000000/deactivation",
+      headers: { origin: "https://staging.purosur.online" },
+    });
 
     // No session cookie was sent in any case, so each reaches its own route handler's 401
     // instead of Fastify's generic not-found response for an unregistered route.
@@ -573,6 +584,7 @@ describe("wiring the users routes", () => {
     expect(emailChange.statusCode).toBe(401);
     expect(userPasskeys.statusCode).toBe(401);
     expect(userPasskeyRemove.statusCode).toBe(401);
+    expect(deactivation.statusCode).toBe(401);
   });
 });
 
@@ -913,8 +925,8 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/users", access: ADMINISTRATOR_ACCESS },
-      { method: "GET", url: "/users/:id", access: ADMINISTRATOR_ACCESS },
+      { method: "GET", url: "/users", access: permissionAccess("deactivate_users") },
+      { method: "GET", url: "/users/:id", access: permissionAccess("deactivate_users") },
       { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/users/:id/email", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
@@ -922,6 +934,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/users/:id/passkeys/:passkeyId/remove",
         access: ADMINISTRATOR_ACCESS,
+      },
+      {
+        method: "POST",
+        url: "/users/:id/deactivation",
+        access: permissionAccess("deactivate_users"),
       },
       { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
