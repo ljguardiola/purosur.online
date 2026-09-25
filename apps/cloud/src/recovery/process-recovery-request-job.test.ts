@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { auditLog, recoveryTokens, users } from "../db/schema.js";
+import { alerts, auditLog, recoveryTokens, users } from "../db/schema.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   processRecoveryRequestJob,
@@ -54,12 +54,19 @@ async function requestAuditRows() {
   return db.select().from(auditLog).where(eq(auditLog.entity, "user"));
 }
 
+async function recoveryRequestedAlerts() {
+  return db.select().from(alerts).where(eq(alerts.kind, "backoffice_recovery_requested"));
+}
+
 describe("processRecoveryRequestJob", () => {
   it("does nothing when no active account matches the email", async () => {
     const result = await processRecoveryRequestJob(db, request("unknown@example.com"), jobDeps());
 
     await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
+    // An unknown email must open no alert of its own: doing so would let a caller learn whether the
+    // address has an account by watching for the alert.
+    await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
     expect(result).toEqual({});
   });
 
@@ -77,6 +84,7 @@ describe("processRecoveryRequestJob", () => {
       actorId: userId,
       newValue: { attempt: "request", rejectedWith: "account_inactive" },
     });
+    await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
   });
 
   it("stamps a deactivated-account audit row with the request time, not the job's run time", async () => {
@@ -153,6 +161,31 @@ describe("processRecoveryRequestJob", () => {
     expect(mustExist(auditRow, "the superseded audit row").at).toEqual(supersededRequestAt);
   });
 
+  it("opens no alert of its own for a request superseded by a newer one already processed", async () => {
+    const userId = await insertUser("ada@example.com");
+    const newerRequestAt = new Date(NOW.getTime() + 5 * 60 * 1000);
+    await processRecoveryRequestJob(
+      db,
+      request("ada@example.com", newerRequestAt),
+      jobDeps(newerRequestAt),
+    );
+    // Closes the alert the admitted request above opened, so a superseded request reopening it
+    // would show up as a freshly open one below.
+    await db
+      .update(alerts)
+      .set({ resolvedAt: newerRequestAt, resolvedBy: userId })
+      .where(eq(alerts.scope, userId));
+
+    const lateRunAt = new Date(NOW.getTime() + 7 * 60 * 1000);
+    await processRecoveryRequestJob(db, request("ada@example.com", NOW), jobDeps(lateRunAt));
+
+    const stillOpen = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_recovery_requested"), isNull(alerts.resolvedAt)));
+    expect(stillOpen).toEqual([]);
+  });
+
   it("issues no second link for a different request made in the same millisecond", async () => {
     await insertUser("ada@example.com");
 
@@ -188,6 +221,31 @@ describe("processRecoveryRequestJob", () => {
     expect(tokens.filter((token) => token.voidedAt === null)).toHaveLength(1);
     expect(first.send).toBeDefined();
     expect(retry.send).toBeDefined();
+    // Both calls admitted and issued a link for the very same account, but the alert deduplicates:
+    // the retry opens nothing new while the first one is still open.
+    await expect(recoveryRequestedAlerts()).resolves.toHaveLength(1);
+  });
+
+  it("opens a backoffice_recovery_requested alert scoped to the account when a link is issued", async () => {
+    const userId = await insertUser("ada@example.com");
+    const requestedAt = new Date(NOW.getTime() - 60 * 1000);
+
+    await processRecoveryRequestJob(db, request("ada@example.com", requestedAt), jobDeps(NOW));
+
+    const [token] = await db.select().from(recoveryTokens);
+    const opened = await recoveryRequestedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: userId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        requestedAt: requestedAt.toISOString(),
+        issuedAt: token?.issuedAt.toISOString(),
+        expiresAt: token?.expiresAt.toISOString(),
+      },
+    });
   });
 
   it("issues a hashed token, expiring in 15 minutes, audits it, and returns the link to send", async () => {
