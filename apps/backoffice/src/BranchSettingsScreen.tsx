@@ -404,7 +404,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     return (
       <div className="min-w-0 flex-1">
         <TextField
-          kind="quantity"
+          kind="plain-text"
           label={label}
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
