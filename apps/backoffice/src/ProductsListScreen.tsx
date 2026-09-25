@@ -307,9 +307,14 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     setScanError(undefined);
   }
 
+  // Re-checks a shown error against the shorter list: removing a chip can lift the limit or
+  // unlist a duplicate, but a code with spaces or too long is still wrong.
   function remove(code: string) {
-    setBarcodes((current) => current.filter((existing) => existing !== code));
-    setScanError(undefined);
+    const next = barcodes.filter((existing) => existing !== code);
+    setBarcodes(next);
+    setScanError((current) =>
+      current === undefined ? undefined : scanErrorFor(scanInput.trim(), next, scanMessages),
+    );
   }
 
   // Adds the code still sitting in the scan input, if any, and returns the list as it stands
@@ -317,7 +322,6 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   function commitPending(): PendingCodeResult {
     const trimmed = scanInput.trim();
     if (!trimmed) {
-      setScanError(undefined);
       return { ok: true, barcodes, added: false };
     }
     const error = scanErrorFor(trimmed, barcodes, scanMessages);

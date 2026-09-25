@@ -844,22 +844,24 @@ test("editing the scan input clears the previous scan error", async () => {
   await expect.element(scanInputOf(dialog)).not.toHaveAttribute("aria-invalid", "true");
 });
 
-test("confirming a blank scan input leaves no scan error behind", async () => {
+test("removing an unrelated chip keeps the error of a code still invalid in the scan input", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Todavía no hay productos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
-  await userEvent.fill(scanInputOf(dialog), "779 0001");
+  await userEvent.fill(scanInputOf(dialog), "7790001");
+  await userEvent.keyboard("{Enter}");
+  await userEvent.fill(scanInputOf(dialog), "779 0002");
   await userEvent.keyboard("{Enter}");
   const spacesError = dialog.getByText("El código de barras no puede tener espacios.");
   await expect.element(spacesError).toBeVisible();
 
-  await userEvent.fill(scanInputOf(dialog), "");
-  await userEvent.keyboard("{Enter}");
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el código 7790001" }));
 
-  await expect.poll(() => spacesError.query()).toBeNull();
+  await expect.element(spacesError).toBeVisible();
+  await expect.element(scanInputOf(dialog)).toHaveAttribute("aria-invalid", "true");
 });
 
 test("marks the fallback category label as required when there are no categories yet", async () => {
