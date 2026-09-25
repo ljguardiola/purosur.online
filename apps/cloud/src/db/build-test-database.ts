@@ -74,8 +74,8 @@ async function restoreSeedRows(
  * the migrations again: `apps/cloud/vitest.global-setup.ts` migrates once per test run rather than
  * once per file. A custom `migrationsFolder` never uses the snapshot, since it only matches the
  * default migrations; it instead migrates a fresh database, starting from the same "node" project's
- * dump of an empty, already-initialized cluster so it never pays for its own initdb. Outside that
- * project (nothing provided), this falls back to a plain, uninitialized `new PGlite()`.
+ * dump of an empty, already-initialized cluster so it never pays for its own initdb. This function
+ * only runs within that "node" project, whose global setup always provides that cluster dump.
  */
 export async function buildTestDatabase({
   migrationsFolder = MIGRATIONS_FOLDER,

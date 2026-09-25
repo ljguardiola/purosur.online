@@ -176,40 +176,10 @@ async function grantCloudAppGraphileWorkerAccess(sql: postgres.Sql): Promise<voi
 }
 
 // `ALTER ROLE` updates a row in the cluster-wide (shared across every database) `pg_authid`
-// catalog with a plain, non-blocking catalog write: two databases racing to migrate at once (the
-// integration test suite migrates several databases concurrently, each setting this same
-// cluster-wide role's password) can both attempt that write for `cloud_app` at once, and the
-// loser gets this internal, code-less "tuple concurrently updated" failure instead of waiting for
-// a lock. It is safe to just retry: by the next attempt, the winner's write has already committed.
-const CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS = 5;
-
-export function isConcurrentCatalogUpdateError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const { code, message } = error as { code?: unknown; message?: unknown };
-  return (
-    code === "XX000" &&
-    typeof message === "string" &&
-    message.includes("tuple concurrently updated")
-  );
-}
-
-async function retryOnConcurrentCatalogUpdate<T>(run: () => Promise<T>): Promise<T> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await run();
-    } catch (error) {
-      if (
-        attempt >= CONCURRENT_CATALOG_UPDATE_MAX_ATTEMPTS ||
-        !isConcurrentCatalogUpdateError(error)
-      ) {
-        throw error;
-      }
-    }
-  }
-}
-
+// catalog. Nothing that migrates a database concurrently with another still writing this same
+// row exists any more (the cloud-integration test suite serializes every direct `runMigrations`
+// call, see `withExclusiveMigration`, and otherwise copies an already-migrated template database
+// instead of migrating its own), so this statement runs exactly once and is never retried.
 const SCRAM_ITERATIONS = 4096;
 const SCRAM_SALT_BYTES = 16;
 const SCRAM_KEY_BYTES = 32;
@@ -244,7 +214,7 @@ async function setCloudAppPassword(sql: postgres.Sql, password: string): Promise
   if (!row) {
     throw new Error("migrate: building the cloud_app password statement returned no row");
   }
-  await retryOnConcurrentCatalogUpdate(() => sql.unsafe(row.statement));
+  await sql.unsafe(row.statement);
 }
 
 /**

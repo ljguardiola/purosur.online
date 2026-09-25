@@ -3,7 +3,8 @@ import { makeWorkerUtils } from "graphile-worker";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { runMigrations } from "../migrate.js";
-import { CLOUD_APP_PASSWORD } from "../recovery/recovery-integration-database.js";
+import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
+import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 
 // Proves the real production wiring `runMigrations` sets up against a real Postgres: the
 // `cloud_app` role its migration creates can insert and read `audit_log`, but the database
@@ -12,8 +13,9 @@ import { CLOUD_APP_PASSWORD } from "../recovery/recovery-integration-database.js
 // cleanly; this suite covers what the role can and cannot do against a real Postgres.
 //
 // Shares its password with `recovery-integration-database.ts`: `cloud_app` is one cluster-wide
-// role, and this suite's own migrations race that helper's across every other integration test
-// file's database, so both must agree on the exact same password (see that constant's comment).
+// role, and this suite's own migrations must agree with the template database's on the exact same
+// password (see that constant's comment). `withExclusiveMigration` keeps this suite's two direct
+// `runMigrations` calls from racing that helper's own migration of the template database.
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const PERMISSION_DENIED = "42501";
 
@@ -52,7 +54,9 @@ describe("the cloud_app role runMigrations creates", () => {
     }
 
     const databaseUrl = databaseUrlFor(adminUrl, databaseName);
-    await runMigrations(databaseUrl, CLOUD_APP_PASSWORD, { migrationsFolder: MIGRATIONS_FOLDER });
+    await withExclusiveMigration(() =>
+      runMigrations(databaseUrl, CLOUD_APP_PASSWORD, { migrationsFolder: MIGRATIONS_FOLDER }),
+    );
 
     cloudAppUrl = asCloudApp(databaseUrl);
     cloudApp = postgres(cloudAppUrl, { max: 1 });
@@ -181,9 +185,11 @@ describe("the cloud_app role runMigrations creates", () => {
         `;
       const before = await policyIds();
 
-      await runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
-        migrationsFolder: MIGRATIONS_FOLDER,
-      });
+      await withExclusiveMigration(() =>
+        runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
+          migrationsFolder: MIGRATIONS_FOLDER,
+        }),
+      );
 
       expect(before.length).toBeGreaterThan(0);
       expect(await policyIds()).toEqual(before);

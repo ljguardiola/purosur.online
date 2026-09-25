@@ -65,9 +65,6 @@ async function snapshotPathWithMarkerRole(): Promise<string> {
 async function clusterDumpPathWithMarkerTable(): Promise<string> {
   // Starts from the run's own cluster dump, so building the marker dump pays no initdb either.
   const runClusterDumpPath = inject("testDatabaseClusterDumpPath");
-  if (!runClusterDumpPath) {
-    throw new Error("the node project's global setup provided no cluster dump");
-  }
   const client = new PGlite({ loadDataDir: new Blob([await readFile(runClusterDumpPath)]) });
   onTestFinished(() => client.close());
   await client.query('create table "cluster_dump_marker" ("id" integer primary key)');
