@@ -1,3 +1,4 @@
+import { X509Certificate } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,12 +41,13 @@ export interface ServerEnv {
   /** The value Cloudflare's edge sets on every request it forwards; see `edge-origin-guard.ts`. */
   EDGE_ORIGIN_SECRET?: string | undefined;
   /**
-   * The CUIT the business is authorized under at the tax authority, until #46 loads it from an
-   * ARCA certificate instead. Required once `DATABASE_URL` is configured (see
-   * `requireAuthorizedCuit`), the same "required whenever the database-backed features wire up"
-   * shape `RECOVERY_EMAIL_FROM` and friends already have in `resolveRecoveryEnv`.
+   * The PEM text of the ARCA X.509 certificate the business is authorized under at the tax
+   * authority: its subject carries the authorized CUIT (see `requireAuthorizedCuit`). Required
+   * once `DATABASE_URL` is configured, the same "required whenever the database-backed features
+   * wire up" shape `RECOVERY_EMAIL_FROM` and friends already have in `resolveRecoveryEnv`. #46
+   * will add the matching private key alongside it.
    */
-  AUTHORIZED_CUIT?: string | undefined;
+  ARCA_CERTIFICATE?: string | undefined;
 }
 
 const DEFAULT_PORT = 3000;
@@ -111,20 +113,57 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
   return value;
 }
 
+const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (\d{11})$/;
+const SERIAL_NUMBER_PREFIX = "serialNumber=";
+
+function extractSerialNumber(subject: string): string | undefined {
+  for (const line of subject.split("\n")) {
+    if (line.startsWith(SERIAL_NUMBER_PREFIX)) {
+      return line.slice(SERIAL_NUMBER_PREFIX.length);
+    }
+  }
+  return undefined;
+}
+
 /**
- * Validates `AUTHORIZED_CUIT` and normalizes it to `NN-NNNNNNNN-N` for display: called once
- * `DATABASE_URL` is configured, so a missing or malformed value fails startup the same way a
- * missing `RESEND_API_KEY` does in `resolveRecoveryEnv`, before any database or job-queue resource
- * opens.
+ * Railway and GitHub deliver a multi-line variable either with real newlines or, when the
+ * delivery mechanism collapses them into one line, as the literal two-character sequence `\n`;
+ * both are accepted so the PEM parses either way.
+ */
+function normalizePemNewlines(pem: string): string {
+  return pem.includes("\\n") ? pem.replaceAll("\\n", "\n") : pem;
+}
+
+/**
+ * Parses `ARCA_CERTIFICATE` (the PEM text of the ARCA X.509 certificate) and returns the CUIT
+ * carried in its subject's `serialNumber` (ARCA's own `CUIT <11 digits>` form), normalized to
+ * `NN-NNNNNNNN-N`: called once `DATABASE_URL` is configured, so a missing or malformed
+ * certificate fails startup the same way a missing `RESEND_API_KEY` does in
+ * `resolveRecoveryEnv`, before any database or job-queue resource opens.
  */
 export function requireAuthorizedCuit(env: ServerEnv): string {
-  const value = env.AUTHORIZED_CUIT;
-  if (!value) {
-    throw new Error("AUTHORIZED_CUIT must be set once DATABASE_URL is configured");
+  const pem = env.ARCA_CERTIFICATE;
+  if (!pem) {
+    throw new Error("ARCA_CERTIFICATE must be set once DATABASE_URL is configured");
   }
-  const normalized = parseCuit(value);
+  let certificate: X509Certificate;
+  try {
+    certificate = new X509Certificate(normalizePemNewlines(pem));
+  } catch {
+    throw new Error("ARCA_CERTIFICATE must be a valid X.509 certificate");
+  }
+  const serialNumber = extractSerialNumber(certificate.subject);
+  if (!serialNumber) {
+    throw new Error("ARCA_CERTIFICATE's subject has no serialNumber");
+  }
+  const match = CUIT_SERIAL_NUMBER_PATTERN.exec(serialNumber);
+  if (!match) {
+    throw new Error('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
+  }
+  const [, cuitDigits] = match as unknown as [string, string];
+  const normalized = parseCuit(cuitDigits);
   if (!normalized) {
-    throw new Error("AUTHORIZED_CUIT must be a valid CUIT (11 digits with a correct check digit)");
+    throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
   }
   return normalized;
 }

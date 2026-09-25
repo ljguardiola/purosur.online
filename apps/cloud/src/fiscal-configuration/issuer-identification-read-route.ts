@@ -17,7 +17,7 @@ export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryRe
   backofficeOrigin: string;
   /**
    * The CUIT the business is authorized under at the tax authority: deployment configuration
-   * (`AUTHORIZED_CUIT`, resolved in `server.ts`), never stored in the database and never accepted
+   * (`ARCA_CERTIFICATE`, resolved in `server.ts`), never stored in the database and never accepted
    * from a client.
    */
   authorizedCuit: string;

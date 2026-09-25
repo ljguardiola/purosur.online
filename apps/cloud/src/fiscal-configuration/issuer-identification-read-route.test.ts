@@ -16,7 +16,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerIssuerIdentificationReadRoute } from "./issuer-identification-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
-const AUTHORIZED_CUIT = "20-12345678-6";
+const TEST_AUTHORIZED_CUIT = "20-12345678-6";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
@@ -39,7 +39,7 @@ beforeEach(async () => {
   registerIssuerIdentificationReadRoute(app, {
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
-    authorizedCuit: AUTHORIZED_CUIT,
+    authorizedCuit: TEST_AUTHORIZED_CUIT,
     now: () => NOON,
   });
 });
@@ -205,7 +205,7 @@ describe("GET /fiscal-configuration/issuer-identification", () => {
       legal_name: null,
       gross_income_registration: null,
       activity_start_date: null,
-      authorized_cuit: AUTHORIZED_CUIT,
+      authorized_cuit: TEST_AUTHORIZED_CUIT,
       tax_status: "Responsable Monotributo",
       version: 1,
     });
@@ -234,7 +234,7 @@ describe("GET /fiscal-configuration/issuer-identification", () => {
       legal_name: "Puro Sur SRL",
       gross_income_registration: "CM 901-123456-3",
       activity_start_date: "2020-01-15",
-      authorized_cuit: AUTHORIZED_CUIT,
+      authorized_cuit: TEST_AUTHORIZED_CUIT,
       tax_status: "Responsable Monotributo",
       version: 2,
     });
