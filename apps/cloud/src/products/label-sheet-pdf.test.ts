@@ -26,7 +26,10 @@ function pdfObjects(pdf: Buffer): Map<number, PdfObject> {
     }
     const dictionary = body.slice(0, streamStart);
     const dataStart = start + streamStart + "\nstream\n".length;
-    const raw = pdf.subarray(dataStart, dataStart + Number(dictionary.match(/\/Length (\d+)/)?.[1]));
+    const raw = pdf.subarray(
+      dataStart,
+      dataStart + Number(dictionary.match(/\/Length (\d+)/)?.[1]),
+    );
     const stream = dictionary.includes("/FlateDecode") ? inflateSync(raw) : raw;
     objects.set(Number(match[1]), { dictionary, stream });
   }
@@ -96,7 +99,9 @@ interface RenderedText {
 
 function pageDictionaries(objects: Map<number, PdfObject>): string[] {
   const pages = [...objects.values()].find((object) => /\/Type \/Pages\n/.test(object.dictionary));
-  const kids = [...(pages?.dictionary.match(/\/Kids \[([^\]]*)\]/)?.[1] ?? "").matchAll(/(\d+) 0 R/g)];
+  const kids = [
+    ...(pages?.dictionary.match(/\/Kids \[([^\]]*)\]/)?.[1] ?? "").matchAll(/(\d+) 0 R/g),
+  ];
   return kids.map((kid) => objectAt(objects, kid[1]).dictionary);
 }
 
@@ -321,26 +326,29 @@ describe("renderLabelSheetPdf", () => {
   it.each([
     ["a 1-line", "Ñandú Ávila"],
     ["a 2-line", "Ñandú Ávila Émile Óleo Úrsula Íñigo Ángel"],
-  ])("keeps %s name's accented capitals and the barcode inside the label's padded box", async (_, name) => {
-    const pdf = await renderLabelSheetPdf([{ name, code: "2000000000015", count: 1 }]);
-    const runs = renderedTextRuns(pdf);
-    const nameRuns = runs.filter((run) => run.font.embedded);
-    const digitRuns = runs.filter((run) => run.font.baseFont === "Courier-Bold");
-    const paddedTopPt = PADDING_TOP_BOTTOM_MM * PT_PER_MM;
-    const paddedBottomPt = (LABEL_HEIGHT_MM - PADDING_TOP_BOTTOM_MM) * PT_PER_MM;
+  ])(
+    "keeps %s name's accented capitals and the barcode inside the label's padded box",
+    async (_, name) => {
+      const pdf = await renderLabelSheetPdf([{ name, code: "2000000000015", count: 1 }]);
+      const runs = renderedTextRuns(pdf);
+      const nameRuns = runs.filter((run) => run.font.embedded);
+      const digitRuns = runs.filter((run) => run.font.baseFont === "Courier-Bold");
+      const paddedTopPt = PADDING_TOP_BOTTOM_MM * PT_PER_MM;
+      const paddedBottomPt = (LABEL_HEIGHT_MM - PADDING_TOP_BOTTOM_MM) * PT_PER_MM;
 
-    expect(nameRuns.length).toBe(name.length > 20 ? 2 : 1);
-    for (const run of nameRuns) {
-      // The font's ascent bounds every glyph's top, accented capitals included.
-      const glyphTopPt = run.baselinePt - ((run.font.ascent ?? 0) / 1000) * run.fontSizePt;
-      expect(glyphTopPt).toBeGreaterThanOrEqual(paddedTopPt);
-    }
-    for (const bar of barRectangles(pdf)) {
-      expect(bar.yPt + bar.heightPt).toBeLessThanOrEqual(paddedBottomPt);
-    }
-    expect(digitRuns.length).toBeGreaterThan(0);
-    for (const run of digitRuns) {
-      expect(run.baselinePt).toBeLessThanOrEqual(paddedBottomPt);
-    }
-  });
+      expect(nameRuns.length).toBe(name.length > 20 ? 2 : 1);
+      for (const run of nameRuns) {
+        // The font's ascent bounds every glyph's top, accented capitals included.
+        const glyphTopPt = run.baselinePt - ((run.font.ascent ?? 0) / 1000) * run.fontSizePt;
+        expect(glyphTopPt).toBeGreaterThanOrEqual(paddedTopPt);
+      }
+      for (const bar of barRectangles(pdf)) {
+        expect(bar.yPt + bar.heightPt).toBeLessThanOrEqual(paddedBottomPt);
+      }
+      expect(digitRuns.length).toBeGreaterThan(0);
+      for (const run of digitRuns) {
+        expect(run.baselinePt).toBeLessThanOrEqual(paddedBottomPt);
+      }
+    },
+  );
 });

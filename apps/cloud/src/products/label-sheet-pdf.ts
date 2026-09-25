@@ -38,7 +38,9 @@ const FIRST_DIGIT_BOX_WIDTH_MM = 11 * 0.33;
 // (Greek, Cyrillic, "ő", "≈"); Liberation Sans Bold is metric-compatible with it and covers them.
 // `fonts/` sits beside `src/` and `dist/` alike, and ships through package.json's `files`.
 const NAME_FONT = "LiberationSans-Bold";
-const NAME_FONT_FILE = readFileSync(new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url));
+const NAME_FONT_FILE = readFileSync(
+  new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url),
+);
 
 function mm(valueMm: number): number {
   return valueMm * PT_PER_MM;
