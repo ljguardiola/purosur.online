@@ -94,7 +94,7 @@ CI is the only thing that allows a merge: the `pr-contract` and `verify` checks 
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
 
-Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in); a slow test mark never fails a run.
+Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
 ## Releases
 

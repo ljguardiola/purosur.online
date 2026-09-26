@@ -2,7 +2,11 @@ import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
+import {
+  ROOT_SLOW_TEST_THRESHOLD,
+  SlowTestsReporter,
+} from "./.github/scripts/slow-tests-reporter.mjs";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -17,6 +21,19 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
+    // Off, in favor of SlowTestsReporter below: one threshold for every kind of test would mark
+    // whichever kind is naturally slower (e.g. browser tests) slow on every run.
+    slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
+    reporters: [
+      ...configDefaults.reporters,
+      new SlowTestsReporter({
+        node: 1000,
+        // Same kind as "node" below: plain in-process Node tests.
+        "railway-iac": 1000,
+        "cloud-integration": 5000,
+        browser: 2000,
+      }),
+    ],
     // File extension routes a test to its project: .test.ts runs headless under
     // Node, .test.tsx runs in a real Chromium tab with every package/app's DOM
     // and CSS available, including the setup file below.
