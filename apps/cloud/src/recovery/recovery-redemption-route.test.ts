@@ -5,6 +5,7 @@ import WebAuthnEmulator from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
+  alerts,
   auditLog,
   passkeys,
   recoveryRejectedAttemptAccumulator,
@@ -350,6 +351,38 @@ describe("POST /users/recovery/redeem", () => {
         credentialId: credential.id,
         deviceType: inserted?.deviceType,
         backedUp: inserted?.backedUp,
+      },
+    });
+  });
+
+  it("opens a backoffice_passkey_changed alert scoped to the account", async () => {
+    const rawToken = await issueToken();
+    const options = await getRegistrationOptions(rawToken);
+    const emulator = new WebAuthnEmulator();
+    const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
+
+    const response = await postRedeem({
+      recovery_token: rawToken,
+      passkey_registration: credential,
+      passkey_name: "Notebook del local",
+    });
+
+    expect(response.statusCode).toBe(200);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.kind, "backoffice_passkey_changed"));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: userId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        action: "registered",
+        passkeyName: "Notebook del local",
+        actorId: userId,
+        via: "recovery",
       },
     });
   });
@@ -766,6 +799,11 @@ describe("recovery redemption with a credential that is already registered", () 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "passkey_already_registered" });
     expect(await tokenUsedAt(rawToken)).toBeNull();
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.kind, "backoffice_passkey_changed"));
+    expect(opened).toHaveLength(0);
   });
 });
 

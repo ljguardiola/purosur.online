@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, recoveryTokens, users } from "../db/schema.js";
 import type { SendRecoveryLinkInput } from "./recovery-email-sender.js";
 import { hashRecoveryToken } from "./recovery-token-hash.js";
@@ -151,6 +152,23 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
       },
       at: requestedAt,
     });
+
+    // Only an admitted request that actually issues a link opens this alert: a rejected or
+    // superseded one must never distinguish itself from "no account with that email" to whoever
+    // triggered it.
+    await openAlert(
+      tx,
+      {
+        kind: "backoffice_recovery_requested",
+        scope: account.id,
+        detail: {
+          requestedAt: requestedAt.toISOString(),
+          issuedAt: token.issuedAt.toISOString(),
+          expiresAt: token.expiresAt.toISOString(),
+        },
+      },
+      { now: () => now },
+    );
 
     return true;
   });

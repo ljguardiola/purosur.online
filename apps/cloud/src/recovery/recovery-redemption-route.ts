@@ -3,6 +3,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from "@simple
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
@@ -392,6 +393,21 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
             backedUp: registrationInfo.credentialBackedUp,
           },
         });
+
+        await openAlert(
+          tx,
+          {
+            kind: "backoffice_passkey_changed",
+            scope: account.id,
+            detail: {
+              action: "registered",
+              passkeyName,
+              actorId: account.id,
+              via: "recovery",
+            },
+          },
+          { now },
+        );
 
         // Redeeming a recovery link ends every session already open on the account (drafts/docs
         // §12.3 ~3878, §9.7 ~3204); it never opens a new one itself.

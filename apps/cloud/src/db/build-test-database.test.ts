@@ -7,6 +7,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
+  alertDeliveries,
+  alerts,
   auditLog,
   backofficeRateLimitAttempts,
   branchHours,
@@ -257,6 +259,26 @@ describe("buildTestDatabase", () => {
       keyKind: "source_address",
       keyValue: "203.0.113.10",
       attemptedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "user_email_changed",
+        scope: "a-user-id",
+        level: "warning",
+        audience: "all",
+        detail: {},
+        openedAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: alerts.id });
+    if (!alert) {
+      throw new Error("seeding alerts returned no row");
+    }
+    await db.insert(alertDeliveries).values({
+      alertId: alert.id,
+      recipientUserId: user.id,
+      channel: "backoffice",
+      status: "sent",
     });
     // `issuer_identification` is a true singleton (a second row is impossible by construction), so
     // its row count can never grow the way every other table's does below; changing its content

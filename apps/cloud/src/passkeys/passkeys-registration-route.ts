@@ -3,6 +3,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from "@simple
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, users } from "../db/schema.js";
 import { deriveUserHandle } from "../recovery/recovery-user-handle.js";
 import { resolveWebAuthnConfig } from "../recovery/webauthn-config.js";
@@ -222,6 +223,21 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
               backedUp: registrationInfo.credentialBackedUp,
             },
           });
+
+          await openAlert(
+            tx,
+            {
+              kind: "backoffice_passkey_changed",
+              scope: openSession.userId,
+              detail: {
+                action: "registered",
+                passkeyName,
+                actorId: openSession.userId,
+                via: "self",
+              },
+            },
+            { now },
+          );
 
           return newPasskey;
         })

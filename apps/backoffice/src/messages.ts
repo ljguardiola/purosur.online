@@ -1,4 +1,5 @@
 import {
+  type AlertKind,
   BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -141,6 +142,23 @@ const PERMISSION_LABELS = {
   recover_contingency_receipts: "Rescatar tickets de contingencia",
   configure_branch: "Configurar la sucursal",
 } satisfies Record<PermissionKey, string>;
+
+// The ALERTA column's own title and one-line subtitle per kind: `Record<AlertKind, string>` keeps
+// this in sync with the shared catalog (@purosur/contracts) at compile time, so a kind the catalog
+// adds or removes is caught here too, instead of silently falling back to the raw key.
+const ALERT_KIND_LABELS = {
+  backoffice_passkey_changed: "Passkey",
+  backoffice_recovery_requested: "Recuperación de acceso",
+  user_email_changed: "Correo",
+  backoffice_sign_in_lockout: "Bloqueo de ingreso",
+} satisfies Record<AlertKind, string>;
+
+const ALERT_KIND_DESCRIPTIONS = {
+  backoffice_passkey_changed: "Se registró o dio de baja una passkey",
+  backoffice_recovery_requested: "Se pidió el enlace de acceso",
+  user_email_changed: "Se cambió una dirección de correo",
+  backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
+} satisfies Record<AlertKind, string>;
 
 const AREA_LABELS = {
   cashRegister: "Caja",
@@ -1141,5 +1159,123 @@ export const messages = defineMessages("es-AR", (f) => ({
     pickSectionBody: "O buscá un tema.",
     noResultsTitle: "Sin resultados",
     noResultsBody: "Probá con otras palabras.",
+  },
+  inicio: {
+    areaLabel: "Inicio",
+    sectionsHeading: "Inicio",
+    sectionsNavLabel: "Inicio",
+    alertsSectionLabel: "Alertas",
+    alerts: {
+      documentTitle: "Alertas · Puro Sur",
+      breadcrumb: "Inicio",
+      heading: "Alertas",
+      openPill: (params: { count: number }) =>
+        f.plural(params.count, {
+          one: "1 alerta abierta",
+          other: `${params.count} alertas abiertas`,
+        }),
+      searchPlaceholder: "Buscar una alerta",
+      levelFilterLabel: "Nivel",
+      levelAllOption: "Todos",
+      levelOptions: {
+        critical: "Crítica",
+        warning: "Advertencia",
+        informational: "Informativa",
+      },
+      statusFilterLabel: "Estado",
+      statusOpenOption: "Abiertas",
+      statusClosedOption: "Cerradas",
+      columns: {
+        level: "Nivel",
+        alert: "Alerta",
+        scope: "Alcance",
+        openedAt: "Abierta",
+      },
+      scopeNone: "—",
+      dateTime: (params: { date: Date }) =>
+        `${f.date(params.date, PASSKEY_DATE_OPTIONS)} ${f.date(params.date, PASSKEY_TIME_OPTIONS)}`,
+      rowActionsLabel: "Acciones de la alerta",
+      viewAria: (params: { title: string }) => `Ver la alerta «${params.title}»`,
+      footer: (params: { count: number; criticalCount: number }) =>
+        `${f.plural(params.count, { one: "1 alerta abierta", other: `${params.count} alertas abiertas` })} · ${f.plural(params.criticalCount, { one: "1 crítica", other: `${params.criticalCount} críticas` })}`,
+      pagination: {
+        label: "Páginas de alertas",
+        previous: "Anterior",
+        next: "Siguiente",
+        page: (params: { page: number }) => `Página ${params.page}`,
+      },
+      emptyTitle: "Sin alertas abiertas",
+      emptyDetail: "Cuando algo necesite atención, aparece acá.",
+      noResultsTitle: "No encontramos alertas",
+      noResultsDetail: "Probá cambiar la búsqueda o los filtros.",
+      loadErrorTitle: "No pudimos abrir las alertas",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      // The ALERTA column's own title and one-line subtitle per kind, generic (it never fetches
+      // each row's detail — the ALCANCE column already carries who/what it's about, from the
+      // summary alone); the detail modal's title (below) is specific about what happened, once the
+      // fact itself is on hand.
+      listKindLabels: ALERT_KIND_LABELS,
+      listKindDescriptions: ALERT_KIND_DESCRIPTIONS,
+      kindTitles: {
+        passkeyRegistered: "Se registró una passkey",
+        passkeyRemoved: "Se dio de baja una passkey",
+        recoveryRequested: "Se pidió el enlace de acceso",
+        emailChanged: "Se cambió un correo",
+        signInLockout: "Se bloqueó un origen de ingreso",
+      },
+      detail: {
+        eyebrow: "ALERTA DE SEGURIDAD",
+        closeLabel: "Cerrar",
+        openedLabel: "Abierta",
+        escalatedLabel: "Escaló",
+        notEscalatedYet: "Todavía no",
+        scopeLabel: "Alcance",
+        deliveriesTitle: "Aviso por el backoffice",
+        deliverySent: "Enviado",
+        deliveryFailed: "No se pudo enviar",
+        closingNote: "No se cierra sola: se cierra a mano después de revisarla.",
+        back: "Volver",
+        closeAlert: "Cerrar la alerta",
+        closeFailedTitle: "No se pudo cerrar la alerta",
+        closeFailedDetail: "Probá de nuevo.",
+        alreadyClosedTitle: "Esta alerta ya estaba cerrada",
+        alreadyClosedDetail: "Alguien más la cerró primero.",
+        loading: "Cargando la alerta…",
+        notFoundTitle: "No encontramos esa alerta",
+        loadErrorTitle: "No pudimos abrir la alerta",
+        loadErrorDetail: "Probá de nuevo en unos minutos.",
+        descriptions: {
+          passkeyRegisteredSelf: (params: { targetName: string; passkeyName: string }) =>
+            `${params.targetName} registró la passkey «${params.passkeyName}». Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`,
+          passkeyRemovedSelf: (params: { targetName: string; passkeyName: string }) =>
+            `${params.targetName} dio de baja la passkey «${params.passkeyName}». Si no se reconoce este cambio, conviene revisar sus passkeys desde Usuarios.`,
+          passkeyRemovedByAdministrator: (params: {
+            actorName: string;
+            targetName: string;
+            passkeyName: string;
+          }) =>
+            `El Administrador ${params.actorName} dio de baja la passkey «${params.passkeyName}» de ${params.targetName}. Si no fue así, conviene revisarlo.`,
+          passkeyRegisteredByRecovery: (params: { targetName: string; passkeyName: string }) =>
+            `${params.targetName} registró la passkey «${params.passkeyName}» al usar el enlace de recuperación de acceso. Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`,
+          recoveryRequested: (params: { targetName: string }) =>
+            `Alguien pidió el enlace de acceso para ${params.targetName}. Si no se reconoce este pedido, conviene revisar sus passkeys desde Usuarios.`,
+          emailChanged: (params: {
+            actorName: string;
+            targetName: string;
+            previousEmail: string;
+            newEmail: string;
+          }) =>
+            `El Administrador ${params.actorName} cambió el correo de ${params.targetName} de ${params.previousEmail} a ${params.newEmail}.`,
+          signInLockout: (params: { sourceAddress: string; failureCount: number }) =>
+            `La dirección ${params.sourceAddress} quedó bloqueada para ingresar al backoffice después de ${f.plural(params.failureCount, { one: "1 intento fallido", other: `${params.failureCount} intentos fallidos` })}.`,
+          signInLockoutWithoutAddress: (params: { failureCount: number }) =>
+            `Una dirección quedó bloqueada para ingresar al backoffice después de ${f.plural(params.failureCount, { one: "1 intento fallido", other: `${params.failureCount} intentos fallidos` })}.`,
+        },
+      },
+    },
   },
 }));

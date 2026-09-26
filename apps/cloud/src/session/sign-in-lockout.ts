@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { openAlert } from "../alerts/open-alert.js";
 import { signInFailures, signInLockouts } from "../db/schema.js";
 
 /** The rolling window `sign_in_failures` counts a source address's failed attempts over. */
@@ -106,6 +107,18 @@ async function tripLockout(
     throw new Error("sign-in lockout upsert returned no row");
   }
   await tx.delete(signInFailures).where(eq(signInFailures.sourceAddress, sourceAddress));
+
+  // The one place that actually trips a block, whether admitSignInAttempt caps a burst or
+  // confirmRejectedSignInAttempt settles the attempt that reaches the limit.
+  await openAlert(
+    tx,
+    {
+      kind: "backoffice_sign_in_lockout",
+      scope: sourceAddress,
+      detail: { sourceAddress, failureCount, blockedUntil: blockedUntil.toISOString() },
+    },
+    { now: () => now },
+  );
 
   return { id: blocked.id, blockedUntil, failureCount };
 }

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator, {
   AuthenticatorEmulator,
@@ -6,7 +6,7 @@ import WebAuthnEmulator, {
 } from "nid-webauthn-emulator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
+import { alerts, auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
 import { registerRecoveryRedemptionRoutes } from "../recovery/recovery-redemption-route.js";
 import { hashRecoveryToken } from "../recovery/recovery-token-hash.js";
 import { exhaustSessionRateLimit } from "../session/exhaust-backoffice-rate-limit.js";
@@ -166,6 +166,14 @@ describe("POST /users/passkeys/:id/remove", () => {
     emulatorB = newDeviceEmulator();
     await registerPasskey(userId, emulatorA, "Notebook del local");
     await registerPasskey(userId, emulatorB, "Teléfono del local");
+
+    // Redeeming the two setup passkeys above already opened (and, on the second, deduped into) the
+    // account's own backoffice_passkey_changed alert; closing it here keeps each test's own
+    // assertions about that alert free of this setup's side effect.
+    await db
+      .update(alerts)
+      .set({ resolvedAt: currentTime, resolvedBy: userId })
+      .where(eq(alerts.scope, userId));
   });
 
   function removePasskey(rawSessionId: string, targetId: string) {
@@ -234,6 +242,49 @@ describe("POST /users/passkeys/:id/remove", () => {
       previousValue: { id: target.id, name: "Teléfono del local" },
       newValue: null,
     });
+  });
+
+  it("opens a backoffice_passkey_changed alert scoped to the account", async () => {
+    const rawSessionId = await insertSession(userId);
+    const [target] = await db
+      .select()
+      .from(passkeys)
+      .where(eq(passkeys.name, "Teléfono del local"));
+    if (!target) throw new Error("test setup: target passkey not found");
+
+    const response = await removePasskey(rawSessionId, target.id);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: userId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        action: "removed",
+        passkeyName: "Teléfono del local",
+        actorId: userId,
+        via: "self",
+      },
+    });
+  });
+
+  it("opens no alert for a removal that answers not_found, deleting nothing", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const response = await removePasskey(rawSessionId, "00000000-0000-0000-0000-000000000000");
+
+    expect(response.statusCode).toBe(404);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(0);
   });
 
   it("allows the passkey that authorized the session to be the one removed", async () => {

@@ -110,6 +110,13 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       startAuthentication: vi.fn(),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
+    alertsListScreen: {
+      fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
+      alertDetailModal: {
+        fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
+        closeAlert: vi.fn(),
+      },
+    },
     ...overrides,
   };
 }
@@ -1264,6 +1271,91 @@ test("hides the Catálogo item in the rail for a user without the permission", a
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Catálogo" }).query()).toBeNull();
 });
+
+test("shows the Inicio item in the rail for a user holding view_branch_alerts, linking to Alertas", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["view_branch_alerts"],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+});
+
+test("hides the Inicio item in the rail for a user without either alert-view permission", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Inicio" }).query()).toBeNull();
+});
+
+test("following the rail's Inicio item opens the Alertas list, with Inicio and Alertas active", async () => {
+  window.history.pushState(null, "", "/help");
+  const services = createServices();
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/inicio/alertas");
+  const inicioItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
+  expect(inicioItem.getAttribute("aria-current")).toBe("page");
+  const alertsItem = screen.getByRole("link", { name: "Alertas" }).element() as HTMLAnchorElement;
+  expect(alertsItem.getAttribute("aria-current")).toBe("page");
+});
+
+test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products"])(
+  "lists Inicio above Catálogo in the rail on %s",
+  async (path) => {
+    window.history.pushState(null, "", path);
+    const services = createServices();
+    vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    const rail = screen.getByRole("navigation", { name: "Áreas" });
+    await expect.element(rail.getByRole("link", { name: "Inicio" })).toBeVisible();
+    const labels = rail
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent);
+    expect(labels.indexOf("Inicio")).toBeLessThan(labels.indexOf("Catálogo"));
+  },
+);
 
 test.each(["/help", "/settings/users", "/catalog/categories", "/catalog/products"])(
   "lists Catálogo above Config in the rail on %s",

@@ -1082,6 +1082,7 @@ function fullyWiredApp() {
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
@@ -1204,6 +1205,13 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/products/labels",
         access: permissionAccess("manage_products_and_categories"),
+      },
+      { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
+      {
+        method: "POST",
+        url: "/alerts/:id/close",
+        access: permissionAccess("dismiss_alerts_manually"),
       },
       {
         method: "GET",

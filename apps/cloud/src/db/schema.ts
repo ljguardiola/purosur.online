@@ -686,3 +686,79 @@ export const backofficeRateLimitAttempts = pgTable(
     index("backoffice_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
   ],
 );
+
+export const alertLevel = pgEnum("alert_level", ["informational", "warning", "critical"]);
+
+export const alertAudience = pgEnum("alert_audience", ["local", "all"]);
+
+// `kind` is free text, not an enum: the kind catalog (`alerts/alert-kind-catalog.ts`) lives in
+// code, the same reasoning `role_permissions.permission_key` gives for staying text instead of an
+// enum, so a kind added later reaches this table without a migration. `scope` is the other half of
+// the deduplication key (a user id, a source address…) and stays free text for the same reason: it
+// varies by kind. `location_id` is null for an `all`-audience alert and required for a
+// `local`-audience one, enforced below; no kind uses `local` yet.
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    scope: text("scope").notNull(),
+    // The alert's current level: starts at the kind's opening level and moves to `critical` once
+    // escalated. Never the same column as a kind's own catalog level, which never changes.
+    level: alertLevel("level").notNull(),
+    audience: alertAudience("audience").notNull(),
+    locationId: uuid("location_id").references(() => locations.id),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    escalateAt: timestamp("escalate_at", { withTimezone: true }),
+    escalatedAt: timestamp("escalated_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+  },
+  (table) => [
+    // The deduplication key itself: while an alert of a given kind and scope is still open
+    // (`resolved_at is null`), a second trigger of the same condition matches this same partial
+    // index instead of inserting a second row; `open-alert.ts` catches the resulting unique
+    // violation and treats it as a no-op.
+    uniqueIndex("alerts_open_dedup_key")
+      .on(table.kind, table.scope)
+      .where(sql`${table.resolvedAt} IS NULL`),
+    index("alerts_level_idx").on(table.level),
+    index("alerts_resolved_at_idx").on(table.resolvedAt),
+    check(
+      "alerts_location_id_matches_audience",
+      sql`(${table.audience} = 'local' AND ${table.locationId} IS NOT NULL) OR (${table.audience} = 'all' AND ${table.locationId} IS NULL)`,
+    ),
+  ],
+);
+
+export const alertDeliveryChannel = pgEnum("alert_delivery_channel", ["backoffice"]);
+
+export const alertDeliveryStatus = pgEnum("alert_delivery_status", ["sent", "failed"]);
+
+// One row per recipient, per channel, written when the alert opens: for now the only channel is
+// the backoffice's own display, so opening an alert always writes `sent` rows (there is nothing
+// that can fail yet); `status`/`error` exist for a future channel that can.
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id),
+    channel: alertDeliveryChannel("channel").notNull().default("backoffice"),
+    status: alertDeliveryStatus("status").notNull().default("sent"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_deliveries_alert_recipient_channel_key").on(
+      table.alertId,
+      table.recipientUserId,
+      table.channel,
+    ),
+  ],
+);

@@ -4,6 +4,10 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
+import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
+import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
+import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch-settings/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings/branch-settings-read-route.js";
@@ -156,6 +160,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   products?: ProductsRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /alerts`, `GET /alerts/:id`, and `POST /alerts/:id/close`, the backoffice
+   * Alertas screen's list, detail, and manual-close sides: list and detail are open to any
+   * signed-in user, filtered by the viewer's own audience visibility (`view_branch_alerts` or
+   * `view_all_alerts`, an Administrator always holding both implicitly); close is additionally
+   * gated by `dismiss_alerts_manually`, the same optional-feature-wiring shape `roles` uses above.
+   */
+  alerts?: AlertsRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /prices`, `POST /products/:id/price`, and `POST
    * /products/:id/price-confirmation`, the backoffice Prices screen's list, set, and
    * confirm-without-change sides: every one is gated by the `manage_prices_and_review` permission
@@ -274,6 +286,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductDeactivationRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
     registerProductLabelsRoute(app, options.products);
+  }
+
+  if (options.alerts) {
+    registerAlertsListRoute(app, options.alerts);
+    registerAlertReadRoute(app, options.alerts);
+    registerAlertCloseRoute(app, options.alerts);
   }
 
   if (options.prices) {
