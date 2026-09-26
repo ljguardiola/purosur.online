@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import {
   checkFiles,
@@ -728,6 +729,110 @@ test("does not flag a setTimeout in a describe.each or describe.for suite whose 
 
     assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), [], suite);
   }
+});
+
+test("does not flag a setTimeout in a tagged-template describe.each suite whose beforeEach installs fake timers", () => {
+  const source = [
+    "describe.each`",
+    "  n",
+    "  1",
+    '`("case $n", () => {',
+    "  beforeEach(() => vi.useFakeTimers());",
+    '  test("x", () => {',
+    "    setTimeout(fn, 500);",
+    "  });",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
+});
+
+// The scan runs in a child process: a guard that never returns would otherwise hang this file
+// instead of failing it, since a synchronous loop blocks node:test's own timeout.
+test("returns for fake timers installed with toNotFake through a hook helper", () => {
+  const source = [
+    'function freeze() { vi.useFakeTimers({ toNotFake: ["nextTick"] }); }',
+    "beforeAll(freeze);",
+    'test("a", () => {',
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
+  const script = [
+    `import { findRealTimeViolations } from ${JSON.stringify(import.meta.resolve("./no-real-time-in-tests.mjs"))};`,
+    `process.stdout.write(JSON.stringify(findRealTimeViolations(${JSON.stringify(source)}, "a.test.ts")));`,
+  ].join("\n");
+
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    encoding: "utf8",
+    timeout: 5000,
+  });
+
+  assert.equal(child.error, undefined, "the scan did not return");
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), []);
+});
+
+test("resolves a captured real timer by scope: a capture in one function leaves other bindings alone", () => {
+  const source = [
+    "function helper() {",
+    "  const { setTimeout } = globalThis;",
+    "  setTimeout(fn, 500);",
+    "}",
+    'test("a", () => {',
+    "  vi.useFakeTimers();",
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
+
+  const violations = findRealTimeViolations(source, "a.test.ts");
+
+  assert.deepEqual(
+    violations.map((violation) => violation.line),
+    [3],
+  );
+});
+
+test("does not flag a timer captured after the same body installs fake timers", () => {
+  const source = [
+    'test("a", () => {',
+    "  vi.useFakeTimers();",
+    "  const { setTimeout: later } = globalThis;",
+    "  const setTimeout = globalThis.setTimeout.bind(globalThis);",
+    "  later(fn, 500);",
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
+});
+
+test("flags a wait after a test restores the real timers a hook or helper installed", () => {
+  const source = [
+    "function withTimers() {",
+    "  vi.useFakeTimers();",
+    "}",
+    'describe("s", () => {',
+    "  beforeEach(() => vi.useFakeTimers());",
+    '  test("hook", async () => {',
+    "    vi.useRealTimers();",
+    "    await new Promise((r) => setTimeout(r, 500));",
+    "  });",
+    '  test("helper", async () => {',
+    "    withTimers();",
+    "    vi.useRealTimers();",
+    "    await new Promise((r) => setTimeout(r, 500));",
+    "    withTimers();",
+    "    setTimeout(fn, 500);",
+    "  });",
+    "});",
+  ].join("\n");
+
+  const violations = findRealTimeViolations(source, "a.test.ts");
+
+  assert.deepEqual(
+    violations.map((violation) => violation.line),
+    [8, 13],
+  );
 });
 
 test("flags a setTimeout after a module-scope vi.useFakeTimers() call", () => {

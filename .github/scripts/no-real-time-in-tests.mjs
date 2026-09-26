@@ -93,14 +93,6 @@ function ownBodyNodes(fn) {
   return nodes;
 }
 
-/** Names of the same-file functions that `fn`'s own body calls directly. */
-function calledFunctionNames(fn, functions) {
-  return ownBodyNodes(fn)
-    .filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression))
-    .map((n) => n.expression.text)
-    .filter((name) => functions.has(name));
-}
-
 // --- Rule 1: measures real elapsed time -------------------------------------------------------
 
 const DIRECT_CLOCK_READS = new Map([
@@ -296,9 +288,74 @@ function globalTimerTarget(expr) {
 
 const GLOBAL_OBJECTS = new Set(["globalThis", "window", "self"]);
 
+function isScopeNode(node) {
+  return (
+    ts.isSourceFile(node) ||
+    ts.isBlock(node) ||
+    ts.isFunctionLike(node) ||
+    ts.isForStatement(node) ||
+    ts.isForOfStatement(node) ||
+    ts.isForInStatement(node) ||
+    ts.isCatchClause(node) ||
+    ts.isCaseBlock(node) ||
+    ts.isModuleBlock(node) ||
+    ts.isClassLike(node)
+  );
+}
+
+/** The identifiers a binding name declares: the name itself or every name in its pattern. */
+function boundIdentifiers(name) {
+  if (ts.isIdentifier(name)) return [name];
+  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+    return name.elements.flatMap((element) =>
+      ts.isBindingElement(element) ? boundIdentifiers(element.name) : [],
+    );
+  }
+  return [];
+}
+
+/** The identifiers `scope` itself declares, without those of the scopes nested in it. */
+function scopeDeclarations(scope) {
+  const declared = [];
+  if (ts.isFunctionLike(scope)) {
+    for (const parameter of scope.parameters) declared.push(...boundIdentifiers(parameter.name));
+    if ((ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) && scope.name) {
+      declared.push(scope.name);
+    }
+  }
+  const visit = (n) => {
+    if (ts.isVariableDeclaration(n)) declared.push(...boundIdentifiers(n.name));
+    if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) declared.push(n.name);
+    if (ts.isImportClause(n) && n.name) declared.push(n.name);
+    if (ts.isNamespaceImport(n) || ts.isImportSpecifier(n)) declared.push(n.name);
+    if (isScopeNode(n)) return;
+    ts.forEachChild(n, visit);
+  };
+  ts.forEachChild(scope, (child) => {
+    if (ts.isFunctionLike(scope) && ts.isParameter(child)) return;
+    visit(child);
+  });
+  return declared;
+}
+
+/** Resolves an identifier to the identifier that declares it in the nearest enclosing scope. */
+function declarationResolver() {
+  const cache = new Map();
+  return (identifier) => {
+    for (let scope = identifier.parent; scope; scope = scope.parent) {
+      if (!isScopeNode(scope)) continue;
+      if (!cache.has(scope)) cache.set(scope, scopeDeclarations(scope));
+      const declaration = cache.get(scope).find((declared) => declared.text === identifier.text);
+      if (declaration) return declaration;
+    }
+    return undefined;
+  };
+}
+
 /**
- * Local names aliased from the real `setTimeout`/`setInterval`: assigned directly, through
- * `.bind(...)`, or destructured from the global object. Each maps to the timer it reaches.
+ * Declarations aliased from the global `setTimeout`/`setInterval`: assigned directly, through
+ * `.bind(...)`, or destructured from the global object. Each declaring identifier maps to the
+ * timer it reaches.
  */
 function globalTimerAliases(sourceFile) {
   const aliases = new Map();
@@ -306,7 +363,7 @@ function globalTimerAliases(sourceFile) {
     if (!ts.isVariableDeclaration(node) || !node.initializer) continue;
     if (ts.isIdentifier(node.name)) {
       const timer = globalTimerTarget(node.initializer);
-      if (timer) aliases.set(node.name.text, timer);
+      if (timer) aliases.set(node.name, timer);
     } else if (
       ts.isObjectBindingPattern(node.name) &&
       GLOBAL_OBJECTS.has(dottedName(node.initializer))
@@ -317,7 +374,7 @@ function globalTimerAliases(sourceFile) {
           (imported === "setTimeout" || imported === "setInterval") &&
           ts.isIdentifier(element.name)
         ) {
-          aliases.set(element.name.text, imported);
+          aliases.set(element.name, imported);
         }
       }
     }
@@ -359,14 +416,15 @@ function timersPromisesBindings(sourceFile) {
  * `{ delayIndex, timer, captured }` when `node` is a real timer call, given the file's aliases and
  * imports. `captured` marks a real timer taken before any fake timers could replace it.
  */
-function classifyTimerCall(node, aliases, promisesBindings) {
+function classifyTimerCall(node, aliases, promisesBindings, resolve) {
   if (!ts.isCallExpression(node)) return undefined;
   const callee = node.expression;
 
   if (ts.isIdentifier(callee)) {
-    // Checked first: `const { setTimeout } = globalThis` captures the real timer under its own name.
-    if (aliases.has(callee.text)) {
-      return { delayIndex: 1, timer: aliases.get(callee.text), captured: true };
+    // Checked first: `const { setTimeout } = globalThis` captures the timer under its own name.
+    const alias = aliases.get(resolve(callee));
+    if (alias) {
+      return alias.capturesFake ? undefined : { delayIndex: 1, timer: alias.timer, captured: true };
     }
     if (callee.text === "setTimeout" || callee.text === "setInterval") {
       return { delayIndex: 1, timer: callee.text, captured: false };
@@ -511,8 +569,15 @@ function stringLiterals(node) {
   return node.elements.map((element) => element.text);
 }
 
+// Entries are strings so that sets of them compare by value, which the fixpoints rely on to settle.
+const ALL_EXCEPT_PREFIX = "allExcept:";
+
+function allExcept(names) {
+  return `${ALL_EXCEPT_PREFIX}${[...new Set(names)].sort().join(",")}`;
+}
+
 /**
- * What a `vi.useFakeTimers(...)` call fakes, as names plus `{ allExcept }` entries. Options it
+ * What a `vi.useFakeTimers(...)` call fakes, as names plus `allExcept` entries. Options it
  * cannot read, and fake timers that advance with real time, fake nothing for this guard.
  */
 function fakedByUseFakeTimers(call) {
@@ -533,7 +598,7 @@ function fakedByUseFakeTimers(call) {
   const toNotFake = propertyNamed(options, "toNotFake");
   if (toNotFake) {
     const kept = stringLiterals(toNotFake);
-    return kept ? [{ allExcept: new Set(kept) }] : [];
+    return kept ? [allExcept(kept)] : [];
   }
   return [ALL_FAKED];
 }
@@ -541,7 +606,10 @@ function fakedByUseFakeTimers(call) {
 function isFaked(faked, name) {
   return [...faked].some(
     (entry) =>
-      entry === ALL_FAKED || entry === name || (!!entry.allExcept && !entry.allExcept.has(name)),
+      entry === ALL_FAKED ||
+      entry === name ||
+      (entry.startsWith(ALL_EXCEPT_PREFIX) &&
+        !entry.slice(ALL_EXCEPT_PREFIX.length).split(",").includes(name)),
   );
 }
 
@@ -574,8 +642,18 @@ function isFakeTimersHook(expr) {
  * `beforeEach`/`beforeAll` hook installs in an enclosing `describe` or at the top of the file.
  */
 function fakeTimersScope(sourceFile, functions) {
-  const calledFunctions = (fn) =>
-    calledFunctionNames(fn, functions).flatMap((name) => functions.get(name));
+  // The same-file functions `fn`'s own body calls from `from` on and starting before `until`.
+  const calledFunctionsBetween = (fn, from, until) =>
+    ownBodyNodes(fn)
+      .filter(
+        (n) =>
+          ts.isCallExpression(n) &&
+          ts.isIdentifier(n.expression) &&
+          functions.has(n.expression.text) &&
+          n.getStart() >= from &&
+          n.getStart() < until,
+      )
+      .flatMap((n) => functions.get(n.expression.text));
 
   // What `fn` leaves installed once it returns: what its own body installs, directly or through a
   // same-file call, after its last `vi.useRealTimers()`.
@@ -626,12 +704,17 @@ function fakeTimersScope(sourceFile, functions) {
     }),
   );
 
-  // What `fn`'s own body installs before `position` and has not restored by then.
-  const installedBefore = (fn, position) => {
+  // What `fn`'s own body installs after `from` and before `position`, and has not restored by then.
+  const installedBefore = (fn, position, from = -1) => {
     const nodes = ownBodyNodes(fn);
     const restores = nodes.filter(isUseRealTimersCall);
     return nodes
-      .filter((install) => isUseFakeTimersCall(install) && install.getEnd() <= position)
+      .filter(
+        (install) =>
+          isUseFakeTimersCall(install) &&
+          install.getStart() >= from &&
+          install.getEnd() <= position,
+      )
       .filter(
         (install) =>
           !restores.some(
@@ -657,10 +740,31 @@ function fakeTimersScope(sourceFile, functions) {
     ts.isExpressionStatement(statement) ? [statement.expression] : [],
   );
 
+  const enclosingFunctions = (node) => {
+    const enclosing = [];
+    for (let current = node.parent; current; current = current.parent) {
+      if (ts.isFunctionLike(current)) enclosing.push(current);
+    }
+    return enclosing;
+  };
+
+  // Where the last `vi.useRealTimers()` before `position`, in any enclosing function body, ends:
+  // it ends every fake timer installed before it, by a hook, a helper or the body itself.
+  const restoredBefore = (node, position) =>
+    Math.max(
+      -1,
+      ...enclosingFunctions(node).flatMap((fn) =>
+        ownBodyNodes(fn)
+          .filter((n) => isUseRealTimersCall(n) && n.getEnd() <= position)
+          .map((n) => n.getEnd()),
+      ),
+    );
+
   return {
     fakes(node, name) {
-      const faked = new Set(hookInstalls(topLevelNodes));
       const position = node.getStart();
+      const restoredAt = restoredBefore(node, position);
+      const faked = new Set(restoredAt < 0 ? hookInstalls(topLevelNodes) : []);
       for (
         let child = node, current = node.parent;
         current;
@@ -669,19 +773,24 @@ function fakeTimersScope(sourceFile, functions) {
         if (
           ts.isCallExpression(current) &&
           ts.isIdentifier(current.expression) &&
-          current.arguments.includes(child)
+          current.arguments.includes(child) &&
+          current.getStart() >= restoredAt
         ) {
           for (const fn of functions.get(current.expression.text) ?? []) {
             for (const entry of bracketedBy.get(fn)) faked.add(entry);
           }
         }
         if (!ts.isFunctionLike(current)) continue;
-        for (const entry of installedBefore(current, position)) faked.add(entry);
-        for (const callee of calledFunctions(current)) {
+        for (const entry of installedBefore(current, position, restoredAt)) faked.add(entry);
+        // Without a restore before the node, a helper installs for the whole body wherever it is
+        // called; after one, only a helper called again before the node re-installs.
+        const until = restoredAt < 0 ? Number.POSITIVE_INFINITY : position;
+        for (const callee of calledFunctionsBetween(current, restoredAt, until)) {
           for (const entry of leftInstalled(callee)) faked.add(entry);
         }
         const call = current.parent;
         if (
+          restoredAt < 0 &&
           call &&
           ts.isCallExpression(call) &&
           isDescribeCallee(call.expression) &&
@@ -692,11 +801,25 @@ function fakeTimersScope(sourceFile, functions) {
       }
       return isFaked(faked, name);
     },
+
+    // Whether the nearest function body enclosing `node` installs fake timers faking `name` before
+    // `node` and has not restored them by then.
+    installedDirectlyAt(node, name) {
+      const [fn] = enclosingFunctions(node);
+      return !!fn && isFaked(installedBefore(fn, node.getStart()), name);
+    },
   };
 }
 
 function waitsRealTimeViolations(sourceFile, fakeTimers) {
-  const aliases = globalTimerAliases(sourceFile);
+  // A capture written after its own function body installs fake timers takes the fake timer.
+  const aliases = new Map(
+    [...globalTimerAliases(sourceFile)].map(([declaration, timer]) => [
+      declaration,
+      { timer, capturesFake: fakeTimers.installedDirectlyAt(declaration, timer) },
+    ]),
+  );
+  const resolve = declarationResolver();
   const promisesBindings = timersPromisesBindings(sourceFile);
   const violations = [];
 
@@ -708,7 +831,7 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
       continue;
     }
 
-    const timer = classifyTimerCall(node, aliases, promisesBindings);
+    const timer = classifyTimerCall(node, aliases, promisesBindings, resolve);
     if (!timer) continue;
 
     const delayArg = node.arguments[timer.delayIndex];
