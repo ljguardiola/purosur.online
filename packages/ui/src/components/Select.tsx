@@ -50,9 +50,8 @@ const baseLabelClassName = "text-sm font-bold text-ink";
 // requiredLabelSuffixClassName): a language-agnostic mark rather than caller-owned copy.
 const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-['*']`;
 
-// Height, gap and padding match DateField.tsx's own "backoffice" variant frame exactly (the
-// design draws this field inside a backoffice modal at the same 48px/8px/12px metrics) — the
-// same frame TextField.tsx's own "backoffice" plain-text kind now draws too.
+// Height, gap and padding match the "backoffice" frame of DateField.tsx and TextField.tsx exactly
+// (the design draws this field inside a backoffice modal at the same 48px/8px/12px metrics).
 const triggerBaseClassName =
   "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg border-2 px-3 outline-none";
 

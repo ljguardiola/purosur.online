@@ -1168,13 +1168,22 @@ test("marks the fallback category label as required when there are no categories
   expect(getComputedStyle(editLabel, "::after").content).toContain("*");
 });
 
-test("draws the Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels at the same size, weight, color, and row gap as the Nombre field's own label", async () => {
+test("draws the Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels at the same size, weight, color, and row gap as the Nombre field's own label, in both the create and the edit modal", async () => {
   const services = createServices();
   mockLoaded(services, [miel], []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("1 producto activo")).toBeVisible();
 
-  const dialog = await openNewProductModal(screen);
+  const createDialog = await openNewProductModal(screen);
+  expectPseudoLabelsMatchNameLabel(createDialog);
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  expectPseudoLabelsMatchNameLabel(editDialog);
+});
+
+function expectPseudoLabelsMatchNameLabel(dialog: ScreenLocator) {
   const nameLabel = dialog.getByText("Nombre", { exact: true }).element() as HTMLElement;
   const nameLabelStyle = getComputedStyle(nameLabel);
   const nameRowGap = getComputedStyle(nameLabel.parentElement as HTMLElement).rowGap;
@@ -1187,7 +1196,7 @@ test("draws the Categoría fallback, Unidad de venta and Códigos de barras pseu
     expect(pseudoLabelStyle.color).toBe(nameLabelStyle.color);
     expect(getComputedStyle(pseudoLabel.parentElement as HTMLElement).rowGap).toBe(nameRowGap);
   }
-});
+}
 
 function generateButtonOf(dialog: ScreenLocator) {
   return dialog.getByRole("button", { name: "Generar código interno" });
