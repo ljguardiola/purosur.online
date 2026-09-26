@@ -414,7 +414,7 @@ function timersPromisesBindings(sourceFile) {
 
 /**
  * `{ delayIndex, timer, captured }` when `node` is a real timer call, given the file's aliases and
- * imports. `captured` marks a real timer taken before any fake timers could replace it.
+ * imports. `captured` marks a real timer that installing fake timers doesn't replace.
  */
 function classifyTimerCall(node, aliases, promisesBindings, resolve) {
   if (!ts.isCallExpression(node)) return undefined;
@@ -426,11 +426,12 @@ function classifyTimerCall(node, aliases, promisesBindings, resolve) {
     if (alias) {
       return alias.capturesFake ? undefined : { delayIndex: 1, timer: alias.timer, captured: true };
     }
+    // Before the global name: `import { setTimeout } from "node:timers/promises"` shadows it.
+    if (promisesBindings.setTimeoutNames.has(callee.text)) {
+      return { delayIndex: 0, timer: "setTimeout", captured: true };
+    }
     if (callee.text === "setTimeout" || callee.text === "setInterval") {
       return { delayIndex: 1, timer: callee.text, captured: false };
-    }
-    if (promisesBindings.setTimeoutNames.has(callee.text)) {
-      return { delayIndex: 0, timer: "setTimeout", captured: false };
     }
     return undefined;
   }
@@ -441,7 +442,7 @@ function classifyTimerCall(node, aliases, promisesBindings, resolve) {
   const object = ts.isPropertyAccessExpression(callee) ? callee.expression : undefined;
   if (!object) return undefined;
   if (callee.name.text === "setTimeout" && promisesBindings.moduleNames.has(dottedName(object))) {
-    return { delayIndex: 0, timer: "setTimeout", captured: false };
+    return { delayIndex: 0, timer: "setTimeout", captured: true };
   }
   const scheduler = dottedName(object);
   const isScheduler =
@@ -450,7 +451,7 @@ function classifyTimerCall(node, aliases, promisesBindings, resolve) {
       object.name.text === "scheduler" &&
       promisesBindings.moduleNames.has(dottedName(object.expression)));
   if (callee.name.text === "wait" && isScheduler) {
-    return { delayIndex: 0, timer: "setTimeout", captured: false };
+    return { delayIndex: 0, timer: "setTimeout", captured: true };
   }
   return undefined;
 }

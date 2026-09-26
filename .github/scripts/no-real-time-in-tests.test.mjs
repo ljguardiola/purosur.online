@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import {
   checkFiles,
@@ -270,6 +269,37 @@ test("flags setTimeout imported from node:timers/promises with a fixed delay", (
   ].join("\n");
 
   assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
+});
+
+test("flags setTimeout imported from node:timers/promises under its own name, even under fake timers", () => {
+  const source = [
+    'import { setTimeout } from "node:timers/promises";',
+    'test("a", async () => {',
+    "  vi.useFakeTimers();",
+    "  await setTimeout(200);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [4],
+  );
+});
+
+test("flags timers/promises waits reached through a namespace import, even under fake timers", () => {
+  const source = [
+    'import * as timers from "node:timers/promises";',
+    'test("a", async () => {',
+    "  vi.useFakeTimers();",
+    "  await timers.setTimeout(200);",
+    "  await timers.scheduler.wait(200);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [4, 5],
+  );
 });
 
 test("flags scheduler.wait imported from timers/promises with a fixed delay", () => {
@@ -747,8 +777,6 @@ test("does not flag a setTimeout in a tagged-template describe.each suite whose 
   assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
 });
 
-// The scan runs in a child process: a guard that never returns would otherwise hang this file
-// instead of failing it, since a synchronous loop blocks node:test's own timeout.
 test("returns for fake timers installed with toNotFake through a hook helper", () => {
   const source = [
     'function freeze() { vi.useFakeTimers({ toNotFake: ["nextTick"] }); }',
@@ -757,19 +785,8 @@ test("returns for fake timers installed with toNotFake through a hook helper", (
     "  setTimeout(fn, 500);",
     "});",
   ].join("\n");
-  const script = [
-    `import { findRealTimeViolations } from ${JSON.stringify(import.meta.resolve("./no-real-time-in-tests.mjs"))};`,
-    `process.stdout.write(JSON.stringify(findRealTimeViolations(${JSON.stringify(source)}, "a.test.ts")));`,
-  ].join("\n");
 
-  const child = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
-    encoding: "utf8",
-    timeout: 5000,
-  });
-
-  assert.equal(child.error, undefined, "the scan did not return");
-  assert.equal(child.status, 0, child.stderr);
-  assert.deepEqual(JSON.parse(child.stdout), []);
+  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
 });
 
 test("resolves a captured real timer by scope: a capture in one function leaves other bindings alone", () => {
