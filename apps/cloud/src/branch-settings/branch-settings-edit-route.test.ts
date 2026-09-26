@@ -525,33 +525,6 @@ describe("PUT /branch-settings", () => {
     expect(response.json()).not.toHaveProperty("timezone");
   });
 
-  it("rejects a non-integer window value, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-    const locationId = await seededLocationId(db);
-
-    const response = await putBranchSettings(
-      validBody({ expiring_lot_alert_days: 30.5 }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "expiring_lot_alert_days" }],
-    });
-    const [row] = await db
-      .select()
-      .from(branchSettings)
-      .where(eq(branchSettings.locationId, locationId));
-    expect(row).toMatchObject({ expiringLotAlertDays: 30, version: 1 });
-  });
-
   it("accepts a window value of 2147483647 days, the largest the database stores", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",

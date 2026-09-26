@@ -393,6 +393,27 @@ describe("POST /products", () => {
     expect(response.json()).toMatchObject({ netContent: null });
   });
 
+  it("rejects a net content quantity with more than 3 decimals, creating nothing", async () => {
+    const categoryId = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContent: { quantity: 1.2345, unit: "KG" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "netContentQuantity" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
   it("accepts a barcode held only by an inactive product's barcode", async () => {
     const categoryId = await insertCategory("Macetas");
     await insertProductWithBarcode(categoryId, "999");
