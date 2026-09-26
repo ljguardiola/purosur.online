@@ -56,7 +56,7 @@ test("the workflows run at least one script under .github/scripts", () => {
   assert.ok(entryScripts.length > scriptsRunByOperators.length);
 });
 
-test("no script under .github/scripts decides it was run directly from its start path", async () => {
+test("no script under .github/scripts compares process.argv[1] to find out it was run directly", async () => {
   const scripts = (await readdir(scriptsDir)).filter(
     (file) => file.endsWith(".mjs") && !file.endsWith(".test.mjs"),
   );
