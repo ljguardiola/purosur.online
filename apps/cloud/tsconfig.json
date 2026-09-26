@@ -5,8 +5,16 @@
     "moduleResolution": "NodeNext",
     "rootDir": "./src",
     "outDir": "./dist",
-    "noEmit": false
+    "noEmit": false,
+    // Overrides the root's `paths` (which points `@purosur/contracts` at its untranspiled
+    // source): this build resolves it as an ordinary package instead, through the project
+    // reference below and node_modules, so it gets contracts' own compiled declarations.
+    "paths": {},
+    // `-b` mode's incremental build info; kept inside dist/ (already git-ignored) instead of its
+    // default location next to this file.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
+  "references": [{ "path": "../../packages/contracts" }],
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/**/*.test.ts",

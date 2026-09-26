@@ -4,9 +4,6 @@
 // gate's result anymore: this job's only work is reading the other jobs' `needs.*.result` and
 // translating them into one pass/fail for that required check.
 
-import { realpathSync } from "node:fs";
-import { pathToFileURL } from "node:url";
-
 const LOG_PREFIX = "aggregate-verify-result";
 
 const NON_FAILING_RESULTS = new Set(["success", "skipped"]);
@@ -76,9 +73,6 @@ export function runCli({ env = process.env, log = console.log, logError = consol
   return 1;
 }
 
-const isMainModule =
-  process.argv[1] !== undefined &&
-  pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
-if (isMainModule) {
+if (import.meta.main) {
   process.exit(runCli());
 }

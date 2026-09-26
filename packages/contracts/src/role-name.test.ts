@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";
+import { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name.js";
 
 describe("ROLE_NAME_MAX_LENGTH", () => {
   it("allows role names of up to 100 characters", () => {

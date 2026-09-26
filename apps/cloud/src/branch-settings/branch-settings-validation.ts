@@ -6,9 +6,8 @@ export const BRANCH_SETTINGS_TEXT_MAX_LENGTH = 200;
 
 const HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-// Mirrors `@purosur/contracts`'s cap because this app's `tsc` build (explicit `rootDir`) cannot
-// import that package's untranspiled source; `branch-settings-validation.test.ts` guards against
-// drift. This is a technical cap, not a business rule: it only prevents an unbounded list.
+// Mirrors `@purosur/contracts`'s cap; `branch-settings-validation.test.ts` guards against drift.
+// This is a technical cap, not a business rule: it only prevents an unbounded list.
 export const BRANCH_HOURS_RANGES_PER_DAY_MAX = 6;
 
 // Monday through Sunday, in the order the backoffice's "Horario de atención" rows appear and the

@@ -1,5 +1,4 @@
-// Mirrors `@purosur/contracts`'s alert kinds, levels and audiences because this app's `tsc` build
-// (explicit `rootDir`) cannot import that package's untranspiled source; `alert-kind-catalog.test.ts`
+// Mirrors `@purosur/contracts`'s alert kinds, levels and audiences; `alert-kind-catalog.test.ts`
 // guards against drift.
 export type AlertLevel = "informational" | "warning" | "critical";
 

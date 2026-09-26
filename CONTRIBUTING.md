@@ -2,7 +2,7 @@
 
 ## Getting started
 
-1. Install Node `>=24`. The exact version is pinned in `.node-version`, which fnm, nvm, asdf, mise, and volta all pick up automatically.
+1. Install Node `>=24.2`. The exact version is pinned in `.node-version`, which fnm, nvm, asdf, mise, and volta all pick up automatically.
 2. Install pnpm by any method (npm, the standalone install script, or your OS package manager). pnpm self-manages: once invoked in this repository, it reads the `packageManager` field in `package.json` and switches itself to that pinned version.
 3. Install dependencies: `pnpm install`.
 4. Run the single gate before opening a pull request: `pnpm verify`. It runs the same checks locally and in CI: type checking, lint, tests, and the repository's own automation tests.

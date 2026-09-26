@@ -1,15 +1,8 @@
+import { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "@purosur/contracts";
+
 export interface RegisterFieldValidationFailure {
   field: "name";
   message: string;
-}
-
-// Mirrors `@purosur/contracts`'s register name limit because this app's `tsc` build (explicit
-// `rootDir`) cannot import that package's untranspiled source; `register-validation.test.ts` guards
-// against drift.
-export const REGISTER_NAME_MAX_LENGTH = 100;
-
-export function registerNameLength(name: string): number {
-  return Array.from(name).length;
 }
 
 export function readRegisterName(body: unknown): string | undefined {

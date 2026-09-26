@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALERT_KINDS, isAlertKind } from "./alert-catalog";
+import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
 
 describe("ALERT_KINDS", () => {
   it("lists exactly the four security-fact kinds this issue delivers", () => {

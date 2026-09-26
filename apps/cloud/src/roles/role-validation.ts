@@ -3,9 +3,7 @@ import { ALERT_VIEW_PERMISSION_KEYS, isPermissionKey } from "./permission-catalo
 /** The Administrator role's own reserved name, checked case-insensitively; shared by creation and edit. */
 export const ADMINISTRATOR_NAME = "administrador";
 
-// Mirrors `@purosur/contracts`'s role name limit because this app's `tsc` build (explicit
-// `rootDir`) cannot import that package's untranspiled source; `role-validation.test.ts` guards
-// against drift.
+// Mirrors `@purosur/contracts`'s role name limit; `role-validation.test.ts` guards against drift.
 export const ROLE_NAME_MAX_LENGTH = 100;
 
 export function roleNameLength(name: string): number {
