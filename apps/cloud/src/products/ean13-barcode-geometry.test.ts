@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  CENTER_GUARD_END_MODULE,
   ean13BarcodeGeometry,
   MODULE_WIDTH_MM,
   QUIET_ZONE_LEFT_MODULES,
+  START_GUARD_END_MODULE,
 } from "./ean13-barcode-geometry.js";
 
 const QUIET_ZONE_LEFT_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
-const START_GUARD_END_MODULE = 3;
 const CENTER_GUARD_START_MODULE = 45;
-const CENTER_GUARD_END_MODULE = 50;
 const END_GUARD_START_MODULE = 92;
 
 describe("ean13BarcodeGeometry", () => {
