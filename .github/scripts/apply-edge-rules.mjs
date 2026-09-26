@@ -165,9 +165,7 @@ export async function runCli({
   return 0;
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === new URL(import.meta.url).pathname;
-if (isMainModule) {
+if (import.meta.main) {
   runCli().then(
     (exitCode) => process.exit(exitCode),
     (error) => {
