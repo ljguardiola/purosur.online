@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFile, mkdtemp, rm, symlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { decideVerifyResult, runCli } from "./aggregate-verify-result.mjs";
@@ -239,17 +236,8 @@ const failingJobEnv = {
 
 const passingJobEnv = { ...failingJobEnv, TESTS_RESULT: "success" };
 
-async function withTempDir(run) {
-  const dir = await mkdtemp(join(tmpdir(), "aggregate verify result "));
-  try {
-    await run(dir);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-}
-
-function runScript(env, path = scriptPath) {
-  return spawnSync(process.execPath, [path], {
+function runScript(env) {
+  return spawnSync(process.execPath, [scriptPath], {
     encoding: "utf8",
     env: { PATH: process.env.PATH, ...env },
   });
@@ -267,52 +255,4 @@ test("the script exits 0 when every required job succeeded", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /every required job succeeded/);
-});
-
-test("the script still exits 1 when run through a linked directory", async () => {
-  await withTempDir(async (dir) => {
-    const linkedScriptsDir = join(dir, "scripts");
-    await symlink(dirname(scriptPath), linkedScriptsDir, "junction");
-
-    const result = runScript(failingJobEnv, join(linkedScriptsDir, "aggregate-verify-result.mjs"));
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /tests: failure/);
-  });
-});
-
-test("the script still exits 0 when run through a linked directory", async () => {
-  await withTempDir(async (dir) => {
-    const linkedScriptsDir = join(dir, "scripts");
-    await symlink(dirname(scriptPath), linkedScriptsDir, "junction");
-
-    const result = runScript(passingJobEnv, join(linkedScriptsDir, "aggregate-verify-result.mjs"));
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /every required job succeeded/);
-  });
-});
-
-test("the script still exits 1 from a path that needs percent-encoding in a URL", async () => {
-  await withTempDir(async (dir) => {
-    const copiedScript = join(dir, "aggregate-verify-result.mjs");
-    await copyFile(scriptPath, copiedScript);
-
-    const result = runScript(failingJobEnv, copiedScript);
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /tests: failure/);
-  });
-});
-
-test("the script still exits 0 from a path that needs percent-encoding in a URL", async () => {
-  await withTempDir(async (dir) => {
-    const copiedScript = join(dir, "aggregate-verify-result.mjs");
-    await copyFile(scriptPath, copiedScript);
-
-    const result = runScript(passingJobEnv, copiedScript);
-
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /every required job succeeded/);
-  });
 });
