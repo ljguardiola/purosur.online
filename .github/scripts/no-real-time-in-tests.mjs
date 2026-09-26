@@ -500,39 +500,6 @@ function isInsidePollingLoop(callNode) {
   return false;
 }
 
-/** The `reject` parameter name of the nearest enclosing `new Promise((resolve, reject) => ...)`. */
-function enclosingRejectParamName(node) {
-  for (let current = node.parent; current; current = current.parent) {
-    if (
-      (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) &&
-      isPromiseExecutor(current)
-    ) {
-      const param = current.parameters[1];
-      return param && ts.isIdentifier(param.name) ? param.name.text : undefined;
-    }
-  }
-  return undefined;
-}
-
-/** Whether `callbackArg` can only reject or throw: a deadline that cannot itself pass the test. */
-function isRejectOrThrowOnlyCallback(callNode, callbackArg) {
-  if (!callbackArg) return false;
-  const rejectName = enclosingRejectParamName(callNode);
-
-  if (ts.isIdentifier(callbackArg)) return callbackArg.text === rejectName;
-  if (!ts.isArrowFunction(callbackArg) && !ts.isFunctionExpression(callbackArg)) return false;
-
-  const isRejectCall = (expr) =>
-    !!rejectName && ts.isCallExpression(expr) && dottedName(expr.expression) === rejectName;
-
-  const body = callbackArg.body;
-  if (!ts.isBlock(body)) return isRejectCall(body);
-  if (body.statements.length !== 1) return false;
-  const [statement] = body.statements;
-  if (ts.isThrowStatement(statement)) return true;
-  return ts.isExpressionStatement(statement) && isRejectCall(statement.expression);
-}
-
 const ALL_FAKED = "*";
 
 /** What a `vi.useFakeTimers(...)` call fakes: only its literal `toFake` list, otherwise everything. */
@@ -653,7 +620,6 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
     const delayArg = node.arguments[timer.delayIndex];
     if (isZeroOrAbsentDelay(delayArg)) continue;
     if (isInsidePollingLoop(node)) continue;
-    if (timer.delayIndex === 1 && isRejectOrThrowOnlyCallback(node, node.arguments[0])) continue;
     if (!timer.captured && fakeTimers.fakes(node, timer.timer)) continue;
 
     violations.push({ node, reason: "waits a fixed real time" });

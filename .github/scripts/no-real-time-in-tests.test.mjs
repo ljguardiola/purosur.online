@@ -323,6 +323,22 @@ test("flags a race timer that resolves rather than only rejecting", () => {
   assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
 });
 
+test("flags a race deadline that only rejects: its margin decides the result", () => {
+  const source = [
+    'test("a", async () => {',
+    "  await Promise.race([",
+    "    work(),",
+    '    new Promise((_, reject) => setTimeout(() => reject(new Error("slow")), 50)),',
+    "  ]);",
+    "});",
+  ].join("\n");
+
+  const violations = findRealTimeViolations(source, "a.test.ts");
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].line, 4);
+});
+
 test("does not flag setTimeout with an absent delay", () => {
   const source = "new Promise((r) => setTimeout(r));";
 
@@ -376,40 +392,6 @@ test("flags a for loop sleep with no exit in its body", () => {
   ].join("\n");
 
   assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
-});
-
-test("does not flag a deadline callback that only rejects", () => {
-  const source = [
-    "new Promise((resolve, reject) => {",
-    "  realSetTimeout(() => reject(new Error(`timed out`)), MS);",
-    "  doThing().then(resolve);",
-    "});",
-  ].join("\n");
-
-  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
-});
-
-test("does not flag a deadline callback that is the reject identifier itself", () => {
-  const source = [
-    "new Promise((resolve, reject) => {",
-    "  setTimeout(reject, MS);",
-    "  doThing().then(resolve);",
-    "});",
-  ].join("\n");
-
-  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
-});
-
-test("does not flag a deadline callback that only throws", () => {
-  const source = [
-    "new Promise((resolve, reject) => {",
-    "  setTimeout(() => {",
-    "    throw new Error(`timed out`);",
-    "  }, MS);",
-    "});",
-  ].join("\n");
-
-  assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
 });
 
 test("flags a for loop sleep whose only break leaves an inner switch", () => {
