@@ -98,6 +98,7 @@ async function insertAlert(input: {
   audience: "local" | "all";
   locationId?: string | null;
   resolvedAt?: Date | null;
+  openedAt?: Date;
 }): Promise<string> {
   const [row] = await db
     .insert(alerts)
@@ -108,7 +109,7 @@ async function insertAlert(input: {
       audience: input.audience,
       locationId: input.audience === "local" ? (input.locationId ?? ownLocationId) : null,
       detail: {},
-      openedAt: NOON,
+      openedAt: input.openedAt ?? NOON,
       resolvedAt: input.resolvedAt ?? null,
     })
     .returning({ id: alerts.id });
@@ -125,6 +126,28 @@ function getAlerts(rawSessionId: string | undefined, query = "") {
       ...(rawSessionId ? cookieHeader(rawSessionId) : {}),
     },
   });
+}
+
+interface ListBody {
+  alerts: { id: string; kind: string; scope: string; scope_display: string | null }[];
+  total: number;
+  page_size: number;
+  open_count: number;
+  open_critical_count: number;
+}
+
+function listBody(response: { json: () => unknown }): ListBody {
+  return response.json() as ListBody;
+}
+
+async function signedInViewer(permissionKeys: string[] = ["view_all_alerts"]): Promise<string> {
+  const roleId = await insertRole(permissionKeys);
+  const userId = await insertUserWithRole(roleId);
+  return insertSession(userId);
+}
+
+function minutesBeforeNoon(minutes: number): Date {
+  return new Date(NOON.getTime() - minutes * 60 * 1000);
 }
 
 describe("GET /alerts", () => {
@@ -167,7 +190,7 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { id: string }[];
+    const body = listBody(response).alerts;
     expect(body.map((row) => row.id)).toEqual([ownLocalAlertId]);
   });
 
@@ -186,7 +209,7 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { id: string }[];
+    const body = listBody(response).alerts;
     expect(body.map((row) => row.id).sort()).toEqual([allAlertId, localAlertId].sort());
   });
 
@@ -205,7 +228,7 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId, "?level=critical");
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { id: string }[];
+    const body = listBody(response).alerts;
     expect(body.map((row) => row.id)).toEqual([criticalId]);
   });
 
@@ -224,8 +247,8 @@ describe("GET /alerts", () => {
     const openResponse = await getAlerts(rawSessionId, "?open=true");
     const closedResponse = await getAlerts(rawSessionId, "?open=false");
 
-    expect((openResponse.json() as { id: string }[]).map((row) => row.id)).toEqual([openId]);
-    expect((closedResponse.json() as { id: string }[]).map((row) => row.id)).not.toContain(openId);
+    expect(listBody(openResponse).alerts.map((row) => row.id)).toEqual([openId]);
+    expect(listBody(closedResponse).alerts.map((row) => row.id)).not.toContain(openId);
   });
 
   it("shows a user-scoped alert's scope_display as that user's first name", async () => {
@@ -239,7 +262,7 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { kind: string; scope: string; scope_display: string }[];
+    const body = listBody(response).alerts;
     expect(body).toEqual([
       expect.objectContaining({
         kind: "user_email_changed",
@@ -262,7 +285,122 @@ describe("GET /alerts", () => {
     const response = await getAlerts(rawSessionId);
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { scope_display: string }[];
+    const body = listBody(response).alerts;
     expect(body).toEqual([expect.objectContaining({ scope_display: "203.0.113.5" })]);
+  });
+
+  it("answers one page of alerts, newest first, with the total that matched", async () => {
+    const rawSessionId = await signedInViewer();
+    const ids: string[] = [];
+    for (let index = 0; index < 30; index += 1) {
+      ids.push(
+        await insertAlert({
+          kind: "kind_a",
+          scope: `scope_${index}`,
+          audience: "all",
+          openedAt: minutesBeforeNoon(index),
+        }),
+      );
+    }
+
+    const firstPage = listBody(await getAlerts(rawSessionId));
+    const secondPage = listBody(await getAlerts(rawSessionId, "?page=2"));
+
+    expect(firstPage.page_size).toBe(25);
+    expect(firstPage.total).toBe(30);
+    expect(firstPage.alerts.map((row) => row.id)).toEqual(ids.slice(0, 25));
+    expect(secondPage.alerts.map((row) => row.id)).toEqual(ids.slice(25));
+  });
+
+  it("answers the first page for a page that isn't a positive whole number", async () => {
+    const rawSessionId = await signedInViewer();
+    const alertId = await insertAlert({ kind: "kind_a", scope: "scope_a", audience: "all" });
+
+    for (const page of ["0", "-1", "abc", "1.5"]) {
+      const body = listBody(await getAlerts(rawSessionId, `?page=${page}`));
+      expect(body.alerts.map((row) => row.id)).toEqual([alertId]);
+    }
+  });
+
+  it("counts every open visible alert and its critical ones, whatever the filters or page", async () => {
+    const rawSessionId = await signedInViewer(["view_branch_alerts"]);
+    await insertAlert({ kind: "kind_a", scope: "scope_a", audience: "local", level: "critical" });
+    await insertAlert({ kind: "kind_b", scope: "scope_b", audience: "local", level: "warning" });
+    await insertAlert({
+      kind: "kind_c",
+      scope: "scope_c",
+      audience: "local",
+      level: "critical",
+      resolvedAt: NOON,
+    });
+    await insertAlert({
+      kind: "kind_d",
+      scope: "scope_d",
+      audience: "local",
+      level: "critical",
+      locationId: otherLocationId,
+    });
+
+    const body = listBody(await getAlerts(rawSessionId, "?open=false&level=informational&page=3"));
+
+    expect(body.open_count).toBe(2);
+    expect(body.open_critical_count).toBe(1);
+  });
+
+  it("searches by a user-scoped alert's first name", async () => {
+    const rawSessionId = await signedInViewer();
+    const targetRoleId = await insertRole([]);
+    const targetId = await insertUserWithRole(targetRoleId);
+    const matchingId = await insertAlert({
+      kind: "user_email_changed",
+      scope: targetId,
+      audience: "all",
+    });
+    await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: "203.0.113.5",
+      audience: "all",
+    });
+
+    const body = listBody(await getAlerts(rawSessionId, "?q=ad"));
+
+    expect(body.alerts.map((row) => row.id)).toEqual([matchingId]);
+    expect(body.total).toBe(1);
+  });
+
+  it("searches by any of the given kinds", async () => {
+    const rawSessionId = await signedInViewer();
+    const matchingId = await insertAlert({
+      kind: "backoffice_recovery_requested",
+      scope: "scope_a",
+      audience: "all",
+    });
+    await insertAlert({ kind: "user_email_changed", scope: "scope_b", audience: "all" });
+
+    const body = listBody(
+      await getAlerts(rawSessionId, "?q=recu&kinds=backoffice_recovery_requested"),
+    );
+
+    expect(body.alerts.map((row) => row.id)).toEqual([matchingId]);
+  });
+
+  it("searches by an open lockout alert's source address, taking the text literally", async () => {
+    const rawSessionId = await signedInViewer();
+    const matchingId = await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: "203.0.113.5",
+      audience: "all",
+    });
+    await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: "198.51.100.7",
+      audience: "all",
+    });
+
+    const matching = listBody(await getAlerts(rawSessionId, "?q=113.5"));
+    const wildcard = listBody(await getAlerts(rawSessionId, "?q=%25"));
+
+    expect(matching.alerts.map((row) => row.id)).toEqual([matchingId]);
+    expect(wildcard.alerts).toEqual([]);
   });
 });
