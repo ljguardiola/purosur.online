@@ -1,4 +1,7 @@
+import { MAX_UNIT_PRICE_CENTS } from "@purosur/contracts";
 import { parseEsArNumber } from "./esArNumber";
+
+export { MAX_UNIT_PRICE_CENTS };
 
 const AMOUNT_FORMAT = new Intl.NumberFormat("es-AR", {
   minimumFractionDigits: 2,
@@ -8,9 +11,6 @@ const AMOUNT_FORMAT = new Intl.NumberFormat("es-AR", {
 export function formatCents(cents: number): string {
   return `$ ${AMOUNT_FORMAT.format(cents / 100)}`;
 }
-
-// The cloud stores a unit price as a Postgres `integer` number of cents.
-export const MAX_UNIT_PRICE_CENTS = 2_147_483_647;
 
 export type ParsedAmount =
   | { kind: "ok"; cents: number }

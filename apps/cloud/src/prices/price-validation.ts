@@ -1,3 +1,4 @@
+import { MAX_UNIT_PRICE_CENTS } from "@purosur/contracts";
 import { UUID_PATTERN } from "../db/uuid-pattern.js";
 
 export interface PriceFieldValidationFailure {
@@ -5,13 +6,10 @@ export interface PriceFieldValidationFailure {
   message: string;
 }
 
-// `prices.unit_price` is a Postgres `integer`.
-const MAX_UNIT_PRICE = 2_147_483_647;
-
 /** A positive integer number of cents per unit or per kilogram; anything else is rejected. */
 export function readUnitPrice(body: unknown): number | undefined {
   const raw = (body as { unitPrice?: unknown } | undefined)?.unitPrice;
-  return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_UNIT_PRICE
+  return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_UNIT_PRICE_CENTS
     ? raw
     : undefined;
 }
