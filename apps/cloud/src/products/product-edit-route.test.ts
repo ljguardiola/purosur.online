@@ -317,6 +317,8 @@ describe("POST /products/:id/edit", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ netContent: { quantity: 1.5, unit: "KG" } });
+    const edited = await db.select().from(products).where(eq(products.id, product.id));
+    expect(edited).toMatchObject([{ netContentQuantity: 1.5, netContentUnit: "KG" }]);
   });
 
   it("clears an existing net content when sent explicit null", async () => {
@@ -343,6 +345,8 @@ describe("POST /products/:id/edit", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ netContent: null });
+    const edited = await db.select().from(products).where(eq(products.id, product.id));
+    expect(edited).toMatchObject([{ netContentQuantity: null, netContentUnit: null }]);
   });
 
   it("clears an existing net content when the field is left absent", async () => {
@@ -368,6 +372,8 @@ describe("POST /products/:id/edit", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ netContent: null });
+    const edited = await db.select().from(products).where(eq(products.id, product.id));
+    expect(edited).toMatchObject([{ netContentQuantity: null, netContentUnit: null }]);
   });
 
   it("rejects a net content missing its quantity, changing nothing", async () => {

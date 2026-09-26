@@ -237,8 +237,6 @@ test("dims the whole field and blocks focus on both the quantity input and the u
 
   await userEvent.tab();
   expect(document.activeElement).toBe(nextControl);
-  expect(document.activeElement).not.toBe(input);
-  expect(document.activeElement).not.toBe(trigger);
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -328,9 +326,10 @@ test("keeps the brand-blue-ui border while the unit menu is open, even though DO
   const box = fieldBox(screen);
 
   await unitTrigger(screen).click();
-  await expect.element(screen.getByRole("listbox")).toBeVisible();
+  const listbox = screen.getByRole("listbox");
+  await expect.element(listbox).toBeVisible();
 
-  expect(document.activeElement).not.toBe(box);
+  await expect.poll(() => listbox.element().contains(document.activeElement)).toBe(true);
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("brand-blue-ui", "2px")]);
 });
 
