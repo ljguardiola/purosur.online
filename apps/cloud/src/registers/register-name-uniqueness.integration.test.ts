@@ -20,18 +20,33 @@ import { createRegister } from "./register-creation-route.js";
 // must map correctly for this driver too.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
+let adminSql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("register_name_uniqueness");
   sql = postgres(integrationDb.databaseUrl, { max: 2 });
+  // Only the schema's owner may LOCK TABLE; the creations themselves still run as `cloud_app`.
+  adminSql = postgres(integrationDb.adminDatabaseUrl, { max: 2 });
   db = drizzle(sql);
 }, 60_000);
 
 afterAll(async () => {
   await sql.end({ timeout: 1 });
+  await adminSql.end({ timeout: 1 });
   await integrationDb.close();
 });
+
+async function waitForLockWaiters(count: number): Promise<void> {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const [row] = await adminSql<{ waiting: number }[]>`
+      select count(*)::int as waiting from pg_stat_activity
+      where datname = current_database() and wait_event_type = 'Lock'`;
+    if ((row?.waiting ?? 0) >= count) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("test setup: the creations never queued behind the held lock");
+}
 
 describe("creating two registers with the same name in the same branch concurrently on a real Postgres through postgres-js", () => {
   it("creates exactly one of them and reports the other as name_taken", async () => {
@@ -46,12 +61,28 @@ describe("creating two registers with the same name in the same branch concurren
     }
     const name = `Caja ${suffix}`;
 
-    const [first, second] = await Promise.all([
-      createRegister(db, { locationId, name, actorId: actor.id }),
-      createRegister(db, { locationId, name: name.toUpperCase(), actorId: actor.id }),
-    ]);
+    // A SHARE lock on the registers table lets both creations' own name-uniqueness SELECT run and
+    // find no row (SELECT only needs ACCESS SHARE, compatible with SHARE), but parks both at their
+    // INSERT (which needs ROW EXCLUSIVE, incompatible with SHARE) until the lock is released. Both
+    // then race the real INSERT: one commits, and the other's insert always collides with the
+    // now-committed row on the database's own unique index, never on the in-transaction check, which
+    // both already passed before either could commit.
+    const holder = await adminSql.reserve();
+    let creations: ReturnType<typeof createRegister>[] = [];
+    try {
+      await holder`begin`;
+      await holder`lock table registers in share mode`;
+      creations = [
+        createRegister(db, { locationId, name, actorId: actor.id }),
+        createRegister(db, { locationId, name: name.toUpperCase(), actorId: actor.id }),
+      ];
+      await waitForLockWaiters(2);
+    } finally {
+      await holder`rollback`;
+      holder.release();
+    }
 
-    const outcomes = [first, second];
+    const outcomes = await Promise.all(creations);
     expect(outcomes.filter((outcome) => outcome.kind === "created")).toHaveLength(1);
     expect(outcomes.filter((outcome) => outcome.kind === "name_taken")).toHaveLength(1);
 
