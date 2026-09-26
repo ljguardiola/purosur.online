@@ -165,13 +165,16 @@ test("shows the rate-limited notice with a retry action", async () => {
 
 test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
   window.history.pushState(null, "", "/settings/registers");
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
 
-  await renderScreen(services);
+    await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
+    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  } finally {
+    window.history.pushState(null, "", "/");
+  }
 });
 
 test("ends the session when the registers request finds no open session", async () => {
@@ -267,6 +270,44 @@ test("requires a name before submitting the create modal, without calling the AP
   expect(services.createRegister).not.toHaveBeenCalled();
 });
 
+test("shows the name-too-long error on create, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la caja/ }),
+    "a".repeat(101),
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createRegister).not.toHaveBeenCalled();
+});
+
+test("shows the server's validation_failed error on create and does not add the register to the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "validation_failed",
+    field: "name",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 2");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(dialog.getByText("Ingresá el nombre de la caja.")).toBeVisible();
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
 test("shows the name-taken error on create and does not add the register to the list", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
@@ -281,6 +322,73 @@ test("shows the name-taken error on create and does not add the register to the 
   await expect.element(dialog.getByText("Ya existe una caja con este nombre.")).toBeVisible();
   await expect.element(screen.getByRole("dialog")).toBeVisible();
   await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
+test("shows the rate-limited notice in the create modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+});
+
+test("shows the attempt-failed notice in the create modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(dialog.getByText("No se pudo crear la caja")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+});
+
+test("navigates to Mi cuenta when creating a register comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/registers");
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+    vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+    const dialog = await openNewRegisterModal(screen);
+
+    await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+    await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  } finally {
+    window.history.pushState(null, "", "/");
+  }
+});
+
+test("ends the session when creating a register finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("opens the authorization modal on create's authorization_required, then authorizes and retries", async () => {
@@ -334,8 +442,8 @@ test("emitting a code shows it grouped in fours, with the expiry note and descri
 
   const dialog = await openEmitModal(screen, "Caja 1");
 
-  expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
   await expect.element(dialog.getByText("Vence en 15 minutos · se usa una sola vez")).toBeVisible();
   await expect
     .element(
@@ -344,6 +452,21 @@ test("emitting a code shows it grouped in fours, with the expiry note and descri
       ),
     )
     .toBeVisible();
+});
+
+test("emit's not_found closes the modal and refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
 test("under StrictMode, clicking the row action emits the code exactly once and shows that call's code", async () => {
@@ -420,84 +543,98 @@ test("while the code is being emitted, neither the close button nor Escape dismi
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
 });
 
-test("closing an issued code's modal with the close button refreshes the list", async () => {
+type CloseCodeModalCase = {
+  name: string;
+  arrange: (services: RegistersListScreenServices) => void;
+  close: (
+    screen: Awaited<ReturnType<typeof renderScreen>>,
+    dialog: Awaited<ReturnType<typeof openEmitModal>>,
+  ) => Promise<void>;
+};
+
+test.each<CloseCodeModalCase>([
+  {
+    name: "an issued code's modal with the close button",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "ok",
+        value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+      // The modal is wider than the default phone-sized browser-mode viewport, which would leave
+      // its close button outside it and unclickable.
+      await page.viewport(1280, 900);
+      try {
+        await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
+      } finally {
+        await page.viewport(414, 896);
+      }
+    },
+  },
+  {
+    name: "an issued code's modal with Escape",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "ok",
+        value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal with Escape after a failed emission",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal with Escape after a rate-limited emission",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "rate_limited",
+        retryAfterSeconds: 120,
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal by cancelling a retry's authorization",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "failed" });
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({
+        kind: "authorization_required",
+      });
+    },
+    close: async (screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+      const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+      await expect.element(authDialog).toBeVisible();
+      await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+    },
+  },
+])("closing $name refreshes the list", async ({ arrange, close }) => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
+  arrange(services);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
 
-  // The modal is wider than the default phone-sized browser-mode viewport, which would leave its
-  // close button outside it and unclickable.
-  await page.viewport(1280, 900);
-  try {
-    await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
-  } finally {
-    await page.viewport(414, 896);
-  }
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("Caja 2")).toBeVisible();
-});
-
-test("closing an issued code's modal with Escape refreshes the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
-    kind: "ok",
-    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
-
-  await userEvent.keyboard("{Escape}");
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("Caja 2")).toBeVisible();
-});
-
-test("closing the code modal after a failed emission refreshes the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
-
-  await userEvent.keyboard("{Escape}");
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("Caja 2")).toBeVisible();
-});
-
-test("closing the code modal after a rate-limited emission refreshes the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
-
-  await userEvent.keyboard("{Escape}");
+  await close(screen, dialog);
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
@@ -610,6 +747,38 @@ test("a refresh that fails shows the load error with its retry action, like a fa
   expect(screen.getByRole("table").query()).toBeNull();
 });
 
+test("navigates to Mi cuenta when emitting a code comes back forbidden", async () => {
+  window.history.pushState(null, "", "/settings/registers");
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+    vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "forbidden" });
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }),
+    );
+
+    await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  } finally {
+    window.history.pushState(null, "", "/");
+  }
+});
+
+test("ends the session when emitting a code finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
 test("opens the authorization modal on emit's authorization_required, then authorizes and shows the code", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [caja1] });
@@ -638,28 +807,6 @@ test("opens the authorization modal on emit's authorization_required, then autho
   await expect.poll(() => vi.mocked(services.emitEnrollmentCode).mock.calls.length).toBe(2);
   const dialog = screen.getByRole("dialog", { name: "Código de alta" });
   await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-});
-
-test("closing the code modal after a retry's authorization gets cancelled refreshes the list", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "failed" });
-  vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "authorization_required" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Caja 1")).toBeVisible();
-  const dialog = await openEmitModal(screen, "Caja 1");
-  await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
-
-  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
-  await expect.element(authDialog).toBeVisible();
-  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja2] });
-
-  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
-  await expect.element(screen.getByText("Caja 2")).toBeVisible();
 });
 
 test("has no accessibility violations once loaded, with the create modal open, and with the code modal open", async () => {
