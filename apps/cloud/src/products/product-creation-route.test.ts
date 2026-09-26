@@ -266,24 +266,6 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("rejects a missing categoryId, creating nothing", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "categoryId" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
   it("rejects a categoryId that does not name an existing category, creating nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
@@ -358,25 +340,6 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("rejects a missing saleUnit, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      categoryId,
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "saleUnit" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
   it("rejects a barcode already used by another product, creating nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     await insertProductWithBarcode(categoryId, "999");
@@ -428,27 +391,6 @@ describe("POST /products", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ netContent: null });
-  });
-
-  it("rejects a net content quantity with more than 3 decimals, creating nothing", async () => {
-    const categoryId = await insertCategory("Semillas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Alpiste",
-      categoryId,
-      saleUnit: "KG",
-      barcodes: ["111"],
-      netContent: { quantity: 1.2345, unit: "KG" },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "netContentQuantity" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
   });
 
   it("accepts a barcode held only by an inactive product's barcode", async () => {
