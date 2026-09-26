@@ -253,6 +253,7 @@ describe("POST /products/:id/edit", () => {
       categoryName: "Semillas",
       saleUnit: "KG",
       barcodes: ["333"],
+      active: true,
       version: 2,
     });
     const codes = await db
@@ -457,5 +458,104 @@ describe("POST /products/:id/edit", () => {
       .from(productBarcodes)
       .where(eq(productBarcodes.productId, product.id));
     expect(codes.map((row) => row.code)).toEqual(["111"]);
+  });
+
+  it("accepts a barcode held only by another (inactive) product's barcode", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const other = await insertProduct({
+      name: "Other",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, other.id));
+    await db
+      .update(productBarcodes)
+      .set({ active: false })
+      .where(eq(productBarcodes.productId, other.id));
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ barcodes: ["999"] });
+  });
+
+  it("stays allowed for an inactive product, keeping its replaced barcodes inactive", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, product.id));
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Maceta renombrada",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["222"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: "Maceta renombrada", active: false });
+    const [row] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(row?.active).toBe(false);
+    const barcodeRows = await db
+      .select()
+      .from(productBarcodes)
+      .where(eq(productBarcodes.productId, product.id));
+    expect(barcodeRows).toMatchObject([{ code: "222", active: false }]);
+  });
+
+  it("lets an inactive product keep a code an active product took after it was deactivated", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const deactivated = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, deactivated.id));
+    await db
+      .update(productBarcodes)
+      .set({ active: false })
+      .where(eq(productBarcodes.productId, deactivated.id));
+    await insertProduct({ name: "Maceta nueva", categoryId, saleUnit: "UNIT", barcodes: ["999"] });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, deactivated.id, {
+      name: "Maceta vieja",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["999"],
+      version: deactivated.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ name: "Maceta vieja", active: false });
+    const barcodeRows = await db
+      .select()
+      .from(productBarcodes)
+      .where(eq(productBarcodes.productId, deactivated.id));
+    expect(barcodeRows).toMatchObject([{ code: "999", active: false }]);
   });
 });

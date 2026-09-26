@@ -1,4 +1,4 @@
-import { asc, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { productBarcodes, products } from "../db/schema.js";
@@ -102,6 +102,10 @@ interface LabelableProduct {
   internalBarcode: string | undefined;
 }
 
+/**
+ * An inactive product (#309) is rejected exactly the way an unknown id is: it's left out of the
+ * map here, so the caller's `product_not_found` check below catches it the same way.
+ */
 async function labelableProductsById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],
@@ -109,7 +113,7 @@ async function labelableProductsById<TQueryResult extends PgQueryResultHKT>(
   const productRows = await db
     .select({ id: products.id, name: products.name })
     .from(products)
-    .where(inArray(products.id, productIds));
+    .where(and(inArray(products.id, productIds), eq(products.active, true)));
 
   const barcodeRows = await db
     .select({ productId: productBarcodes.productId, code: productBarcodes.code })

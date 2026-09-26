@@ -2,6 +2,7 @@ import {
   LABELS_MAX_COUNT_PER_PRODUCT as SHARED_LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT as SHARED_LABELS_MAX_TOTAL_COUNT,
 } from "@purosur/contracts";
+import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
@@ -339,6 +340,23 @@ describe("POST /products/labels", () => {
       code: "product_not_found",
       productId: "00000000-0000-0000-0000-000000000000",
     });
+  });
+
+  it("rejects an inactive product's id exactly the way an unknown id is rejected", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const productId = await insertProduct({
+      name: "Almendras",
+      categoryId,
+      barcodes: [INTERNAL_BARCODE],
+    });
+    await db.update(products).set({ active: false }).where(eq(products.id, productId));
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabels(rawSessionId, { labels: [{ productId, count: 1 }] });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "product_not_found", productId });
   });
 
   it("rejects a product with no internal barcode", async () => {

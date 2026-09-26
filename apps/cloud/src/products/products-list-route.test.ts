@@ -126,10 +126,15 @@ async function insertProduct(input: {
   return product;
 }
 
-function getProducts(rawSessionId?: string, headers: Record<string, string> = {}) {
+function getProducts(
+  rawSessionId?: string,
+  headers: Record<string, string> = {},
+  query: Record<string, string> = {},
+) {
+  const search = new URLSearchParams(query).toString();
   return app.inject({
     method: "GET",
-    url: "/products",
+    url: search ? `/products?${search}` : "/products",
     headers: {
       ...(rawSessionId ? { cookie: `${SESSION_COOKIE_NAME}=${rawSessionId}` } : {}),
       ...headers,
@@ -194,6 +199,7 @@ describe("GET /products", () => {
         categoryName: "Semillas",
         saleUnit: "KG",
         barcodes: ["333"],
+        active: true,
         version: semilla.version,
       },
       {
@@ -203,9 +209,75 @@ describe("GET /products", () => {
         categoryName: "Macetas",
         saleUnit: "UNIT",
         barcodes: ["222", "111"],
+        active: true,
         version: maceta.version,
       },
     ]);
+  });
+
+  describe("the status filter", () => {
+    async function seedActiveAndInactive(): Promise<{ activeId: string; inactiveId: string }> {
+      const categoryId = await insertCategory("Macetas");
+      const active = await insertProduct({
+        name: "Maceta activa",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["1"],
+      });
+      const inactive = await insertProduct({
+        name: "Maceta inactiva",
+        categoryId,
+        saleUnit: "UNIT",
+        barcodes: ["2"],
+      });
+      await db.update(products).set({ active: false }).where(eq(products.id, inactive.id));
+      return { activeId: active.id, inactiveId: inactive.id };
+    }
+
+    it("defaults to active products only, omitting inactive ones", async () => {
+      const { activeId, inactiveId } = await seedActiveAndInactive();
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await getProducts(rawSessionId);
+
+      const ids = (response.json() as { id: string }[]).map((row) => row.id);
+      expect(ids).toEqual([activeId]);
+      expect(ids).not.toContain(inactiveId);
+    });
+
+    it("lists only inactive products with status=inactive", async () => {
+      const { activeId, inactiveId } = await seedActiveAndInactive();
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await getProducts(rawSessionId, {}, { status: "inactive" });
+
+      const ids = (response.json() as { id: string }[]).map((row) => row.id);
+      expect(ids).toEqual([inactiveId]);
+      expect(ids).not.toContain(activeId);
+    });
+
+    it("lists both active and inactive products with status=all", async () => {
+      const { activeId, inactiveId } = await seedActiveAndInactive();
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await getProducts(rawSessionId, {}, { status: "all" });
+
+      const ids = (response.json() as { id: string }[]).map((row) => row.id).sort();
+      expect(ids).toEqual([activeId, inactiveId].sort());
+    });
+
+    it("rejects an unrecognized status value", async () => {
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await getProducts(rawSessionId, {}, { status: "bogus" });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "validation_failed" });
+    });
   });
 
   it("lists products for an Administrator even without the explicit permission", async () => {

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   createProduct,
+  deactivateProduct,
   editProduct,
   fetchProducts,
   generateInternalBarcode,
@@ -30,17 +31,29 @@ const miel: ProductSummary = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
+  active: true,
   version: 1,
 };
 
-test("fetchProducts lists every product on 200", async () => {
+test("fetchProducts lists every product on 200, defaulting to the active filter", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [miel]));
 
   const outcome = await fetchProducts();
 
   expect(outcome).toEqual({ kind: "ok", value: [miel] });
-  expect(fetch).toHaveBeenCalledWith("/products");
+  expect(fetch).toHaveBeenCalledWith("/products?status=active");
 });
+
+test.each(["active", "inactive", "all"] as const)(
+  "fetchProducts sends the requested status filter %s",
+  async (status) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [miel]));
+
+    await fetchProducts(status);
+
+    expect(fetch).toHaveBeenCalledWith(`/products?status=${status}`);
+  },
+);
 
 test("fetchProducts returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
@@ -332,4 +345,50 @@ test("printLabels returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+test("deactivateProduct posts with no body and returns ok on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200));
+
+  const outcome = await deactivateProduct("product-1");
+
+  expect(outcome).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith("/products/product-1/deactivation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+});
+
+test("deactivateProduct returns not_found on 404 for a missing or already-inactive product", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "not_found" });
+});
+
+test("deactivateProduct returns unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "unauthenticated" });
+});
+
+test("deactivateProduct returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "forbidden" });
+});
+
+test("deactivateProduct returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "40" }));
+
+  expect(await deactivateProduct("product-1")).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 40,
+  });
+});
+
+test("deactivateProduct returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await deactivateProduct("product-1")).toEqual({ kind: "failed" });
 });
