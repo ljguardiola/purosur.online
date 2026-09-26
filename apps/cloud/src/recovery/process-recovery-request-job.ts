@@ -24,7 +24,6 @@ export interface ProcessRecoveryRequestJobResult {
   send?: SendRecoveryLinkInput;
 }
 
-// Well over the minimum entropy floor for a single-use secret token.
 const TOKEN_ENTROPY_BITS = 160;
 const TOKEN_BYTES = TOKEN_ENTROPY_BITS / 8;
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
