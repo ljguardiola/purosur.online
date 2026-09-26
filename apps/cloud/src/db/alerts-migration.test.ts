@@ -1,76 +1,34 @@
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, inject, it, onTestFinished } from "vitest";
-import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
+import {
+  addMigrationEntry,
+  findMigrationEntry,
+  type JournalEntry,
+  migrationsFolderBefore,
+} from "./migration-journal-test-helpers.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
 const ALERTS_MIGRATION_TAG_SUFFIX = "_alerts";
 
-interface JournalEntry {
-  idx: number;
-  version: string;
-  when: number;
-  tag: string;
-  breakpoints: boolean;
-}
-
-interface Journal {
-  version: string;
-  dialect: string;
-  entries: JournalEntry[];
-}
-
-async function readRealJournal(): Promise<Journal> {
-  const raw = await readFile(join(MIGRATIONS_FOLDER, "meta", "_journal.json"), "utf8");
-  return JSON.parse(raw) as Journal;
-}
-
-// Found by name rather than by number, so a renumbering after merging another branch's migration
-// doesn't silently point this test at the wrong file.
 async function alertsEntry(): Promise<JournalEntry> {
-  const journal = await readRealJournal();
-  const entry = journal.entries.find((candidate) =>
-    candidate.tag.endsWith(ALERTS_MIGRATION_TAG_SUFFIX),
+  return findMigrationEntry(
+    ALERTS_MIGRATION_TAG_SUFFIX,
+    "test setup: no alerts migration in the journal",
   );
-  if (!entry) {
-    throw new Error("test setup: no alerts migration in the journal");
-  }
-  return entry;
 }
 
-/**
- * Builds a migrations folder holding only the real migrations that precede the alerts one: the
- * schema as it stood right before this feature's own migration existed, so it can be applied
- * afterward, on its own, against data seeded in that pre-migration shape.
- */
 async function migrationsFolderBeforeAlerts(destFolder: string): Promise<void> {
-  await mkdir(join(destFolder, "meta"), { recursive: true });
-  const journal = await readRealJournal();
-  const { idx } = await alertsEntry();
-  const entriesBefore = journal.entries.filter((entry) => entry.idx < idx);
-  await writeFile(
-    join(destFolder, "meta", "_journal.json"),
-    JSON.stringify({ ...journal, entries: entriesBefore }),
-  );
-  for (const entry of entriesBefore) {
-    await copyFile(
-      join(MIGRATIONS_FOLDER, `${entry.tag}.sql`),
-      join(destFolder, `${entry.tag}.sql`),
-    );
-  }
+  await migrationsFolderBefore(destFolder, await alertsEntry());
 }
 
 /** Adds this feature's real, already hand-edited alerts migration to the folder. */
 async function addAlertsMigration(destFolder: string): Promise<void> {
-  const journalPath = join(destFolder, "meta", "_journal.json");
-  const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
-  const entry = await alertsEntry();
-  journal.entries.push(entry);
-  await writeFile(journalPath, JSON.stringify(journal));
-  await copyFile(join(MIGRATIONS_FOLDER, `${entry.tag}.sql`), join(destFolder, `${entry.tag}.sql`));
+  await addMigrationEntry(destFolder, await alertsEntry());
 }
 
 interface QueryClient {
