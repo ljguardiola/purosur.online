@@ -73,28 +73,52 @@ describe("loadScopeDisplayNames", () => {
   });
 });
 
+const CLOSED_AT = new Date("2026-01-05T13:00:00.000Z");
+
 describe("scopeDisplay", () => {
   it("resolves a user-scoped kind's scope through the given name map", () => {
     const names = new Map([["user-1", "Lucía Pérez"]]);
 
-    expect(scopeDisplay("user_email_changed", "user-1", names)).toBe("Lucía Pérez");
+    expect(
+      scopeDisplay({ kind: "user_email_changed", scope: "user-1", resolvedAt: null }, names),
+    ).toBe("Lucía Pérez");
   });
 
   it("falls back to the raw scope when the user id isn't in the map", () => {
     const names = new Map<string, string>();
 
-    expect(scopeDisplay("user_email_changed", "a-user-id", names)).toBe("a-user-id");
+    expect(
+      scopeDisplay({ kind: "user_email_changed", scope: "a-user-id", resolvedAt: null }, names),
+    ).toBe("a-user-id");
   });
 
-  it("never looks the scope up for a source-address-scoped kind: it's already displayable", () => {
+  it("never looks the scope up for an open source-address-scoped kind: it's already displayable", () => {
     const names = new Map([["203.0.113.5", "shouldn't matter"]]);
 
-    expect(scopeDisplay("backoffice_sign_in_lockout", "203.0.113.5", names)).toBe("203.0.113.5");
+    expect(
+      scopeDisplay(
+        { kind: "backoffice_sign_in_lockout", scope: "203.0.113.5", resolvedAt: null },
+        names,
+      ),
+    ).toBe("203.0.113.5");
+  });
+
+  it("shows nothing for a closed source-address-scoped kind, whose scope no longer holds the address", () => {
+    const names = new Map<string, string>();
+
+    expect(
+      scopeDisplay(
+        { kind: "backoffice_sign_in_lockout", scope: "a-hashed-address", resolvedAt: CLOSED_AT },
+        names,
+      ),
+    ).toBeNull();
   });
 
   it("falls back to the raw scope for a kind outside the catalog, instead of throwing", () => {
     const names = new Map([["scope_a", "shouldn't matter"]]);
 
-    expect(scopeDisplay("kind_a", "scope_a", names)).toBe("scope_a");
+    expect(scopeDisplay({ kind: "kind_a", scope: "scope_a", resolvedAt: null }, names)).toBe(
+      "scope_a",
+    );
   });
 });

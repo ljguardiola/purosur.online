@@ -9,6 +9,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
+import { hashSourceAddress } from "../session/sign-in-lockout.js";
+import { alertKindDefinition, isAlertKind } from "./alert-kind-catalog.js";
 import {
   ALERT_NOT_FOUND_RESPONSE,
   type AlertDetailRow,
@@ -31,6 +33,32 @@ export type CloseAlertOutcome =
   | { kind: "closed"; alert: AlertDetailRow };
 
 /**
+ * A source-address-scoped alert keeps the address in the clear only while it's open, so a
+ * second lockout of that same address still deduplicates against it; once closed, the row is
+ * permanent and holds only the address's hash, the same rule `sign-in-lockout.ts` applies to a
+ * permanent audit row. Any other kind is left as is.
+ */
+function withoutSourceAddress(alert: {
+  kind: string;
+  scope: string;
+  detail: Record<string, unknown>;
+}): { scope: string; detail: Record<string, unknown> } | Record<string, never> {
+  if (!isAlertKind(alert.kind) || alertKindDefinition(alert.kind).scopeKind !== "sourceAddress") {
+    return {};
+  }
+  const { sourceAddress } = alert.detail;
+  return {
+    scope: hashSourceAddress(alert.scope),
+    detail: {
+      ...alert.detail,
+      ...(typeof sourceAddress === "string"
+        ? { sourceAddress: hashSourceAddress(sourceAddress) }
+        : {}),
+    },
+  };
+}
+
+/**
  * Closes one alert: refuses an already-closed one. Every kind is closed by hand. Records who
  * closed it and audits the change, the same `audit_log` shape `branch-settings-edit-route.ts`
  * writes for its own permission-gated mutation, with no passkey step-up: closing an alert is an
@@ -45,6 +73,8 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
     const [current] = await tx
       .select({
         kind: alerts.kind,
+        scope: alerts.scope,
+        detail: alerts.detail,
         resolvedAt: alerts.resolvedAt,
       })
       .from(alerts)
@@ -62,7 +92,7 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
     const resolvedAt = deps.now();
     const [updated] = await tx
       .update(alerts)
-      .set({ resolvedAt, resolvedBy: input.actorId })
+      .set({ resolvedAt, resolvedBy: input.actorId, ...withoutSourceAddress(current) })
       .where(eq(alerts.id, input.id))
       .returning();
     if (!updated) {

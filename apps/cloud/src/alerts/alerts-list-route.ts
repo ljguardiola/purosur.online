@@ -58,8 +58,8 @@ export interface AlertSummaryWire {
   id: string;
   kind: string;
   scope: string;
-  /** `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope otherwise. */
-  scope_display: string;
+  /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
+  scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   opened_at: string;
@@ -85,7 +85,7 @@ export function toAlertSummaryWire(
     id: row.id,
     kind: row.kind,
     scope: row.scope,
-    scope_display: scopeDisplay(row.kind, row.scope, namesByUserId),
+    scope_display: scopeDisplay(row, namesByUserId),
     level: row.level,
     audience: row.audience,
     opened_at: row.openedAt.toISOString(),

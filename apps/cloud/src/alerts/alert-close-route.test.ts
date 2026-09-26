@@ -14,10 +14,13 @@ import {
 } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertCloseRoute } from "./alert-close-route.js";
+import { openAlert } from "./open-alert.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
+const SOURCE_ADDRESS = "203.0.113.5";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let testDatabase: TestDatabase;
@@ -198,6 +201,55 @@ describe("POST /alerts/:id/close", () => {
     expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: userId });
     const [auditRow] = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
     expect(auditRow).toMatchObject({ entity: "alert", actorId: userId });
+  });
+
+  it("keeps a lockout alert's source address only while it's open, hashing it on close", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const opened = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "backoffice_sign_in_lockout",
+          scope: SOURCE_ADDRESS,
+          detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6 },
+        },
+        { now: () => NOON },
+      ),
+    );
+
+    const response = await closeAlertRequest(rawSessionId, opened.alertId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(SOURCE_ADDRESS);
+    expect(response.json()).toMatchObject({ scope_display: null });
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, opened.alertId));
+    expect(row).toMatchObject({
+      scope: hashSourceAddress(SOURCE_ADDRESS),
+      detail: { sourceAddress: hashSourceAddress(SOURCE_ADDRESS), failureCount: 6 },
+    });
+  });
+
+  it("opens a new lockout alert for the same source address once the earlier one is closed", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    const rawSessionId = await insertSession(userId);
+    const lockout = {
+      kind: "backoffice_sign_in_lockout",
+      scope: SOURCE_ADDRESS,
+      detail: { sourceAddress: SOURCE_ADDRESS, failureCount: 6 },
+    } as const;
+    const first = await db.transaction((tx) => openAlert(tx, lockout, { now: () => NOON }));
+    const duplicate = await db.transaction((tx) => openAlert(tx, lockout, { now: () => NOON }));
+    await closeAlertRequest(rawSessionId, first.alertId);
+
+    const second = await db.transaction((tx) => openAlert(tx, lockout, { now: () => NOON }));
+
+    expect(duplicate).toEqual({ kind: "already_open", alertId: first.alertId });
+    expect(second.kind).toBe("opened");
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, second.alertId));
+    expect(row?.scope).toBe(SOURCE_ADDRESS);
   });
 
   it("refuses to close an alert that was already closed", async () => {

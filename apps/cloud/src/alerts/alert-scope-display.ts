@@ -31,18 +31,23 @@ export async function loadScopeDisplayNames<TQueryResult extends PgQueryResultHK
 
 /**
  * What an alert's own scope reads as to a person: a user-scoped kind's scope is a user id, shown
- * as that user's first name (falling back to the raw id when it can't be resolved); a source-
- * address-scoped kind's scope is already the address itself, never looked up. `kind` is read as
- * plain text from `alerts.kind` (see schema.ts), so a value outside the catalog (a fixture, or a
- * kind retired since the alert opened) falls back to the raw scope too, rather than throwing.
+ * as that user's first name (falling back to the raw id when it can't be resolved); an open
+ * source-address-scoped kind's scope is already the address itself, never looked up, and a closed
+ * one's is only that address's hash (see alert-close-route.ts), so it reads as nothing. `kind` is
+ * read as plain text from `alerts.kind` (see schema.ts), so a value outside the catalog (a
+ * fixture, or a kind retired since the alert opened) falls back to the raw scope too, rather than
+ * throwing.
  */
 export function scopeDisplay(
-  kind: string,
-  scope: string,
+  alert: { kind: string; scope: string; resolvedAt: Date | null },
   namesByUserId: ReadonlyMap<string, string>,
-): string {
-  if (!isAlertKind(kind) || alertKindDefinition(kind).scopeKind !== "user") {
-    return scope;
+): string | null {
+  if (!isAlertKind(alert.kind)) {
+    return alert.scope;
   }
-  return namesByUserId.get(scope) ?? scope;
+  const { scopeKind } = alertKindDefinition(alert.kind);
+  if (scopeKind === "sourceAddress") {
+    return alert.resolvedAt === null ? alert.scope : null;
+  }
+  return namesByUserId.get(alert.scope) ?? alert.scope;
 }

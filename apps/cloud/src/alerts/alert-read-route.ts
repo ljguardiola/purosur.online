@@ -70,8 +70,8 @@ export interface AlertDetailWire {
   id: string;
   kind: string;
   scope: string;
-  /** `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope otherwise. */
-  scope_display: string;
+  /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
+  scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   /**
@@ -127,7 +127,7 @@ export function toAlertDetailWire(
     id: alert.id,
     kind: alert.kind,
     scope: alert.scope,
-    scope_display: scopeDisplay(alert.kind, alert.scope, namesByUserId),
+    scope_display: scopeDisplay(alert, namesByUserId),
     level: alert.level,
     audience: alert.audience,
     detail: detailWithActorName(alert.detail, namesByUserId),
