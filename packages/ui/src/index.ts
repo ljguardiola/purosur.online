@@ -18,6 +18,8 @@ export type { ColumnChartBar, ColumnChartProps } from "./components/ColumnChart"
 export { ColumnChart } from "./components/ColumnChart";
 export type { DateFieldProps } from "./components/DateField";
 export { DateField } from "./components/DateField";
+export type { FieldGroupProps } from "./components/FieldGroup";
+export { FieldGroup } from "./components/FieldGroup";
 export type { FieldLabelProps } from "./components/FieldLabel";
 export { FieldLabel } from "./components/FieldLabel";
 export type { FieldSize, FieldSizeProviderProps } from "./components/FieldSize";

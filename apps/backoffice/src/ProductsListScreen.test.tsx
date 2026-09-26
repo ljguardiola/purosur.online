@@ -1169,9 +1169,9 @@ test("marks the fallback category label as required when there are no categories
 });
 
 // The Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels now come from
-// packages/ui's own FieldLabel (see ProductsListScreen.tsx), the same component TextField and
-// DateField build their label from: FieldLabel.test.tsx already proves its size, weight, color
-// and gap once, so this screen no longer re-checks them here.
+// packages/ui's own FieldGroup (see ProductsListScreen.tsx), which owns both the label's look and
+// its gap above the control: FieldGroup.test.tsx already proves them once, so this screen no
+// longer re-checks them here.
 
 function generateButtonOf(dialog: ScreenLocator) {
   return dialog.getByRole("button", { name: "Generar código interno" });

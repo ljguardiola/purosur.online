@@ -11,8 +11,7 @@ import {
 } from "@purosur/contracts";
 import {
   Button,
-  FieldLabel,
-  fieldWrapperGapClassName,
+  FieldGroup,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -25,7 +24,6 @@ import {
   Table,
   type TableSort,
   TextField,
-  useFieldSize,
 } from "@purosur/ui";
 import {
   Ban,
@@ -211,11 +209,9 @@ function BarcodeChips({
   const generateErrorId = useId();
   const [scanFocused, setScanFocused] = useState(false);
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
-  const fieldSize = useFieldSize();
 
   return (
-    <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
-      <FieldLabel required>{labels.barcodesLabel}</FieldLabel>
+    <FieldGroup label={labels.barcodesLabel} required>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -290,7 +286,7 @@ function BarcodeChips({
           {error}
         </span>
       )}
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -563,7 +559,6 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
-  const fieldSize = useFieldSize();
   // Neither starts pre-chosen: defaulting to the first category or a fixed unit would let someone
   // save a product in a category or unit nobody actually picked, which is exactly what the
   // "neither can be left out" rule guards against (a KG product silently saved as UNIT, or filed
@@ -764,15 +759,13 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
-            <FieldLabel required>{modalMessages.categoryLabel}</FieldLabel>
+          <FieldGroup label={modalMessages.categoryLabel} required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
-          </div>
+          </FieldGroup>
         )}
-        <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
-          <FieldLabel required>{modalMessages.unitLabel}</FieldLabel>
+        <FieldGroup label={modalMessages.unitLabel} required>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -797,7 +790,7 @@ function NewProductModal({
             required
             {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
-        </div>
+        </FieldGroup>
         <BarcodeChips
           barcodes={chips.barcodes}
           onRemove={chips.remove}
@@ -850,7 +843,6 @@ function EditProductModal({
   categories,
 }: EditProductModalProps) {
   const modalMessages = productsMessages.editProductModal;
-  const fieldSize = useFieldSize();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -1147,15 +1139,13 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
-              <FieldLabel required>{modalMessages.categoryLabel}</FieldLabel>
+            <FieldGroup label={modalMessages.categoryLabel} required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
-            </div>
+            </FieldGroup>
           )}
-          <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
-            <FieldLabel required>{modalMessages.unitLabel}</FieldLabel>
+          <FieldGroup label={modalMessages.unitLabel} required>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
@@ -1176,7 +1166,7 @@ function EditProductModal({
               onChange={setSaleUnit}
               required
             />
-          </div>
+          </FieldGroup>
           <BarcodeChips
             barcodes={chips.barcodes}
             onRemove={chips.remove}
