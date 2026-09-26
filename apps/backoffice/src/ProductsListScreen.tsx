@@ -11,6 +11,7 @@ import {
 } from "@purosur/contracts";
 import {
   Button,
+  FieldGroup,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -54,6 +55,7 @@ import {
   useState,
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
+import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
 import { messages } from "./messages";
 import {
   type CreateProductInput,
@@ -121,17 +123,26 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
   return direction === "ascending" ? sorted : sorted.reverse();
 }
 
+// Only a leaf category (no subcategories of its own) can hold a product, labeled by its full
+// path ("Almacén › Untables") the same way the Categorías screen draws it, since a bare name no
+// longer tells the two apart once categories nest.
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
-  if (categories.length === 0) {
+  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+  if (leafIds.size === 0) {
     return undefined;
   }
-  const [first, ...rest] = [...categories]
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
-    .map((category) => ({ value: category.id, label: category.name }));
+  const labels = categoryPathLabels(categories);
+  const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+    leafIds.has(category.id),
+  );
+  const [first, ...rest] = leaves.map((category) => ({
+    value: category.id,
+    label: labels.get(category.id) ?? category.name,
+  }));
   if (!first) {
-    throw new Error("no category to offer: categories.length > 0 was already checked");
+    throw new Error("no category to offer: leaves.length > 0 was already checked");
   }
   return [first, ...rest];
 }
@@ -149,9 +160,6 @@ function productNameError(
   }
   return undefined;
 }
-
-// Same asterisk TextField and Select draw on a required field's own label.
-const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
 
 // Shared by the scan input and the "Generar código interno" button: the design's own outlined
 // control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
@@ -213,8 +221,7 @@ function BarcodeChips({
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
+    <FieldGroup label={labels.barcodesLabel} required>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -289,7 +296,7 @@ function BarcodeChips({
           {error}
         </span>
       )}
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -666,6 +673,19 @@ function NewProductModal({
       setSubmitting(false);
       return;
     }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === input.categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
+      setSubmitting(false);
+      return;
+    }
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
       setSubmitting(false);
@@ -762,15 +782,13 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <div className="flex flex-col gap-1">
-            <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+          <FieldGroup label={modalMessages.categoryLabel} required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
-          </div>
+          </FieldGroup>
         )}
-        <div className="flex flex-col gap-1.5">
-          <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+        <FieldGroup label={modalMessages.unitLabel} required>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -795,7 +813,7 @@ function NewProductModal({
             required
             {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
-        </div>
+        </FieldGroup>
         <BarcodeChips
           barcodes={chips.barcodes}
           onRemove={chips.remove}
@@ -964,6 +982,19 @@ function EditProductModal({
         ...current,
         barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
       setSubmitting(false);
       return;
     }
@@ -1144,15 +1175,13 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <div className="flex flex-col gap-1">
-              <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+            <FieldGroup label={modalMessages.categoryLabel} required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
-            </div>
+            </FieldGroup>
           )}
-          <div className="flex flex-col gap-1.5">
-            <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+          <FieldGroup label={modalMessages.unitLabel} required>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
@@ -1173,7 +1202,7 @@ function EditProductModal({
               onChange={setSaleUnit}
               required
             />
-          </div>
+          </FieldGroup>
           <BarcodeChips
             barcodes={chips.barcodes}
             onRemove={chips.remove}
@@ -1815,13 +1844,23 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const products = list.kind === "loaded" ? list.products : [];
 
+  const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
+
+  // Only a leaf category can hold a product, so any other filter option could only ever match
+  // nothing; a full path tells apart two leaves that share a name under different parents.
   const categoryFilterOptions = useMemo(() => {
-    const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+    const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+      leafIds.has(category.id),
+    );
     return [
       { value: "ALL" as const, label: productsMessages.categoryFilterAllOption },
-      ...sorted.map((category) => ({ value: category.id, label: category.name })),
+      ...leaves.map((category) => ({
+        value: category.id,
+        label: categoryLabels.get(category.id) ?? category.name,
+      })),
     ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
-  }, [categories]);
+  }, [categories, categoryLabels]);
 
   const unitFilterOptions = [
     { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
@@ -1865,7 +1904,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     {
       key: "category",
       title: productsMessages.columns.category,
-      render: (item: ProductSummary) => item.categoryName,
+      render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",

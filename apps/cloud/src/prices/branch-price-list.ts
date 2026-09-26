@@ -4,7 +4,7 @@ import { branchSettings } from "../db/schema.js";
 
 /**
  * The price list `locationId`'s branch works on, from its own settings. Every location gets a
- * `branch_settings` row (and, since migration 0027, that row's `price_list_id`) from the migration
+ * `branch_settings` row (and, since migration 0029, that row's `price_list_id`) from the migration
  * that seeds it, so a missing row here means that invariant broke, not a legitimate case a caller
  * should see.
  */

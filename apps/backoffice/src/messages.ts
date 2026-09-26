@@ -8,6 +8,7 @@ import {
   type PermissionKey,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  REGISTER_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
@@ -40,10 +41,22 @@ const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+// Shared by the create and edit category modals: the same "Categoría superior" select, hint and
+// empty option either way.
+const CATEGORY_PARENT_LABEL = "Categoría superior";
+const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
+const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
+// Defensive only: nothing in the backoffice deletes a category today, so the chosen parent
+// disappearing out from under a create/edit is not reachable through normal use.
+const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
 const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
 const PRODUCT_CATEGORY_LABEL = "Categoría";
 const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
+// Only reachable by a race: someone else gives the chosen category a subcategory of its own
+// between loading this form and submitting it.
+const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
+  `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_UNIT_LABEL = "Unidad de venta";
 const PRODUCT_BARCODES_LABEL = "Códigos de barras";
 const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
@@ -58,8 +71,9 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
+const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
-// Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
+// Shared between the Roles screen's per-permission checkboxes (every key, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
 // permissions as a bespoke control instead of a plain checkbox list.
 const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
@@ -103,6 +117,7 @@ const PERMISSION_LABELS = {
   manage_batches: "Tandas",
   reset_user_pin: "Reiniciar el PIN",
   deactivate_users: "Desactivar usuarios",
+  reactivate_users: "Reactivar usuarios",
   correct_register_clock: "Corregir el reloj de la caja",
   view_fiscal_documents: "Ver comprobantes, contingencias y puntos de venta",
   close_fiscal_tasks: "Cerrar tareas fiscales",
@@ -234,6 +249,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
     rolesSectionLabel: "Roles",
+    registersSectionLabel: "Cajas registradoras",
     branchSectionLabel: "Sucursal",
     // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
     // always has at least one sidebar entry.
@@ -306,13 +322,18 @@ export const messages = defineMessages("es-AR", (f) => ({
       heading: "Usuarios",
       newUserButton: "Nuevo usuario",
       administratorRoleName: ADMINISTRATOR_ROLE_NAME,
-      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys" },
+      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys", state: "Estado" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
       passkeysCount: (params: { count: number }) =>
         params.count === 0
           ? "—"
           : f.plural(params.count, { one: "1 registrada", other: `${params.count} registradas` }),
+      inactiveTag: "Inactivo",
+      stateFilterLabel: "Estado:",
+      stateFilterAllOption: "Activos e inactivos",
+      stateFilterActiveOption: "Activos",
+      stateFilterInactiveOption: "Inactivos",
       loadErrorTitle: "No pudimos abrir los usuarios",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",
@@ -333,6 +354,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
         emailTaken: EMAIL_TAKEN,
+        emailBelongsToDeactivatedUser: (params: { name: string }) =>
+          `Ese correo pertenece a la cuenta desactivada de ${params.name}.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
         closeLabel: CLOSE_LABEL,
@@ -363,6 +387,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         deactivateHelp: (params: { name: string }) =>
           `Al desactivar a ${params.name}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`,
         deactivateButton: (params: { name: string }) => `Desactivar a ${params.name}`,
+        reactivateHelp: (params: { name: string }) =>
+          `Al reactivar a ${params.name}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
       },
       deactivateModal: {
         title: (params: { name: string }) => `¿Desactivar a ${params.name}?`,
@@ -371,6 +398,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         confirm: "Desactivar",
         closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo desactivar el usuario",
+        attemptFailedDetail: "Probá de nuevo.",
+      },
+      reactivateModal: {
+        title: (params: { name: string }) => `¿Reactivar a ${params.name}?`,
+        body: "Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.",
+        cancel: CANCEL_LABEL,
+        confirm: "Reactivar",
+        attemptFailedTitle: "No se pudo reactivar el usuario",
         attemptFailedDetail: "Probá de nuevo.",
       },
       removePasskeyModal: {
@@ -490,6 +525,71 @@ export const messages = defineMessages("es-AR", (f) => ({
           alertsAllOption: VIEW_ALL_ALERTS_LABEL,
           dismissAlertsOption: DISMISS_ALERTS_LABEL,
         },
+      },
+    },
+    registers: {
+      documentTitle: "Cajas registradoras · Puro Sur",
+      breadcrumb: "Configuración",
+      heading: "Cajas registradoras",
+      newRegisterButton: "Nueva caja",
+      columns: {
+        register: "CAJA",
+        installation: "INSTALACIÓN",
+        pointsOfSale: "PUNTOS DE VENTA",
+        status: "ESTADO",
+      },
+      noInstallation: "Sin instalación",
+      codeNotIssued: "—",
+      pointsOfSaleNotConfigured: "Sin configurar",
+      statusPendingEnrollment: "Esperando alta",
+      codeIssued: (params: { minutes: number }) =>
+        params.minutes < 1
+          ? "Código emitido recién"
+          : `Código emitido hace ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      codeExpiresIn: (params: { minutes: number }) =>
+        `Vence en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 caja", other: `${params.count} cajas` }),
+      emptyTitle: "Todavía no hay cajas registradoras",
+      emptyDetail: "Creá la primera para verla en la lista.",
+      loadErrorTitle: "No pudimos abrir las cajas registradoras",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      issueCodeAria: (params: { name: string }) => `Emitir código de alta para ${params.name}`,
+      newRegisterModal: {
+        eyebrow: "Configuración",
+        heading: "Nueva caja",
+        nameLabel: "Nombre de la caja",
+        nameRequired: "Ingresá el nombre de la caja.",
+        nameTooLong: REGISTER_NAME_TOO_LONG,
+        nameTaken: "Ya existe una caja con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Crear la caja",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear la caja",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      enrollmentCodeModal: {
+        heading: "Código de alta",
+        issuing: "Emitiendo el código…",
+        codeExpiresNote: "Vence en 15 minutos · se usa una sola vez",
+        description:
+          "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
+        doneButton: "Listo",
+        closeLabel: CLOSE_LABEL,
+        retry: "Reintentar",
+        attemptFailedTitle: "No se pudo emitir el código",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
     },
     branch: {
@@ -612,6 +712,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryPlaceholder: "Elegí una categoría",
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitRequired: "Elegí la unidad de venta.",
         unitOptionUnitTitle: "Por unidad",
@@ -653,6 +754,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameTooLong: PRODUCT_NAME_TOO_LONG,
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitOptionUnitTitle: "Por unidad",
         unitOptionUnitHelp: "Se vende de a uno",
@@ -762,6 +864,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameRequired: "Ingresá el nombre de la categoría.",
         nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
+        nameTakenUnderParent: (params: { name: string; parent: string }) =>
+          `Ya existe una categoría "${params.name}" en ${params.parent}.`,
+        parentLabel: CATEGORY_PARENT_LABEL,
+        parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+        parentHint: CATEGORY_PARENT_HINT,
+        parentHasProductsError: (params: { parent: string }) =>
+          `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+        parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Crear la categoría",
         closeLabel: CLOSE_LABEL,
@@ -777,6 +887,16 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameRequired: "Ingresá el nombre de la categoría.",
         nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
+        nameTakenUnderParent: (params: { name: string; parent: string }) =>
+          `Ya existe una categoría "${params.name}" en ${params.parent}.`,
+        parentLabel: CATEGORY_PARENT_LABEL,
+        parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+        parentHint: CATEGORY_PARENT_HINT,
+        parentHasProductsError: (params: { parent: string }) =>
+          `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+        moveNotAllowedError: (params: { category: string; destination: string }) =>
+          `No se puede mover "${params.category}" bajo "${params.destination}": es una de sus subcategorías.`,
+        parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
         closeLabel: CLOSE_LABEL,
@@ -975,7 +1095,10 @@ export const messages = defineMessages("es-AR", (f) => ({
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",
+      userReactivation: "Reactivar un usuario",
       issuerIdentificationSave: "Guardar la identificación del emisor",
+      registerCreate: "Crear una caja",
+      registerEnrollmentCodeIssue: "Emitir un código de alta",
     },
   },
   help: {

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -201,17 +202,32 @@ export const userRoles = pgTable(
   ],
 );
 
-// Catalog categories aren't scoped to a branch (the business runs a single one today), so this is
-// a global, case-insensitive uniqueness rule, the same shape `roles.name` enforces.
+// Catalog categories form a tree (#332): `parent_id` is nullable and self-referencing, and a null
+// parent means a top-level category, exactly like every category before nesting existed. Names
+// are unique among siblings, case-insensitively, rather than globally: two top-level categories
+// (both with a null parent) still collide with each other, which `NULLS NOT DISTINCT` on the
+// index below is what makes happen, since Postgres otherwise treats every null as distinct from
+// every other null. `parentId` has no `onDelete` because, like every other row referenced by a
+// category (`products.categoryId`), categories are never deleted.
 export const categories = pgTable(
   "categories",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
     // Optimistic concurrency for a category row, the same shape `roles.version` gives role rows.
     version: integer("version").notNull().default(1),
   },
-  (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
+  (table) => [
+    // `NULLS NOT DISTINCT` has no fluent builder for an index in this drizzle-orm version (only
+    // `unique()`'s table-level constraint builder has one, and that builder can't take the
+    // `lower(name)` expression this index needs), so the migration drizzle-kit generates for this
+    // is hand-edited to add it, the same way 0026_deactivate_products.sql hand-edits generated SQL
+    // for a trigger drizzle-kit has no declarative support for.
+    uniqueIndex("categories_name_lower_key").on(table.parentId, sql`lower(${table.name})`),
+    index("categories_parent_id_idx").on(table.parentId),
+    check("categories_parent_is_not_itself", sql`${table.parentId} <> ${table.id}`),
+  ],
 );
 
 // A product's own name carries no uniqueness rule (unlike a category's), so only its sale unit is
@@ -338,6 +354,45 @@ export const internalBarcodeSequence = pgSequence("internal_barcode_sequence", {
   startWith: "200000000001",
   increment: 1,
   cycle: false,
+});
+
+// A backoffice register: created from the "Nueva caja" modal by a holder of
+// `enroll_register_devices`, belonging to the branch of the session that created it. Its name must
+// be unique within its own branch (case-insensitive, trimmed), the same shape `categories.name`
+// enforces globally; points of sale and fiscal address are configured elsewhere, not here.
+export const registers = pgTable(
+  "registers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("registers_location_id_name_lower_key").on(
+      table.locationId,
+      sql`lower(${table.name})`,
+    ),
+  ],
+);
+
+// The single pending enrollment code for a register: one row per register (`register_id` is both
+// primary and foreign key), so emitting a new code overwrites the previous pending one instead of
+// accumulating a history. Only `code_hash` (SHA-256, the same shape `sessions.session_id_hash`
+// stores its own secret in) is ever stored, never the raw code. `redeemed_at` and `failed_attempts`
+// exist for #341 (redemption) to enforce single use and the 5-failed-attempt burn; this migration
+// only adds the columns that issue needs, without implementing redemption itself.
+export const registerEnrollmentCodes = pgTable("register_enrollment_codes", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  codeHash: text("code_hash").notNull(),
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
 });
 
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in

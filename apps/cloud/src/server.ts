@@ -402,6 +402,10 @@ export async function startServer(
             db: database.recovery.db,
             backofficeOrigin: database.recovery.backofficeOrigin,
           },
+          registers: {
+            db: database.recovery.db,
+            backofficeOrigin: database.recovery.backofficeOrigin,
+          },
         }
       : {}),
   });

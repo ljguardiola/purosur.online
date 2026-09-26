@@ -29,6 +29,7 @@ import { readSessionCookie } from "./session-cookie.js";
  *   ended session still succeeds.
  * - `administrator`: only the Administrator role qualifies, never through a permission.
  * - `permission`: holding one named catalog permission qualifies; an Administrator always does.
+ *   Declaring more than one permission is an any-of: holding at least one of them qualifies.
  */
 export type RouteAccess =
   | { level: "public" }
@@ -36,7 +37,7 @@ export type RouteAccess =
   | { level: "open_session_peek" }
   | { level: "session_cookie" }
   | { level: "administrator" }
-  | { level: "permission"; permission: PermissionKey };
+  | { level: "permission"; permission: PermissionKey | readonly PermissionKey[] };
 
 export const PUBLIC_ACCESS: RouteAccess = { level: "public" };
 export const OPEN_SESSION_ACCESS: RouteAccess = { level: "open_session" };
@@ -44,7 +45,9 @@ export const OPEN_SESSION_PEEK_ACCESS: RouteAccess = { level: "open_session_peek
 export const SESSION_COOKIE_ACCESS: RouteAccess = { level: "session_cookie" };
 export const ADMINISTRATOR_ACCESS: RouteAccess = { level: "administrator" };
 
-export function permissionAccess(permission: PermissionKey): RouteAccess {
+export function permissionAccess(
+  permission: PermissionKey | readonly PermissionKey[],
+): RouteAccess {
   return { level: "permission", permission };
 }
 
@@ -136,7 +139,10 @@ export function originGuard(
   };
 }
 
-function isAccessGranted(access: RouteAccess, session: OpenSession): boolean {
+export function isAccessGranted(
+  access: RouteAccess,
+  session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
+): boolean {
   switch (access.level) {
     case "public":
     case "open_session":
@@ -145,8 +151,15 @@ function isAccessGranted(access: RouteAccess, session: OpenSession): boolean {
       return true;
     case "administrator":
       return session.isAdministrator;
-    case "permission":
-      return session.isAdministrator || session.permissionKeys.includes(access.permission);
+    case "permission": {
+      const declaredPermissions = Array.isArray(access.permission)
+        ? access.permission
+        : [access.permission as PermissionKey];
+      return (
+        session.isAdministrator ||
+        declaredPermissions.some((permission) => session.permissionKeys.includes(permission))
+      );
+    }
   }
 }
 

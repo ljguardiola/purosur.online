@@ -24,6 +24,8 @@ import {
   recoveryRateLimitAttempts,
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
+  registerEnrollmentCodes,
+  registers,
   rolePermissions,
   roles,
   sessions,
@@ -190,6 +192,19 @@ describe("buildTestDatabase", () => {
       priceListId: await seededPriceListId(db),
       priceId: price.id,
       actorId: user.id,
+    });
+    const [register] = await db
+      .insert(registers)
+      .values({ locationId: await seededLocationId(db), name: "Caja 1" })
+      .returning({ id: registers.id });
+    if (!register) {
+      throw new Error("seeding registers returned no row");
+    }
+    await db.insert(registerEnrollmentCodes).values({
+      registerId: register.id,
+      codeHash: "code-hash",
+      issuedAt: new Date("2026-01-05T12:00:00.000Z"),
+      expiresAt: new Date("2026-01-05T12:15:00.000Z"),
     });
     await db.insert(auditLog).values({ entity: "users", entityId: user.id });
     await db.insert(passkeys).values({

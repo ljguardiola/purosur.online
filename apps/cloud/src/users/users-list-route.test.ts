@@ -169,7 +169,42 @@ describe("GET /users", () => {
     ]);
   });
 
-  it("excludes an inactive user from the list", async () => {
+  it("excludes an inactive user from the list for a holder of only deactivate_users", async () => {
+    const locationId = await seededLocationId(db);
+    const holderRoleId = await insertCashierRole("Encargada", ["deactivate_users"]);
+    const holderId = await insertUser({
+      firstName: "Zoe Holder",
+      email: "zoe@example.com",
+      roleId: holderRoleId,
+      locationId,
+    });
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const inactiveId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
+    const rawSessionId = await insertSession(holderId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      {
+        id: holderId,
+        first_name: "Zoe Holder",
+        email: "zoe@example.com",
+        version: 1,
+        role: { id: holderRoleId, is_administrator: false, name: "Encargada" },
+        passkey_count: 0,
+        is_last_active_administrator: false,
+      },
+    ]);
+  });
+
+  it("includes an inactive user, with its active field, for an Administrator", async () => {
     const locationId = await seededLocationId(db);
     const administratorRoleId = await seededAdministratorRoleId();
     const cashierRoleId = await insertCashierRole("Cajera");
@@ -193,15 +228,57 @@ describe("GET /users", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
       {
+        id: inactiveId,
+        first_name: "Ada Lovelace",
+        email: "ada@example.com",
+        version: 1,
+        active: false,
+        role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
+        passkey_count: 0,
+        is_last_active_administrator: false,
+      },
+      {
         id: administratorId,
         first_name: "Zoe Admin",
         email: "zoe@example.com",
         version: 1,
+        active: true,
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
         is_last_active_administrator: true,
       },
     ]);
+  });
+
+  it("includes an inactive user for a holder of only reactivate_users, though not an Administrator", async () => {
+    const locationId = await seededLocationId(db);
+    const holderRoleId = await insertCashierRole("Encargada", ["reactivate_users"]);
+    const holderId = await insertUser({
+      firstName: "Zoe Holder",
+      email: "zoe@example.com",
+      roleId: holderRoleId,
+      locationId,
+    });
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const inactiveId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: cashierRoleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, inactiveId));
+    const rawSessionId = await insertSession(holderId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().map((row: { id: string; active?: boolean }) => row.id)).toContain(
+      inactiveId,
+    );
+    const inactiveRow = response
+      .json()
+      .find((row: { id: string; active?: boolean }) => row.id === inactiveId);
+    expect(inactiveRow.active).toBe(false);
   });
 
   it("lists only the session branch's users, ordered by first name, with their role and passkey count", async () => {
@@ -243,6 +320,7 @@ describe("GET /users", () => {
         first_name: "Ada Lovelace",
         email: "ada@example.com",
         version: 1,
+        active: true,
         role: { id: cashierRoleId, is_administrator: false, name: "Cajera" },
         passkey_count: 2,
         is_last_active_administrator: false,
@@ -252,6 +330,7 @@ describe("GET /users", () => {
         first_name: "Zoe Admin",
         email: "zoe@example.com",
         version: 1,
+        active: true,
         role: { id: administratorRoleId, is_administrator: true, name: null },
         passkey_count: 0,
         is_last_active_administrator: true,

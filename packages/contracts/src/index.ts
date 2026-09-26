@@ -42,4 +42,5 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product";
+export { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name";
 export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";

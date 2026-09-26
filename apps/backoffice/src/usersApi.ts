@@ -9,6 +9,9 @@ export type BranchUser = {
   firstName: string;
   email: string;
   version: number;
+  /** Only present when the caller may see a deactivated user (`canReactivateUser`): everyone
+   * else's users are always active, and the wire never mentions it for them. */
+  active?: boolean;
   role: BranchUserRole;
   passkeyCount: number;
   /** From the wire: locks the Rol field in the edit modal, since the server refuses to change it regardless. */
@@ -41,6 +44,15 @@ export type RemoveUserPasskeyOutcome =
   | { kind: "failed" };
 
 export type DeactivateUserOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "authorization_required" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+export type ReactivateUserOutcome =
   | { kind: "ok" }
   | { kind: "not_found" }
   | { kind: "authorization_required" }
@@ -90,6 +102,9 @@ export type CreateUserOutcome =
   | { kind: "validation_failed"; field: CreateUserFieldError }
   | { kind: "unknown_role" }
   | { kind: "email_taken" }
+  /** The conflicting email belongs to a deactivated user, and the caller can reactivate one: the
+   * form leads to reactivating that user instead of a plain "email taken" refusal. */
+  | { kind: "email_belongs_to_deactivated_user"; id: string; name: string }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
@@ -115,6 +130,7 @@ function userFromWire(row: {
   first_name: string;
   email: string;
   version: number;
+  active?: boolean;
   role: { id: string; is_administrator: boolean; name: string | null };
   passkey_count: number;
   is_last_active_administrator: boolean;
@@ -124,6 +140,7 @@ function userFromWire(row: {
     firstName: row.first_name,
     email: row.email,
     version: row.version,
+    ...(row.active !== undefined ? { active: row.active } : {}),
     role: {
       id: row.role.id,
       isAdministrator: row.role.is_administrator,
@@ -251,6 +268,12 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserOutc
     return { kind: "failed" };
   }
   if (response.status === 409) {
+    const body = (await response.json().catch(() => undefined)) as
+      | { code?: string; id?: string; name?: string }
+      | undefined;
+    if (body?.code === "email_belongs_to_deactivated_user" && body.id && body.name) {
+      return { kind: "email_belongs_to_deactivated_user", id: body.id, name: body.name };
+    }
     return { kind: "email_taken" };
   }
   return gatedActionErrorOutcome(response);
@@ -432,6 +455,27 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
   let response: Response;
   try {
     response = await postJson(`/users/${id}/deactivation`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  return gatedActionErrorOutcome(response);
+}
+
+/**
+ * Reactivates the target user, gated by the shared passkey-authorization window instead of its
+ * own reauthentication step-up (`POST /users/:id/reactivation`). The cloud answers the same
+ * `not_found` for a malformed, missing, other-branch, or already-active target.
+ */
+export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/users/${id}/reactivation`);
   } catch {
     return { kind: "failed" };
   }

@@ -1,5 +1,5 @@
 {
-  "id": "51f02dd2-9416-4d90-89f5-66095c81f784",
+  "id": "6b2c7cea-4819-4aaa-8679-bc8438045fbf",
   "prevId": "4db914f5-691b-458f-859c-924949763498",
   "version": "7",
   "dialect": "postgresql",
@@ -272,12 +272,6 @@
           "notNull": true,
           "default": 15
         },
-        "price_list_id": {
-          "name": "price_list_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -293,15 +287,6 @@
           "tableFrom": "branch_settings",
           "tableTo": "locations",
           "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "branch_settings_price_list_id_price_lists_id_fk": {
-          "name": "branch_settings_price_list_id_price_lists_id_fk",
-          "tableFrom": "branch_settings",
-          "tableTo": "price_lists",
-          "columnsFrom": ["price_list_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -621,251 +606,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.price_lists": {
-      "name": "price_lists",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.price_reviews": {
-      "name": "price_reviews",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_list_id": {
-          "name": "price_list_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reviewed_at": {
-          "name": "reviewed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_id": {
-          "name": "price_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "price_reviews_product_id_price_list_id_reviewed_at_idx": {
-          "name": "price_reviews_product_id_price_list_id_reviewed_at_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "price_list_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "reviewed_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "price_reviews_product_id_products_id_fk": {
-          "name": "price_reviews_product_id_products_id_fk",
-          "tableFrom": "price_reviews",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "price_reviews_price_list_id_price_lists_id_fk": {
-          "name": "price_reviews_price_list_id_price_lists_id_fk",
-          "tableFrom": "price_reviews",
-          "tableTo": "price_lists",
-          "columnsFrom": ["price_list_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "price_reviews_actor_id_users_id_fk": {
-          "name": "price_reviews_actor_id_users_id_fk",
-          "tableFrom": "price_reviews",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "price_reviews_price_product_price_list_fk": {
-          "name": "price_reviews_price_product_price_list_fk",
-          "tableFrom": "price_reviews",
-          "tableTo": "prices",
-          "columnsFrom": ["price_id", "product_id", "price_list_id"],
-          "columnsTo": ["id", "product_id", "price_list_id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.prices": {
-      "name": "prices",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_list_id": {
-          "name": "price_list_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_price": {
-          "name": "unit_price",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "valid_from": {
-          "name": "valid_from",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "prices_product_id_price_list_id_valid_from_idx": {
-          "name": "prices_product_id_price_list_id_valid_from_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "price_list_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "valid_from",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "prices_product_id_products_id_fk": {
-          "name": "prices_product_id_products_id_fk",
-          "tableFrom": "prices",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "prices_price_list_id_price_lists_id_fk": {
-          "name": "prices_price_list_id_price_lists_id_fk",
-          "tableFrom": "prices",
-          "tableTo": "price_lists",
-          "columnsFrom": ["price_list_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "prices_id_product_id_price_list_id_key": {
-          "name": "prices_id_product_id_price_list_id_key",
-          "nullsNotDistinct": false,
-          "columns": ["id", "product_id", "price_list_id"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "prices_unit_price_positive": {
-          "name": "prices_unit_price_positive",
-          "value": "\"prices\".\"unit_price\" > 0"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.product_barcodes": {
@@ -1302,6 +1042,137 @@
           "tableFrom": "recovery_tokens",
           "tableTo": "users",
           "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.register_enrollment_codes": {
+      "name": "register_enrollment_codes",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_attempts": {
+          "name": "failed_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_enrollment_codes_register_id_registers_id_fk": {
+          "name": "register_enrollment_codes_register_id_registers_id_fk",
+          "tableFrom": "register_enrollment_codes",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.registers": {
+      "name": "registers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "registers_location_id_name_lower_key": {
+          "name": "registers_location_id_name_lower_key",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "registers_location_id_locations_id_fk": {
+          "name": "registers_location_id_locations_id_fk",
+          "tableFrom": "registers",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

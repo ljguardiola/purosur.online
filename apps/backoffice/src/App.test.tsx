@@ -85,6 +85,15 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
       deactivateUser: vi.fn(),
+      reactivateUser: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
+    registersListScreen: {
+      fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      createRegister: vi.fn(),
+      emitEnrollmentCode: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
@@ -333,6 +342,33 @@ test("routes /account-recovery to the recovery form, outside the Shell", async (
     .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
     .toBeVisible();
   expect(screen.getByRole("navigation", { name: "Áreas" }).query()).toBeNull();
+});
+
+// The single place every backoffice field gets its size from: App provides the backoffice
+// FieldSizeProvider once at its own root (see App.tsx), so no screen chooses it for itself.
+// FieldSize.test.tsx already proves every backoffice number in isolation, for TextField, DateField
+// and Select together; this only proves the root actually provides it, on the lightest route that
+// renders a field.
+test("provides the backoffice field size at the root, so a screen never has to ask for it", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+  });
+  window.history.pushState(null, "", "/account-recovery");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  // AppContent renders nothing until the mount session check resolves, so the field only exists
+  // once this heading (rendered by the same signed-out screen) is visible.
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toBeVisible();
+
+  const label = screen.getByText("Correo de tu cuenta").element() as HTMLElement;
+  const input = screen.getByRole("textbox", { name: /^Correo de tu cuenta/ }).element();
+  const box = input.parentElement as HTMLElement;
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
+  expect(box.getBoundingClientRect().height).toBeCloseTo(48, 0);
 });
 
 test("routes /account-recovery/passkey to the passkey registration screen, reading its token from the hash", async () => {
@@ -631,6 +667,87 @@ test("following the sidebar's Roles item opens the roles list, with Config and R
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const rolesItem = screen.getByRole("link", { name: "Roles" }).element() as HTMLAnchorElement;
   expect(rolesItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["enroll_register_devices"],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await expect.element(screen.getByRole("link", { name: "Cajas registradoras" })).toBeVisible();
+});
+
+test("hides the Cajas registradoras item in the rail for a user without enroll_register_devices", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Cajas registradoras" }).query()).toBeNull();
+});
+
+test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
+  window.history.pushState(null, "", "/settings/users/me");
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Cajas registradoras" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/settings/registers");
+  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(configItem.getAttribute("aria-current")).toBe("page");
+  const registersItem = screen
+    .getByRole("link", { name: "Cajas registradoras" })
+    .element() as HTMLAnchorElement;
+  expect(registersItem.getAttribute("aria-current")).toBe("page");
+});
+
+test("redirects a typed /settings/registers to Mi cuenta for a user without enroll_register_devices, without calling its API", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/settings/registers");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {

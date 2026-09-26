@@ -80,6 +80,22 @@ describe("users.location_id", () => {
   });
 });
 
+describe("categories.parent_id", () => {
+  it("rejects a category that is its own parent", async () => {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    if (!category) {
+      throw new Error("test setup: inserting the category returned no row");
+    }
+
+    await expect(
+      db.update(categories).set({ parentId: category.id }).where(eq(categories.id, category.id)),
+    ).rejects.toMatchObject({ cause: { constraint: "categories_parent_is_not_itself" } });
+  });
+});
+
 describe("user_roles", () => {
   it("rejects a second role for a user that already holds one", async () => {
     const user = await insertUser("ada@example.com");

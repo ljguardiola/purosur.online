@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -58,13 +59,15 @@ function renderScreen(
   now?: () => Date,
 ) {
   return render(
-    <main>
-      <FiscalConfigurationScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        {...(now ? { now } : {})}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <FiscalConfigurationScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          {...(now ? { now } : {})}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 
@@ -233,6 +236,36 @@ test("Editar opens the modal prefilled, with CUIT and tax status as plain text, 
   expect(dialog.getByRole("textbox", { name: "Condición frente al IVA" }).query()).toBeNull();
   await expect.element(dialog.getByText("27-28453196-0")).toBeVisible();
   await expect.element(dialog.getByText("Responsable Monotributo")).toBeVisible();
+});
+
+test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, side by side in the same row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+  const dialog = screen.getByRole("dialog");
+  const grossIncomeLabel = dialog.getByText("Ingresos Brutos").element() as HTMLElement;
+  const activityStartLabel = dialog.getByText("Inicio de actividades").element() as HTMLElement;
+  const grossIncomeBox = dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }).element()
+    .parentElement as HTMLElement;
+  const activityStartBox = dialog
+    .getByRole("group", { name: /^Inicio de actividades/ })
+    .element() as HTMLElement;
+
+  // The label's own font size, weight and color are TextField's and DateField's own backoffice
+  // size, already proven once for both in FieldSize.test.tsx; this only proves what that test
+  // can't: the two labels actually share a baseline in this row.
+  expect(grossIncomeLabel.getBoundingClientRect().top).toBeCloseTo(
+    activityStartLabel.getBoundingClientRect().top,
+    0,
+  );
+
+  const grossIncomeBoxRect = grossIncomeBox.getBoundingClientRect();
+  const activityStartBoxRect = activityStartBox.getBoundingClientRect();
+  expect(grossIncomeBoxRect.top).toBeCloseTo(activityStartBoxRect.top, 0);
+  expect(grossIncomeBoxRect.bottom).toBeCloseTo(activityStartBoxRect.bottom, 0);
 });
 
 test("prefills the modal empty for an incomplete identification", async () => {
