@@ -332,8 +332,9 @@ test("routes /account-recovery to the recovery form, outside the Shell", async (
 
 // The single place every backoffice field gets its size from: App provides the backoffice
 // FieldSizeProvider once at its own root (see App.tsx), so no screen chooses it for itself.
-// TextField.test.tsx and DateField.test.tsx already prove every backoffice number in isolation;
-// this only proves the root actually provides it, on the lightest route that renders a field.
+// FieldSize.test.tsx already proves every backoffice number in isolation, for TextField, DateField
+// and Select together; this only proves the root actually provides it, on the lightest route that
+// renders a field.
 test("provides the backoffice field size at the root, so a screen never has to ask for it", async () => {
   const services = createServices({
     fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
@@ -341,6 +342,12 @@ test("provides the backoffice field size at the root, so a screen never has to a
   window.history.pushState(null, "", "/account-recovery");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
+
+  // AppContent renders nothing until the mount session check resolves, so the field only exists
+  // once this heading (rendered by the same signed-out screen) is visible.
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toBeVisible();
 
   const label = screen.getByText("Correo de tu cuenta").element() as HTMLElement;
   const input = screen.getByRole("textbox", { name: /^Correo de tu cuenta/ }).element();
