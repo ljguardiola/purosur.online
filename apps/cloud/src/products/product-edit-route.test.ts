@@ -349,6 +349,33 @@ describe("POST /products/:id/edit", () => {
     expect(edited).toMatchObject([{ netContentQuantity: null, netContentUnit: null }]);
   });
 
+  it("clears an existing net content when the key is absent from the body", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContentQuantity: 1.5,
+      netContentUnit: "KG",
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ netContent: null });
+    const edited = await db.select().from(products).where(eq(products.id, product.id));
+    expect(edited).toMatchObject([{ netContentQuantity: null, netContentUnit: null }]);
+  });
+
   it("rejects a net content missing its quantity, changing nothing", async () => {
     const categoryId = await insertCategory("Macetas");
     const product = await insertProduct({
