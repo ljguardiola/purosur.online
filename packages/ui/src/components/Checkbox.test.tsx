@@ -42,9 +42,8 @@ function Harness({ initial = false }: { initial?: boolean }) {
 }
 
 test("renders the caller's content 12px from a 22px, 4px-radius box, vertically centered", async () => {
-  // Wrapped in its own element so its rect can be measured on its own: raw text with no wrapping
-  // element would make `getByText` resolve to the label (its only element with that text), not to
-  // the content itself.
+  // Wrapped in its own element: raw text has no element of its own, so getByText would resolve to
+  // the label instead.
   const screen = await render(
     <Checkbox isSelected={false} onChange={() => {}}>
       <span>Return this line</span>
@@ -82,10 +81,7 @@ test("colors an unchecked box white with a 2px ink-secondary border and no check
   expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
   expect(box.querySelector("svg")).toBeNull();
 
-  // The boundary check above pins the token this design picked, and a design that picks another
-  // one rewrites that line along with it. What has to hold whichever token is picked is the ratio:
-  // this box's border is a control boundary, not text, so the color it actually renders has to
-  // clear WCAG's 3:1 non-text contrast minimum against the fill it renders on.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const boundaryHex = boundaryColorHex(box);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);

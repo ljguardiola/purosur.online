@@ -211,7 +211,6 @@ test("does not change the chosen card's background on hover", async () => {
   const card = radioCard(screen, "Income");
 
   await userEvent.hover(card);
-  // Confirms the hover actually registered, so the assertion below can't pass vacuously.
   await expect.poll(() => card.hasAttribute("data-hovered")).toBe(true);
 
   expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));

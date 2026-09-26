@@ -98,8 +98,7 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
-  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name,
-  // so a swap to a softer same-status token would still fail this.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const trackBoundaryHex = boundaryColorHex(track);
   const trackFillHex = rgbToHex(getComputedStyle(track).backgroundColor);
   expect(contrastRatio(trackBoundaryHex, trackFillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
@@ -142,8 +141,7 @@ test("colors an on track green UI with no border and a plain white knob at the f
   const knobRect = knob.getBoundingClientRect();
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-green-ui"));
-  // Checks for no boundary in any color, not merely the absence of ink-secondary, so a boundary
-  // repainted in some other token would still fail this.
+  // Checks for no boundary in any color, not merely the absence of ink-secondary.
   expect(paintedBoxShadowLayers(track)).toEqual([]);
 
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));

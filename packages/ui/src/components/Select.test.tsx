@@ -237,7 +237,6 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await userEvent.tab();
   await userEvent.hover(trigger);
-  // Confirms the hover itself registered first; otherwise a dropped hover would leave this test green.
   await expect.poll(() => trigger.hasAttribute("data-hovered")).toBe(true);
 
   await expect.poll(() => borderOf(trigger).color).toBe(tokenRgb("brand-blue-ui"));

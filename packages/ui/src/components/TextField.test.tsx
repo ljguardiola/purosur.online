@@ -338,7 +338,6 @@ test("keeps the focused border and white fill instead of the hovered bone one wh
 
   await userEvent.tab();
   await userEvent.hover(box);
-  // Confirms the hover registered before checking focus still wins over it.
   await expect.poll(() => box.matches(":hover")).toBe(true);
 
   await expect
@@ -388,7 +387,7 @@ test("lets a read-only field be focused and shows it, but is never typed into or
     </>,
   );
   const box = fieldBox(screen, "Reason");
-  const editableBox = fieldBox(screen, "Detail");
+  const controlBox = fieldBox(screen, "Detail");
   const input = fieldInput(screen, "Reason");
   const restingShadow = getComputedStyle(box).boxShadow;
   const restingBackground = getComputedStyle(box).backgroundColor;
@@ -397,17 +396,15 @@ test("lets a read-only field be focused and shows it, but is never typed into or
   expect(restingBackground).toBe(tokenRgb("surface-bone"));
   expect(restingShadow).toContain(insetBoundary("line", "2px"));
 
-  // Control: proves hover dispatch itself works, so the read-only field's unchanged background
-  // below means it ignores hover.
-  await userEvent.hover(editableBox);
+  await userEvent.hover(controlBox);
   await expect
-    .poll(() => getComputedStyle(editableBox).backgroundColor)
+    .poll(() => getComputedStyle(controlBox).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
 
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(restingBackground);
   expect(getComputedStyle(box).boxShadow).toBe(restingShadow);
-  expect(getComputedStyle(editableBox).backgroundColor).toBe(tokenRgb("surface-white"));
+  expect(getComputedStyle(controlBox).backgroundColor).toBe(tokenRgb("surface-white"));
 
   await userEvent.click(input);
   expect(document.activeElement).toBe(input);

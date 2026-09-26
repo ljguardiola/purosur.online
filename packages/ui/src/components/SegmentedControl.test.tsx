@@ -123,10 +123,12 @@ test("renders the large size with a 56px container whose options fill its inner 
   expect(getComputedStyle(container).height).toBe("56px");
   expect(getComputedStyle(option).columnGap).toBe("8px");
 
-  // The container's border-box height (56px) includes its own 1px border and 4px padding on
-  // each side, so an option filling the inner height stretches to 56 - 2*1 - 2*4 = 46px.
+  const containerHeightPx = 56;
+  const containerBorderPx = 1;
+  const containerPaddingPx = 4;
+  const innerHeightPx = containerHeightPx - 2 * containerBorderPx - 2 * containerPaddingPx;
   const optionRect = option.getBoundingClientRect();
-  expect(optionRect.height).toBeCloseTo(46, 0);
+  expect(optionRect.height).toBeCloseTo(innerHeightPx, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(17);
@@ -144,9 +146,12 @@ test("renders the medium size with a 48px container whose options fill its inner
   expect(getComputedStyle(container).height).toBe("48px");
   expect(getComputedStyle(option).columnGap).toBe("6px");
 
-  // 48px container height minus 2*1px border and 2*4px padding = 38px.
+  const mediumContainerHeightPx = 48;
+  const containerBorderPx = 1;
+  const containerPaddingPx = 4;
+  const innerHeightPx = mediumContainerHeightPx - 2 * containerBorderPx - 2 * containerPaddingPx;
   const optionRect = option.getBoundingClientRect();
-  expect(optionRect.height).toBeCloseTo(38, 0);
+  expect(optionRect.height).toBeCloseTo(innerHeightPx, 0);
 
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeGreaterThan(15);

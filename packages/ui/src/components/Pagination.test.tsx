@@ -377,8 +377,6 @@ test("does not paint the hover background while Previous is unavailable at page 
   expect(previous.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(previous).backgroundColor).toBe(restBackground);
 
-  // Control: the same hover on the available Next button still paints its hover background,
-  // proving the suppression above is specific to the unavailable state.
   const nextRect = next.getBoundingClientRect();
   await hoverAt(nextRect.left + nextRect.width / 2, nextRect.top + nextRect.height / 2);
   expect(next.getAttribute("data-hovered")).toBe("true");

@@ -112,9 +112,7 @@ test("colors an unchecked circle white with a 2px ink-secondary border", async (
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
-  // The unchecked circle's border is a control boundary, not text, so it has to clear WCAG's
-  // 3:1 non-text contrast minimum against the fill it actually renders on — not just carry the
-  // right token name, which a swap to a softer, decorative token (e.g. "line") would still do.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name.
   const boundaryHex = boundaryColorHex(circle);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
@@ -271,12 +269,9 @@ test("dims every option to 45% opacity, drops the pointer cursor and blocks focu
   const input = radioInput(screen, "Cash");
   const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
-  // The dimming is drawn per option label, not on the group container, so every option has to
-  // carry it.
   for (const option of options) {
     const label = radioLabel(screen, option.label);
     expect(getComputedStyle(label).opacity).toBe("0.45");
-    // The hand cursor promises a control that responds; a disabled option doesn't.
     expect(getComputedStyle(label).cursor).toBe("default");
     expect(radioInput(screen, option.label).disabled).toBe(true);
   }
@@ -343,11 +338,9 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<RadioGroupProps<PaymentMethod>>();
 });
 
-// TypeScript must reject `value: "other"` by inferring V from `options` alone rather than by
-// widening V to also cover `value`. The "invalid" call still has to compile — `@ts-expect-error`
-// is banned — so an object that fails the first overload's `RadioGroupProps<V>` constraint falls
-// through to the second, `unknown` overload and resolves to `false` instead of refusing to
-// typecheck; that `false` is what the assertion below proves.
+// `@ts-expect-error` is banned, so an object that fails the first overload's `RadioGroupProps<V>`
+// constraint falls through to the second, `unknown` overload and resolves to `false` instead of
+// refusing to typecheck.
 function isValidRadioGroupCall<V extends string>(props: RadioGroupProps<V>): true;
 function isValidRadioGroupCall(props: unknown): false;
 function isValidRadioGroupCall(_props: unknown): boolean {

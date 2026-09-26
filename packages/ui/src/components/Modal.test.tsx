@@ -18,7 +18,6 @@ beforeEach(async () => {
 // own render container, so scoping an accessibility check to `screen.container` would always pass
 // against an empty placeholder regardless of what the modal renders.
 
-// footer defaults to an empty span since most tests don't assert on it directly.
 function baseProps(overrides: Partial<ModalProps> = {}): ModalProps {
   return {
     isOpen: true,
@@ -192,10 +191,9 @@ test("lets the caller color the context line with another text tone", async () =
 test("renders no context line when the caller does not supply one", async () => {
   const screen = await render(<Modal {...baseProps({ title: "Void the sale" })} />);
   const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
+  const contextSibling = title.previousElementSibling;
 
-  // The title is the only possible sibling in the header's text column, so this catches an empty
-  // context paragraph rendering where a missing `context` should render nothing at all.
-  expect(title.previousElementSibling).toBeNull();
+  expect(contextSibling).toBeNull();
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -564,9 +562,6 @@ test("keeps a bottom body control reachable by Tab, scrolled into the body's vis
 
     expect(reachedBottomField).toBe(true);
 
-    // Checked against the browser viewport, not just the body's own (potentially unclipped) box:
-    // a panel taller than the viewport never scrolls the page, so a focused descendant can sit
-    // inside its ancestor's box while still rendering off-screen unless the body itself scrolls.
     const focusedRect = (document.activeElement as HTMLElement).getBoundingClientRect();
     const bodyRect = body.getBoundingClientRect();
 
@@ -678,8 +673,6 @@ test("shows no close button and ignores Escape and the backdrop when not closabl
   const screen = await render(<Modal {...baseProps({ closable: false, onOpenChange })} />);
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
 
-  // Scoped to the dialog's own content, not vitest-browser-react's empty portal placeholder,
-  // which would always read 0 regardless of what the modal renders.
   expect(dialog.querySelectorAll("button")).toHaveLength(0);
 
   await userEvent.keyboard("{Escape}");
@@ -808,10 +801,9 @@ test("opens a second modal over the first with its own backdrop and returns to t
   await expectNoAccessibilityViolations(document.body);
 });
 
-// Distributes Omit over ModalProps' union first: a plain Omit on a union collapses each branch's
-// optionality and would stop catching that a close label is tied to `closable`. Omit, not Pick,
-// since Pick's second parameter is constrained to `keyof P`, which fails to typecheck against the
-// not-yet-distributed P.
+// Distributes Omit over ModalProps' union first: a plain Omit on a union would collapse each
+// branch's optionality. Omit, not Pick, since Pick's `keyof P` constraint can't typecheck against
+// the not-yet-distributed P.
 type ModalCommonKeys =
   | "isOpen"
   | "onOpenChange"
@@ -838,8 +830,7 @@ test("does not accept a close label on a non-closable modal", () => {
   expectTypeOf<{ closable: false; closeLabel: string }>().not.toExtend<ModalCloseFields>();
 });
 
-// The same distribution, keeping only each branch's layout-specific fields: the header layout and
-// the leading layout's context line and body padding.
+// Same distribution as ModalCloseFields, narrowed to the layout-specific fields.
 type ModalLayoutFields = ModalProps extends infer P
   ? P extends unknown
     ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable" | "closeLabel">

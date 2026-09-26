@@ -280,7 +280,6 @@ test("describes the field by a shared message rendered outside it through errorM
 
   expect(describedText(input)).toBe("Compartido por otro campo.");
   expect(describedText(trigger)).toBe("Compartido por otro campo.");
-  // The field renders no copy of its own of a message the caller already renders elsewhere.
   expect(fieldBox(screen).parentElement?.textContent).not.toContain("Compartido por otro campo.");
 
   await expectNoAccessibilityViolations(screen.container);

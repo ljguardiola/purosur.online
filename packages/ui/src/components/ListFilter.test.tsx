@@ -25,8 +25,7 @@ function baseProps(overrides: Partial<ListFilterProps<Status>> = {}): ListFilter
 
 const VALUE_FLOOR_PX = 28;
 
-// The trigger's border box adds 2px border and 12px padding past its content, which a border-box
-// comparison would hide; something overflowing into the padding would still read as "contained".
+// Border box minus its own padding and border, not the border box itself.
 function contentEdgeRight(trigger: HTMLElement): number {
   const style = getComputedStyle(trigger);
   return (
@@ -247,9 +246,8 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
     .element() as HTMLElement;
 
   expect(trigger.getBoundingClientRect().width).toBeCloseTo(200, 0);
-  // scrollHeight === clientHeight alone can't tell a single line from an exact two-line fit (this
-  // trigger's 40px content box exactly fits two 20px lines), so this compares against a single
-  // line's own height instead.
+  // scrollHeight === clientHeight can't tell one line from an exact two-line fit, so this compares
+  // against a single line's own height instead.
   const valueLineHeight = Number.parseFloat(getComputedStyle(value).lineHeight);
   expect(value.getBoundingClientRect().height).toBeLessThanOrEqual(valueLineHeight + 1);
 
@@ -315,9 +313,8 @@ test("keeps the label whole and lets the value alone truncate when there's room 
   const label = triggerLocator
     .getByText("Forma de pago del pedido", { exact: true })
     .element() as HTMLElement;
-  // AriaSelectValue reuses the listbox option's own JSX, including a nested truncate span, so
-  // getByText could match inside it; the flex item carrying the min-width floor is the trigger's
-  // second direct child instead.
+  // AriaSelectValue reuses the option's own JSX, so getByText could match inside it; the trigger's
+  // second direct child is used instead.
   const value = trigger.children[1] as HTMLElement;
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
   const contentRight = contentEdgeRight(trigger);
@@ -354,8 +351,6 @@ test("truncates the label too, and pins the value at exactly its own floor, once
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
   const contentRight = contentEdgeRight(trigger);
 
-  // A height comparison against a single line-height proves the label never wrapped, and its
-  // scrollWidth past clientWidth proves it's genuinely clipped rather than merely narrow.
   const labelLineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
   expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(labelLineHeight + 1);
   expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
@@ -413,9 +408,7 @@ test("scrolls a long options list inside the popover instead of painting it past
   expect(menuStyle.overflowY).toBe("auto");
   expect(menu.scrollHeight).toBeGreaterThan(menu.clientHeight);
 
-  // A point just past the popover's bottom edge, where an unclipped option would still paint,
-  // must not resolve to any option; `closest` guards against landing on an inner span or icon
-  // instead of the option element itself (whose role lives on the <li>).
+  // `closest` guards against landing on an inner span or icon; the option's role lives on the <li>.
   const menuRect = menu.getBoundingClientRect();
   const probe = document.elementFromPoint(menuRect.left + 10, menuRect.bottom + 5);
   expect(probe, "expected a real hit-test result, not an out-of-viewport null").not.toBeNull();
@@ -466,8 +459,7 @@ test("truncates a long option label instead of wrapping it over its own 40px row
   const longLabel = "Esperando confirmación de aprobación del pago del pedido";
   const option = screen.getByRole("option", { name: longLabel }).element() as HTMLElement;
 
-  // scrollHeight === clientHeight alone doesn't rule out overflow:visible also fitting the row;
-  // the text-overflow/white-space/overflow checks below confirm it's ellipsis truncation.
+  // scrollHeight === clientHeight also holds for overflow:visible, so text-overflow is checked too.
   expect(option.scrollHeight).toBe(option.clientHeight);
   const span = option.querySelector("span") as HTMLElement;
   const spanStyle = getComputedStyle(span);
@@ -663,8 +655,7 @@ test("keeps every generated id unique with two filters sharing the same option v
     .element(screen.getByRole("button", { name: "Segundo Cerradas", exact: true }))
     .toBeVisible();
 
-  // Each filter's options only exist while its own menu is open, so each set is captured
-  // separately, one menu at a time.
+  // Options only exist in the DOM while their own menu is open, so each set is captured in turn.
   const triggerIds = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
 
   await screen.getByRole("button", { name: "Primero Abiertas", exact: true }).click();

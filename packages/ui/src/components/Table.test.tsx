@@ -18,7 +18,6 @@ import {
 
 type Product = { id: string; name: string; sku?: string; stock: string };
 
-// `as const` keeps "key"/"sortable" literal, which Table's own type parameter reads.
 const columns = [
   { key: "name", title: "Producto", render: (p: Product) => p.name },
   { key: "stock", title: "Stock", align: "end", render: (p: Product) => p.stock },
@@ -29,13 +28,12 @@ const rows: TableRow<Product>[] = [
   { id: "2", item: { id: "2", name: "Tea", stock: "8" } },
 ];
 
-// An inline [] loses Product for the whole call's type inference; a typed constant keeps it.
 const emptyRows: TableRow<Product>[] = [];
 
 const commonProps = { "aria-label": "Products", rows };
 
-// getComputedStyle's box-shadow reports every layer, including unused ones, so the inset border
-// has to be found among them. Splits on top-level commas only, not ones nested in an rgb() color.
+// getComputedStyle's box-shadow lists every layer; split on top-level commas only, not ones
+// nested inside an rgb() color.
 function shadowLayers(boxShadow: string): string[] {
   const layers: string[] = [];
   let depth = 0;
@@ -54,8 +52,6 @@ function shadowLayers(boxShadow: string): string[] {
   return layers;
 }
 
-// Throws instead of returning Math.max's -Infinity for zero rects, which would make every
-// assertion built on this pass regardless of what it measured.
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
   range.selectNodeContents(element);
@@ -73,9 +69,8 @@ test("paintedTextRight throws for an element that paints no text, instead of sil
   expect(() => paintedTextRight(hidden)).toThrow();
 });
 
-// <td> cells fully tile a row with no gaps, so a hit test always resolves to a <td> and can never
-// prove the row's own box-shadow (its divider, its selected accent) painted through it. Reading
-// the actual rendered pixel, via a screenshot decoded onto a canvas, is the only way.
+// <td> cells fully tile a row, so a hit test always resolves to a <td> and can't prove what
+// actually painted through it; reading the rendered pixel is the only way.
 async function pixelAt(x: number, y: number): Promise<[number, number, number, number]> {
   // save: false selects the base64-string overload over the { path, base64 } one.
   const base64 = await page.screenshot({ base64: true, save: false });
@@ -96,8 +91,7 @@ async function pixelAt(x: number, y: number): Promise<[number, number, number, n
   return [r as number, g as number, b as number, a as number];
 }
 
-// page.screenshot() scrolls the page as a side effect of capturing it, so a rect read before the
-// first screenshot no longer matches where its pixels were captured; this settles that scroll.
+// page.screenshot() scrolls the page as a side effect of capturing it; this settles that scroll.
 async function settleScroll(): Promise<void> {
   await page.screenshot({ base64: true, save: false });
 }
@@ -131,18 +125,21 @@ test("actually paints the selected row's left accent and the row divider, not ju
   const [dr, dg, db] = await pixelAt(rect.left + 80, rect.bottom - 1);
   expect([dr, dg, db]).toEqual(rgbTuple(tokenRgb("line")));
 
-  // Control: rules out the background bleeding through both probes above.
-  const [cr, cg, cb] = await pixelAt(rect.left + 80, rect.top + 2);
-  expect([cr, cg, cb]).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
-  expect([cr, cg, cb]).not.toEqual([ar, ag, ab]);
-  expect([cr, cg, cb]).not.toEqual([dr, dg, db]);
+  const [backgroundControlR, backgroundControlG, backgroundControlB] = await pixelAt(
+    rect.left + 80,
+    rect.top + 2,
+  );
+  expect([backgroundControlR, backgroundControlG, backgroundControlB]).toEqual(
+    rgbTuple(tokenRgb("brand-blue-message-bg")),
+  );
+  expect([backgroundControlR, backgroundControlG, backgroundControlB]).not.toEqual([ar, ag, ab]);
+  expect([backgroundControlR, backgroundControlG, backgroundControlB]).not.toEqual([dr, dg, db]);
 });
 
-// A hit test can't see this: Chromium hit-tests a clipped child against its unexpanded border-box,
-// never the box overflow-clip-margin paints into. Reading the actual rendered pixel is required.
+// Chromium hit-tests a clipped child against its unexpanded border-box, never the box
+// overflow-clip-margin paints into, so the rendered pixel has to be read instead.
 test("keeps every corner rounded: no adjacent fill reaches the curve, with a backdrop that matches neither the header's bone nor a row's white", async () => {
   const screen = await render(
-    // Green, distinct from both adjacent fills, so a match here is unambiguous.
     <div
       style={{
         marginTop: "40px",
@@ -158,8 +155,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
   const table = screen.getByRole("table").element() as HTMLElement;
   const container = table.parentElement as HTMLElement;
   const rect = container.getBoundingClientRect();
-  // Each corner is checked only against the fill it could actually be confused with; the
-  // antialiased blend at 1.5px (partly backdrop, partly the container's border) is expected.
+  // 1.5px lands on the antialiased blend between the backdrop and the container's border.
   const headerBone = rgbTuple(tokenRgb("surface-bone"));
   const rowWhite = rgbTuple(tokenRgb("surface-white"));
 
@@ -170,7 +166,6 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
     ["bottomRight", rect.right - 1.5, rect.bottom - 1.5, rowWhite],
   ] as const) {
     const [r, g, b] = await pixelAt(x, y);
-    // Positive control: rules out a coordinate bug that sampled an unrelated point.
     expect(
       g,
       `${name} wasn't green-dominant — the probe isn't reading the backdrop`,
@@ -196,7 +191,7 @@ test("renders a white container with an 8px radius and a 1px line border", async
   expect(style.borderRadius).toBe("8px");
   expect(style.borderWidth).toBe("1px");
   expect(style.borderColor).toBe(tokenRgb("line"));
-  // "clip", not "hidden": "hidden" stays programmatically scrollable via element.scrollTo().
+  // "hidden" stays scrollable via element.scrollTo(); "clip" doesn't.
   expect(style.overflow).toBe("clip");
 
   await expectNoAccessibilityViolations(screen.container);
@@ -228,8 +223,7 @@ test("builds the table from real table/thead/tbody/tr/th/td tags instead of styl
   expect(headerCell.tagName).toBe("TH");
   expect(bodyRow.tagName).toBe("TR");
   expect(bodyCell.tagName).toBe("TD");
-  // Overriding a table tag's own CSS display (e.g. to "flex"/"block") drops its implicit ARIA
-  // role in some engines, so none of these do.
+  // Overriding a table tag's display drops its implicit ARIA role in some engines.
   expect(getComputedStyle(table).display).toBe("table");
   expect(getComputedStyle(thead).display).toBe("table-header-group");
   expect(getComputedStyle(tbody).display).toBe("table-row-group");
@@ -281,8 +275,6 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
-  // The other two checks would still hold even if the text never actually broke; painted extent
-  // is what proves it really wrapped.
   expect(paintedTextRight(titleSpan)).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -314,8 +306,7 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
-  // min-w-0 alone only shrinks the span's box; without break-words on the <th> too, unbroken text
-  // would still paint past it.
+  // min-w-0 only shrinks the span's box; break-words on the <th> is what actually wraps the text.
   expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
@@ -339,8 +330,6 @@ test("renders 12px bold capital column titles", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// `id` is only ever used as React's own list key, so a caller that duplicates one gets exactly
-// React's documented duplicate-key behavior, a console warning included.
 test("still renders every row, each with its own content, when two rows share the same id", async () => {
   const dupRows: TableRow<Product>[] = [
     { id: "1", item: { id: "1", name: "Coffee", stock: "12" } },
@@ -355,8 +344,6 @@ test("still renders every row, each with its own content, when two rows share th
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A column's `key` doubles as its sort identity (`sort.column === column.key`), so two columns
-// sharing one both independently compare equal to the current sort.
 test("shows both columns as sorted when they share a key that matches the current sort", async () => {
   const dupColumns = [
     {
@@ -441,7 +428,6 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
   const lastLayers = shadowLayers(getComputedStyle(lastPlaceholderRow).boxShadow);
   expect(lastLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
-  // Control: the exception is specific to the last row.
   const otherLayers = shadowLayers(getComputedStyle(otherPlaceholderRow).boxShadow);
   expect(otherLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(true);
 
@@ -521,7 +507,6 @@ test("grows a row to fit a taller cell, like one holding a form control, beyond 
   const row = screen.getByText("Control").element().closest("tr") as HTMLElement;
   const rect = row.getBoundingClientRect();
 
-  // 48px control plus the cell's own 8px top and bottom padding, past the 56px (h-14) floor.
   expect(rect.height).toBeGreaterThan(63);
   expect(rect.height).toBeLessThan(65);
 
@@ -591,8 +576,6 @@ test("renders no detail line when no detail is given", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A narrower `detail !== false` check would let `true` alone through and render a stray, empty
-// detail line; `typeof detail !== "boolean"` treats both booleans alike.
 test("renders no detail line for a boolean detail, like the common item.sku !== undefined && item.sku pattern", async () => {
   const falseScreen = await render(<TableCellText detail={false}>Coffee</TableCellText>);
   expect(falseScreen.container.querySelectorAll("span")).toHaveLength(1);
@@ -665,7 +648,7 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const cell = cellText.closest("td") as HTMLElement;
 
   expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
-  // Against the content edge (border box minus padding), so overrunning into the padding fails.
+  // Checked against the content edge (border box minus padding), not the border box itself.
   const cellPaddingRight = Number.parseFloat(getComputedStyle(cell).paddingRight);
   expect(paintedTextRight(cellText)).toBeLessThanOrEqual(
     cell.getBoundingClientRect().right - cellPaddingRight,
@@ -729,7 +712,6 @@ test("right-aligns a sortable end-aligned header's own title and icon, not just 
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
   const icon = header.querySelector("svg") as SVGSVGElement;
 
-  // The button fills the whole cell, so only the icon's own justify-end position proves alignment.
   expect(icon.getBoundingClientRect().right).toBeCloseTo(
     header.getBoundingClientRect().right - 16,
     0,
@@ -739,7 +721,6 @@ test("right-aligns a sortable end-aligned header's own title and icon, not just 
 });
 
 test("renders the selected row state with a blue message background and a 4px blue left edge", async () => {
-  // A second row keeps the selected one from being the last, exercising both shadow layers.
   const screen = await render(
     <Table
       {...commonProps}
@@ -830,14 +811,12 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
   expect(header.textContent).toBe("Actions");
-  // Named for assistive technology, but not painted: the label's own box collapses to 1x1px
-  // (sr-only), so removing that class would leave "Actions" rendering as visible header text.
   const srOnlyLabel = header.querySelector("span") as HTMLElement;
   const srOnlyRect = srOnlyLabel.getBoundingClientRect();
   expect(srOnlyRect.width).toBeLessThanOrEqual(1);
   expect(srOnlyRect.height).toBeLessThanOrEqual(1);
-  // 60px design content width + 6px inner padding (not first) + 16px edge padding (last).
-  expect(getComputedStyle(header).width).toBe("82px");
+  const oneActionColumnWidthPx = 60 + 6 + 16;
+  expect(getComputedStyle(header).width).toBe(`${oneActionColumnWidthPx}px`);
   const edit = screen.getByRole("button", { name: "Edit" }).nth(0);
   await expect.element(edit).toBeVisible();
   const editRect = edit.element().getBoundingClientRect();
@@ -871,8 +850,8 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   const screen = await render(<Table {...commonProps} columns={actionColumns} />);
   const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
 
-  // 104px design content width + 6px inner padding (not first) + 16px edge padding (last).
-  expect(getComputedStyle(header).width).toBe("126px");
+  const twoActionColumnWidthPx = 104 + 6 + 16;
+  expect(getComputedStyle(header).width).toBe(`${twoActionColumnWidthPx}px`);
 
   const edit = screen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
   const del = screen.getByRole("button", { name: "Delete" }).nth(0).element() as HTMLElement;
@@ -896,8 +875,6 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Keying on the label would remount the button (and drop focus) whenever it changes; a fixed JSX
-// position keeps the same DOM node instead.
 test("keeps focus on the action button when its own label changes with the item's state", async () => {
   type ToggleItem = { id: string; active: boolean };
   const toggleColumns = [
@@ -939,8 +916,6 @@ test("keeps focus on the action button when its own label changes with the item'
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// If keyed by the shared label, React would reuse the DOM node it last associated with "Edit" for
-// the new first slot, dragging the second action's focus along with it.
 test("keeps the second action's own identity untouched when an update makes the first action's label collide with it", async () => {
   type Item = { id: string };
   const onEdit = vi.fn();
@@ -987,7 +962,6 @@ test("keeps the second action's own identity untouched when an update makes the 
     />,
   );
 
-  // Would still pass below if the collision made one of the two actions disappear entirely.
   const editButtons = screen.getByRole("button", { name: "Edit" }).elements() as HTMLElement[];
   expect(editButtons).toHaveLength(2);
 
@@ -1124,7 +1098,6 @@ test("does not accept a column without a title, or an actions column without its
   expectTypeOf<{ key: string; kind: "actions"; srLabel: string }>().not.toExtend<
     TableColumn<Product>
   >();
-  // srLabel is required too: without it, assistive technology has no name for the column.
   expectTypeOf<{
     key: string;
     kind: "actions";
@@ -1250,7 +1223,6 @@ test("does not accept a non-literal boolean sortable value, alone or beside a ge
   >().not.toExtend<readonly [TableColumn<MinimalItem>, ...TableColumn<MinimalItem>[]]>();
 });
 
-// Table's `const C` type parameter is what recovers this literal inference.
 test("infers literal column keys from an inline columns array, without `as const`", () => {
   type MinimalItem = { id: string; value: string };
   const element = (
@@ -1297,8 +1269,6 @@ test("makes the sortable header's own button reach every edge of the header cell
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// h-full is what keeps the button matching a grown cell; a hardcoded h-11 would leave a strip of
-// the wrapped header unclickable.
 test("keeps the sortable header's own button matching a wrapped title's grown header box, not just the 44px floor", async () => {
   const wrappedColumns = [
     {
@@ -1329,7 +1299,6 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
   const headerRect = header.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
 
-  // Proves the title actually wrapped before checking the button kept up with it.
   expect(headerRect.height).toBeGreaterThan(44);
   expect(buttonRect.top).toBeCloseTo(headerRect.top, 0);
   expect(buttonRect.bottom).toBeCloseTo(headerRect.bottom, 0);
@@ -1394,8 +1363,7 @@ test("hovers a sortable header to surface-sand, since it sits on the header row'
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// An outward ring here would need room past the container's clipped edge, room WebKit's
-// overflow-clip-margin doesn't reliably give; the ring is inset instead.
+// WebKit's overflow-clip-margin doesn't reliably give an outward ring room past the clipped edge.
 test("paints the sortable header's own focus ring inside the container, never past its edge", async () => {
   const screen = await render(
     <div style={{ marginTop: "40px", marginLeft: "40px", width: "300px", background: "white" }}>
@@ -1567,7 +1535,6 @@ test("keeps showing the column as unsorted when the caller's onSortChange does n
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Widened so sort.column can name a key absent from `columns` without a cast.
 const wideSortableColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] =
   sortableColumns;
 
@@ -1649,7 +1616,6 @@ test("types onSortChange's column as exactly the union of the sortable columns' 
   >();
 });
 
-// A wide TableColumn<Product> annotation retains no info about which columns are sortable.
 const wideColumns: readonly [TableColumn<Product>, ...TableColumn<Product>[]] = columns;
 
 test("falls to the safe side for a widely annotated columns array: a required handler and string keys", () => {
@@ -1698,9 +1664,16 @@ test("renders each placeholder bar at its own declared width, cycling per column
   const nameTrackWidth = nameBar.parentElement?.getBoundingClientRect().width ?? 0;
   const stockTrackWidth = stockBar.parentElement?.getBoundingClientRect().width ?? 0;
 
-  // The first two entries of PLACEHOLDER_WIDTHS_PERCENT: 72% for column 0, 48% for column 1.
-  expect(nameBar.getBoundingClientRect().width / nameTrackWidth).toBeCloseTo(0.72, 1);
-  expect(stockBar.getBoundingClientRect().width / stockTrackWidth).toBeCloseTo(0.48, 1);
+  const firstColumnPlaceholderWidthFraction = 0.72;
+  const secondColumnPlaceholderWidthFraction = 0.48;
+  expect(nameBar.getBoundingClientRect().width / nameTrackWidth).toBeCloseTo(
+    firstColumnPlaceholderWidthFraction,
+    1,
+  );
+  expect(stockBar.getBoundingClientRect().width / stockTrackWidth).toBeCloseTo(
+    secondColumnPlaceholderWidthFraction,
+    1,
+  );
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1806,7 +1779,7 @@ test("reveals the placeholder rows exactly at 300ms, proven with the Web Animati
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A one-time opacity flip, unlike the loading bar's continuous slide, carries no motion to silence.
+// A one-time opacity flip carries no continuous motion for prefers-reduced-motion to silence.
 test("still reveals the placeholder rows at 300ms when the system asks for reduced motion", async () => {
   const session = cdp();
   await session.send("Emulation.setEmulatedMedia", {
@@ -1870,8 +1843,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// aria-hidden alone isn't enough: an absolutely positioned sibling still receives pointer events by
-// default, so without pointer-events-none it would catch the click first.
+// An absolutely positioned sibling still receives pointer events by default even when aria-hidden.
 test("does not intercept a click landing on the header underneath the loading bar's own band", async () => {
   const screen = await render(
     <Table
@@ -1896,8 +1868,8 @@ test("does not intercept a click landing on the header underneath the loading ba
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The screenshot-based pixel read needs the segment still: pausing its compositor transform
-// animation from script doesn't reliably reach the painted frame, but reduced motion does.
+// Pausing a compositor transform animation from script doesn't reliably reach the painted frame;
+// reduced motion does, and the screenshot-based pixel read needs the segment still.
 test("keeps a hovered, unfocused header's own hover fill under the updating bar", async () => {
   interface DispatchableCdpSession {
     send(
@@ -1943,7 +1915,6 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     expect(button.getAttribute("data-focus-visible")).toBeNull();
 
     const pixel = await pixelAt(x, barRect.top + 1);
-    // Control: an unpainted hover fill would still pass without this.
     const control = await pixelAt(x, barRect.bottom + 1);
 
     expect(pixel.slice(0, 3)).toEqual(rgbTuple(tokenRgb("brand-blue-message-bg")));
@@ -2019,8 +1990,6 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   const toolbarColor: [number, number, number] = [255, 0, 255];
   const screen = await render(
     <div style={{ position: "relative", marginTop: "40px", marginLeft: "40px", width: "300px" }}>
-      {/* Stands in for a caller's own sticky toolbar between the bar's z-10 and the header's
-          z-20: unrelated page chrome the focused header must never paint over. */}
       <div
         style={{
           position: "absolute",
@@ -2042,14 +2011,12 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   await userEvent.tab();
   await settleScroll();
 
-  // An unfocused header also paints nothing at the probe point, which would make the toolbar-wins
-  // result below meaningless.
   expect(button.getAttribute("data-focus-visible")).toBe("true");
 
   const rect = button.getBoundingClientRect();
   const midY = rect.top + rect.height / 2;
 
-  // Away from the top-left corner, whose rounding and antialiasing would blend both colors.
+  // 1.5px stays clear of the corner's own rounding and antialiasing blend.
   const ring = await pixelAt(rect.left + 1.5, midY);
 
   expect(ring.slice(0, 3)).toEqual(toolbarColor);
@@ -2057,8 +2024,6 @@ test("contains the focused header's own z-20 inside the table, instead of lettin
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Control: the same render, focus and probe, but with the toolbar behind everything (z-index: -1).
-// If this also read the toolbar's color, the apparatus itself would be broken.
 test("reads the focused header's own ring color at the same probe point when the toolbar sits behind everything", async () => {
   const screen = await render(
     <div style={{ position: "relative", marginTop: "40px", marginLeft: "40px", width: "300px" }}>
@@ -2101,8 +2066,7 @@ test("slides the updating bar's segment left to right in a loop", async () => {
 });
 
 test("slides the updating bar's segment exactly from off the left edge to off the right edge, with no dead time", async () => {
-  // Fixed width, since the table is w-full and would otherwise tie the bar's width to the runner's
-  // own viewport.
+  // Fixed width, since the table is w-full and would otherwise tie the bar's width to the runner's viewport.
   const screen = await render(
     <div style={{ width: "300px" }}>
       <Table {...commonProps} columns={columns} loading="updating" />
@@ -2123,8 +2087,7 @@ test("slides the updating bar's segment exactly from off the left edge to off th
   animation.currentTime = 0;
   expect(segment.getBoundingClientRect().right).toBeCloseTo(barRect.left, 0);
 
-  // 1ms short: at the exact duration, an infinite iteration count resolves to the next
-  // iteration's start, not this one's end.
+  // 1ms short: at the exact duration, an infinite iteration count resolves to the next start.
   animation.currentTime = duration - 1;
   expect(segment.getBoundingClientRect().left).toBeCloseTo(barRect.right, 0);
 
@@ -2242,8 +2205,7 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// document.body is the browser's own standard fallback when a focused element is removed, not a
-// broken state.
+// document.body is the browser's own standard fallback when a focused element is removed.
 test("drops focus to document.body, cleanly, when a focused header disappears into the empty state", async () => {
   const screen = await render(
     <Table
@@ -2392,8 +2354,6 @@ test("keeps showing the footer alongside the empty state", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Named with this file's non-sortable `columns`, so sort/onSortChange stay optional and each
-// assertion below fails only for its own missing field.
 test("does not accept a table without an accessible name, its columns or its rows", () => {
   expectTypeOf<{ columns: typeof columns; rows: TableRow<Product>[] }>().not.toExtend<
     TableProps<Product, typeof columns>

@@ -17,8 +17,7 @@ import {
 
 const sizes: ButtonSize[] = ["small", "medium", "large", "sale"];
 
-// A plain Omit collapses ButtonProps' union to common keys, losing the check that a secondary
-// button can't take a destructive tone; this distributes Omit over each member instead.
+// A plain Omit collapses ButtonProps' union to common keys; this distributes it over each member.
 type ButtonPropsWithoutText = ButtonProps extends infer P
   ? P extends unknown
     ? Omit<P, "children">
@@ -839,7 +838,6 @@ test("shares the row with a stretched button of another variant, neither sized b
 
   expect(lineCount(labelSpan(borderlessButton as HTMLElement).firstChild as ChildNode)).toBe(1);
   expect((bordered as number) + (borderless as number) + 12).toBeCloseTo(500, 0);
-  // Equal free-space halves, so only the border width should tell them apart.
   expect((bordered as number) - (borderless as number)).toBeCloseTo(border, 0);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -857,8 +855,6 @@ test("leaves the row unfilled when no button in it was asked to stretch", async 
 });
 
 test("is available on every variant", () => {
-  // Asserted from the union's side: the reverse direction would pass even for a branch missing
-  // the property, since an undeclared property is simply ignored when structurally compared.
   expectTypeOf<ButtonPropsWithoutText>().toExtend<{ fullWidth?: boolean | undefined }>();
 });
 
@@ -937,7 +933,6 @@ test("keeps its height, its padding and its centering when stretched, at every s
 
   for (const size of sizes) {
     const plain = await buttonStyle(`Plain ${size}`, { size });
-    // Rendered in both a row and a taller stack, so `grow` is exercised along both axes.
     const row = await render(
       <div style={fixedWidthRowStyle}>
         <Button size={size} fullWidth>{`Row ${size}`}</Button>
@@ -1055,7 +1050,6 @@ test("squeezes every button in a row too narrow for them, stretched or not", asy
   expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(200, 0);
   expect(row.getBoundingClientRect().width).toBeCloseTo(200, 0);
   expectTruncatedWithEllipsis(labelSpan(siblingButton as HTMLElement), "sibling");
-  // Padding and border don't shrink, leaving no room at all for the label.
   expect(stretched as number, "stretched down to its chrome").toBeCloseTo(chrome, 0);
   expect(labelSpan(stretchedButton as HTMLElement).clientWidth, "stretched label box").toBe(0);
   await expectNoAccessibilityViolations(screen.container);
@@ -1075,7 +1069,6 @@ test("shortens a stretched button's label to an ellipsis where the row leaves it
 
   expect((sibling as number) + (stretched as number) + 12).toBeCloseTo(300, 0);
   expectTruncatedWithEllipsis(span, "stretched");
-  // Visually shortened only: textContent still holds the whole label.
   expect(span.textContent, "stretched label").toBe("Confirmar la venta");
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1177,7 +1170,6 @@ test("paints its hover background across the whole width it was given", async ()
   await expectHoverBackground(button, "surface-bone");
 
   expect(button.getBoundingClientRect().width).toBeCloseTo(500, 0);
-  // The radius rounds the stretched box's own edges, not the label's.
   expect(getComputedStyle(button).borderRadius).toBe("6px");
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -1212,7 +1204,7 @@ test("keeps the full label visible with no ellipsis when it fits, at every size 
     for (const size of variantSizeList) {
       for (const fullWidth of [false, true]) {
         const label = `Fits ${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
-        // A fixed, generous width, not the page's own.
+        // A fixed width so this doesn't depend on the runner's own viewport.
         const screen = await render(
           <div style={fullWidth ? fixedWidthRowStyle : { width: "500px" }}>
             {renderWithVariant(variant, size, fullWidth, label)}
@@ -1237,9 +1229,8 @@ test("truncates only once the label's own rendered width passes what the button 
   const label = "A label with plenty of characters to measure a precise boundary against";
 
   for (const size of sizes) {
-    // A wide container avoids clamping the label to a shrink-to-fit page. The exact fitting
-    // boundary is computed from this unrounded width, not scrollWidth, which rounds and could
-    // hide a near-miss.
+    // A wide container avoids clamping to a shrink-to-fit page; the boundary is computed from
+    // this unrounded width, not scrollWidth, which rounds and could hide a near-miss.
     const natural = await render(
       <div style={{ width: "2000px", display: "flex" }}>
         <Button size={size}>{label}</Button>
@@ -1287,7 +1278,6 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
         const caseLabel = `${variant} ${size} ${fullWidth ? "stretched" : "content"}`;
         // Suffixed so this case isn't matched by an earlier iteration's still-mounted button.
         const label = `${baseLabel} (${caseLabel})`;
-        // A short label at the same variant/size, to measure a single line's height first.
         const oneLine = await render(
           <div style={fullWidth ? fixedWidthRowStyle : { width: "200px" }}>
             {renderWithVariant(variant, size, fullWidth, `Ok (${caseLabel})`)}
@@ -1301,22 +1291,17 @@ test("keeps one line, its exact height, and nothing painted outside it when the 
             {renderWithVariant(variant, size, fullWidth, label)}
           </div>,
         );
-        // Matching by the exact label also proves the accessible name wasn't shortened, only the
-        // rendered text was.
         const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
         const span = labelSpan(button);
         const buttonRect = button.getBoundingClientRect();
         const spanRect = span.getBoundingClientRect();
 
         expect(button.getBoundingClientRect().height, caseLabel).toBeCloseTo(heightBySize[size], 0);
-        // By height, not lineCount: an ellipsis-truncated label reports a second rect on its one
-        // and only line, so lineCount would read 2 here regardless.
         expect(spanRect.height, `${caseLabel} one line`).toBeCloseTo(oneLineHeight, 0);
         expect(spanRect.top, `${caseLabel} top`).toBeGreaterThanOrEqual(buttonRect.top);
         expect(spanRect.bottom, `${caseLabel} bottom`).toBeLessThanOrEqual(buttonRect.bottom);
         expect(spanRect.left, `${caseLabel} left`).toBeGreaterThanOrEqual(buttonRect.left);
         expect(spanRect.right, `${caseLabel} right`).toBeLessThanOrEqual(buttonRect.right);
-        // Height/containment alone would still pass for a label silently clipped with no ellipsis.
         expectTruncatedWithEllipsis(span, caseLabel);
         expect(buttonRect.width, `${caseLabel} width`).toBeLessThanOrEqual(fullWidth ? 500 : 200);
         await expectNoAccessibilityViolations(screen.container);

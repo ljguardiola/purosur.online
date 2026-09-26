@@ -285,7 +285,6 @@ const FOCUSED_SHADOW =
 async function focusFirstSegment(group: HTMLElement, variant: FieldSize) {
   await userEvent.tab();
   if (variant === "register") {
-    // The register variant leads with the calendar toggle button, so a segment is the second tab stop.
     await userEvent.tab();
   }
   expect(document.activeElement).toBe(group.querySelector('[role="spinbutton"]'));
@@ -309,7 +308,6 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
     await userEvent.hover(group);
-    // Confirms the hover registered before checking focus still wins over it.
     await expect.poll(() => group.matches(":hover")).toBe(true);
 
     await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
@@ -460,8 +458,8 @@ for (const variant of ["register", "backoffice"] as const) {
       .parentElement as HTMLElement;
     const inputRect = input.getBoundingClientRect();
 
-    // A 24px target around an 18px glyph is 3px wider on each side; without the negative margin
-    // pulling that back out of the flex layout, it would push the value 3px past the design's gap.
+    // The 24px target is 3px wider than the 18px glyph per side; a negative margin pulls that
+    // back out of the flex layout.
     if (variant === "register") {
       expect(glyphRect.left - groupRect.left).toBeCloseTo(drawnGlyphInset[variant], 0);
       expect(inputRect.left - glyphRect.right).toBeCloseTo(8, 0);

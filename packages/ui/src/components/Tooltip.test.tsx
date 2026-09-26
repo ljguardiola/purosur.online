@@ -146,8 +146,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   expect(style.boxShadow).toContain("6px 16px");
   expect(tooltip.dataset.placement).toBe("bottom");
 
-  // Guards what actually renders: a token swap that keeps both names but no longer clears AAA
-  // would pass a token-only check while failing this one.
+  // Checked as a rendered contrast ratio, not by token name, so a token swap can't quietly drop below AAA.
   const backgroundHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
   expect(contrastRatio(textHex, backgroundHex)).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
@@ -265,8 +264,6 @@ test("keeps the arrow off the box's rounded corner when clamped near a screen ed
   // react-aria's layout sizes are whole pixels while these rects are fractional.
   const SUBPIXEL_ROUNDING_PX = 1;
 
-  // Confirms the clamp under test actually engaged: the box shifted to react-aria's default
-  // container padding and the arrow no longer reaches the trigger's center.
   const REACT_ARIA_CONTAINER_PADDING_PX = 12;
   expect(
     Math.abs(window.innerWidth - REACT_ARIA_CONTAINER_PADDING_PX - tooltipRect.right),
@@ -337,8 +334,7 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Under the left edge, not the center, since the arrow bridges most of the gap there. Confirmed
-  // as bare page, or the crossing below proves nothing.
+  // Under the left edge, not the center, since the arrow bridges most of the gap there.
   const triggerRect = trigger.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   const gapX = triggerRect.left;
@@ -396,14 +392,12 @@ test("appears on hover and disappears within a short grace period once the point
   const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Confirmed clear of both, or the close under test never starts.
   const awayX = window.innerWidth - 1;
   const awayY = window.innerHeight - 1;
   const awayElement = document.elementFromPoint(awayX, awayY);
   expect(trigger.contains(awayElement)).toBe(false);
   expect(tooltip.contains(awayElement)).toBe(false);
 
-  // The checks below prove the delay is honored, not that it's short; this bound does.
   expect(CLOSE_DELAY_MS).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
   const watch = new AbortController();
   const leftElement = new Promise<void>((resolve) => {
@@ -449,7 +443,6 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Frozen and never advanced, so a close still waiting on the pointer's grace would never land.
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
   try {
@@ -478,7 +471,6 @@ test("disappears when Escape is pressed while its element is focused", async (co
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Frozen, so a close still waiting on the pointer's grace would never land.
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
   try {

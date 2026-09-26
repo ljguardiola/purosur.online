@@ -14,8 +14,6 @@ function fieldInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("searchbox", { name }).element() as HTMLInputElement;
 }
 
-// The box is the accessible input's own parent: it always holds the input, plus the leading
-// icon (a chip in the register variant, bare in the backoffice variant) before it.
 function fieldBox(screen: Screen, name: string): HTMLElement {
   return fieldInput(screen, name).parentElement as HTMLElement;
 }
@@ -173,8 +171,6 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
     await userEvent.hover(box);
-    // Focus alone paints this boundary, so the poll below confirms the pointer actually reached
-    // the box before asserting that focus wins over it anyway.
     await expect.poll(() => box.matches(":hover")).toBe(true);
 
     await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
@@ -201,7 +197,6 @@ for (const variant of ["register", "backoffice"] as const) {
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-    // The wrapper's opacity communicates "disabled"; the box itself keeps its ordinary resting look.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
     expect(input.disabled).toBe(true);
@@ -214,9 +209,7 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// Driving the input's value from state proves it's controlled: the DOM keeps a stale value by
-// itself either way, so an uncontrolled field would read the same.
-function ScanHarness() {
+function ControlledScanHarness() {
   const [value, setValue] = useState("");
   return (
     <>
@@ -239,10 +232,8 @@ function callerValue(screen: Screen): string {
   return screen.getByTestId("caller-value").element().textContent ?? "";
 }
 
-// A barcode scanner acts as a keyboard sending keystrokes as fast as it can, with no pauses
-// between characters the way a person typing would leave.
 test("hands a fast barcode-scanner keystroke sequence to its caller whole, and renders the value that caller sends back down", async () => {
-  const screen = await render(<ScanHarness />);
+  const screen = await render(<ControlledScanHarness />);
   const input = fieldInput(screen, "Scan or type the product name");
   const barcode = "7791234567890";
 
@@ -261,7 +252,7 @@ test("hands a fast barcode-scanner keystroke sequence to its caller whole, and r
 });
 
 test("clears the field and its caller's state when Escape is pressed", async () => {
-  const screen = await render(<ScanHarness />);
+  const screen = await render(<ControlledScanHarness />);
   const input = fieldInput(screen, "Scan or type the product name");
 
   await userEvent.fill(input, "7791234567890");
@@ -276,8 +267,8 @@ test("clears the field and its caller's state when Escape is pressed", async () 
 });
 
 // getComputedStyle can't say whether Chromium's own ::-webkit-search-cancel-button is painted, so
-// clicking where it would sit (it clears the field; the text itself only moves the caret) is the
-// only way to tell. 8px from the right edge lands on it in both variants, where painted.
+// clicking 8px from the right edge, where it sits, is the only way to tell: it clears the field,
+// while the caret alone moves on plain text.
 for (const variant of ["register", "backoffice"] as const) {
   test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
     const screen = await render(
@@ -371,8 +362,7 @@ test("is a single tab stop", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// `.stroke`, not the inherited `.color`, which would pass even for an icon with a hardcoded stroke.
-test("paints the register chip icon brand-blue-strong and the backoffice icon ink-secondary", async () => {
+test("paints the register chip icon's own stroke brand-blue-strong and the backoffice icon's ink-secondary", async () => {
   const registerScreen = await render(
     <SearchFieldHarness
       variant="register"
