@@ -1,4 +1,4 @@
-const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type RoleSummary = {
   id: string;
@@ -60,7 +60,9 @@ export type EditRoleOutcome =
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function postJson(path: string, body?: unknown): Promise<Response> {

@@ -6,7 +6,7 @@ import type {
 // The sign-in lockout blocks for a fixed 15 minutes once tripped, unlike the rolling one-hour
 // window other rate limits use.
 const LOCKOUT_FALLBACK_SECONDS = 15 * 60;
-const BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type SessionOutcome =
   | {
@@ -83,7 +83,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
     };
   }
   if (!response.ok) {
@@ -120,7 +120,7 @@ export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
     };
   }
   if (!response.ok) {
@@ -187,7 +187,7 @@ export async function signOut(): Promise<SignOutOutcome> {
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
     };
   }
   return { kind: "failed" };
@@ -206,7 +206,7 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
     };
   }
   if (!response.ok) {
@@ -239,7 +239,7 @@ export async function authorizeSession(
   if (response.status === 429) {
     return {
       kind: "rate_limited",
-      retryAfterSeconds: retryAfterSeconds(response, BACKOFFICE_RATE_LIMIT_FALLBACK_SECONDS),
+      retryAfterSeconds: retryAfterSeconds(response, ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS),
     };
   }
   return { kind: "failed" };
