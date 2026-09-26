@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
+import pg from "pg";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -26,13 +27,21 @@ import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 // Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
 // pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
-// cannot exercise (no LISTEN/NOTIFY, no advisory locks). Only the email sender is faked; every
-// other seam (job enqueue, job processing, token issuance, auditing) runs for real.
+// cannot exercise (no LISTEN/NOTIFY, and every query served on one connection). The email sender
+// is faked, and one test swaps in a job-queue pool that never reaps idle connections; every other
+// seam (job enqueue, job processing, token issuance, auditing) runs for real.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
-// Shorter than the ten idle seconds after which pg-pool reaps the connection the drained request
-// leaves in the job-queue pool, so that connection is still there when the test cuts it.
-const DRAIN_OPTIONS = { timeout: 5_000, interval: 50 };
+
+/**
+ * pg-pool reaps an idle connection after ten seconds by default, which would race the drain wait
+ * below against that timer. `idleTimeoutMillis: 0` disables that reaper, so the connection the
+ * drained request leaves in the job-queue pool stays there — for however long the drain wait
+ * takes — until this test cuts it itself.
+ */
+function createNonReapingJobQueuePool(connectionString: string): pg.Pool {
+  return new pg.Pool({ connectionString, idleTimeoutMillis: 0 });
+}
 
 class FakeRecoveryEmailSender implements RecoveryEmailSender {
   readonly sent: SendRecoveryLinkInput[] = [];
@@ -135,6 +144,7 @@ async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promi
 async function startRealServer(
   databaseUrl: string,
   emailSender: RecoveryEmailSender,
+  createJobQueuePool?: (connectionString: string) => pg.Pool,
 ): Promise<StartedFixture> {
   const port = await findFreePort();
   let recovery: RecoveryInfrastructure | undefined;
@@ -152,10 +162,10 @@ async function startRealServer(
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       },
       {
-        // The only seam this test touches: everything else (the pool, graphile-worker's run(),
-        // the routes) is `setUpRecovery`'s real production wiring, unmodified.
+        // The only seams touched: the email sender and, when a test passes one, the job-queue
+        // pool. graphile-worker's run() and the routes are `setUpRecovery`'s real wiring.
         setUpRecovery: async (recoveryEnv) => {
-          recovery = await setUpRecovery(recoveryEnv, { emailSender });
+          recovery = await setUpRecovery(recoveryEnv, { emailSender, createJobQueuePool });
           return recovery;
         },
       },
@@ -197,7 +207,11 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       reports.push(args.map(String).join(" "));
     });
 
-    const server = await startRealServer(integrationDb.databaseUrl, new FakeRecoveryEmailSender());
+    const server = await startRealServer(
+      integrationDb.databaseUrl,
+      new FakeRecoveryEmailSender(),
+      createNonReapingJobQueuePool,
+    );
 
     try {
       // graphile-worker warns, and then installs (and on release removes) its own handlers, for
@@ -205,10 +219,11 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       expect(warnings.filter((warning) => /doesn't have|err\.red/.test(warning))).toEqual([]);
 
       // What puts a connection of the job-queue pool under the cut below: a request enqueues
-      // through that pool and only answers once its job is in. The connection graphile-worker's
-      // own migration leaves in the pool is instead reaped ten idle seconds later, so relying on
-      // it would make this test a race against that timer. The job is waited out before the cut
-      // because the tests below share this database and count every job queued in it.
+      // through that pool and only answers once its job is in. The job-queue pool this test
+      // injects above never reaps that connection while idle, so this wait is free to take as
+      // long as it needs without racing pg-pool's own idle timeout for it. The job is waited out
+      // before the cut because the tests below share this database and count every job queued
+      // in it.
       const enqueued = await postRecoveryRequest(
         server.origin,
         `dropped-${randomUUID()}@example.com`,
@@ -216,7 +231,7 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       expect(enqueued.status).toBe(200);
       await vi.waitFor(async () => {
         expect(await countQueuedRecoveryJobs(integrationDb.databaseUrl)).toBe(0);
-      }, DRAIN_OPTIONS);
+      }, WAIT_OPTIONS);
 
       await dropEveryConnection(integrationDb.databaseUrl);
 
