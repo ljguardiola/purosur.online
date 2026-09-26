@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, priceReviews, prices, products } from "../db/schema.js";
@@ -12,6 +12,7 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import { branchPriceListId } from "./branch-price-list.js";
+import { latestReviewedAt, momentAfter, NEWEST_PRICE_FIRST } from "./current-price.js";
 import {
   readExpectedCurrentPriceId,
   readUnitPrice,
@@ -43,10 +44,6 @@ export interface SetPriceInput {
   /** `null` means the caller saw no current price; the product's most recent price otherwise. */
   expectedCurrentPriceId: string | null;
   actorId: string;
-  /**
-   * Read only once the product row is locked, so the moment recorded is never earlier than a
-   * change another caller committed before this one got the lock.
-   */
   now: () => Date;
 }
 
@@ -81,13 +78,12 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
     if (!product) {
       return { kind: "not_found" };
     }
-    const now = input.now();
 
     const [current] = await tx
-      .select({ id: prices.id, unitPrice: prices.unitPrice })
+      .select({ id: prices.id, unitPrice: prices.unitPrice, validFrom: prices.validFrom })
       .from(prices)
       .where(and(eq(prices.productId, input.productId), eq(prices.priceListId, input.priceListId)))
-      .orderBy(desc(prices.validFrom))
+      .orderBy(...NEWEST_PRICE_FIRST)
       .limit(1);
 
     const currentId = current?.id ?? null;
@@ -97,6 +93,11 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
     if (current && current.unitPrice === input.unitPrice) {
       return { kind: "price_unchanged" };
     }
+
+    const now = momentAfter(input.now(), [
+      current?.validFrom,
+      await latestReviewedAt(tx, input.productId, input.priceListId),
+    ]);
 
     const [newPrice] = await tx
       .insert(prices)

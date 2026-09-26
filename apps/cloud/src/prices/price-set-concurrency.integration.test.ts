@@ -12,6 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { confirmPrice } from "./price-confirmation-route.js";
 import { setPrice } from "./price-set-route.js";
+import { listPrices } from "./prices-list-route.js";
 
 // PGlite runs every query over one connection, so it can never race two price changes for the
 // same product. This runs them over a real postgres-js pool of more than one connection against a
@@ -152,5 +153,97 @@ describe("price changes committed by callers whose clocks disagree", () => {
     });
 
     expect(confirmation.kind).toBe("stale_price");
+  });
+
+  it("makes current a change from an earlier clock made over the price it saw", async () => {
+    const priceListId = await seededPriceListId(db);
+    const { actorId, productId } = await seedActorAndProduct();
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+    const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
+
+    const first = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => laterMoment,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    const earlierClock = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 2000,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => earlierMoment,
+    });
+    if (earlierClock.kind !== "applied") {
+      throw new Error(`expected the earlier clock's change to apply, got ${earlierClock.kind}`);
+    }
+    expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
+    expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: earlierMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
+      lastReviewedAt: earlierClock.lastReviewedAt,
+    });
+
+    const confirmation = await confirmPrice(db, {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: earlierClock.price.id,
+      actorId,
+      now: () => earlierMoment,
+    });
+    expect(confirmation.kind).toBe("confirmed");
+  });
+
+  it("records a confirmation from an earlier clock as the product's most recent review", async () => {
+    const priceListId = await seededPriceListId(db);
+    const { actorId, productId } = await seedActorAndProduct();
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+
+    const first = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => laterMoment,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+
+    const confirmation = await confirmPrice(db, {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:00.000Z"),
+    });
+    if (confirmation.kind !== "confirmed") {
+      throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
+    }
+    expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: laterMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      lastReviewedAt: confirmation.lastReviewedAt,
+    });
   });
 });

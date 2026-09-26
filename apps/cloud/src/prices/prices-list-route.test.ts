@@ -408,6 +408,24 @@ describe("GET /prices", () => {
     ]);
   });
 
+  it("shows a product's newest price even when it starts later than the request's own clock", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+
+    const productId = await insertProduct("Arroz", categoryId);
+    await insertPrice(productId, priceListId, 500, new Date(NOON.getTime() - DAY_MS));
+    const aheadOfNoon = new Date(NOON.getTime() + 5000);
+    const newestPriceId = await insertPrice(productId, priceListId, 800, aheadOfNoon);
+
+    const response = await listPricesRequest(rawSessionId, { review: "all" });
+    const [product] = response.json().products;
+    expect(product).toMatchObject({
+      currentPrice: { id: newestPriceId, unitPrice: 800, validFrom: aheadOfNoon.toISOString() },
+    });
+  });
+
   it("only counts prices and reviews on the branch's own price list", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

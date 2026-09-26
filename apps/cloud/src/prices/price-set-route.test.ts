@@ -19,6 +19,7 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPriceSetRoute } from "./price-set-route.js";
+import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -286,6 +287,38 @@ describe("POST /products/:id/price", () => {
 
     const allPrices = await db.select().from(prices).where(eq(prices.productId, productId));
     expect(allPrices).toHaveLength(2);
+  });
+
+  it("treats as current the same price the prices list shows when several start at the same moment", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const priceListId = await seededPriceListId(db);
+    const productId = await insertProduct("Arroz");
+    const tiedPriceIds = [
+      "ffffffff-ffff-4fff-bfff-ffffffffffff",
+      "00000000-0000-4000-8000-000000000000",
+      "88888888-8888-4888-8888-888888888888",
+    ];
+    for (const [index, id] of tiedPriceIds.entries()) {
+      await db
+        .insert(prices)
+        .values({ id, productId, priceListId, unitPrice: 1000 + index * 100, validFrom: NOON });
+    }
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: NOON,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    const listedPriceId = listed.products[0]?.currentPrice?.id;
+    expect(tiedPriceIds).toContain(listedPriceId);
+
+    const response = await setPriceRequest(rawSessionId, productId, {
+      unitPrice: 5000,
+      expectedCurrentPriceId: listedPriceId,
+    });
+    expect(response.statusCode).toBe(200);
   });
 
   it("rejects setting the same price as the current one", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lte } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { branchSettings, categories, priceReviews, prices, products } from "../db/schema.js";
@@ -11,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
+import { NEWEST_PRICE_FIRST } from "./current-price.js";
 import { UUID_PATTERN } from "./price-validation.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -109,8 +110,8 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
       validFrom: prices.validFrom,
     })
     .from(prices)
-    .where(and(eq(prices.priceListId, input.priceListId), lte(prices.validFrom, input.now)))
-    .orderBy(prices.productId, desc(prices.validFrom), desc(prices.id));
+    .where(eq(prices.priceListId, input.priceListId))
+    .orderBy(prices.productId, ...NEWEST_PRICE_FIRST);
 
   const latestReviewRows = await db
     .selectDistinctOn([priceReviews.productId], {

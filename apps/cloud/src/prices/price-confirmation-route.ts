@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, priceReviews, prices, products } from "../db/schema.js";
@@ -12,6 +12,7 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import { branchPriceListId } from "./branch-price-list.js";
+import { latestReviewedAt, momentAfter, NEWEST_PRICE_FIRST } from "./current-price.js";
 import {
   readRequiredExpectedCurrentPriceId,
   validateConfirmationFields,
@@ -33,10 +34,6 @@ export interface ConfirmPriceInput {
   priceListId: string;
   expectedCurrentPriceId: string;
   actorId: string;
-  /**
-   * Read only once the product row is locked, so the moment recorded is never earlier than a
-   * change another caller committed before this one got the lock.
-   */
   now: () => Date;
 }
 
@@ -68,13 +65,12 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
     if (!product) {
       return { kind: "not_found" };
     }
-    const now = input.now();
 
     const [current] = await tx
       .select({ id: prices.id })
       .from(prices)
       .where(and(eq(prices.productId, input.productId), eq(prices.priceListId, input.priceListId)))
-      .orderBy(desc(prices.validFrom))
+      .orderBy(...NEWEST_PRICE_FIRST)
       .limit(1);
 
     if (!current) {
@@ -83,6 +79,10 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
     if (current.id !== input.expectedCurrentPriceId) {
       return { kind: "stale_price" };
     }
+
+    const now = momentAfter(input.now(), [
+      await latestReviewedAt(tx, input.productId, input.priceListId),
+    ]);
 
     await tx.insert(priceReviews).values({
       productId: input.productId,

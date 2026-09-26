@@ -276,8 +276,8 @@ export const prices = pgTable(
       table.priceListId,
       table.validFrom,
     ),
-    // The target `price_reviews`' composite foreign key needs, so a review can only point at a
-    // price of its own product and price list.
+    // Exists so `price_reviews` can reference it with a composite foreign key, which lets a review
+    // point only at a price of its own product and price list.
     unique("prices_id_product_id_price_list_id_key").on(
       table.id,
       table.productId,
