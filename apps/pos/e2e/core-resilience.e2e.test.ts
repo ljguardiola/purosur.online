@@ -1,5 +1,5 @@
 import type { ElectronApplication, Page } from "playwright";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { launchApp } from "./launch-app";
 
 // Electron's own name for a Node.js utility process (see apps/pos/src/main/index.ts's
@@ -37,13 +37,16 @@ describe("the core process's supervision and message gate", () => {
     logs = launched.logs;
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await expect
-      .poll(() => coreProcesses(app).then((list) => list.length > 0), {
-        timeout: 20_000,
-        interval: 100,
-        message: "expected a core process to be running",
-      })
-      .toBe(true);
+    // `expect.poll` only runs inside a test; `vi.waitFor` retries the same assertion in a hook.
+    await vi.waitFor(
+      async () => {
+        expect(
+          (await coreProcesses(app)).length,
+          "expected a core process to be running",
+        ).toBeGreaterThan(0);
+      },
+      { timeout: 20_000, interval: 100 },
+    );
 
     // Installed before any page script runs, so no port main posts to a document can arrive
     // ahead of its listener. The first document was already loading before the script existed,
@@ -58,13 +61,15 @@ describe("the core process's supervision and message gate", () => {
       });
     });
     await page.reload();
-    await expect
-      .poll(() => portCount(page), {
-        timeout: 20_000,
-        interval: 100,
-        message: "expected the reloaded page to receive its post-load core port",
-      })
-      .toBeGreaterThanOrEqual(1);
+    await vi.waitFor(
+      async () => {
+        expect(
+          await portCount(page),
+          "expected the reloaded page to receive its post-load core port",
+        ).toBeGreaterThanOrEqual(1);
+      },
+      { timeout: 20_000, interval: 100 },
+    );
   });
 
   afterAll(async () => {
