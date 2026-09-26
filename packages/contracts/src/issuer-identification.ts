@@ -1,6 +1,5 @@
 import { codePointLength } from "./code-point-length.js";
 
-// Matches the cloud's `branch_settings.address` column length.
 export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
 
 // Ingresos Brutos registration format varies by province, so this is a generous bound rather
