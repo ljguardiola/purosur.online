@@ -92,8 +92,14 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
     return outcome;
   });
 
-  await waitForLockWaiters(1);
-  resolveRelease();
+  try {
+    await waitForLockWaiters(1);
+  } finally {
+    // Always releases the first transaction, even when the wait itself throws (e.g. it times
+    // out), so a failing wait never leaves that transaction open — which used to hang
+    // `pool.end()`/`sql.end()` for the full timeout and bury the real error underneath it.
+    resolveRelease();
+  }
   const [, secondOutcome] = await Promise.all([firstCommitted, secondCommitted]);
 
   expect(secondOutcome).toEqual({ kind: "already_open", alertId: firstAlertId });
