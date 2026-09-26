@@ -28,6 +28,7 @@ declare module "vitest" {
 }
 
 const CLOUD_DIR = fileURLToPath(new URL("./", import.meta.url));
+const CONTRACTS_DIR = fileURLToPath(new URL("../../packages/contracts/", import.meta.url));
 const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
 
 // The command entrypoints import sibling modules, which Node's type stripping cannot resolve from
@@ -38,6 +39,9 @@ export default async function setup(project: TestProject): Promise<() => void> {
   // which differ when the temp dir sits behind a symlink (macOS /var -> /private/var).
   const buildRoot = realpathSync(mkdtempSync(join(tmpdir(), "purosur-cloud-build-")));
   try {
+    // Cloud reads contracts' compiled declarations through node_modules, not through project
+    // references (the `-p`/`--outDir` compile below isn't `-b`, so it never builds them itself).
+    execFileSync(process.execPath, [TSC_BIN, "-b", CONTRACTS_DIR], { stdio: "inherit" });
     execFileSync(
       process.execPath,
       [TSC_BIN, "-p", join(CLOUD_DIR, "tsconfig.json"), "--outDir", join(buildRoot, "dist")],

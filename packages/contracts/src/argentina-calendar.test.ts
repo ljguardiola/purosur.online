@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar";
+import { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar.js";
 
 describe("ARGENTINA_TIME_ZONE", () => {
   it("is Buenos Aires' IANA time zone", () => {
