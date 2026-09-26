@@ -486,7 +486,7 @@ test("never signals the device on a generic registration failure (network error 
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
-test("shows an attempt-failed notice when the browser cancels the registration ceremony itself, without signaling the device since no credential was created", async () => {
+test("shows an attempt-failed notice, without signaling the device, when the browser cancels the registration ceremony itself", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
