@@ -89,10 +89,13 @@ async function insertSession(userId: string): Promise<string> {
   return rawSessionId;
 }
 
-async function insertCategory(name: string): Promise<{ id: string; version: number }> {
+async function insertCategory(
+  name: string,
+  parentId: string | null = null,
+): Promise<{ id: string; version: number }> {
   const [category] = await db
     .insert(categories)
-    .values({ name })
+    .values({ name, parentId })
     .returning({ id: categories.id, version: categories.version });
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
@@ -151,9 +154,32 @@ describe("GET /categories", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual([
-      { id: macetas.id, name: "Macetas", version: macetas.version },
-      { id: semillas.id, name: "Semillas", version: semillas.version },
+      { id: macetas.id, name: "Macetas", version: macetas.version, parentId: null },
+      { id: semillas.id, name: "Semillas", version: semillas.version, parentId: null },
     ]);
+  });
+
+  it("returns each category's parentId, null for a top-level category", async () => {
+    const almacen = await insertCategory("Almacén");
+    const untables = await insertCategory("Untables", almacen.id);
+    const roleId = await insertRole("Encargada", ["manage_products_and_categories"]);
+    const userId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getCategories(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: almacen.id, parentId: null }),
+        expect.objectContaining({ id: untables.id, parentId: almacen.id }),
+      ]),
+    );
   });
 
   it("lists categories for an Administrator even without the explicit permission", async () => {

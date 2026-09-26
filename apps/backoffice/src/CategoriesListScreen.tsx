@@ -4,6 +4,8 @@ import {
   InlineNotice,
   Modal,
   SearchField,
+  Select,
+  type SelectOption,
   Table,
   type TableSort,
   TextField,
@@ -26,6 +28,7 @@ import {
   editCategory,
   fetchCategories,
 } from "./categoriesApi";
+import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -71,13 +74,30 @@ function categoryNameError(
   return undefined;
 }
 
-function nameCollator(a: CategorySummary, b: CategorySummary): number {
-  return a.name.localeCompare(b.name, "es");
-}
-
-function sortedByName(categories: CategorySummary[], direction: "ascending" | "descending") {
-  const sorted = [...categories].sort(nameCollator);
-  return direction === "ascending" ? sorted : sorted.reverse();
+/**
+ * Every category the "Categoría superior" select offers, in tree order and labelled by path, with
+ * an empty "Ninguna" option first. `excludeIds` drops a category being edited together with its own
+ * descendants: a category can't become its own parent or one of its descendants' (the cloud's
+ * own `category_move_not_allowed` rule), so leaving those out of the options makes that case
+ * impossible to pick instead of merely rejecting it after the fact.
+ */
+function parentSelectOptions(
+  categories: CategorySummary[],
+  excludeIds: ReadonlySet<string>,
+  noneLabel: string,
+): [SelectOption<string>, ...SelectOption<string>[]] {
+  const labels = categoryPathLabels(categories);
+  const sorted = categoriesInTreeOrder(categories, "ascending").filter(
+    (category) => !excludeIds.has(category.id),
+  );
+  const noneOption: SelectOption<string> = { value: "", label: noneLabel };
+  return [
+    noneOption,
+    ...sorted.map((category) => ({
+      value: category.id,
+      label: labels.get(category.id) ?? category.name,
+    })),
+  ];
 }
 
 type NewCategoryModalProps = {
@@ -86,7 +106,10 @@ type NewCategoryModalProps = {
   onCreated: (category: CategorySummary) => void;
   onSessionEnded: () => void;
   createCategory: typeof createCategory;
+  categories: CategorySummary[];
 };
+
+const NO_PARENT_VALUE = "";
 
 /** Creates a catalog category; no passkey step-up. */
 function NewCategoryModal({
@@ -95,10 +118,13 @@ function NewCategoryModal({
   onCreated,
   onSessionEnded,
   createCategory,
+  categories,
 }: NewCategoryModalProps) {
   const modalMessages = categoriesMessages.newCategoryModal;
   const [name, setName] = useState("");
+  const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [parentError, setParentError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
@@ -107,11 +133,17 @@ function NewCategoryModal({
   useEffect(() => {
     if (isOpen) {
       setName("");
+      setParentValue(NO_PARENT_VALUE);
       setNameError(undefined);
+      setParentError(undefined);
       setNotice(null);
       setSubmitting(false);
     }
   }, [isOpen]);
+
+  const parentOptions = parentSelectOptions(categories, new Set(), modalMessages.parentNoneOption);
+  const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
+  const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
   async function handleSubmit() {
     const trimmed = name.trim();
@@ -121,10 +153,11 @@ function NewCategoryModal({
       return;
     }
     setNameError(undefined);
+    setParentError(undefined);
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await createCategory({ name: trimmed });
+    const outcome = await createCategory({ name: trimmed, parentId });
     if (outcome.kind === "ok") {
       onCreated(outcome.value);
       return;
@@ -138,12 +171,25 @@ function NewCategoryModal({
       return;
     }
     if (outcome.kind === "name_taken") {
-      setNameError(modalMessages.nameTaken);
+      setNameError(
+        parentId === null
+          ? modalMessages.nameTaken
+          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+      );
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "parent_has_products") {
+      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "validation_failed") {
-      setNameError(modalMessages.nameRequired);
+      if (outcome.field === "parentId") {
+        setParentError(modalMessages.parentNotFoundError);
+      } else {
+        setNameError(modalMessages.nameRequired);
+      }
       setSubmitting(false);
       return;
     }
@@ -227,6 +273,18 @@ function NewCategoryModal({
           required
           {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
         />
+        <Select
+          label={modalMessages.parentLabel}
+          options={parentOptions}
+          value={parentValue}
+          onChange={(value) => {
+            setParentValue(value);
+            setParentError(undefined);
+          }}
+          {...(parentError
+            ? { invalid: true, errorMessage: parentError }
+            : { helperText: modalMessages.parentHint })}
+        />
       </div>
     </Modal>
   );
@@ -236,9 +294,13 @@ type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
   onSaved: (category: CategorySummary) => void;
+  // The parent options, the excluded self+descendants and the parent named in an error all come
+  // from `categories`, so a reload hands the fresh list back up instead of keeping it local.
+  onCategoriesReloaded: (categories: CategorySummary[]) => void;
   onSessionEnded: () => void;
   fetchCategories: typeof fetchCategories;
   editCategory: typeof editCategory;
+  categories: CategorySummary[];
 };
 
 type EditNotice =
@@ -253,19 +315,23 @@ function EditCategoryModal({
   target,
   onClose,
   onSaved,
+  onCategoriesReloaded,
   onSessionEnded,
   fetchCategories,
   editCategory,
+  categories,
 }: EditCategoryModalProps) {
   const modalMessages = categoriesMessages.editCategoryModal;
   const isOpen = target !== null;
   const [name, setName] = useState("");
+  const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
-  // The dialog's own title: the category's name as it was when the dialog opened, held here
-  // (rather than read straight from `target`) so it stays a non-nullable string without ever
+  // The dialog's own title: the category's saved name (as opened, or as a reload brought it),
+  // held here (rather than read straight from `target`) so it stays a non-nullable string without ever
   // falling back to a literal, which the message-catalog lint rule forbids in a title attribute.
   const [title, setTitle] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const [parentError, setParentError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const targetRef = useRef(target);
@@ -274,13 +340,20 @@ function EditCategoryModal({
   useEffect(() => {
     if (isOpen && target) {
       setName(target.name);
+      setParentValue(target.parentId ?? NO_PARENT_VALUE);
       setVersion(target.version);
       setTitle(target.name);
       setNameError(undefined);
+      setParentError(undefined);
       setNotice(null);
       setSubmitting(false);
     }
   }, [isOpen, target]);
+
+  const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
+  const parentOptions = parentSelectOptions(categories, excludeIds, modalMessages.parentNoneOption);
+  const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
+  const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
   async function handleSubmit() {
     const current = targetRef.current;
@@ -294,10 +367,11 @@ function EditCategoryModal({
       return;
     }
     setNameError(undefined);
+    setParentError(undefined);
     setNotice(null);
     setSubmitting(true);
 
-    const outcome = await editCategory(current.id, { name: trimmed, version });
+    const outcome = await editCategory(current.id, { name: trimmed, parentId, version });
     if (outcome.kind === "ok") {
       onSaved(outcome.value);
       return;
@@ -316,7 +390,23 @@ function EditCategoryModal({
       return;
     }
     if (outcome.kind === "name_taken") {
-      setNameError(modalMessages.nameTaken);
+      setNameError(
+        parentId === null
+          ? modalMessages.nameTaken
+          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+      );
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "parent_has_products") {
+      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "move_not_allowed") {
+      setParentError(
+        modalMessages.moveNotAllowedError({ category: current.name, destination: parentName }),
+      );
       setSubmitting(false);
       return;
     }
@@ -326,7 +416,11 @@ function EditCategoryModal({
       return;
     }
     if (outcome.kind === "validation_failed") {
-      setNameError(modalMessages.nameRequired);
+      if (outcome.field === "parentId") {
+        setParentError(modalMessages.parentNotFoundError);
+      } else {
+        setNameError(modalMessages.nameRequired);
+      }
       setSubmitting(false);
       return;
     }
@@ -347,6 +441,7 @@ function EditCategoryModal({
     setSubmitting(true);
     const outcome = await fetchCategories();
     if (outcome.kind === "ok") {
+      onCategoriesReloaded(outcome.value);
       const fresh = outcome.value.find((category) => category.id === current.id);
       if (!fresh) {
         setNotice({ kind: "notFound" });
@@ -354,7 +449,11 @@ function EditCategoryModal({
         return;
       }
       setName(fresh.name);
+      setTitle(fresh.name);
+      setParentValue(fresh.parentId ?? NO_PARENT_VALUE);
       setVersion(fresh.version);
+      setNameError(undefined);
+      setParentError(undefined);
       setNotice(null);
       setSubmitting(false);
       return;
@@ -483,6 +582,18 @@ function EditCategoryModal({
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
+          <Select
+            label={modalMessages.parentLabel}
+            options={parentOptions}
+            value={parentValue}
+            onChange={(value) => {
+              setParentValue(value);
+              setParentError(undefined);
+            }}
+            {...(parentError
+              ? { invalid: true, errorMessage: parentError }
+              : { helperText: modalMessages.parentHint })}
+          />
         </div>
       )}
     </Modal>
@@ -544,13 +655,19 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   }, [load]);
 
   const categories = list.kind === "loaded" ? list.categories : [];
+  // Every category's full path label ("Almacén › Untables"), shared by the column and the search.
+  const labels = useMemo(() => categoryPathLabels(categories), [categories]);
+  const pathLabel = useCallback(
+    (category: CategorySummary) => labels.get(category.id) ?? category.name,
+    [labels],
+  );
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const matching = query
-      ? categories.filter((category) => category.name.toLowerCase().includes(query))
-      : categories;
-    return sortedByName(matching, sort.direction);
-  }, [categories, search, sort.direction]);
+    const ordered = categoriesInTreeOrder(categories, sort.direction);
+    return query
+      ? ordered.filter((category) => pathLabel(category).toLowerCase().includes(query))
+      : ordered;
+  }, [categories, search, sort.direction, pathLabel]);
 
   const columns = [
     {
@@ -558,7 +675,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
       title: categoriesMessages.columns.category,
       sortable: true,
       defaultDirection: "ascending",
-      render: (item: CategorySummary) => item.name,
+      render: pathLabel,
     },
     {
       key: "actions",
@@ -678,6 +795,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         }}
         onSessionEnded={onSessionEnded}
         createCategory={createCategory}
+        categories={categories}
       />
       <EditCategoryModal
         target={editTarget}
@@ -695,9 +813,16 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
               : current,
           );
         }}
+        onCategoriesReloaded={(categories) => {
+          // Supersedes any list load still in flight, which would otherwise overwrite this
+          // fresher result when it settles.
+          latestLoad.current += 1;
+          setList({ kind: "loaded", categories });
+        }}
         onSessionEnded={onSessionEnded}
         fetchCategories={fetchCategories}
         editCategory={editCategory}
+        categories={categories}
       />
     </>
   );

@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { UUID_PATTERN } from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const NOT_FOUND_RESPONSE = {

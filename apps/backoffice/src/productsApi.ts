@@ -38,6 +38,7 @@ export type CreateProductOutcome =
   | { kind: "ok"; value: ProductSummary }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "category_not_leaf" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -55,6 +56,7 @@ export type EditProductOutcome =
   | { kind: "ok"; value: ProductSummary }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "category_not_leaf" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -160,6 +162,11 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "failed" };
   }
   if (response.status === 409) {
+    const cloned = response.clone();
+    const body = (await cloned.json().catch(() => undefined)) as { code?: string } | undefined;
+    if (body?.code === "category_not_leaf") {
+      return { kind: "category_not_leaf" };
+    }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
   }
   if (response.status === 401) {
@@ -294,6 +301,9 @@ export async function editProduct(
       | undefined;
     if (body?.code === "stale_version") {
       return { kind: "stale_version" };
+    }
+    if (body?.code === "category_not_leaf") {
+      return { kind: "category_not_leaf" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

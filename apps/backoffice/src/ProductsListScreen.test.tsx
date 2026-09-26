@@ -31,8 +31,13 @@ function createServices(
   };
 }
 
-const almacen: CategorySummary = { id: "category-1", name: "Almacén", version: 1 };
-const frutosSecos: CategorySummary = { id: "category-2", name: "Frutos secos", version: 1 };
+const almacen: CategorySummary = { id: "category-1", name: "Almacén", version: 1, parentId: null };
+const frutosSecos: CategorySummary = {
+  id: "category-2",
+  name: "Frutos secos",
+  version: 1,
+  parentId: null,
+};
 
 const miel: ProductSummary = {
   id: "product-1",
@@ -129,6 +134,84 @@ test("the category filter narrows the list", async () => {
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
+});
+
+const bebidas: CategorySummary = { id: "category-4", name: "Bebidas", version: 1, parentId: null };
+const otrosDeAlmacen: CategorySummary = {
+  id: "category-5",
+  name: "Otros",
+  version: 1,
+  parentId: "category-1",
+};
+const otrosDeBebidas: CategorySummary = {
+  id: "category-6",
+  name: "Otros",
+  version: 1,
+  parentId: "category-4",
+};
+
+test("the category filter offers only leaf categories, labeled by their full path, in tree order", async () => {
+  const soda: ProductSummary = {
+    ...almendras,
+    id: "product-3",
+    name: "Soda 2 l",
+    categoryId: otrosDeBebidas.id,
+    categoryName: "Otros",
+  };
+  const fosforos: ProductSummary = {
+    ...miel,
+    id: "product-4",
+    name: "Fósforos",
+    categoryId: otrosDeAlmacen.id,
+    categoryName: "Otros",
+  };
+  const services = createServices();
+  mockLoaded(
+    services,
+    [soda, fosforos],
+    [otrosDeBebidas, bebidas, otrosDeAlmacen, almacen, frutosSecos],
+  );
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent ?? ""),
+    )
+    .toEqual(["Todas", "Almacén › Otros", "Bebidas › Otros", "Frutos secos"]);
+
+  await userEvent.click(screen.getByRole("option", { name: "Bebidas › Otros" }));
+
+  await expect.element(screen.getByText("Fósforos")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Soda 2 l")).toBeVisible();
+});
+
+test("the Categoría column shows each product's category by its full path", async () => {
+  const fosforos: ProductSummary = {
+    ...miel,
+    id: "product-4",
+    name: "Fósforos",
+    categoryId: otrosDeAlmacen.id,
+    categoryName: "Otros",
+  };
+  const services = createServices();
+  mockLoaded(services, [fosforos], [almacen, otrosDeAlmacen]);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("cell", { name: "Almacén › Otros" })).toBeVisible();
+});
+
+test("the Categoría column falls back to the category name the product carries when that category isn't loaded", async () => {
+  const services = createServices();
+  mockLoaded(services, [almendras], [almacen]);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("cell", { name: "Frutos secos" })).toBeVisible();
 });
 
 test("the unit filter narrows the list", async () => {
@@ -507,6 +590,47 @@ test("shows the barcode-taken error on create and does not add the product to th
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
 
+test("shows the category-not-leaf error on create when the chosen category gained a subcategory meanwhile", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "category_not_leaf" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: "Escanear otro código" }),
+    "7790000000099",
+  );
+  await userEvent.keyboard("{Enter}");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText('"Almacén" tiene subcategorías. Elegí una de ellas.'))
+    .toBeVisible();
+  expect(services.createProduct).toHaveBeenCalledTimes(1);
+});
+
+test("the category select only offers leaf categories, labeled by their full path", async () => {
+  const untables: CategorySummary = {
+    id: "category-3",
+    name: "Untables",
+    version: 1,
+    parentId: "category-1",
+  };
+  const services = createServices();
+  mockLoaded(services, [], [almacen, untables]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+
+  await expect.element(dialog.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
+  expect(dialog.getByRole("option", { name: "Almacén" }).query()).toBeNull();
+});
+
 test("pressing Enter in the scan input adds the code instead of submitting the form", async () => {
   const services = createServices();
   mockLoaded(services, []);
@@ -639,6 +763,24 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
     barcodes: ["7790987000015"],
     version: 2,
   });
+});
+
+test("shows the category-not-leaf error on edit when the chosen category gained a subcategory meanwhile", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "category_not_leaf" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Editar el producto Miel pura de abeja 1 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText('"Almacén" tiene subcategorías. Elegí una de ellas.'))
+    .toBeVisible();
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
