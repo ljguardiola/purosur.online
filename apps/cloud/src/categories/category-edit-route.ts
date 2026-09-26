@@ -19,6 +19,7 @@ import {
 import {
   type CategoryFieldValidationFailure,
   categoryNameValidationFailure,
+  hasParentId,
   readCategoryName,
   readParentId,
   UUID_PATTERN,
@@ -72,9 +73,12 @@ function readEditBody(body: unknown): EditRequestBody | CategoryFieldValidationF
     // Unreachable: `categoryNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
-  // Same "null/absent = top level" contract `readCreationBody` (`category-creation-route.ts`)
-  // reads for creation: an edit that omits `parentId` moves the category to top level, since this
-  // endpoint replaces the full editable state the same way it already does for `name`.
+  // Unlike creation, an edit must name the parent explicitly (`null` for top level): a client
+  // loaded before nesting existed sends only a name and version, and reading that as "top level"
+  // would silently un-nest the category it renames.
+  if (!hasParentId(body)) {
+    return { field: "parentId", message: "parentId must be sent, null for top level" };
+  }
   const parentId = readParentId(body);
   if (parentId === undefined) {
     return CATEGORY_PARENT_NOT_FOUND_FAILURE;

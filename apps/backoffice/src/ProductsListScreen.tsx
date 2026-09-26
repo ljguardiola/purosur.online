@@ -54,7 +54,7 @@ import {
   useState,
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
-import { categoryPathLabels, leafCategories, sortedByPathLabel } from "./categoryPath";
+import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
 import { messages } from "./messages";
 import {
   type CreateProductInput,
@@ -128,12 +128,15 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
-  const leaves = leafCategories(categories);
-  if (leaves.length === 0) {
+  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+  if (leafIds.size === 0) {
     return undefined;
   }
   const labels = categoryPathLabels(categories);
-  const [first, ...rest] = sortedByPathLabel(leaves, labels, "ascending").map((category) => ({
+  const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+    leafIds.has(category.id),
+  );
+  const [first, ...rest] = leaves.map((category) => ({
     value: category.id,
     label: labels.get(category.id) ?? category.name,
   }));
@@ -1848,13 +1851,23 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const products = list.kind === "loaded" ? list.products : [];
 
+  const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
+
+  // Only a leaf category can hold a product, so any other filter option could only ever match
+  // nothing; a full path tells apart two leaves that share a name under different parents.
   const categoryFilterOptions = useMemo(() => {
-    const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+    const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+      leafIds.has(category.id),
+    );
     return [
       { value: "ALL" as const, label: productsMessages.categoryFilterAllOption },
-      ...sorted.map((category) => ({ value: category.id, label: category.name })),
+      ...leaves.map((category) => ({
+        value: category.id,
+        label: categoryLabels.get(category.id) ?? category.name,
+      })),
     ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
-  }, [categories]);
+  }, [categories, categoryLabels]);
 
   const unitFilterOptions = [
     { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
@@ -1898,7 +1911,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     {
       key: "category",
       title: productsMessages.columns.category,
-      render: (item: ProductSummary) => item.categoryName,
+      render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",

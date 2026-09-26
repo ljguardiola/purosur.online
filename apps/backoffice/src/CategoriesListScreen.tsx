@@ -28,7 +28,7 @@ import {
   editCategory,
   fetchCategories,
 } from "./categoriesApi";
-import { categoryPathLabels, selfAndDescendantIds, sortedByPathLabel } from "./categoryPath";
+import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -87,8 +87,9 @@ function parentSelectOptions(
   noneLabel: string,
 ): [SelectOption<string>, ...SelectOption<string>[]] {
   const labels = categoryPathLabels(categories);
-  const eligible = categories.filter((category) => !excludeIds.has(category.id));
-  const sorted = sortedByPathLabel(eligible, labels, "ascending");
+  const sorted = categoriesInTreeOrder(categories, "ascending").filter(
+    (category) => !excludeIds.has(category.id),
+  );
   const noneOption: SelectOption<string> = { value: "", label: noneLabel };
   return [
     noneOption,
@@ -293,6 +294,9 @@ type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
   onSaved: (category: CategorySummary) => void;
+  // The parent options, the excluded self+descendants and the parent named in an error all come
+  // from `categories`, so a reload hands the fresh list back up instead of keeping it local.
+  onCategoriesReloaded: (categories: CategorySummary[]) => void;
   onSessionEnded: () => void;
   fetchCategories: typeof fetchCategories;
   editCategory: typeof editCategory;
@@ -311,6 +315,7 @@ function EditCategoryModal({
   target,
   onClose,
   onSaved,
+  onCategoriesReloaded,
   onSessionEnded,
   fetchCategories,
   editCategory,
@@ -436,6 +441,7 @@ function EditCategoryModal({
     setSubmitting(true);
     const outcome = await fetchCategories();
     if (outcome.kind === "ok") {
+      onCategoriesReloaded(outcome.value);
       const fresh = outcome.value.find((category) => category.id === current.id);
       if (!fresh) {
         setNotice({ kind: "notFound" });
@@ -648,9 +654,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   }, [load]);
 
   const categories = list.kind === "loaded" ? list.categories : [];
-  // Every category's full path label ("Almacén › Untables"), shared by the column, the search
-  // and the sort below: sorting on it, ascending, already reproduces the tree order the design
-  // draws (see categoryPath.ts's own sortedByPathLabel), so no separate tree-walk is needed here.
+  // Every category's full path label ("Almacén › Untables"), shared by the column and the search.
   const labels = useMemo(() => categoryPathLabels(categories), [categories]);
   const pathLabel = useCallback(
     (category: CategorySummary) => labels.get(category.id) ?? category.name,
@@ -658,11 +662,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   );
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const matching = query
-      ? categories.filter((category) => pathLabel(category).toLowerCase().includes(query))
-      : categories;
-    return sortedByPathLabel(matching, labels, sort.direction);
-  }, [categories, search, sort.direction, labels, pathLabel]);
+    const ordered = categoriesInTreeOrder(categories, sort.direction);
+    return query
+      ? ordered.filter((category) => pathLabel(category).toLowerCase().includes(query))
+      : ordered;
+  }, [categories, search, sort.direction, pathLabel]);
 
   const columns = [
     {
@@ -807,6 +811,12 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
                 }
               : current,
           );
+        }}
+        onCategoriesReloaded={(categories) => {
+          // Supersedes any list load still in flight, which would otherwise overwrite this
+          // fresher result when it settles.
+          latestLoad.current += 1;
+          setList({ kind: "loaded", categories });
         }}
         onSessionEnded={onSessionEnded}
         fetchCategories={fetchCategories}

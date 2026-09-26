@@ -136,6 +136,81 @@ test("the category filter narrows the list", async () => {
   expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
+const bebidas: CategorySummary = { id: "category-4", name: "Bebidas", version: 1, parentId: null };
+const otrosDeAlmacen: CategorySummary = {
+  id: "category-5",
+  name: "Otros",
+  version: 1,
+  parentId: "category-1",
+};
+const otrosDeBebidas: CategorySummary = {
+  id: "category-6",
+  name: "Otros",
+  version: 1,
+  parentId: "category-4",
+};
+
+test("the category filter offers only leaf categories, labeled by their full path, in tree order", async () => {
+  const soda: ProductSummary = {
+    ...almendras,
+    id: "product-3",
+    name: "Soda 2 l",
+    categoryId: otrosDeBebidas.id,
+    categoryName: "Otros",
+  };
+  const fosforos: ProductSummary = {
+    ...miel,
+    id: "product-4",
+    name: "Fósforos",
+    categoryId: otrosDeAlmacen.id,
+    categoryName: "Otros",
+  };
+  const services = createServices();
+  mockLoaded(
+    services,
+    [soda, fosforos],
+    [otrosDeBebidas, bebidas, otrosDeAlmacen, almacen, frutosSecos],
+  );
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+
+  const optionNames = screen
+    .getByRole("option")
+    .all()
+    .map((option) => option.element().textContent ?? "");
+  expect(optionNames).toEqual(["Todas", "Almacén › Otros", "Bebidas › Otros", "Frutos secos"]);
+
+  await userEvent.click(screen.getByRole("option", { name: "Bebidas › Otros" }));
+
+  await expect.element(screen.getByText("Soda 2 l")).toBeVisible();
+  expect(screen.getByText("Fósforos").query()).toBeNull();
+});
+
+test("the Categoría column shows each product's category by its full path", async () => {
+  const fosforos: ProductSummary = {
+    ...miel,
+    id: "product-4",
+    name: "Fósforos",
+    categoryId: otrosDeAlmacen.id,
+    categoryName: "Otros",
+  };
+  const services = createServices();
+  mockLoaded(services, [fosforos], [almacen, otrosDeAlmacen]);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("cell", { name: "Almacén › Otros" })).toBeVisible();
+});
+
+test("the Categoría column falls back to the category name the product carries when that category isn't loaded", async () => {
+  const services = createServices();
+  mockLoaded(services, [almendras], [almacen]);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("cell", { name: "Frutos secos" })).toBeVisible();
+});
+
 test("the unit filter narrows the list", async () => {
   const services = createServices();
   mockLoaded(services, [miel, almendras]);

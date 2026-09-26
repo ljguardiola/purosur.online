@@ -35,6 +35,12 @@ describe("readParentId", () => {
     );
   });
 
+  it("reads an id sent in uppercase in its canonical lowercase form", () => {
+    expect(readParentId({ parentId: "D131EC62-1111-4AAA-8BBB-ABCDEF012345" })).toBe(
+      "d131ec62-1111-4aaa-8bbb-abcdef012345",
+    );
+  });
+
   it("reads undefined for a malformed parentId (not a string, or an empty string)", () => {
     expect(readParentId({ parentId: 42 })).toBeUndefined();
     expect(readParentId({ parentId: "" })).toBeUndefined();

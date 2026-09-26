@@ -381,7 +381,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "categories_parent_is_not_itself": {
+          "name": "categories_parent_is_not_itself",
+          "value": "\"categories\".\"parent_id\" <> \"categories\".\"id\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.issuer_identification": {

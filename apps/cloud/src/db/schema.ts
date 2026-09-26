@@ -209,6 +209,7 @@ export const categories = pgTable(
     // for a trigger drizzle-kit has no declarative support for.
     uniqueIndex("categories_name_lower_key").on(table.parentId, sql`lower(${table.name})`),
     index("categories_parent_id_idx").on(table.parentId),
+    check("categories_parent_is_not_itself", sql`${table.parentId} <> ${table.id}`),
   ],
 );
 

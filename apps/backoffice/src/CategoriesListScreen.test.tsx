@@ -90,15 +90,15 @@ test("lists categories in tree order by default: each parent right before its ow
   expect(names[3]).toContain("Bebidas");
 });
 
-test("the header toggles the order by the same full path label", async () => {
+test("the header toggles the sibling order, still listing each parent before its own descendants", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
-    value: [almacen, bebidas],
+    value: [almacen, bebidas, untables, mermeladas],
   });
 
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("2 categorías")).toBeVisible();
+  await expect.element(screen.getByText("4 categorías")).toBeVisible();
 
   function rowNames(): string[] {
     return screen
@@ -112,7 +112,38 @@ test("the header toggles the order by the same full path label", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Categoría" }));
 
-  expect(rowNames()[0]).toContain("Bebidas");
+  const names = rowNames();
+  expect(names[0]).toContain("Bebidas");
+  expect(names[1]).toContain("Almacén");
+  expect(names[1]).not.toContain("›");
+  expect(names[2]).toContain("Almacén › Untables");
+  expect(names[2]).not.toContain("Mermeladas");
+  expect(names[3]).toContain("Almacén › Untables › Mermeladas");
+});
+
+test("keeps a parent's subcategories right under it even when a sibling's name extends the parent's", async () => {
+  const almacenNorte: CategorySummary = {
+    id: "category-5",
+    name: "Almacén - Norte",
+    version: 1,
+    parentId: null,
+  };
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [almacenNorte, untables, almacen],
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+
+  const names = screen
+    .getByRole("row")
+    .all()
+    .slice(1)
+    .map((row) => row.element().textContent ?? "");
+  expect(names[1]).toContain("Almacén › Untables");
+  expect(names[2]).toContain("Almacén - Norte");
 });
 
 test("the search field filters the list by the full path label, case-insensitively", async () => {
@@ -783,6 +814,49 @@ test("a stale-version reload on edit also refreshes the preselected parent", asy
   await expect
     .element(dialog.getByRole("button", { name: /Categoría superior/ }))
     .toHaveTextContent("Almacén");
+});
+
+test("a stale-version reload on edit refreshes the categories too, so a parent that only the fresh data has is offered and named", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [almacen, bebidas],
+  });
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Bebidas")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
+    .toBeVisible();
+
+  const frescos: CategorySummary = {
+    id: "category-9",
+    name: "Frescos",
+    version: 1,
+    parentId: null,
+  };
+  const freshened: CategorySummary = { ...bebidas, parentId: frescos.id, version: 4 };
+  vi.mocked(services.fetchCategories).mockResolvedValueOnce({
+    kind: "ok",
+    value: [almacen, freshened, frescos],
+  });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(dialog.getByRole("button", { name: /Categoría superior/ }))
+    .toHaveTextContent("Frescos");
+  await expect.element(screen.getByRole("cell", { name: "Frescos › Bebidas" })).toBeVisible();
+
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "name_taken" });
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText('Ya existe una categoría "Bebidas" en Frescos.'))
+    .toBeVisible();
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {

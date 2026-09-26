@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import {
   type CategoryNode,
+  categoriesInTreeOrder,
   categoryPathLabels,
   leafCategories,
   selfAndDescendantIds,
-  sortedByPathLabel,
 } from "./categoryPath";
 
 const almacen: CategoryNode = { id: "almacen", name: "Almacén", parentId: null };
@@ -38,11 +38,10 @@ test("categoryPathLabels tolerates a cycle instead of recursing forever", () => 
   expect(labels.get("b")).toBe("B");
 });
 
-test("sortedByPathLabel groups a parent immediately before its own descendants, ascending", () => {
+test("categoriesInTreeOrder places each parent immediately before its own descendants, ascending", () => {
   const categories = [bebidas, mermeladas, almacen, untables];
-  const labels = categoryPathLabels(categories);
 
-  const sorted = sortedByPathLabel(categories, labels, "ascending");
+  const sorted = categoriesInTreeOrder(categories, "ascending");
 
   expect(sorted.map((category) => category.id)).toEqual([
     "almacen",
@@ -52,18 +51,64 @@ test("sortedByPathLabel groups a parent immediately before its own descendants, 
   ]);
 });
 
-test("sortedByPathLabel reverses the same order when sorting descending", () => {
-  const categories = [bebidas, mermeladas, almacen, untables];
-  const labels = categoryPathLabels(categories);
+test("categoriesInTreeOrder keeps a parent's children together even when a sibling's name extends the parent's", () => {
+  const almacenNorte: CategoryNode = {
+    id: "almacen-norte",
+    name: "Almacén - Norte",
+    parentId: null,
+  };
 
-  const sorted = sortedByPathLabel(categories, labels, "descending");
+  const sorted = categoriesInTreeOrder([almacenNorte, untables, almacen], "ascending");
+
+  expect(sorted.map((category) => category.id)).toEqual(["almacen", "untables", "almacen-norte"]);
+});
+
+test("categoriesInTreeOrder keeps each parent's children under it when two parents' names differ only by an accent", () => {
+  const unaccented: CategoryNode = { id: "unaccented", name: "Almacen", parentId: null };
+  const accented: CategoryNode = { id: "accented", name: "Almacén", parentId: null };
+  const underAccented: CategoryNode = { id: "under-accented", name: "A", parentId: "accented" };
+  const underUnaccented: CategoryNode = {
+    id: "under-unaccented",
+    name: "Z",
+    parentId: "unaccented",
+  };
+
+  const sorted = categoriesInTreeOrder(
+    [underAccented, accented, underUnaccented, unaccented],
+    "ascending",
+  );
+
+  expect(sorted.map((category) => category.id)).toEqual([
+    "unaccented",
+    "under-unaccented",
+    "accented",
+    "under-accented",
+  ]);
+});
+
+test("categoriesInTreeOrder reverses siblings at every level when descending, still placing each parent before its descendants", () => {
+  const aceites: CategoryNode = { id: "aceites", name: "Aceites", parentId: "almacen" };
+  const categories = [bebidas, mermeladas, almacen, untables, aceites];
+
+  const sorted = categoriesInTreeOrder(categories, "descending");
 
   expect(sorted.map((category) => category.id)).toEqual([
     "bebidas",
-    "mermeladas",
-    "untables",
     "almacen",
+    "untables",
+    "mermeladas",
+    "aceites",
   ]);
+});
+
+test("categoriesInTreeOrder keeps every category, even one whose parent is missing or that sits in a cycle", () => {
+  const orphan: CategoryNode = { id: "orphan", name: "Huérfana", parentId: "missing" };
+  const cycleA: CategoryNode = { id: "a", name: "A", parentId: "b" };
+  const cycleB: CategoryNode = { id: "b", name: "B", parentId: "a" };
+
+  const sorted = categoriesInTreeOrder([cycleA, orphan, cycleB, bebidas], "ascending");
+
+  expect(sorted.map((category) => category.id).sort()).toEqual(["a", "b", "bebidas", "orphan"]);
 });
 
 test("leafCategories keeps only categories nothing else names as its parent", () => {

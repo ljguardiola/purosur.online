@@ -44,20 +44,54 @@ function collator(a: string, b: string): number {
 }
 
 /**
- * Every category sorted by its own full path label rather than its bare name. A descendant's
- * label always carries its parent's label as a leading prefix, so sorting on the label alone
- * already groups each parent with its descendants right after it — the same tree order the
- * Categorías screen draws (design.pen node ieofw), with no separate tree-walk needed.
+ * Every category in the tree order the Categorías screen draws (design.pen node ieofw): each
+ * parent immediately followed by its whole subtree, siblings ordered by name. Descending reverses
+ * the sibling order at every level but still keeps each parent before its descendants. A category
+ * whose parent isn't in the list is treated as top level; one caught in a cycle (which the cloud
+ * never saves) is still emitted, after the rest, so a corrupt payload loses no row.
+ *
+ * Callers that show only part of the list filter this result, which keeps its order.
  */
-export function sortedByPathLabel<T extends CategoryNode>(
+export function categoriesInTreeOrder<T extends CategoryNode>(
   categories: readonly T[],
-  labels: ReadonlyMap<string, string>,
   direction: "ascending" | "descending" = "ascending",
 ): T[] {
-  const sorted = [...categories].sort((a, b) =>
-    collator(labels.get(a.id) ?? a.name, labels.get(b.id) ?? b.name),
-  );
-  return direction === "ascending" ? sorted : sorted.reverse();
+  const ids = new Set(categories.map((category) => category.id));
+  const sign = direction === "ascending" ? 1 : -1;
+  const byName = (a: T, b: T) => sign * collator(a.name, b.name);
+
+  const roots: T[] = [];
+  const childrenByParent = new Map<string, T[]>();
+  for (const category of categories) {
+    if (category.parentId && ids.has(category.parentId)) {
+      const siblings = childrenByParent.get(category.parentId) ?? [];
+      siblings.push(category);
+      childrenByParent.set(category.parentId, siblings);
+    } else {
+      roots.push(category);
+    }
+  }
+
+  const ordered: T[] = [];
+  const visited = new Set<string>();
+  function walk(category: T): void {
+    if (visited.has(category.id)) {
+      return;
+    }
+    visited.add(category.id);
+    ordered.push(category);
+    for (const child of [...(childrenByParent.get(category.id) ?? [])].sort(byName)) {
+      walk(child);
+    }
+  }
+
+  for (const root of roots.sort(byName)) {
+    walk(root);
+  }
+  for (const unreached of [...categories].sort(byName)) {
+    walk(unreached);
+  }
+  return ordered;
 }
 
 /** A category with no subcategories of its own — the only kind a product can be assigned to. */
