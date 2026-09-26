@@ -131,12 +131,72 @@ test("finds a comment that follows a regex literal containing //", () => {
   );
 });
 
+test("finds a JSDoc block before a declaration exactly once", () => {
+  const comments = findComments("/** see #5 */\nfunction f() {}");
+
+  assert.deepEqual(comments, [{ line: 1, text: "/** see #5 */" }]);
+});
+
+test("finds a comment inside a nested template substitution", () => {
+  const comments = findComments(`const s = \`\${\`\${ /* see #5 */ x }//\`}//\`;`);
+
+  assert.deepEqual(
+    comments.map((comment) => comment.text),
+    ["/* see #5 */"],
+  );
+});
+
+test("finds a comment that follows a regex literal with // in a character class", () => {
+  const comments = findComments("const r = /[//]/; // see #5");
+
+  assert.deepEqual(
+    comments.map((comment) => comment.text),
+    ["// see #5"],
+  );
+});
+
+test("finds a comment next to a division", () => {
+  const source = ["const half = total / 2; // see #5", "const third = total / 3;"].join("\n");
+
+  const comments = findComments(source);
+
+  assert.deepEqual(comments, [{ line: 1, text: "// see #5" }]);
+});
+
 test("finds a CSS comment but not a comment-like string in a CSS file", () => {
   const source = ['a { content: "/* not a comment */"; }', "/* see #5 */"].join("\n");
 
   const comments = findComments(source, "a.css");
 
   assert.deepEqual(comments, [{ line: 2, text: "/* see #5 */" }]);
+});
+
+test("does not mistake a single-quoted CSS string containing /* for a comment", () => {
+  const source = ["a { content: '/* not a comment'; }", "/* see #5 */"].join("\n");
+
+  const comments = findComments(source, "a.css");
+
+  assert.deepEqual(comments, [{ line: 2, text: "/* see #5 */" }]);
+});
+
+test("does not mistake an unquoted CSS url containing /* for a comment", () => {
+  const source = ["a { background: url(a/*b); }", "/* see #5 */"].join("\n");
+
+  const comments = findComments(source, "a.css");
+
+  assert.deepEqual(comments, [{ line: 2, text: "/* see #5 */" }]);
+});
+
+test("finds an unterminated CSS comment at the end of the file", () => {
+  const comments = findComments("a {}\n/* see #5", "a.css");
+
+  assert.deepEqual(comments, [{ line: 2, text: "/* see #5" }]);
+});
+
+test("does not mistake an unterminated CSS string at the end of the file for a comment", () => {
+  const comments = findComments('a { content: "/* not a comment', "a.css");
+
+  assert.deepEqual(comments, []);
 });
 
 test("reports an issue number in a comment that follows a URL string", () => {
