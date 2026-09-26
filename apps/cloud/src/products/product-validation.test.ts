@@ -272,7 +272,19 @@ describe("the cloud's local product limits", () => {
   });
 
   it("validates net content quantities the same way the shared contract does", () => {
-    for (const quantity of [1, 0.5, 1.234, 0, -1, 1.2345, NET_CONTENT_QUANTITY_MAX + 1]) {
+    for (const quantity of [
+      1,
+      0.5,
+      1.234,
+      0,
+      -1,
+      1.2345,
+      1.005,
+      0.1 + 0.2,
+      NET_CONTENT_QUANTITY_MAX,
+      NET_CONTENT_QUANTITY_MAX + 1,
+      Number.NaN,
+    ]) {
       expect(isValidNetContentQuantity(quantity)).toBe(sharedIsValidNetContentQuantity(quantity));
     }
   });

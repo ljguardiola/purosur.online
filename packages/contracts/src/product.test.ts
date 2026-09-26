@@ -74,6 +74,11 @@ describe("isValidNetContentQuantity", () => {
     expect(isValidNetContentQuantity(1.2345)).toBe(false);
   });
 
+  it("rounds after scaling so floating-point noise from the multiplication doesn't reject a valid quantity, while a sum with real extra precision is still rejected", () => {
+    expect(isValidNetContentQuantity(1.005)).toBe(true);
+    expect(isValidNetContentQuantity(0.1 + 0.2)).toBe(false);
+  });
+
   it("rejects a quantity beyond the maximum, accepting the maximum itself", () => {
     expect(isValidNetContentQuantity(NET_CONTENT_QUANTITY_MAX)).toBe(true);
     expect(isValidNetContentQuantity(NET_CONTENT_QUANTITY_MAX + 1)).toBe(false);
