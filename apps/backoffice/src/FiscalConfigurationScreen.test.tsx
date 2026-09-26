@@ -352,14 +352,14 @@ test("marks the activity start date required, and invalid and described by its o
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("offers no day after today in the activity start date's calendar", async () => {
+test("offers no day after Argentina's today in the activity start date's calendar", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
     value: incomplete,
   });
   await page.viewport(1440, 1000);
-  const screen = await renderScreen(services, () => {}, afternoonInArgentina);
+  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   await userEvent.click(
     screen

@@ -147,8 +147,6 @@ function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | 
     : null;
 }
 
-/** The quantity field's own string form when prefilling the edit modal: blank for a product with
- * no net content, otherwise its formatted quantity. */
 function netContentQuantityText(netContent: NetContent | null): string {
   return netContent ? formatNetContentQuantity(netContent.quantity) : "";
 }
