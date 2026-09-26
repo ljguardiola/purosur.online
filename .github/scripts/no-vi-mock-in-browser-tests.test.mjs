@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   checkFiles,
+  collectImportedModules,
+  createImportResolver,
   describeViolation,
   findBrowserTestFiles,
+  findImportSpecifiers,
   findViMockCalls,
   readBrowserTestGlobs,
 } from "./no-vi-mock-in-browser-tests.mjs";
@@ -220,14 +223,140 @@ test("describes a violation with its file, line and source text", () => {
   assert.equal(description, 'a.test.tsx:2: vi.mock("./a");');
 });
 
-// The guard itself: every browser test file in the repository, scanned for real. This is what
-// fails `pnpm verify` (via `node --test .github/scripts/*.test.mjs`) when a browser test mocks a
-// module instead of injecting its dependencies through a `services` prop.
-test("no browser test file in the repository registers a module mock", () => {
+test("parses a .ts file as TypeScript, not TSX, so a type assertion does not hide a vi.mock call after it", () => {
+  const files = {
+    "helper.ts": 'const kind = <string>id(process.env.KIND);\nvi.mock("./a");\n',
+  };
+
+  const violations = checkFiles(Object.keys(files), (path) => files[path]);
+
+  assert.deepEqual(
+    violations.map((violation) => violation.line),
+    [2],
+  );
+});
+
+// findImportSpecifiers ---------------------------------------------------------------------
+
+test("finds the specifiers of static imports, re-exports and dynamic imports", () => {
+  const source = [
+    'import { vi } from "vitest";',
+    'import { createServices } from "./test-support/productsListScreen";',
+    'export { almacen } from "../fixtures";',
+    'const lazy = await import("./lazy");',
+  ].join("\n");
+
+  assert.deepEqual(findImportSpecifiers(source), [
+    "vitest",
+    "./test-support/productsListScreen",
+    "../fixtures",
+    "./lazy",
+  ]);
+});
+
+// collectImportedModules -------------------------------------------------------------------
+
+test("collects the entry files and every local module they import, transitively", () => {
+  const files = {
+    "a.test.tsx": 'import "./helper";\nimport "vitest";\n',
+    "helper.ts": 'import "./deeper";\n',
+    "deeper.ts": "export const x = 1;\n",
+  };
+  const resolveImport = (specifier) =>
+    ({ "./helper": "helper.ts", "./deeper": "deeper.ts" })[specifier];
+
+  const modules = collectImportedModules(["a.test.tsx"], {
+    resolveImport,
+    readFile: (path) => files[path],
+  });
+
+  assert.deepEqual(modules, ["a.test.tsx", "deeper.ts", "helper.ts"]);
+});
+
+test("collects a module imported by several files, or in an import cycle, once", () => {
+  const files = {
+    "a.test.tsx": 'import "./helper";\n',
+    "b.test.tsx": 'import "./helper";\n',
+    "helper.ts": 'import "./a.test";\n',
+  };
+  const resolveImport = (specifier) =>
+    ({ "./helper": "helper.ts", "./a.test": "a.test.tsx" })[specifier];
+
+  const modules = collectImportedModules(["a.test.tsx", "b.test.tsx"], {
+    resolveImport,
+    readFile: (path) => files[path],
+  });
+
+  assert.deepEqual(modules, ["a.test.tsx", "b.test.tsx", "helper.ts"]);
+});
+
+test("passes each specifier to the resolver with the path of the file that imports it", () => {
+  const files = { "dir/a.test.tsx": 'import "./helper";\n', "dir/helper.ts": "" };
+  const calls = [];
+
+  collectImportedModules(["dir/a.test.tsx"], {
+    resolveImport: (specifier, fromPath) => {
+      calls.push([specifier, fromPath]);
+      return "dir/helper.ts";
+    },
+    readFile: (path) => files[path],
+  });
+
+  assert.deepEqual(calls, [["./helper", "dir/a.test.tsx"]]);
+});
+
+// createImportResolver ---------------------------------------------------------------------
+
+test("resolves a relative import to the repository file it names", () => {
+  const resolveImport = createImportResolver();
+
+  assert.equal(
+    resolveImport(
+      "../ProductsListScreen",
+      "apps/backoffice/src/test-support/productsListScreen.tsx",
+    ),
+    "apps/backoffice/src/ProductsListScreen.tsx",
+  );
+});
+
+test("resolves a workspace package import to its source in the repository", () => {
+  const resolveImport = createImportResolver();
+
+  assert.equal(
+    resolveImport("@purosur/ui", "apps/backoffice/src/ProductsListScreen.tsx"),
+    "packages/ui/src/index.ts",
+  );
+});
+
+test("does not resolve an import of an installed dependency", () => {
+  const resolveImport = createImportResolver();
+
+  assert.equal(resolveImport("vitest", "apps/backoffice/src/ProductsListScreen.tsx"), undefined);
+});
+
+test("does not resolve an import that names no file", () => {
+  const resolveImport = createImportResolver();
+
+  assert.equal(
+    resolveImport("./does-not-exist", "apps/backoffice/src/ProductsListScreen.tsx"),
+    undefined,
+  );
+});
+
+// The guard itself: every browser test file in the repository and every local module it imports,
+// scanned for real. This is what fails `pnpm verify` (via `node --test .github/scripts/*.test.mjs`)
+// when a browser test, or a helper it imports, mocks a module instead of injecting its dependencies
+// through a `services` prop.
+test("no browser test file, nor any module it imports, registers a module mock", () => {
   const files = findBrowserTestFiles();
   assert.ok(files.length > 0, "expected to find at least one browser test file to scan");
+  const modules = collectImportedModules(files, { resolveImport: createImportResolver() });
+  assert.ok(
+    modules.includes("apps/backoffice/src/test-support/productsListScreen.tsx"),
+    "expected the scan to reach the modules browser tests import",
+  );
 
-  const violations = checkFiles(files);
+  const violations = checkFiles(modules);
 
   assert.deepEqual(
     violations.map(describeViolation),
