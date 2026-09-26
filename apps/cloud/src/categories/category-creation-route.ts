@@ -24,7 +24,7 @@ export const CATEGORY_NAME_TAKEN_RESPONSE = {
 
 export const CATEGORY_PARENT_NOT_FOUND_FAILURE: CategoryFieldValidationFailure = {
   field: "parentId",
-  message: "parentId must be an existing category's id or absent",
+  message: "parentId must be an existing category's id, or null for top level",
 };
 
 export const CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE = {

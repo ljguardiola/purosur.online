@@ -119,7 +119,7 @@ test("createCategory returns validation_failed on the parentId field for a vanis
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, {
       code: "validation_failed",
-      message: "parentId must be an existing category's id or absent",
+      message: "parentId must be an existing category's id, or null for top level",
       details: [{ field: "parentId" }],
     }),
   );
@@ -252,7 +252,7 @@ test("editCategory returns validation_failed on the parentId field for a vanishe
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(400, {
       code: "validation_failed",
-      message: "parentId must be an existing category's id or absent",
+      message: "parentId must be an existing category's id, or null for top level",
       details: [{ field: "parentId" }],
     }),
   );

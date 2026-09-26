@@ -75,8 +75,8 @@ function categoryNameError(
 }
 
 /**
- * Every category the "Categoría superior" select offers, sorted by path label with an empty
- * "Ninguna" option first. `excludeIds` drops a category being edited together with its own
+ * Every category the "Categoría superior" select offers, in tree order and labelled by path, with
+ * an empty "Ninguna" option first. `excludeIds` drops a category being edited together with its own
  * descendants: a category can't become its own parent or one of its descendants' (the cloud's
  * own `category_move_not_allowed` rule), so leaving those out of the options makes that case
  * impossible to pick instead of merely rejecting it after the fact.
@@ -449,6 +449,7 @@ function EditCategoryModal({
         return;
       }
       setName(fresh.name);
+      setTitle(fresh.name);
       setParentValue(fresh.parentId ?? NO_PARENT_VALUE);
       setVersion(fresh.version);
       setNameError(undefined);
