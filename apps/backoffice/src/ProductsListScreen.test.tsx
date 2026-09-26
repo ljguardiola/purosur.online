@@ -1970,8 +1970,13 @@ test("fills the generate button on hover only while it is enabled", async () => 
   await userEvent.click(generateButton);
   await expect.element(generateButton).toBeDisabled();
   await userEvent.hover(generateButton);
-  // Outlasts the background transition, so a hover fill would already show.
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Forces a style recalc so any transition the hover would have started has already been
+  // computed, then finishes it outright: a transition starts at its from-value, so reading the
+  // color mid-transition (or too soon after it) can't be told apart from one that never started.
+  getComputedStyle(generateButton.element()).backgroundColor;
+  for (const animation of generateButton.element().getAnimations()) {
+    animation.finish();
+  }
 
   expect(getComputedStyle(generateButton.element()).backgroundColor).toBe(unfilled);
   resolveGenerate({ kind: "failed" });
