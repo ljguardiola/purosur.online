@@ -187,6 +187,10 @@ test("flags a digit-only value that could also be read as a CSS hex color, such 
   assert.ok(describeDocumentReference("#000 is black"));
 });
 
+test("does not flag a numeric HTML entity, such as &#39;", () => {
+  assert.equal(describeDocumentReference("renders &#39; as an apostrophe"), undefined);
+});
+
 test("does not flag a private class field name", () => {
   assert.equal(describeDocumentReference("#count tracks retries"), undefined);
 });

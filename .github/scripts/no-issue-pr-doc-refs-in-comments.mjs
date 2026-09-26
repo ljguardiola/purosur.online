@@ -70,7 +70,7 @@ export function findComments(source, fileName = "a.ts") {
   return fileName.endsWith(".css") ? findCssComments(source) : findScriptComments(source, fileName);
 }
 
-const ISSUE_OR_PR_NUMBER = /(?<!\w)#\d+(?!\w)/;
+const ISSUE_OR_PR_NUMBER = /(?<![\w&])#\d+(?!\w)/;
 const GITHUB_ISSUE_OR_PULL_URL = /github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+/i;
 
 const DOCUMENT_REFERENCE_RULES = [
