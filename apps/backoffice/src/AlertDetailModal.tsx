@@ -407,6 +407,14 @@ export function AlertDetailModal({
             })}
           />
         )}
+        {alertId !== null &&
+          (loadState.kind === "loadError" || loadState.kind === "rate_limited") && (
+            <div>
+              <Button variant="secondary" onPress={() => void load(alertId)}>
+                {alertsMessages.retry}
+              </Button>
+            </div>
+          )}
         {alert && (
           <>
             <div className="flex items-center gap-2">

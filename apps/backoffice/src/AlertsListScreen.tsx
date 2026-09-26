@@ -1,4 +1,5 @@
 import {
+  Button,
   InlineNotice,
   ListFilter,
   Pagination,
@@ -226,22 +227,32 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
         bodyClassName="gap-4 p-6"
       >
         {list.kind === "loadError" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={alertsMessages.loadErrorTitle}
-            detail={alertsMessages.loadErrorDetail}
-          />
+          <>
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={alertsMessages.loadErrorTitle}
+              detail={alertsMessages.loadErrorDetail}
+            />
+            <Button variant="secondary" onPress={() => void load()}>
+              {alertsMessages.retry}
+            </Button>
+          </>
         )}
         {list.kind === "rate_limited" && (
-          <InlineNotice
-            tone="error"
-            icon={<ShieldX />}
-            title={alertsMessages.rateLimitedTitle}
-            detail={alertsMessages.rateLimitedDetail({
-              minutes: Math.ceil(list.retryAfterSeconds / 60),
-            })}
-          />
+          <>
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={alertsMessages.rateLimitedTitle}
+              detail={alertsMessages.rateLimitedDetail({
+                minutes: Math.ceil(list.retryAfterSeconds / 60),
+              })}
+            />
+            <Button variant="secondary" onPress={() => void load()}>
+              {alertsMessages.retry}
+            </Button>
+          </>
         )}
         {(list.kind === "loading" || list.kind === "loaded") && (
           <>

@@ -275,3 +275,30 @@ test("Volver calls onClose without closing the alert", async () => {
   expect(onClose).toHaveBeenCalled();
   expect(services.closeAlert).not.toHaveBeenCalled();
 });
+
+test("shows a load error with a retry action that reads the alert again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("No pudimos abrir la alerta")).toBeVisible();
+
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(ok(baseDetail()));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+});
+
+test("shows a rate-limited notice with a retry action that reads the alert again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(ok(baseDetail()));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+});

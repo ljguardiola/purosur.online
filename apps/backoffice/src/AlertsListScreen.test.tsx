@@ -259,3 +259,30 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   window.history.pushState(null, "", "/");
 });
+
+test("shows a load error with a retry action when the alerts fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir las alertas")).toBeVisible();
+
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce(ok([passkeyAlert]));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+});
+
+test("shows a rate-limited notice with a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce(ok([passkeyAlert]));
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+});
