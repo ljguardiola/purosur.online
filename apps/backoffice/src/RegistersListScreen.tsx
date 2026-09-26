@@ -1,4 +1,4 @@
-import { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "@purosur/contracts";
+import { isRegisterNameTooLong } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, Table, TableCellText, Tag, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
@@ -76,7 +76,7 @@ function registerNameError(
   if (!trimmed) {
     return modalMessages.nameRequired;
   }
-  if (registerNameLength(trimmed) > REGISTER_NAME_MAX_LENGTH) {
+  if (isRegisterNameTooLong(trimmed)) {
     return modalMessages.nameTooLong;
   }
   return undefined;

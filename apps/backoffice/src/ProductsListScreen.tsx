@@ -1,15 +1,13 @@
 import {
-  BARCODE_MAX_LENGTH,
-  barcodeLength,
   ean13Modules,
+  isBarcodeTooLong,
   isInternalBarcode,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
-  productNameLength,
 } from "@purosur/contracts";
 import {
   Button,
@@ -197,7 +195,7 @@ function productNameError(
   if (!trimmed) {
     return modalMessages.nameRequired;
   }
-  if (productNameLength(trimmed) > PRODUCT_NAME_MAX_LENGTH) {
+  if (isProductNameTooLong(trimmed)) {
     return modalMessages.nameTooLong;
   }
   return undefined;
@@ -397,7 +395,7 @@ function scanErrorFor(
   if (/\s/.test(code)) {
     return scanMessages.barcodeHasSpaces;
   }
-  if (barcodeLength(code) > BARCODE_MAX_LENGTH) {
+  if (isBarcodeTooLong(code)) {
     return scanMessages.barcodeTooLong;
   }
   if (listed.includes(code)) {

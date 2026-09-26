@@ -1,4 +1,4 @@
-import { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "@purosur/contracts";
+import { isCategoryNameTooLong } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -68,7 +68,7 @@ function categoryNameError(
   if (!trimmed) {
     return modalMessages.nameRequired;
   }
-  if (categoryNameLength(trimmed) > CATEGORY_NAME_MAX_LENGTH) {
+  if (isCategoryNameTooLong(trimmed)) {
     return modalMessages.nameTooLong;
   }
   return undefined;
