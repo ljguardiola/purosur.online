@@ -241,9 +241,7 @@ async function runCli() {
   }
 }
 
-const isMainModule =
-  process.argv[1] !== undefined && process.argv[1] === new URL(import.meta.url).pathname;
-if (isMainModule) {
+if (import.meta.main) {
   runCli().catch((error) => {
     console.error(error);
     process.exit(1);
