@@ -1,9 +1,56 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import { alertDeliveries, alerts, rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { openAlert } from "./open-alert.js";
+import { type OpenAlertInput, openAlert } from "./open-alert.js";
+
+describe("a passkey-change alert's detail", () => {
+  it("accepts a self-service registration or removal", () => {
+    expectTypeOf<{
+      kind: "backoffice_passkey_changed";
+      scope: string;
+      detail: { action: "removed"; passkeyName: string; actorId: string; via: "self" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts a registration through account recovery", () => {
+    expectTypeOf<{
+      kind: "backoffice_passkey_changed";
+      scope: string;
+      detail: { action: "registered"; passkeyName: string; actorId: string; via: "recovery" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts an Administrator's removal", () => {
+    expectTypeOf<{
+      kind: "backoffice_passkey_changed";
+      scope: string;
+      detail: { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("never accepts a removal through account recovery, which only registers", () => {
+    expectTypeOf<{
+      kind: "backoffice_passkey_changed";
+      scope: string;
+      detail: { action: "removed"; passkeyName: string; actorId: string; via: "recovery" };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("never accepts an Administrator's registration, since an Administrator only removes", () => {
+    expectTypeOf<{
+      kind: "backoffice_passkey_changed";
+      scope: string;
+      detail: {
+        action: "registered";
+        passkeyName: string;
+        actorId: string;
+        via: "administrator";
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -141,7 +188,16 @@ describe("openAlert", () => {
     const outcome = await db.transaction((tx) =>
       openAlert(
         tx,
-        { kind: "backoffice_passkey_changed", scope: administratorId, detail: {} },
+        {
+          kind: "backoffice_passkey_changed",
+          scope: administratorId,
+          detail: {
+            action: "registered",
+            passkeyName: "Teléfono",
+            actorId: administratorId,
+            via: "self",
+          },
+        },
         { now: () => NOON },
       ),
     );

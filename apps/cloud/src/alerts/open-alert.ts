@@ -36,14 +36,27 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
 >[0];
 
-export interface OpenAlertInput {
-  kind: AlertKind;
+/**
+ * A passkey change's own fact: account recovery only ever registers a passkey, and an
+ * Administrator only ever removes someone else's.
+ */
+export type PasskeyChangedDetail =
+  | { action: "registered" | "removed"; passkeyName: string; actorId: string; via: "self" }
+  | { action: "registered"; passkeyName: string; actorId: string; via: "recovery" }
+  | { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };
+
+export type OpenAlertInput = {
   /** The other half of the deduplication key: a user id, a source address… varies by kind. */
   scope: string;
-  detail: Record<string, unknown>;
   /** Required only for a Local-audience kind; no catalog kind uses one yet. */
   locationId?: string;
-}
+} & (
+  | { kind: "backoffice_passkey_changed"; detail: PasskeyChangedDetail }
+  | {
+      kind: Exclude<AlertKind, "backoffice_passkey_changed">;
+      detail: Record<string, unknown>;
+    }
+);
 
 export interface OpenAlertDeps {
   now: () => Date;
