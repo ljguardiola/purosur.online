@@ -14,9 +14,8 @@ export function readCategoryName(body: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-// Lowercased: Postgres compares `uuid` values case-insensitively but callers compare ids as JS
-// strings, so an uppercase spelling of an id would otherwise slip past those checks while still
-// matching in the database.
+// Postgres compares `uuid` values case-insensitively but callers compare ids as JS strings;
+// lowercasing keeps an uppercase spelling from slipping past those checks while still matching.
 export function readParentId(body: unknown): string | null | undefined {
   const raw = (body as { parentId?: unknown } | undefined)?.parentId;
   if (raw === undefined || raw === null) {

@@ -3,7 +3,6 @@ export const LABEL_ROWS = 8;
 export const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
 export const LABEL_WIDTH_MM = 70;
 const A4_HEIGHT_MM = 297;
-// Tiles the sheet edge to edge with no page margin.
 export const LABEL_HEIGHT_MM = A4_HEIGHT_MM / LABEL_ROWS;
 
 export interface LabelSheetItem {
@@ -19,7 +18,6 @@ export interface PositionedLabel {
   yMm: number;
   widthMm: number;
   heightMm: number;
-  /** A dashed cut line is drawn on this edge only when another label sits right past it. */
   cutRight: boolean;
   cutBottom: boolean;
 }

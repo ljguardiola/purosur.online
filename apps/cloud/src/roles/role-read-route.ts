@@ -15,8 +15,6 @@ import { toRoleSummaryWire } from "./roles-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// The Administrator role is never an editable target, so it answers identically to a missing or
-// malformed id: none of the three ever leaks which one it was.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no editable role with that id",
@@ -41,7 +39,6 @@ export function toRoleDetailWire(row: RoleDetailRow): RoleDetailWire {
   return { ...toRoleSummaryWire(row), version: row.version, assigned_users: row.assignedUsers };
 }
 
-/** Roles aren't scoped to a branch, so its people aren't either: every holder across every branch, ordered by name. */
 export async function listRoleUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   roleId: string,

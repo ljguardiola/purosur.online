@@ -137,7 +137,6 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
       const outcome = await confirmPrice(options.db, {
         productId: target.id,
         priceListId,
-        // `validateConfirmationFields` above already guarantees this is defined.
         expectedCurrentPriceId: expectedCurrentPriceId as string,
         actorId: openSession.userId,
         now,

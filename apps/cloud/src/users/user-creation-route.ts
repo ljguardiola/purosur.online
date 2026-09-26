@@ -26,8 +26,6 @@ const EMAIL_TAKEN_RESPONSE = {
   message: "a user with that email already exists",
 } as const;
 
-// Answered instead of the plain email_taken when the caller can reactivate the conflicting,
-// deactivated user; carries that user's id and name so the form can offer reactivating them.
 function emailBelongsToDeactivatedUserResponse(target: { id: string; firstName: string }) {
   return {
     code: "email_belongs_to_deactivated_user",
@@ -174,9 +172,8 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         });
 
       if (!created) {
-        // The email conflict itself isn't branch-scoped, but naming the conflicting user is: only
-        // a deactivated user of the caller's own branch is answered by id and name, so another
-        // branch's user is never revealed.
+        // Naming the conflicting user is branch-scoped even though the email conflict is not, so
+        // another branch's user is never revealed.
         const [conflicting] = await options.db
           .select({
             id: users.id,
@@ -211,8 +208,6 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
           roleName: role.name,
           roleIsAdministrator: role.isAdministrator,
           passkeyCount: 0,
-          // A user can only be created by an already-active Administrator, so a just-created user
-          // is never the sole active Administrator.
           isLastActiveAdministrator: false,
         }),
       );

@@ -11,9 +11,7 @@ export type PasskeyChallengeKind = "registration" | "session_authorization";
 export interface StorePendingPasskeyChallengeInput {
   sessionId: string;
   kind: PasskeyChallengeKind;
-  /** Only set for `kind: "session_authorization"`. */
   reauthenticationChallenge?: string;
-  /** Only set for `kind: "registration"`. */
   registrationChallenge?: string;
   now: Date;
 }
@@ -29,7 +27,7 @@ export interface ConsumePendingPasskeyChallengeInput {
   now: Date;
 }
 
-/** Upserts on `(session_id, kind)`: `passkey_challenges_session_id_kind_key` allows only one live row per pair. */
+/** Constraint `passkey_challenges_session_id_kind_key` enforces one live row per `(session_id, kind)`. */
 export async function storePendingPasskeyChallenge<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: StorePendingPasskeyChallengeInput,

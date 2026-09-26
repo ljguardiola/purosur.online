@@ -1,7 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { locations } from "../db/schema.js";
 
-// The business runs one location today; every user-inserting test needs this id.
 export async function seededLocationId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {

@@ -66,7 +66,6 @@ export function readNetContent(body: unknown): NetContentInput | "invalid" | und
   return { quantity, unit: unit as NetContentUnit };
 }
 
-/** Reads trimmed, non-blank barcodes from the request body; duplicates are left for the caller. */
 export function readBarcodes(body: unknown): string[] | undefined {
   const raw = (body as { barcodes?: unknown } | undefined)?.barcodes;
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -94,8 +93,6 @@ export interface ProductFieldsInput {
   netContent?: NetContentInput | "invalid" | undefined;
 }
 
-// Checks fields in the order the backoffice's form fields appear, so a validation error points to
-// the first one the person would actually see. Whether `categoryId` exists is checked separately.
 export function validateProductFields(
   input: ProductFieldsInput,
 ): ProductFieldValidationFailure | undefined {

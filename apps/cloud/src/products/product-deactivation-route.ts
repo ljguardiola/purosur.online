@@ -18,9 +18,7 @@ const NOT_FOUND_RESPONSE = {
 
 type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
 
-// No passkey step-up, unlike a user's own deactivation. A product is never deleted, only
-// deactivated: a database trigger rejects any `DELETE` on `products` outright, so history that
-// already references it stays intact.
+// A database trigger rejects any `DELETE` on `products` outright, so a product is never deleted, only deactivated.
 export function registerProductDeactivationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -70,8 +68,6 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
           .set({ active: false, version: current.version + 1 })
           .where(eq(products.id, targetId));
 
-        // Mirrors the product's own flag onto its barcodes: frees every code it held for reuse by
-        // a different, active product.
         await tx
           .update(productBarcodes)
           .set({ active: false })

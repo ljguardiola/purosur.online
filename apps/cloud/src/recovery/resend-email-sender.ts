@@ -5,7 +5,6 @@ export interface ResendRecoveryEmailSenderOptions {
   apiKey: string;
   from: string;
   replyTo: string;
-  /** Injected in tests so sending an email never reaches the network. */
   fetch?: typeof globalThis.fetch;
 }
 

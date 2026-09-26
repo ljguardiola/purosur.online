@@ -77,8 +77,7 @@ function readRange(raw: unknown): BranchHoursRange | undefined {
   return { opensAt, closesAt };
 }
 
-// Zero-padded HH:MM strings compare lexicographically the same way the times they represent do,
-// so no time parsing is needed here.
+// Zero-padded HH:MM strings compare lexicographically the same way the times they represent do.
 function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   for (let i = 0; i < ranges.length; i++) {
     for (let j = i + 1; j < ranges.length; j++) {

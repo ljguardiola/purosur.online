@@ -4,8 +4,6 @@ import { passkeys, roles, userRoles, users } from "../db/schema.js";
 import type { OpenSession } from "../session/open-session.js";
 import { isAccessGranted, permissionAccess } from "../session/route-access.js";
 
-// Whether `session` may see a deactivated branch user at all: an Administrator, or a holder of
-// `reactivate_users`.
 export function canReactivateUsers(
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
 ): boolean {
@@ -22,8 +20,6 @@ export interface BranchUserRow {
   roleName: string | null;
   roleIsAdministrator: boolean;
   passkeyCount: number;
-  // True only for the branch's one active Administrator; the backoffice locks their role field
-  // on this.
   isLastActiveAdministrator: boolean;
 }
 
@@ -32,8 +28,7 @@ export interface BranchUserWire {
   first_name: string;
   email: string;
   version: number;
-  // Only present when the caller may see a deactivated user; everyone else's responses never
-  // mention it, active or not.
+  // Included only when the caller may see deactivated users, so its absence never reveals one exists.
   active?: boolean;
   role: { id: string; is_administrator: boolean; name: string | null };
   passkey_count: number;
@@ -78,8 +73,6 @@ const BRANCH_USER_SELECTION = {
   roleId: roles.id,
   roleName: roles.name,
   roleIsAdministrator: roles.isAdministrator,
-  // Counted in the same query (left-joined, then grouped) instead of a follow-up query per user,
-  // so listing a branch's users never runs N+1 passkey lookups.
   passkeyCount: sql<number>`count(${passkeys.id})::int`.as("passkey_count"),
 };
 
@@ -96,7 +89,6 @@ const BRANCH_USER_GROUP_BY = [
 
 type RawBranchUserRow = Omit<BranchUserRow, "isLastActiveAdministrator">;
 
-// Stamps the flag from a count already known for the branch, instead of a subquery per row.
 function withLastActiveAdministratorFlag(
   rows: RawBranchUserRow[],
   activeAdministratorCount: number,
@@ -107,8 +99,6 @@ function withLastActiveAdministratorFlag(
   }));
 }
 
-// The inner join silently excludes a user with no user_roles row; under the default "active"
-// scope it also excludes a deactivated user (never deleted, just invisible here).
 export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -124,8 +114,6 @@ export async function listBranchUsers<TQueryResult extends PgQueryResultHKT>(
     .where(and(eq(users.locationId, locationId), activeScopeCondition(activeScope)))
     .groupBy(...BRANCH_USER_GROUP_BY)
     .orderBy(asc(users.firstName));
-  // A deactivated user in the rows is never counted here (filtered by `row.active`), so this
-  // stays correct even when the scope includes one.
   const activeAdministratorCount = rows.filter(
     (row) => row.roleIsAdministrator && row.active,
   ).length;

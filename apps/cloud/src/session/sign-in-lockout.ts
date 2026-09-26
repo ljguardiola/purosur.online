@@ -6,7 +6,6 @@ import { signInFailures, signInLockouts } from "../db/schema.js";
 
 export const SIGN_IN_LOCKOUT_WINDOW_MS = 60 * 60 * 1000;
 export const SIGN_IN_FAILURE_LIMIT = 10;
-/** Counted from the attempt that tripped it, not from when the block was checked. */
 export const SIGN_IN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
@@ -26,7 +25,6 @@ export type SignInAttemptAdmission =
   | {
       admitted: false;
       blockedUntil: Date;
-      /** Set only by the call that set the block, so each block is audited once. */
       trippedLockout: TrippedSignInLockout | null;
     };
 
@@ -78,7 +76,6 @@ function countAttemptsInWindow(tx: LockedTransaction, sourceAddress: string, win
     );
 }
 
-/** Spends the attempts it was built from, so the next block needs its own `SIGN_IN_FAILURE_LIMIT` rejected attempts instead of the same ones re-arming it. */
 async function tripLockout(
   tx: LockedTransaction,
   sourceAddress: string,
@@ -109,11 +106,7 @@ async function tripLockout(
   return { id: blocked.id, blockedUntil, failureCount };
 }
 
-/**
- * Records the attempt in the same locked transaction as the admission check, before credential
- * verification: this is what makes the limit bind under concurrency, since concurrent attempts
- * from one address see each other's count.
- */
+/** Recording the attempt inside the same locked transaction as the check is what makes the limit bind under concurrency. */
 export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: SignInAttemptInput,
@@ -182,7 +175,6 @@ export async function confirmRejectedSignInAttempt<TQueryResult extends PgQueryR
   });
 }
 
-/** Takes an admitted attempt back out of the count, for one that was never a rejected sign-in. */
 export async function discardSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   attemptId: string,

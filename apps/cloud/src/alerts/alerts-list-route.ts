@@ -36,7 +36,6 @@ import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry and escalation are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -56,9 +55,7 @@ export interface AlertSummaryRow {
 export interface AlertSummaryWire {
   id: string;
   kind: string;
-  /** `null` for a closed source-address-scoped kind, whose stored scope is only a hash. */
   scope: string | null;
-  /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
   scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -69,10 +66,8 @@ export interface AlertSummaryWire {
 
 export interface AlertListWire {
   alerts: AlertSummaryWire[];
-  /** How many alerts matched the filters, across every page. */
   total: number;
   page_size: number;
-  /** Every open alert the viewer can see, regardless of the filters or the page. */
   open_count: number;
   open_critical_count: number;
 }
@@ -104,8 +99,7 @@ export const ALERTS_PAGE_SIZE = 25;
 
 export interface AlertListSearch {
   text: string;
-  /** Kinds whose title matched `text`; titles live in the backoffice's message catalog, not here. */
-  kinds: readonly AlertKind[];
+  kindsWithMatchingTitle: readonly AlertKind[];
 }
 
 export interface AlertListFilters {
@@ -144,9 +138,10 @@ function searchCondition<TQueryResult extends PgQueryResultHKT>(
     .from(users)
     .where(ilike(users.firstName, pattern));
   return or(
-    search.kinds.length > 0 ? inArray(alerts.kind, [...search.kinds]) : undefined,
+    search.kindsWithMatchingTitle.length > 0
+      ? inArray(alerts.kind, [...search.kindsWithMatchingTitle])
+      : undefined,
     and(inArray(alerts.kind, kindsWithScope("user")), inArray(alerts.scope, matchingUserIds)),
-    // A closed source-address-scoped alert no longer holds the address, so only search open ones.
     and(
       inArray(alerts.kind, kindsWithScope("sourceAddress")),
       isNull(alerts.resolvedAt),
@@ -155,7 +150,6 @@ function searchCondition<TQueryResult extends PgQueryResultHKT>(
   );
 }
 
-// Newest-opened first; `page` is 1-based.
 export async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   session: OpenSession,
@@ -198,7 +192,6 @@ export async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   return { rows, total: matched?.total ?? 0 };
 }
 
-/** Counts every open alert `session` can see and how many of them are Critical, ignoring any filter. */
 export async function countOpenVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   session: OpenSession,
@@ -233,7 +226,7 @@ function searchFromQuery(
   if (trimmed === "") {
     return undefined;
   }
-  return { text: trimmed, kinds: (kinds ?? "").split(",").filter(isAlertKind) };
+  return { text: trimmed, kindsWithMatchingTitle: (kinds ?? "").split(",").filter(isAlertKind) };
 }
 
 export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(

@@ -9,10 +9,6 @@ export const NAME_MAX_LINES = 2;
 export interface LabelContentLayoutInput {
   labelHeightMm: number;
   paddingTopBottomMm: number;
-  /**
-   * The name's own rendered height, clamped to `NAME_MAX_LINES`. Must be measured with the exact
-   * font and line spacing it's drawn with, or a wrapped line clips early instead of showing.
-   */
   nameHeightMm: number;
   gapMm: number;
   barcodeHeightMm: number;
@@ -24,8 +20,6 @@ export interface LabelContentLayout {
   barcodeTopMm: number;
 }
 
-// Centers the whole content group (name + gap + barcode) as a unit, rather than pinning the name
-// to a fixed-height box at the top.
 export function layoutLabelContent(input: LabelContentLayoutInput): LabelContentLayout {
   const groupHeightMm = input.nameHeightMm + input.gapMm + input.barcodeHeightMm;
   const availableHeightMm = input.labelHeightMm - 2 * input.paddingTopBottomMm;

@@ -6,7 +6,6 @@ export interface PriceFieldValidationFailure {
   message: string;
 }
 
-// Cents per unit or per kilogram, depending on the product's own sale unit.
 export function readUnitPrice(body: unknown): number | undefined {
   const raw = (body as { unitPrice?: unknown } | undefined)?.unitPrice;
   return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_UNIT_PRICE_CENTS
@@ -14,8 +13,7 @@ export function readUnitPrice(body: unknown): number | undefined {
     : undefined;
 }
 
-// `null` reads as "the product had no price yet"; a well-formed id reads as that price; anything
-// else is a validation failure.
+// `null` means the product has no price yet, distinct from an invalid id (`undefined`).
 export function readExpectedCurrentPriceId(body: unknown): string | null | undefined {
   const raw = (body as { expectedCurrentPriceId?: unknown } | undefined)?.expectedCurrentPriceId;
   if (raw === null) {
@@ -24,8 +22,6 @@ export function readExpectedCurrentPriceId(body: unknown): string | null | undef
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
 }
 
-// Unlike `readExpectedCurrentPriceId`, `null` is not valid here: a product with no price yet has
-// nothing to confirm.
 export function readRequiredExpectedCurrentPriceId(body: unknown): string | undefined {
   const raw = (body as { expectedCurrentPriceId?: unknown } | undefined)?.expectedCurrentPriceId;
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;

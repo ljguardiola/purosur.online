@@ -6,7 +6,6 @@ export interface EscalateOverdueAlertsDeps {
   now: () => Date;
 }
 
-// The graphile-worker cron task body for alert escalation.
 export async function escalateOverdueAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: EscalateOverdueAlertsDeps,

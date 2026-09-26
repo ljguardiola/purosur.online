@@ -70,7 +70,6 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
       .where(eq(alerts.id, input.id))
       .for("update");
     if (!current) {
-      // Unreachable in practice: nothing deletes an alert, and the caller just confirmed it exists.
       throw new Error(`closeAlert: no alert found for id ${input.id}`);
     }
     if (current.resolvedAt !== null) {
@@ -99,8 +98,6 @@ export async function closeAlert<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-// An alert outside the actor's visibility answers the identical 404 a missing one gets, never
-// leaking that it exists.
 export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,

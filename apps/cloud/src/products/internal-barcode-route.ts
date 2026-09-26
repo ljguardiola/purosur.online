@@ -35,8 +35,7 @@ async function nextSequenceValue<TQueryResult extends PgQueryResultHKT>(
   return BigInt(row.value);
 }
 
-// Pulls from GS1's 20-29 restricted-circulation range, appending the check digit, and skips any
-// value already taken. The range holds around 10^11 codes, so running out isn't a handled case.
+// GS1's 20-29 restricted-circulation range holds around 10^11 codes, so exhaustion isn't handled.
 export async function allocateInternalBarcode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {

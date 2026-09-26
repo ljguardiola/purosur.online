@@ -27,8 +27,6 @@ const REGISTER_NAME_UNIQUE_INDEX = "registers_location_id_name_lower_key";
 
 export class RegisterNameTaken extends Error {}
 
-// Walks the driver error Drizzle wraps as `cause`, looking for a Postgres unique violation on the
-// case-insensitive-per-branch `registers` index.
 export function isRegisterNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -57,7 +55,6 @@ function readCreationBody(body: unknown): CreationRequestBody | RegisterFieldVal
     return nameFailure;
   }
   if (!name) {
-    // Unreachable: `registerNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
   return { name };
@@ -84,8 +81,8 @@ export type CreateRegisterOutcome =
   | { kind: "name_taken" }
   | { kind: "created"; register: CreatedRegister };
 
-// The database's own `registers_location_id_name_lower_key` unique index backstops a name that
-// lands concurrently; the catch below maps that failure.
+// Two concurrent requests can both pass the select check above; the database's own unique index
+// is what actually stops the second insert, so it's caught here too.
 export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateRegisterInput,
@@ -137,8 +134,6 @@ export async function createRegister<TQueryResult extends PgQueryResultHKT>(
   return { kind: "created", register: created };
 }
 
-// Body validation runs before the passkey check, so an invalid request never prompts for a
-// passkey.
 export function registerRegisterCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,

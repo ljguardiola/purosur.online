@@ -25,7 +25,6 @@ export interface RegisterPendingCode {
 export interface RegisterRow {
   id: string;
   name: string;
-  /** The register's unexpired, unredeemed enrollment code, or `null` when it has none. */
   pendingCode: RegisterPendingCode | null;
 }
 

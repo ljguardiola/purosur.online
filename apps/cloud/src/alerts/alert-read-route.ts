@@ -27,7 +27,6 @@ import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Answers alike for a malformed id, a missing one, and one outside visibility, so none leaks which.
 export const ALERT_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no alert with that id",
@@ -76,13 +75,10 @@ export interface AlertDeliveryWire {
 export interface AlertDetailWire {
   id: string;
   kind: string;
-  /** `null` for a closed source-address-scoped kind, whose stored scope is only a hash. */
   scope: string | null;
-  /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
   scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
-  /** Stored `detail`, plus `actorName` next to `actorId` when it resolves; never a raw id. */
   detail: Record<string, unknown>;
   opened_at: string;
   escalated_at: string | null;
@@ -148,8 +144,6 @@ export function toAlertDetailWire(
   };
 }
 
-// One query merges the id lookup with the visibility check, rather than fetching then checking in
-// memory; a malformed id, a missing one, and one outside visibility all answer `undefined` alike.
 export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,

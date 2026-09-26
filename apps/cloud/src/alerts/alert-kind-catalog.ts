@@ -1,13 +1,10 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
 
-/** `user`: `alerts.scope` is a user id. `sourceAddress`: it's an address, never looked up as a user. */
 export type AlertScopeKind = "user" | "sourceAddress";
 
 export interface AlertKindDefinition {
   kind: AlertKind;
-  /** The level an alert of this kind opens at; escalation moves it to `critical` from here. */
   level: AlertLevel;
-  /** How long an open alert waits before escalating Warning to Critical; `null` if it never does. */
   escalatesAfterMs: number | null;
   audience: AlertAudience;
   scopeKind: AlertScopeKind;

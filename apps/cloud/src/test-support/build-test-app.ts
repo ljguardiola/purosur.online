@@ -7,7 +7,6 @@ import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
 /** Not a real secret: only ever compared against itself, inside this test helper. */
 export const TEST_EDGE_ORIGIN_SECRET = "test-edge-origin-secret";
 
-// Every inject() call carries the matching edge header by default, still overridable per call.
 export function buildTestApp<TQueryResult extends PgQueryResultHKT = PostgresJsQueryResultHKT>(
   options: Omit<BuildAppOptions<TQueryResult>, "edgeOriginSecret">,
 ): FastifyInstance {

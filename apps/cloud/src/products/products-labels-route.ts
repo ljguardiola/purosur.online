@@ -51,8 +51,6 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
   return { productId: productId.toLowerCase(), count };
 }
 
-// Whether each `productId` names an existing product with an internal barcode is checked
-// separately against the database, not here.
 function readLabelsBody(body: unknown): LabelRequestEntry[] | LabelsValidationFailure {
   const raw = (body as { labels?: unknown } | undefined)?.labels;
   if (!Array.isArray(raw) || raw.length === 0) {
@@ -97,8 +95,6 @@ interface LabelableProduct {
   internalBarcode: string | undefined;
 }
 
-// An inactive product is left out of the map, so the caller's `product_not_found` check below
-// rejects it exactly the way an unknown id is rejected.
 async function labelableProductsById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],

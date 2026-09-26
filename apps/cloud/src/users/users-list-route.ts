@@ -16,8 +16,6 @@ export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-// Gated by either permission: whoever can deactivate or reactivate a colleague must also be able
-// to list who to.
 export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,

@@ -2,12 +2,11 @@
 // attribute, so a sibling subdomain cannot plant one that would shadow this service's own.
 export const SESSION_COOKIE_NAME = "__Host-backoffice_session";
 
-/** The database only ever stores this id's hash (`hashSessionId`), never the raw value. */
 export function serializeSessionCookie(rawSessionId: string): string {
   return `${SESSION_COOKIE_NAME}=${rawSessionId}; HttpOnly; Secure; SameSite=Lax; Path=/`;
 }
 
-/** Same attributes as `serializeSessionCookie`, so the browser recognizes it as the same cookie, but empty with `Max-Age=0` so it's dropped immediately. */
+/** Matches `serializeSessionCookie`'s attributes so the browser treats it as the same cookie to clear. */
 export function clearSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
 }

@@ -6,17 +6,8 @@ import { runMigrations } from "./src/migrate.js";
 
 declare module "vitest" {
   export interface ProvidedContext {
-    /**
-     * Admin URL to this run's Postgres container: its own database is where every
-     * `CREATE`/`DROP DATABASE` is issued and where `withExclusiveMigration` locks; tests run
-     * against databases of their own.
-     */
     recoveryPostgresAdminUrl: string;
-    /**
-     * Name of the database `createIntegrationDatabase` copies with `CREATE DATABASE ... TEMPLATE`
-     * instead of migrating one of its own. Undefined only after a watch-mode rerun failed to
-     * migrate it again.
-     */
+    // undefined only after a watch-mode rerun failed to migrate it again.
     cloudIntegrationTemplateDatabase: string | undefined;
   }
 }
@@ -33,10 +24,9 @@ const POSTGRES_IMAGE = "postgres:18-alpine";
 // file loses that race fail with "remaining connection slots are reserved" (53300).
 const MAX_CONNECTIONS = 500;
 
-// These tests exist because PGlite serves every query on one connection and has no LISTEN/NOTIFY,
-// which the real production wiring (a postgres-js pool, concurrent connections racing an advisory
-// lock, plus graphile-worker's real `run()`) needs. A missing or unreachable Docker fails this
-// project's run loudly instead of silently skipping it.
+// PGlite serves every query on one connection and has no LISTEN/NOTIFY, which the real production
+// wiring needs; a missing or unreachable Docker fails this project's run loudly instead of
+// silently skipping it.
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   let container: StartedPostgreSqlContainer;
   try {

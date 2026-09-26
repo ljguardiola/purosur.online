@@ -43,7 +43,6 @@ export type EditBranchSettingsOutcome =
   | { kind: "stale_version" }
   | { kind: "applied"; row: BranchSettingsRow };
 
-// day_of_week numbers Monday=1 through Sunday=7; the arrays below are returned in that order.
 function orderedDayHours(input: BranchSettingsEditInput): BranchHoursRange[][] {
   return [
     input.mondayHours,
@@ -115,8 +114,6 @@ export async function editBranchSettings<TQueryResult extends PgQueryResultHKT>(
       .where(eq(branchSettings.locationId, input.locationId))
       .for("update");
     if (!current) {
-      // Every location gets this row from the migration that creates the table, so a missing one
-      // is a broken invariant, not a legitimate case.
       throw new Error(`branch settings missing for location ${input.locationId}`);
     }
     if (current.version !== input.version) {

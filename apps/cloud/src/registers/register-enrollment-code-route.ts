@@ -18,8 +18,6 @@ import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// A malformed id and one that simply doesn't belong to this branch answer alike, so the response
-// never leaks which case it was.
 const REGISTER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no register with that id belongs to this branch",
@@ -54,8 +52,8 @@ export interface EmittedRegisterEnrollmentCode {
   expiresAt: Date;
 }
 
-// register_id is both primary and foreign key on register_enrollment_codes, so there's ever only
-// one code per register; onConflictDoUpdate below replaces it.
+// register_id is both primary and foreign key on register_enrollment_codes, so at most one code
+// row exists per register.
 export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EmitRegisterEnrollmentCodeInput,

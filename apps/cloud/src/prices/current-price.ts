@@ -2,7 +2,6 @@ import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { priceReviews, prices } from "../db/schema.js";
 
-/** The one ordering every route uses to decide which of a product's prices is the current one. */
 export const NEWEST_PRICE_FIRST = [desc(prices.validFrom), desc(prices.id)] as const;
 
 export async function latestReviewedAt<TQueryResult extends PgQueryResultHKT>(

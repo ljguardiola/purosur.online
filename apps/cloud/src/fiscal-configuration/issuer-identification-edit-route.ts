@@ -45,7 +45,6 @@ export type EditIssuerIdentificationOutcome =
   | { kind: "stale_version" }
   | { kind: "applied"; row: IssuerIdentificationRow };
 
-// Leaving every field unchanged is a no-op: the version doesn't bump and nothing is audited.
 export async function editIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditIssuerIdentificationInput,
@@ -64,8 +63,6 @@ export async function editIssuerIdentification<TQueryResult extends PgQueryResul
       .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID))
       .for("update");
     if (!current) {
-      // The seeding migration guarantees this row exists; a missing row means that invariant
-      // broke, not a legitimate case this route should ever see.
       throw new Error("issuer identification row missing: the seeding migration never ran");
     }
     if (current.version !== input.version) {
@@ -104,8 +101,6 @@ export async function editIssuerIdentification<TQueryResult extends PgQueryResul
   });
 }
 
-// The authorized CUIT and tax status are deployment configuration, never part of the row, so they
-// never appear in an audit entry either.
 function toIssuerIdentificationWireForAudit(row: IssuerIdentificationRow) {
   return {
     legal_name: row.legalName,

@@ -3,11 +3,9 @@ import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { recoveryRateLimitAttempts } from "../db/schema.js";
 
-/** The hour every recovery limit counts over, and the window rejected attempts are grouped by. */
 export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
 const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
 const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
-// Shared by `registration-options` and `redeem`, so probing either one counts against the other.
 const REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 const PRUNE_BATCH_SIZE = 100;
 
@@ -37,7 +35,6 @@ interface RateLimitedKey {
   limit: number;
 }
 
-/** Kept consistent with the rejected-attempt accumulator's own hashing of the same address. */
 export function hashDestinationAddress(normalizedAddress: string): string {
   return createHash("sha256").update(normalizedAddress).digest("hex");
 }

@@ -17,7 +17,6 @@ import { NEWEST_PRICE_FIRST } from "./current-price.js";
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry, and "now" for the pending window, are deterministic. */
   now?: () => Date;
 }
 
@@ -56,11 +55,7 @@ export interface PriceCategoryOption {
 
 export interface ListPricesResult {
   products: PriceProductRow[];
-  /**
-   * Every leaf category to filter by, labeled with its full path since nesting can put two leaves
-   * under the same name. Read here rather than via `GET /categories`, which a role holding only
-   * `manage_prices_and_review` lacks the permission for.
-   */
+  /** Read here since a role holding only `manage_prices_and_review` can't call `GET /categories`. */
   categories: PriceCategoryOption[];
   pendingCount: number;
   reviewWindowDays: number;
@@ -72,8 +67,6 @@ interface CategoryTreeRow {
   parentId: string | null;
 }
 
-// A parent category can never hold a product directly, so offering it as a filter option would
-// only ever narrow the list to nothing; only a leaf's own path is worth offering.
 function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceCategoryOption[] {
   const parentIds = new Set(
     allCategories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
@@ -90,7 +83,6 @@ function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceCategoryOpt
     if (!category) {
       return "";
     }
-    // Stops instead of recursing forever, so a corrupt cycle can't fail the whole list.
     const label =
       category.parentId && !ancestors.has(category.parentId)
         ? `${pathLabel(category.parentId, new Set(ancestors).add(categoryId))} › ${category.name}`
@@ -117,8 +109,6 @@ export function isPending(
   return lastReviewedAt.getTime() < cutoff;
 }
 
-// `pendingCount` is computed over the whole catalog before `categoryId`/`search` narrow it, so it
-// stays accurate next to a filtered list.
 export async function listPrices<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: ListPricesInput,
@@ -179,7 +169,7 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     };
   });
 
-  const pendingCount = withDerived.filter((row) => row.pending).length;
+  const pendingCountAcrossFullCatalog = withDerived.filter((row) => row.pending).length;
 
   let filtered = withDerived;
   if (input.categoryId) {
@@ -212,7 +202,7 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
   return {
     products: sorted,
     categories: leafCategoryOptions(allCategories),
-    pendingCount,
+    pendingCount: pendingCountAcrossFullCatalog,
     reviewWindowDays: input.unreviewedPriceAlertDays,
   };
 }
@@ -258,8 +248,6 @@ export function registerPricesListRoute<TQueryResult extends PgQueryResultHKT>(
         .from(branchSettings)
         .where(eq(branchSettings.locationId, openSession.locationId));
       if (!settings) {
-        // Every location is seeded with a `branch_settings` row, so a missing one for an open
-        // session's own location means that invariant broke, not a legitimate case to handle here.
         throw new Error(`branch settings missing for location ${openSession.locationId}`);
       }
 

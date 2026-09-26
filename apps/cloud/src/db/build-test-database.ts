@@ -7,11 +7,7 @@ import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapsho
 export interface TestDatabase {
   client: PGlite;
   db: PgliteDatabase<Record<string, never>>;
-  /**
-   * Empties every application table (discovered from the catalog, not a fixed list) and restores
-   * whatever rows the migrations themselves seeded, leaving the database as it was right after
-   * migrating.
-   */
+  // Restores the rows the migrations themselves seeded; it does not leave every table empty.
   clear: () => Promise<void>;
   close: () => Promise<void>;
 }
@@ -60,12 +56,8 @@ async function restoreSeedRows(
   });
 }
 
-/**
- * Builds one migrated PGlite database: create once (`beforeAll`), close once (`afterAll`), and call
- * `clear()` in `beforeEach` instead of rebuilding it. The default migrations folder loads a snapshot
- * the global setup already migrated once per run; a custom `migrationsFolder` always migrates fresh
- * from that same run's empty, already-initialized cluster dump, so it never pays for its own initdb.
- */
+// A custom `migrationsFolder` migrates fresh from the run's already-initialized cluster dump,
+// so it never pays for its own initdb.
 export async function buildTestDatabase({
   migrationsFolder = MIGRATIONS_FOLDER,
   snapshotPath = migrationsFolder === MIGRATIONS_FOLDER
@@ -88,7 +80,7 @@ export async function buildTestDatabase({
     // never anything a test goes on to add.
     migrationSeedRows = await seedRowsByTable(client, await applicationTables(client));
   } catch (error) {
-    // A failure to close must not replace this capture error, which is the one worth reporting.
+    // Swallow a close failure; the capture error above is what's worth reporting.
     await client.close().catch(() => undefined);
     throw error;
   }

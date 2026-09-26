@@ -27,7 +27,6 @@ export interface SessionAuthorizationRouteOptions<TQueryResult extends PgQueryRe
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
 
-// Same uniform code and message the other passkey verification routes reject a bad assertion with.
 const AUTHENTICATION_FAILED_RESPONSE = {
   code: "authentication_failed",
   message: "the passkey authorization could not be verified",

@@ -43,7 +43,6 @@ export function toRoleSummaryWire(row: RoleSummaryRow): RoleSummaryWire {
   };
 }
 
-/** Roles aren't scoped to a branch, so each one's user count spans every branch. */
 export async function listRoles<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<RoleSummaryRow[]> {

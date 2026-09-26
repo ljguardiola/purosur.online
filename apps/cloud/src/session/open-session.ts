@@ -8,9 +8,7 @@ import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
 
-/** A session with no use in this long is no longer valid, even if it's well within its absolute limit. */
 export const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
-/** A session this old is no longer valid, no matter how recently it was used. */
 export const SESSION_ABSOLUTE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 export const UNAUTHENTICATED_RESPONSE = {
@@ -24,15 +22,12 @@ export interface OpenSession {
   firstName: string;
   createdAt: Date;
   lastSeenAt: Date;
-  /** The branch (`locations.id`) the signed-in user belongs to (single branch today). */
   locationId: string;
   isAdministrator: boolean;
   passkeyAuthorizedAt: Date | null;
-  /** An Administrator holds every catalog key implicitly (its role stores no `role_permissions` rows); a user with no role yet holds none. */
   permissionKeys: readonly PermissionKey[];
 }
 
-/** The earliest deadline the session hits: idle timeout from its last use, or absolute timeout from its creation. */
 export function sessionExpiresAt(session: Pick<OpenSession, "createdAt" | "lastSeenAt">): Date {
   const idleDeadline = session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS;
   const absoluteDeadline = session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS;
@@ -70,9 +65,7 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
       firstName: users.firstName,
       active: users.active,
       locationId: users.locationId,
-      // Left-joined: a user with no `user_roles` row yet resolves to "not an Administrator" rather than making the session unresolvable.
       isAdministrator: roles.isAdministrator,
-      // Read in this same query, so the role's current permissions cost no extra round trip.
       grantedPermissionKeys: sql<
         string[]
       >`array(select ${rolePermissions.permissionKey} from ${rolePermissions} where ${rolePermissions.roleId} = ${roles.id})`,
@@ -92,7 +85,6 @@ async function lookUpSession<TQueryResult extends PgQueryResultHKT>(
     session.lastSeenAt.getTime() + SESSION_IDLE_TIMEOUT_MS <= currentTime.getTime();
   const absoluteExpired =
     session.createdAt.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS <= currentTime.getTime();
-  // A deactivated account's session ends immediately, the same rule that keeps its passkey from opening a new one at sign-in.
   if (idleExpired || absoluteExpired || !session.active) {
     return { state: "ended", sessionIdHash };
   }
@@ -124,7 +116,6 @@ const RATE_LIMITED_RESPONSE_CODE = "rate_limited";
 
 export type BackofficeSessionCheck = SessionLookup | { state: "rate_limited" };
 
-/** Reads the session cookie once: the same read decides both whether the request counts against the rate limiter and how the caller proceeds. */
 export async function checkBackofficeSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -151,7 +142,6 @@ export async function checkBackofficeSession<TQueryResult extends PgQueryResultH
   return { state: "rate_limited" };
 }
 
-/** Revokes an ended session's row instead of leaving it dangling; otherwise the reply is already sent and this returns `undefined`. */
 async function resolveOpenSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -193,7 +183,6 @@ export async function requireOpenSession<TQueryResult extends PgQueryResultHKT>(
   return { ...resolved.session, lastSeenAt: options.now };
 }
 
-/** Unlike `requireOpenSession`, never touches `last_seen_at`, so a caller can report status without keeping an idle tab alive. */
 export async function peekOpenSession<TQueryResult extends PgQueryResultHKT>(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -208,17 +197,8 @@ function rejectAsCrossSite(reply: FastifyReply, message: string): false {
   return false;
 }
 
-/**
- * `Origin` alone can't decide this: a same-origin GET carries no `Origin` header at all.
- * `Sec-Fetch-Site` is what separates the backoffice's own fetch (`same-origin`) from a cross-site
- * navigation (`cross-site`, which `SameSite=Lax` still hands the session cookie) and from someone
- * opening the URL themselves (`none`). Both headers are trusted when present, neither is treated
- * as proof when absent.
- *
- * Known limitation: a request carrying neither header still passes. A browser old enough to send
- * no Fetch Metadata at all is a case the backoffice, a desktop application on a current browser,
- * doesn't need to handle here.
- */
+// Origin is absent on a same-origin GET, so Sec-Fetch-Site (same-origin vs. cross-site, still
+// allowed by SameSite=Lax) fills the gap; a request with neither header still passes unchecked.
 export function checkRequestIsSameOrigin(
   request: FastifyRequest,
   reply: FastifyReply,

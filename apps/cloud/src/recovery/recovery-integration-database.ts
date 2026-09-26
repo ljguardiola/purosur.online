@@ -4,18 +4,14 @@ import { inject } from "vitest";
 import { CLOUD_APP_PASSWORD } from "../db/cloud-app-password.js";
 
 // Postgres advisory locks are scoped per database, so this key only needs to be stable within the
-// shared admin database it's taken in — it can't collide with a lock any test file takes in its
-// own database.
+// shared admin database it's taken in.
 const MIGRATION_LOCK_KEY = 875_309;
 
 export interface IntegrationDatabase {
   /** Connects as `cloud_app`, the role the deployed cloud (and so the code under test) uses. */
   databaseUrl: string;
-  /**
-   * Connects as the admin role that migrated this database. Only for test-only administrative
-   * needs outside what the code under test does (e.g. holding a lock only the schema owner can
-   * take); never for exercising the server, its repositories, or graphile-worker.
-   */
+  /** Connects as the admin role that migrated this database; never for exercising the server, its
+   * repositories, or graphile-worker. */
   adminDatabaseUrl: string;
   close(): Promise<void>;
 }
@@ -33,8 +29,8 @@ function asCloudApp(databaseUrl: string): string {
   return url.toString();
 }
 
-// Clones the already-migrated template database (`CREATE DATABASE ... TEMPLATE`) so each test
-// file gets its own database instead of migrating, and racing, one on the shared cluster.
+// Clones the already-migrated template database so each test file gets its own database instead
+// of migrating, and racing, one on the shared cluster.
 export async function createIntegrationDatabase(namePrefix: string): Promise<IntegrationDatabase> {
   const adminUrl = inject("recoveryPostgresAdminUrl");
   const template = inject("cloudIntegrationTemplateDatabase");
@@ -68,11 +64,8 @@ export async function createIntegrationDatabase(namePrefix: string): Promise<Int
   };
 }
 
-/**
- * `runMigrations` ends by writing `cloud_app`'s password to the cluster-wide `pg_authid` catalog,
- * so concurrent runs would race that write. The lock is taken on the shared admin database, not a
- * not-yet-created one, because Postgres advisory locks are scoped per database.
- */
+// runMigrations ends by writing cloud_app's password to the cluster-wide pg_authid catalog, so
+// concurrent runs would race that write.
 export async function withExclusiveMigration<T>(run: () => Promise<T>): Promise<T> {
   const adminUrl = inject("recoveryPostgresAdminUrl");
   const admin = postgres(adminUrl, { max: 1 });

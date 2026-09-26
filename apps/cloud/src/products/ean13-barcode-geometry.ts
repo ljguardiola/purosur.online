@@ -7,8 +7,7 @@ export const QUIET_ZONE_LEFT_MODULES = 11;
 export const QUIET_ZONE_RIGHT_MODULES = 7;
 export const HUMAN_READABLE_HEIGHT_MM = 3.1;
 
-// EAN-13's start (101), center (01010) and end (101) guard bar module indices; drawn taller so
-// the human-readable digits can sit beside them.
+// EAN-13's start (101), center (01010) and end (101) guard bar module indices.
 const GUARD_MODULE_INDEXES = new Set([0, 1, 2, 45, 46, 47, 48, 49, 92, 93, 94]);
 
 const DIGITS_PER_GROUP = 6;
@@ -37,8 +36,6 @@ export interface Ean13BarcodeGeometry {
   rightGroupText: BarcodeText;
 }
 
-// The printable geometry (in millimeters) of one EAN-13 barcode: first digit left of the start
-// guard, then two groups of 6 digits under their half of the bars.
 export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
   const modules = ean13Modules(code);
   const bars: BarcodeBar[] = [];

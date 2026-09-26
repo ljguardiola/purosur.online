@@ -1,7 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { priceLists } from "../db/schema.js";
 
-// The business runs one price list today ("Lista general"); every branch points at it.
 export async function seededPriceListId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {

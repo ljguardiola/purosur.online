@@ -3,13 +3,11 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts } from "../db/schema.js";
 
 export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-// The address limit sits above the session limit since several people can share one connection, such as a location's.
 export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
 export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
 
 export interface BackofficeRateLimitInput {
-  /** The open session's own row id. */
   sessionKeyValue: string;
   sourceAddress: string;
   now: Date;

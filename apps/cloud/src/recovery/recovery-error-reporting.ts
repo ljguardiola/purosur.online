@@ -4,16 +4,13 @@ export interface ReportRecoveryErrorDeps {
   captureException?: (error: unknown) => unknown;
 }
 
-/**
- * Reports are made from inside pg's `error` listeners, where a throw is an uncaught exception
- * that ends the process — the crash these listeners exist to prevent. A failing reporter is
- * dropped rather than thrown.
- */
+// Called from pg's error listeners, where a throw is an uncaught exception that crashes the
+// process — exactly what these listeners exist to prevent.
 function withoutThrowing(report: () => void): void {
   try {
     report();
   } catch {
-    // dropped
+    // ignored
   }
 }
 

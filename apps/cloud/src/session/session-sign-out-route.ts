@@ -18,7 +18,6 @@ export interface SessionSignOutRouteOptions<TQueryResult extends PgQueryResultHK
   now?: () => Date;
 }
 
-/** Revoking only a still-live row (`revokedAt is null`) makes a repeated call idempotent. */
 export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionSignOutRouteOptions<TQueryResult>,

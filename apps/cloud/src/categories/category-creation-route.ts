@@ -37,8 +37,6 @@ const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
 
 export class CategoryNameTaken extends Error {}
 
-// Walks the driver error Drizzle wraps as `cause`, looking for a Postgres unique violation on
-// the case-insensitive `categories.name` index.
 export function isCategoryNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -182,7 +180,6 @@ export async function createCategory<TQueryResult extends PgQueryResultHKT>(
     });
 }
 
-// No passkey step-up here: this permission isn't Administrator-only, unlike role management.
 export function registerCategoryCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,

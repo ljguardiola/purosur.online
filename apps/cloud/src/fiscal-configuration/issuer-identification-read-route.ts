@@ -15,9 +15,8 @@ export const ISSUER_IDENTIFICATION_TAX_STATUS = "Responsable Monotributo";
 export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** The CUIT authorized at the tax authority: deployment configuration (ARCA_CERTIFICATE), never stored in the database or accepted from a client. */
+  // From deployment configuration (ARCA_CERTIFICATE); never stored in the database or accepted from a client.
   authorizedCuit: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -51,8 +50,6 @@ export function toIssuerIdentificationWire(
   };
 }
 
-// The seeding migration guarantees this row exists; a missing row means that invariant broke, not
-// a legitimate "not found" a caller should ever see.
 export async function findIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<IssuerIdentificationRow> {

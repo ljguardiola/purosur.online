@@ -31,7 +31,6 @@ export function readProductStatusFilter(
 export interface ProductsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -71,8 +70,7 @@ export function netContentRow(row: {
   return { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit };
 }
 
-// Grouped in code rather than aggregated in SQL: keeps the `position` ordering explicit and avoids
-// relying on a driver-specific `json_agg` shape.
+// Grouped in code, not SQL, to avoid a driver-specific `json_agg` shape.
 async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],

@@ -6,14 +6,11 @@ import { alertKindDefinition } from "./alert-kind-catalog.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// An id with no matching user is simply left out of the map; `scopeDisplay` falls back to the raw
-// scope for it.
 export async function loadScopeDisplayNames<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   userIds: readonly string[],
 ): Promise<Map<string, string>> {
-  // Filtered out here rather than sent to a `uuid` column: Postgres would reject the whole query
-  // with invalid-input-syntax instead of just skipping that one id.
+  // Postgres rejects the whole query on one malformed `uuid` instead of skipping that id.
   const wellFormedIds = userIds.filter((id) => UUID_PATTERN.test(id));
   if (wellFormedIds.length === 0) {
     return new Map();

@@ -23,22 +23,18 @@ export interface SessionAuthenticateRouteOptions<TQueryResult extends PgQueryRes
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
   now?: () => Date;
-  /** Injected in tests to keep the uniform-failure timing floor from slowing the suite down. */
   delay?: (ms: number) => Promise<void>;
-  /** Injected in tests to prove a bookkeeping failure never turns a rejection into a 500. */
   confirmRejectedSignInAttempt?: typeof confirmRejectedSignInAttempt;
   reportError?: (error: unknown) => void;
 }
 
-// Every rejection reason for a passkey the cloud does know (bad signature, stale challenge,
-// deactivated account, clone-signal counter) answers with this same code, so none can be inferred.
 const AUTHENTICATION_FAILED_RESPONSE = {
   code: "authentication_failed",
   message: "the passkey could not be verified",
 } as const;
 
-// A credential id with no matching row answers this distinct code, so the backoffice can tell the
-// device to forget a passkey the cloud never saved; credential ids are unguessable, so this leaks nothing.
+// Distinct from AUTHENTICATION_FAILED_RESPONSE: credential ids are unguessable, so telling a
+// device to forget a passkey the cloud never saved leaks nothing.
 const UNKNOWN_PASSKEY_RESPONSE = {
   code: "unknown_passkey",
   message: "the passkey could not be verified",
@@ -68,7 +64,8 @@ function readAssertionChallenge(assertion: AuthenticationResponseJSON): string |
   }
 }
 
-/** Checks the per-source-address lockout before ever looking up a credential, so a blocked address never learns whether it would have worked. */
+// Checks the per-source-address lockout before ever looking up a credential, so a blocked
+// address never learns whether it would have worked.
 export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionAuthenticateRouteOptions<TQueryResult>,
@@ -105,8 +102,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
     await reply.code(401).send(response);
   }
 
-  // Bookkeeping must never change the answer: a failure here would otherwise turn the uniform 401
-  // into a 500 and skip the timing floor, which is exactly what tells one rejection reason from another.
+  // A bookkeeping failure here must not turn this uniform 401 into a 500 or skip the timing floor above.
   async function rejectSignInAttempt(
     sourceAddress: string,
     attemptedAt: Date,
@@ -157,8 +153,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         return;
       }
 
-      // Checked before anything is recorded: a request with nothing to verify is not an
-      // authentication attempt and must never take a slot of the address's lockout budget.
+      // Checked before anything is recorded, so a request with nothing to verify never takes a lockout slot.
       const assertion = (request.body as { assertion?: unknown } | undefined)?.assertion as
         | AuthenticationResponseJSON
         | undefined;
@@ -189,8 +184,7 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         return;
       }
 
-      // Spent before the credential is looked up, so it can never be replayed against a second
-      // credential id guess just because the first one turned out to be unknown.
+      // Spent before the credential lookup, so it can't be replayed against a second credential id guess.
       const challengeIsLive = await consumeSignInChallenge(options.db, {
         challenge,
         now: attemptedAt,
@@ -220,8 +214,6 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
         );
         return;
       }
-      // A deactivated account's session ends immediately; the rejection must stay indistinguishable
-      // from any other known-passkey rejection, so it never runs signature verification either.
       if (!passkey.active) {
         await rejectSignInAttempt(sourceAddress, attemptedAt, reply, startedAt);
         return;
@@ -257,8 +249,8 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
       const previousRawSessionId = readSessionCookie(request.headers.cookie);
       const rawSessionId = generateSessionId();
       const opened = await options.db.transaction(async (tx) => {
-        // Takes the passkey's row lock before any session exists: a concurrent removal leaves
-        // nothing to update here, so no session is opened for a passkey removed in the meantime.
+        // Locks the passkey's row before any session exists, so a concurrent removal leaves nothing
+        // to update here and no session opens for a passkey removed in the meantime.
         const [usedPasskey] = await tx
           .update(passkeys)
           .set({
@@ -280,7 +272,6 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
             .where(eq(sessions.sessionIdHash, hashSessionId(previousRawSessionId)));
         }
 
-        // A passkey sign-in counts as a successful passkey authorization for the session it opens.
         await tx.insert(sessions).values({
           userId: passkey.userId,
           sessionIdHash: hashSessionId(rawSessionId),
@@ -289,8 +280,6 @@ export function registerSessionAuthenticateRoute<TQueryResult extends PgQueryRes
           passkeyAuthorizedAt: attemptedAt,
         });
 
-        // This attempt was no rejected sign-in, so it gives its slot of the address's lockout
-        // budget back: only server-rejected attempts count toward the block.
         await discardSignInAttempt(tx, admission.attemptId);
         return true;
       });

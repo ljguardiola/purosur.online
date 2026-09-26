@@ -3,9 +3,7 @@ import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, rolePermissions, roles, users } from "../db/schema.js";
 
-/** Sees every alert regardless of audience or branch. */
 export const VIEW_ALL_ALERTS_PERMISSION = "view_all_alerts";
-/** Sees only a Local alert of the holder's own branch, never an All one or another branch's. */
 export const VIEW_BRANCH_ALERTS_PERMISSION = "view_branch_alerts";
 
 export interface AlertAudienceAccess {
@@ -26,7 +24,6 @@ export function canSeeAllAlerts(access: AlertAudienceAccess): boolean {
 }
 
 export interface AlertViewerAccess extends AlertAudienceAccess {
-  /** Every session has exactly one branch. */
   locationId: string;
 }
 
@@ -40,8 +37,7 @@ export function visibleAlertsCondition(access: AlertViewerAccess): SQL | undefin
   return and(eq(alerts.audience, "local"), eq(alerts.locationId, access.locationId));
 }
 
-// Assumes the caller already joined `users` to `userRoles`/`roles`.
-export function visibleToUsersCondition<TQueryResult extends PgQueryResultHKT>(
+export function visibleToUsersJoinedWithRolesCondition<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   scope: { audience: AlertAudience; locationId: string | undefined },
 ): SQL {
@@ -59,7 +55,7 @@ export function visibleToUsersCondition<TQueryResult extends PgQueryResultHKT>(
       ? and(eq(users.locationId, scope.locationId), inArray(roles.id, viewLocalRoleIds))
       : undefined;
 
-  // `or` never returns undefined here: the first argument alone always yields a defined SQL node.
+  // Drizzle types `or` as possibly undefined; a defined first argument makes it always defined.
   return or(
     eq(roles.isAdministrator, true),
     inArray(roles.id, viewAllRoleIds),

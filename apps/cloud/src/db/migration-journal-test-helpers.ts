@@ -21,8 +21,6 @@ export async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
-// Found by tag suffix, not index, so a renumbering after merging another branch's migration
-// doesn't silently point a test at the wrong file.
 export async function findMigrationEntry(
   tagSuffix: string,
   notFoundMessage: string,
@@ -35,10 +33,8 @@ export async function findMigrationEntry(
   return entry;
 }
 
-/**
- * Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
- * unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
- */
+// Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
+// unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
 export async function migrationsFolderBefore(
   destFolder: string,
   entry: JournalEntry,

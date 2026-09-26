@@ -19,17 +19,9 @@ import {
 import { readSessionCookie } from "./session-cookie.js";
 
 /**
- * The one access level a route declares through its `config.access`:
- * - `public`: no session is required at all.
- * - `open_session`: any open session qualifies, and the request counts as use of it (touches
- *   `last_seen_at`).
- * - `open_session_peek`: any open session qualifies, without counting as use of it, so probing a
- *   session's status never keeps an idle one alive.
- * - `session_cookie`: a session cookie is enough, open or already ended, so signing out of an
- *   ended session still succeeds.
- * - `administrator`: only the Administrator role qualifies, never through a permission.
- * - `permission`: holding one named catalog permission qualifies; an Administrator always does.
- *   Declaring more than one permission is an any-of: holding at least one of them qualifies.
+ * `open_session` counts as use of the session (touches `last_seen_at`); `open_session_peek` does
+ * not. `session_cookie` accepts an already-ended session, so sign-out still works. `permission`
+ * is satisfied by any one of several declared permissions, and an Administrator always satisfies it.
  */
 export type RouteAccess =
   | { level: "public" }
@@ -79,7 +71,6 @@ export function routeSessionSource<TQueryResult extends PgQueryResultHKT>(option
 declare module "fastify" {
   interface FastifyContextConfig {
     access?: RouteAccess;
-    /** Where the session is checked, for every declared level other than `public`. */
     sessionSource?: RouteSessionSource;
   }
 
@@ -107,7 +98,6 @@ export function sessionCookieOf(request: FastifyRequest): string {
   return rawSessionId;
 }
 
-/** Only a route declaring `open_session`, `open_session_peek`, `administrator`, or a `permission` has one. */
 export function openSessionOf(request: FastifyRequest): OpenSession {
   const session = resolvedSessions.get(request);
   if (!session) {
@@ -118,7 +108,8 @@ export function openSessionOf(request: FastifyRequest): OpenSession {
   return session;
 }
 
-/** Adapts a route's own origin check to a `preHandler`, so it runs before the declared access enforcement, appended after it. */
+// Fastify runs preHandlers in array order, so appending enforceDeclaredAccess after this one
+// (in registerRouteAccess) keeps origin checked before access is enforced.
 export function originGuard(
   check: (request: FastifyRequest, reply: FastifyReply) => boolean,
 ): preHandlerAsyncHookHandler {
@@ -201,7 +192,6 @@ async function enforceDeclaredAccess(
   return undefined;
 }
 
-/** For a plugin (like `@fastify/static`) that takes no per-route config of its own; reaches only routes registered in `scope`, never the rest of the app. */
 export function declarePluginRoutesAccess(scope: FastifyInstance, access: RouteAccess): void {
   scope.addHook("onRoute", (routeOptions) => {
     routeOptions.config = { ...routeOptions.config, access };
@@ -212,7 +202,6 @@ function declaredAccessOf(routeOptions: RouteOptions): RouteAccess | undefined {
   return routeOptions.config?.access;
 }
 
-/** A route with no declared access is refused with 403; one declaring a session level without a session source can't be registered at all. */
 export function registerRouteAccess(app: FastifyInstance): void {
   if (app.hasDecorator("routeAccessInventory")) {
     return;

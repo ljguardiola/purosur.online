@@ -15,7 +15,6 @@ export interface SessionStatusRouteOptions<TQueryResult extends PgQueryResultHKT
   now?: () => Date;
 }
 
-/** Never touches `last_seen_at`, so an already-open tab can notice its session ended without keeping an idle one alive. */
 export function registerSessionStatusRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionStatusRouteOptions<TQueryResult>,

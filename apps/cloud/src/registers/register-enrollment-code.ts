@@ -1,11 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 
-// RFC 4648 base32 alphabet, uppercase.
-const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const RFC4648_BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
-// RFC 4648 base32, no `=` padding. Every caller here passes a byte count already a multiple of 5
-// bits (10 bytes), so the partial-group branch below is never actually reached.
-export function base32Encode(bytes: Buffer): string {
+export function base32EncodeUnpadded(bytes: Buffer): string {
   let bitBuffer = 0;
   let bitCount = 0;
   let encoded = "";
@@ -15,24 +12,23 @@ export function base32Encode(bytes: Buffer): string {
     bitCount += 8;
     while (bitCount >= 5) {
       bitCount -= 5;
-      encoded += BASE32_ALPHABET[(bitBuffer >> bitCount) & 0b11111];
+      encoded += RFC4648_BASE32_ALPHABET[(bitBuffer >> bitCount) & 0b11111];
     }
   }
   if (bitCount > 0) {
-    encoded += BASE32_ALPHABET[(bitBuffer << (5 - bitCount)) & 0b11111];
+    encoded += RFC4648_BASE32_ALPHABET[(bitBuffer << (5 - bitCount)) & 0b11111];
   }
 
   return encoded;
 }
 
-// 80 bits of CSPRNG entropy (10 bytes), a multiple of 5 bits so base32 needs no padding.
+// 10 bytes is a multiple of 5 bits, so the base32 encoding below needs no padding.
 const REGISTER_ENROLLMENT_CODE_BYTES = 10;
 export const REGISTER_ENROLLMENT_CODE_LENGTH = 16;
 
-// The only place the raw code exists outside the backoffice screen; only its hash is ever stored
-// (hashRegisterEnrollmentCode below).
+// The only place the raw code exists outside the backoffice screen; only its hash is ever stored.
 export function generateRegisterEnrollmentCode(): string {
-  return base32Encode(randomBytes(REGISTER_ENROLLMENT_CODE_BYTES));
+  return base32EncodeUnpadded(randomBytes(REGISTER_ENROLLMENT_CODE_BYTES));
 }
 
 export function hashRegisterEnrollmentCode(rawCode: string): string {

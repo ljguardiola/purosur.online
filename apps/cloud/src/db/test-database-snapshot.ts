@@ -8,8 +8,6 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 
 export const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 
-// `clusterDumpPath` is required (not optional) so no caller can pay initdb's cost, which
-// dominates the cost of building a test database, by omitting it.
 export async function migrateFreshDatabase(
   migrationsFolder: string,
   clusterDumpPath: string,
@@ -19,7 +17,7 @@ export async function migrateFreshDatabase(
     await migrate(drizzle(client), { migrationsFolder });
     return client;
   } catch (error) {
-    // A failure to close must not replace this migration error, which is the one worth reporting.
+    // Swallow a close failure; the migration error above is what's worth reporting.
     await client.close().catch(() => undefined);
     throw error;
   }
@@ -33,8 +31,6 @@ export interface SnapshotConsumer {
   onTestsRerun(handler: () => Promise<void>): void;
 }
 
-// Runs initdb once, so every database built from a custom migrations folder can load this dump
-// instead of paying for its own initdb.
 async function writeEmptyClusterDump(clusterDumpPath: string): Promise<void> {
   const client = new PGlite();
   try {

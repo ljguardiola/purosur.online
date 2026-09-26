@@ -16,7 +16,6 @@ export interface IssuerIdentificationFieldValidationFailure {
 export interface IssuerIdentificationEditInput {
   legalName: string;
   grossIncomeRegistration: string;
-  /** A zero-padded ISO calendar date (YYYY-MM-DD), never in the future. */
   activityStartDate: string;
   version: number;
 }
@@ -34,7 +33,7 @@ function readRequiredText(
   return trimmed.length > 0 && !isTooLong(trimmed) ? trimmed : undefined;
 }
 
-/** True for a real calendar date: rejects e.g. "2020-02-30", which `Date` would otherwise roll over. */
+// Rejects e.g. "2020-02-30", which `Date` would otherwise roll over instead of rejecting.
 function isRealCalendarDate(year: number, month: number, day: number): boolean {
   const date = new Date(Date.UTC(year, month - 1, day));
   return (
@@ -66,9 +65,7 @@ function readVersion(body: unknown): number | undefined {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
 }
 
-// Every field is required: the incomplete state only exists before the first save, so a save
-// never clears a value. authorized_cuit and tax_status are never read here even if a client sends
-// them; they come only from deployment configuration.
+// authorized_cuit and tax_status are never read here even if a client sends them.
 export function readIssuerIdentificationEditBody(
   body: unknown,
   today: Date,

@@ -44,15 +44,13 @@ export const branchSettings = pgTable("branch_settings", {
   priceListId: uuid("price_list_id")
     .notNull()
     .references(() => priceLists.id),
-  // Optimistic concurrency: the caller resends the version it last read, and a stale version is
-  // rejected instead of silently overwritten. A change to this branch's hours (`branch_hours`
-  // below) bumps this same version too.
+  // Optimistic concurrency: a stale version is rejected, not overwritten; editing branch_hours bumps this too.
   version: integer("version").notNull().default(1),
 });
 
 // day_of_week: 1 = Monday … 7 = Sunday; a day with no rows here is closed.
-// Overlap between two ranges of the same day is validated in the app; an exclusion constraint
-// here would need the `btree_gist` extension.
+// Overlap between ranges of the same day is validated in the app: an exclusion constraint here
+// would need the `btree_gist` extension.
 export const branchHours = pgTable(
   "branch_hours",
   {
@@ -73,9 +71,8 @@ export const branchHours = pgTable(
 
 export const ISSUER_IDENTIFICATION_SINGLETON_ID = "00000000-0000-0000-0000-000000000001";
 
-// `id` is pinned to ISSUER_IDENTIFICATION_SINGLETON_ID by default and CHECK; a different id fails
-// the CHECK, and this same id collides on the primary key, so together they guarantee at most one
-// row. The authorized CUIT and tax status are deployment configuration, never stored here.
+// `id` is pinned to ISSUER_IDENTIFICATION_SINGLETON_ID by default and CHECK: a different id fails
+// the CHECK, and this one collides on the primary key, together guaranteeing at most one row.
 export const issuerIdentification = pgTable(
   "issuer_identification",
   {
@@ -120,21 +117,17 @@ export const roles = pgTable(
     uniqueIndex("roles_single_administrator_key")
       .on(table.isAdministrator)
       .where(sql`${table.isAdministrator} = true`),
-    // Administrator's name is always null: its display name comes from the app's message catalog
-    // instead of being stored.
     check(
       "roles_name_unless_administrator",
       sql`(${table.isAdministrator} AND ${table.name} IS NULL) OR (NOT ${table.isAdministrator} AND ${table.name} IS NOT NULL)`,
     ),
-    // Case-insensitive uniqueness is global, not per branch. Every null name (Administrator) is
-    // distinct to Postgres, so this never conflicts with roles_single_administrator_key above.
+    // Nulls are distinct to Postgres, so every Administrator's null name never conflicts here.
     uniqueIndex("roles_name_lower_key").on(sql`lower(${table.name})`),
   ],
 );
 
-// The permission catalog lives in code (@purosur/contracts), not here: a new key reaches every
-// role that grants it without a migration. Administrator gets no rows; it holds every permission
-// implicitly via roles.is_administrator.
+// The permission catalog lives in code (@purosur/contracts), not here, so a new key needs no
+// migration. Administrator holds every permission implicitly (roles.is_administrator) and gets no rows.
 export const rolePermissions = pgTable(
   "role_permissions",
   {
@@ -181,9 +174,8 @@ export const categories = pgTable(
   ],
 );
 
-// active is one-way: a product is deactivated, never deleted (the migration also revokes DELETE on
-// this table), so its historical sale lines keep referencing it. netContentQuantity/netContentUnit
-// are informational only, never read by pricing or stock.
+// active is one-way (never deleted): the migration also revokes DELETE on this table, so
+// historical sale lines keep referencing it.
 export const products = pgTable(
   "products",
   {
@@ -216,9 +208,8 @@ export const products = pgTable(
   ],
 );
 
-// active mirrors products.active (updated in the same transaction): a partial index can't read
-// another table's column, so this flag scopes the barcode uniqueness below to active products,
-// freeing a deactivated product's barcode for reuse.
+// Mirrors products.active (same transaction): a partial index can't read another table's column,
+// so this flag scopes the uniqueness below to active products.
 export const productBarcodes = pgTable(
   "product_barcodes",
   {
@@ -327,7 +318,6 @@ export const registers = pgTable(
   ],
 );
 
-// Only code_hash (SHA-256) is stored, never the raw code — same as sessions.session_id_hash.
 export const registerEnrollmentCodes = pgTable("register_enrollment_codes", {
   registerId: uuid("register_id")
     .primaryKey()
@@ -380,10 +370,8 @@ export const recoveryTokens = pgTable(
       .notNull()
       .references(() => users.id),
     tokenHash: text("token_hash").notNull(),
-    // Can be well before issued_at when a retried job reuses the same admitted request; a job
-    // never replaces a token issued for a newer request.
+    // Can be well before issued_at when a retried job reuses the same admitted request.
     requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-    // Identifies the admitted request, so a retry of its job recognizes the token it issued.
     requestId: uuid("request_id").notNull().defaultRandom(),
     issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -402,13 +390,11 @@ export const recoveryTokens = pgTable(
 export const recoveryRateLimitKeyKind = pgEnum("recovery_rate_limit_key_kind", [
   "destination_address",
   "source_address",
-  // The registration-options and redeem endpoints share this one, keyed by source address only
-  // (there is no destination address once the recovery token itself identifies the account).
+  // No destination address once the recovery token itself identifies the account.
   "redemption_source_address",
 ]);
 
-// One row per admitted attempt (rolling 60-minute window, not a clock hour); rows are pruned as
-// later ones land, keeping storage bounded to the last hour.
+// A rolling 60-minute window, not a clock hour.
 export const recoveryRateLimitAttempts = pgTable(
   "recovery_rate_limit_attempts",
   {
@@ -433,9 +419,8 @@ export const recoveryRejectedAttemptKind = pgEnum("recovery_rejected_attempt_kin
   "redeem",
 ]);
 
-// One row per (kind, key_hash, window), incremented on each rejected attempt instead of one row
-// per event. A graphile-worker cron flushes each closed window into one audit_log row, then
-// deletes it — bounded to one row per key per open hour.
+// One row per (kind, key_hash, window): a graphile-worker cron flushes each closed window into
+// one audit_log row, then deletes it.
 export const recoveryRejectedAttemptAccumulator = pgTable(
   "recovery_rejected_attempt_accumulator",
   {
@@ -457,9 +442,6 @@ export const recoveryRejectedAttemptAccumulator = pgTable(
   ],
 );
 
-// Only the SHA-256 hash of the session id is stored, never the raw cookie value.
-// revoked_at covers every early stop (sign-out, a recovery redemption, a future forced
-// termination) without a separate events table.
 export const sessions = pgTable(
   "sessions",
   {
@@ -471,9 +453,7 @@ export const sessions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    // 5-minute step-up window opened by a passkey sign-in or `POST
-    // /users/session/authorization`, checked by requirePasskeyAuthorization and never itself
-    // consumed. A recovery redemption never sets it.
+    // Opens a 5-minute step-up window; never itself consumed, and a recovery redemption never sets it.
     passkeyAuthorizedAt: timestamp("passkey_authorized_at", { withTimezone: true }),
   },
   (table) => [uniqueIndex("sessions_session_id_hash_key").on(table.sessionIdHash)],
@@ -484,10 +464,8 @@ export const passkeyManagementChallengeKind = pgEnum("passkey_management_challen
   "session_authorization",
 ]);
 
-// `registration` stores only registration_challenge; `session_authorization` only
-// reauthentication_challenge — not enforced by a check here, only by the routes that write them.
-// Keyed by (session_id, kind), not by challenge value (unlike sign_in_challenges), since an open
-// session already identifies the account.
+// `registration` and `session_authorization` each populate only their own challenge column,
+// not enforced by a check here — only by the routes that write them.
 export const passkeyChallenges = pgTable(
   "passkey_challenges",
   {
@@ -518,9 +496,7 @@ export const signInChallenges = pgTable(
 );
 
 // Keyed by source address only: without a password there's no "wrong password", and without a
-// username there's no account to key a lockout on. Unlike recovery_rate_limit_attempts (which
-// throttles admitted volume), reaching the threshold here imposes a fixed 15-minute block
-// regardless of the rolling window's own decay (see sign_in_lockouts below).
+// username there's no account to lock out.
 export const signInFailures = pgTable(
   "sign_in_failures",
   {
@@ -549,8 +525,6 @@ export const backofficeRateLimitKeyKind = pgEnum("backoffice_rate_limit_key_kind
   "source_address",
 ]);
 
-// Same rolling-window shape as recovery_rate_limit_attempts: one row per event, pruned as later
-// ones land.
 export const backofficeRateLimitAttempts = pgTable(
   "backoffice_rate_limit_attempts",
   {
@@ -573,16 +547,13 @@ export const alertLevel = pgEnum("alert_level", ["informational", "warning", "cr
 
 export const alertAudience = pgEnum("alert_audience", ["local", "all"]);
 
-// kind and scope are free text (the kind catalog lives in code, so a new kind reaches this table
-// without a migration); scope's shape varies by kind.
+// kind and scope are free text: the kind catalog lives in code, so a new kind needs no migration.
 export const alerts = pgTable(
   "alerts",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     kind: text("kind").notNull(),
     scope: text("scope").notNull(),
-    // The alert's current level: starts at the kind's opening level and moves to `critical` once
-    // escalated. Never the same column as a kind's own catalog level, which never changes.
     level: alertLevel("level").notNull(),
     audience: alertAudience("audience").notNull(),
     locationId: uuid("location_id").references(() => locations.id),
@@ -612,8 +583,7 @@ export const alertDeliveryChannel = pgEnum("alert_delivery_channel", ["backoffic
 
 export const alertDeliveryStatus = pgEnum("alert_delivery_status", ["sent", "failed"]);
 
-// status/error exist for a future delivery channel that can fail; today's only channel
-// (backoffice) always writes `sent`.
+// status/error exist for a future channel that can fail; the only channel today (backoffice) always writes `sent`.
 export const alertDeliveries = pgTable(
   "alert_deliveries",
   {

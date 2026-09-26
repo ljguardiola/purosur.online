@@ -16,7 +16,6 @@ export interface ConsumeSignInChallengeInput {
   now: Date;
 }
 
-/** Stores a freshly issued authentication challenge, keyed by its own value. */
 export async function storeSignInChallenge<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: StoreSignInChallengeInput,

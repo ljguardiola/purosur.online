@@ -12,11 +12,8 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   jobQueue: RecoveryJobQueue;
   backofficeOrigin: string;
-  /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
-  /** Injected in tests to prove a bookkeeping failure never turns the 429 into a 500. */
   recordRejectedAttempt?: typeof recordRejectedAttempt;
-  /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
 }
 
@@ -35,7 +32,6 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
     "/users/recovery/request",
     { config: { access: PUBLIC_ACCESS } },
     async (request, reply) => {
-      // No session exists on this path, so CSRF is checked via the Origin header instead.
       if (request.headers.origin !== options.backofficeOrigin) {
         await reply.code(403).send({
           code: "origin_rejected",

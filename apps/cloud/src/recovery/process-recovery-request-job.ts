@@ -19,12 +19,12 @@ export interface ProcessRecoveryRequestJobDeps {
 }
 
 export interface ProcessRecoveryRequestJobResult {
-  /** Sent by the caller only after it releases the pool client this job borrowed, so a slow send
-   * never holds a connection checked out. */
+  /** Sent only after the caller releases the pool client this job borrowed, so a slow send never
+   * holds a connection checked out. */
   send?: SendRecoveryLinkInput;
 }
 
-const TOKEN_BYTES = 20; // 160 bits: well above the entropy floor for this kind of token.
+const TOKEN_BYTES = 20;
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
@@ -32,7 +32,7 @@ function generateRawToken(): string {
 }
 
 function recoveryLink(backofficeOrigin: string, rawToken: string): string {
-  // The token lives in the URL fragment, so it never reaches the server, access logs, or a
+  // The token lives in the URL fragment: fragments never reach the server, access logs, or a
   // Referer header.
   return `${backofficeOrigin}/account-recovery/passkey#${rawToken}`;
 }

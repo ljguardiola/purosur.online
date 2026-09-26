@@ -27,9 +27,8 @@ import {
   readParentId,
 } from "./category-validation.js";
 
-// Acquired before any row lock: taken after, two concurrent moves could each hold their own row
-// lock while waiting here, then deadlock trying to lock each other's row as the new parent. This
-// ordering serializes moves, so the descendant check below never races another move into a cycle.
+// Acquired before any row lock, otherwise two concurrent moves could each hold their own row lock
+// and deadlock trying to lock each other's row as the new parent.
 export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
 export const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
@@ -37,7 +36,6 @@ export const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
   message: "a category can't be moved under itself or one of its own descendants",
 } as const;
 
-// A malformed id and a missing one answer alike, so the response never leaks which case it was.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no category with that id",
@@ -66,7 +64,6 @@ function readEditBody(body: unknown): EditRequestBody | CategoryFieldValidationF
     return nameFailure;
   }
   if (!name) {
-    // Unreachable: `categoryNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
   // A client loaded before nesting existed sends only a name and version; treating a missing
@@ -91,7 +88,6 @@ function isValidationFailure(
   return "field" in value;
 }
 
-/** Looks up one category by id, answering `undefined` for a malformed or missing one alike. */
 export async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -223,7 +219,6 @@ export async function editCategory<TQueryResult extends PgQueryResultHKT>(
     });
 }
 
-// No passkey step-up here: this permission isn't Administrator-only, unlike role management.
 export function registerCategoryEditRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,

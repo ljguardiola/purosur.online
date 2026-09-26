@@ -23,11 +23,8 @@ import { resolveWebAuthnConfig } from "./webauthn-config.js";
 export interface RecoveryRedemptionRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the rate limiter's rolling one-hour window is deterministic. */
   now?: () => Date;
-  /** Injected in tests to prove a bookkeeping failure never turns the 429 into a 500. */
   recordRejectedAttempt?: typeof recordRejectedAttempt;
-  /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
 }
 
@@ -136,7 +133,6 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     await reply.code(400).send({ code: "validation_failed", ...body });
   }
 
-  // Distinct code: the device already holds this credential and can't be asked to forget it.
   async function rejectRedemptionAsAlreadyRegistered(
     reply: FastifyReply,
     token: RecoveryTokenRow,

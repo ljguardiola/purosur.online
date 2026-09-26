@@ -18,7 +18,6 @@ export function hasValidPasskeyAuthorization(
   return now.getTime() - session.passkeyAuthorizedAt.getTime() <= PASSKEY_AUTHORIZATION_WINDOW_MS;
 }
 
-/** Never consumed by passing this check, so one successful authorization keeps covering further sensitive actions for the rest of its window. */
 export async function requirePasskeyAuthorization(
   session: { passkeyAuthorizedAt: Date | null },
   reply: FastifyReply,

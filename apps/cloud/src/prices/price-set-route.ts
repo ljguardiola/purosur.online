@@ -41,7 +41,6 @@ export interface SetPriceInput {
   productId: string;
   priceListId: string;
   unitPrice: number;
-  /** `null` means the caller saw no current price; the product's most recent price otherwise. */
   expectedCurrentPriceId: string | null;
   actorId: string;
   now: () => Date;
@@ -164,7 +163,6 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
       const outcome = await setPrice(options.db, {
         productId: target.id,
         priceListId,
-        // `validateSetPriceFields` above already guarantees both are defined.
         unitPrice: unitPrice as number,
         expectedCurrentPriceId: expectedCurrentPriceId as string | null,
         actorId: openSession.userId,

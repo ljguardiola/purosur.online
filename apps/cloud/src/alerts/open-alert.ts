@@ -3,13 +3,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
 import { alertKindDefinition } from "./alert-kind-catalog.js";
-import { visibleToUsersCondition } from "./alert-visibility.js";
+import { visibleToUsersJoinedWithRolesCondition } from "./alert-visibility.js";
 
 const UNIQUE_VIOLATION = "23505";
 const ALERT_OPEN_DEDUP_UNIQUE_INDEX = "alerts_open_dedup_key";
 
-// Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on the dedup
-// index: postgres-js names the field `constraint_name`, PGlite names it `constraint`.
+// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
 export function isAlertOpenDedupViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -37,9 +36,7 @@ export type PasskeyChangedDetail =
   | { action: "removed"; passkeyName: string; actorId: string; via: "administrator" };
 
 export type OpenAlertInput = {
-  /** The other half of the deduplication key (with `kind`): a user id, a source address, etc. */
   scope: string;
-  /** Required only for a Local-audience kind; no catalog kind uses one yet. */
   locationId?: string;
 } & (
   | { kind: "backoffice_passkey_changed"; detail: PasskeyChangedDetail }
@@ -67,7 +64,12 @@ export async function recipientsFor<TQueryResult extends PgQueryResultHKT>(
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(and(eq(users.active, true), visibleToUsersCondition(tx, { audience, locationId })));
+    .where(
+      and(
+        eq(users.active, true),
+        visibleToUsersJoinedWithRolesCondition(tx, { audience, locationId }),
+      ),
+    );
   return rows.map((row) => row.id);
 }
 
@@ -84,8 +86,7 @@ export async function openAlert<TQueryResult extends PgQueryResultHKT>(
       : new Date(openedAt.getTime() + definition.escalatesAfterMs);
   const locationId = definition.audience === "local" ? (input.locationId ?? null) : null;
 
-  // In its own savepoint: a unique-violation aborts the statement, and without a savepoint that
-  // would poison the caller's own outer transaction instead of letting it read the open alert back.
+  // A unique violation aborts the whole transaction unless it happens inside a savepoint.
   let created: { id: string } | undefined;
   try {
     const [row] = await tx.transaction((savepoint) =>
@@ -118,8 +119,6 @@ export async function openAlert<TQueryResult extends PgQueryResultHKT>(
         and(eq(alerts.kind, input.kind), eq(alerts.scope, input.scope), isNull(alerts.resolvedAt)),
       );
     if (!existing) {
-      // Unreachable unless the driver/index mismatch: the violating row must be an open alert of
-      // this same kind and scope.
       throw new Error(
         `openAlert: dedup violation for ${input.kind}/${input.scope} but no open alert found`,
       );

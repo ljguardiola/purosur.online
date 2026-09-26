@@ -16,21 +16,16 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// A malformed, missing, or other-branch id all answer alike, so none is distinguishable from the
-// others.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
 } as const;
 
-// The acting account here is the target user, never the Administrator's own.
 const PASSKEY_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no passkey with that id belongs to this user",
 } as const;
 
-// An Administrator removes their own passkeys from Mi cuenta (which never ends their own
-// session), never from this route.
 const OWN_ACCOUNT_RESPONSE = {
   code: "own_account",
   message: "use Mi cuenta to manage your own passkeys",
@@ -55,7 +50,6 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
     return true;
   }
 
-  /** Folds a malformed id into the same 404 a missing or another branch's id gets. */
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -94,9 +88,8 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
       }
 
       const removed = await options.db.transaction(async (tx) => {
-        // Deleting first takes the passkey's row lock before anything else: a concurrent removal
-        // of the same passkey then deletes nothing and answers not_found, and a sign-in with it
-        // that got the lock first has committed its session before the sessions below are ended.
+        // Deleting first takes the passkey's row lock, so a concurrent removal of it finds nothing
+        // (not_found), and a racing sign-in with it has already committed its session before the revoke below.
         const [removedPasskey] = await tx
           .delete(passkeys)
           .where(and(eq(passkeys.id, passkeyId), eq(passkeys.userId, target.id)))
@@ -105,8 +98,8 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
           return undefined;
         }
 
-        // A session already open on a lost device must not outlive its passkey, so every session
-        // of the target ends here. Self-removal from Mi cuenta never does this.
+        // A session open on a lost device must not outlive its removed passkey, so every session
+        // of the target ends here.
         await tx
           .update(sessions)
           .set({ revokedAt: attemptedAt })

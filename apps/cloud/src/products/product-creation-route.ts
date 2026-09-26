@@ -34,18 +34,14 @@ export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
   message: "categoryId must be an existing category's id",
 };
 
-// A leaf-only violation is a 409, not a 400 like `CATEGORY_NOT_FOUND_FAILURE`: unlike a malformed
-// or nonexistent id, `categoryId` here is well-formed and names a real category, so it is a
-// conflict with the tree's current state, the same way `barcode_taken` (below) is, not a
-// malformed request.
+// 409, not 400 like `CATEGORY_NOT_FOUND_FAILURE`: a well-formed, existing categoryId that isn't a
+// leaf is a state conflict, not a malformed request.
 export const CATEGORY_NOT_LEAF_RESPONSE = {
   code: "category_not_leaf",
   message: "categoryId must be a leaf category with no subcategories of its own",
 } as const;
 
-// Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
-// `product_barcodes.code`: postgres-js names the field `constraint_name`, PGlite names it
-// `constraint`.
+// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
 export function isBarcodeUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -111,8 +107,7 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: ProductRow };
 
-// A code held only by a deactivated product's barcode is free to reuse: a barcode resolves to a
-// single active product, so only an active barcode row counts as taken.
+// Only an active barcode counts as taken; a deactivated product's barcode is free to reuse.
 async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],

@@ -3,7 +3,6 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products } from "../db/schema.js";
 import { UUID_PATTERN } from "../db/uuid-pattern.js";
 
-// Answers `undefined` for a malformed id, a missing product, or a deactivated one alike.
 export async function findActiveProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,

@@ -17,7 +17,7 @@ export type PasskeyReauthenticationResult =
   | { verified: true; passkeyId: string }
   | { verified: false };
 
-/** Verifies a WebAuthn assertion against one of `userId`'s own passkeys, scoped so another account's matching credential id is never accepted. */
+/** Scoped to `userId` so another account's matching credential id is never accepted. */
 export async function verifyPasskeyReauthentication<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: VerifyPasskeyReauthenticationInput,

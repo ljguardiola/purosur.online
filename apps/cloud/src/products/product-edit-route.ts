@@ -56,8 +56,6 @@ function readVersion(body: unknown): number | undefined {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
 }
 
-// `netContent` absent clears it the same way an explicit `null` does: every other field is resent
-// on every edit too, so there is no partial-patch convention for this one field either.
 function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFailure {
   const name = readProductName(body);
   const categoryId = readCategoryId(body);
@@ -89,7 +87,6 @@ function isValidationFailure(
   return "field" in value;
 }
 
-// Answers `undefined` for a malformed id or a missing product alike.
 export async function findProductById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -118,8 +115,6 @@ export type EditProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: ProductRow };
 
-// A code held only by another product's deactivated barcode is free to reuse: a barcode resolves
-// to a single active product, so only an active barcode row counts as taken.
 async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],
@@ -138,8 +133,6 @@ async function barcodesTakenByAnotherProduct<TQueryResult extends PgQueryResultH
   return rows.map((row) => row.code);
 }
 
-// Always bumps the version, unlike some other edit routes: replacing the barcode set is a write on
-// every call, so there is no meaningful no-op to detect.
 export async function editProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditProductInput,
@@ -162,8 +155,8 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
       }
       const { category } = locked;
 
-      // An inactive product's barcodes are written inactive below, and uniqueness only binds active
-      // barcodes, so a code an active product holds does not conflict with them.
+      // Skipped for an inactive product: its barcodes are written inactive below, so none can
+      // conflict under the active-only uniqueness rule.
       if (current.active) {
         const taken = await barcodesTakenByAnotherProduct(tx, input.barcodes, input.id);
         if (taken.length > 0) {
@@ -185,8 +178,8 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         .where(eq(products.id, input.id));
       await tx.delete(productBarcodes).where(eq(productBarcodes.productId, input.id));
       await tx.insert(productBarcodes).values(
-        // Mirrors the product's own (unchanged) `active` flag: an inactive product's barcodes stay
-        // inactive, not silently reactivated by the insert default.
+        // Mirrors the product's own `active` flag; the insert default would otherwise reactivate a
+        // deactivated product's barcodes.
         input.barcodes.map((code, position) => ({
           productId: input.id,
           code,

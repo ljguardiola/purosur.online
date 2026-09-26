@@ -15,8 +15,6 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// A malformed, missing, other-branch, inactive, or Administrator target id all answer alike, so
-// none of them is distinguishable from the others.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -43,8 +41,6 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
     return true;
   }
 
-  // Folds a malformed id, an Administrator target, and the actor's own account (a deactivation
-  // can't be undone) into the same 404 a missing id gets.
   async function findTarget(locationId: string, actorId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -81,9 +77,8 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Locks the Administrator role row, then the user row, in the same order as the edit route
-        // (so the two never deadlock), and re-reads `active` and the role under those locks: the
-        // check above ran before them, so a target promoted or deactivated since is caught here.
+        // Locks the Administrator role row, then the user row, in the edit route's order so the
+        // two never deadlock, and re-reads `active` and the role under those locks.
         const [administratorRole] = await tx
           .select({ id: roles.id })
           .from(roles)
@@ -110,8 +105,6 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
           .set({ active: false, version: current.version + 1 })
           .where(eq(users.id, target.id));
 
-        // A deactivated user's open backoffice sessions end at once, the same way removing their
-        // last passkey ends every session already open on the account.
         await tx
           .update(sessions)
           .set({ revokedAt: attemptedAt })

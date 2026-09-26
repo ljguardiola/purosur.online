@@ -31,7 +31,6 @@ import {
 } from "./role-validation.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 
-// The Administrator role, a missing id, and a malformed one all answer alike, so none leaks which one it was.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no editable role with that id",
@@ -60,7 +59,6 @@ function readEditBody(body: unknown): EditRequestBody | RoleFieldValidationFailu
     return nameFailure;
   }
   if (!name) {
-    // Unreachable: `roleNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
   const permissionKeys = readRolePermissionKeys(body);
@@ -107,7 +105,6 @@ export type EditRoleOutcome =
   | { kind: "name_taken" }
   | { kind: "applied"; role: EditedRole };
 
-/** Leaving the name and permission set exactly as they were is a no-op: the version does not bump and nothing is audited. */
 export async function editRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditRoleInput,
@@ -125,8 +122,6 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
         .where(eq(roles.id, input.id))
         .for("update");
       if (!current || current.isAdministrator) {
-        // Unreachable in practice (nothing deletes a role or flips its Administrator flag after the
-        // pre-transaction lookup); answering stale_version keeps this route's failure shape uniform.
         return { kind: "stale_version" };
       }
       if (current.version !== input.version) {

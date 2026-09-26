@@ -47,10 +47,7 @@ function normalizeEmail(rawEmail: string): string {
   return email;
 }
 
-// Refuses, creating nothing, once any user exists, so it can never mint a second administrator.
 export async function createFirstAdministrator<TQueryResult extends PgQueryResultHKT>(
-  // Generic over the query-result kind so the same use case runs unchanged against the
-  // production postgres-js database and the PGlite database used in tests.
   db: PgDatabase<TQueryResult>,
   input: CreateFirstAdministratorInput,
 ): Promise<CreateFirstAdministratorResult> {

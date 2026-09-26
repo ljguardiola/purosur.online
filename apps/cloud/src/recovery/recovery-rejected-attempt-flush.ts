@@ -9,17 +9,16 @@ import {
 import { RECOVERY_WINDOW_MS } from "./recovery-rate-limiter.js";
 import type { RecoveryRejectedAttemptKind } from "./recovery-rejected-attempt-accumulator.js";
 
-// Waits this long past the hour so a rejection sampled just before it ends can finish upserting,
-// instead of a late upsert re-creating a row the flush already deleted.
+// Lets a rejection sampled just before the hour ends finish upserting before the flush deletes
+// its row.
 const CLOSE_GRACE_MS = 10 * 60 * 1000;
-// Bounds one batch's rows and the parameters one statement binds, since a flood picks how many
-// keys it creates. A batch can still exceed this by carrying along an account's other closed rows.
+// Bounds one batch's rows and the parameters one statement binds; a batch can still exceed this
+// by carrying an account's other closed rows along.
 const FLUSH_BATCH_SIZE = 500;
 const FLUSH_LOCK_KEY = "recovery-rejected-attempt-flush";
 
 export interface FlushRecoveryRejectedAttemptWindowsDeps {
   now: () => Date;
-  /** Injected in tests to split a handful of rows across several batches. */
   batchSize?: number;
 }
 

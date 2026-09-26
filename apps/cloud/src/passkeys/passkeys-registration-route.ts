@@ -37,12 +37,8 @@ const REGISTRATION_FAILED_RESPONSE = {
 
 class CredentialAlreadyRegistered extends Error {}
 
-/**
- * `registration-options` checks the passkey-authorization window before the browser starts a
- * creation ceremony, so it never leaves an orphan credential on the authenticator. `POST
- * /users/passkeys` doesn't recheck it: consuming the one-time challenge it issued is proof the
- * ceremony started under a valid authorization, so it still completes if the window lapses meanwhile.
- */
+// Doesn't recheck the passkey-authorization window here: consuming the one-time challenge
+// from registration-options already proves the ceremony started under a valid authorization.
 export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeyRegistrationRouteOptions<TQueryResult>,
@@ -230,7 +226,6 @@ export function registerPasskeyRegistrationRoutes<TQueryResult extends PgQueryRe
         });
 
       if (!inserted) {
-        // Distinct code: the device already holds this credential and can't be told to forget it.
         await reply.code(400).send({
           code: "passkey_already_registered",
           message: "this passkey is already registered",
