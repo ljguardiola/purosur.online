@@ -82,7 +82,7 @@ const HOVER_DELAY_MS = 300;
 // element and the box. react-stately cancels the pending close the moment the tooltip reports its
 // own hover start, so this only has to outlast that crossing: 100ms covers those 10px even at a
 // slow 100px per second.
-const CLOSE_DELAY_MS = 100;
+export const CLOSE_DELAY_MS = 100;
 
 export function Tooltip({ description, children }: TooltipProps) {
   return (

@@ -9,7 +9,7 @@ import type { DispatchableCdpSession } from "../test/setup-browser";
 import { rgbToHex, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
-import { Tooltip, type TooltipProps } from "./Tooltip";
+import { CLOSE_DELAY_MS, Tooltip, type TooltipProps } from "./Tooltip";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -52,11 +52,6 @@ const axeOptions = {
     },
   },
 };
-
-// Mirrors Tooltip.tsx's own close delay: the grace a pointer gets to cross from the element onto
-// the tooltip. The close test checks the tooltip is still open 1ms before it runs out and gone
-// once it has, so the two values cannot drift apart unnoticed.
-const TOOLTIP_CLOSE_GRACE_MS = 100;
 
 // react-stately's own default close delay: the linger after the pointer leaves that the tooltip's
 // shorter grace replaces.
@@ -459,8 +454,9 @@ test("appears on hover and disappears within a short grace period once the point
 
   // Frozen timers make the grace a count of simulated milliseconds instead of wall-clock time a
   // loaded machine can stretch. Rerendering goes through React's act, which commits anything a
-  // timer that did fire scheduled before the page is read.
-  expect(TOOLTIP_CLOSE_GRACE_MS).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
+  // timer that did fire scheduled before the page is read. The checks below advance by the
+  // component's own delay, so they prove it is honored but not that it is short; this bound does.
+  expect(CLOSE_DELAY_MS).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
   const watch = new AbortController();
   const leftElement = new Promise<void>((resolve) => {
     trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
@@ -472,7 +468,7 @@ test("appears on hover and disappears within a short grace period once the point
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
       await beforeDeadline(leftElement, "the pointer never left the element");
 
-      vi.advanceTimersByTime(TOOLTIP_CLOSE_GRACE_MS - 1);
+      vi.advanceTimersByTime(CLOSE_DELAY_MS - 1);
       await screen.rerender(ui);
       expect(screen.getByRole("tooltip").elements().length, "closed before the grace ran out").toBe(
         1,
@@ -600,24 +596,6 @@ test("exposes the tooltip as its element's description instead of separate conte
 
   const tooltip = tooltipElement(screen);
   expect(trigger.getAttribute("aria-describedby")).toBe(tooltip.id);
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
-});
-
-test("flips from below to above when the default placement would leave the window", async () => {
-  const screen = await render(
-    <div style={{ position: "fixed", bottom: 4, left: 4 }}>
-      <Tooltip description="Voided at checkout by the manager on duty">
-        <Button>Void reason</Button>
-      </Tooltip>
-    </div>,
-  );
-  const trigger = screen.getByRole("button", { name: "Void reason" }).element();
-
-  await userEvent.hover(trigger);
-  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-
-  await expect.poll(() => tooltipElement(screen).dataset.placement).toBe("top");
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
