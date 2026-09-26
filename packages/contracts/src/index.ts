@@ -33,11 +33,16 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog";
+export type { NetContentUnit } from "./product";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
+  NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,

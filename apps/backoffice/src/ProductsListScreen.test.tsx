@@ -46,6 +46,7 @@ const miel: ProductSummary = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
+  netContent: null,
   active: true,
   version: 1,
 };
@@ -57,6 +58,7 @@ const almendras: ProductSummary = {
   categoryName: "Frutos secos",
   saleUnit: "KG",
   barcodes: ["7790000000001"],
+  netContent: null,
   active: true,
   version: 1,
 };
@@ -405,6 +407,7 @@ test("creates a product and shows it in the list", async () => {
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    netContent: null,
     active: true,
     version: 1,
   };
@@ -432,9 +435,137 @@ test("creates a product and shows it in the list", async () => {
     categoryId: "category-1",
     saleUnit: "KG",
     barcodes: ["7790000000099"],
+    netContent: null,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Pasta de maní 380 g")).toBeVisible();
+});
+
+test("creates a product with a net content", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const created: ProductSummary = {
+    id: "product-3",
+    name: "Pasta de maní 380 g",
+    categoryId: "category-1",
+    categoryName: "Almacén",
+    saleUnit: "KG",
+    barcodes: ["7790000000099"],
+    netContent: { quantity: 1.5, unit: "KG" },
+    active: true,
+    version: 1,
+  };
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", value: created });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Pasta de maní 380 g");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por peso"));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "1,5");
+  await userEvent.click(dialog.getByRole("button", { name: "g Unidad" }));
+  await userEvent.click(dialog.getByRole("option", { name: "kg" }));
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: "Escanear otro código" }),
+    "7790000000099",
+  );
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledWith({
+    name: "Pasta de maní 380 g",
+    categoryId: "category-1",
+    saleUnit: "KG",
+    barcodes: ["7790000000099"],
+    netContent: { quantity: 1.5, unit: "KG" },
+  });
+});
+
+test("rejects an invalid net content quantity, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
+  await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
+  await userEvent.click(dialog.getByRole("option", { name: "Almacén" }));
+  await userEvent.click(radioLabel(dialog, "Por unidad"));
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "0");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
+    .toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("shows the server's net content error inline on create", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContentQuantity",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
+    .toBeVisible();
+});
+
+test("rejects a net content quantity above the maximum, stating the limit, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "100001");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Ingresá una cantidad de hasta 100.000.")).toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("shows the server's rejection of the whole net content inline on create", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContent",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
 });
 
 test("a product created while only inactive products are listed stays out of the list", async () => {
@@ -448,6 +579,7 @@ test("a product created while only inactive products are listed stays out of the
     categoryName: "Almacén",
     saleUnit: "UNIT",
     barcodes: ["7790000000099"],
+    netContent: null,
     active: true,
     version: 1,
   };
@@ -689,6 +821,37 @@ test("the row action opens the edit modal pre-filled with the product's data", a
   await expect.element(dialog.getByText("7790987000015")).toBeVisible();
 });
 
+test("prefills a decimal net content quantity with a decimal comma and no thousands separator, and its unit", async () => {
+  const services = createServices();
+  const mielConContenido: ProductSummary = {
+    ...miel,
+    netContent: { quantity: 1500.125, unit: "G" },
+  };
+  mockLoaded(services, [mielConContenido]);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, mielConContenido);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Contenido neto" }))
+    .toHaveValue("1500,125");
+  await expect.element(dialog.getByRole("button", { name: "g Unidad" })).toBeVisible();
+});
+
+test("opens the edit modal defaulting the net content unit to g when the product has none", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Editar el producto Miel pura de abeja 1 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("");
+  await expect.element(dialog.getByRole("button", { name: "g Unidad" })).toBeVisible();
+});
+
 test("edits a product and shows the updated data in the list", async () => {
   const services = createServices();
   mockLoaded(services, [miel]);
@@ -713,10 +876,111 @@ test("edits a product and shows the updated data in the list", async () => {
     categoryId: "category-1",
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    netContent: null,
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Miel pura de abeja 500 g")).toBeVisible();
+});
+
+test("changes a product's net content on edit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const updated: ProductSummary = { ...miel, netContent: { quantity: 500, unit: "G" }, version: 2 };
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+    name: "Miel pura de abeja 1 kg",
+    categoryId: "category-1",
+    saleUnit: "UNIT",
+    barcodes: ["7790987000015"],
+    netContent: { quantity: 500, unit: "G" },
+    version: 1,
+  });
+});
+
+test("clears a product's net content by emptying the quantity on edit", async () => {
+  const services = createServices();
+  const mielConContenido: ProductSummary = { ...miel, netContent: { quantity: 1, unit: "KG" } };
+  mockLoaded(services, [mielConContenido]);
+  const updated: ProductSummary = { ...mielConContenido, netContent: null, version: 2 };
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok", value: updated });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, mielConContenido);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith("product-1", {
+    name: "Miel pura de abeja 1 kg",
+    categoryId: "category-1",
+    saleUnit: "UNIT",
+    barcodes: ["7790987000015"],
+    netContent: null,
+    version: 1,
+  });
+});
+
+test("shows the server's net content error inline on edit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContentQuantity",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
+    .toBeVisible();
+});
+
+test("shows the server's rejection of the whole net content inline on edit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContent",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
+});
+
+test("reloading after a stale-version conflict restores the fresh net content quantity and unit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = {
+    ...miel,
+    netContent: { quantity: 2.5, unit: "L" },
+    version: 2,
+  };
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("2,5");
+  await expect.element(dialog.getByRole("button", { name: "l Unidad" })).toBeVisible();
 });
 
 test("shows a stale-version conflict banner, and reloading restores the fresh product before saving again", async () => {
@@ -761,6 +1025,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
     categoryId: "category-1",
     saleUnit: "UNIT",
     barcodes: ["7790987000015"],
+    netContent: null,
     version: 2,
   });
 });
@@ -1056,6 +1321,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
     categoryId: "category-1",
     saleUnit: "UNIT",
     barcodes: ["7790000000099"],
+    netContent: null,
   });
 });
 
@@ -1092,6 +1358,7 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
     categoryId: "category-1",
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "7790000000099"],
+    netContent: null,
     version: 1,
   });
 });
@@ -1328,6 +1595,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     categoryName: "Almacén",
     saleUnit: "KG",
     barcodes: ["2000000000015"],
+    netContent: null,
     active: true,
     version: 1,
   };
@@ -1352,6 +1620,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     categoryId: "category-1",
     saleUnit: "KG",
     barcodes: ["2000000000015"],
+    netContent: null,
   });
 });
 
@@ -1380,6 +1649,7 @@ test("generates an internal code from the edit modal and saves it alongside the 
     categoryId: "category-1",
     saleUnit: "UNIT",
     barcodes: ["7790987000015", "2000000000015"],
+    netContent: null,
     version: 1,
   });
 });

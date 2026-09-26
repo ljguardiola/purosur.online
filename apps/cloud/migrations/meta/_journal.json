@@ -208,8 +208,15 @@
     {
       "idx": 29,
       "version": "7",
-      "when": 1790395119467,
-      "tag": "0029_prices_and_price_reviews",
+      "when": 1790394409263,
+      "tag": "0029_product_net_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790396517836,
+      "tag": "0030_prices_and_price_reviews",
       "breakpoints": true
     }
   ]

@@ -288,6 +288,13 @@ export interface SetUpRecoveryDeps {
    * it, so `startServer` always gets the sender `resolveRecoveryEmailSenderEnv` selected.
    */
   emailSender?: RecoveryEmailSender;
+  /**
+   * Forwarded to `createRecoveryJobQueuePool`'s own `createPool` seam. Only
+   * recovery-request-wiring.integration.test.ts injects this, to hand the job-queue pool a
+   * `pg.Pool` with no idle reaper, so a test observing its connection stays there while it
+   * waits — and never races pg-pool's own idle timeout to do so.
+   */
+  createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
 }
 
 /**
@@ -316,7 +323,10 @@ export async function setUpRecovery(
     backofficeOrigin: recoveryEnv.backofficeOrigin,
     emailSender,
   });
-  const jobQueuePool = createRecoveryJobQueuePool(recoveryEnv.databaseUrl);
+  const jobQueuePool = createRecoveryJobQueuePool(
+    recoveryEnv.databaseUrl,
+    deps.createJobQueuePool ? { createPool: deps.createJobQueuePool } : {},
+  );
   const workerUtils = await makeWorkerUtils({ pgPool: jobQueuePool as pg.Pool });
   const jobQueue = createGraphileRecoveryJobQueue(workerUtils);
 

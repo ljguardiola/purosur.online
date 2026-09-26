@@ -1,6 +1,38 @@
 import type { ElectronApplication, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { launchApp, sleep } from "./launch-app";
+import { launchApp } from "./launch-app";
+
+interface NavigationAttempt {
+  url: string;
+  prevented: boolean;
+}
+
+/**
+ * Registered after `guardWindow`'s own `will-navigate` listener (attached during app startup,
+ * before this suite ever runs), so by the time this one runs for a given navigation,
+ * `event.defaultPrevented` already reflects whatever `guardWindow`'s handler decided.
+ */
+async function recordNavigationAttempts(app: ElectronApplication): Promise<void> {
+  await app.evaluate(({ BrowserWindow }) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const probe = globalThis as unknown as { __navigationAttempts: NavigationAttempt[] };
+    probe.__navigationAttempts = [];
+    window?.webContents.on("will-navigate", (event, url) => {
+      probe.__navigationAttempts.push({ url, prevented: event.defaultPrevented });
+    });
+  });
+}
+
+async function lastNavigationAttemptFor(
+  app: ElectronApplication,
+  urlPrefix: string,
+): Promise<NavigationAttempt | undefined> {
+  const attempts = await app.evaluate((_electron, prefix) => {
+    const probe = globalThis as unknown as { __navigationAttempts?: NavigationAttempt[] };
+    return (probe.__navigationAttempts ?? []).filter((attempt) => attempt.url.startsWith(prefix));
+  }, urlPrefix);
+  return attempts.at(-1);
+}
 
 describe("the register's hardened window", () => {
   let app: ElectronApplication;
@@ -11,7 +43,7 @@ describe("the register's hardened window", () => {
     app = launched.app;
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await sleep(1500);
+    await recordNavigationAttempts(app);
   });
 
   afterAll(async () => {
@@ -19,13 +51,22 @@ describe("the register's hardened window", () => {
   });
 
   it("shows the window", async () => {
-    const visible = await app.evaluate(
-      ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false,
-    );
-    expect(visible).toBe(true);
+    // Catches window-lifecycle.ts's `onceReadyToShow` no longer calling `show()`.
+    await expect
+      .poll(
+        () =>
+          app.evaluate(
+            ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false,
+          ),
+        { timeout: 10_000, message: "expected the window to become visible" },
+      )
+      .toBe(true);
   });
 
   it("renders the app", async () => {
+    await page.waitForFunction(
+      () => (document.querySelector("#root")?.textContent ?? "").trim().length > 0,
+    );
     const text = await page.locator("#root").innerText();
     expect(text.trim().length).toBeGreaterThan(0);
   });
@@ -85,10 +126,22 @@ describe("the register's hardened window", () => {
 
   it("blocks a remote image, a remote script, and an inline script", async () => {
     const violations = await page.evaluate(async () => {
-      const violatedDirectives: string[] = [];
-      document.addEventListener("securitypolicyviolation", (event) =>
-        violatedDirectives.push(event.violatedDirective),
-      );
+      const blockedUris: string[] = [];
+      const allSeen = (): boolean =>
+        blockedUris.includes("https://example.com/x.png") &&
+        blockedUris.includes("https://example.com/x.js") &&
+        blockedUris.includes("inline");
+      // Resolves once every one of the three violations this test triggers has been recorded, so
+      // this in-page wait is driven by the events themselves; the cap only bounds a run where a
+      // policy change stops one of them from firing, and the assertions below then fail on it.
+      const allViolationsSeen = new Promise<void>((resolve) => {
+        document.addEventListener("securitypolicyviolation", (event) => {
+          blockedUris.push(event.blockedURI);
+          if (allSeen()) {
+            resolve();
+          }
+        });
+      });
 
       const image = document.createElement("img");
       image.src = "https://example.com/x.png";
@@ -102,19 +155,21 @@ describe("the register's hardened window", () => {
       inline.textContent = "window.__inlineRan = true";
       document.body.append(inline);
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await Promise.race([
+        allViolationsSeen,
+        new Promise((resolve) => setTimeout(resolve, 10_000)),
+      ]);
       return {
-        violatedDirectives,
+        blockedUris,
+        allSeen: allSeen(),
         inlineRan: (window as unknown as Record<string, unknown>).__inlineRan === true,
       };
     });
 
-    expect(violations.violatedDirectives.some((directive) => directive.startsWith("img"))).toBe(
-      true,
-    );
-    expect(violations.violatedDirectives.some((directive) => directive.startsWith("script"))).toBe(
-      true,
-    );
+    expect(violations.blockedUris).toContain("https://example.com/x.png");
+    expect(violations.blockedUris).toContain("https://example.com/x.js");
+    expect(violations.blockedUris).toContain("inline");
+    expect(violations.allSeen).toBe(true);
     expect(violations.inlineRan).toBe(false);
   });
 
@@ -130,21 +185,40 @@ describe("the register's hardened window", () => {
 
   it("blocks navigation to an external site", async () => {
     const before = page.url();
-    await page.evaluate(() => {
-      window.location.href = "https://example.com";
-    });
-    await sleep(1500);
+    const targetUrlPrefix = "https://example.com";
+    await page.evaluate((url) => {
+      window.location.href = url;
+    }, targetUrlPrefix);
 
+    // Catches index.ts's `guardWindow` no longer wiring its `will-navigate` listener.
+    await expect
+      .poll(() => lastNavigationAttemptFor(app, targetUrlPrefix), {
+        timeout: 5_000,
+        message: "expected a recorded will-navigate attempt to the external site",
+      })
+      .toBeDefined();
+    const attempt = await lastNavigationAttemptFor(app, targetUrlPrefix);
+
+    expect(attempt?.prevented).toBe(true);
     expect(page.url()).toBe(before);
   });
 
   it("blocks navigation to another local file", async () => {
     const before = page.url();
-    await page.evaluate(() => {
-      window.location.href = "file:///not-the-app.html";
-    });
-    await sleep(1000);
+    const targetUrl = "file:///not-the-app.html";
+    await page.evaluate((url) => {
+      window.location.href = url;
+    }, targetUrl);
 
+    await expect
+      .poll(() => lastNavigationAttemptFor(app, targetUrl), {
+        timeout: 5_000,
+        message: "expected a recorded will-navigate attempt to the other local file",
+      })
+      .toBeDefined();
+    const attempt = await lastNavigationAttemptFor(app, targetUrl);
+
+    expect(attempt?.prevented).toBe(true);
     expect(page.url()).toBe(before);
   });
 });

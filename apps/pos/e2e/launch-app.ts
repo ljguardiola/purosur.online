@@ -57,6 +57,3 @@ export async function launchApp(
   app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
   return { app, logs };
 }
-
-export const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
