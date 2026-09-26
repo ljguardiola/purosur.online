@@ -15,8 +15,6 @@ import {
   useFieldSize,
 } from "./FieldSize";
 
-// The six value kinds the design defines: each carries its own box height, padding, gap and
-// value alignment, and only some of them take a prefix or a suffix (see TextFieldKindProps).
 export type TextFieldValueKind =
   | "amount"
   | "counted-cash"
@@ -25,8 +23,8 @@ export type TextFieldValueKind =
   | "quantity"
   | "plain-text";
 
-// See Checkbox.tsx's own children and Button.tsx's own icon: never null/undefined/boolean, so a
-// kind that calls for a prefix or a suffix can't compile with an empty one.
+// Excludes boolean along with null/undefined since React renders a boolean as nothing, so a kind
+// that calls for a prefix or a suffix can't compile with an effectively empty one.
 export type TextFieldAffix = Exclude<ReactNode, null | undefined | boolean>;
 
 type TextFieldCommonProps = {
@@ -37,38 +35,23 @@ type TextFieldCommonProps = {
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
-  /**
-   * The id of another element whose text names this field alongside its own visible `label` — a
-   * row heading shared by several fields (e.g. a day group's name before its own "Abre"/"Cierra"
-   * fields), which stays out of every field's own visible label so it isn't repeated once per
-   * field. Prepended to the field's own label in its accessible name; the visible label is
-   * unaffected.
-   */
+  // The id of another element whose text names this field alongside its own visible `label`,
+  // prepended to it in the accessible name without changing the visible label.
   labelledBy?: string;
-  /**
-   * True keeps the label as the input's accessible name but renders it visually hidden (`sr-only`)
-   * instead of the ordinary visible caption, for a design that draws no visible label at all (e.g.
-   * a branch's hours range fields, whose own sentence — "Lunes, horario 1, abre" — only needs to
-   * reach assistive technology). Defaults to false, the ordinary visible label.
-   */
+  // Keeps the label as the input's accessible name but renders it visually hidden (`sr-only`)
+  // instead of the ordinary visible caption.
   labelVisuallyHidden?: boolean;
 };
 
-// An invalid field always names why: there is no invalid state with nothing for the helper line
-// to show in its place. `errorMessageId` names a message rendered once outside the field and
-// shared by several of them (e.g. one error under a day's row of time fields): the field turns
-// invalid and is described by it, without repeating the message under itself.
+// `errorMessageId` names a message already rendered elsewhere and shared by several fields: this
+// one turns invalid and is described by it, without rendering the message under itself too.
 type TextFieldValidityProps =
   | { invalid: true; errorMessage: string; errorMessageId?: undefined }
   | { invalid: true; errorMessageId: string; errorMessage?: undefined }
   | { invalid?: false; errorMessage?: undefined; errorMessageId?: undefined };
 
-// Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
-// require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
-// días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
-// not compile. The design draws no backoffice money or kg field: those five kinds always keep
-// their own whole register-sized field below, regardless of the ambient FieldSizeProvider, the
-// same way SearchField.tsx's own icon size never varies with them either; only plain text's size
+// The design draws no backoffice money or kg field: those five kinds always keep their whole
+// register-sized field regardless of the ambient FieldSizeProvider; only plain text's size
 // follows the context.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
@@ -81,10 +64,6 @@ const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-// Height, horizontal padding and gap for every kind but plain text, in the exact px the design
-// specifies; those five only ever draw at this register scale (see TextFieldKindProps above).
-// Plain text's own frame varies by size instead (see registerPlainTextFrameClassName and
-// FieldSize.tsx's own backofficeFieldBoxClassName).
 const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-[4.5rem] gap-2 px-4",
   "counted-cash": "h-[5rem] gap-3 px-6",
@@ -92,15 +71,8 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   weight: "h-[4rem] gap-2 px-4",
   quantity: "h-[4.5rem] gap-2 px-4",
 };
-// This field's own long-standing register frame for plain text; the backoffice one is
-// FieldSize.tsx's own shared backofficeFieldBoxClassName.
 const registerPlainTextFrameClassName = "h-[3.25rem] gap-2 px-4";
 
-// The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
-// right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
-// Those five only ever draw at this register scale (see TextFieldKindProps above); plain text's
-// own value varies by size instead (see registerPlainTextValueClassName below and FieldSize.tsx's
-// own backofficeFieldValueClassName).
 const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "text-right text-3xl font-bold text-ink",
   "counted-cash": "text-right text-3xl font-bold text-ink",
@@ -108,38 +80,21 @@ const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   weight: "text-left text-3xl font-bold text-ink",
   quantity: "text-right text-3xl font-bold text-ink",
 };
-// Plain text is left-aligned unless it carries a suffix (see registerPlainTextSuffixedValueClassName).
 const registerPlainTextValueClassName = "text-left text-base font-normal text-ink";
-// A plain-text value with a suffix sits immediately before it ("30 días"), like every other kind
-// that takes one, instead of leaving the input's empty width between the value and its unit.
 const registerPlainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
 
 const moneyPrefixClassName = "shrink-0 text-3xl font-normal text-ink-secondary";
 const unitSuffixClassName = "shrink-0 text-xl font-normal text-ink-secondary";
-// Plain text's own value is text-base rather than the 32px register scale every other kind
-// shares, so its optional suffix (e.g. "días") follows that same smaller scale instead of
-// unitSuffixClassName's kg-kind size, while keeping the same ink-secondary color every affix uses
-// to read as a unit rather than part of the value.
 const plainTextSuffixClassName = "shrink-0 text-base font-normal text-ink-secondary";
 
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// The box's own border and shadow per interaction state, drawn as an inset box-shadow rather
-// than a real border (see Checkbox.tsx's own boxClassName for the same technique) so it never
-// participates in layout.
-//
-// Resting, hovered and read-only all share the same 2px "line" border, the design's own token for
-// this boundary. Only the fill tells resting from hovered apart, following the package's own
-// white-hovers-to-bone rule (see Checkbox.tsx and OptionCardGroup.tsx). A read-only field doesn't
-// react to hover — its value can't be edited — but it is still in the tab order, and the box and
-// input both suppress the browser's own focus ring, so it draws the package's focused border like
-// any other reachable field: a keyboard user would otherwise lose track of where they are
-// mid-form. A disabled field can't be reached at all, so it needs neither. Focus draws only the
-// 2px brand-blue-ui border, with no outer shadow ring. `hover:not-focus-within:` keeps the hovered
-// fill from ever showing once the field is focused, regardless of stylesheet order.
+// Drawn as an inset box-shadow rather than a real border so it never participates in layout.
+// `hover:not-focus-within:` keeps the hovered fill from showing once the field is focused,
+// regardless of the two Tailwind rules' generated order.
 function boxStateClassName(disabled: boolean, readOnly: boolean, invalid: boolean): string {
   if (disabled) {
     return "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-line)]";
@@ -185,9 +140,6 @@ export function TextField(props: TextFieldProps) {
   const suffix =
     kind === "weight" || kind === "quantity" || kind === "plain-text" ? props.suffix : undefined;
 
-  // The design never draws a backoffice money or kg field; those five kinds keep their whole
-  // register-sized field — frame, label and gap, not the frame alone — regardless of the ambient
-  // FieldSizeProvider, since only plain text's size varies with it.
   const contextSize = useFieldSize();
   const size = kind === "plain-text" ? contextSize : "register";
   const boxFrameClassName =
@@ -205,17 +157,12 @@ export function TextField(props: TextFieldProps) {
       ? `${backofficeFieldValueClassName} text-right`
       : registerPlainTextSuffixedValueClassName;
 
-  // The prefix and suffix are visual-only (`aria-hidden`) so a screen reader doesn't hit them a
-  // second time as stray text while moving through the field, but a sighted user reads the unit
-  // right there in the box, so a screen reader user needs it too — as part of the field's own
-  // description, the same place its helper text and error message already land. react-aria's own
-  // useField composes `aria-describedby` from the description slot, the error-message slot and
-  // whatever `aria-describedby` the caller passes to TextField itself, in that order, so handing
-  // it this id here reaches the input without the caller ever repeating the unit in the label.
+  // The prefix/suffix are `aria-hidden` so a screen reader doesn't hit them again as stray text;
+  // react-aria's useField composes `aria-describedby` from the description slot, the error-message
+  // slot and any caller-supplied `aria-describedby`, so this id reaches the input through that.
   const affixId = useId();
-  // Left out entirely rather than set to `undefined` for a field with no affix: AriaTextField's own
-  // `aria-describedby` prop type doesn't accept `undefined` under this project's
-  // `exactOptionalPropertyTypes` (see `disabledTextProps` below for the same technique).
+  // Left out entirely rather than set to `undefined`: AriaTextField's `aria-describedby` prop type
+  // doesn't accept `undefined` under `exactOptionalPropertyTypes`.
   const describedBy = [
     prefix !== undefined || suffix !== undefined ? affixId : undefined,
     errorMessageId,
@@ -224,24 +171,16 @@ export function TextField(props: TextFieldProps) {
     .join(" ");
   const describedByProps = describedBy !== "" ? { "aria-describedby": describedBy } : {};
 
-  // react-aria's own useTextField already wires the input's accessible name to this label through
-  // its own generated id; giving that id here (instead of leaving react-aria to generate one it
-  // never hands back) lets `labelledBy` list an external heading before it, without disturbing the
-  // internal association react-aria itself relies on.
+  // react-aria's useTextField wires the input's accessible name to this label through its own
+  // generated id; supplying it here instead lets `labelledBy` list an external heading before it.
   const labelId = useId();
   const labelledByProps =
     labelledBy !== undefined ? { "aria-labelledby": `${labelledBy} ${labelId}` } : {};
 
-  // The native `disabled` attribute already lands on the input itself, but the error or helper
-  // text beside it doesn't inherit that from a sibling, so assistive tooling has no way to tell
-  // it's part of a disabled field. WCAG's contrast minimum explicitly doesn't apply to an
-  // inactive component's own text (1.4.3/1.4.11), and axe-core's own color-contrast check only
-  // honors that exemption for a node whose OWN `aria-disabled` (or an ancestor's) says so — a
-  // bare opacity dip on the wrapper doesn't qualify, which is what an invalid+disabled field's
-  // status-error-ui text would otherwise fail against. react-aria-components' TextField root
-  // only forwards a fixed allowlist of DOM props (see its own filterDOMProps), which excludes
-  // `aria-disabled`, so it's set directly on the text elements that actually need the exemption
-  // instead.
+  // WCAG 1.4.3/1.4.11 exempt an inactive component's own text from the contrast minimum, but
+  // axe-core's color-contrast check only honors that exemption on a node whose own `aria-disabled`
+  // says so; the wrapper's opacity dip doesn't qualify. react-aria-components' TextField root
+  // filters out `aria-disabled` from forwarded DOM props, so it's set directly on these elements.
   const disabledTextProps = disabled ? { "aria-disabled": true as const } : {};
 
   return (

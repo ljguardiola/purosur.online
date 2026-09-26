@@ -30,7 +30,6 @@ const labelToneClassName: Record<"active" | "inactive", string> = {
   active: "text-base font-bold text-brand-blue-strong",
 };
 
-/** One row in the backoffice's section column: a help category, or any later screen's own section. */
 export function SectionNavItem({ label, icon, active, ...props }: SectionNavItemProps) {
   const tone = active ? "active" : "inactive";
   return (

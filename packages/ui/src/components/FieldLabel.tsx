@@ -6,10 +6,6 @@ export type FieldLabelProps = {
   required?: boolean;
 };
 
-/**
- * FieldGroup's caption, drawn at the current FieldSizeProvider's scale with the same classes
- * TextField, DateField and Select draw their own label with.
- */
 export function FieldLabel({ children, required = false }: FieldLabelProps) {
   const size = useFieldSize();
   const className = required

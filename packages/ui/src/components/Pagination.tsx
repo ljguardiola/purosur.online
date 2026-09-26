@@ -7,10 +7,7 @@ export type PaginationProps = {
   onPageChange: (page: number) => void;
   previousLabel: string;
   nextLabel: string;
-  // Names the pagination's own navigation landmark.
   label: string;
-  // Builds each page button's accessible name from its number, so the caller's own words (and
-  // locale) name it, never a bare digit hardcoded here.
   pageLabel: (page: number) => string;
 };
 
@@ -28,8 +25,7 @@ function ellipsisPlace(key: string): PaginationPlace {
   return { key, kind: "ellipsis" };
 }
 
-// Always resolves to exactly 5 places once there are more than 5 pages, so the row never reflows
-// while paging. Every ellipsis gets its own fixed key, since up to two can appear in the list.
+// Every ellipsis gets its own fixed key, since up to two can appear in the list.
 function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   if (pageCount <= 5) {
     return Array.from({ length: pageCount }, (_, index) => pagePlace(index + 1));
@@ -62,12 +58,11 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
 }
 
 // Previous/Next are never natively disabled, so they stay focusable and in the tab order at their
-// own boundary: aria-disabled marks them unavailable for assistive technology instead, the dimmed
-// look and suppressed hover follow that same boundary, and activating one there is a no-op in the
-// press handler. The dimmed opacity (0.65) keeps the label's text at or above the WCAG AA 4.5:1
-// minimum against every surface this button can sit on. React Aria still reports data-[hovered]
-// while a button is aria-disabled (it isn't natively disabled, so pointer tracking stays live),
-// so the hover background is only ever included for the non-disabled class string.
+// own boundary; aria-disabled marks them unavailable for assistive technology instead. The dimmed
+// opacity (0.65) keeps the label's text at or above the WCAG AA 4.5:1 minimum against every
+// surface this button can sit on. React Aria still reports data-[hovered] on an aria-disabled
+// button (it isn't natively disabled, so pointer tracking stays live), so the hover background is
+// only ever included for the non-disabled class string.
 function navButtonClassName(disabled: boolean): string {
   return [
     "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3",
@@ -93,11 +88,9 @@ const otherPageClassName =
   "shadow-[inset_0_0_0_1px_var(--color-line)] bg-surface-white font-normal text-ink " +
   "data-[hovered]:bg-surface-bone";
 
-// NaN and Infinity would otherwise reach Math.min/Math.max and the window math below as
-// themselves (NaN propagates, Infinity never clamps), and a fractional value would render a
-// half number or an off-by-one window, so both props are resolved to a safe integer first.
-// +Infinity is the one non-finite page that still means something ("go to the end"), so it
-// resolves to the last page instead of falling back to page 1 like every other non-finite value.
+// NaN propagates through Math.min/Math.max and Infinity never clamps, so both props are resolved
+// to a safe integer first. +Infinity is the one non-finite page that still means something ("go
+// to the end"), so it resolves to the last page instead of falling back to page 1.
 function resolvePageCount(pageCount: number): number {
   return Number.isFinite(pageCount) ? Math.trunc(pageCount) : 0;
 }

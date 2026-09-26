@@ -12,7 +12,6 @@ export type NotificationCardProps = {
   detail: string;
   whatToDo?: string;
   time?: string;
-  // 388px wide with a shadow, over the screen; otherwise it takes its container's width.
   floating?: boolean;
 };
 
@@ -28,8 +27,8 @@ const toneCircleClassName: Record<NotificationTone, string> = {
   error: "bg-status-error-message-bg text-status-error-strong",
 };
 
-// See Button.tsx's iconWrapperClassName: the glyph's size is imposed by this box's own CSS,
-// never by cloning a `size` prop onto the caller's icon element.
+// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
+// interpret one.
 const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 export function NotificationCard({

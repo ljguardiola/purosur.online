@@ -12,9 +12,7 @@ import type { ButtonIcon } from "./Button";
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
 export type ModalTone = "info" | "success" | "warning" | "error";
 
-// The set of package text tones a caller may use to color the context line instead of the
-// default earth: the "-ui" tones already carry AA text contrast on the panel's white background
-// (see contrast.test.ts's textTones).
+// These "-ui" tones already clear AA text contrast against the panel's white background.
 export type ModalContextTone =
   | "brand-blue-ui"
   | "brand-green-ui"
@@ -27,8 +25,7 @@ export type ModalContextTone =
 export type ModalBodyPadding = "default" | "none";
 
 // "centered" stacks a circular icon, a centered title and the body in one column, with no context
-// line, no close button and no divider: the design's own confirmation-dialog layout (e.g.
-// "¿Guardar los cambios?"), distinct from every other modal's leading icon-beside-title header.
+// line, close button or divider — distinct from the leading layout's icon-beside-title header.
 export type ModalHeaderLayout = "leading" | "centered";
 
 type ModalCommonProps = {
@@ -58,10 +55,10 @@ type ModalCenteredProps = {
   bodyPadding?: undefined;
 };
 
-// A closable modal's close button needs its own accessible name (see IconButton's aria-label),
-// and a non-closable modal renders no close button at all, so asking for a label without
-// `closable`, or `closable` without a label, does not compile. The centered layout never draws a
-// close button, so there `closable` only lets Escape dismiss it and a label does not compile.
+// A closable modal's close button needs its own accessible name, and a non-closable modal renders
+// no close button at all, so asking for a label without `closable`, or `closable` without a
+// label, does not compile. The centered layout never draws a close button, so there `closable`
+// only lets Escape dismiss it and a label does not compile.
 export type ModalProps = ModalCommonProps &
   (
     | (ModalLeadingProps & { closable: true; closeLabel: string })
@@ -73,8 +70,7 @@ const widthClassName: Record<ModalWidth, string> = {
   confirmation: "w-[35rem]",
   standard: "w-[40rem]",
   wide: "w-[45rem]",
-  // The role editor's own width (design.pen `bnyPf`), wide enough for its areas pane plus the
-  // selected area's permissions to sit side by side.
+  // Wide enough for the role editor's areas pane plus the selected area's permissions side by side.
   editor: "w-[65rem]",
 };
 
@@ -100,17 +96,15 @@ const contextToneClassName: Record<ModalContextTone, string> = {
   "status-warning-ui": "text-status-warning-ui",
 };
 
-// See Button.tsx's iconWrapperClassName: each glyph's size is imposed by its own wrapper's CSS,
-// never by cloning a `size` prop onto the caller's (or this component's own) icon element.
+// Icon size comes from this wrapper's own CSS, never from cloning a `size` prop onto the icon.
 const headerIconWrapperClassName = "inline-flex size-6 shrink-0 [&>svg]:h-full [&>svg]:w-full";
-// The centered layout's own icon box is bigger (56px circle), so its icon glyph keeps the leading
-// layout's 1:2 ratio to its box (24px in 48px) rather than looking undersized inside it.
+// The centered layout's bigger 56px icon box keeps the leading layout's 1:2 icon-to-box ratio
+// (24px in 48px) instead of looking undersized inside it.
 const centeredHeaderIconWrapperClassName =
   "inline-flex size-7 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 const closeIconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
-// Whether a caller's body has anything to render: Children.toArray drops null, undefined and
-// booleans (a conditional that currently shows nothing), but keeps a fragment as one child even
+// Children.toArray drops null/undefined/boolean children but keeps a fragment as one child even
 // when everything inside it was dropped, so fragments are looked into.
 function hasContent(node: ReactNode): boolean {
   return Children.toArray(node).some((child) =>
@@ -151,10 +145,8 @@ export function Modal(props: ModalProps) {
     >
       <AriaModal
         className={[
-          // The panel never grows taller than the viewport minus 24px (1.5rem) of clearance
-          // above and below it: with the backdrop centering it, hitting the cap leaves exactly
-          // that clearance on both sides; short content is unaffected since max-height only
-          // clips, it never stretches a shorter panel to fill it.
+          // max-height only clips, never stretches, so short content is unaffected; the backdrop
+          // centers the panel, so hitting the 24px cap leaves that clearance on both sides.
           "flex max-h-[calc(100vh-3rem)] shrink-0 flex-col rounded-[0.75rem] bg-surface-white",
           "shadow-[0_24px_64px_var(--color-ink-panel-shadow)]",
           widthClassName[width],
@@ -230,9 +222,9 @@ export function Modal(props: ModalProps) {
                 <div
                   className={[
                     "min-h-0 flex-1 overflow-y-auto",
-                    // A flush body is a column so a caller's own regions can fill it and scroll
-                    // on their own: the panel only caps its height, so a percentage height inside
-                    // the body would resolve to auto and scroll the whole body as one block.
+                    // A column, so a caller's own regions can size themselves against it and
+                    // scroll independently; without it, a percentage height inside resolves to
+                    // auto and scrolls the whole body as one block.
                     bodyPadding === "none" ? "flex flex-col" : "p-6",
                   ].join(" ")}
                 >

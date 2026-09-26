@@ -15,20 +15,13 @@ export type OptionCardOption<V extends string = string> = {
   helpText: string;
 };
 
-// Mirrors Select.tsx's own SelectValidityProps: an invalid group always names why there is no
-// invalid state with nothing for the error line to show in its place.
 type OptionCardGroupValidityProps =
   | { invalid: true; errorMessage: string }
   | { invalid?: false; errorMessage?: undefined };
 
-// `options` is a non-empty tuple and `value`/`onChange` are pinned to V (inferred from `options`
-// at the call site), so a caller can neither pass an empty group nor a chosen value that isn't
-// one of its own options: there is no representable "chosen something else" state. `value`/
-// `onChange` wrap V in NoInfer so a call site's own `value` can never contribute a candidate to
-// V's inference (only `options` can); without it, an out-of-domain `value` at a real call site
-// would silently widen V to include it instead of failing to compile. `value` may also be `null`
-// for "nothing chosen yet" (mirrors Select.tsx's own null value); `onChange` itself never reports
-// null back, since a chosen card is always one of V.
+// `value`/`onChange` wrap V in NoInfer so a call site's own `value` can never contribute a
+// candidate to V's inference (only `options` can); without it, an out-of-domain `value` at a real
+// call site would silently widen V to include it instead of failing to compile.
 export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProps & {
   label: string;
   options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
@@ -37,20 +30,17 @@ export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProp
   required?: boolean;
 };
 
-// See Button.tsx's iconWrapperClassName: the icon's size is imposed by this wrapper's own CSS,
-// never by cloning a `size` prop onto the caller's icon element. The color switches with the
-// card's own `data-selected` state through the "group" it shares with that ancestor.
+// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
+// interpret one. Its color reacts to the card's own data-selected state via the `group` class the
+// card sets on itself.
 const iconWrapperClassName =
   "inline-flex size-5 shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full " +
   "group-data-[selected]:text-brand-blue-strong";
 
 const titleClassName = "text-base font-bold text-ink group-data-[selected]:text-brand-blue-strong";
 
-// The help text keeps the same secondary-ink color in every state (not-chosen, hovered, chosen),
-// so unlike the icon and title it never needs to react to the card's own data attributes.
 const helpTextClassName = "text-xs font-normal text-ink-secondary";
 
-// Same tone TextField.tsx's own errorClassName and Select.tsx's own errorClassName use.
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
 // The not-chosen/chosen ring is drawn with an inset box-shadow instead of a real border: a real

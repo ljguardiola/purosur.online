@@ -1,8 +1,7 @@
 import { SummaryRow, type SummaryRowProps } from "./SummaryRow";
 
-// See OptionCardGroup.tsx's OptionCardGroupProps: `rows` is a non-empty tuple, so a group with
-// nothing to frame cannot be written. The two lines only frame the rows and are never a
-// standalone rule, and there is no empty group left for them to draw around.
+// `rows` is a non-empty tuple, so a group with nothing to frame cannot be written — the two
+// border lines only frame rows, never a standalone rule.
 export type SummaryRowGroupProps = {
   rows: readonly [SummaryRowProps, ...SummaryRowProps[]];
 };

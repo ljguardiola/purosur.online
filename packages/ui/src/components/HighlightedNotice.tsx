@@ -2,8 +2,6 @@ import type { ButtonIcon } from "./Button";
 import { type NoticeTone, noticeToneClassName } from "./InlineNotice";
 import { NoticeLiveRegion } from "./NoticeLiveRegion";
 
-// Used where a blocked sale or payment needs a title and a detail both present, so unlike
-// InlineNotice's props, neither is optional here.
 export type HighlightedNoticeProps = {
   tone: NoticeTone;
   icon: ButtonIcon;
@@ -11,8 +9,8 @@ export type HighlightedNoticeProps = {
   detail: string;
 };
 
-// See Button.tsx's iconWrapperClassName: the glyph's size is imposed by this box's own CSS,
-// never by cloning a `size` prop onto the caller's icon element.
+// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
+// interpret one.
 const iconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 export function HighlightedNotice({ tone, icon, title, detail }: HighlightedNoticeProps) {

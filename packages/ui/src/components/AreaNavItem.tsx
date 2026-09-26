@@ -30,7 +30,6 @@ const labelToneClassName: Record<"active" | "inactive", string> = {
   active: "text-xs font-bold text-surface-white",
 };
 
-/** One item in the backoffice's area rail: the register-style icon-over-label nav button. */
 export function AreaNavItem({ label, icon, active, ...props }: AreaNavItemProps) {
   const tone = active ? "active" : "inactive";
   return (

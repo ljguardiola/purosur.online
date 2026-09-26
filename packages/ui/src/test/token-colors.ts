@@ -7,7 +7,7 @@ function hexTokenToRgb(hex: string): string {
 }
 
 // Reads a "--color-<name>" custom property from the compiled stylesheet, so expectations are
-// derived from the same token source design.pen and tokens.css agree on, never hardcoded.
+// derived from that source instead of a hardcoded copy.
 export function tokenRgb(name: string): string {
   return hexTokenToRgb(
     getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim(),

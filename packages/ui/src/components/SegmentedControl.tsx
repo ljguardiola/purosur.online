@@ -10,10 +10,9 @@ export type SegmentedControlOption<V extends string = string> = {
   icon?: SegmentedControlIcon;
 };
 
-// See OptionCardGroup.tsx's OptionCardGroupProps for the full rationale: a non-empty tuple for
-// `options` plus `value`/`onChange` pinned to V (wrapped in NoInfer so only `options` can widen
-// it) makes an empty group or an out-of-domain chosen value fail to compile, so "exactly one
-// option is always chosen" never needs a runtime check.
+// `value`/`onChange` wrap V in NoInfer so only `options` can widen it; combined with a non-empty
+// tuple for `options`, an empty group or an out-of-domain value fails to compile instead of
+// needing a runtime check.
 export type SegmentedControlProps<V extends string> = {
   label: string;
   options: readonly [SegmentedControlOption<V>, ...SegmentedControlOption<V>[]];

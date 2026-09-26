@@ -1,9 +1,8 @@
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
 import type { ButtonIcon } from "./Button";
 
-// See Button.tsx's iconWrapperClassName: the glyph's size is imposed by this box's own CSS
-// (and the rule that stretches its svg child to fill it), never by cloning a `size` prop onto
-// the caller's icon element.
+// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
+// interpret one.
 const glyphWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 // This button shows no text, so the caller must name it with aria-label or aria-labelledby;
@@ -29,7 +28,6 @@ const className =
   "data-[hovered]:bg-surface-bone data-[hovered]:border-blue-soft " +
   "data-[disabled]:opacity-[0.45]";
 
-// A table row action: caller chooses the glyph, this component owns its size, color and background.
 export function IconButton({ icon, ...props }: IconButtonProps) {
   return (
     <AriaButton {...props} className={className}>
