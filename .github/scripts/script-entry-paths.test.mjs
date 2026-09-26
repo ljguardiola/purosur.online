@@ -7,6 +7,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const scriptsDir = join(repoRoot, ".github/scripts");
 const workflowsDir = join(repoRoot, ".github/workflows");
 
 async function scriptsRunByWorkflows() {
@@ -33,6 +34,15 @@ function runWithoutInputs(scriptPath) {
   });
 }
 
+const directRuns = new Map();
+
+function runDirectlyWithoutInputs(script) {
+  if (!directRuns.has(script)) {
+    directRuns.set(script, runWithoutInputs(join(scriptsDir, script)));
+  }
+  return directRuns.get(script);
+}
+
 async function withTempDir(run) {
   const dir = await mkdtemp(join(tmpdir(), "script entry paths "));
   try {
@@ -46,10 +56,24 @@ test("the workflows run at least one script under .github/scripts", () => {
   assert.ok(entryScripts.length > scriptsRunByOperators.length);
 });
 
-for (const script of entryScripts) {
-  const direct = runWithoutInputs(join(repoRoot, ".github/scripts", script));
+test("no script under .github/scripts decides it was run directly from its start path", async () => {
+  const scripts = (await readdir(scriptsDir)).filter(
+    (file) => file.endsWith(".mjs") && !file.endsWith(".test.mjs"),
+  );
+  const readingStartPath = [];
+  for (const script of scripts) {
+    if ((await readFile(join(scriptsDir, script), "utf8")).includes("process.argv[1]")) {
+      readingStartPath.push(script);
+    }
+  }
 
+  assert.deepEqual(readingStartPath, []);
+});
+
+for (const script of entryScripts) {
   test(`${script} fails without its inputs when run directly`, () => {
+    const direct = runDirectlyWithoutInputs(script);
+
     assert.equal(direct.status, 1, direct.stdout);
     assert.notEqual(direct.stdout + direct.stderr, "");
   });
@@ -60,6 +84,7 @@ for (const script of entryScripts) {
       await symlink(repoRoot, linkedRepo, "junction");
 
       const result = runWithoutInputs(join(linkedRepo, ".github/scripts", script));
+      const direct = runDirectlyWithoutInputs(script);
 
       assert.equal(result.status, direct.status);
       assert.equal(result.stderr, direct.stderr);
@@ -70,15 +95,15 @@ for (const script of entryScripts) {
   test(`${script} fails the same way from a path containing a space`, async () => {
     await withTempDir(async (dir) => {
       const copiedRepo = join(dir, "repo copy");
-      await cp(join(repoRoot, ".github/scripts"), join(copiedRepo, ".github/scripts"), {
-        recursive: true,
-      });
+      await cp(scriptsDir, join(copiedRepo, ".github/scripts"), { recursive: true });
       await cp(
         join(repoRoot, ".railway/custom-domains.json"),
         join(copiedRepo, ".railway/custom-domains.json"),
       );
+      await symlink(join(repoRoot, "node_modules"), join(copiedRepo, "node_modules"), "junction");
 
       const result = runWithoutInputs(join(copiedRepo, ".github/scripts", script));
+      const direct = runDirectlyWithoutInputs(script);
 
       assert.equal(result.status, direct.status);
       assert.equal(result.stderr, direct.stderr);
