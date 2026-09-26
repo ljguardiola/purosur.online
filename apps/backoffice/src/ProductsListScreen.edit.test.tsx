@@ -254,3 +254,48 @@ test("shows the category-not-leaf error on edit when the chosen category gained 
     .element(dialog.getByText('"Almacén" tiene subcategorías. Elegí una de ellas.'))
     .toBeVisible();
 });
+
+test("reloading after a stale-version conflict retitles the modal with the fresh name", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = { ...miel, name: "Miel pura de abeja 900 g", version: 2 };
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
+    .toBeVisible();
+});
+
+test("reloading an inactive product after a stale-version conflict finds it", async () => {
+  const services = createServices();
+  const inactiveMiel: ProductSummary = { ...miel, active: false };
+  mockLoaded(services, [inactiveMiel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, inactiveMiel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = {
+    ...inactiveMiel,
+    name: "Miel pura de abeja 900 g",
+    version: 2,
+  };
+  vi.mocked(services.fetchProducts).mockImplementation(async (status) =>
+    status === "all" ? { kind: "ok", value: [freshened] } : { kind: "ok", value: [] },
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
+    .toBeVisible();
+});

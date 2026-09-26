@@ -9,6 +9,7 @@ import {
   fillNewProductFieldsExceptBarcodes,
   miel,
   mockLoaded,
+  openEditProductModal,
   openNewProductModal,
   radioLabel,
   renderScreen,
@@ -446,4 +447,48 @@ test("rejects adding an already-listed barcode inline, keeping a single chip", a
   expect(
     dialog.getByRole("button", { name: "Quitar el código 7790000000099" }).elements(),
   ).toHaveLength(1);
+});
+
+test("marks the sale unit and barcode labels as required, like the name and category", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
+
+  const createDialog = await openNewProductModal(screen);
+  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
+    const label = createDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
+    expect(getComputedStyle(label, "::after").content).toContain("*");
+  }
+  await expect
+    .element(createDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
+    .toHaveAttribute("aria-required", "true");
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
+    const label = editDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
+    expect(getComputedStyle(label, "::after").content).toContain("*");
+  }
+  await expect
+    .element(editDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
+    .toHaveAttribute("aria-required", "true");
+});
+
+test("marks the fallback category label as required when there are no categories yet", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel], []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
+
+  const createDialog = await openNewProductModal(screen);
+  const createLabel = createDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(createLabel, "::after").content).toContain("*");
+  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const editDialog = await openEditProductModal(screen, miel);
+  const editLabel = editDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
+  expect(getComputedStyle(editLabel, "::after").content).toContain("*");
 });

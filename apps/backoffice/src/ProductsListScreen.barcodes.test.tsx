@@ -1,6 +1,5 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { ProductSummary } from "./productsApi";
 import {
   createServices,
   fillNewProductFieldsExceptBarcodes,
@@ -208,51 +207,6 @@ test("shows a generic barcode-taken error on edit when the cloud names no taken 
     .toBeVisible();
 });
 
-test("reloading after a stale-version conflict retitles the modal with the fresh name", async () => {
-  const services = createServices();
-  mockLoaded(services, [miel]);
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
-  const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, miel);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
-
-  const freshened: ProductSummary = { ...miel, name: "Miel pura de abeja 900 g", version: 2 };
-  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
-  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
-
-  await expect
-    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
-    .toBeVisible();
-});
-
-test("reloading an inactive product after a stale-version conflict finds it", async () => {
-  const services = createServices();
-  const inactiveMiel: ProductSummary = { ...miel, active: false };
-  mockLoaded(services, [inactiveMiel]);
-  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
-  const screen = await renderScreen(services);
-  const dialog = await openEditProductModal(screen, inactiveMiel);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
-
-  const freshened: ProductSummary = {
-    ...inactiveMiel,
-    name: "Miel pura de abeja 900 g",
-    version: 2,
-  };
-  vi.mocked(services.fetchProducts).mockImplementation(async (status) =>
-    status === "all" ? { kind: "ok", value: [freshened] } : { kind: "ok", value: [] },
-  );
-  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
-
-  await expect
-    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 900 g" }))
-    .toBeVisible();
-});
-
 test("the scan input is marked invalid and described by the barcode field's error", async () => {
   const services = createServices();
   mockLoaded(services, []);
@@ -273,33 +227,6 @@ test("the scan input is marked invalid and described by the barcode field's erro
   await expect
     .element(scanInputOf(dialog))
     .toHaveAccessibleDescription(/El código de barras no puede tener espacios\./);
-});
-
-test("marks the sale unit and barcode labels as required, like the name and category", async () => {
-  const services = createServices();
-  mockLoaded(services, [miel]);
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
-
-  const createDialog = await openNewProductModal(screen);
-  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
-    const label = createDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
-    expect(getComputedStyle(label, "::after").content).toContain("*");
-  }
-  await expect
-    .element(createDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
-    .toHaveAttribute("aria-required", "true");
-  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-
-  const editDialog = await openEditProductModal(screen, miel);
-  for (const labelText of ["Unidad de venta", "Códigos de barras"]) {
-    const label = editDialog.getByText(labelText, { exact: true }).element() as HTMLElement;
-    expect(getComputedStyle(label, "::after").content).toContain("*");
-  }
-  await expect
-    .element(editDialog.getByRole("radiogroup", { name: "Unidad de venta" }))
-    .toHaveAttribute("aria-required", "true");
 });
 
 test("removing a chip clears the barcode-limit error once the product is back under the limit", async () => {
@@ -360,23 +287,6 @@ test("removing an unrelated chip keeps the error of a code still invalid in the 
   await expect.element(scanInputOf(dialog)).toHaveAttribute("aria-invalid", "true");
 });
 
-test("marks the fallback category label as required when there are no categories yet", async () => {
-  const services = createServices();
-  mockLoaded(services, [miel], []);
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
-
-  const createDialog = await openNewProductModal(screen);
-  const createLabel = createDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(createLabel, "::after").content).toContain("*");
-  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-
-  const editDialog = await openEditProductModal(screen, miel);
-  const editLabel = editDialog.getByText("Categoría", { exact: true }).element() as HTMLElement;
-  expect(getComputedStyle(editLabel, "::after").content).toContain("*");
-});
-
 function scanPlaceholderOf(dialog: ScreenLocator) {
   return dialog.getByText("Escanear otro código", { exact: true });
 }
@@ -424,4 +334,24 @@ test("hides the scan placeholder while the empty scan input has focus", async ()
 
   await moveFocusOutOfScanInput(dialog);
   await expect.element(scanPlaceholderOf(dialog)).toBeVisible();
+});
+
+test("rings the whole scan control while its input has keyboard focus", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  const input = scanInputOf(dialog).element() as HTMLInputElement;
+  const control = input.parentElement;
+  if (!control) {
+    throw new Error("the scan input has no enclosing control");
+  }
+  expect(getComputedStyle(control).outlineStyle).toBe("none");
+
+  input.focus();
+
+  await expect.poll(() => getComputedStyle(control).outlineStyle).toBe("solid");
+  expect(getComputedStyle(control).outlineWidth).toBe("3px");
 });
