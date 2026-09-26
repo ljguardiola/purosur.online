@@ -1733,12 +1733,33 @@ test("shows an inline error when generating fails, keeping the codes already ent
 
 function pendingGenerate(services: ProductsListScreenServices) {
   let resolveGenerate: (outcome: GenerateInternalBarcodeOutcome) => void = () => {};
-  vi.mocked(services.generateInternalBarcode).mockReturnValue(
-    new Promise((resolve) => {
-      resolveGenerate = resolve;
-    }),
+  const promise = new Promise<GenerateInternalBarcodeOutcome>((resolve) => {
+    resolveGenerate = resolve;
+  });
+  vi.mocked(services.generateInternalBarcode).mockReturnValue(promise);
+  const resolve = (outcome: GenerateInternalBarcodeOutcome) => resolveGenerate(outcome);
+  resolve.promise = promise;
+  return resolve;
+}
+
+/**
+ * Lets a late response's own guarded continuation run to completion, and React commit whatever it
+ * would set, before asserting it didn't. A state update made from outside any event handler (like
+ * that continuation's own) schedules its commit through React's Scheduler, which can land on a
+ * later macrotask than a plain microtask flush reaches; rerendering the same screen forces that
+ * commit through act() directly, instead of guessing how long it takes in real time.
+ */
+async function settleLateResponse(
+  screen: Screen,
+  services: ProductsListScreenServices,
+  resolved: Promise<unknown> = Promise.resolve(),
+): Promise<void> {
+  await resolved;
+  await screen.rerender(
+    <main>
+      <ProductsListScreen services={services} onSessionEnded={() => {}} />
+    </main>,
   );
-  return (outcome: GenerateInternalBarcodeOutcome) => resolveGenerate(outcome);
 }
 
 test("keeps a code scanned while the internal code is being generated", async () => {
@@ -1792,8 +1813,7 @@ test("drops an internal code that arrives after the create modal was closed and 
   await expect.element(generateButtonOf(dialog)).not.toBeDisabled();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, resolveGenerate.promise);
 
   expect(dialog.getByText("2000000000015").query()).toBeNull();
 });
@@ -1812,8 +1832,7 @@ test("drops an internal code that arrives after the edit modal moved to another 
   await expect.element(dialog.getByText("7790000000001")).toBeVisible();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, resolveGenerate.promise);
 
   expect(dialog.getByText("2000000000015").query()).toBeNull();
   expect(dialog.getByText("7790987000015").query()).toBeNull();
@@ -2582,12 +2601,15 @@ function pendingPrint(services: ProductsListScreenServices) {
   let resolvePrint: (
     outcome: Awaited<ReturnType<ProductsListScreenServices["printLabels"]>>,
   ) => void = () => {};
-  vi.mocked(services.printLabels).mockReturnValue(
-    new Promise((resolve) => {
+  const promise = new Promise<Awaited<ReturnType<ProductsListScreenServices["printLabels"]>>>(
+    (resolve) => {
       resolvePrint = resolve;
-    }),
+    },
   );
-  return (outcome: Parameters<typeof resolvePrint>[0]) => resolvePrint(outcome);
+  vi.mocked(services.printLabels).mockReturnValue(promise);
+  const resolve = (outcome: Parameters<typeof resolvePrint>[0]) => resolvePrint(outcome);
+  resolve.promise = promise;
+  return resolve;
 }
 
 async function startPrintThenCloseAndReopen(screen: Screen) {
@@ -2615,8 +2637,7 @@ test("ignores a print success that arrives after the modal was closed and opened
   await startPrintThenCloseAndReopen(screen);
 
   resolvePrint({ kind: "ok", blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }) });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, resolvePrint.promise);
 
   expect(createObjectURL).not.toHaveBeenCalled();
   expect(anchorClick).not.toHaveBeenCalled();
@@ -2637,11 +2658,12 @@ async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsL
   let resolveReload: (
     outcome: Awaited<ReturnType<ProductsListScreenServices["fetchProducts"]>>,
   ) => void = () => {};
-  vi.mocked(services.fetchProducts).mockReturnValueOnce(
-    new Promise((resolve) => {
-      resolveReload = resolve;
-    }),
-  );
+  const reloadPromise = new Promise<
+    Awaited<ReturnType<ProductsListScreenServices["fetchProducts"]>>
+  >((resolve) => {
+    resolveReload = resolve;
+  });
+  vi.mocked(services.fetchProducts).mockReturnValueOnce(reloadPromise);
   await userEvent.click(firstDialog.getByRole("button", { name: "Recargar la lista" }));
   await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -2653,6 +2675,7 @@ async function startReloadThenCloseAndReopen(screen: Screen, services: ProductsL
   return {
     dialog,
     resolveReload: (outcome: Parameters<typeof resolveReload>[0]) => resolveReload(outcome),
+    reloadPromise,
   };
 }
 
@@ -2661,11 +2684,13 @@ test("ignores a reload success that arrives after the modal was closed and opene
   mockLoaded(services, [mielConCodigoInterno]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
-  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+  const { dialog, resolveReload, reloadPromise } = await startReloadThenCloseAndReopen(
+    screen,
+    services,
+  );
 
   resolveReload({ kind: "ok", value: [mielConCodigoInterno] });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, reloadPromise);
 
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
 });
@@ -2675,11 +2700,13 @@ test("ignores a reload failure that arrives after the modal was closed and opene
   mockLoaded(services, [mielConCodigoInterno]);
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "product_not_found" });
   const screen = await renderScreen(services);
-  const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
+  const { dialog, resolveReload, reloadPromise } = await startReloadThenCloseAndReopen(
+    screen,
+    services,
+  );
 
   resolveReload({ kind: "failed" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, reloadPromise);
 
   expect(dialog.getByText("No se pudo recargar la lista").query()).toBeNull();
 });
@@ -2692,8 +2719,7 @@ test("ignores a print failure that arrives after the modal was closed and opened
   const dialog = await startPrintThenCloseAndReopen(screen);
 
   resolvePrint({ kind: "failed" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services, resolvePrint.promise);
 
   expect(dialog.getByText("No se pudo generar la hoja").query()).toBeNull();
 });
