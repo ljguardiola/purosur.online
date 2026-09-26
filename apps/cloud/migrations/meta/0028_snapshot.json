@@ -1,283 +1,9 @@
 {
-  "id": "e77ddabd-d3f5-4d6f-9bd8-bcc6298fec2e",
+  "id": "06f238d6-5feb-40a5-8062-062420b441a7",
   "prevId": "6b2c7cea-4819-4aaa-8679-bc8438045fbf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.alert_deliveries": {
-      "name": "alert_deliveries",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "alert_id": {
-          "name": "alert_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_user_id": {
-          "name": "recipient_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "channel": {
-          "name": "channel",
-          "type": "alert_delivery_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'backoffice'"
-        },
-        "status": {
-          "name": "status",
-          "type": "alert_delivery_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'sent'"
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "alert_deliveries_alert_recipient_channel_key": {
-          "name": "alert_deliveries_alert_recipient_channel_key",
-          "columns": [
-            {
-              "expression": "alert_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "recipient_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "channel",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "alert_deliveries_alert_id_alerts_id_fk": {
-          "name": "alert_deliveries_alert_id_alerts_id_fk",
-          "tableFrom": "alert_deliveries",
-          "tableTo": "alerts",
-          "columnsFrom": ["alert_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "alert_deliveries_recipient_user_id_users_id_fk": {
-          "name": "alert_deliveries_recipient_user_id_users_id_fk",
-          "tableFrom": "alert_deliveries",
-          "tableTo": "users",
-          "columnsFrom": ["recipient_user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.alerts": {
-      "name": "alerts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "level": {
-          "name": "level",
-          "type": "alert_level",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "audience": {
-          "name": "audience",
-          "type": "alert_audience",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "detail": {
-          "name": "detail",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "escalate_at": {
-          "name": "escalate_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "escalated_at": {
-          "name": "escalated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_at": {
-          "name": "resolved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resolved_by": {
-          "name": "resolved_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "alerts_open_dedup_key": {
-          "name": "alerts_open_dedup_key",
-          "columns": [
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "scope",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"alerts\".\"resolved_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "alerts_level_idx": {
-          "name": "alerts_level_idx",
-          "columns": [
-            {
-              "expression": "level",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "alerts_resolved_at_idx": {
-          "name": "alerts_resolved_at_idx",
-          "columns": [
-            {
-              "expression": "resolved_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "alerts_location_id_locations_id_fk": {
-          "name": "alerts_location_id_locations_id_fk",
-          "tableFrom": "alerts",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "alerts_resolved_by_users_id_fk": {
-          "name": "alerts_resolved_by_users_id_fk",
-          "tableFrom": "alerts",
-          "tableTo": "users",
-          "columnsFrom": ["resolved_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "alerts_location_id_matches_audience": {
-          "name": "alerts_location_id_matches_audience",
-          "value": "(\"alerts\".\"audience\" = 'local' AND \"alerts\".\"location_id\" IS NOT NULL) OR (\"alerts\".\"audience\" = 'all' AND \"alerts\".\"location_id\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.audit_log": {
       "name": "audit_log",
       "schema": "",
@@ -589,6 +315,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -602,6 +334,12 @@
           "name": "categories_name_lower_key",
           "columns": [
             {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "lower(\"name\")",
               "asc": true,
               "isExpression": true,
@@ -612,13 +350,43 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "categories_parent_id_idx": {
+          "name": "categories_parent_id_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "categories_parent_id_categories_id_fk": {
+          "name": "categories_parent_id_categories_id_fk",
+          "tableFrom": "categories",
+          "tableTo": "categories",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "categories_parent_is_not_itself": {
+          "name": "categories_parent_is_not_itself",
+          "value": "\"categories\".\"parent_id\" <> \"categories\".\"id\""
+        }
+      },
       "isRLSEnabled": false
     },
     "public.issuer_identification": {
@@ -1970,26 +1738,6 @@
     }
   },
   "enums": {
-    "public.alert_audience": {
-      "name": "alert_audience",
-      "schema": "public",
-      "values": ["local", "all"]
-    },
-    "public.alert_delivery_channel": {
-      "name": "alert_delivery_channel",
-      "schema": "public",
-      "values": ["backoffice"]
-    },
-    "public.alert_delivery_status": {
-      "name": "alert_delivery_status",
-      "schema": "public",
-      "values": ["sent", "failed"]
-    },
-    "public.alert_level": {
-      "name": "alert_level",
-      "schema": "public",
-      "values": ["informational", "warning", "critical"]
-    },
     "public.backoffice_rate_limit_key_kind": {
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",

@@ -9,7 +9,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import type { SaleUnit } from "./product-validation.js";
+import type { NetContentInput, NetContentUnit, SaleUnit } from "./product-validation.js";
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
@@ -42,6 +42,7 @@ export interface ProductRow {
   categoryName: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  netContent: NetContentInput | null;
   active: boolean;
   version: number;
 }
@@ -52,8 +53,26 @@ interface ProductWithoutBarcodes {
   categoryId: string;
   categoryName: string;
   saleUnit: string;
+  netContentQuantity: number | null;
+  netContentUnit: string | null;
   active: boolean;
   version: number;
+}
+
+/**
+ * Shapes the flat `net_content_quantity`/`net_content_unit` columns into the wire's nested
+ * `netContent` object, `null` for a product saved with none. Both columns are guaranteed
+ * both-null-or-both-set by the database (`products_net_content_both_or_neither_check`), so reading
+ * one as set is enough to trust the other.
+ */
+export function netContentRow(row: {
+  netContentQuantity: number | null;
+  netContentUnit: string | null;
+}): NetContentInput | null {
+  if (row.netContentQuantity === null || row.netContentUnit === null) {
+    return null;
+  }
+  return { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit };
 }
 
 /**
@@ -97,6 +116,8 @@ export async function listProducts<TQueryResult extends PgQueryResultHKT>(
       categoryId: products.categoryId,
       categoryName: categories.name,
       saleUnit: products.saleUnit,
+      netContentQuantity: products.netContentQuantity,
+      netContentUnit: products.netContentUnit,
       active: products.active,
       version: products.version,
     })
@@ -111,9 +132,15 @@ export async function listProducts<TQueryResult extends PgQueryResultHKT>(
   );
 
   return rows.map((row) => ({
-    ...row,
+    id: row.id,
+    name: row.name,
+    categoryId: row.categoryId,
+    categoryName: row.categoryName,
     saleUnit: row.saleUnit as SaleUnit,
     barcodes: barcodes.get(row.id) ?? [],
+    netContent: netContentRow(row),
+    active: row.active,
+    version: row.version,
   }));
 }
 

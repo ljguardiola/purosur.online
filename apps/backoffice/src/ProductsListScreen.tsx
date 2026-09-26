@@ -3,19 +3,24 @@ import {
   barcodeLength,
   ean13Modules,
   isInternalBarcode,
+  isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
+  type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "@purosur/contracts";
 import {
   Button,
+  FieldGroup,
   IconButton,
   InlineNotice,
   ListFilter,
   Modal,
   OptionCardGroup,
+  QuantityUnitField,
+  type QuantityUnitFieldOption,
   SearchField,
   Select,
   type SelectOption,
@@ -54,7 +59,9 @@ import {
   useState,
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
+import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
 import { messages } from "./messages";
+import { netContentQuantityError, parseNetContentQuantity } from "./netContentQuantity";
 import {
   type CreateProductInput,
   createProduct,
@@ -62,6 +69,7 @@ import {
   editProduct,
   fetchProducts,
   generateInternalBarcode,
+  type NetContent,
   type ProductSaleUnit,
   type ProductStatusFilter,
   type ProductSummary,
@@ -112,6 +120,42 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return productsMessages.unitOptionLabels[saleUnit];
 }
 
+// The unit picker's own option list for the net content field, in the same order the contracts
+// package's own NET_CONTENT_UNITS enumerates them; written out rather than mapped over that
+// constant so the tuple type (at least one option) is inferred directly instead of asserted.
+const NET_CONTENT_UNIT_OPTIONS: [
+  QuantityUnitFieldOption<NetContentUnit>,
+  ...QuantityUnitFieldOption<NetContentUnit>[],
+] = [
+  { id: "G", label: productsMessages.netContentUnitOptionLabels.G },
+  { id: "KG", label: productsMessages.netContentUnitOptionLabels.KG },
+  { id: "ML", label: productsMessages.netContentUnitOptionLabels.ML },
+  { id: "L", label: productsMessages.netContentUnitOptionLabels.L },
+  { id: "UNIT", label: productsMessages.netContentUnitOptionLabels.UNIT },
+];
+
+const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
+
+/** The `netContent` to send: `null` for a blank quantity (never set, or cleared on edit) or one
+ * that still fails validation (an invalid save is blocked before this runs). */
+function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | null {
+  const parsed = parseNetContentQuantity(quantity);
+  return parsed !== undefined && isValidNetContentQuantity(parsed)
+    ? { quantity: parsed, unit }
+    : null;
+}
+
+/** The quantity field's own string form when prefilling the edit modal: blank for a product with
+ * no net content, otherwise with a decimal comma and no thousands separator, a form
+ * `parseNetContentQuantity` reads back. */
+function netContentQuantityText(netContent: NetContent | null): string {
+  return netContent ? String(netContent.quantity).replace(".", ",") : "";
+}
+
+function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
+  return netContent ? netContent.unit : NET_CONTENT_DEFAULT_UNIT;
+}
+
 function nameCollator(a: ProductSummary, b: ProductSummary): number {
   return a.name.localeCompare(b.name, "es");
 }
@@ -121,17 +165,26 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
   return direction === "ascending" ? sorted : sorted.reverse();
 }
 
+// Only a leaf category (no subcategories of its own) can hold a product, labeled by its full
+// path ("Almacén › Untables") the same way the Categorías screen draws it, since a bare name no
+// longer tells the two apart once categories nest.
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
-  if (categories.length === 0) {
+  const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+  if (leafIds.size === 0) {
     return undefined;
   }
-  const [first, ...rest] = [...categories]
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
-    .map((category) => ({ value: category.id, label: category.name }));
+  const labels = categoryPathLabels(categories);
+  const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+    leafIds.has(category.id),
+  );
+  const [first, ...rest] = leaves.map((category) => ({
+    value: category.id,
+    label: labels.get(category.id) ?? category.name,
+  }));
   if (!first) {
-    throw new Error("no category to offer: categories.length > 0 was already checked");
+    throw new Error("no category to offer: leaves.length > 0 was already checked");
   }
   return [first, ...rest];
 }
@@ -149,9 +202,6 @@ function productNameError(
   }
   return undefined;
 }
-
-// Same asterisk TextField and Select draw on a required field's own label.
-const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
 
 // Shared by the scan input and the "Generar código interno" button: the design's own outlined
 // control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
@@ -213,8 +263,7 @@ function BarcodeChips({
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
+    <FieldGroup label={labels.barcodesLabel} required>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -289,11 +338,17 @@ function BarcodeChips({
           {error}
         </span>
       )}
-    </div>
+    </FieldGroup>
   );
 }
 
-type ProductFieldErrors = { name?: string; category?: string; unit?: string; barcodes?: string };
+type ProductFieldErrors = {
+  name?: string;
+  category?: string;
+  unit?: string;
+  barcodes?: string;
+  netContent?: string;
+};
 type ProductFieldErrorKey = keyof ProductFieldErrors;
 
 // Deletes the key rather than setting it to `undefined`, since `exactOptionalPropertyTypes`
@@ -314,12 +369,14 @@ function productFieldErrors(
   category: string | undefined,
   unit: string | undefined,
   barcodes: string | undefined,
+  netContent: string | undefined,
 ): ProductFieldErrors {
   let next: ProductFieldErrors = {};
   next = withFieldError(next, "name", name);
   next = withFieldError(next, "category", category);
   next = withFieldError(next, "unit", unit);
   next = withFieldError(next, "barcodes", barcodes);
+  next = withFieldError(next, "netContent", netContent);
   return next;
 }
 
@@ -569,6 +626,8 @@ function NewProductModal({
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
+  const [netContentQuantity, setNetContentQuantity] = useState("");
+  const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
   const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
@@ -598,6 +657,8 @@ function NewProductModal({
       setName("");
       setCategoryId(null);
       setSaleUnit(null);
+      setNetContentQuantity("");
+      setNetContentUnit(NET_CONTENT_DEFAULT_UNIT);
       chips.reset([]);
       setErrors({});
       setNotice(null);
@@ -615,8 +676,11 @@ function NewProductModal({
     const pending = chips.commitPending();
     const barcodesError =
       pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
-    setErrors(productFieldErrors(nameError, categoryError, unitError, barcodesError));
-    if (!pending.ok || !categoryId || !saleUnit || nameError || barcodesError) {
+    const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
+    setErrors(
+      productFieldErrors(nameError, categoryError, unitError, barcodesError, netContentError),
+    );
+    if (!pending.ok || !categoryId || !saleUnit || nameError || barcodesError || netContentError) {
       return;
     }
     setNotice(null);
@@ -627,6 +691,7 @@ function NewProductModal({
       categoryId,
       saleUnit,
       barcodes: pending.barcodes,
+      netContent: netContentToSend(netContentQuantity, netContentUnit),
     };
     const outcome = await createProduct(input);
     if (outcome.kind === "ok") {
@@ -652,6 +717,14 @@ function NewProductModal({
         setErrors((current) =>
           withFieldError(current, "barcodes", barcodesRejectedError(input.barcodes, modalMessages)),
         );
+      } else if (outcome.field === "netContentQuantity") {
+        setErrors((current) =>
+          withFieldError(current, "netContent", modalMessages.netContentQuantityInvalid),
+        );
+      } else if (outcome.field === "netContent") {
+        setErrors((current) =>
+          withFieldError(current, "netContent", modalMessages.netContentInvalid),
+        );
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -663,6 +736,19 @@ function NewProductModal({
         ...current,
         barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === input.categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
       setSubmitting(false);
       return;
     }
@@ -762,15 +848,34 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <div className="flex flex-col gap-1">
-            <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+          <FieldGroup label={modalMessages.categoryLabel} required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
-          </div>
+          </FieldGroup>
         )}
-        <div className="flex flex-col gap-1.5">
-          <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+        <QuantityUnitField
+          label={modalMessages.netContentLabel}
+          quantity={netContentQuantity}
+          onQuantityChange={(value) => {
+            setNetContentQuantity(value);
+            if (errors.netContent) {
+              setErrors((current) =>
+                withFieldError(
+                  current,
+                  "netContent",
+                  netContentQuantityError(value, modalMessages),
+                ),
+              );
+            }
+          }}
+          unit={netContentUnit}
+          onUnitChange={setNetContentUnit}
+          options={NET_CONTENT_UNIT_OPTIONS}
+          unitLabel={modalMessages.netContentUnitLabel}
+          {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+        />
+        <FieldGroup label={modalMessages.unitLabel} required>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -795,7 +900,7 @@ function NewProductModal({
             required
             {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
-        </div>
+        </FieldGroup>
         <BarcodeChips
           barcodes={chips.barcodes}
           onRemove={chips.remove}
@@ -852,6 +957,8 @@ function EditProductModal({
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit>("UNIT");
+  const [netContentQuantity, setNetContentQuantity] = useState("");
+  const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
   const [version, setVersion] = useState(1);
   // The dialog's own title: the product's name as it was when the dialog opened (see
   // CategoriesListScreen.tsx's own EditCategoryModal for the same non-nullable-title reasoning).
@@ -883,6 +990,8 @@ function EditProductModal({
       setName(target.name);
       setCategoryId(target.categoryId);
       setSaleUnit(target.saleUnit);
+      setNetContentQuantity(netContentQuantityText(target.netContent));
+      setNetContentUnit(netContentUnitOf(target.netContent));
       setVersion(target.version);
       setTitle(target.name);
       chips.reset(target.barcodes);
@@ -905,10 +1014,13 @@ function EditProductModal({
     const pending = chips.commitPending();
     const barcodesError =
       pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
+    const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
     // Category and sale unit are already the product's own current values here (never chosen
     // through this modal for the first time), so unlike NewProductModal, `unit` is never invalid.
-    setErrors(productFieldErrors(nameError, categoryError, undefined, barcodesError));
-    if (!pending.ok || nameError || categoryError || barcodesError) {
+    setErrors(
+      productFieldErrors(nameError, categoryError, undefined, barcodesError, netContentError),
+    );
+    if (!pending.ok || nameError || categoryError || barcodesError || netContentError) {
       return;
     }
     setNotice(null);
@@ -920,6 +1032,7 @@ function EditProductModal({
       categoryId,
       saleUnit,
       barcodes: sentBarcodes,
+      netContent: netContentToSend(netContentQuantity, netContentUnit),
       version,
     });
     if (outcome.kind === "ok") {
@@ -953,6 +1066,14 @@ function EditProductModal({
         setErrors((current) =>
           withFieldError(current, "barcodes", barcodesRejectedError(sentBarcodes, modalMessages)),
         );
+      } else if (outcome.field === "netContentQuantity") {
+        setErrors((current) =>
+          withFieldError(current, "netContent", modalMessages.netContentQuantityInvalid),
+        );
+      } else if (outcome.field === "netContent") {
+        setErrors((current) =>
+          withFieldError(current, "netContent", modalMessages.netContentInvalid),
+        );
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -964,6 +1085,19 @@ function EditProductModal({
         ...current,
         barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
       setSubmitting(false);
       return;
     }
@@ -994,6 +1128,8 @@ function EditProductModal({
       setTitle(fresh.name);
       setCategoryId(fresh.categoryId);
       setSaleUnit(fresh.saleUnit);
+      setNetContentQuantity(netContentQuantityText(fresh.netContent));
+      setNetContentUnit(netContentUnitOf(fresh.netContent));
       setVersion(fresh.version);
       chips.reset(fresh.barcodes);
       setErrors({});
@@ -1144,15 +1280,34 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <div className="flex flex-col gap-1">
-              <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+            <FieldGroup label={modalMessages.categoryLabel} required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
-            </div>
+            </FieldGroup>
           )}
-          <div className="flex flex-col gap-1.5">
-            <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+          <QuantityUnitField
+            label={modalMessages.netContentLabel}
+            quantity={netContentQuantity}
+            onQuantityChange={(value) => {
+              setNetContentQuantity(value);
+              if (errors.netContent) {
+                setErrors((current) =>
+                  withFieldError(
+                    current,
+                    "netContent",
+                    netContentQuantityError(value, modalMessages),
+                  ),
+                );
+              }
+            }}
+            unit={netContentUnit}
+            onUnitChange={setNetContentUnit}
+            options={NET_CONTENT_UNIT_OPTIONS}
+            unitLabel={modalMessages.netContentUnitLabel}
+            {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
+          />
+          <FieldGroup label={modalMessages.unitLabel} required>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
@@ -1173,7 +1328,7 @@ function EditProductModal({
               onChange={setSaleUnit}
               required
             />
-          </div>
+          </FieldGroup>
           <BarcodeChips
             barcodes={chips.barcodes}
             onRemove={chips.remove}
@@ -1815,13 +1970,23 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const products = list.kind === "loaded" ? list.products : [];
 
+  const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
+
+  // Only a leaf category can hold a product, so any other filter option could only ever match
+  // nothing; a full path tells apart two leaves that share a name under different parents.
   const categoryFilterOptions = useMemo(() => {
-    const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    const leafIds = new Set(leafCategories(categories).map((category) => category.id));
+    const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>
+      leafIds.has(category.id),
+    );
     return [
       { value: "ALL" as const, label: productsMessages.categoryFilterAllOption },
-      ...sorted.map((category) => ({ value: category.id, label: category.name })),
+      ...leaves.map((category) => ({
+        value: category.id,
+        label: categoryLabels.get(category.id) ?? category.name,
+      })),
     ] as [{ value: CategoryFilter; label: string }, ...{ value: CategoryFilter; label: string }[]];
-  }, [categories]);
+  }, [categories, categoryLabels]);
 
   const unitFilterOptions = [
     { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
@@ -1865,7 +2030,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     {
       key: "category",
       title: productsMessages.columns.category,
-      render: (item: ProductSummary) => item.categoryName,
+      render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",

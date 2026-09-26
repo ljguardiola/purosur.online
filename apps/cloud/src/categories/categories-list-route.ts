@@ -21,13 +21,19 @@ export interface CategoryRow {
   id: string;
   name: string;
   version: number;
+  parentId: string | null;
 }
 
 export async function listCategories<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<CategoryRow[]> {
   return db
-    .select({ id: categories.id, name: categories.name, version: categories.version })
+    .select({
+      id: categories.id,
+      name: categories.name,
+      version: categories.version,
+      parentId: categories.parentId,
+    })
     .from(categories)
     .orderBy(asc(categories.name));
 }

@@ -1,7 +1,8 @@
-import { sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { categories } from "../db/schema.js";
+import { categories, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -13,11 +14,22 @@ import {
   type CategoryFieldValidationFailure,
   categoryNameValidationFailure,
   readCategoryName,
+  readParentId,
 } from "./category-validation.js";
 
 export const CATEGORY_NAME_TAKEN_RESPONSE = {
   code: "category_name_taken",
-  message: "a category with that name already exists",
+  message: "a category with that name already exists under that parent",
+} as const;
+
+export const CATEGORY_PARENT_NOT_FOUND_FAILURE: CategoryFieldValidationFailure = {
+  field: "parentId",
+  message: "parentId must be an existing category's id, or null for top level",
+};
+
+export const CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE = {
+  code: "category_parent_has_products",
+  message: "the parent category has products assigned; move them before adding a subcategory",
 } as const;
 
 const UNIQUE_VIOLATION = "23505";
@@ -50,6 +62,7 @@ export function isCategoryNameUniqueViolation(error: unknown): boolean {
 
 interface CreationRequestBody {
   name: string;
+  parentId: string | null;
 }
 
 function readCreationBody(body: unknown): CreationRequestBody | CategoryFieldValidationFailure {
@@ -62,7 +75,11 @@ function readCreationBody(body: unknown): CreationRequestBody | CategoryFieldVal
     // Unreachable: `categoryNameValidationFailure` above already rejects an empty or missing name.
     return { field: "name", message: "name must not be empty" };
   }
-  return { name };
+  const parentId = readParentId(body);
+  if (parentId === undefined) {
+    return CATEGORY_PARENT_NOT_FOUND_FAILURE;
+  }
+  return { name, parentId };
 }
 
 function isValidationFailure(
@@ -73,54 +90,114 @@ function isValidationFailure(
 
 export interface CreateCategoryInput {
   name: string;
+  parentId: string | null;
 }
 
 export type CreateCategoryOutcome =
   | { kind: "name_taken" }
+  | { kind: "parent_not_found" }
+  | { kind: "parent_has_products" }
   | { kind: "created"; category: CategoryRow };
 
 /**
- * Creates a category in one transaction. The name uniqueness check runs first, inside the
- * transaction; the database's own case-insensitive unique index (`categories_name_lower_key`) is
- * the backstop for a name that lands concurrently, mapped by `isCategoryNameUniqueViolation` the
- * same way `createRole` (`role-creation-route.ts`) maps its own.
+ * Locks the category about to receive a child `FOR UPDATE` (the same lock `lockLeafCategory`,
+ * `product-creation-route.ts`, takes on a category it assigns a product to), so the two "does
+ * this category have children" and "does this category have products" checks can never both slip
+ * past a concurrent write on the other side. Any assigned product blocks, inactive ones included.
+ */
+export async function lockParentForNewChild<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  parentId: string,
+): Promise<"parent_not_found" | "parent_has_products" | "locked"> {
+  if (!UUID_PATTERN.test(parentId)) {
+    return "parent_not_found";
+  }
+  const [parent] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, parentId))
+    .for("update");
+  if (!parent) {
+    return "parent_not_found";
+  }
+  const [product] = await tx
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.categoryId, parentId))
+    .limit(1);
+  return product ? "parent_has_products" : "locked";
+}
+
+/**
+ * Whether a category other than `excludingId` under `parentId` (top level for `null`) already
+ * has `name`, compared case-insensitively.
+ */
+export async function siblingNameTaken<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  parentId: string | null,
+  name: string,
+  excludingId?: string,
+): Promise<boolean> {
+  const [sibling] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId),
+        sql`lower(${categories.name}) = lower(${name})`,
+        excludingId === undefined ? undefined : ne(categories.id, excludingId),
+      ),
+    )
+    .limit(1);
+  return sibling !== undefined;
+}
+
+/**
+ * Creates a category in one transaction, first locking its parent through
+ * `lockParentForNewChild`. The sibling name uniqueness check runs next, inside the same
+ * transaction; the database's own case-insensitive unique index (`categories_name_lower_key`,
+ * scoped per parent with `NULLS NOT DISTINCT`) is the backstop for a name that lands
+ * concurrently, mapped by `isCategoryNameUniqueViolation` the same way `createRole`
+ * (`role-creation-route.ts`) maps its own.
  */
 export async function createCategory<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateCategoryInput,
 ): Promise<CreateCategoryOutcome> {
-  const created = await db
-    .transaction(async (tx) => {
-      const [existing] = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(sql`lower(${categories.name}) = lower(${input.name})`)
-        .limit(1);
-      if (existing) {
+  return db
+    .transaction<CreateCategoryOutcome>(async (tx) => {
+      if (input.parentId !== null) {
+        const parent = await lockParentForNewChild(tx, input.parentId);
+        if (parent !== "locked") {
+          return { kind: parent };
+        }
+      }
+
+      if (await siblingNameTaken(tx, input.parentId, input.name)) {
         throw new CategoryNameTaken();
       }
 
       const [newCategory] = await tx
         .insert(categories)
-        .values({ name: input.name })
-        .returning({ id: categories.id, name: categories.name, version: categories.version });
+        .values({ name: input.name, parentId: input.parentId })
+        .returning({
+          id: categories.id,
+          name: categories.name,
+          version: categories.version,
+          parentId: categories.parentId,
+        });
       if (!newCategory) {
         throw new Error("inserting the category returned no row");
       }
 
-      return newCategory;
+      return { kind: "created", category: newCategory };
     })
-    .catch((error: unknown) => {
+    .catch((error: unknown): CreateCategoryOutcome => {
       if (error instanceof CategoryNameTaken || isCategoryNameUniqueViolation(error)) {
-        return undefined;
+        return { kind: "name_taken" };
       }
       throw error;
     });
-
-  if (!created) {
-    return { kind: "name_taken" };
-  }
-  return { kind: "created", category: created };
 }
 
 /**
@@ -167,8 +244,23 @@ export function registerCategoryCreationRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const outcome = await createCategory(options.db, { name: parsedBody.name });
+      const outcome = await createCategory(options.db, {
+        name: parsedBody.name,
+        parentId: parsedBody.parentId,
+      });
 
+      if (outcome.kind === "parent_not_found") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: CATEGORY_PARENT_NOT_FOUND_FAILURE.message,
+          details: [{ field: CATEGORY_PARENT_NOT_FOUND_FAILURE.field }],
+        });
+        return;
+      }
+      if (outcome.kind === "parent_has_products") {
+        await reply.code(409).send(CATEGORY_PARENT_HAS_PRODUCTS_RESPONSE);
+        return;
+      }
       if (outcome.kind === "name_taken") {
         await reply.code(409).send(CATEGORY_NAME_TAKEN_RESPONSE);
         return;

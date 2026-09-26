@@ -4,6 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
+import { FieldSizeProvider } from "./FieldSize";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -88,6 +89,50 @@ test("renders the label 6px above an 8px-radius box", async () => {
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(box).borderRadius).toBe("8px");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The backoffice size's own label, gap, box and value are proven once, for TextField, DateField
+// and Select together, in FieldSize.test.tsx; this test only proves the one thing specific to
+// this component's own suffixed plain text: the value stays semibold even then, unlike its unit.
+test("keeps the backoffice plain text value semibold even with a suffix, unlike its own unit", async () => {
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <TextField kind="plain-text" label="Plazo" value="30" onChange={() => {}} suffix="días" />
+    </FieldSizeProvider>,
+  );
+  const input = fieldInput(screen, "Plazo");
+  const suffixElement = screen.getByText("días").element() as HTMLElement;
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(16);
+  expect(getComputedStyle(input).fontWeight).toBe("600");
+  expect(getComputedStyle(input).textAlign).toBe("right");
+  expect(getComputedStyle(suffixElement).fontWeight).toBe("400");
+  expect(getComputedStyle(suffixElement).color).toBe(tokenRgb("ink-secondary"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+// The design draws no backoffice money or kg field (see TextField.tsx's own TextFieldKindProps),
+// so a kind other than plain text keeps its whole register-sized field — label, gap and value
+// included, not only its frame — regardless of an ambient backoffice FieldSizeProvider.
+test("keeps a non-plain-text kind at its own register size inside a backoffice FieldSizeProvider", async () => {
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <TextField kind="price" label="Sale price per kilo" value="" onChange={() => {}} prefix="$" />
+    </FieldSizeProvider>,
+  );
+  const label = screen.getByText("Sale price per kilo").element() as HTMLElement;
+  const input = fieldInput(screen, "Sale price per kilo");
+  const box = fieldBox(screen, "Sale price per kilo");
+  const wrapper = fieldWrapper(screen, "Sale price per kilo");
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
+  expect(getComputedStyle(label).fontWeight).toBe("700");
+  expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
+  expect(box.getBoundingClientRect().height).toBeCloseTo(72, 0);
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(32);
 
   await expectNoAccessibilityViolations(screen.container);
 });

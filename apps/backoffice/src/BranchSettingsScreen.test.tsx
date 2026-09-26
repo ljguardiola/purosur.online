@@ -1,4 +1,5 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -51,9 +52,11 @@ function renderScreen(
   onSessionEnded: () => void = () => {},
 ) {
   return render(
-    <main>
-      <BranchSettingsScreen onSessionEnded={onSessionEnded} services={services} />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <BranchSettingsScreen onSessionEnded={onSessionEnded} services={services} />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 
@@ -780,9 +783,11 @@ test("fits the three deadline fields inside their card at the backoffice's conte
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
 
   const screen = await render(
-    <main style={{ width: 1104, height: 1000, display: "flex", flexDirection: "column" }}>
-      <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main style={{ width: 1104, height: 1000, display: "flex", flexDirection: "column" }}>
+        <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+      </main>
+    </FieldSizeProvider>,
   );
 
   const lastField = screen.getByLabelText("Cambio en buen estado");
@@ -823,9 +828,11 @@ test("keeps unsaved edits without refetching when the parent re-renders with a n
   await userEvent.fill(address, "Av. Corrientes 800, CABA");
 
   await screen.rerender(
-    <main>
-      <BranchSettingsScreen services={services} onSessionEnded={() => {}} />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <BranchSettingsScreen services={services} onSessionEnded={() => {}} />
+      </main>
+    </FieldSizeProvider>,
   );
 
   await expect.element(address).toHaveValue("Av. Corrientes 800, CABA");

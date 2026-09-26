@@ -1,4 +1,8 @@
+import type { NetContentUnit } from "@purosur/contracts";
+
 export type ProductSaleUnit = "UNIT" | "KG";
+
+export type NetContent = { quantity: number; unit: NetContentUnit };
 
 /** The `status` query param `GET /products` accepts, mirroring the cloud's own filter. */
 export type ProductStatusFilter = "active" | "inactive" | "all";
@@ -14,6 +18,7 @@ export type ProductSummary = {
   categoryName: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
   active: boolean;
   version: number;
 };
@@ -25,19 +30,28 @@ export type FetchProductsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ProductFieldError = "name" | "categoryId" | "saleUnit" | "barcodes" | "version";
+export type ProductFieldError =
+  | "name"
+  | "categoryId"
+  | "saleUnit"
+  | "barcodes"
+  | "version"
+  | "netContent"
+  | "netContentQuantity";
 
 export type CreateProductInput = {
   name: string;
   categoryId: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
 };
 
 export type CreateProductOutcome =
   | { kind: "ok"; value: ProductSummary }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "category_not_leaf" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -48,6 +62,7 @@ export type EditProductInput = {
   categoryId: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
   version: number;
 };
 
@@ -55,6 +70,7 @@ export type EditProductOutcome =
   | { kind: "ok"; value: ProductSummary }
   | { kind: "validation_failed"; field: ProductFieldError }
   | { kind: "barcode_taken"; codes: string[] }
+  | { kind: "category_not_leaf" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -88,7 +104,9 @@ function productFieldFromWire(field: unknown): ProductFieldError | undefined {
     field === "categoryId" ||
     field === "saleUnit" ||
     field === "barcodes" ||
-    field === "version"
+    field === "version" ||
+    field === "netContent" ||
+    field === "netContentQuantity"
     ? field
     : undefined;
 }
@@ -160,6 +178,11 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     return { kind: "failed" };
   }
   if (response.status === 409) {
+    const cloned = response.clone();
+    const body = (await cloned.json().catch(() => undefined)) as { code?: string } | undefined;
+    if (body?.code === "category_not_leaf") {
+      return { kind: "category_not_leaf" };
+    }
     return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
   }
   if (response.status === 401) {
@@ -294,6 +317,9 @@ export async function editProduct(
       | undefined;
     if (body?.code === "stale_version") {
       return { kind: "stale_version" };
+    }
+    if (body?.code === "category_not_leaf") {
+      return { kind: "category_not_leaf" };
     }
     const codes = Array.isArray(body?.codes)
       ? body.codes.filter((code): code is string => typeof code === "string")

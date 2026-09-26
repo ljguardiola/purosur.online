@@ -199,6 +199,7 @@ describe("GET /products", () => {
         categoryName: "Semillas",
         saleUnit: "KG",
         barcodes: ["333"],
+        netContent: null,
         active: true,
         version: semilla.version,
       },
@@ -209,10 +210,28 @@ describe("GET /products", () => {
         categoryName: "Macetas",
         saleUnit: "UNIT",
         barcodes: ["222", "111"],
+        netContent: null,
         active: true,
         version: maceta.version,
       },
     ]);
+  });
+
+  it("returns the net content of a product that has one", async () => {
+    const categoryId = await insertCategory("Semillas");
+    await db.insert(products).values({
+      name: "Alpiste 1kg",
+      categoryId,
+      saleUnit: "KG",
+      netContentQuantity: 1,
+      netContentUnit: "KG",
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getProducts(rawSessionId);
+
+    expect(response.json()).toMatchObject([{ netContent: { quantity: 1, unit: "KG" } }]);
   });
 
   describe("the status filter", () => {

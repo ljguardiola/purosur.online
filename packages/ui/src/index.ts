@@ -16,8 +16,12 @@ export type { CheckboxProps } from "./components/Checkbox";
 export { Checkbox } from "./components/Checkbox";
 export type { ColumnChartBar, ColumnChartProps } from "./components/ColumnChart";
 export { ColumnChart } from "./components/ColumnChart";
-export type { DateFieldProps, DateFieldVariant } from "./components/DateField";
+export type { DateFieldProps } from "./components/DateField";
 export { DateField } from "./components/DateField";
+export type { FieldGroupProps } from "./components/FieldGroup";
+export { FieldGroup } from "./components/FieldGroup";
+export type { FieldSize, FieldSizeProviderProps } from "./components/FieldSize";
+export { backofficeFieldHeightClassName, FieldSizeProvider } from "./components/FieldSize";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
@@ -51,6 +55,11 @@ export type { PuroSurIsotypeProps } from "./components/PuroSurIsotype";
 export { PuroSurIsotype } from "./components/PuroSurIsotype";
 export type { PuroSurLogoProps } from "./components/PuroSurLogo";
 export { PuroSurLogo } from "./components/PuroSurLogo";
+export type {
+  QuantityUnitFieldOption,
+  QuantityUnitFieldProps,
+} from "./components/QuantityUnitField";
+export { QuantityUnitField } from "./components/QuantityUnitField";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
 export { RadioGroup } from "./components/RadioGroup";
 export type {
@@ -94,7 +103,11 @@ export type {
 export { Table, TableCellText } from "./components/Table";
 export type { TagProps, TagTone } from "./components/Tag";
 export { Tag } from "./components/Tag";
-export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
+export type {
+  TextFieldAffix,
+  TextFieldProps,
+  TextFieldValueKind,
+} from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";
 export { Toggle } from "./components/Toggle";

@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -10,7 +11,6 @@ import {
 } from "../session/route-access.js";
 import { isInternalBarcode } from "./ean13-check-digit.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
-import { UUID_PATTERN } from "./product-validation.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 // Mirrors `@purosur/contracts`'s label limits because this app's `tsc` build (explicit `rootDir`)
