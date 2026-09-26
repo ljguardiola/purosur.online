@@ -4,7 +4,7 @@
 // Thin wrapper only: it reads the hook payload from stdin, extracts the Bash
 // command, and asks the pure decision logic in
 // .github/scripts/guard-command.mjs whether the command violates the
-// repository contract (CONTRIBUTING.md). All rules live in that module (and
+// repository contract. All rules live in that module (and
 // the validators it reuses); this file adds no rules of its own.
 //
 // Deny mechanism: exit code 2 with the reason on stderr, per
