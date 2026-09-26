@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { categories, productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -9,16 +10,21 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import {
+  type NetContentInput,
   type ProductFieldValidationFailure,
   readBarcodes,
   readCategoryId,
+  readNetContent,
   readProductName,
   readSaleUnit,
   type SaleUnit,
-  UUID_PATTERN,
   validateProductFields,
 } from "./product-validation.js";
-import type { ProductRow, ProductsRouteOptions } from "./products-list-route.js";
+import {
+  netContentRow,
+  type ProductRow,
+  type ProductsRouteOptions,
+} from "./products-list-route.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
@@ -27,6 +33,15 @@ export const CATEGORY_NOT_FOUND_FAILURE: ProductFieldValidationFailure = {
   field: "categoryId",
   message: "categoryId must be an existing category's id",
 };
+
+// A leaf-only violation is a 409, not a 400 like `CATEGORY_NOT_FOUND_FAILURE`: unlike a malformed
+// or nonexistent id, `categoryId` here is well-formed and names a real category, so it is a
+// conflict with the tree's current state, the same way `barcode_taken` (below) is, not a
+// malformed request.
+export const CATEGORY_NOT_LEAF_RESPONSE = {
+  code: "category_not_leaf",
+  message: "categoryId must be a leaf category with no subcategories of its own",
+} as const;
 
 /**
  * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
@@ -56,6 +71,7 @@ interface CreationRequestBody {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  netContent: NetContentInput | null;
 }
 
 function readCreationBody(body: unknown): CreationRequestBody | ProductFieldValidationFailure {
@@ -63,7 +79,8 @@ function readCreationBody(body: unknown): CreationRequestBody | ProductFieldVali
   const categoryId = readCategoryId(body);
   const saleUnit = readSaleUnit(body);
   const barcodes = readBarcodes(body);
-  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes });
+  const netContent = readNetContent(body);
+  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes, netContent });
   if (failure) {
     return failure;
   }
@@ -73,6 +90,7 @@ function readCreationBody(body: unknown): CreationRequestBody | ProductFieldVali
     categoryId: categoryId as string,
     saleUnit: saleUnit as SaleUnit,
     barcodes: barcodes as string[],
+    netContent: netContent === undefined ? null : (netContent as NetContentInput),
   };
 }
 
@@ -87,10 +105,12 @@ export interface CreateProductInput {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  netContent?: NetContentInput | null;
 }
 
 export type CreateProductOutcome =
   | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: ProductRow };
 
@@ -110,11 +130,46 @@ async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Creates a product and its barcodes in one transaction. The category's existence and the
- * barcode-uniqueness check both run first, inside the transaction; the database's own unique
- * index (`product_barcodes_code_key`) is the backstop for a code that lands concurrently, mapped
- * by `isBarcodeUniqueViolation`. On that race, which of this request's codes is now taken isn't
- * known from the violation itself, so it's re-read after the transaction rolls back.
+ * Locks the category a product is about to be assigned to `FOR UPDATE` (the same lock
+ * `lockParentForNewChild`, `category-creation-route.ts`, takes on a category about to receive a
+ * child), so this and a concurrent category create or move targeting the same category can never
+ * both slip past the other's check: either this sees the child that was just added and rejects
+ * as non-leaf, or the category create/move sees this product and rejects as having products.
+ */
+export async function lockLeafCategory<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  categoryId: string,
+): Promise<
+  | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
+  | { kind: "locked"; category: { id: string; name: string } }
+> {
+  if (!UUID_PATTERN.test(categoryId)) {
+    return { kind: "category_not_found" };
+  }
+  const [category] = await tx
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .for("update");
+  if (!category) {
+    return { kind: "category_not_found" };
+  }
+  const [childCategory] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, categoryId))
+    .limit(1);
+  return childCategory ? { kind: "category_not_leaf" } : { kind: "locked", category };
+}
+
+/**
+ * Creates a product and its barcodes in one transaction, first locking its category through
+ * `lockLeafCategory`. The barcode-uniqueness check runs next, inside the same transaction; the
+ * database's own unique index (`product_barcodes_code_key`) is the backstop for a code that lands
+ * concurrently, mapped by `isBarcodeUniqueViolation`. On that race, which of this request's codes
+ * is now taken isn't known from the violation itself, so it's re-read after the transaction rolls
+ * back.
  */
 export async function createProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -122,17 +177,11 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
 ): Promise<CreateProductOutcome> {
   return db
     .transaction<CreateProductOutcome>(async (tx) => {
-      if (!UUID_PATTERN.test(input.categoryId)) {
-        return { kind: "category_not_found" };
+      const locked = await lockLeafCategory(tx, input.categoryId);
+      if (locked.kind !== "locked") {
+        return locked;
       }
-      const [category] = await tx
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, input.categoryId))
-        .limit(1);
-      if (!category) {
-        return { kind: "category_not_found" };
-      }
+      const { category } = locked;
 
       const taken = await takenBarcodes(tx, input.barcodes);
       if (taken.length > 0) {
@@ -141,12 +190,20 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
 
       const [newProduct] = await tx
         .insert(products)
-        .values({ name: input.name, categoryId: input.categoryId, saleUnit: input.saleUnit })
+        .values({
+          name: input.name,
+          categoryId: input.categoryId,
+          saleUnit: input.saleUnit,
+          netContentQuantity: input.netContent?.quantity,
+          netContentUnit: input.netContent?.unit,
+        })
         .returning({
           id: products.id,
           name: products.name,
           categoryId: products.categoryId,
           saleUnit: products.saleUnit,
+          netContentQuantity: products.netContentQuantity,
+          netContentUnit: products.netContentUnit,
           active: products.active,
           version: products.version,
         });
@@ -168,6 +225,7 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
           categoryName: category.name,
           saleUnit: newProduct.saleUnit as SaleUnit,
           barcodes: input.barcodes,
+          netContent: netContentRow(newProduct),
           active: newProduct.active,
           version: newProduct.version,
         },
@@ -232,6 +290,10 @@ export function registerProductCreationRoute<TQueryResult extends PgQueryResultH
           message: CATEGORY_NOT_FOUND_FAILURE.message,
           details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
         });
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {

@@ -31,6 +31,7 @@ const miel: ProductSummary = {
   categoryName: "Almacén",
   saleUnit: "UNIT",
   barcodes: ["7790987000015"],
+  netContent: null,
   active: true,
   version: 1,
 };
@@ -90,6 +91,7 @@ const createInput = {
   categoryId: "category-1",
   saleUnit: "UNIT" as const,
   barcodes: ["7790987000015"],
+  netContent: null,
 };
 
 test("createProduct posts the fields and returns the created product on 201", async () => {
@@ -105,16 +107,35 @@ test("createProduct posts the fields and returns the created product on 201", as
   });
 });
 
-test.each(["name", "categoryId", "saleUnit", "barcodes"] as const)(
-  "createProduct returns validation_failed on field %s for a 400",
-  async (field) => {
-    vi.mocked(fetch).mockResolvedValue(
-      jsonResponse(400, { code: "validation_failed", message: "invalid", details: [{ field }] }),
-    );
+test("createProduct posts a given net content and returns it in the created product", async () => {
+  const withNetContent = { ...createInput, netContent: { quantity: 380, unit: "G" as const } };
+  const created: ProductSummary = { ...miel, netContent: withNetContent.netContent };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, created));
 
-    expect(await createProduct(createInput)).toEqual({ kind: "validation_failed", field });
-  },
-);
+  const outcome = await createProduct(withNetContent);
+
+  expect(outcome).toEqual({ kind: "ok", value: created });
+  expect(fetch).toHaveBeenCalledWith("/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(withNetContent),
+  });
+});
+
+test.each([
+  "name",
+  "categoryId",
+  "saleUnit",
+  "barcodes",
+  "netContent",
+  "netContentQuantity",
+] as const)("createProduct returns validation_failed on field %s for a 400", async (field) => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", message: "invalid", details: [{ field }] }),
+  );
+
+  expect(await createProduct(createInput)).toEqual({ kind: "validation_failed", field });
+});
 
 test("createProduct returns barcode_taken with the taken codes on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(
@@ -125,6 +146,12 @@ test("createProduct returns barcode_taken with the taken codes on 409", async ()
     kind: "barcode_taken",
     codes: ["7790987000015"],
   });
+});
+
+test("createProduct returns category_not_leaf on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
+
+  expect(await createProduct(createInput)).toEqual({ kind: "category_not_leaf" });
 });
 
 test("createProduct returns unauthenticated on 401", async () => {
@@ -167,19 +194,24 @@ test("editProduct posts the fields and version and returns the applied product o
   });
 });
 
-test.each(["name", "categoryId", "saleUnit", "barcodes", "version"] as const)(
-  "editProduct returns validation_failed on field %s for a 400",
-  async (field) => {
-    vi.mocked(fetch).mockResolvedValue(
-      jsonResponse(400, { code: "validation_failed", message: "invalid", details: [{ field }] }),
-    );
+test.each([
+  "name",
+  "categoryId",
+  "saleUnit",
+  "barcodes",
+  "version",
+  "netContent",
+  "netContentQuantity",
+] as const)("editProduct returns validation_failed on field %s for a 400", async (field) => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", message: "invalid", details: [{ field }] }),
+  );
 
-    expect(await editProduct("product-1", editInput)).toEqual({
-      kind: "validation_failed",
-      field,
-    });
-  },
-);
+  expect(await editProduct("product-1", editInput)).toEqual({
+    kind: "validation_failed",
+    field,
+  });
+});
 
 test("editProduct returns barcode_taken with the taken codes on 409", async () => {
   vi.mocked(fetch).mockResolvedValue(
@@ -196,6 +228,12 @@ test("editProduct returns stale_version on a 409 carrying that code", async () =
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "stale_version" });
+});
+
+test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
+
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "category_not_leaf" });
 });
 
 test("editProduct returns not_found on 404", async () => {

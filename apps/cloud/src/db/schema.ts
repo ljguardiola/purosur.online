@@ -1,11 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgSequence,
   pgTable,
@@ -184,23 +186,43 @@ export const userRoles = pgTable(
   ],
 );
 
-// Catalog categories aren't scoped to a branch (the business runs a single one today), so this is
-// a global, case-insensitive uniqueness rule, the same shape `roles.name` enforces.
+// Catalog categories form a tree (#332): `parent_id` is nullable and self-referencing, and a null
+// parent means a top-level category, exactly like every category before nesting existed. Names
+// are unique among siblings, case-insensitively, rather than globally: two top-level categories
+// (both with a null parent) still collide with each other, which `NULLS NOT DISTINCT` on the
+// index below is what makes happen, since Postgres otherwise treats every null as distinct from
+// every other null. `parentId` has no `onDelete` because, like every other row referenced by a
+// category (`products.categoryId`), categories are never deleted.
 export const categories = pgTable(
   "categories",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
     // Optimistic concurrency for a category row, the same shape `roles.version` gives role rows.
     version: integer("version").notNull().default(1),
   },
-  (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
+  (table) => [
+    // `NULLS NOT DISTINCT` has no fluent builder for an index in this drizzle-orm version (only
+    // `unique()`'s table-level constraint builder has one, and that builder can't take the
+    // `lower(name)` expression this index needs), so the migration drizzle-kit generates for this
+    // is hand-edited to add it, the same way 0026_deactivate_products.sql hand-edits generated SQL
+    // for a trigger drizzle-kit has no declarative support for.
+    uniqueIndex("categories_name_lower_key").on(table.parentId, sql`lower(${table.name})`),
+    index("categories_parent_id_idx").on(table.parentId),
+    check("categories_parent_is_not_itself", sql`${table.parentId} <> ${table.id}`),
+  ],
 );
 
 // A product's own name carries no uniqueness rule (unlike a category's), so only its sale unit is
 // constrained here; the rest is enforced by application code the same way category validation is.
 // `active` (#309) is one-way: a product is never deleted (the migration also rejects any `DELETE`
 // on this table outright), only deactivated, so its historical sale lines keep referencing it.
+// `netContentQuantity`/`netContentUnit` (#334) are purely informational (never read by pricing or
+// stock) and optional: both null together, for a product with no fixed content, or both set
+// together, never one without the other — application code (`product-validation.ts`) already
+// guarantees this before either route ever writes, so the checks below are only the database's own
+// backstop.
 export const products = pgTable(
   "products",
   {
@@ -211,11 +233,28 @@ export const products = pgTable(
       .references(() => categories.id),
     saleUnit: text("sale_unit").notNull(),
     active: boolean("active").notNull().default(true),
+    netContentQuantity: numeric("net_content_quantity", {
+      precision: 10,
+      scale: 3,
+      mode: "number",
+    }),
+    netContentUnit: text("net_content_unit"),
     // Optimistic concurrency for a product row, the same shape `categories.version` gives category
     // rows.
     version: integer("version").notNull().default(1),
   },
-  (table) => [check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`)],
+  (table) => [
+    check("products_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+    check(
+      "products_net_content_unit_check",
+      sql`${table.netContentUnit} in ('G', 'KG', 'ML', 'L', 'UNIT')`,
+    ),
+    check(
+      "products_net_content_both_or_neither_check",
+      sql`(${table.netContentQuantity} is null) = (${table.netContentUnit} is null)`,
+    ),
+    check("products_net_content_quantity_positive_check", sql`${table.netContentQuantity} > 0`),
+  ],
 );
 
 // `active` (#309) mirrors its own product's `products.active`, kept in step in the same

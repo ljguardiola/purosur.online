@@ -16,7 +16,15 @@ import {
 } from "vitest";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
-import { locations, passkeyChallenges, roles, sessions, userRoles, users } from "./schema.js";
+import {
+  categories,
+  locations,
+  passkeyChallenges,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "./schema.js";
 import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
 
 let testDatabase: TestDatabase;
@@ -65,6 +73,22 @@ describe("users.location_id", () => {
         sql`insert into "users" ("first_name", "email") values ('Ada', 'ada@example.com')`,
       ),
     ).rejects.toMatchObject({ cause: { column: "location_id" } });
+  });
+});
+
+describe("categories.parent_id", () => {
+  it("rejects a category that is its own parent", async () => {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    if (!category) {
+      throw new Error("test setup: inserting the category returned no row");
+    }
+
+    await expect(
+      db.update(categories).set({ parentId: category.id }).where(eq(categories.id, category.id)),
+    ).rejects.toMatchObject({ cause: { constraint: "categories_parent_is_not_itself" } });
   });
 });
 

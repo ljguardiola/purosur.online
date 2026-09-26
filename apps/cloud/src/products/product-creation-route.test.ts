@@ -99,8 +99,11 @@ async function insertUserWithPermission(
   });
 }
 
-async function insertCategory(name: string): Promise<string> {
-  const [category] = await db.insert(categories).values({ name }).returning({ id: categories.id });
+async function insertCategory(name: string, parentId: string | null = null): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name, parentId })
+    .returning({ id: categories.id });
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
@@ -201,6 +204,7 @@ describe("POST /products", () => {
       categoryName: "Macetas",
       saleUnit: "UNIT",
       barcodes: ["222", "111"],
+      netContent: null,
       active: true,
       version: 1,
     });
@@ -319,6 +323,42 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
+  it("rejects a categoryId that has subcategories of its own, creating nothing", async () => {
+    const categoryId = await insertCategory("Almacén");
+    await insertCategory("Untables", categoryId);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "category_not_leaf" });
+    expect(await db.select().from(products)).toHaveLength(0);
+  });
+
+  it("creates the product in a subcategory that has no subcategories of its own", async () => {
+    const parentId = await insertCategory("Almacén");
+    const categoryId = await insertCategory("Untables", parentId);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Dulce de leche",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ categoryId, categoryName: "Untables" });
+    expect(await db.select().from(products)).toMatchObject([{ categoryId }]);
+  });
+
   it("rejects a malformed categoryId, creating nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
@@ -432,6 +472,62 @@ describe("POST /products", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "barcode_taken", codes: ["999"] });
     expect(await db.select().from(products)).toHaveLength(1);
+  });
+
+  it("creates the product with a net content", async () => {
+    const categoryId = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContent: { quantity: 1.5, unit: "KG" },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ netContent: { quantity: 1.5, unit: "KG" } });
+    const created = await db.select().from(products).where(eq(products.id, response.json().id));
+    expect(created).toMatchObject([{ netContentQuantity: 1.5, netContentUnit: "KG" }]);
+  });
+
+  it("creates the product with no net content when the field is absent", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ netContent: null });
+  });
+
+  it("rejects a net content quantity with more than 3 decimals, creating nothing", async () => {
+    const categoryId = await insertCategory("Semillas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      netContent: { quantity: 1.2345, unit: "KG" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "netContentQuantity" }],
+    });
+    expect(await db.select().from(products)).toHaveLength(0);
   });
 
   it("accepts a barcode held only by an inactive product's barcode", async () => {
