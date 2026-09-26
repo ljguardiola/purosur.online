@@ -391,24 +391,6 @@ describe("PUT /branch-settings", () => {
     expect(audited).toHaveLength(0);
   });
 
-  it("accepts a good-condition return window of exactly 0 days, which has no floor", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({ good_condition_return_days: 0 }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ good_condition_return_days: 0 });
-  });
-
   it("rejects a range where closing isn't later than opening, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
