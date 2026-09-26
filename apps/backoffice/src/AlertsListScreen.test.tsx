@@ -239,7 +239,11 @@ test("drops a late response once the filters have changed since it was sent", as
       await firstSettled;
     });
   } finally {
-    globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+    if (previousActEnvironment === undefined) {
+      delete globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT;
+    } else {
+      globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+    }
   }
   expect(screen.getByText("Lucía Pérez").query()).toBeNull();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
