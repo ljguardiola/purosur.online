@@ -186,7 +186,7 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
   });
 
-  it("still updates and deletes an ordinary table's row, proving the rejections above come from audit_log's own revoked privileges, not from cloud_app being unable to write at all", async () => {
+  it("updates and deletes a row of a table whose write privileges are not revoked", async () => {
     const [role] = await cloudApp<{ id: string }[]>`
       insert into roles (name, is_administrator) values ('cloud_app_role_test', false) returning id
     `;
