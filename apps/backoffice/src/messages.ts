@@ -842,6 +842,10 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Revisá el precio actual de ${params.name}.`,
       rowConfirmFailedTitle: (params: { name: string }) =>
         `No se pudo confirmar el precio de ${params.name}`,
+      reviewStartFailedTitle: "No se pudo empezar la revisión",
+      reviewStartFailedDetail: "Probá de nuevo.",
+      nothingPendingTitle: "Precios al día",
+      nothingPendingDetail: "No quedan precios por revisar.",
       goneTitle: "Producto desactivado",
       goneDetail: (params: { name: string }) => `${params.name} ya no está en el catálogo.`,
       confirmedNoticeTitle: "Precio confirmado",
@@ -870,7 +874,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         amountRequired: "Ingresá el precio nuevo.",
         amountInvalid: "Ingresá un precio válido, mayor a cero.",
         amountFormat: "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.",
-        amountTooLarge: "Ingresá un precio de hasta $ 21.474.836,47.",
+        amountTooLarge: (params: { amount: string }) =>
+          `Ingresá un precio de hasta ${params.amount}.`,
         amountUnchanged: "Es el precio actual: confirmalo sin cambios en vez de guardarlo.",
         confirm: "Confirmar sin cambios",
         submit: "Guardar el precio nuevo",
@@ -881,6 +886,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleTitle: "Este precio cambió mientras lo mirabas",
         staleDetail: "Recargá el precio actual y volvé a intentarlo.",
         reload: "Recargar el precio",
+        noPriceToConfirmTitle: "No hay un precio para confirmar",
+        noPriceToConfirmDetail: "Recargá el precio.",
         reloadFailedTitle: "No se pudieron recargar los datos",
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>

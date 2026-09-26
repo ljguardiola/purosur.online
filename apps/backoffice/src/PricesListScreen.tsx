@@ -27,6 +27,7 @@ import { messages } from "./messages";
 import {
   type ConfirmPriceOutcome,
   confirmPrice,
+  type FetchPricesOutcome,
   fetchPrices,
   type PriceCategory,
   type PriceProduct,
@@ -125,8 +126,13 @@ function parseAmountInput(value: string): ParsedAmount {
   return { kind: "ok", cents };
 }
 
+function startOfLocalDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/** Calendar days in the browser's own timezone; rounding absorbs a daylight-saving day's 23 or 25 hours. */
 function daysSince(at: string, now: Date): number {
-  return Math.floor((now.getTime() - new Date(at).getTime()) / DAY_MS);
+  return Math.round((startOfLocalDay(now) - startOfLocalDay(new Date(at))) / DAY_MS);
 }
 
 function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
@@ -157,6 +163,7 @@ type ModalNotice =
   | { kind: "confirmFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "stale" }
+  | { kind: "noPriceToConfirm" }
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
@@ -249,7 +256,7 @@ function PriceChangeModal({
       return undefined;
     }
     if (parsed.kind === "tooLarge") {
-      showAmountError(modalMessages.amountTooLarge);
+      showAmountError(modalMessages.amountTooLarge({ amount: formatCents(MAX_UNIT_PRICE_CENTS) }));
       return undefined;
     }
     const cents = parsed.cents;
@@ -284,6 +291,8 @@ function PriceChangeModal({
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
       showAmountError(modalMessages.amountUnchanged);
+    } else if (outcome.kind === "validation_failed" && outcome.field === "expectedCurrentPriceId") {
+      showNotice({ kind: "stale" });
     } else if (outcome.kind === "validation_failed") {
       showAmountError(modalMessages.amountInvalid);
     } else if (outcome.kind === "rate_limited") {
@@ -291,7 +300,6 @@ function PriceChangeModal({
     } else {
       showNotice({ kind: "attemptFailed" });
     }
-    setSubmitting(false);
   }
 
   async function handleSave() {
@@ -305,11 +313,17 @@ function PriceChangeModal({
     }
     setAmountError(undefined);
     startRequest();
-    const outcome = await setPrice(product.id, {
-      unitPrice: cents,
-      expectedCurrentPriceId: product.currentPrice?.id ?? null,
-    });
-    handleSetPriceOutcome(product, outcome);
+    try {
+      const outcome = await setPrice(product.id, {
+        unitPrice: cents,
+        expectedCurrentPriceId: product.currentPrice?.id ?? null,
+      });
+      handleSetPriceOutcome(product, outcome);
+    } catch {
+      showNotice({ kind: "attemptFailed" });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
@@ -330,12 +344,13 @@ function PriceChangeModal({
       onGone(product);
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
+    } else if (outcome.kind === "no_price_to_confirm") {
+      showNotice({ kind: "noPriceToConfirm" });
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
       showNotice({ kind: "confirmFailed" });
     }
-    setSubmitting(false);
   }
 
   async function handleConfirm() {
@@ -344,10 +359,16 @@ function PriceChangeModal({
       return;
     }
     startRequest();
-    const outcome = await confirmPrice(product.id, {
-      expectedCurrentPriceId: product.currentPrice.id,
-    });
-    handleConfirmPriceOutcome(product, outcome);
+    try {
+      const outcome = await confirmPrice(product.id, {
+        expectedCurrentPriceId: product.currentPrice.id,
+      });
+      handleConfirmPriceOutcome(product, outcome);
+    } catch {
+      showNotice({ kind: "confirmFailed" });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleReload() {
@@ -357,18 +378,26 @@ function PriceChangeModal({
     }
     setPreviousNotice(null);
     setSubmitting(true);
-    const outcome = await fetchPrices({ review: "all" });
+    try {
+      const outcome = await fetchPrices({ review: "all" });
+      handleReloadOutcome(product, outcome);
+    } catch {
+      showNotice({ kind: "reloadFailed" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleReloadOutcome(product: PriceProduct, outcome: FetchPricesOutcome) {
     if (outcome.kind === "ok") {
       const fresh = outcome.value.products.find((candidate) => candidate.id === product.id);
       if (!fresh) {
         showNotice({ kind: "notFound" });
-        setSubmitting(false);
         onGone(product);
         return;
       }
       setCurrent(fresh);
       setNotice(null);
-      setSubmitting(false);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -381,14 +410,15 @@ function PriceChangeModal({
     }
     if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
-      setSubmitting(false);
       return;
     }
     showNotice({ kind: "reloadFailed" });
-    setSubmitting(false);
   }
 
-  const offersReload = notice?.kind === "stale" || notice?.kind === "reloadFailed";
+  const offersReload =
+    notice?.kind === "stale" ||
+    notice?.kind === "noPriceToConfirm" ||
+    notice?.kind === "reloadFailed";
   const actionsDisabled = submitting || notice?.kind === "notFound";
 
   return (
@@ -487,6 +517,14 @@ function PriceChangeModal({
               detail={modalMessages.staleDetail}
             />
           )}
+          {notice?.kind === "noPriceToConfirm" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={modalMessages.noPriceToConfirmTitle}
+              detail={modalMessages.noPriceToConfirmDetail}
+            />
+          )}
           {notice?.kind === "notFound" && (
             <InlineNotice tone="error" icon={<TriangleAlert />} title={pricesMessages.goneTitle} />
           )}
@@ -560,7 +598,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     previousProductNotice: ScreenNotice | null;
   } | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
-  const [notice, setNotice] = useState<ScreenNotice | null>(null);
+  const [notice, setNotice] = useState<(ScreenNotice & { id: number }) | null>(null);
+  const lastNoticeId = useRef(0);
   // While a row confirm, or the read that starts Revisar los N, is in flight, no row action or
   // Revisar los N can start, so no modal opens before its result lands.
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
@@ -573,8 +612,15 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return () => clearTimeout(handle);
   }, [search]);
 
+  // Each notice gets its own id, so one identical to the notice on screen remounts the card and
+  // its live region announces it again.
+  function showScreenNotice(shown: ScreenNotice) {
+    lastNoticeId.current += 1;
+    setNotice({ ...shown, id: lastNoticeId.current });
+  }
+
   useEffect(() => {
-    if (!notice) {
+    if (notice?.tone !== "success") {
       return;
     }
     const handle = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
@@ -648,13 +694,42 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     { value: "all" as const, label: pricesMessages.reviewFilterAllOption },
   ] as const;
 
+  const reviewStartFailedNotice: ScreenNotice = {
+    tone: "error",
+    title: pricesMessages.reviewStartFailedTitle,
+    detail: pricesMessages.reviewStartFailedDetail,
+  };
+
+  function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
+    return {
+      tone: "error",
+      title: pricesMessages.rateLimitedTitle,
+      detail: pricesMessages.rateLimitedDetail({ minutes: Math.ceil(retryAfterSeconds / 60) }),
+    };
+  }
+
   async function handleReviewButton() {
     setScreenRequestInFlight(true);
-    const outcome = await fetchPricesService({ review: "pending" });
-    setScreenRequestInFlight(false);
+    try {
+      handleReviewReadOutcome(await fetchPricesService({ review: "pending" }));
+    } catch {
+      showScreenNotice(reviewStartFailedNotice);
+    } finally {
+      setScreenRequestInFlight(false);
+    }
+  }
+
+  /** Only an "ok" read starts the walk; on any other outcome the loaded table stays as it is. */
+  function handleReviewReadOutcome(outcome: FetchPricesOutcome) {
     if (outcome.kind === "ok") {
       const [first] = outcome.value.products;
       if (!first) {
+        reloadWithCurrentFilters();
+        showScreenNotice({
+          tone: "success",
+          title: pricesMessages.nothingPendingTitle,
+          detail: pricesMessages.nothingPendingDetail,
+        });
         return;
       }
       setWalk({ queue: outcome.value.products, index: 0 });
@@ -670,10 +745,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+      showScreenNotice(rateLimitedNotice(outcome.retryAfterSeconds));
       return;
     }
-    setList({ kind: "loadError" });
+    showScreenNotice(reviewStartFailedNotice);
   }
 
   function reviewedNotice(product: PriceProduct, outcome: PriceModalOutcome): ScreenNotice {
@@ -714,7 +789,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     }
     setWalk(null);
     setModal(null);
-    setNotice(previousProductNotice);
+    showScreenNotice(previousProductNotice);
   }
 
   function handleModalSaved(product: PriceProduct, outcome: PriceModalOutcome) {
@@ -747,13 +822,30 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     setScreenRequestInFlight(true);
-    const outcome = await confirmPriceService(item.id, {
-      expectedCurrentPriceId: item.currentPrice.id,
-    });
-    setScreenRequestInFlight(false);
+    try {
+      const outcome = await confirmPriceService(item.id, {
+        expectedCurrentPriceId: item.currentPrice.id,
+      });
+      handleRowConfirmOutcome(item, outcome);
+    } catch {
+      showScreenNotice(rowConfirmFailedNotice(item));
+    } finally {
+      setScreenRequestInFlight(false);
+    }
+  }
+
+  function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {
+    return {
+      tone: "error",
+      title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
+      detail: modalMessages.confirmFailedDetail,
+    };
+  }
+
+  function handleRowConfirmOutcome(item: PriceProduct, outcome: ConfirmPriceOutcome) {
     if (outcome.kind === "ok") {
       reloadWithCurrentFilters();
-      setNotice(
+      showScreenNotice(
         reviewedNotice(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt }),
       );
       return;
@@ -767,7 +859,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "stale_price") {
-      setNotice({
+      showScreenNotice({
         tone: "error",
         title: pricesMessages.rowConfirmStaleTitle,
         detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
@@ -776,25 +868,15 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "not_found") {
-      setNotice(goneNotice(item));
+      showScreenNotice(goneNotice(item));
       reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({
-        tone: "error",
-        title: pricesMessages.rateLimitedTitle,
-        detail: pricesMessages.rateLimitedDetail({
-          minutes: Math.ceil(outcome.retryAfterSeconds / 60),
-        }),
-      });
+      showScreenNotice(rateLimitedNotice(outcome.retryAfterSeconds));
       return;
     }
-    setNotice({
-      tone: "error",
-      title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
-      detail: modalMessages.confirmFailedDetail,
-    });
+    showScreenNotice(rowConfirmFailedNotice(item));
   }
 
   const columns = [
@@ -982,6 +1064,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       {notice && (
         <div className="fixed right-6 bottom-6 z-50">
           <NotificationCard
+            key={notice.id}
             tone={notice.tone}
             icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
             title={notice.title}

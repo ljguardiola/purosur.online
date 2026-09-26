@@ -45,10 +45,14 @@ const arroz: PriceProduct = {
   lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
 };
 
-function renderScreen(services: PricesListScreenServices, onSessionEnded: () => void = () => {}) {
+function renderScreen(
+  services: PricesListScreenServices,
+  onSessionEnded: () => void = () => {},
+  now: () => Date = NOW,
+) {
   return render(
     <main>
-      <PricesListScreen services={services} onSessionEnded={onSessionEnded} now={NOW} />
+      <PricesListScreen services={services} onSessionEnded={onSessionEnded} now={now} />
     </main>,
   );
 }
@@ -453,7 +457,9 @@ test("Revisar los N walks the pending products one by one, opening the next afte
 
   await userEvent.click(screen.getByRole("button", { name: "Confirmar sin cambios" }));
 
-  expect(screen.getByRole("heading", { name: "Arroz" }).query()).toBeNull();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Precio confirmado")).toBeVisible();
+  await expect.element(screen.getByText("Arroz sigue a $ 7.500,00 / kg.")).toBeVisible();
 });
 
 test("during Revisar los N, a saved price's notice shows inside the next product's modal, naming the saved product, until the modal closes", async () => {
@@ -487,7 +493,7 @@ test("during Revisar los N, a saved price's notice shows inside the next product
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
   await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
-  expect(dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
+  await expect.poll(() => dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
 });
 
 test("a product that no longer exists disables the modal's actions and refreshes the list", async () => {
@@ -781,5 +787,597 @@ test("a notice about a previous product leaves the modal once the modal shows it
   await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
 
   await expect.element(dialog.getByText("No se pudo confirmar el precio")).toBeVisible();
-  expect(dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
+  await expect.poll(() => dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
+});
+
+const arrozStaleReload = {
+  kind: "ok" as const,
+  value: {
+    products: [
+      {
+        ...arroz,
+        currentPrice: { id: "price-9", unitPrice: 900000, validFrom: "2026-09-25T00:00:00.000Z" },
+      },
+    ],
+    pendingCount: 1,
+    reviewWindowDays: 30,
+    categories: [],
+  },
+};
+
+test("a save that throws ends in the save-failed notice and the modal can be closed again", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockRejectedValue(new Error("network down"));
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el precio")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+});
+
+test("a confirmation that throws ends in the confirm-failed notice and the modal can be closed again", async () => {
+  const services = createServices();
+  vi.mocked(services.confirmPrice).mockRejectedValue(new Error("network down"));
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo confirmar el precio")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+});
+
+test("a price reload that throws ends in the reload-failed notice and the modal can be closed again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    })
+    .mockRejectedValue(new Error("network down"));
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "stale_price" });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el precio" }));
+
+  await expect.element(dialog.getByText("No se pudieron recargar los datos")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+});
+
+test("a row confirmation that throws shows its failure notice and re-enables the row actions", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz, yerba], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice).mockRejectedValue(new Error("network down"));
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cambiar el precio de Yerba" }))
+    .toBeEnabled();
+});
+
+test("a Revisar los N read that throws shows a notice, keeps the table and re-enables the row actions", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz, yerba], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+    })
+    .mockRejectedValue(new Error("network down"));
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisar los 2" }));
+
+  await expect.element(screen.getByText("No se pudo empezar la revisión")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cambiar el precio de Yerba" }))
+    .toBeEnabled();
+});
+
+test("Revisar los N with nothing left to review reloads the list and says so", async () => {
+  const services = createServices();
+  const nothingPending = {
+    kind: "ok" as const,
+    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+  };
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    })
+    .mockResolvedValue(nothingPending);
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
+
+  await expect.element(screen.getByText("No quedan precios por revisar.")).toBeVisible();
+  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(3);
+  expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0]).toEqual({ review: "pending" });
+  await expect.poll(() => screen.getByText("Arroz").query()).toBeNull();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test.each([
+  {
+    outcome: { kind: "failed" as const },
+    title: "No se pudo empezar la revisión",
+    detail: "Probá de nuevo.",
+  },
+  {
+    outcome: { kind: "rate_limited" as const, retryAfterSeconds: 120 },
+    title: "Demasiadas solicitudes",
+    detail: "Se puede volver a intentar en 2 minutos.",
+  },
+])(
+  "a Revisar los N read that ends in $outcome.kind keeps the table and shows its notice",
+  async ({ outcome, title, detail }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices)
+      .mockResolvedValueOnce({
+        kind: "ok",
+        value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+      })
+      .mockResolvedValueOnce(outcome);
+
+    const screen = await renderScreen(services);
+    await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
+
+    await expect.element(screen.getByText(title)).toBeVisible();
+    await expect.element(screen.getByText(detail)).toBeVisible();
+    await expect.element(screen.getByText("Arroz")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reintentar" }).query()).toBeNull();
+  },
+);
+
+test("a failed first load offers to retry, and a retry shows the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValue({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+});
+
+test("a rate-limited first load shows when to try again and offers to retry", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("an earlier list load that settles after a later one does not replace it", async () => {
+  const services = createServices();
+  type FetchOutcome = Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>;
+  const first = deferred<FetchOutcome>();
+  const second = deferred<FetchOutcome>();
+  vi.mocked(services.fetchPrices)
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(second.promise);
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
+
+  second.resolve({
+    kind: "ok",
+    value: { products: [yerba], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  await expect.element(screen.getByText("Yerba")).toBeVisible();
+  first.resolve({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  await nextPaint();
+
+  expect(screen.getByText("Arroz").query()).toBeNull();
+  await expect.element(screen.getByText("Yerba")).toBeVisible();
+});
+
+test.each([
+  {
+    action: "save",
+    setUp: (services: PricesListScreenServices) =>
+      vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" }),
+    title: "No se pudo guardar el precio",
+    detail: "Probá de nuevo.",
+  },
+  {
+    action: "save",
+    setUp: (services: PricesListScreenServices) =>
+      vi.mocked(services.setPrice).mockResolvedValue({
+        kind: "rate_limited",
+        retryAfterSeconds: 120,
+      }),
+    title: "Demasiadas solicitudes",
+    detail: "Se puede volver a intentar en 2 minutos.",
+  },
+  {
+    action: "confirm",
+    setUp: (services: PricesListScreenServices) =>
+      vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" }),
+    title: "No se pudo confirmar el precio",
+    detail: "Probá de nuevo.",
+  },
+  {
+    action: "confirm",
+    setUp: (services: PricesListScreenServices) =>
+      vi.mocked(services.confirmPrice).mockResolvedValue({
+        kind: "rate_limited",
+        retryAfterSeconds: 120,
+      }),
+    title: "Demasiadas solicitudes",
+    detail: "Se puede volver a intentar en 2 minutos.",
+  },
+])("a modal $action that fails shows $title", async ({ action, setUp, title, detail }) => {
+  const services = createServices();
+  setUp(services);
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  if (action === "save") {
+    await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+    await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  } else {
+    await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
+  }
+
+  await expect.element(dialog.getByText(title)).toBeVisible();
+  await expect.element(dialog.getByText(detail)).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+});
+
+test("the current price typed again is rejected as unchanged without calling the server", async () => {
+  const services = createServices();
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "7.500");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect
+    .element(dialog.getByText("Es el precio actual: confirmalo sin cambios en vez de guardarlo."))
+    .toBeVisible();
+  expect(services.setPrice).not.toHaveBeenCalled();
+});
+
+test("the server answering that the price is unchanged shows the same unchanged-price error", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "price_unchanged" });
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect
+    .element(dialog.getByText("Es el precio actual: confirmalo sin cambios en vez de guardarlo."))
+    .toBeVisible();
+});
+
+test("a reloaded price is shown and becomes the one the next save and confirmation expect", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    })
+    .mockResolvedValue(arrozStaleReload);
+  vi.mocked(services.setPrice)
+    .mockResolvedValueOnce({ kind: "stale_price" })
+    .mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el precio" }));
+
+  await expect.element(dialog.getByText("Precio actual: $ 9.000,00 / kg")).toBeVisible();
+  await expect
+    .poll(() => dialog.getByText("Este precio cambió mientras lo mirabas").query())
+    .toBeNull();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await expect
+    .poll(() => vi.mocked(services.setPrice).mock.lastCall?.[1])
+    .toEqual({ unitPrice: 800000, expectedCurrentPriceId: "price-9" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
+  await expect
+    .poll(() => vi.mocked(services.confirmPrice).mock.lastCall)
+    .toEqual(["product-2", { expectedCurrentPriceId: "price-9" }]);
+});
+
+test("the modal offers no confirm-without-change action for a product with no price", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [sinPrecio], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Fideos" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+
+  await expect
+    .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
+    .toBeVisible();
+  expect(dialog.getByRole("button", { name: "Confirmar sin cambios" }).query()).toBeNull();
+});
+
+test("a modal save that finds no open session ends the session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("a row confirmation that finds no open session ends the session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+
+  const screen = await renderScreen(services, onSessionEnded);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("a row confirmation answered forbidden navigates to Mi cuenta", async () => {
+  window.history.pushState(null, "", "/catalog/prices");
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "forbidden" });
+
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
+  window.history.pushState(null, "", "/");
+});
+
+test("the screen with the price modal open has no accessibility violations", async () => {
+  const services = createServices();
+  const screen = await openArrozPriceModal(services);
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: "Arroz" }))
+    .toBeVisible();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+function nextPaint() {
+  return new Promise((settle) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => settle(undefined))),
+  );
+}
+
+test("an error notice stays on the screen until the next notice replaces it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValue({ kind: "ok", value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" } });
+  const screen = await renderScreen(services);
+  const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
+  await expect.element(confirm).toBeVisible();
+
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
+  try {
+    await userEvent.click(confirm);
+    await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
+
+    vi.advanceTimersByTime(60_000);
+    await nextPaint();
+    expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).not.toBeNull();
+
+    await userEvent.click(confirm);
+    await expect.element(screen.getByText("Precio confirmado")).toBeVisible();
+    expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a success notice leaves the screen on its own after a few seconds", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({
+    kind: "ok",
+    value: { lastReviewedAt: "2026-09-25T12:00:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
+  await expect.element(confirm).toBeVisible();
+
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
+  try {
+    await userEvent.click(confirm);
+    await expect.element(screen.getByText("Precio confirmado")).toBeVisible();
+
+    vi.advanceTimersByTime(5_000);
+
+    await expect.poll(() => screen.getByText("Precio confirmado").query()).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a second identical notice in a row is announced again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
+  await expect.element(confirm).toBeVisible();
+  const announcementText = "No se pudo confirmar el precio de Arroz Probá de nuevo.";
+
+  await userEvent.click(confirm);
+  await expect.element(screen.getByRole("alert")).toHaveTextContent(announcementText);
+  const firstAnnouncement = screen.getByRole("alert").element();
+  await expect.element(confirm).toBeEnabled();
+
+  await userEvent.click(confirm);
+
+  await expect.poll(() => vi.mocked(services.confirmPrice).mock.calls.length).toBe(2);
+  await expect
+    .poll(() => {
+      const announcement = screen.getByRole("alert").query();
+      return (
+        announcement !== null &&
+        announcement !== firstAnnouncement &&
+        announcement.textContent === announcementText
+      );
+    })
+    .toBe(true);
+});
+
+test.each([
+  {
+    reviewedAt: new Date(2026, 8, 24, 23, 0),
+    viewedAt: new Date(2026, 8, 25, 8, 0),
+    cell: "Hace 1 día",
+    eyebrow: "REVISADO HACE 1 DÍA",
+  },
+  {
+    reviewedAt: new Date(2026, 8, 25, 0, 10),
+    viewedAt: new Date(2026, 8, 25, 23, 50),
+    cell: "Hoy",
+    eyebrow: "REVISADO HOY",
+  },
+])(
+  "the review age counts local calendar days, so one viewed at $viewedAt reads $cell",
+  async ({ reviewedAt, viewedAt, cell, eyebrow }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices).mockResolvedValue({
+      kind: "ok",
+      value: {
+        products: [{ ...arroz, lastReviewedAt: reviewedAt.toISOString() }],
+        pendingCount: 0,
+        reviewWindowDays: 30,
+        categories: [],
+      },
+    });
+
+    const screen = await renderScreen(
+      services,
+      () => {},
+      () => viewedAt,
+    );
+    await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+    await expect.element(screen.getByText(cell, { exact: true })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+    await expect.element(screen.getByRole("dialog").getByText(eyebrow)).toBeVisible();
+  },
+);
+
+test("a save rejected for the price it expected is treated as a changed price and offers the reload", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({
+    kind: "validation_failed",
+    field: "expectedCurrentPriceId",
+  });
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByText("Este precio cambió mientras lo mirabas")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Recargar el precio" })).toBeVisible();
+  expect(dialog.getByText("Ingresá un precio válido, mayor a cero.").query()).toBeNull();
+});
+
+test("a save rejected for its amount shows the amount error", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "validation_failed", field: "unitPrice" });
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByText("Ingresá un precio válido, mayor a cero.")).toBeVisible();
+});
+
+test("a confirmation answered that there is no price to confirm offers the reload", async () => {
+  const services = createServices();
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "no_price_to_confirm" });
+  const screen = await openArrozPriceModal(services);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
+
+  await expect.element(dialog.getByText("No hay un precio para confirmar")).toBeVisible();
+  await expect.element(dialog.getByText("Recargá el precio.")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Recargar el precio" })).toBeVisible();
 });
