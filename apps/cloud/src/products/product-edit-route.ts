@@ -1,7 +1,8 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { categories, productBarcodes, products } from "../db/schema.js";
+import { productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -12,6 +13,7 @@ import {
   CATEGORY_NOT_FOUND_FAILURE,
   CATEGORY_NOT_LEAF_RESPONSE,
   isBarcodeUniqueViolation,
+  lockLeafCategory,
 } from "./product-creation-route.js";
 import {
   type ProductFieldValidationFailure,
@@ -20,7 +22,6 @@ import {
   readProductName,
   readSaleUnit,
   type SaleUnit,
-  UUID_PATTERN,
   validateProductFields,
 } from "./product-validation.js";
 import type { ProductRow, ProductsRouteOptions } from "./products-list-route.js";
@@ -153,27 +154,11 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         return { kind: "stale_version" };
       }
 
-      if (!UUID_PATTERN.test(input.categoryId)) {
-        return { kind: "category_not_found" };
+      const locked = await lockLeafCategory(tx, input.categoryId);
+      if (locked.kind !== "locked") {
+        return locked;
       }
-      // Locked `FOR UPDATE` the same way `createProduct` (`product-creation-route.ts`) locks it,
-      // documented there.
-      const [category] = await tx
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, input.categoryId))
-        .for("update");
-      if (!category) {
-        return { kind: "category_not_found" };
-      }
-      const [childCategory] = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(eq(categories.parentId, input.categoryId))
-        .limit(1);
-      if (childCategory) {
-        return { kind: "category_not_leaf" };
-      }
+      const { category } = locked;
 
       // An inactive product's barcodes are written inactive below, and uniqueness only binds active
       // barcodes, so a code an active product holds does not conflict with them.

@@ -110,15 +110,17 @@ async function insertCategory(name: string, parentId: string | null = null): Pro
   return category.id;
 }
 
-async function insertProductInCategory(categoryId: string): Promise<void> {
+async function insertProductInCategory(categoryId: string, active = true): Promise<void> {
   const [product] = await db
     .insert(products)
-    .values({ name: "Existing", categoryId, saleUnit: "UNIT" })
+    .values({ name: "Existing", categoryId, saleUnit: "UNIT", active })
     .returning({ id: products.id });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");
   }
-  await db.insert(productBarcodes).values({ productId: product.id, code: "111", position: 0 });
+  await db
+    .insert(productBarcodes)
+    .values({ productId: product.id, code: "111", position: 0, active });
 }
 
 function cookieHeader(rawSessionId: string): Record<string, string> {
@@ -293,18 +295,24 @@ describe("POST /categories", () => {
     expect(await db.select().from(categories)).toHaveLength(0);
   });
 
-  it("rejects a subcategory under a parent that has products assigned, creating nothing", async () => {
-    const parentId = await insertCategory("Almacén");
-    await insertProductInCategory(parentId);
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
+  it.each([
+    { holding: "an active product", active: true },
+    { holding: "only an inactive product", active: false },
+  ])(
+    "rejects a subcategory under a parent holding $holding, creating nothing",
+    async ({ active }) => {
+      const parentId = await insertCategory("Almacén");
+      await insertProductInCategory(parentId, active);
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
 
-    const response = await createCategory(rawSessionId, { name: "Untables", parentId });
+      const response = await createCategory(rawSessionId, { name: "Untables", parentId });
 
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "category_parent_has_products" });
-    expect(await db.select().from(categories)).toHaveLength(1);
-  });
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code: "category_parent_has_products" });
+      expect(await db.select().from(categories)).toHaveLength(1);
+    },
+  );
 
   it("rejects a name already taken among siblings under the same parent, case-insensitively, creating nothing", async () => {
     const parentId = await insertCategory("Almacén");

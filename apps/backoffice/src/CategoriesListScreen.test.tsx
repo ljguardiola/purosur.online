@@ -112,8 +112,8 @@ test("the header toggles the sibling order, still listing each parent before its
 
   await userEvent.click(screen.getByRole("button", { name: "Categoría" }));
 
+  await expect.poll(() => rowNames()[0]).toContain("Bebidas");
   const names = rowNames();
-  expect(names[0]).toContain("Bebidas");
   expect(names[1]).toContain("Almacén");
   expect(names[1]).not.toContain("›");
   expect(names[2]).toContain("Almacén › Untables");
@@ -132,8 +132,8 @@ test("the search field filters the list by the full path label, case-insensitive
 
   await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "untables");
 
+  await expect.element(screen.getByText("Bebidas")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Almacén › Untables")).toBeVisible();
-  expect(screen.getByText("Bebidas").query()).toBeNull();
 });
 
 test("the category count in the footer counts only the categories the search leaves", async () => {
@@ -801,7 +801,7 @@ test("shows a not-found notice on edit when the category no longer exists", asyn
   await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta categoría ya no existe");
 });
 
-test("a stale-version reload on edit also refreshes the preselected parent", async () => {
+test("a stale-version reload on edit discards the typed name and saves again over the refreshed version and parent", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -813,6 +813,10 @@ test("a stale-version reload on edit also refreshes the preselected parent", asy
   await userEvent.click(screen.getByRole("button", { name: "Editar la categoría Bebidas" }));
   const dialog = screen.getByRole("dialog");
 
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
+    "Bebidas frías",
+  );
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect
     .element(dialog.getByText("Esta categoría cambió mientras la editabas"))
@@ -828,6 +832,19 @@ test("a stale-version reload on edit also refreshes the preselected parent", asy
   await expect
     .element(dialog.getByRole("button", { name: /Categoría superior/ }))
     .toHaveTextContent("Almacén");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
+    .toHaveValue("Bebidas");
+
+  vi.mocked(services.editCategory).mockResolvedValue({ kind: "ok", value: freshened });
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(2);
+  expect(services.editCategory).toHaveBeenLastCalledWith("category-4", {
+    name: "Bebidas",
+    parentId: "category-1",
+    version: 4,
+  });
 });
 
 test("a stale-version reload on edit also retitles the dialog with the fresh name", async () => {

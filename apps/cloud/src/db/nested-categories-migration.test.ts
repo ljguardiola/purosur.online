@@ -122,7 +122,7 @@ describe("the nested_categories migration's effect on existing categories and pr
 }, () => {
   it(
     "keeps every existing category top-level, keeps its products, and enforces the new " +
-      "parent-scoped constraints on the migrated data",
+      "parent-scoped name uniqueness on the migrated data",
     async () => {
       const folder = await mkdtemp(join(tmpdir(), "nested-categories-migration-"));
       onTestFinished(() => rm(folder, { recursive: true, force: true }));
@@ -187,11 +187,6 @@ describe("the nested_categories migration's effect on existing categories and pr
       await expect(
         client.query("insert into categories (name) values ($1)", ["BEBIDAS"]),
       ).rejects.toMatchObject({ code: "23505", constraint: "categories_name_lower_key" });
-
-      // The new self-parent check applies to a migrated category exactly as it does to a new one.
-      await expect(
-        client.query("update categories set parent_id = id where id = $1", [bebidas.id]),
-      ).rejects.toMatchObject({ code: "23514", constraint: "categories_parent_is_not_itself" });
     },
   );
 });

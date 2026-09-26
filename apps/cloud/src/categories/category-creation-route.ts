@@ -1,7 +1,8 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { categories, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -14,7 +15,6 @@ import {
   categoryNameValidationFailure,
   readCategoryName,
   readParentId,
-  UUID_PATTERN,
 } from "./category-validation.js";
 
 export const CATEGORY_NAME_TAKEN_RESPONSE = {
@@ -99,29 +99,66 @@ export type CreateCategoryOutcome =
   | { kind: "parent_has_products" }
   | { kind: "created"; category: CategoryRow };
 
-/** Whether any product is currently assigned to this category. */
-async function categoryHasProducts<TQueryResult extends PgQueryResultHKT>(
+/**
+ * Locks the category about to receive a child `FOR UPDATE` (the same lock `lockLeafCategory`,
+ * `product-creation-route.ts`, takes on a category it assigns a product to), so the two "does
+ * this category have children" and "does this category have products" checks can never both slip
+ * past a concurrent write on the other side. Any assigned product blocks, inactive ones included.
+ */
+export async function lockParentForNewChild<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
-  categoryId: string,
-): Promise<boolean> {
+  parentId: string,
+): Promise<"parent_not_found" | "parent_has_products" | "locked"> {
+  if (!UUID_PATTERN.test(parentId)) {
+    return "parent_not_found";
+  }
+  const [parent] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, parentId))
+    .for("update");
+  if (!parent) {
+    return "parent_not_found";
+  }
   const [product] = await tx
     .select({ id: products.id })
     .from(products)
-    .where(eq(products.categoryId, categoryId))
+    .where(eq(products.categoryId, parentId))
     .limit(1);
-  return product !== undefined;
+  return product ? "parent_has_products" : "locked";
 }
 
 /**
- * Creates a category in one transaction. When it has a parent, the parent row is locked
- * `FOR UPDATE` first (the same lock `createProduct`, `product-creation-route.ts`, takes on a
- * category it assigns a product to), so the two "does this category have children" and "does
- * this category have products" checks can never both slip past a concurrent write on the other
- * side. The sibling name uniqueness check runs next, inside the same transaction; the database's
- * own case-insensitive unique index (`categories_name_lower_key`, scoped per parent with
- * `NULLS NOT DISTINCT`) is the backstop for a name that lands concurrently, mapped by
- * `isCategoryNameUniqueViolation` the same way `createRole` (`role-creation-route.ts`) maps its
- * own.
+ * Whether a category other than `excludingId` under `parentId` (top level for `null`) already
+ * has `name`, compared case-insensitively.
+ */
+export async function siblingNameTaken<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  parentId: string | null,
+  name: string,
+  excludingId?: string,
+): Promise<boolean> {
+  const [sibling] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(
+      and(
+        parentId === null ? isNull(categories.parentId) : eq(categories.parentId, parentId),
+        sql`lower(${categories.name}) = lower(${name})`,
+        excludingId === undefined ? undefined : ne(categories.id, excludingId),
+      ),
+    )
+    .limit(1);
+  return sibling !== undefined;
+}
+
+/**
+ * Creates a category in one transaction, first locking its parent through
+ * `lockParentForNewChild`. The sibling name uniqueness check runs next, inside the same
+ * transaction; the database's own case-insensitive unique index (`categories_name_lower_key`,
+ * scoped per parent with `NULLS NOT DISTINCT`) is the backstop for a name that lands
+ * concurrently, mapped by `isCategoryNameUniqueViolation` the same way `createRole`
+ * (`role-creation-route.ts`) maps its own.
  */
 export async function createCategory<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -130,32 +167,13 @@ export async function createCategory<TQueryResult extends PgQueryResultHKT>(
   return db
     .transaction<CreateCategoryOutcome>(async (tx) => {
       if (input.parentId !== null) {
-        if (!UUID_PATTERN.test(input.parentId)) {
-          return { kind: "parent_not_found" };
-        }
-        const [parent] = await tx
-          .select({ id: categories.id })
-          .from(categories)
-          .where(eq(categories.id, input.parentId))
-          .for("update");
-        if (!parent) {
-          return { kind: "parent_not_found" };
-        }
-        if (await categoryHasProducts(tx, input.parentId)) {
-          return { kind: "parent_has_products" };
+        const parent = await lockParentForNewChild(tx, input.parentId);
+        if (parent !== "locked") {
+          return { kind: parent };
         }
       }
 
-      const parentMatch =
-        input.parentId === null
-          ? isNull(categories.parentId)
-          : eq(categories.parentId, input.parentId);
-      const [existing] = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(and(parentMatch, sql`lower(${categories.name}) = lower(${input.name})`))
-        .limit(1);
-      if (existing) {
+      if (await siblingNameTaken(tx, input.parentId, input.name)) {
         throw new CategoryNameTaken();
       }
 

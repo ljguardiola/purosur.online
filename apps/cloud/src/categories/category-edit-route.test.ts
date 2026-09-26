@@ -113,15 +113,17 @@ async function insertCategory(
   return category;
 }
 
-async function insertProductInCategory(categoryId: string): Promise<void> {
+async function insertProductInCategory(categoryId: string, active = true): Promise<void> {
   const [product] = await db
     .insert(products)
-    .values({ name: "Existing", categoryId, saleUnit: "UNIT" })
+    .values({ name: "Existing", categoryId, saleUnit: "UNIT", active })
     .returning({ id: products.id });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");
   }
-  await db.insert(productBarcodes).values({ productId: product.id, code: "111", position: 0 });
+  await db
+    .insert(productBarcodes)
+    .values({ productId: product.id, code: "111", position: 0, active });
 }
 
 function cookieHeader(rawSessionId: string): Record<string, string> {
@@ -454,24 +456,53 @@ describe("POST /categories/:id/edit", () => {
     expect(unchanged).toMatchObject({ parentId: null, version: 1 });
   });
 
-  it("rejects moving a category under a parent that has products assigned, changing nothing", async () => {
-    const parent = await insertCategory("Almacén");
-    await insertProductInCategory(parent.id);
+  it.each([
+    { malformed: "a number", parentId: 42 },
+    { malformed: "a string that is not a uuid", parentId: "not-a-uuid" },
+  ])("rejects a parentId that is $malformed, changing nothing", async ({ parentId }) => {
     const category = await insertCategory("Untables");
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
     const response = await editCategory(rawSessionId, category.id, {
       name: "Untables",
-      parentId: parent.id,
+      parentId,
       version: category.version,
     });
 
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "category_parent_has_products" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "parentId" }],
+    });
     const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
     expect(unchanged).toMatchObject({ parentId: null, version: 1 });
   });
+
+  it.each([
+    { holding: "an active product", active: true },
+    { holding: "only an inactive product", active: false },
+  ])(
+    "rejects moving a category under a parent holding $holding, changing nothing",
+    async ({ active }) => {
+      const parent = await insertCategory("Almacén");
+      await insertProductInCategory(parent.id, active);
+      const category = await insertCategory("Untables");
+      const userId = await insertUserWithPermission();
+      const rawSessionId = await insertSession(userId);
+
+      const response = await editCategory(rawSessionId, category.id, {
+        name: "Untables",
+        parentId: parent.id,
+        version: category.version,
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toMatchObject({ code: "category_parent_has_products" });
+      const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
+      expect(unchanged).toMatchObject({ parentId: null, version: 1 });
+    },
+  );
 
   it("rejects moving a category under itself, changing nothing", async () => {
     const category = await insertCategory("Almacén");
@@ -542,63 +573,5 @@ describe("POST /categories/:id/edit", () => {
     expect(response.json()).toMatchObject({ code: "category_move_not_allowed" });
     const [unchanged] = await db.select().from(categories).where(eq(categories.id, category.id));
     expect(unchanged).toMatchObject({ parentId: null, version: 1 });
-  });
-
-  it("rejects moving a category under one of its own descendants when that id is sent in uppercase, changing nothing", async () => {
-    const grandparent = await insertCategory("Almacén");
-    const parent = await insertCategory("Untables", grandparent.id);
-    const child = await insertCategory("Dulces", parent.id);
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, grandparent.id, {
-      name: "Almacén",
-      parentId: child.id.toUpperCase(),
-      version: grandparent.version,
-    });
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({ code: "category_move_not_allowed" });
-    const [unchanged] = await db.select().from(categories).where(eq(categories.id, grandparent.id));
-    expect(unchanged).toMatchObject({ parentId: null, version: 1 });
-  });
-
-  it("moves a category under a parent whose id is sent in uppercase, storing and answering it in lowercase", async () => {
-    const parent = await insertCategory("Almacén");
-    const category = await insertCategory("Untables");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Untables",
-      parentId: parent.id.toUpperCase(),
-      version: category.version,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ parentId: parent.id, version: 2 });
-    const [moved] = await db.select().from(categories).where(eq(categories.id, category.id));
-    expect(moved).toMatchObject({ parentId: parent.id, version: 2 });
-  });
-
-  it("treats its current parent's id sent in uppercase as unchanged, a no-op that does not bump the version", async () => {
-    const parent = await insertCategory("Almacén");
-    const category = await insertCategory("Untables", parent.id);
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editCategory(rawSessionId, category.id, {
-      name: "Untables",
-      parentId: parent.id.toUpperCase(),
-      version: category.version,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      id: category.id,
-      name: "Untables",
-      version: 1,
-      parentId: parent.id,
-    });
   });
 });

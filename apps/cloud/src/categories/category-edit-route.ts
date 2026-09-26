@@ -1,7 +1,8 @@
-import { and, eq, isNull, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { categories, products } from "../db/schema.js";
+import { categories } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -15,6 +16,8 @@ import {
   CATEGORY_PARENT_NOT_FOUND_FAILURE,
   CategoryNameTaken,
   isCategoryNameUniqueViolation,
+  lockParentForNewChild,
+  siblingNameTaken,
 } from "./category-creation-route.js";
 import {
   type CategoryFieldValidationFailure,
@@ -22,7 +25,6 @@ import {
   hasParentId,
   readCategoryName,
   readParentId,
-  UUID_PATTERN,
 } from "./category-validation.js";
 
 // Every move (an edit that names a specific, non-null parent) acquires this fixed-key transaction
@@ -33,7 +35,7 @@ import {
 // as the new parent, deadlocking instead of serializing. With this ordering, only one move-capable
 // edit is ever locking rows at a time, so the descendant check below always sees the other move's
 // already-committed result rather than racing it into a cycle.
-const CATEGORY_MOVE_LOCK_KEY = "category-move";
+export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
 export const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
   code: "category_move_not_allowed",
@@ -131,19 +133,6 @@ export type EditCategoryOutcome =
   | { kind: "move_not_allowed" }
   | { kind: "applied"; category: CategoryRow };
 
-/** Whether any product is currently assigned to this category. */
-async function categoryHasProducts<TQueryResult extends PgQueryResultHKT>(
-  tx: PgDatabase<TQueryResult>,
-  categoryId: string,
-): Promise<boolean> {
-  const [product] = await tx
-    .select({ id: products.id })
-    .from(products)
-    .where(eq(products.categoryId, categoryId))
-    .limit(1);
-  return product !== undefined;
-}
-
 /**
  * Whether moving `movingCategoryId` to become a child of `newParentId` would create a cycle:
  * `newParentId` itself, or one of its own ancestors, is `movingCategoryId`. Walks `parent_id`
@@ -175,10 +164,8 @@ async function wouldCreateCycle<TQueryResult extends PgQueryResultHKT>(
  * Renames and/or moves one category in one transaction, rejecting a save made over a version
  * someone else already changed the same way `editRole` (`role-edit-route.ts`) rejects one. Moving
  * to a specific parent first takes the fixed-key lock documented on `CATEGORY_MOVE_LOCK_KEY`
- * above, then locks that parent row `FOR UPDATE` (the same lock `createCategory`,
- * `category-creation-route.ts`, and `createProduct`/`editProduct`, `product-*-route.ts`, take on a
- * category), so "does the new parent have products" can't slip past a concurrent write on the
- * other side. A name that already belongs to a sibling under the (possibly new) parent is
+ * above, then locks that parent through `lockParentForNewChild` (`category-creation-route.ts`). A
+ * name that already belongs to a sibling under the (possibly new) parent is
  * rejected the same way `createCategory` rejects one, including its own database backstop for a
  * name that lands concurrently. Leaving both the name and the parent exactly as they were is a
  * no-op: the version does not bump.
@@ -223,41 +210,16 @@ export async function editCategory<TQueryResult extends PgQueryResultHKT>(
       }
 
       if (parentChanged && input.parentId !== null) {
-        if (!UUID_PATTERN.test(input.parentId)) {
-          return { kind: "parent_not_found" };
-        }
-        const [parent] = await tx
-          .select({ id: categories.id })
-          .from(categories)
-          .where(eq(categories.id, input.parentId))
-          .for("update");
-        if (!parent) {
-          return { kind: "parent_not_found" };
+        const parent = await lockParentForNewChild(tx, input.parentId);
+        if (parent !== "locked") {
+          return { kind: parent };
         }
         if (await wouldCreateCycle(tx, input.parentId, input.id)) {
           return { kind: "move_not_allowed" };
         }
-        if (await categoryHasProducts(tx, input.parentId)) {
-          return { kind: "parent_has_products" };
-        }
       }
 
-      const parentMatch =
-        input.parentId === null
-          ? isNull(categories.parentId)
-          : eq(categories.parentId, input.parentId);
-      const [nameTaken] = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(
-          and(
-            parentMatch,
-            sql`lower(${categories.name}) = lower(${input.name})`,
-            ne(categories.id, input.id),
-          ),
-        )
-        .limit(1);
-      if (nameTaken) {
+      if (await siblingNameTaken(tx, input.parentId, input.name, input.id)) {
         throw new CategoryNameTaken();
       }
 

@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { categories, productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
@@ -15,7 +16,6 @@ import {
   readProductName,
   readSaleUnit,
   type SaleUnit,
-  UUID_PATTERN,
   validateProductFields,
 } from "./product-validation.js";
 import type { ProductRow, ProductsRouteOptions } from "./products-list-route.js";
@@ -120,16 +120,46 @@ async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
 }
 
 /**
- * Creates a product and its barcodes in one transaction. The category is locked `FOR UPDATE`
- * first (the same lock `createCategory`/`editCategory`, `category-*-route.ts`, take on a category
- * they are about to give a child), so this and a concurrent `createCategory`/`editCategory`
- * targeting the same category can never both slip past the other's check: either this sees the
- * child that was just added and rejects as non-leaf, or the category create/move sees this
- * product and rejects as having products. The barcode-uniqueness check runs next, inside the same
- * transaction; the database's own unique index (`product_barcodes_code_key`) is the backstop for
- * a code that lands concurrently, mapped by `isBarcodeUniqueViolation`. On that race, which of
- * this request's codes is now taken isn't known from the violation itself, so it's re-read after
- * the transaction rolls back.
+ * Locks the category a product is about to be assigned to `FOR UPDATE` (the same lock
+ * `lockParentForNewChild`, `category-creation-route.ts`, takes on a category about to receive a
+ * child), so this and a concurrent category create or move targeting the same category can never
+ * both slip past the other's check: either this sees the child that was just added and rejects
+ * as non-leaf, or the category create/move sees this product and rejects as having products.
+ */
+export async function lockLeafCategory<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  categoryId: string,
+): Promise<
+  | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
+  | { kind: "locked"; category: { id: string; name: string } }
+> {
+  if (!UUID_PATTERN.test(categoryId)) {
+    return { kind: "category_not_found" };
+  }
+  const [category] = await tx
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .for("update");
+  if (!category) {
+    return { kind: "category_not_found" };
+  }
+  const [childCategory] = await tx
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, categoryId))
+    .limit(1);
+  return childCategory ? { kind: "category_not_leaf" } : { kind: "locked", category };
+}
+
+/**
+ * Creates a product and its barcodes in one transaction, first locking its category through
+ * `lockLeafCategory`. The barcode-uniqueness check runs next, inside the same transaction; the
+ * database's own unique index (`product_barcodes_code_key`) is the backstop for a code that lands
+ * concurrently, mapped by `isBarcodeUniqueViolation`. On that race, which of this request's codes
+ * is now taken isn't known from the violation itself, so it's re-read after the transaction rolls
+ * back.
  */
 export async function createProduct<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -137,25 +167,11 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
 ): Promise<CreateProductOutcome> {
   return db
     .transaction<CreateProductOutcome>(async (tx) => {
-      if (!UUID_PATTERN.test(input.categoryId)) {
-        return { kind: "category_not_found" };
+      const locked = await lockLeafCategory(tx, input.categoryId);
+      if (locked.kind !== "locked") {
+        return locked;
       }
-      const [category] = await tx
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, input.categoryId))
-        .for("update");
-      if (!category) {
-        return { kind: "category_not_found" };
-      }
-      const [childCategory] = await tx
-        .select({ id: categories.id })
-        .from(categories)
-        .where(eq(categories.parentId, input.categoryId))
-        .limit(1);
-      if (childCategory) {
-        return { kind: "category_not_leaf" };
-      }
+      const { category } = locked;
 
       const taken = await takenBarcodes(tx, input.barcodes);
       if (taken.length > 0) {

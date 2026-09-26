@@ -176,16 +176,19 @@ test("the category filter offers only leaf categories, labeled by their full pat
 
   await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
 
-  const optionNames = screen
-    .getByRole("option")
-    .all()
-    .map((option) => option.element().textContent ?? "");
-  expect(optionNames).toEqual(["Todas", "Almacén › Otros", "Bebidas › Otros", "Frutos secos"]);
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .all()
+        .map((option) => option.element().textContent ?? ""),
+    )
+    .toEqual(["Todas", "Almacén › Otros", "Bebidas › Otros", "Frutos secos"]);
 
   await userEvent.click(screen.getByRole("option", { name: "Bebidas › Otros" }));
 
+  await expect.element(screen.getByText("Fósforos")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Soda 2 l")).toBeVisible();
-  expect(screen.getByText("Fósforos").query()).toBeNull();
 });
 
 test("the Categoría column shows each product's category by its full path", async () => {
@@ -624,8 +627,8 @@ test("the category select only offers leaf categories, labeled by their full pat
   const dialog = await openNewProductModal(screen);
   await userEvent.click(dialog.getByRole("button", { name: /^Elegí una categoría/ }));
 
-  expect(dialog.getByRole("option", { name: "Almacén" }).query()).toBeNull();
   await expect.element(dialog.getByRole("option", { name: "Almacén › Untables" })).toBeVisible();
+  expect(dialog.getByRole("option", { name: "Almacén" }).query()).toBeNull();
 });
 
 test("pressing Enter in the scan input adds the code instead of submitting the form", async () => {

@@ -340,6 +340,24 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
+  it("creates the product in a subcategory that has no subcategories of its own", async () => {
+    const parentId = await insertCategory("Almacén");
+    const categoryId = await insertCategory("Untables", parentId);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Dulce de leche",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ categoryId, categoryName: "Untables" });
+    expect(await db.select().from(products)).toMatchObject([{ categoryId }]);
+  });
+
   it("rejects a malformed categoryId, creating nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

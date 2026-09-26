@@ -3,10 +3,6 @@ export interface CategoryFieldValidationFailure {
   message: string;
 }
 
-// Shared by the creation route (`parentId` in the body) and the edit route (`parentId` in the
-// body), the same shape `product-validation.ts`'s own `UUID_PATTERN` is duplicated for products.
-export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 // Mirrors `@purosur/contracts`'s category name limit because this app's `tsc` build (explicit
 // `rootDir`) cannot import that package's untranspiled source; `category-validation.test.ts`
 // guards against drift.
