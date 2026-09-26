@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readEmail } from "./email-validation.js";
+import { EMAIL_MAX_LENGTH, readEmail } from "./email-validation.js";
 
 describe("readEmail", () => {
   it("reads undefined when email is missing or not a string", () => {
@@ -16,12 +16,12 @@ describe("readEmail", () => {
   });
 
   it("accepts an email exactly at the maximum length", () => {
-    const localPart = "a".repeat(254 - "@example.com".length);
+    const localPart = "a".repeat(EMAIL_MAX_LENGTH - "@example.com".length);
     expect(readEmail({ email: `${localPart}@example.com` })).toBe(`${localPart}@example.com`);
   });
 
   it("rejects an email past the maximum length", () => {
-    const localPart = "a".repeat(255 - "@example.com".length);
+    const localPart = "a".repeat(EMAIL_MAX_LENGTH + 1 - "@example.com".length);
     expect(readEmail({ email: `${localPart}@example.com` })).toBeUndefined();
   });
 });
