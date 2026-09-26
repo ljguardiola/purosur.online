@@ -452,7 +452,9 @@ export function checkCommand(command, context = {}) {
   for (const tokens of segments) {
     try {
       checkSegment(tokens, context, problems);
-    } catch {}
+    } catch {
+      // A segment no rule can parse never blocks.
+    }
   }
 
   return problems;
