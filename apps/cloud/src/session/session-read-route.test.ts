@@ -1,3 +1,4 @@
+import { PERMISSION_KEYS } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -11,7 +12,6 @@ import {
   userRoles,
   users,
 } from "../db/schema.js";
-import { PERMISSION_KEYS } from "../roles/permission-catalog.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   exhaustSessionRateLimit,

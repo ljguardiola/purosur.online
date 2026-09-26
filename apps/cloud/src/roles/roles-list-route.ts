@@ -1,3 +1,4 @@
+import { PERMISSION_KEYS } from "@purosur/contracts";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -9,7 +10,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { PERMISSION_KEYS } from "./permission-catalog.js";
 
 export interface RolesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

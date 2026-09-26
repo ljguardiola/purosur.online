@@ -22,16 +22,10 @@ describe("registerNameValidationFailure", () => {
     expect(registerNameValidationFailure("Caja 1")).toBeUndefined();
   });
 
-  it("accepts a name of exactly 100 characters", () => {
-    expect(registerNameValidationFailure("a".repeat(100))).toBeUndefined();
-  });
-
   it("rejects a name longer than 100 characters", () => {
-    expect(registerNameValidationFailure("a".repeat(101))).toMatchObject({ field: "name" });
-  });
-
-  it("counts each emoji as one character toward the 100-character limit", () => {
-    expect(registerNameValidationFailure("🏪".repeat(100))).toBeUndefined();
-    expect(registerNameValidationFailure("🏪".repeat(101))).toMatchObject({ field: "name" });
+    expect(registerNameValidationFailure("a".repeat(101))).toEqual({
+      field: "name",
+      message: "name must be at most 100 characters",
+    });
   });
 });

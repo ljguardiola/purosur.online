@@ -1,3 +1,8 @@
+import {
+  isInternalBarcode,
+  LABELS_MAX_COUNT_PER_PRODUCT,
+  LABELS_MAX_TOTAL_COUNT,
+} from "@purosur/contracts";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -9,13 +14,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { isInternalBarcode } from "./ean13-check-digit.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
-
-// Mirrors `@purosur/contracts`'s label limits; `products-labels-route.test.ts` guards against drift.
-export const MAX_LABEL_COUNT_PER_PRODUCT = 999;
-export const MAX_TOTAL_LABEL_COUNT = 2400;
 
 export interface LabelRequestEntry {
   productId: string;
@@ -43,7 +43,7 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
     typeof count !== "number" ||
     !Number.isInteger(count) ||
     count < 1 ||
-    count > MAX_LABEL_COUNT_PER_PRODUCT
+    count > LABELS_MAX_COUNT_PER_PRODUCT
   ) {
     return undefined;
   }
@@ -53,7 +53,8 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
 
 /**
  * Reads and validates `{ labels: [{ productId, count }] }`: a non-empty list, no repeated
- * `productId`, each count a whole number 1..999, and a bounded total (2400 labels, 100 sheets).
+ * `productId`, each count a whole number from 1 to `LABELS_MAX_COUNT_PER_PRODUCT`, and a total of
+ * at most `LABELS_MAX_TOTAL_COUNT`.
  * Whether each `productId` names an existing product with an internal barcode is checked
  * separately against the database, not here.
  */
@@ -71,7 +72,7 @@ function readLabelsBody(body: unknown): LabelRequestEntry[] | LabelsValidationFa
     if (!entry) {
       return {
         field: "labels",
-        message: "each label must have an existing product's id and a count between 1 and 999",
+        message: `each label must have an existing product's id and a count between 1 and ${LABELS_MAX_COUNT_PER_PRODUCT}`,
       };
     }
     if (seenProductIds.has(entry.productId)) {
@@ -81,10 +82,10 @@ function readLabelsBody(body: unknown): LabelRequestEntry[] | LabelsValidationFa
     entries.push(entry);
     total += entry.count;
   }
-  if (total > MAX_TOTAL_LABEL_COUNT) {
+  if (total > LABELS_MAX_TOTAL_COUNT) {
     return {
       field: "labels",
-      message: `the total label count must be at most ${MAX_TOTAL_LABEL_COUNT}`,
+      message: `the total label count must be at most ${LABELS_MAX_TOTAL_COUNT}`,
     };
   }
   return entries;

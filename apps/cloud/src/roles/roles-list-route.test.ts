@@ -1,3 +1,4 @@
+import { PERMISSION_KEYS } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -6,7 +7,6 @@ import { locations, rolePermissions, roles, sessions, userRoles, users } from ".
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { PERMISSION_KEYS } from "./permission-catalog.js";
 import { registerRolesListRoute } from "./roles-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";

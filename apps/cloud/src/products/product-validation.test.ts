@@ -1,23 +1,5 @@
-import {
-  BARCODE_MAX_LENGTH as SHARED_BARCODE_MAX_LENGTH,
-  NET_CONTENT_QUANTITY_MAX as SHARED_NET_CONTENT_QUANTITY_MAX,
-  NET_CONTENT_UNITS as SHARED_NET_CONTENT_UNITS,
-  PRODUCT_BARCODES_MAX_COUNT as SHARED_PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH as SHARED_PRODUCT_NAME_MAX_LENGTH,
-  barcodeLength as sharedBarcodeLength,
-  isValidNetContentQuantity as sharedIsValidNetContentQuantity,
-  productNameLength as sharedProductNameLength,
-} from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  BARCODE_MAX_LENGTH,
-  barcodeLength,
-  isValidNetContentQuantity,
-  NET_CONTENT_QUANTITY_MAX,
-  NET_CONTENT_UNITS,
-  PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
-  productNameLength,
   readBarcodes,
   readCategoryId,
   readNetContent,
@@ -134,7 +116,7 @@ describe("validateProductFields", () => {
         saleUnit: "UNIT",
         barcodes: ["111"],
       }),
-    ).toMatchObject({ field: "name" });
+    ).toEqual({ field: "name", message: "name must be at most 100 characters" });
   });
 
   it("rejects a missing categoryId", () => {
@@ -178,7 +160,7 @@ describe("validateProductFields", () => {
         saleUnit: "UNIT",
         barcodes: ["a".repeat(65)],
       }),
-    ).toMatchObject({ field: "barcodes" });
+    ).toEqual({ field: "barcodes", message: "each barcode must be at most 64 characters" });
   });
 
   it("accepts up to 20 barcodes and rejects a 21st", () => {
@@ -259,40 +241,5 @@ describe("validateProductFields", () => {
         netContent: { quantity: 0, unit: "KG" },
       }),
     ).toMatchObject({ field: "netContentQuantity" });
-  });
-});
-
-describe("the cloud's local product limits", () => {
-  it("match the shared limits", () => {
-    expect(PRODUCT_NAME_MAX_LENGTH).toBe(SHARED_PRODUCT_NAME_MAX_LENGTH);
-    expect(BARCODE_MAX_LENGTH).toBe(SHARED_BARCODE_MAX_LENGTH);
-    expect(PRODUCT_BARCODES_MAX_COUNT).toBe(SHARED_PRODUCT_BARCODES_MAX_COUNT);
-    expect(NET_CONTENT_UNITS).toEqual(SHARED_NET_CONTENT_UNITS);
-    expect(NET_CONTENT_QUANTITY_MAX).toBe(SHARED_NET_CONTENT_QUANTITY_MAX);
-  });
-
-  it("validates net content quantities the same way the shared contract does", () => {
-    for (const quantity of [
-      1,
-      0.5,
-      1.234,
-      0,
-      -1,
-      1.2345,
-      1.005,
-      0.1 + 0.2,
-      NET_CONTENT_QUANTITY_MAX,
-      NET_CONTENT_QUANTITY_MAX + 1,
-      Number.NaN,
-    ]) {
-      expect(isValidNetContentQuantity(quantity)).toBe(sharedIsValidNetContentQuantity(quantity));
-    }
-  });
-
-  it("count length the same way the shared contract does", () => {
-    for (const value of ["Maceta", "🌱".repeat(3), "Café 🌱 orgánico"]) {
-      expect(productNameLength(value)).toBe(sharedProductNameLength(value));
-      expect(barcodeLength(value)).toBe(sharedBarcodeLength(value));
-    }
   });
 });

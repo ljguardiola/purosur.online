@@ -1,3 +1,4 @@
+import { appendEan13CheckDigit } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
@@ -14,7 +15,6 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { appendEan13CheckDigit } from "./ean13-check-digit.js";
 import { allocateInternalBarcode, registerInternalBarcodeRoute } from "./internal-barcode-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";

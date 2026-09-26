@@ -1,7 +1,3 @@
-import {
-  LABELS_MAX_COUNT_PER_PRODUCT as SHARED_LABELS_MAX_COUNT_PER_PRODUCT,
-  LABELS_MAX_TOTAL_COUNT as SHARED_LABELS_MAX_TOTAL_COUNT,
-} from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -19,11 +15,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import {
-  MAX_LABEL_COUNT_PER_PRODUCT,
-  MAX_TOTAL_LABEL_COUNT,
-  registerProductLabelsRoute,
-} from "./products-labels-route.js";
+import { registerProductLabelsRoute } from "./products-labels-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -421,12 +413,5 @@ describe("POST /products/labels", () => {
     expect(response.headers["content-disposition"]).toBe("attachment");
     const pdf = response.rawPayload;
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
-  });
-});
-
-describe("label count limits", () => {
-  it("mirror the shared contract's limits", () => {
-    expect(MAX_LABEL_COUNT_PER_PRODUCT).toBe(SHARED_LABELS_MAX_COUNT_PER_PRODUCT);
-    expect(MAX_TOTAL_LABEL_COUNT).toBe(SHARED_LABELS_MAX_TOTAL_COUNT);
   });
 });

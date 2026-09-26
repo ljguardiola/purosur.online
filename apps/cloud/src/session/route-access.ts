@@ -1,3 +1,4 @@
+import type { PermissionKey } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type {
   FastifyInstance,
@@ -6,7 +7,6 @@ import type {
   preHandlerAsyncHookHandler,
   RouteOptions,
 } from "fastify";
-import type { PermissionKey } from "../roles/permission-catalog.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import {
   type BackofficeSessionCheckOptions,
