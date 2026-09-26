@@ -316,6 +316,37 @@ test("shows the sign-in lockout description, scoped to the source address", asyn
     .toBeVisible();
 });
 
+test("describes a closed sign-in lockout without its source address, and leaves out the scope row", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "backoffice_sign_in_lockout",
+        scope: "a-hashed-address",
+        scopeDisplay: null,
+        detail: {
+          sourceAddress: "a-hashed-address",
+          failureCount: 6,
+          blockedUntil: "2026-01-05T12:15:00.000Z",
+        },
+        resolvedAt: "2026-01-05T13:00:00.000Z",
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Una dirección quedó bloqueada para ingresar al backoffice después de 6 intentos fallidos.",
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/a-hashed-address/).query()).toBeNull();
+  expect(screen.getByText("Alcance").query()).toBeNull();
+});
+
 test("hides Cerrar la alerta for a viewer without dismiss_alerts_manually", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));

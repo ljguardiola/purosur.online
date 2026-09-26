@@ -135,7 +135,20 @@ function alertTitle(alert: AlertDetail): string {
 }
 
 function alertDescription(alert: AlertDetail): string {
+  if (alert.kind === "backoffice_sign_in_lockout") {
+    const failureCount =
+      typeof alert.detail.failureCount === "number" ? alert.detail.failureCount : 0;
+    return alert.scopeDisplay === null
+      ? detailMessages.descriptions.signInLockoutWithoutAddress({ failureCount })
+      : detailMessages.descriptions.signInLockout({
+          sourceAddress: alert.scopeDisplay,
+          failureCount,
+        });
+  }
   const targetName = alert.scopeDisplay;
+  if (targetName === null) {
+    return "";
+  }
   switch (alert.kind) {
     case "backoffice_passkey_changed": {
       const detail = passkeyChangeDetail(alert.detail);
@@ -182,11 +195,6 @@ function alertDescription(alert: AlertDetail): string {
         previousEmail,
         newEmail,
       });
-    }
-    case "backoffice_sign_in_lockout": {
-      const failureCount =
-        typeof alert.detail.failureCount === "number" ? alert.detail.failureCount : 0;
-      return detailMessages.descriptions.signInLockout({ sourceAddress: targetName, failureCount });
     }
     default:
       return "";
@@ -430,10 +438,12 @@ export function AlertDetailModal({
                     : detailMessages.notEscalatedYet}
                 </span>
               </div>
-              <div className="flex justify-between gap-2">
-                <span className="text-ink-secondary">{detailMessages.scopeLabel}</span>
-                <span>{alert.scopeDisplay}</span>
-              </div>
+              {alert.scopeDisplay !== null && (
+                <div className="flex justify-between gap-2">
+                  <span className="text-ink-secondary">{detailMessages.scopeLabel}</span>
+                  <span>{alert.scopeDisplay}</span>
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <p className="font-bold text-ink text-sm">{detailMessages.deliveriesTitle}</p>

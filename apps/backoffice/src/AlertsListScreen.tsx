@@ -184,7 +184,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
     {
       key: "scope",
       title: alertsMessages.columns.scope,
-      render: (item: AlertSummary) => item.scopeDisplay,
+      render: (item: AlertSummary) => item.scopeDisplay ?? alertsMessages.scopeNone,
     },
     {
       key: "openedAt",

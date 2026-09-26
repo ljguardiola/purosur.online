@@ -881,6 +881,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         scope: "Alcance",
         openedAt: "Abierta",
       },
+      scopeNone: "—",
       dateTime: (params: { date: Date }) =>
         `${f.date(params.date, PASSKEY_DATE_OPTIONS)} ${f.date(params.date, PASSKEY_TIME_OPTIONS)}`,
       rowActionsLabel: "Acciones de la alerta",
@@ -971,6 +972,8 @@ export const messages = defineMessages("es-AR", (f) => ({
             `El Administrador ${params.actorName} cambió el correo de ${params.targetName} de ${params.previousEmail} a ${params.newEmail}.`,
           signInLockout: (params: { sourceAddress: string; failureCount: number }) =>
             `La dirección ${params.sourceAddress} quedó bloqueada para ingresar al backoffice después de ${f.plural(params.failureCount, { one: "1 intento fallido", other: `${params.failureCount} intentos fallidos` })}.`,
+          signInLockoutWithoutAddress: (params: { failureCount: number }) =>
+            `Una dirección quedó bloqueada para ingresar al backoffice después de ${f.plural(params.failureCount, { one: "1 intento fallido", other: `${params.failureCount} intentos fallidos` })}.`,
         },
       },
     },

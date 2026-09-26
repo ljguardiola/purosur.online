@@ -8,8 +8,11 @@ export type AlertSummary = {
   id: string;
   kind: string;
   scope: string;
-  /** `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope otherwise. */
-  scopeDisplay: string;
+  /**
+   * `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope
+   * otherwise, or `null` for a closed lockout alert, which no longer holds its source address.
+   */
+  scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   openedAt: string;
@@ -35,7 +38,7 @@ export type AlertDetail = {
   id: string;
   kind: string;
   scope: string;
-  scopeDisplay: string;
+  scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   /** The kind's own fact payload, passed through as the cloud sends it (see alert-read-route.ts). */
@@ -99,7 +102,7 @@ function alertSummaryFromWire(row: {
   id: string;
   kind: string;
   scope: string;
-  scope_display: string;
+  scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   opened_at: string;
@@ -151,7 +154,7 @@ function alertDetailFromWire(row: {
   id: string;
   kind: string;
   scope: string;
-  scope_display: string;
+  scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
   detail: Record<string, unknown>;

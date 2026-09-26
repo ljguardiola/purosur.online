@@ -260,6 +260,26 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
   window.history.pushState(null, "", "/");
 });
 
+test("shows a closed lockout alert's scope as a dash, since it no longer holds the address", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(
+    ok([
+      {
+        ...lockoutAlert,
+        scope: "a-hashed-address",
+        scopeDisplay: null,
+        resolvedAt: "2026-01-06T12:00:00.000Z",
+      },
+    ]),
+  );
+
+  const screen = await renderScreen(services);
+
+  const row = screen.getByRole("row", { name: /Bloqueo de ingreso/ });
+  await expect.element(row.getByText("—", { exact: true })).toBeVisible();
+  expect(screen.getByText(/a-hashed-address/).query()).toBeNull();
+});
+
 test("shows a load error with a retry action when the alerts fail to load", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValueOnce({ kind: "failed" });
