@@ -15,9 +15,14 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: verify
+  # Only a pull request may skip static/tests below: this job still runs on push because a push's
+  # success is what lets the deploy ship it, and the commit before it may not have passed.
+  scope:
+    name: scope
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,39 +33,72 @@ jobs:
         with:
           node-version-file: .node-version
 
-      # Only a pull request may skip: the job still runs because it is a required check. A push to
-      # main always verifies its whole tree, because its success is what lets the deploy ship it,
-      # and the commit before it may not have passed.
       - name: Decide the change's scope
         id: scope
-        if: github.event_name == 'pull_request'
         run: node .github/scripts/change-scope.mjs
         env:
           SCOPE_FROM: ${{ github.event.pull_request.base.sha }}
           SCOPE_TO: ${{ github.sha }}
 
-      # After the scope decision: setup-node's pnpm cache fails its post step when no install
-      # created the store.
-      - if: steps.scope.outputs.docs_only != 'true'
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+  # tsc, biome, dependency-cruiser and the repository's own automation tests: none of these need
+  # Postgres or a browser, so this job carries no Playwright setup.
+  static:
+    name: static
+    needs: [scope]
+    # A push always runs this in full. On a pull request, it is skipped only when scope positively
+    # decided the change is docs-only; a failed or missing scope decision falls through to running
+    # it, the same fail-safe default change-scope.mjs itself applies.
+    if: always() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - if: steps.scope.outputs.docs_only != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
 
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - name: Dependency audit
-        if: steps.scope.outputs.docs_only != 'true'
         run: pnpm audit
         continue-on-error: true
 
+      - run: pnpm verify:static
+
+  # vitest run, sharded four ways. Sequentially this took ~208s of Verify's ~271s total, and its
+  # own file times summed to ~770s across the 4 cores one runner already parallelizes it over
+  # (#369); splitting into 4 CI-level shards divides that ~770s again, so a slow shard - not the
+  # ever-growing total test count - bounds this job's wall time.
+  tests:
+    name: tests (${{ matrix.shard }}/4)
+    needs: [scope]
+    if: always() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
       - name: Read the Playwright version
         id: playwright-version
-        if: steps.scope.outputs.docs_only != 'true'
         run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
       # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
@@ -68,7 +106,6 @@ jobs:
       # would serve only that pull request.
       - name: Restore Playwright browsers
         id: playwright-cache
-        if: steps.scope.outputs.docs_only != 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
@@ -76,18 +113,43 @@ jobs:
 
       # A cache hit still needs the OS packages Playwright's browsers link against,
       # just not another download of the (unchanged) browser binary.
-      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      - if: steps.scope.outputs.docs_only != 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
 
+      # Only one shard saves it, so two shards never race to save the same cache key.
       - name: Save Playwright browsers
-        if: steps.scope.outputs.docs_only != 'true' && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: matrix.shard == 1 && github.event_name == 'push' && steps.playwright-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
 
-      - if: steps.scope.outputs.docs_only != 'true'
-        run: pnpm verify
+      - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
+
+  # The required status check named in .github/rulesets/main.json. It runs no check itself; it
+  # only translates scope/static/tests' outcomes into the single pass/fail that check reports.
+  verify:
+    name: verify
+    needs: [scope, static, tests]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
+      - name: Decide whether every required job succeeded
+        run: node .github/scripts/aggregate-verify-result.mjs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCOPE_RESULT: ${{ needs.scope.result }}
+          SCOPE_DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          STATIC_RESULT: ${{ needs.static.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
