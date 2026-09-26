@@ -53,9 +53,13 @@ const axeOptions = {
   },
 };
 
-// react-stately's tooltip cooldown is 500ms; this clears it with room to spare on a loaded
-// machine without making the delay test meaningfully slower.
-const COOLDOWN_BUFFER_MS = 500;
+// Once a tooltip hides, react-stately starts a cooldown during which the next hover opens a
+// tooltip instantly instead of after the delay. It lasts the larger of 500ms and the close delay,
+// so 500ms here. The test's wait starts when it sees the tooltip gone, barely after the cooldown
+// started, so waiting exactly 500ms would race it; the margin guarantees it has expired.
+const REACT_STATELY_COOLDOWN_MS = 500;
+const COOLDOWN_MARGIN_MS = 250;
+const COOLDOWN_BUFFER_MS = REACT_STATELY_COOLDOWN_MS + COOLDOWN_MARGIN_MS;
 
 // Long enough to outlast react-aria's own 1500ms default delay, so a tooltip that merely opens
 // late still reports its elapsed time rather than this.
@@ -139,7 +143,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("centers the arrow on the box's edge, the box 10px clear of the element and the arrow centered on it", async () => {
+test("centers a 10px ink diamond on the box's edge, the box 10px clear of the element and the arrow centered on it", async () => {
   const screen = await render(
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -156,6 +160,14 @@ test("centers the arrow on the box's edge, the box 10px clear of the element and
   const arrow = tooltip.querySelector("[data-placement]") as HTMLElement | null;
   expect(arrow, "no arrow element found inside the tooltip").not.toBeNull();
   const diamond = (arrow as HTMLElement).firstElementChild as HTMLElement;
+
+  const diamondStyle = getComputedStyle(diamond);
+  expect(diamondStyle.backgroundColor).toBe(tokenRgb("ink"));
+  // Tailwind v4's rotate-* utilities set the native CSS `rotate` property rather than composing
+  // a `transform: rotate(...)` matrix, so that's the property that actually paints the tilt.
+  expect(diamondStyle.rotate).toBe("45deg");
+  expect(diamondStyle.width).toBe("10px");
+  expect(diamondStyle.height).toBe("10px");
 
   const tooltipRect = tooltip.getBoundingClientRect();
   const diamondRect = diamond.getBoundingClientRect();
@@ -244,17 +256,36 @@ test("keeps the arrow off the box's rounded corner when clamped near a screen ed
 
   const tooltipRect = tooltip.getBoundingClientRect();
   const diamondRect = diamond.getBoundingClientRect();
+  const triggerRect = trigger.getBoundingClientRect();
+
+  // react-aria computes positions from whole-pixel layout sizes while these rects are fractional,
+  // so every check below allows one pixel of rounding.
+  const SUBPIXEL_ROUNDING_PX = 1;
 
   // The trigger sits close enough to this narrow viewport's right edge that the box has to shift
-  // left to stay on screen, which is exactly when react-aria's own arrow clamp crowds the diamond
-  // against an edge: it only reserves room for the plain 10px square it measures, not the wider
-  // 14.14px diamond that square's 45deg rotation actually paints. Landing any closer than the
-  // box's own 6px corner radius (rounded-md) puts the diamond over where the curve has already
-  // pulled the box's fill back, which is what reads as the diamond floating free of the box
-  // instead of glued to it.
+  // left to stay on screen, stopping at react-aria's default 12px container padding, and the arrow
+  // can no longer reach the trigger's center: this is the case where react-aria's arrow clamp
+  // takes over. Unless both hold, the clamp never engaged and the checks below prove nothing.
+  const REACT_ARIA_CONTAINER_PADDING_PX = 12;
+  expect(
+    Math.abs(window.innerWidth - REACT_ARIA_CONTAINER_PADDING_PX - tooltipRect.right),
+  ).toBeLessThanOrEqual(SUBPIXEL_ROUNDING_PX);
+  const diamondCenterX = diamondRect.left + diamondRect.width / 2;
+  const triggerCenterX = triggerRect.left + triggerRect.width / 2;
+  expect(triggerCenterX - diamondCenterX).toBeGreaterThan(SUBPIXEL_ROUNDING_PX);
+
+  // react-aria's clamp only reserves room for the plain 10px square it measures, not the wider
+  // 14.14px diamond that square's 45deg rotation actually paints. The diamond's whole footprint
+  // has to stay on the box's flat edge, clear of its 6px corner radius (rounded-md), where the
+  // curve has already pulled the box's fill back and the diamond reads as floating free of the
+  // box instead of glued to it.
   const BOX_CORNER_RADIUS_PX = 6;
-  expect(tooltipRect.right - diamondRect.right).toBeGreaterThanOrEqual(BOX_CORNER_RADIUS_PX);
-  expect(diamondRect.left - tooltipRect.left).toBeGreaterThanOrEqual(BOX_CORNER_RADIUS_PX);
+  expect(tooltipRect.right - diamondRect.right).toBeGreaterThanOrEqual(
+    BOX_CORNER_RADIUS_PX - SUBPIXEL_ROUNDING_PX,
+  );
+  expect(diamondRect.left - tooltipRect.left).toBeGreaterThanOrEqual(
+    BOX_CORNER_RADIUS_PX - SUBPIXEL_ROUNDING_PX,
+  );
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
