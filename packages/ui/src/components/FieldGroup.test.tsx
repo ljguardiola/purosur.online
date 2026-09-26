@@ -1,8 +1,64 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
+import { tokenRgb } from "../test/token-colors";
 import { FieldGroup } from "./FieldGroup";
 import { FieldSizeProvider } from "./FieldSize";
+
+test("draws its label at the register scale with no FieldSizeProvider above it", async () => {
+  const screen = await render(
+    <FieldGroup label="Motivo">
+      <p>Miel</p>
+    </FieldGroup>,
+  );
+  const label = screen.getByText("Motivo").element() as HTMLElement;
+  const style = getComputedStyle(label);
+
+  expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
+  expect(style.fontWeight).toBe("700");
+  expect(style.color).toBe(tokenRgb("ink"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws its label at the backoffice scale inside a FieldSizeProvider", async () => {
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <FieldGroup label="Categoría">
+        <p>Miel</p>
+      </FieldGroup>
+    </FieldSizeProvider>,
+  );
+  const label = screen.getByText("Categoría").element() as HTMLElement;
+  const style = getComputedStyle(label);
+
+  expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
+  expect(style.fontWeight).toBe("700");
+  expect(style.color).toBe(tokenRgb("ink"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("appends the required asterisk to its label only when required", async () => {
+  const screen = await render(
+    <>
+      <FieldGroup label="Categoría" required>
+        <p>Miel</p>
+      </FieldGroup>
+      <FieldGroup label="Unidad de venta">
+        <p>Kilogramo</p>
+      </FieldGroup>
+    </>,
+  );
+
+  const required = screen.getByText("Categoría").element() as HTMLElement;
+  const optional = screen.getByText("Unidad de venta").element() as HTMLElement;
+
+  expect(getComputedStyle(required, "::after").content).toContain("*");
+  expect(getComputedStyle(optional, "::after").content).not.toContain("*");
+
+  await expectNoAccessibilityViolations(screen.container);
+});
 
 test("keeps its label 6px above its own children with no FieldSizeProvider above it", async () => {
   const screen = await render(
