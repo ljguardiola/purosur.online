@@ -1,11 +1,15 @@
 import {
   isAlertKind as isSharedAlertKind,
   ALERT_KINDS as SHARED_ALERT_KINDS,
+  type AlertAudience as SharedAlertAudience,
+  type AlertLevel as SharedAlertLevel,
 } from "@purosur/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   ALERT_KINDS,
+  type AlertAudience,
   type AlertKind,
+  type AlertLevel,
   alertKindDefinition,
   isAlertKind,
 } from "./alert-kind-catalog.js";
@@ -23,6 +27,16 @@ describe("the cloud's local alert kind list", () => {
       expect(isAlertKind(kind)).toBe(true);
     }
     expect(isAlertKind("not_a_real_kind")).toBe(false);
+  });
+
+  // @purosur/contracts has no runtime list for these (they're type-only unions), so there is
+  // nothing to compare at runtime; a mismatch here only ever fails `tsc --noEmit`.
+  it("matches the shared catalog's level union exactly", () => {
+    expectTypeOf<AlertLevel>().toEqualTypeOf<SharedAlertLevel>();
+  });
+
+  it("matches the shared catalog's audience union exactly", () => {
+    expectTypeOf<AlertAudience>().toEqualTypeOf<SharedAlertAudience>();
   });
 });
 
