@@ -1,4 +1,4 @@
-// Mirrors `@purosur/contracts`'s EAN-13 module encoder; the drift test guards against drift.
+// Mirrors `@purosur/contracts`'s EAN-13 module encoder; `ean13-modules.test.ts` guards against drift.
 const LEFT_ODD_PATTERNS = [
   "0001101",
   "0011001",

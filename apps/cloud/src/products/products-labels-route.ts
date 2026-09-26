@@ -13,7 +13,7 @@ import { isInternalBarcode } from "./ean13-check-digit.js";
 import { renderLabelSheetPdf } from "./label-sheet-pdf.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
-// Mirrors `@purosur/contracts`'s label limits; the drift test guards against drift.
+// Mirrors `@purosur/contracts`'s label limits; `products-labels-route.test.ts` guards against drift.
 export const MAX_LABEL_COUNT_PER_PRODUCT = 999;
 export const MAX_TOTAL_LABEL_COUNT = 2400;
 

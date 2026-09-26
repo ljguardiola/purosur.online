@@ -41,8 +41,8 @@ jobs:
           SCOPE_FROM: ${{ github.event.pull_request.base.sha }}
           SCOPE_TO: ${{ github.sha }}
 
-  # tsc, biome, dependency-cruiser and the repository's own automation tests: none of these need
-  # Postgres or a browser, so this job carries no Playwright setup.
+  # tsc, the cloud's own build, biome, dependency-cruiser and the repository's own automation tests:
+  # none of these need Postgres or a browser, so this job carries no Playwright setup.
   static:
     name: static
     needs: [scope]

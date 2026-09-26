@@ -1,4 +1,4 @@
-// Mirrors `@purosur/contracts`'s EAN-13 check digit; the drift test guards against drift.
+// Mirrors `@purosur/contracts`'s EAN-13 check digit; `ean13-check-digit.test.ts` guards against drift.
 function ean13CheckDigit(twelveDigitBody: string): number {
   let weightedSum = 0;
   for (let index = 0; index < twelveDigitBody.length; index += 1) {
