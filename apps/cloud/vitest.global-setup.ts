@@ -28,16 +28,21 @@ declare module "vitest" {
 }
 
 const CLOUD_DIR = fileURLToPath(new URL("./", import.meta.url));
+const CONTRACTS_DIR = fileURLToPath(new URL("../../packages/contracts/", import.meta.url));
 const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
 
 // The command entrypoints import sibling modules, which Node's type stripping cannot resolve from
-// a raw .ts file, so tests that spawn a command run the compiled JavaScript instead. It is built
-// outside apps/cloud/dist so a test run never overwrites or depends on a developer's own build.
+// a raw .ts file, so tests that spawn a command run the compiled JavaScript instead. The cloud is
+// built outside apps/cloud/dist so a test run never overwrites or depends on a developer's own
+// cloud build; contracts is built in place, which writes the same output a normal build does.
 export default async function setup(project: TestProject): Promise<() => void> {
   // Resolved because each entrypoint compares process.argv[1] with its own realpath'd module URL,
   // which differ when the temp dir sits behind a symlink (macOS /var -> /private/var).
   const buildRoot = realpathSync(mkdtempSync(join(tmpdir(), "purosur-cloud-build-")));
   try {
+    // Cloud reads contracts' compiled declarations through node_modules, not through project
+    // references (the `-p`/`--outDir` compile below isn't `-b`, so it never builds them itself).
+    execFileSync(process.execPath, [TSC_BIN, "-b", CONTRACTS_DIR], { stdio: "inherit" });
     execFileSync(
       process.execPath,
       [TSC_BIN, "-p", join(CLOUD_DIR, "tsconfig.json"), "--outDir", join(buildRoot, "dist")],

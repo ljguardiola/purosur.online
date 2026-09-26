@@ -5,7 +5,7 @@ import {
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
-} from "./permission-catalog";
+} from "./permission-catalog.js";
 
 const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
   ["cashRegister", 7],

@@ -6,8 +6,8 @@
 // aggregate step may continue on error, that step carries no if or shell of its own, runs exactly the
 // aggregate script and passes it every result and scope input from the job that produces it.
 // Neither the workflow nor any of those jobs sets defaults, which could replace the run shell.
-// package.json's scripts still compose tsc, biome, dependency-cruiser, the automation tests and
-// vitest without swallowing a failure. An edit that breaks any of these fails this guard instead
+// package.json's scripts still compose tsc, the cloud's own build, biome, dependency-cruiser, the
+// automation tests and vitest without swallowing a failure. An edit that breaks any of these fails this guard instead
 // of quietly shipping a weaker merge gate.
 
 import { readFileSync } from "node:fs";
@@ -19,6 +19,7 @@ const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests";
 const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
+  "pnpm --filter @purosur/cloud build",
   "biome ci .",
   "pnpm depcruise",
   "node --test .github/scripts/*.test.mjs",

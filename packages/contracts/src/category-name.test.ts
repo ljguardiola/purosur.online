@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name";
+import { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name.js";
 
 describe("CATEGORY_NAME_MAX_LENGTH", () => {
   it("allows category names of up to 100 characters", () => {

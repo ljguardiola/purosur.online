@@ -93,6 +93,9 @@ importers:
       '@fastify/static':
         specifier: ^10.1.4
         version: 10.1.4
+      '@purosur/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@sentry/node':
         specifier: ^10.75.0
         version: 10.75.0(@opentelemetry/core@2.11.0(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
@@ -121,9 +124,6 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.5.8
         version: 0.5.8
-      '@purosur/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@testcontainers/postgresql':
         specifier: ^12.1.0
         version: 12.1.0(supports-color@7.2.0)
