@@ -82,10 +82,6 @@ function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolea
   );
 }
 
-// Matches DateField.tsx's own "backoffice" variant valueClassName exactly (text-base
-// font-semibold text-ink): the same scale the design draws for this field's value, at the same
-// 48px box height. Left-aligned, like TextField.tsx's own "weight" kind, so the value sits right
-// beside the unit picker instead of the empty input width between them.
 const valueClassName =
   "min-w-0 flex-1 bg-transparent text-left text-base font-semibold text-ink " +
   "caret-brand-blue-strong outline-none";
