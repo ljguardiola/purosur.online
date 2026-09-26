@@ -1,3 +1,4 @@
+import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -212,12 +213,16 @@ test("drops a late response once the filters have changed since it was sent", as
   await screen.getByRole("button", { name: /Nivel/ }).click();
   await screen.getByRole("option", { name: "Crítica" }).click();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
-  resolveFirst(ok([passkeyAlert]));
-  // Waits for the stale promise's own resolution to reach the screen, which was already awaiting
-  // it (rather than guessing that 50ms is enough for the response itself to settle), then lets
-  // React's own scheduler flush whatever render that resolution would have triggered.
-  await firstSettled;
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // Resolves the stale promise and, rather than guessing how long its render would take, uses
+  // React's own act() to flush every render it triggers (recursively, until none is left pending)
+  // before this continues: no arbitrary wait, just "whatever that resolution caused has happened".
+  // vitest-browser-react only marks the environment act-aware around its own render/userEvent
+  // calls, so this call needs the flag set too.
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  await act(async () => {
+    resolveFirst(ok([passkeyAlert]));
+    await firstSettled;
+  });
   expect(screen.getByText("Lucía Pérez").query()).toBeNull();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
 
