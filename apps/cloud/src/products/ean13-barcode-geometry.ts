@@ -13,6 +13,7 @@ export const START_GUARD_END_MODULE = 3;
 export const CENTER_GUARD_START_MODULE = 45;
 export const CENTER_GUARD_END_MODULE = 50;
 export const END_GUARD_START_MODULE = 92;
+export const END_GUARD_END_MODULE = 95;
 
 function moduleRange(start: number, end: number): number[] {
   return Array.from({ length: end - start }, (_, offset) => start + offset);
@@ -22,7 +23,7 @@ function moduleRange(start: number, end: number): number[] {
 const GUARD_MODULE_INDEXES = new Set([
   ...moduleRange(0, START_GUARD_END_MODULE),
   ...moduleRange(CENTER_GUARD_START_MODULE, CENTER_GUARD_END_MODULE),
-  ...moduleRange(END_GUARD_START_MODULE, END_GUARD_START_MODULE + START_GUARD_END_MODULE),
+  ...moduleRange(END_GUARD_START_MODULE, END_GUARD_END_MODULE),
 ]);
 const HALF_GROUP_WIDTH_MODULES = (DIGITS_PER_GROUP * MODULES_PER_DIGIT) / 2;
 
