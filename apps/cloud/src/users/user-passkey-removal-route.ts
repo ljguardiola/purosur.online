@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, sessions } from "../db/schema.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
 import {
@@ -130,6 +131,22 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
           previousValue: { id: removedPasskey.id, name: removedPasskey.name, userId: target.id },
           newValue: null,
         });
+
+        await openAlert(
+          tx,
+          {
+            kind: "backoffice_passkey_changed",
+            scope: target.id,
+            detail: {
+              action: "removed",
+              passkeyName: removedPasskey.name,
+              actorId: openSession.userId,
+              via: "administrator",
+            },
+          },
+          { now },
+        );
+
         return removedPasskey;
       });
       if (!removed) {

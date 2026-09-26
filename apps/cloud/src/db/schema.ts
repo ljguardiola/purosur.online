@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -16,6 +17,7 @@ import {
   text,
   time,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -24,6 +26,15 @@ import {
 // table's one row (like the Administrator role below) and backfills every existing user onto it.
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),
+});
+
+// A price list groups the `prices` rows a product is looked up in. The business runs a single
+// list today (the migration seeds its one row, "Lista general", the same way `locations` seeds
+// its own single row); `branch_settings.price_list_id` below decides which list a branch's Prices
+// screen works on.
+export const priceLists = pgTable("price_lists", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
 });
 
 // One row per location (1:1, `location_id` is both primary and foreign key), holding the settings
@@ -42,6 +53,12 @@ export const branchSettings = pgTable("branch_settings", {
   expiringLotAlertDays: integer("expiring_lot_alert_days").notNull().default(30),
   unreviewedPriceAlertDays: integer("unreviewed_price_alert_days").notNull().default(30),
   goodConditionReturnDays: integer("good_condition_return_days").notNull().default(15),
+  // The price list the Prices screen works on for this branch. Not editable from this issue's
+  // Sucursal screen (there is a single list, so a dropdown would be a no-op); the migration
+  // backfills every existing row onto the seeded "Lista general" list.
+  priceListId: uuid("price_list_id")
+    .notNull()
+    .references(() => priceLists.id),
   // Optimistic concurrency for a branch settings row, the same shape `roles.version` gives role
   // rows: starts at 1 and every edit of that row increments it, so a save over a version someone
   // else already changed is rejected instead of silently overwriting their change. A change to
@@ -276,6 +293,77 @@ export const productBarcodes = pgTable(
   (table) => [
     primaryKey({ columns: [table.productId, table.position] }),
     uniqueIndex("product_barcodes_code_key").on(table.code).where(sql`${table.active} = true`),
+  ],
+);
+
+// A product's price at a point in time, in cents per unit or per kilogram (`products.sale_unit`
+// decides which). Append-only: changing a price always inserts a new row instead of touching an
+// old one, so the full history of what a product cost at any moment is never lost (drafts/docs
+// §6.1, D25). Enforced the same way `audit_log` enforces it (migration 0016): the migration
+// revokes UPDATE, DELETE, and TRUNCATE on this table from `cloud_app`, so the database itself
+// refuses a rewrite even from application code, not just by convention.
+export const prices = pgTable(
+  "prices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    unitPrice: integer("unit_price").notNull(),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("prices_unit_price_positive", sql`${table.unitPrice} > 0`),
+    index("prices_product_id_price_list_id_valid_from_idx").on(
+      table.productId,
+      table.priceListId,
+      table.validFrom,
+    ),
+    // Exists so `price_reviews` can reference it with a composite foreign key, which lets a review
+    // point only at a price of its own product and price list.
+    unique("prices_id_product_id_price_list_id_key").on(
+      table.id,
+      table.productId,
+      table.priceListId,
+    ),
+  ],
+);
+
+// One row per price review: setting a new price and confirming the current one without a change
+// both insert a row here (drafts/docs §6.1, D27), pointing at the price it reviewed. A product's
+// last-reviewed moment is the newest row here for it, never a column updated in place; append-only
+// for the same reason and the same way `prices` above is (migration revokes UPDATE, DELETE, and
+// TRUNCATE on this table from `cloud_app` too).
+export const priceReviews = pgTable(
+  "price_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    priceListId: uuid("price_list_id")
+      .notNull()
+      .references(() => priceLists.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    priceId: uuid("price_id").notNull(),
+  },
+  (table) => [
+    foreignKey({
+      name: "price_reviews_price_product_price_list_fk",
+      columns: [table.priceId, table.productId, table.priceListId],
+      foreignColumns: [prices.id, prices.productId, prices.priceListId],
+    }),
+    index("price_reviews_product_id_price_list_id_reviewed_at_idx").on(
+      table.productId,
+      table.priceListId,
+      table.reviewedAt,
+    ),
   ],
 );
 
@@ -596,5 +684,81 @@ export const backofficeRateLimitAttempts = pgTable(
       table.attemptedAt,
     ),
     index("backoffice_rate_limit_attempts_attempted_at_idx").on(table.attemptedAt),
+  ],
+);
+
+export const alertLevel = pgEnum("alert_level", ["informational", "warning", "critical"]);
+
+export const alertAudience = pgEnum("alert_audience", ["local", "all"]);
+
+// `kind` is free text, not an enum: the kind catalog (`alerts/alert-kind-catalog.ts`) lives in
+// code, the same reasoning `role_permissions.permission_key` gives for staying text instead of an
+// enum, so a kind added later reaches this table without a migration. `scope` is the other half of
+// the deduplication key (a user id, a source address…) and stays free text for the same reason: it
+// varies by kind. `location_id` is null for an `all`-audience alert and required for a
+// `local`-audience one, enforced below; no kind uses `local` yet.
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(),
+    scope: text("scope").notNull(),
+    // The alert's current level: starts at the kind's opening level and moves to `critical` once
+    // escalated. Never the same column as a kind's own catalog level, which never changes.
+    level: alertLevel("level").notNull(),
+    audience: alertAudience("audience").notNull(),
+    locationId: uuid("location_id").references(() => locations.id),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    escalateAt: timestamp("escalate_at", { withTimezone: true }),
+    escalatedAt: timestamp("escalated_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+  },
+  (table) => [
+    // The deduplication key itself: while an alert of a given kind and scope is still open
+    // (`resolved_at is null`), a second trigger of the same condition matches this same partial
+    // index instead of inserting a second row; `open-alert.ts` catches the resulting unique
+    // violation and treats it as a no-op.
+    uniqueIndex("alerts_open_dedup_key")
+      .on(table.kind, table.scope)
+      .where(sql`${table.resolvedAt} IS NULL`),
+    index("alerts_level_idx").on(table.level),
+    index("alerts_resolved_at_idx").on(table.resolvedAt),
+    check(
+      "alerts_location_id_matches_audience",
+      sql`(${table.audience} = 'local' AND ${table.locationId} IS NOT NULL) OR (${table.audience} = 'all' AND ${table.locationId} IS NULL)`,
+    ),
+  ],
+);
+
+export const alertDeliveryChannel = pgEnum("alert_delivery_channel", ["backoffice"]);
+
+export const alertDeliveryStatus = pgEnum("alert_delivery_status", ["sent", "failed"]);
+
+// One row per recipient, per channel, written when the alert opens: for now the only channel is
+// the backoffice's own display, so opening an alert always writes `sent` rows (there is nothing
+// that can fail yet); `status`/`error` exist for a future channel that can.
+export const alertDeliveries = pgTable(
+  "alert_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id),
+    channel: alertDeliveryChannel("channel").notNull().default("backoffice"),
+    status: alertDeliveryStatus("status").notNull().default("sent"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_deliveries_alert_recipient_channel_key").on(
+      table.alertId,
+      table.recipientUserId,
+      table.channel,
+    ),
   ],
 );

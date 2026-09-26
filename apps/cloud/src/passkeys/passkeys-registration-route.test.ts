@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import WebAuthnEmulator, {
   AuthenticatorEmulator,
@@ -7,6 +7,7 @@ import WebAuthnEmulator, {
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
+  alerts,
   auditLog,
   passkeyChallenges,
   passkeys,
@@ -340,6 +341,14 @@ describe("POST /users/passkeys", () => {
 
   beforeEach(async () => {
     await registerFirstPasskey(userId, new WebAuthnEmulator());
+
+    // Redeeming the setup passkey above already opened the account's own backoffice_passkey_changed
+    // alert; closing it here keeps each test's own assertions about that alert free of this setup's
+    // side effect.
+    await db
+      .update(alerts)
+      .set({ resolvedAt: currentTime, resolvedBy: userId })
+      .where(eq(alerts.scope, userId));
   });
 
   it("returns 401 unauthenticated when no cookie was sent", async () => {
@@ -395,6 +404,63 @@ describe("POST /users/passkeys", () => {
       previousValue: null,
       newValue: { id: newRow?.id, name: "Teléfono del local" },
     });
+  });
+
+  it("opens a backoffice_passkey_changed alert scoped to the account", async () => {
+    const rawSessionId = await insertSession(userId);
+
+    const { response } = await registerSecondPasskey(rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: userId,
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        action: "registered",
+        passkeyName: "Teléfono del local",
+        actorId: userId,
+        via: "self",
+      },
+    });
+  });
+
+  it("opens no alert when the registration is rejected as already registered, so nothing commits", async () => {
+    const rawSessionId = await insertSession(userId);
+    const options = await requestOptions(rawSessionId);
+    const newEmulator = newDeviceEmulator();
+    const passkeyRegistration = newEmulator.createJSON(
+      BACKOFFICE_ORIGIN,
+      options.passkey_registration_options,
+    );
+    await db.insert(passkeys).values({
+      userId,
+      credentialId: passkeyRegistration.id,
+      publicKey: "unused-in-this-test",
+      counter: 0,
+      deviceType: "singleDevice",
+      backedUp: false,
+      name: "Existing passkey",
+    });
+
+    const response = await postJson(
+      "/users/passkeys",
+      { passkey_registration: passkeyRegistration, passkey_name: "Teléfono del local" },
+      cookieHeader(rawSessionId),
+    );
+
+    expect(response.statusCode).toBe(400);
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
+    expect(opened).toHaveLength(0);
   });
 
   it("does not revoke the session on a successful registration", async () => {

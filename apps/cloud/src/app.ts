@@ -4,6 +4,10 @@ import { setupFastifyErrorHandler as defaultSetupFastifyErrorHandler } from "@se
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
+import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
+import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
+import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch-settings/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings/branch-settings-read-route.js";
@@ -19,6 +23,10 @@ import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
+import { registerPriceConfirmationRoute } from "./prices/price-confirmation-route.js";
+import { registerPriceSetRoute } from "./prices/price-set-route.js";
+import type { PricesRouteOptions } from "./prices/prices-list-route.js";
+import { registerPricesListRoute } from "./prices/prices-list-route.js";
 import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
 import { registerProductDeactivationRoute } from "./products/product-deactivation-route.js";
@@ -152,6 +160,22 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   products?: ProductsRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /alerts`, `GET /alerts/:id`, and `POST /alerts/:id/close`, the backoffice
+   * Alertas screen's list, detail, and manual-close sides: list and detail are open to any
+   * signed-in user, filtered by the viewer's own audience visibility (`view_branch_alerts` or
+   * `view_all_alerts`, an Administrator always holding both implicitly); close is additionally
+   * gated by `dismiss_alerts_manually`, the same optional-feature-wiring shape `roles` uses above.
+   */
+  alerts?: AlertsRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /prices`, `POST /products/:id/price`, and `POST
+   * /products/:id/price-confirmation`, the backoffice Prices screen's list, set, and
+   * confirm-without-change sides: every one is gated by the `manage_prices_and_review` permission
+   * (an Administrator always holds it too) and scoped to the price list the session's own branch
+   * settings point at, the same optional-feature-wiring shape `products` uses above.
+   */
+  prices?: PricesRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /registers`, `POST /registers`, and `POST /registers/:id/enrollment-code`, the
    * backoffice Cajas registradoras screen's list, create, and code-emission sides: every one is
    * gated by the `enroll_register_devices` permission (an Administrator always holds it too), the
@@ -262,6 +286,18 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductDeactivationRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
     registerProductLabelsRoute(app, options.products);
+  }
+
+  if (options.alerts) {
+    registerAlertsListRoute(app, options.alerts);
+    registerAlertReadRoute(app, options.alerts);
+    registerAlertCloseRoute(app, options.alerts);
+  }
+
+  if (options.prices) {
+    registerPricesListRoute(app, options.prices);
+    registerPriceSetRoute(app, options.prices);
+    registerPriceConfirmationRoute(app, options.prices);
   }
 
   if (options.registers) {

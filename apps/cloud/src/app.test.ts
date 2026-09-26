@@ -764,6 +764,53 @@ describe("wiring the products routes", () => {
   });
 });
 
+describe("wiring the prices routes", () => {
+  it("does not register the prices routes when no prices option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/prices" });
+    const setPrice = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/price",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const confirmation = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(setPrice.statusCode).toBe(404);
+    expect(confirmation.statusCode).toBe(404);
+  });
+
+  it("registers the prices routes when a prices option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      prices: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/prices" });
+    const setPrice = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/price",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const confirmation = await app.inject({
+      method: "POST",
+      url: "/products/00000000-0000-0000-0000-000000000000/price-confirmation",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
+    // of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(setPrice.statusCode).toBe(401);
+    expect(confirmation.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the registers routes", () => {
   it("does not register the registers routes when no registers option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -1035,6 +1082,8 @@ function fullyWiredApp() {
     },
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    prices: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
@@ -1156,6 +1205,28 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/products/labels",
         access: permissionAccess("manage_products_and_categories"),
+      },
+      { method: "GET", url: "/alerts", access: OPEN_SESSION_ACCESS },
+      { method: "GET", url: "/alerts/:id", access: OPEN_SESSION_ACCESS },
+      {
+        method: "POST",
+        url: "/alerts/:id/close",
+        access: permissionAccess("dismiss_alerts_manually"),
+      },
+      {
+        method: "GET",
+        url: "/prices",
+        access: permissionAccess("manage_prices_and_review"),
+      },
+      {
+        method: "POST",
+        url: "/products/:id/price",
+        access: permissionAccess("manage_prices_and_review"),
+      },
+      {
+        method: "POST",
+        url: "/products/:id/price-confirmation",
+        access: permissionAccess("manage_prices_and_review"),
       },
       {
         method: "GET",

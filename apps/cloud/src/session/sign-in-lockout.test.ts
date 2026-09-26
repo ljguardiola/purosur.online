@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
+import { alerts } from "../db/schema.js";
 import {
   admitSignInAttempt,
   confirmRejectedSignInAttempt,
@@ -59,6 +61,10 @@ async function rejectedAttempts(sourceAddress: string, now: Date, count: number)
   }
 }
 
+function lockoutAlerts() {
+  return db.select().from(alerts).where(eq(alerts.kind, "backoffice_sign_in_lockout"));
+}
+
 describe("admitSignInAttempt", () => {
   it("admits an attempt from a source address with nothing recorded against it", async () => {
     const admission = await attempt("203.0.113.10", NOON);
@@ -98,9 +104,22 @@ describe("admitSignInAttempt", () => {
       throw new Error("test setup: expected the attempt past the limit to be refused");
     }
     expect(admission.trippedLockout).toMatchObject({ failureCount: SIGN_IN_FAILURE_LIMIT });
+    const opened = await lockoutAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: "203.0.113.10",
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        sourceAddress: "203.0.113.10",
+        failureCount: SIGN_IN_FAILURE_LIMIT,
+        blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS).toISOString(),
+      },
+    });
   });
 
-  it("keeps blocking for the whole 15 minutes", async () => {
+  it("keeps blocking for the whole 15 minutes, opening no second alert for an attempt refused while already blocked", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
     const admission = await attempt(
@@ -109,6 +128,9 @@ describe("admitSignInAttempt", () => {
     );
 
     expect(admission.admitted).toBe(false);
+    if (admission.admitted) throw new Error("unreachable");
+    expect(admission.trippedLockout).toBeNull();
+    expect(await lockoutAlerts()).toHaveLength(1);
   });
 
   it("admits again as soon as the 15 minutes are up, instead of blocking out the hour", async () => {
@@ -199,9 +221,22 @@ describe("confirmRejectedSignInAttempt", () => {
       blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS),
     });
     expect(typeof tripped?.id).toBe("string");
+    const opened = await lockoutAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: "203.0.113.10",
+      audience: "all",
+      level: "warning",
+      resolvedAt: null,
+      detail: {
+        sourceAddress: "203.0.113.10",
+        failureCount: SIGN_IN_FAILURE_LIMIT,
+        blockedUntil: new Date(NOON.getTime() + SIGN_IN_BLOCK_DURATION_MS).toISOString(),
+      },
+    });
   });
 
-  it("reports the block once, so each block is audited a single time", async () => {
+  it("reports the block once, so each block is audited a single time, opening no second alert", async () => {
     await rejectedAttempts("203.0.113.10", NOON, SIGN_IN_FAILURE_LIMIT);
 
     const confirmed = await confirmRejectedSignInAttempt(db, {
@@ -210,6 +245,7 @@ describe("confirmRejectedSignInAttempt", () => {
     });
 
     expect(confirmed.trippedLockout).toBeNull();
+    expect(await lockoutAlerts()).toHaveLength(1);
   });
 });
 

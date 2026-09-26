@@ -3,6 +3,7 @@ import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Runner, RunnerOptions } from "graphile-worker";
 import { run } from "graphile-worker";
 import pg, { type Pool, type PoolClient } from "pg";
+import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { reportPoolErrors } from "./pool-connection-error-handler.js";
 import {
   processRecoveryRequestJob,
@@ -14,10 +15,15 @@ import { runShutdownSteps } from "./run-shutdown-steps.js";
 
 export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
+export const ALERT_ESCALATION_TASK_IDENTIFIER = "alert-escalation";
 
 // Cron support is graphile-worker 0.18's own: its `RunnerOptions` takes this `crontab` string in
-// place of a crontab file, so no cron process or crontab file is deployed alongside the service.
-const RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB = `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`;
+// place of a crontab file (one entry per line), so no cron process or crontab file is deployed
+// alongside the service.
+const CRONTAB = [
+  `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`,
+  `*/5 * * * * ${ALERT_ESCALATION_TASK_IDENTIFIER}`,
+].join("\n");
 
 // A slow job, such as an admitted request waiting on its email, never holds up every other one;
 // jobs for the same account still serialize on their own lock.
@@ -63,6 +69,8 @@ export interface StartRecoveryWorkerDeps {
   processJob?: typeof processRecoveryRequestJob;
   /** Injected in tests to observe the call without a real database. */
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
+  /** Injected in tests to observe the call without a real database. */
+  escalate?: typeof escalateOverdueAlerts;
   /**
    * Injected in tests; defaults to a real `pg.Pool` for `databaseUrl`. Owned here rather than by
    * graphile-worker's own pool (the one it builds when only `connectionString` is given), which
@@ -76,11 +84,11 @@ export interface StartRecoveryWorkerDeps {
 
 /**
  * Starts graphile-worker inside this process, so the cloud service processes its own
- * `recovery-request` jobs, and the `recovery-rejected-attempt-flush` cron task, without a
- * separate worker deployment. Each job borrows a client from graphile-worker's own pool rather
- * than sharing a pool with the HTTP request path, and releases it before this task does anything
- * else: `recovery-request`'s own send only ever runs once `withPgClient` has resolved, so a
- * slow Resend call never holds a pool client checked out.
+ * `recovery-request` jobs, and the `recovery-rejected-attempt-flush` and `alert-escalation` cron
+ * tasks, without a separate worker deployment. Each job borrows a client from graphile-worker's
+ * own pool rather than sharing a pool with the HTTP request path, and releases it before this task
+ * does anything else: `recovery-request`'s own send only ever runs once `withPgClient` has
+ * resolved, so a slow Resend call never holds a pool client checked out.
  */
 export async function startRecoveryWorker(
   options: StartRecoveryWorkerOptions,
@@ -90,6 +98,7 @@ export async function startRecoveryWorker(
   const doCreateDatabase = deps.createDatabase ?? createDatabase;
   const doProcessJob = deps.processJob ?? processRecoveryRequestJob;
   const doFlush = deps.flush ?? flushClosedRecoveryRejectedAttemptWindows;
+  const doEscalate = deps.escalate ?? escalateOverdueAlerts;
   const doCreatePool =
     deps.createPool ?? ((connectionString: string) => new pg.Pool({ connectionString }));
   const now = options.now ?? (() => new Date());
@@ -109,7 +118,7 @@ export async function startRecoveryWorker(
   const runner = await doRun({
     pgPool: pool as Pool,
     concurrency: WORKER_CONCURRENCY,
-    crontab: RECOVERY_REJECTED_ATTEMPT_FLUSH_CRONTAB,
+    crontab: CRONTAB,
     events,
     taskList: {
       [RECOVERY_REQUEST_TASK_IDENTIFIER]: async (payload, helpers) => {
@@ -128,6 +137,9 @@ export async function startRecoveryWorker(
       },
       [RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER]: async (_payload, helpers) => {
         await helpers.withPgClient((client) => doFlush(doCreateDatabase(client), { now }));
+      },
+      [ALERT_ESCALATION_TASK_IDENTIFIER]: async (_payload, helpers) => {
+        await helpers.withPgClient((client) => doEscalate(doCreateDatabase(client), { now }));
       },
     },
   });
