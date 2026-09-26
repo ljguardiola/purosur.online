@@ -12,6 +12,12 @@ import {
   TextField as AriaTextField,
   type Key,
 } from "react-aria-components";
+import {
+  backofficeFieldBoxClassName,
+  backofficeFieldValueClassName,
+  fieldLabelClassName,
+  fieldWrapperGapClassName,
+} from "./FieldSize";
 
 export type QuantityUnitFieldOption<U extends string = string> = {
   id: U;
@@ -47,14 +53,14 @@ type QuantityUnitFieldValidityProps =
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
   QuantityUnitFieldValidityProps;
 
-const wrapperClassName = "flex flex-col gap-1 data-[disabled]:opacity-[0.45]";
+// This field only ever draws the backoffice size, the same as Select.tsx: the design has no
+// register-scale net content field, so every class below reads FieldSize.tsx's own shared
+// backoffice definition directly instead of consulting FieldSizeProvider.
+const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 
-// Matches Select.tsx's own baseLabelClassName exactly: the same label scale and tone the design
-// draws for this field ("Contenido neto", 14px bold ink).
-const labelClassName = "text-sm font-bold text-ink";
+const labelClassName = fieldLabelClassName.backoffice;
 
-const boxBaseClassName =
-  "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg px-3 outline-none";
+const boxBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg outline-none ${backofficeFieldBoxClassName}`;
 
 // The same border/fill states TextField.tsx's own boxStateClassName draws (resting, hovered,
 // focused, invalid, disabled), plus one extra branch: opening the unit picker's menu moves DOM
@@ -83,7 +89,7 @@ function boxStateClassName(disabled: boolean, invalid: boolean, unitOpen: boolea
 }
 
 const valueClassName =
-  "min-w-0 flex-1 bg-transparent text-left text-base font-semibold text-ink " +
+  `min-w-0 flex-1 bg-transparent text-left ${backofficeFieldValueClassName} ` +
   "caret-brand-blue-strong outline-none";
 
 const unitTriggerClassName = "flex shrink-0 items-center gap-1 outline-none";

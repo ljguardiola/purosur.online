@@ -5,13 +5,17 @@ import { tokenRgb } from "../test/token-colors";
 import { DateField } from "./DateField";
 import { FieldGroup } from "./FieldGroup";
 import { FieldSizeProvider } from "./FieldSize";
+import { QuantityUnitField } from "./QuantityUnitField";
 import { Select } from "./Select";
 import { TextField } from "./TextField";
 
-// TextField, DateField, Select and FieldGroup all draw the backoffice frame from the one shared
-// definition in FieldSize.tsx: this is the only place that measures it, so no component repeats
-// these numbers as its own "matches X exactly" comment.
-test("draws the label, gap, box and value at the backoffice size, identically for TextField, DateField, Select and FieldGroup", async () => {
+// TextField, DateField, Select, FieldGroup and QuantityUnitField all draw the backoffice frame
+// from the one shared definition in FieldSize.tsx: this is the only place that measures it, so no
+// component repeats these numbers as its own "matches X exactly" comment. QuantityUnitField, like
+// Select, has no register-scale variant, so it draws this frame regardless of the ambient
+// FieldSizeProvider (see its own comment); it is exercised inside one here only to render it
+// alongside its siblings for the same computed-style assertions.
+test("draws the label, gap, box and value at the backoffice size, identically for TextField, DateField, Select, FieldGroup and QuantityUnitField", async () => {
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <TextField kind="plain-text" label="Text" value="" onChange={() => {}} />
@@ -21,6 +25,15 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
       <FieldGroup label="Group">
         <p>Miel</p>
       </FieldGroup>
+      <QuantityUnitField
+        label="Contenido neto"
+        quantity="380"
+        onQuantityChange={() => {}}
+        unit="g"
+        onUnitChange={() => {}}
+        options={[{ id: "g", label: "g" }]}
+        unitLabel="Unidad"
+      />
     </FieldSizeProvider>,
   );
 
@@ -49,28 +62,36 @@ test("draws the label, gap, box and value at the backoffice size, identically fo
   const groupLabel = screen.getByText("Group").element() as HTMLElement;
   const groupWrapper = groupLabel.parentElement as HTMLElement;
 
-  for (const label of [textLabel, dateLabel, selectLabel, groupLabel]) {
+  const quantityLabel = screen.getByText("Contenido neto").element() as HTMLElement;
+  const quantityInput = screen
+    .getByRole("textbox", { name: "Contenido neto" })
+    .element() as HTMLElement;
+  const quantityBox = quantityInput.parentElement as HTMLElement;
+  const quantityWrapper = quantityBox.parentElement as HTMLElement;
+
+  for (const label of [textLabel, dateLabel, selectLabel, groupLabel, quantityLabel]) {
     const style = getComputedStyle(label);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
     expect(style.fontWeight).toBe("700");
     expect(style.color).toBe(tokenRgb("ink"));
   }
 
-  for (const wrapper of [textWrapper, dateWrapper, selectWrapper, groupWrapper]) {
+  for (const wrapper of [textWrapper, dateWrapper, selectWrapper, groupWrapper, quantityWrapper]) {
     expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(4);
   }
 
   expect(textBox.getBoundingClientRect().height).toBeCloseTo(48, 0);
   expect(dateGroup.getBoundingClientRect().height).toBeCloseTo(48, 0);
   expect(selectTrigger.getBoundingClientRect().height).toBeCloseTo(48, 0);
+  expect(quantityBox.getBoundingClientRect().height).toBeCloseTo(48, 0);
 
-  for (const box of [textBox, dateGroup, selectTrigger]) {
+  for (const box of [textBox, dateGroup, selectTrigger, quantityBox]) {
     const style = getComputedStyle(box);
     expect(Math.round(Number.parseFloat(style.paddingLeft))).toBe(12);
     expect(Math.round(Number.parseFloat(style.paddingRight))).toBe(12);
   }
 
-  for (const value of [textInput, dateInput, selectValue]) {
+  for (const value of [textInput, dateInput, selectValue, quantityInput]) {
     const style = getComputedStyle(value);
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
     expect(style.fontWeight).toBe("600");

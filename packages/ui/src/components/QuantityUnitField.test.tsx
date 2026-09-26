@@ -97,14 +97,14 @@ test("names the unit picker by both its chosen option and the caller's own unitL
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("draws the box at the 48px backoffice field scale with a 2px line border", async () => {
+// The backoffice frame's own height, padding, label and value are proven once, for TextField,
+// DateField, Select and QuantityUnitField together, in FieldSize.test.tsx; this only proves what's
+// specific to this component's own box: its 8px column gap, 8px radius and 2px line border.
+test("draws the box with an 8px column gap, an 8px radius and a 2px line border", async () => {
   const screen = await render(<QuantityUnitField {...baseProps()} />);
   const box = fieldBox(screen);
   const style = getComputedStyle(box);
 
-  expect(box.getBoundingClientRect().height).toBeCloseTo(48, 0);
-  expect(Math.round(Number.parseFloat(style.paddingLeft))).toBe(12);
-  expect(Math.round(Number.parseFloat(style.paddingRight))).toBe(12);
   expect(Math.round(Number.parseFloat(style.columnGap))).toBe(8);
   expect(style.borderRadius).toBe("8px");
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
@@ -113,7 +113,7 @@ test("draws the box at the 48px backoffice field scale with a 2px line border", 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows the quantity value left-aligned in bold ink, and the unit beside a chevron-down in ink-secondary", async () => {
+test("shows the quantity value left-aligned, and the unit beside a chevron-down in ink-secondary", async () => {
   const screen = await render(<QuantityUnitField {...baseProps({ quantity: "380", unit: "g" })} />);
   const input = quantityInput(screen);
   const inputStyle = getComputedStyle(input);
@@ -123,9 +123,6 @@ test("shows the quantity value left-aligned in bold ink, and the unit beside a c
 
   expect(input.value).toBe("380");
   expect(inputStyle.textAlign).toBe("left");
-  expect(Math.round(Number.parseFloat(inputStyle.fontSize))).toBe(16);
-  expect(inputStyle.fontWeight).toBe("600");
-  expect(inputStyle.color).toBe(tokenRgb("ink"));
 
   expect(Math.round(Number.parseFloat(unitStyle.fontSize))).toBe(16);
   expect(unitStyle.color).toBe(tokenRgb("ink-secondary"));
