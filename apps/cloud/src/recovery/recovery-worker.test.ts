@@ -681,9 +681,15 @@ describe("startRecoveryWorker", () => {
 
     expect(withPgClient).toHaveBeenCalledTimes(1);
     expect(createDatabase).toHaveBeenCalledWith(fakeClient);
-    expect(escalate).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({ now: expect.any(Function) }),
-    );
+    expect(escalate).toHaveBeenCalledTimes(1);
+    const [dbArgument, depsArgument] = escalate.mock.calls[0] as [
+      unknown,
+      { now: () => Date },
+    ];
+    expect(dbArgument).toBe(fakeDb);
+    // `expect.any(Function)` alone would pass for any clock, including one that never reaches
+    // this call; this proves the exact clock startRecoveryWorker was given is what escalation runs
+    // against.
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });
 });

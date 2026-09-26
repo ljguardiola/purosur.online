@@ -56,7 +56,7 @@ afterEach(async () => {
 async function insertRole(name: string, permissionKeys: string[]): Promise<string> {
   const [role] = await db
     .insert(roles)
-    .values({ name: `${name}-${Math.random()}`, isAdministrator: false })
+    .values({ name: `${name}-role`, isAdministrator: false })
     .returning({ id: roles.id });
   if (!role) throw new Error("test setup: inserting the role returned no row");
   for (const permissionKey of permissionKeys) {
@@ -74,7 +74,7 @@ async function insertUserWithRole(
     .insert(users)
     .values({
       firstName,
-      email: `${firstName.toLowerCase()}-${Math.random()}@example.com`,
+      email: `${firstName.toLowerCase()}@example.com`,
       locationId,
     })
     .returning({ id: users.id });
@@ -200,7 +200,12 @@ describe("POST /alerts/:id/close", () => {
     const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
     expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: userId });
     const [auditRow] = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
-    expect(auditRow).toMatchObject({ entity: "alert", actorId: userId });
+    expect(auditRow).toMatchObject({
+      entity: "alert",
+      actorId: userId,
+      previousValue: { resolvedAt: null },
+      newValue: { resolvedAt: NOON.toISOString() },
+    });
   });
 
   it("keeps a lockout alert's source address only while it's open, hashing it on close", async () => {

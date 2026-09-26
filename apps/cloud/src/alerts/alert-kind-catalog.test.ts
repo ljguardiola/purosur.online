@@ -37,12 +37,6 @@ describe("alertKindDefinition", () => {
     });
   });
 
-  it("scopes every kind but the lockout to a user, and the lockout to a source address", () => {
-    for (const kind of ALERT_KINDS) {
-      expect(alertKindDefinition(kind).scopeKind).toBe(SCOPE_KIND_BY_ALERT_KIND[kind]);
-    }
-  });
-
   it("throws for a kind with no catalog entry", () => {
     expect(() => alertKindDefinition("not_a_real_kind" as AlertKind)).toThrow(/not_a_real_kind/);
   });

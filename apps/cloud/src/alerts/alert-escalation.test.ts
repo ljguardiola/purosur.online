@@ -105,6 +105,38 @@ describe("escalateOverdueAlerts", () => {
     expect(row).toMatchObject({ level: "warning", escalatedAt: null });
   });
 
+  it("escalates an alert exactly at its escalation time, not only past it", async () => {
+    const alertId = await insertAlert({
+      kind: "user_email_changed",
+      scope: "a-user-id",
+      escalateAt: NOON,
+    });
+
+    const count = await escalateOverdueAlerts(db, { now: () => NOON });
+
+    expect(count).toBe(1);
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row).toMatchObject({ level: "critical", escalatedAt: NOON });
+  });
+
+  it("leaves an already-escalated alert alone on a later run", async () => {
+    const alertId = await insertAlert({
+      kind: "user_email_changed",
+      scope: "a-user-id",
+      escalateAt: new Date(NOON.getTime() - 1),
+    });
+    const firstRun = await escalateOverdueAlerts(db, { now: () => NOON });
+    expect(firstRun).toBe(1);
+
+    const secondRun = await escalateOverdueAlerts(db, {
+      now: () => new Date(NOON.getTime() + 60_000),
+    });
+
+    expect(secondRun).toBe(0);
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row).toMatchObject({ level: "critical", escalatedAt: NOON });
+  });
+
   it("escalates every overdue alert in one run and reports how many it escalated", async () => {
     await insertAlert({
       kind: "user_email_changed",
