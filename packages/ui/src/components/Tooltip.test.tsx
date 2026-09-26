@@ -53,15 +53,6 @@ const axeOptions = {
   },
 };
 
-// Once a tooltip's close is requested (the pointer leaving its element), react-stately starts a
-// cooldown during which the next hover opens a tooltip instantly instead of after the delay. It
-// lasts the larger of 500ms and the close delay, so 500ms here. The test's wait starts when it
-// sees the tooltip gone, after the cooldown started; the margin keeps a cooldown timer that fires
-// late from still being pending when the next hover arrives.
-const REACT_STATELY_COOLDOWN_MS = 500;
-const COOLDOWN_MARGIN_MS = 250;
-const COOLDOWN_BUFFER_MS = REACT_STATELY_COOLDOWN_MS + COOLDOWN_MARGIN_MS;
-
 // Mirrors Tooltip.tsx's own close delay: the grace a pointer gets to cross from the element onto
 // the tooltip. The close test checks the tooltip is still open 1ms before it runs out and gone
 // once it has, so the two values cannot drift apart unnoticed.
@@ -71,8 +62,8 @@ const TOOLTIP_CLOSE_GRACE_MS = 100;
 // shorter grace replaces.
 const REACT_STATELY_DEFAULT_CLOSE_DELAY_MS = 500;
 
-// Long enough to outlast react-aria's own 1500ms default delay, so a tooltip that merely opens
-// late still reports its elapsed time rather than this.
+// How long a test waits on the real clock for a page event before reporting which one never
+// arrived, rather than sitting until the runner times the whole test out.
 const MEASUREMENT_DEADLINE_MS = 3000;
 
 // Taken before any test can freeze the page's timers (see whileTimersFrozen), so a deadline still
@@ -92,18 +83,18 @@ function beforeDeadline<T>(measurement: Promise<T>, whatNeverHappened: string): 
   return Promise.race([measurement, expiry]).finally(() => realClearTimeout(deadline));
 }
 
-function tooltipRemoved(signal: AbortSignal): Promise<number> {
-  return new Promise<number>((resolve) => {
+function whenTooltipIs(change: "added" | "removed", signal: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
     const observer = new MutationObserver((records) => {
-      const removed = records.some((record) =>
-        Array.from(record.removedNodes).some(
+      const changed = records.some((record) =>
+        Array.from(change === "added" ? record.addedNodes : record.removedNodes).some(
           (node) =>
             node instanceof Element &&
             (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
         ),
       );
-      if (removed) {
-        resolve(performance.now());
+      if (changed) {
+        resolve();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -474,7 +465,7 @@ test("appears on hover and disappears within a short grace period once the point
   const leftElement = new Promise<void>((resolve) => {
     trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
   });
-  const closed = tooltipRemoved(watch.signal);
+  const closed = whenTooltipIs("removed", watch.signal);
   const session = cdp() as unknown as DispatchableCdpSession;
   try {
     await whileTimersFrozen(async () => {
@@ -517,7 +508,7 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
   // Losing focus closes the tooltip at once rather than after the pointer's grace: with timers
   // frozen, a close that waited on one would never land.
   const watch = new AbortController();
-  const closed = tooltipRemoved(watch.signal);
+  const closed = whenTooltipIs("removed", watch.signal);
   try {
     await whileTimersFrozen(async () => {
       await userEvent.tab();
@@ -546,7 +537,7 @@ test("disappears when Escape is pressed while its element is focused", async () 
 
   // Immediate too, not after the pointer's grace: see the focus-loss test above.
   const watch = new AbortController();
-  const closed = tooltipRemoved(watch.signal);
+  const closed = whenTooltipIs("removed", watch.signal);
   try {
     await whileTimersFrozen(async () => {
       await userEvent.keyboard("{Escape}");
@@ -632,68 +623,67 @@ test("flips from below to above when the default placement would leave the windo
 });
 
 test("waits 300ms of hover before appearing, neither instantly nor on react-aria's 1500ms default", async () => {
-  const screen = await render(
+  const ui = (
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
-    </Tooltip>,
+    </Tooltip>
   );
+  const screen = await render(ui);
   const trigger = screen.getByRole("button", { name: "Void reason" }).element();
 
-  // react-stately keeps the tooltip warm-up flag in a module-level variable shared by every
-  // tooltip on the page, and while it is set a hover opens instantly instead of waiting out the
-  // delay. An earlier test that opened a tooltip can leave it set, so a hover measured straight
-  // away would read the instant open rather than the delay. Opening and closing one tooltip first,
-  // then outwaiting the 500ms cooldown that the close schedules, is what puts that flag back down
-  // so the delay under test is the one that actually runs.
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-  await userEvent.unhover(trigger);
-  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
-  await new Promise((resolve) => setTimeout(resolve, COOLDOWN_BUFFER_MS));
+  const tooltip = tooltipElement(screen);
 
-  // react-aria starts the delay when the pointer enters the element, so both ends of the interval
-  // are taken inside the page, where the tooltip's DOM lands: the time the test runner takes to
-  // deliver the hover, and how often it would poll, are left out of what is measured.
+  // The far corner of the viewport, clear of both the element at the top-left and the tooltip
+  // below it, so moving there really ends the hover.
+  const awayX = window.innerWidth - 1;
+  const awayY = window.innerHeight - 1;
+  const awayElement = document.elementFromPoint(awayX, awayY);
+  expect(trigger.contains(awayElement)).toBe(false);
+  expect(tooltip.contains(awayElement)).toBe(false);
+  const triggerRect = trigger.getBoundingClientRect();
+
   const watch = new AbortController();
-  let observer: MutationObserver | undefined;
-  const enteredAt = new Promise<number>((resolve) => {
-    trigger.addEventListener("pointerenter", () => resolve(performance.now()), {
-      once: true,
-      signal: watch.signal,
-    });
+  const leftElement = new Promise<void>((resolve) => {
+    trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
   });
-  const appearedAt = new Promise<number>((resolve) => {
-    observer = new MutationObserver((records) => {
-      const tooltipAdded = records.some((record) =>
-        Array.from(record.addedNodes).some(
-          (node) =>
-            node instanceof Element &&
-            (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
-        ),
-      );
-      if (tooltipAdded) {
-        resolve(performance.now());
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+  const enteredElement = new Promise<void>((resolve) => {
+    trigger.addEventListener("pointerenter", () => resolve(), { once: true, signal: watch.signal });
   });
-
-  let elapsedMs: number;
+  const closed = whenTooltipIs("removed", watch.signal);
+  const opened = whenTooltipIs("added", watch.signal);
+  const session = cdp() as unknown as DispatchableCdpSession;
   try {
-    await userEvent.hover(trigger);
-    // Both ends of the interval come from events in the page rather than from a poll the runner
-    // controls, so an end that never arrives would otherwise sit here until the runner gives up on
-    // the whole test, reporting its timeout instead of which end went missing.
-    elapsedMs =
-      (await beforeDeadline(appearedAt, "the tooltip was never added to the page")) -
-      (await beforeDeadline(enteredAt, "the pointer never entered the element"));
+    await whileTimersFrozen(async () => {
+      // react-stately keeps a warm-up flag shared by every tooltip on the page, and while it is set
+      // a hover opens instantly instead of waiting out the delay. Closing the tooltip opened above
+      // and running every timer that close schedules, its cooldown included, puts the flag back
+      // down, so the hover below waits out the real delay.
+      await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
+      await beforeDeadline(leftElement, "the pointer never left the element");
+      vi.runAllTimers();
+      await beforeDeadline(closed, "the tooltip was never removed from the page");
+
+      await session.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: triggerRect.left + triggerRect.width / 2,
+        y: triggerRect.top + triggerRect.height / 2,
+      });
+      await beforeDeadline(enteredElement, "the pointer never entered the element");
+
+      vi.advanceTimersByTime(299);
+      await screen.rerender(ui);
+      expect(screen.getByRole("tooltip").elements().length, "appeared before 300ms of hover").toBe(
+        0,
+      );
+
+      vi.advanceTimersByTime(1);
+      await beforeDeadline(opened, "the tooltip never appeared after 300ms of hover");
+    });
   } finally {
     watch.abort();
-    observer?.disconnect();
   }
-
-  expect(elapsedMs).toBeGreaterThan(280);
-  expect(elapsedMs).toBeLessThan(400);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
