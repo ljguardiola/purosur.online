@@ -13,6 +13,7 @@ import {
 } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertReadRoute } from "./alert-read-route.js";
 
@@ -207,6 +208,33 @@ describe("GET /alerts/:id", () => {
         },
       },
     ]);
+  });
+
+  it("never sends a closed lockout alert's stored address hash", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const hashedAddress = hashSourceAddress("203.0.113.5");
+    const [alertRow] = await db
+      .insert(alerts)
+      .values({
+        kind: "backoffice_sign_in_lockout",
+        scope: hashedAddress,
+        level: "warning",
+        audience: "all",
+        detail: { sourceAddress: hashedAddress, failureCount: 6 },
+        openedAt: NOON,
+        resolvedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alertRow) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, alertRow.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(hashedAddress);
+    expect(response.json()).toMatchObject({ scope: null, detail: { failureCount: 6 } });
+    expect(response.json()).not.toHaveProperty("detail.sourceAddress");
   });
 
   it("resolves a user-scoped alert's scope and its detail's actorId to first names", async () => {

@@ -12,7 +12,12 @@ import {
 } from "../session/route-access.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
 import type { AlertAudience, AlertLevel } from "./alert-kind-catalog.js";
-import { loadScopeDisplayNames, scopeDisplay } from "./alert-scope-display.js";
+import {
+  holdsOnlySourceAddressHash,
+  loadScopeDisplayNames,
+  scopeDisplay,
+  wireScope,
+} from "./alert-scope-display.js";
 import { canSeeAlert, canSeeAnyAlerts } from "./alert-visibility.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
@@ -69,7 +74,8 @@ export interface AlertDeliveryWire {
 export interface AlertDetailWire {
   id: string;
   kind: string;
-  scope: string;
+  /** `null` for a closed source-address-scoped kind, whose stored scope is only a hash. */
+  scope: string | null;
   /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
   scope_display: string | null;
   level: AlertLevel;
@@ -78,7 +84,8 @@ export interface AlertDetailWire {
    * The kind's own fact payload, passed through as stored, plus one addition: when it carries an
    * `actorId` (who performed the change — `backoffice_passkey_changed`, `user_email_changed`), an
    * `actorName` next to it, resolved the same way `scope_display` is. Never added when that id
-   * can't be resolved, rather than showing a raw id.
+   * can't be resolved, rather than showing a raw id. A closed source-address-scoped kind's
+   * `sourceAddress`, stored only as a hash, is left out.
    */
   detail: Record<string, unknown>;
   opened_at: string;
@@ -118,6 +125,14 @@ export function toAlertDeliveryWire(row: AlertDeliveryRow): AlertDeliveryWire {
   };
 }
 
+function detailWithoutSourceAddressHash(alert: AlertDetailRow): Record<string, unknown> {
+  if (!holdsOnlySourceAddressHash(alert)) {
+    return alert.detail;
+  }
+  const { sourceAddress: _hash, ...rest } = alert.detail;
+  return rest;
+}
+
 export function toAlertDetailWire(
   alert: AlertDetailRow,
   deliveries: AlertDeliveryRow[],
@@ -126,11 +141,11 @@ export function toAlertDetailWire(
   return {
     id: alert.id,
     kind: alert.kind,
-    scope: alert.scope,
+    scope: wireScope(alert),
     scope_display: scopeDisplay(alert, namesByUserId),
     level: alert.level,
     audience: alert.audience,
-    detail: detailWithActorName(alert.detail, namesByUserId),
+    detail: detailWithActorName(detailWithoutSourceAddressHash(alert), namesByUserId),
     opened_at: alert.openedAt.toISOString(),
     escalated_at: alert.escalatedAt?.toISOString() ?? null,
     resolved_at: alert.resolvedAt?.toISOString() ?? null,

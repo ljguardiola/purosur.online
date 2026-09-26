@@ -7,7 +7,7 @@ export type AlertAudience = "local" | "all";
 export type AlertSummary = {
   id: string;
   kind: string;
-  scope: string;
+  scope: string | null;
   /**
    * `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope
    * otherwise, or `null` for a closed lockout alert, which no longer holds its source address.
@@ -37,7 +37,7 @@ export type AlertDelivery = {
 export type AlertDetail = {
   id: string;
   kind: string;
-  scope: string;
+  scope: string | null;
   scopeDisplay: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -101,7 +101,7 @@ function retryAfterSeconds(response: Response): number {
 function alertSummaryFromWire(row: {
   id: string;
   kind: string;
-  scope: string;
+  scope: string | null;
   scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
@@ -153,7 +153,7 @@ function alertDeliveryFromWire(row: {
 function alertDetailFromWire(row: {
   id: string;
   kind: string;
-  scope: string;
+  scope: string | null;
   scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;

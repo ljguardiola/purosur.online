@@ -31,7 +31,7 @@ import {
   type AlertScopeKind,
   isAlertKind,
 } from "./alert-kind-catalog.js";
-import { loadScopeDisplayNames, scopeDisplay } from "./alert-scope-display.js";
+import { loadScopeDisplayNames, scopeDisplay, wireScope } from "./alert-scope-display.js";
 import { canSeeAllAlerts, canSeeAnyAlerts } from "./alert-visibility.js";
 
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -57,7 +57,8 @@ export interface AlertSummaryRow {
 export interface AlertSummaryWire {
   id: string;
   kind: string;
-  scope: string;
+  /** `null` for a closed source-address-scoped kind, whose stored scope is only a hash. */
+  scope: string | null;
   /** `scope` as a person reads it (see `scopeDisplay`); `null` for a closed source-address-scoped kind. */
   scope_display: string | null;
   level: AlertLevel;
@@ -84,7 +85,7 @@ export function toAlertSummaryWire(
   return {
     id: row.id,
     kind: row.kind,
-    scope: row.scope,
+    scope: wireScope(row),
     scope_display: scopeDisplay(row, namesByUserId),
     level: row.level,
     audience: row.audience,

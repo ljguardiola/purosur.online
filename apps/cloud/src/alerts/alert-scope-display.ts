@@ -51,3 +51,27 @@ export function scopeDisplay(
   }
   return namesByUserId.get(alert.scope) ?? alert.scope;
 }
+
+/**
+ * A closed source-address-scoped alert keeps only the address's hash (see alert-close-route.ts).
+ * That hash is unsalted and brute-forceable over the address space, so it's stored but never sent.
+ */
+export function holdsOnlySourceAddressHash(alert: {
+  kind: string;
+  resolvedAt: Date | null;
+}): boolean {
+  return (
+    isAlertKind(alert.kind) &&
+    alertKindDefinition(alert.kind).scopeKind === "sourceAddress" &&
+    alert.resolvedAt !== null
+  );
+}
+
+/** `scope` as sent to a viewer: `null` whenever it holds only a source address's hash. */
+export function wireScope(alert: {
+  kind: string;
+  scope: string;
+  resolvedAt: Date | null;
+}): string | null {
+  return holdsOnlySourceAddressHash(alert) ? null : alert.scope;
+}

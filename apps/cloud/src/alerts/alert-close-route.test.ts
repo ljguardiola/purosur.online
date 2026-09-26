@@ -223,7 +223,13 @@ describe("POST /alerts/:id/close", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.body).not.toContain(SOURCE_ADDRESS);
-    expect(response.json()).toMatchObject({ scope_display: null });
+    expect(response.body).not.toContain(hashSourceAddress(SOURCE_ADDRESS));
+    expect(response.json()).toMatchObject({
+      scope: null,
+      scope_display: null,
+      detail: { failureCount: 6 },
+    });
+    expect(response.json()).not.toHaveProperty("detail.sourceAddress");
     const [row] = await db.select().from(alerts).where(eq(alerts.id, opened.alertId));
     expect(row).toMatchObject({
       scope: hashSourceAddress(SOURCE_ADDRESS),

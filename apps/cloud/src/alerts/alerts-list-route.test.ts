@@ -12,6 +12,7 @@ import {
 } from "../db/schema.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
+import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertsListRoute } from "./alerts-list-route.js";
 
@@ -129,7 +130,7 @@ function getAlerts(rawSessionId: string | undefined, query = "") {
 }
 
 interface ListBody {
-  alerts: { id: string; kind: string; scope: string; scope_display: string | null }[];
+  alerts: { id: string; kind: string; scope: string | null; scope_display: string | null }[];
   total: number;
   page_size: number;
   open_count: number;
@@ -287,6 +288,25 @@ describe("GET /alerts", () => {
     expect(response.statusCode).toBe(200);
     const body = listBody(response).alerts;
     expect(body).toEqual([expect.objectContaining({ scope_display: "203.0.113.5" })]);
+  });
+
+  it("never sends a closed lockout alert's stored address hash", async () => {
+    const rawSessionId = await signedInViewer();
+    const hashedAddress = hashSourceAddress("203.0.113.5");
+    await insertAlert({
+      kind: "backoffice_sign_in_lockout",
+      scope: hashedAddress,
+      audience: "all",
+      resolvedAt: NOON,
+    });
+
+    const response = await getAlerts(rawSessionId, "?open=false");
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain(hashedAddress);
+    expect(listBody(response).alerts).toEqual([
+      expect.objectContaining({ scope: null, scope_display: null }),
+    ]);
   });
 
   it("answers one page of alerts, newest first, with the total that matched", async () => {
