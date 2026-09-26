@@ -844,8 +844,10 @@ export const messages = defineMessages("es-AR", (f) => ({
         `No se pudo confirmar el precio de ${params.name}`,
       reviewStartFailedTitle: "No se pudo empezar la revisión",
       reviewStartFailedDetail: "Probá de nuevo.",
-      nothingPendingTitle: "Precios al día",
-      nothingPendingDetail: "No quedan precios por revisar.",
+      nothingPendingTitle: "No quedan precios por revisar",
+      noPriceToConfirmTitle: "No hay un precio para confirmar",
+      noPriceToConfirmDetail: (params: { name: string }) =>
+        `${params.name} todavía no tiene precio.`,
       goneTitle: "Producto desactivado",
       goneDetail: (params: { name: string }) => `${params.name} ya no está en el catálogo.`,
       confirmedNoticeTitle: "Precio confirmado",
@@ -886,8 +888,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleTitle: "Este precio cambió mientras lo mirabas",
         staleDetail: "Recargá el precio actual y volvé a intentarlo.",
         reload: "Recargar el precio",
-        noPriceToConfirmTitle: "No hay un precio para confirmar",
-        noPriceToConfirmDetail: "Recargá el precio.",
         reloadFailedTitle: "No se pudieron recargar los datos",
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>

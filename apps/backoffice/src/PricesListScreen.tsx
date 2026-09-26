@@ -148,7 +148,9 @@ function modalEyebrow(product: PriceProduct, reviewWindowDays: number, now: Date
     return modalMessages.eyebrowNoPrice;
   }
   const days = daysSince(product.lastReviewedAt, now);
-  if (days >= reviewWindowDays) {
+  const elapsedMs = now.getTime() - new Date(product.lastReviewedAt).getTime();
+  // Overdue by elapsed time, the same comparison the cloud uses to count a price as pending.
+  if (elapsedMs > reviewWindowDays * DAY_MS) {
     return modalMessages.eyebrowOverdue({ days });
   }
   return days <= 0 ? modalMessages.eyebrowRecentToday : modalMessages.eyebrowRecent({ days });
@@ -167,7 +169,13 @@ type ModalNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
-type ScreenNotice = { tone: "success" | "error"; title: string; detail: string };
+type ScreenNotice = {
+  tone: "success" | "error";
+  title: string;
+  detail: string;
+  /** A rate-limited notice leaves once this window has passed. */
+  retryAfterSeconds?: number;
+};
 
 type PriceChangeModalProps = {
   target: PriceProduct | null;
@@ -521,8 +529,7 @@ function PriceChangeModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.noPriceToConfirmTitle}
-              detail={modalMessages.noPriceToConfirmDetail}
+              title={pricesMessages.noPriceToConfirmTitle}
             />
           )}
           {notice?.kind === "notFound" && (
@@ -620,12 +627,23 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   }
 
   useEffect(() => {
-    if (notice?.tone !== "success") {
+    const lifetimeMs =
+      notice?.tone === "success"
+        ? NOTICE_LIFETIME_MS
+        : notice?.retryAfterSeconds !== undefined
+          ? notice.retryAfterSeconds * 1000
+          : undefined;
+    if (lifetimeMs === undefined) {
       return;
     }
-    const handle = setTimeout(() => setNotice(null), NOTICE_LIFETIME_MS);
+    const handle = setTimeout(() => setNotice(null), lifetimeMs);
     return () => clearTimeout(handle);
   }, [notice]);
+
+  /** An error notice stays until the person's next action on the screen. */
+  function clearErrorNotice() {
+    setNotice((shown) => (shown?.tone === "error" ? null : shown));
+  }
 
   // Only the latest load may settle the list: an earlier one still in flight would otherwise
   // overwrite it with a stale result.
@@ -634,6 +652,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
+    // A notice shown alongside this load's own request is about its outcome and outlives it.
+    const lastNoticeBeforeLoad = lastNoticeId.current;
     setList((previous) =>
       previous.kind === "loaded" ? { ...previous, refreshing: true } : { kind: "loading" },
     );
@@ -641,11 +661,14 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       review: reviewFilter,
       ...(categoryFilter !== "ALL" ? { categoryId: categoryFilter } : {}),
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
-    });
+    }).catch((): FetchPricesOutcome => ({ kind: "failed" }));
     if (thisLoad !== latestLoad.current) {
       return;
     }
     if (outcome.kind === "ok") {
+      setNotice((shown) =>
+        shown?.tone === "error" && shown.id <= lastNoticeBeforeLoad ? null : shown,
+      );
       setList({
         kind: "loaded",
         products: outcome.value.products,
@@ -673,8 +696,15 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   // shown when it settles, not the ones its request was sent under.
   const loadRef = useRef(load);
   loadRef.current = load;
+  const reviewFilterRef = useRef(reviewFilter);
+  reviewFilterRef.current = reviewFilter;
   function reloadWithCurrentFilters() {
     void loadRef.current();
+  }
+
+  function handleRetry() {
+    clearErrorNotice();
+    void load();
   }
 
   const products = list.kind === "loaded" ? list.products : [];
@@ -705,10 +735,12 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       tone: "error",
       title: pricesMessages.rateLimitedTitle,
       detail: pricesMessages.rateLimitedDetail({ minutes: Math.ceil(retryAfterSeconds / 60) }),
+      retryAfterSeconds,
     };
   }
 
   async function handleReviewButton() {
+    clearErrorNotice();
     setScreenRequestInFlight(true);
     try {
       handleReviewReadOutcome(await fetchPricesService({ review: "pending" }));
@@ -725,11 +757,14 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       const [first] = outcome.value.products;
       if (!first) {
         reloadWithCurrentFilters();
-        showScreenNotice({
-          tone: "success",
-          title: pricesMessages.nothingPendingTitle,
-          detail: pricesMessages.nothingPendingDetail,
-        });
+        // Por revisar's own empty state already says so.
+        if (reviewFilterRef.current !== "pending") {
+          showScreenNotice({
+            tone: "success",
+            title: pricesMessages.nothingPendingTitle,
+            detail: pricesMessages.emptyPendingDetail({ days: outcome.value.reviewWindowDays }),
+          });
+        }
         return;
       }
       setWalk({ queue: outcome.value.products, index: 0 });
@@ -821,6 +856,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     if (!item.currentPrice) {
       return;
     }
+    clearErrorNotice();
     setScreenRequestInFlight(true);
     try {
       const outcome = await confirmPriceService(item.id, {
@@ -859,17 +895,26 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "stale_price") {
+      reloadWithCurrentFilters();
       showScreenNotice({
         tone: "error",
         title: pricesMessages.rowConfirmStaleTitle,
         detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
       });
-      reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "not_found") {
-      showScreenNotice(goneNotice(item));
       reloadWithCurrentFilters();
+      showScreenNotice(goneNotice(item));
+      return;
+    }
+    if (outcome.kind === "no_price_to_confirm") {
+      reloadWithCurrentFilters();
+      showScreenNotice({
+        tone: "error",
+        title: pricesMessages.noPriceToConfirmTitle,
+        detail: pricesMessages.noPriceToConfirmDetail({ name: item.name }),
+      });
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -932,7 +977,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
             icon={<Pencil />}
             aria-label={pricesMessages.editAria({ name: item.name })}
             isDisabled={screenRequestInFlight}
-            onPress={() => setModal({ target: item, previousProductNotice: null })}
+            onPress={() => {
+              clearErrorNotice();
+              setModal({ target: item, previousProductNotice: null });
+            }}
           />
         </div>
       ),
@@ -972,7 +1020,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               title={pricesMessages.loadErrorTitle}
               detail={pricesMessages.loadErrorDetail}
             />
-            <Button variant="secondary" onPress={() => void load()}>
+            <Button variant="secondary" onPress={handleRetry}>
               {pricesMessages.retry}
             </Button>
           </>
@@ -987,7 +1035,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 minutes: Math.ceil(list.retryAfterSeconds / 60),
               })}
             />
-            <Button variant="secondary" onPress={() => void load()}>
+            <Button variant="secondary" onPress={handleRetry}>
               {pricesMessages.retry}
             </Button>
           </>
@@ -999,7 +1047,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 <SearchField
                   variant="backoffice"
                   value={search}
-                  onChange={setSearch}
+                  onChange={(value) => {
+                    clearErrorNotice();
+                    setSearch(value);
+                  }}
                   placeholder={pricesMessages.searchPlaceholder}
                   icon={<Search />}
                 />
@@ -1008,13 +1059,19 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 label={pricesMessages.categoryFilterLabel}
                 options={categoryFilterOptions}
                 value={categoryFilter}
-                onChange={setCategoryFilter}
+                onChange={(value) => {
+                  clearErrorNotice();
+                  setCategoryFilter(value);
+                }}
               />
               <ListFilter
                 label={pricesMessages.reviewFilterLabel}
                 options={reviewFilterOptions}
                 value={reviewFilter}
-                onChange={setReviewFilter}
+                onChange={(value) => {
+                  clearErrorNotice();
+                  setReviewFilter(value);
+                }}
               />
             </div>
             <Table
