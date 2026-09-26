@@ -325,7 +325,61 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("appears on hover and disappears immediately once the pointer leaves its element", async () => {
+test("stays open while the pointer moves from its element onto the tooltip itself", async () => {
+  const screen = await render(
+    <div style={centeredInViewport}>
+      <Tooltip description="Voided at checkout by the manager on duty">
+        <Button>Void reason</Button>
+      </Tooltip>
+    </div>,
+  );
+  const trigger = screen.getByRole("button", { name: "Void reason" }).element();
+
+  await userEvent.hover(trigger);
+  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  const tooltip = tooltipElement(screen);
+  await expectNoAccessibilityViolations(document.body, axeOptions);
+
+  // `userEvent.hover`/`unhover` are two commands with their own actionability waits (checking the
+  // target is visible, stable, and still resolvable by role) between them, which under load would
+  // race the grace delay against that unrelated automation overhead instead of the pointer's own
+  // travel time. Driving the same crossing through two raw pointer moves — first into the real gap
+  // between the element and the box, then onto the box itself — measures only that travel time,
+  // the same way a real pointer crosses the gap in one continuous motion rather than resting on
+  // either end of it. The gap point is offset from the trigger's own horizontal center because the
+  // arrow (part of the tooltip's own DOM) is centered there and bridges most of the vertical gap;
+  // directly under the trigger's left edge, at the same height, is still outside both the trigger
+  // and the box (verified against `document.elementFromPoint`, which resolves to the page body).
+  const triggerRect = trigger.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const gapX = triggerRect.left;
+  const gapY = (triggerRect.bottom + tooltipRect.top) / 2;
+  const session = cdp() as unknown as DispatchableCdpSession;
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gapX, y: gapY });
+  // A pause well under a single frame, long enough for the browser to actually commit and paint
+  // the "pointer left the element" state before the next move arrives, so the crossing is measured
+  // against a real close-in-progress rather than one still batched behind the same event tick.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await session.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: tooltipRect.left + tooltipRect.width / 2,
+    y: tooltipRect.top + tooltipRect.height / 2,
+  });
+
+  // WCAG 2.1 SC 1.4.13 (Hoverable) requires the pointer to be able to cross the gap from the
+  // element to the tooltip without it closing first. Waiting past the grace close delay before
+  // asserting proves the pending close was actually cancelled, not merely that it hasn't fired
+  // yet.
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(screen.getByRole("tooltip").elements().length).toBe(1);
+
+  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
+  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
+
+  await expectNoAccessibilityViolations(document.body, axeOptions);
+});
+
+test("appears on hover and disappears within a short grace period once the pointer leaves both its element and the tooltip", async () => {
   const screen = await render(
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
@@ -375,9 +429,10 @@ test("appears on hover and disappears immediately once the pointer leaves its el
     observer?.disconnect();
   }
 
-  // react-stately's own default close delay is 500ms; a bound this far under it distinguishes an
-  // immediate close from a lucky race against that cooldown.
-  expect(elapsedMs).toBeLessThan(100);
+  // Bound well under react-stately's own 500ms default close delay, the linger the issue
+  // reported, while leaving room for the short grace period the tooltip now waits out so a
+  // pointer can cross the gap onto it instead of closing underneath it.
+  expect(elapsedMs).toBeLessThan(400);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
