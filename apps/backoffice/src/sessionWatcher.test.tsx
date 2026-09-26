@@ -74,14 +74,16 @@ test("ends the session once the known deadline (plus its margin) passes", async 
       checkStatus,
       onEnded,
       intervalMs: 10_000,
-      deadlineMarginMs: 0,
+      deadlineMarginMs: 50,
       now: () => fixedNow,
     });
     hooks.push(hook);
 
+    await vi.advanceTimersByTimeAsync(69);
+    expect(checkStatus).not.toHaveBeenCalled();
     expect(onEnded).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(20);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(onEnded).toHaveBeenCalledTimes(1);
   });
@@ -126,10 +128,12 @@ test("moves the deadline check out when an open status reports a later expiresAt
 
 test("keeps checking every interval even without a known deadline, and ends the session on a revocation", async () => {
   await usingFakeTimers(async () => {
+    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
+    const expiresAt = new Date(fixedNow.getTime() + 24 * 60 * 60 * 1000).toISOString();
     const checkStatus = vi
       .fn<() => Promise<SessionStatusOutcome>>()
       .mockResolvedValueOnce({ kind: "unauthenticated" })
-      .mockResolvedValue({ kind: "ok", expiresAt: "2099-01-01T00:00:00.000Z" });
+      .mockResolvedValue({ kind: "ok", expiresAt });
     const onEnded = vi.fn();
 
     const hook = await renderWatcher({
@@ -137,6 +141,7 @@ test("keeps checking every interval even without a known deadline, and ends the 
       checkStatus,
       onEnded,
       intervalMs: 15,
+      now: () => fixedNow,
     });
     hooks.push(hook);
 
@@ -263,12 +268,14 @@ test("runs at most one check at a time, even when the previous one is still pend
 
 test("stops checking once the session is no longer active", async () => {
   await usingFakeTimers(async () => {
-    // As above: only the first check reports the revocation, since a real caller flips `active`
-    // off the instant `onEnded` fires.
+    // Only the first check reports the revocation: a real caller flips `active` off the instant
+    // `onEnded` fires, so no later check would ever see one.
+    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
+    const expiresAt = new Date(fixedNow.getTime() + 24 * 60 * 60 * 1000).toISOString();
     const checkStatus = vi
       .fn<() => Promise<SessionStatusOutcome>>()
       .mockResolvedValueOnce({ kind: "unauthenticated" })
-      .mockResolvedValue({ kind: "ok", expiresAt: "2099-01-01T00:00:00.000Z" });
+      .mockResolvedValue({ kind: "ok", expiresAt });
     const onEnded = vi.fn();
 
     const hook = await renderWatcher({
@@ -276,6 +283,7 @@ test("stops checking once the session is no longer active", async () => {
       checkStatus,
       onEnded,
       intervalMs: 10,
+      now: () => fixedNow,
     });
     hooks.push(hook);
 
@@ -283,7 +291,13 @@ test("stops checking once the session is no longer active", async () => {
     expect(onEnded).toHaveBeenCalledTimes(1);
     const callsWhileActive = checkStatus.mock.calls.length;
 
-    await hook.rerender({ active: false, checkStatus, onEnded, intervalMs: 10 });
+    await hook.rerender({
+      active: false,
+      checkStatus,
+      onEnded,
+      intervalMs: 10,
+      now: () => fixedNow,
+    });
     onEnded.mockClear();
 
     await vi.advanceTimersByTimeAsync(50);
@@ -297,13 +311,13 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
   await usingFakeTimers(async () => {
     // Real use touching the session reports a new deadline through this same prop; that must not
     // tear down and recreate the interval or its listeners on every touch.
+    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
     const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
       kind: "ok",
-      expiresAt: "2099-01-01T00:00:00.000Z",
+      expiresAt: new Date(fixedNow.getTime() + 24 * 60 * 60 * 1000).toISOString(),
     });
     const onEnded = vi.fn();
     const setIntervalSpy = vi.spyOn(window, "setInterval");
-    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
 
     const hook = await renderWatcher({
       active: true,
@@ -341,9 +355,10 @@ test("moves the deadline out from a fresh initialExpiresAt without restarting th
 
 test("stops checking once the component unmounts", async () => {
   await usingFakeTimers(async () => {
+    const fixedNow = new Date("2026-09-23T12:00:00.000Z");
     const checkStatus = vi.fn<() => Promise<SessionStatusOutcome>>().mockResolvedValue({
       kind: "ok",
-      expiresAt: "2099-01-01T00:00:00.000Z",
+      expiresAt: new Date(fixedNow.getTime() + 24 * 60 * 60 * 1000).toISOString(),
     });
     const onEnded = vi.fn();
 
@@ -352,6 +367,7 @@ test("stops checking once the component unmounts", async () => {
       checkStatus,
       onEnded,
       intervalMs: 10,
+      now: () => fixedNow,
     });
 
     await vi.advanceTimersByTimeAsync(10);
