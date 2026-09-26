@@ -77,11 +77,12 @@ const HOVER_DELAY_MS = 300;
 // Overrides react-stately's own 500ms default, which otherwise keeps the tooltip on screen for
 // half a second after the pointer has already left the element it explains. It cannot be 0: WCAG
 // 2.1 SC 1.4.13 requires the pointer to be able to move from the element onto the tooltip itself
-// (the box sits BOX_OFFSET_PX away, plus the arrow, so the pointer crosses a real gap) without the
-// tooltip closing first. react-stately cancels the pending close the moment the tooltip reports its
-// own hover start, so this only has to outlast that crossing, not the old 500ms linger; 200ms is
-// far more than that crossing takes yet still reads as immediate to a person.
-const CLOSE_DELAY_MS = 200;
+// without the tooltip closing first. The arrow bridges the gap only under the element's center;
+// anywhere off to either side, the pointer crosses up to BOX_OFFSET_PX of bare page between the
+// element and the box. react-stately cancels the pending close the moment the tooltip reports its
+// own hover start, so this only has to outlast that crossing: 100ms covers those 10px even at a
+// slow 100px per second.
+const CLOSE_DELAY_MS = 100;
 
 export function Tooltip({ description, children }: TooltipProps) {
   return (
