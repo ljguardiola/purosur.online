@@ -19,11 +19,13 @@ import {
   SearchField,
   Select,
   type SelectOption,
+  StatusIndicator,
   Table,
   type TableSort,
   TextField,
 } from "@purosur/ui";
 import {
+  Ban,
   Barcode,
   Check,
   Download,
@@ -56,10 +58,12 @@ import { messages } from "./messages";
 import {
   type CreateProductInput,
   createProduct,
+  deactivateProduct,
   editProduct,
   fetchProducts,
   generateInternalBarcode,
   type ProductSaleUnit,
+  type ProductStatusFilter,
   type ProductSummary,
   printLabels,
 } from "./productsApi";
@@ -70,6 +74,7 @@ export type ProductsListScreenServices = {
   fetchProducts: typeof fetchProducts;
   createProduct: typeof createProduct;
   editProduct: typeof editProduct;
+  deactivateProduct: typeof deactivateProduct;
   fetchCategories: typeof fetchCategories;
   generateInternalBarcode: typeof generateInternalBarcode;
   printLabels: typeof printLabels;
@@ -79,6 +84,7 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   fetchProducts,
   createProduct,
   editProduct,
+  deactivateProduct,
   fetchCategories,
   generateInternalBarcode,
   printLabels,
@@ -976,7 +982,7 @@ function EditProductModal({
       return;
     }
     setSubmitting(true);
-    const outcome = await fetchProducts();
+    const outcome = await fetchProducts("all");
     if (outcome.kind === "ok") {
       const fresh = outcome.value.find((product) => product.id === current.id);
       if (!fresh) {
@@ -1191,6 +1197,168 @@ function EditProductModal({
   );
 }
 
+type DeactivateProductModalProps = {
+  target: ProductSummary | null;
+  onClose: () => void;
+  onDeactivated: () => void;
+  onVanished: () => void;
+  onSessionEnded: () => void;
+  deactivateProduct: typeof deactivateProduct;
+};
+
+type DeactivateNotice =
+  | { kind: "attemptFailed" }
+  | { kind: "rateLimited"; retryAfterSeconds: number }
+  | { kind: "alreadyInactive" };
+
+/** Confirms deactivating a product; unlike deactivating a user, this needs no passkey step-up. */
+function DeactivateProductModal({
+  target,
+  onClose,
+  onDeactivated,
+  onVanished,
+  onSessionEnded,
+  deactivateProduct,
+}: DeactivateProductModalProps) {
+  const modalMessages = productsMessages.deactivateModal;
+  const isOpen = target !== null;
+  // The dialog's own title, the same non-nullable-title reasoning EditProductModal's own title
+  // state carries: kept across the closing animation instead of blanking once target is nulled.
+  const [title, setTitle] = useState("");
+  const [notice, setNotice] = useState<DeactivateNotice | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const targetRef = useRef(target);
+  targetRef.current = target;
+
+  useEffect(() => {
+    if (isOpen && target) {
+      setTitle(modalMessages.title({ name: target.name }));
+      setNotice(null);
+      setSubmitting(false);
+    }
+  }, [isOpen, target]);
+
+  async function handleConfirm() {
+    const current = targetRef.current;
+    if (!current) {
+      return;
+    }
+    setNotice(null);
+    setSubmitting(true);
+
+    const outcome = await deactivateProduct(current.id);
+    if (outcome.kind === "ok") {
+      onDeactivated();
+      return;
+    }
+    if (outcome.kind === "not_found") {
+      setNotice({ kind: "alreadyInactive" });
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      setSubmitting(false);
+      return;
+    }
+    setNotice({ kind: "attemptFailed" });
+    setSubmitting(false);
+  }
+
+  const alreadyGone = notice?.kind === "alreadyInactive";
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      width="confirmation"
+      tone="error"
+      icon={<Ban />}
+      title={title}
+      closable
+      closeLabel={modalMessages.closeLabel}
+      footer={
+        <>
+          <Button
+            variant="secondary"
+            size="large"
+            icon={<X />}
+            isDisabled={submitting}
+            onPress={onClose}
+          >
+            {modalMessages.cancel}
+          </Button>
+          {alreadyGone ? (
+            <Button
+              variant="primary"
+              size="large"
+              icon={<RotateCcw />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={onVanished}
+            >
+              {modalMessages.reload}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              tone="destructive"
+              size="large"
+              icon={<Ban />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleConfirm()}
+            >
+              {modalMessages.confirm}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-base text-ink">{modalMessages.body}</p>
+        {notice?.kind === "attemptFailed" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.attemptFailedTitle}
+            detail={modalMessages.attemptFailedDetail}
+          />
+        )}
+        {notice?.kind === "alreadyInactive" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title={modalMessages.alreadyInactiveTitle}
+          />
+        )}
+        {notice?.kind === "rateLimited" && (
+          <InlineNotice
+            tone="error"
+            icon={<ShieldX />}
+            title={modalMessages.rateLimitedTitle}
+            detail={modalMessages.rateLimitedDetail({
+              minutes: Math.ceil(notice.retryAfterSeconds / 60),
+            })}
+          />
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 type LabelableProduct = { product: ProductSummary; code: string };
 
 // Only a product's first internal barcode counts (a product can carry more than one code once
@@ -1198,6 +1366,9 @@ type LabelableProduct = { product: ProductSummary; code: string };
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
   return products
     .flatMap((product) => {
+      if (!product.active) {
+        return [];
+      }
       const code = product.barcodes.find(isInternalBarcode);
       return code ? [{ product, code }] : [];
     })
@@ -1270,6 +1441,7 @@ type PrintLabelsModalProps = {
   onSessionEnded: () => void;
   products: ProductSummary[];
   onProductsReloaded: (products: ProductSummary[]) => void;
+  status: ProductStatusFilter;
   fetchProducts: typeof fetchProducts;
   printLabels: typeof printLabels;
 };
@@ -1285,6 +1457,7 @@ function PrintLabelsModal({
   onSessionEnded,
   products,
   onProductsReloaded,
+  status,
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
@@ -1384,7 +1557,7 @@ function PrintLabelsModal({
   async function handleReload() {
     setReloading(true);
     const requestId = printRequestIdRef.current;
-    const outcome = await fetchProducts();
+    const outcome = await fetchProducts(status);
     if (requestId !== printRequestIdRef.current) {
       return;
     }
@@ -1572,6 +1745,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     fetchProducts: fetchProductsService,
     createProduct: createProductService,
     editProduct: editProductService,
+    deactivateProduct: deactivateProductService,
     fetchCategories: fetchCategoriesService,
     generateInternalBarcode: generateInternalBarcodeService,
     printLabels: printLabelsService,
@@ -1583,6 +1757,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
   const [unitFilter, setUnitFilter] = useState<UnitFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("active");
   const [sort, setSort] = useState<TableSort<"product">>({
     column: "product",
     direction: "ascending",
@@ -1590,6 +1765,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
@@ -1599,13 +1775,15 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   // Every category is offered here, not just the ones some existing product already holds, so a
   // category that was just created with nobody in it yet can still be picked right away. Products
-  // and categories load (and retry) together: the create action needs both.
+  // and categories load (and retry) together: the create action needs both. The status filter is
+  // sent to the server instead of applied client-side, the same split search/category/unit keep
+  // (those narrow an already-loaded page; status narrows what gets fetched in the first place).
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
     setList({ kind: "loading" });
     const [productsOutcome, categoriesOutcome] = await Promise.all([
-      fetchProductsService(),
+      fetchProductsService(statusFilter),
       fetchCategoriesService(),
     ]);
     if (thisLoad !== latestLoad.current) {
@@ -1629,7 +1807,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchProductsService, fetchCategoriesService]);
+  }, [fetchProductsService, fetchCategoriesService, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -1649,6 +1827,12 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
     { value: "UNIT" as const, label: productsMessages.unitOptionLabels.UNIT },
     { value: "KG" as const, label: productsMessages.unitOptionLabels.KG },
+  ] as const;
+
+  const statusFilterOptions = [
+    { value: "active" as const, label: productsMessages.statusFilterActiveOption },
+    { value: "inactive" as const, label: productsMessages.statusFilterInactiveOption },
+    { value: "all" as const, label: productsMessages.statusFilterAllOption },
   ] as const;
 
   const filtered = useMemo(() => {
@@ -1689,6 +1873,16 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
+      key: "status",
+      title: productsMessages.columns.status,
+      render: (item: ProductSummary) =>
+        item.active ? (
+          <StatusIndicator tone="success">{productsMessages.statusActive}</StatusIndicator>
+        ) : (
+          <StatusIndicator tone="neutral">{productsMessages.statusInactive}</StatusIndicator>
+        ),
+    },
+    {
       key: "actions",
       kind: "actions",
       srLabel: productsMessages.rowActionsLabel,
@@ -1698,6 +1892,14 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
           "aria-label": productsMessages.editAria({ name: item.name }),
           onPress: () => setEditTarget(item),
         }),
+        (item: ProductSummary) =>
+          item.active
+            ? {
+                icon: <Ban />,
+                "aria-label": productsMessages.deactivateAria({ name: item.name }),
+                onPress: () => setDeactivateTarget(item),
+              }
+            : undefined,
       ],
     },
   ] as const;
@@ -1782,6 +1984,12 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 value={unitFilter}
                 onChange={setUnitFilter}
               />
+              <ListFilter
+                label={productsMessages.statusFilterLabel}
+                options={statusFilterOptions}
+                value={statusFilter}
+                onChange={setStatusFilter}
+              />
             </div>
             <Table
               aria-label={productsMessages.heading}
@@ -1794,8 +2002,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 products.length === 0
                   ? {
                       icon: <Package />,
-                      title: productsMessages.emptyTitle,
-                      detail: productsMessages.emptyDetail,
+                      ...productsMessages.empty[statusFilter],
                       tone: "blank",
                     }
                   : {
@@ -1807,7 +2014,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {productsMessages.count({ count: filtered.length })}
+                  {productsMessages.count({ count: filtered.length, status: statusFilter })}
                 </p>
               }
             />
@@ -1821,7 +2028,9 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
           setNewModalOpen(false);
           const current = listRef.current;
           if (current.kind === "loaded") {
-            setList({ kind: "loaded", products: [...current.products, product] });
+            if (statusFilter !== "inactive") {
+              setList({ kind: "loaded", products: [...current.products, product] });
+            }
           } else {
             void load();
           }
@@ -1853,12 +2062,27 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         generateInternalBarcode={generateInternalBarcodeService}
         categories={categories}
       />
+      <DeactivateProductModal
+        target={deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        onDeactivated={() => {
+          setDeactivateTarget(null);
+          void load();
+        }}
+        onVanished={() => {
+          setDeactivateTarget(null);
+          void load();
+        }}
+        onSessionEnded={onSessionEnded}
+        deactivateProduct={deactivateProductService}
+      />
       <PrintLabelsModal
         isOpen={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
         onSessionEnded={onSessionEnded}
         products={products}
         onProductsReloaded={(reloaded) => setList({ kind: "loaded", products: reloaded })}
+        status={statusFilter}
         fetchProducts={fetchProductsService}
         printLabels={printLabelsService}
       />

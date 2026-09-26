@@ -21,6 +21,7 @@ import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registrat
 import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
 import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
+import { registerProductDeactivationRoute } from "./products/product-deactivation-route.js";
 import { registerProductEditRoute } from "./products/product-edit-route.js";
 import { registerProductLabelsRoute } from "./products/products-labels-route.js";
 import type { ProductsRouteOptions } from "./products/products-list-route.js";
@@ -138,10 +139,11 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   categories?: CategoriesRouteOptions<TQueryResult>;
   /**
    * Registers `GET /products`, `POST /products`, `POST /products/:id/edit`, `POST
-   * /products/internal-barcode`, and `POST /products/labels`, the backoffice Products screen's
-   * list, create, edit, internal-barcode-allocation, and printable-label-sheet sides: every one is
-   * gated by the `manage_products_and_categories` permission (an Administrator always holds it
-   * too), the same optional-feature-wiring shape `categories` uses above.
+   * /products/:id/deactivation`, `POST /products/internal-barcode`, and `POST /products/labels`,
+   * the backoffice Products screen's list, create, edit, deactivate, internal-barcode-allocation,
+   * and printable-label-sheet sides: every one is gated by the `manage_products_and_categories`
+   * permission (an Administrator always holds it too), the same optional-feature-wiring shape
+   * `categories` uses above.
    */
   products?: ProductsRouteOptions<TQueryResult>;
   /**
@@ -251,6 +253,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductsListRoute(app, options.products);
     registerProductCreationRoute(app, options.products);
     registerProductEditRoute(app, options.products);
+    registerProductDeactivationRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
     registerProductLabelsRoute(app, options.products);
   }

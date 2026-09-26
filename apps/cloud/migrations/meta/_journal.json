@@ -187,8 +187,15 @@
     {
       "idx": 26,
       "version": "7",
-      "when": 1790374445217,
-      "tag": "0026_registers",
+      "when": 1790376085604,
+      "tag": "0026_deactivate_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790381769997,
+      "tag": "0027_registers",
       "breakpoints": true
     }
   ]

@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { categories, productBarcodes, products } from "../db/schema.js";
@@ -94,6 +94,10 @@ export type CreateProductOutcome =
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "created"; product: ProductRow };
 
+/**
+ * A code held only by an inactive product's (deactivated) barcode is free to reuse (#309): a
+ * barcode resolves to a single active product, so only an active barcode row counts as taken.
+ */
 async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   codes: string[],
@@ -101,7 +105,7 @@ async function takenBarcodes<TQueryResult extends PgQueryResultHKT>(
   const rows = await db
     .select({ code: productBarcodes.code })
     .from(productBarcodes)
-    .where(inArray(productBarcodes.code, codes));
+    .where(and(inArray(productBarcodes.code, codes), eq(productBarcodes.active, true)));
   return rows.map((row) => row.code);
 }
 
@@ -143,6 +147,7 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
           name: products.name,
           categoryId: products.categoryId,
           saleUnit: products.saleUnit,
+          active: products.active,
           version: products.version,
         });
       if (!newProduct) {
@@ -163,6 +168,7 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
           categoryName: category.name,
           saleUnit: newProduct.saleUnit as SaleUnit,
           barcodes: input.barcodes,
+          active: newProduct.active,
           version: newProduct.version,
         },
       };
