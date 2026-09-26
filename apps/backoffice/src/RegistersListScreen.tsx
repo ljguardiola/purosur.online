@@ -462,8 +462,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     if (thisEmission !== latestEmission.current) {
       return;
     }
+    // `runEmission`'s own attempt always reaches the server before this can resolve "cancelled"
+    // (only an `authorization_required` response opens the passkey modal that cancel dismisses),
+    // so the same ambiguity closeEmission guards against applies here too: reload every time.
     if (outcome.kind === "cancelled") {
       setEmission({ kind: "closed" });
+      void load();
       return;
     }
     if (outcome.kind === "ok") {
