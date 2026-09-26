@@ -26,9 +26,8 @@ const help = defineHelp("es-AR", {
 
 type ArticleId = keyof typeof help.articles;
 
-// Fixed stand-ins for `defineHelp`'s two inferred type parameters, so the assertions below check
-// `HelpArticles` itself — the constraint `defineHelp` actually uses — rather than a union that
-// would stay valid even if that constraint stopped being enforced.
+// Fixed stand-ins for defineHelp's two inferred type parameters, so the checks below exercise
+// HelpArticles itself rather than a looser union that would still pass if the constraint broke.
 type FixtureCategories = typeof help.categories;
 type FixtureArticleIds = Record<ArticleId, HelpArticle<string, string>>;
 type FixtureArticles = HelpArticles<FixtureCategories, FixtureArticleIds>;

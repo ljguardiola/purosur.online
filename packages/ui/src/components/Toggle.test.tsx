@@ -15,9 +15,8 @@ import { Toggle, type ToggleProps } from "./Toggle";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// Mirrors Checkbox.test.tsx's checkboxInput/checkboxLabel/checkboxBox split: the accessible
-// "switch" role resolves to react-aria's visually hidden native <input>, while the visible track
-// and the pointer target both live on the <label> that wraps it.
+// The accessible "switch" role resolves to react-aria's visually hidden native <input>; the
+// visible track and pointer target both live on the <label> wrapping it.
 function toggleInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("switch", { name }).element() as HTMLInputElement;
 }
@@ -26,8 +25,7 @@ function toggleLabel(screen: Screen, name: string): HTMLElement {
   return toggleInput(screen, name).closest("label") as HTMLElement;
 }
 
-// React Aria's Switch renders a visually hidden wrapper around the native <input> as the
-// label's first child, our own track as its second, and the caller's content after that.
+// react-aria's Switch renders a hidden input wrapper first, then the track, then the content.
 function toggleTrack(screen: Screen, name: string): HTMLElement {
   return toggleLabel(screen, name).children[1] as HTMLElement;
 }
@@ -64,14 +62,12 @@ test("renders a 22px round knob in a 48x28px, 14px-radius track, with the conten
   expect(getComputedStyle(track).borderRadius).toBe("14px");
   expect(getComputedStyle(label).alignItems).toBe("center");
 
-  // The knob is 22px in a 28px track, so the 4px padding the design draws only ever separates it
-  // from the track's own ends: vertically the knob is centered, leaving 3px, not 4.
   expect(knobRect.width).toBeGreaterThan(21);
   expect(knobRect.width).toBeLessThan(23);
   expect(knobRect.height).toBeGreaterThan(21);
   expect(knobRect.height).toBeLessThan(23);
-  // `rounded-full` resolves to an arbitrarily large px radius rather than 50%, so what makes
-  // the knob a circle is a radius of at least half its own size, not one exact value.
+  // rounded-full computes to an arbitrarily large radius, not 50%, so circularity is a radius
+  // at least half the knob's own size, not one exact value.
   expect(Number.parseFloat(getComputedStyle(knob).borderRadius)).toBeGreaterThanOrEqual(
     knobRect.width / 2,
   );
@@ -99,14 +95,11 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(track).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
-  // A white knob on a white track is invisible without a boundary of its own, so off gives the
-  // knob the same 2px border the track carries.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(knob).boxShadow).toContain(insetBoundary("ink-secondary", "2px"));
 
-  // Both boundaries are control boundaries, not text, so each has to clear WCAG's 3:1 non-text
-  // contrast minimum against the fill it actually renders on — not just carry the right token
-  // name, which a swap to a softer, decorative token (e.g. "line") would still do.
+  // Checked as a rendered contrast ratio against WCAG's 3:1 non-text minimum, not by token name,
+  // so a swap to a softer same-status token would still fail this.
   const trackBoundaryHex = boundaryColorHex(track);
   const trackFillHex = rgbToHex(getComputedStyle(track).backgroundColor);
   expect(contrastRatio(trackBoundaryHex, trackFillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
@@ -115,8 +108,6 @@ test("colors an off track and its knob white, each with a 2px ink-secondary bord
   const knobFillHex = rgbToHex(getComputedStyle(knob).backgroundColor);
   expect(contrastRatio(knobBoundaryHex, knobFillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
-  // "Near end" for an off toggle is the left edge: the knob sits flush against the track's own
-  // 4px padding on the left, with the remaining travel distance open on the right.
   expect(knobRect.left - trackRect.left).toBeCloseTo(4, 0);
   expect(trackRect.right - knobRect.right).toBeGreaterThan(10);
 
@@ -151,17 +142,13 @@ test("colors an on track green UI with no border and a plain white knob at the f
   const knobRect = knob.getBoundingClientRect();
 
   expect(getComputedStyle(track).backgroundColor).toBe(tokenRgb("brand-green-ui"));
-  // Not merely "no ink-secondary": the on track and its knob draw no boundary at all, in any
-  // color, so a boundary repainted in some other token would still fail this.
+  // Checks for no boundary in any color, not merely the absence of ink-secondary, so a boundary
+  // repainted in some other token would still fail this.
   expect(paintedBoxShadowLayers(track)).toEqual([]);
 
-  // On, the knob is already legible against the green track, so it drops its own border the way
-  // the track drops the one it carries when off.
   expect(getComputedStyle(knob).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(paintedBoxShadowLayers(knob)).toEqual([]);
 
-  // "Far end" for an on toggle is the right edge: the knob sits flush against the track's own
-  // 4px padding on the right.
   expect(trackRect.right - knobRect.right).toBeCloseTo(4, 0);
   expect(knobRect.left - trackRect.left).toBeGreaterThan(10);
 
@@ -208,9 +195,6 @@ test("keeps the track's and the knob's size stable between the off and on states
   expect(onTrackRect.width).toBeCloseTo(offTrackRect.width, 0);
   expect(onTrackRect.height).toBeCloseTo(offTrackRect.height, 0);
 
-  // The knob too: only the off state is measured against the design's 22px above, so without
-  // this the on knob's rendered size is free to drift from the off one, whatever mechanism the
-  // two states each use to draw (or drop) the knob's own boundary.
   expect(onKnobRect.width).toBeCloseTo(offKnobRect.width, 0);
   expect(onKnobRect.height).toBeCloseTo(offKnobRect.height, 0);
 
@@ -318,7 +302,6 @@ test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks 
   const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
   expect(getComputedStyle(label).opacity).toBe("0.45");
-  // The hand cursor promises a control that responds; a disabled toggle doesn't.
   expect(getComputedStyle(label).cursor).toBe("default");
   expect(input.disabled).toBe(true);
 
@@ -329,8 +312,6 @@ test("dims the whole toggle to 45% opacity, drops the pointer cursor and blocks 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept a toggle without content", () => {
   expectTypeOf<{
     isSelected: boolean;

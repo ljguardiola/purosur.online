@@ -29,8 +29,7 @@ test("renders the caller's title, detail and icon", async () => {
 test("renders with only a title", async () => {
   const screen = await render(<InlineNotice tone="info" icon={<Info />} title="Draft saved" />);
 
-  // The visible paragraph is hidden from assistive technology (see the "exposes the notice's
-  // text" test below), so this reads it directly instead of through a role query.
+  // The paragraph is aria-hidden, so a role query wouldn't find it; read it directly instead.
   const paragraph = screen.container.querySelector("p") as HTMLElement;
   expect(paragraph.textContent).toBe("Draft saved");
   await expectNoAccessibilityViolations(screen.container);
@@ -55,8 +54,7 @@ test("exposes the notice's text to assistive technology exactly once", async () 
     <InlineNotice tone="info" icon={<Info />} title="Draft saved" detail="Nothing to sync yet" />,
   );
 
-  // getByRole walks the accessibility tree, which aria-hidden removes an element from: once the
-  // visible title/detail are hidden from it, the live region is the only accessible copy left.
+  // aria-hidden removes an element from the accessibility tree that getByRole walks.
   expect(screen.getByRole("paragraph").elements()).toHaveLength(0);
 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;

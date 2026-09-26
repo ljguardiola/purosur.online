@@ -114,10 +114,8 @@ test("does not accept a group without rows to hold", () => {
   expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();
 });
 
-// A group with nothing to frame would draw two rules around empty space, so it is ruled out where
-// the caller writes it instead of where the component paints: an empty list fails to compile, and
-// so does the plain array a `rows.map(...)` call site produces, which TypeScript cannot prove
-// holds at least one row.
+// A plain array from a `rows.map(...)` call site fails to compile too: TypeScript cannot prove
+// it holds at least one row.
 test("does not accept an empty rows list, or one TypeScript cannot prove is non-empty", () => {
   expectTypeOf<{ rows: [] }>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();

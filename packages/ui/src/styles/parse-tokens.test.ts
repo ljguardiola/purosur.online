@@ -17,9 +17,6 @@ describe("parseColorTokens", () => {
   });
 
   it("keeps tokens declared after a nested block whose own closing brace starts a line", () => {
-    // This @theme block is balanced, valid CSS: the inner @media block closes before
-    // @theme does. A closing brace that merely starts its own line used to be mistaken
-    // for the end of @theme itself, silently dropping every token declared after it.
     const css = [
       "@theme {",
       "  --color-surface-white: #ffffff;",

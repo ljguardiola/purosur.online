@@ -13,38 +13,25 @@ import { CLOSE_DELAY_MS, Tooltip, type TooltipProps } from "./Tooltip";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// This package targets desktop POS displays; the default browser-mode viewport is phone-sized,
-// which would leave no room below a normally-placed trigger and mask the flip test's premise
-// (see Modal.test.tsx:15-17 for the same reasoning applied to another portaled overlay).
+// The default browser-mode viewport is phone-sized, leaving no room below a trigger for the flip
+// test's premise.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 
-  // React Aria only opens a tooltip on hover once it has seen a real pointer move: on the very
-  // first hover of a fresh page, the browser fires the enter event React Aria listens for before
-  // the move event that tells it the current input is a pointer, so that very first hover is
-  // silently dropped. A throwaway move over neutral ground, before the test's own hover, gives
-  // React Aria that signal in advance so the hover under test is never the first one.
+  // On a fresh page, the first hover's enter event fires before React Aria's pointer-move signal
+  // and is silently dropped; a throwaway move gives it that signal in advance.
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 });
 
-// react-aria-components portals the tooltip's whole DOM into document.body, outside vitest-
-// browser-react's own render container (see Modal.test.tsx's own comment on this), so every
-// accessibility check in this file audits document.body rather than screen.container.
-
+// react-aria-components portals the tooltip into document.body, outside the render container, so
+// accessibility checks in this file audit document.body.
 function tooltipElement(screen: Screen): HTMLElement {
   return screen.getByRole("tooltip").element() as HTMLElement;
 }
 
-// axe's "region" best-practice rule exempts role="dialog"/"alertdialog" content from needing a
-// landmark ancestor (see Modal.test.tsx's own clean run), on the reasoning that such content is
-// deliberately portaled outside the page's landmark structure rather than left drifting in it. A
-// tooltip is portaled the same way for the same reason, and is tied to its element correctly
-// through aria-describedby rather than DOM position, but axe's shipped exemption list doesn't
-// cover role="tooltip". That list is the rule's own regionMatcher option, so every check in this
-// file adds the tooltip's role to it and leaves the rule itself running: anything else adrift
-// outside a landmark still fails. Replacing the option replaces the whole list, hence the four
-// shipped selectors repeated alongside the new one.
+// A tooltip is portaled like axe's exempt role="dialog"/"alertdialog" but isn't on its exemption
+// list, so this adds it — replacing regionMatcher replaces its whole list, hence the repeats.
 const axeOptions = {
   checks: {
     region: {
@@ -53,13 +40,10 @@ const axeOptions = {
   },
 };
 
-// react-stately's own default close delay: the linger after the pointer leaves that the tooltip's
-// shorter grace replaces.
 const REACT_STATELY_DEFAULT_CLOSE_DELAY_MS = 500;
 
-// The runner's own test timeout is the only deadline. Its error only says the test timed out, so
-// when it aborts the test, the wait annotates the page event that never arrived and rejects, letting
-// every pending finally block, the frozen timers' included, still run.
+// On abort, annotates which page event never arrived, then rejects, letting every pending finally
+// block (frozen timers included) still run.
 function beforeDeadline<T>(
   measurement: Promise<T>,
   whatNeverHappened: string,
@@ -99,11 +83,8 @@ function whenTooltipIs(change: "added" | "removed", signal: AbortSignal): Promis
   });
 }
 
-// react-stately schedules every delayed open, close and cooldown with setTimeout. Freezing it
-// leaves only what happens without waiting on a timer, however long the test runner takes to
-// deliver each step. expect.poll advances frozen timers on every retry, so the steps wait on page
-// events through beforeDeadline instead. Every timer still pending afterwards runs before the real
-// ones come back, so nothing frozen leaks into the next test.
+// expect.poll would advance frozen timers on every retry, so steps wait on page events through
+// beforeDeadline instead; every pending timer runs before real ones return, so nothing leaks.
 async function whileTimersFrozen(steps: () => Promise<void>): Promise<void> {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
@@ -114,19 +95,15 @@ async function whileTimersFrozen(steps: () => Promise<void>): Promise<void> {
   }
 }
 
-// Everything the browser puts in the sequential tab order, plus the elements that take focus on
-// a click without being tabbable: a tooltip must hold none of them, since it closes the moment
-// its element loses focus and focus moved into it would land in a box that is about to vanish.
+// Also elements that take focus on click without being tabbable: a tooltip must hold none of
+// these, since it closes the moment its element loses focus.
 const FOCUSABLE_SELECTOR =
   "a[href], area[href], button, input, select, textarea, details, summary, iframe, object, " +
   'embed, audio[controls], video[controls], [contenteditable=""], [contenteditable="true"], ' +
   "[tabindex]";
 
-// A trigger rendered where a test's own markup lands by default sits at the very top of the
-// viewport, where nothing fits above it: react-aria then flips a "top" request to "bottom", so an
-// assertion on the default placement would hold even with the placement gone.
-// Every test about where the tooltip lands by default renders its trigger halfway down the 900px
-// viewport instead, with room for the box on either side of it, so "below" is a real choice.
+// Halfway down the viewport, with room on either side, so a default "bottom" placement is a real
+// choice and not just react-aria flipping away from an unavoidable top clamp.
 const centeredInViewport = { position: "fixed", top: "50%", left: 16 } as const;
 
 test("renders nothing until hovered, focused, or otherwise activated", async () => {
@@ -169,10 +146,8 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   expect(style.boxShadow).toContain("6px 16px");
   expect(tooltip.dataset.placement).toBe("bottom");
 
-  // Guards what actually renders (getComputedStyle read on the exact element that both declares
-  // the colors and directly contains the description's text node), not just the token pair in
-  // isolation: a swap to a pair that still carries these two token names but no longer clears
-  // AAA would still pass a token-only check while failing this one.
+  // Guards what actually renders: a token swap that keeps both names but no longer clears AAA
+  // would pass a token-only check while failing this one.
   const backgroundHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
   expect(contrastRatio(textHex, backgroundHex)).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
@@ -200,8 +175,7 @@ test("centers a 10px ink diamond on the box's edge, the box 10px clear of the el
 
   const diamondStyle = getComputedStyle(diamond);
   expect(diamondStyle.backgroundColor).toBe(tokenRgb("ink"));
-  // Tailwind v4's rotate-* utilities set the native CSS `rotate` property rather than composing
-  // a `transform: rotate(...)` matrix, so that's the property that actually paints the tilt.
+  // Tailwind v4's rotate-* utilities set the native `rotate` property, not a `transform` matrix.
   expect(diamondStyle.rotate).toBe("45deg");
   expect(diamondStyle.width).toBe("10px");
   expect(diamondStyle.height).toBe("10px");
@@ -210,17 +184,12 @@ test("centers a 10px ink diamond on the box's edge, the box 10px clear of the el
   const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // Rotating a square around its own center never moves that center, so the rotated diamond's
-  // bounding-rect center is still the plain square's center: the design puts it exactly on the
-  // box's edge, half the diamond merged into the box and the rest rotated out into the visible
-  // point. Centered anywhere else, either the diamond floats clear of the box (center outside it)
-  // or it reads as a plain square merely grazing the box at one corner (center inside it).
+  // Rotation never moves the square's center, so the diamond's bounding-rect center is expected
+  // exactly on the box's edge.
   const diamondCenterY = diamondRect.top + diamondRect.height / 2;
   expect(Math.abs(diamondCenterY - tooltipRect.top)).toBeLessThanOrEqual(1);
 
-  // The design's own gap from the element to the box's edge; react-aria floors the offset
-  // position to a whole pixel, so it lands at 9 or 10 depending on where the element's own edge
-  // falls.
+  // react-aria floors the offset to a whole pixel, landing at 9 or 10.
   const boxOffset = tooltipRect.top - triggerRect.bottom;
   expect(boxOffset).toBeGreaterThanOrEqual(9);
   expect(boxOffset).toBeLessThanOrEqual(10);
@@ -255,8 +224,6 @@ test("keeps the arrow centered on the box's edge, pointing down at the element, 
   const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // Flipped above the element, the arrow sits on the box's bottom edge instead of its top one, so
-  // the same three checks are read from the opposite edges.
   const diamondCenterY = diamondRect.top + diamondRect.height / 2;
   expect(Math.abs(diamondCenterY - tooltipRect.bottom)).toBeLessThanOrEqual(1);
 
@@ -295,14 +262,11 @@ test("keeps the arrow off the box's rounded corner when clamped near a screen ed
   const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // react-aria computes positions from whole-pixel layout sizes while these rects are fractional,
-  // so every check below allows one pixel of rounding.
+  // react-aria's layout sizes are whole pixels while these rects are fractional.
   const SUBPIXEL_ROUNDING_PX = 1;
 
-  // The trigger sits close enough to this narrow viewport's right edge that the box has to shift
-  // left to stay on screen, stopping at react-aria's default 12px container padding, and the arrow
-  // can no longer reach the trigger's center: this is the case where react-aria's arrow clamp
-  // takes over. Unless both hold, the clamp never engaged and the checks below prove nothing.
+  // Confirms the clamp under test actually engaged: the box shifted to react-aria's default
+  // container padding and the arrow no longer reaches the trigger's center.
   const REACT_ARIA_CONTAINER_PADDING_PX = 12;
   expect(
     Math.abs(window.innerWidth - REACT_ARIA_CONTAINER_PADDING_PX - tooltipRect.right),
@@ -311,11 +275,7 @@ test("keeps the arrow off the box's rounded corner when clamped near a screen ed
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
   expect(triggerCenterX - diamondCenterX).toBeGreaterThan(SUBPIXEL_ROUNDING_PX);
 
-  // react-aria's clamp only reserves room for the plain 10px square it measures, not the wider
-  // 14.14px diamond that square's 45deg rotation actually paints. The diamond's whole footprint
-  // has to stay on the box's flat edge, clear of its 6px corner radius (rounded-md), where the
-  // curve has already pulled the box's fill back and the diamond reads as floating free of the
-  // box instead of glued to it.
+  // react-aria's clamp only reserves room for the unrotated 10px square, not the wider diamond.
   const BOX_CORNER_RADIUS_PX = 6;
   expect(tooltipRect.right - diamondRect.right).toBeGreaterThanOrEqual(
     BOX_CORNER_RADIUS_PX - SUBPIXEL_ROUNDING_PX,
@@ -356,7 +316,6 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
 
   expect(longRect.width).toBeGreaterThan(295);
   expect(longRect.width).toBeLessThan(301);
-  // A width that only ever caps, never fixes, forces this much text onto more than one line.
   expect(longRect.height).toBeGreaterThan(60);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
@@ -378,10 +337,8 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // The gap point sits under the element's left edge rather than its center, because the arrow
-  // (part of the tooltip's own DOM) is centered under the element and bridges most of the gap
-  // there. Unless that point really is bare page, owned by neither the element nor the tooltip,
-  // the crossing below never leaves both and proves nothing.
+  // Under the left edge, not the center, since the arrow bridges most of the gap there. Confirmed
+  // as bare page, or the crossing below proves nothing.
   const triggerRect = trigger.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   const gapX = triggerRect.left;
@@ -391,13 +348,8 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   expect(trigger.contains(gapElement)).toBe(false);
   expect(tooltip.contains(gapElement)).toBe(false);
 
-  // react-stately arms the close with setTimeout the moment the pointer leaves the element, and
-  // each pointer move below is a separate round trip from the test runner to the browser: with
-  // real timers, a slow runner could let the close fire mid-crossing however short the grace.
-  // With timers frozen there is nothing to race, and running every one of them afterwards,
-  // whatever its delay, leaves the tooltip open only if its own hover start actually cancelled the
-  // pending close. Rerendering goes through React's act, which commits whatever that close
-  // scheduled before the assertion reads the page.
+  // Frozen timers rule out a slow runner letting the close fire mid-crossing; rerendering commits
+  // whatever it scheduled before the assertion below reads the page.
   const watch = new AbortController();
   const leftElement = new Promise<void>((resolve) => {
     trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
@@ -420,8 +372,7 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   } finally {
     watch.abort();
   }
-  // WCAG 2.1 SC 1.4.13 (Hoverable): the pointer can cross from the element onto the tooltip
-  // without it closing first.
+  // WCAG 2.1 SC 1.4.13 (Hoverable).
   await screen.rerender(ui);
   expect(screen.getByRole("tooltip").elements().length).toBe(1);
 
@@ -445,19 +396,14 @@ test("appears on hover and disappears within a short grace period once the point
   const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // The far corner of the viewport, well clear of the element rendered at the top-left and of the
-  // tooltip below it. Unless it really is neither, the pointer never leaves both and the close
-  // under test never starts.
+  // Confirmed clear of both, or the close under test never starts.
   const awayX = window.innerWidth - 1;
   const awayY = window.innerHeight - 1;
   const awayElement = document.elementFromPoint(awayX, awayY);
   expect(trigger.contains(awayElement)).toBe(false);
   expect(tooltip.contains(awayElement)).toBe(false);
 
-  // Frozen timers make the grace a count of simulated milliseconds instead of wall-clock time a
-  // loaded machine can stretch. Rerendering goes through React's act, which commits anything a
-  // timer that did fire scheduled before the page is read. The checks below advance by the
-  // component's own delay, so they prove it is honored but not that it is short; this bound does.
+  // The checks below prove the delay is honored, not that it's short; this bound does.
   expect(CLOSE_DELAY_MS).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
   const watch = new AbortController();
   const leftElement = new Promise<void>((resolve) => {
@@ -503,8 +449,7 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Losing focus closes the tooltip at once rather than after the pointer's grace: with timers
-  // frozen, a close that waited on one would never land.
+  // Frozen and never advanced, so a close still waiting on the pointer's grace would never land.
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
   try {
@@ -533,7 +478,7 @@ test("disappears when Escape is pressed while its element is focused", async (co
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Immediate too, not after the pointer's grace: see the focus-loss test above.
+  // Frozen, so a close still waiting on the pointer's grace would never land.
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);
   try {
@@ -544,7 +489,6 @@ test("disappears when Escape is pressed while its element is focused", async (co
   } finally {
     watch.abort();
   }
-  // Escape dismisses the tooltip, not the page's own focus: the trigger stays focused.
   expect(document.activeElement).toBe(
     screen.getByRole("button", { name: "Void reason" }).element(),
   );
@@ -571,10 +515,6 @@ test("holds nothing focusable while it is open, so Tab moves past its element to
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
 
-  // Asked of the tooltip while it is open, which is the only moment it can be asked at all: the
-  // tooltip closes the instant its element loses focus, and a node already detached from the
-  // document can neither hold focus nor be tabbed into, so the same questions asked afterwards
-  // answer themselves no matter what the tooltip contains.
   expect(tooltip.querySelectorAll(FOCUSABLE_SELECTOR)).toHaveLength(0);
   expect(tooltip.matches(FOCUSABLE_SELECTOR)).toBe(false);
   await expectNoAccessibilityViolations(document.body, axeOptions);
@@ -615,8 +555,6 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
 
-  // The far corner of the viewport, clear of both the element at the top-left and the tooltip
-  // below it, so moving there really ends the hover.
   const awayX = window.innerWidth - 1;
   const awayY = window.innerHeight - 1;
   const awayElement = document.elementFromPoint(awayX, awayY);
@@ -636,10 +574,8 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   const session = cdp() as unknown as DispatchableCdpSession;
   try {
     await whileTimersFrozen(async () => {
-      // react-stately keeps a warm-up flag shared by every tooltip on the page, and while it is set
-      // a hover opens instantly instead of waiting out the delay. Closing the tooltip opened above
-      // and running every timer that close schedules, its cooldown included, puts the flag back
-      // down, so the hover below waits out the real delay.
+      // react-stately's warm-up flag opens a hover instantly while set; running the close's
+      // cooldown timers above puts it back down before the hover below.
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
       await beforeDeadline(leftElement, "the pointer never left the element", context);
       vi.runAllTimers();
@@ -668,8 +604,6 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept a tooltip without a description", () => {
   expectTypeOf<{ children: ReactElement }>().not.toExtend<TooltipProps>();
 });

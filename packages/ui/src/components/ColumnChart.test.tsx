@@ -7,9 +7,8 @@ import { ColumnChart, type ColumnChartBar } from "./ColumnChart";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// A small typed helper, the same shape as Toggle.test.tsx's own DOM-part helpers: it turns a
-// possibly-out-of-bounds index into a guaranteed value or a clear failure, instead of scattering
-// non-null assertions across every test that reaches into a rendered list by position.
+// Turns a possibly-out-of-bounds index into a guaranteed value or a clear failure, instead of
+// scattering non-null assertions across every test that reaches into a rendered list by position.
 function at<T>(array: readonly T[], index: number): T {
   const item = array[index];
   if (item === undefined) {

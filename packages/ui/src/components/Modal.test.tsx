@@ -8,23 +8,17 @@ import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
 import { Modal, type ModalProps, type ModalWidth } from "./Modal";
 
-// The default browser-mode viewport is phone-sized and narrower than the panel's own widest
-// design value (720px), which would leave the close button permanently outside it (a fixed,
-// centered element can't be scrolled into view). This package targets desktop POS displays, so
-// every test in this file runs at a desktop-sized viewport instead.
+// The default browser-mode viewport is phone-sized, too narrow for the panel's widest 720px form
+// and a fixed, centered close button that a phone-sized page couldn't scroll into view.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-// react-aria-components portals a modal's whole DOM into document.body, outside vitest-browser-
-// react's own render container, so an accessibility check scoped to `screen.container` audits an
-// empty placeholder and always passes regardless of what the modal actually renders. document.body
-// holds everything a test cares about: the portaled dialog, and any non-portaled markup (a trigger
-// button, a Harness) rendered alongside it. Every test in this file that renders a modal audits
-// document.body for exactly this reason.
+// react-aria-components portals the modal's DOM into document.body, outside vitest-browser-react's
+// own render container, so scoping an accessibility check to `screen.container` would always pass
+// against an empty placeholder regardless of what the modal renders.
 
-// The helper supplies every field a real caller must pass, so a test only overrides what it is
-// checking. `footer` defaults to an empty span since most tests don't assert on it directly.
+// footer defaults to an empty span since most tests don't assert on it directly.
 function baseProps(overrides: Partial<ModalProps> = {}): ModalProps {
   return {
     isOpen: true,
@@ -106,8 +100,7 @@ test("stays above page content that has its own stacking order", async () => {
     await render(<Modal {...baseProps()} />);
     const dialog = page.getByRole("dialog").element() as HTMLElement;
     const rect = dialog.getBoundingClientRect();
-    // An open modal makes everything outside it inert, and hit testing skips inert elements, so
-    // the bar is made hittable again to find out what is actually painted on top.
+    // An open modal makes everything outside it inert, and hit testing skips inert elements.
     fixedBar.inert = false;
     fixedBar.removeAttribute("aria-hidden");
     const topmost = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 8);
@@ -200,9 +193,8 @@ test("renders no context line when the caller does not supply one", async () => 
   const screen = await render(<Modal {...baseProps({ title: "Void the sale" })} />);
   const title = screen.getByRole("heading", { name: "Void the sale" }).element() as HTMLElement;
 
-  // The title is the context line's only possible sibling in the header's text column (see
-  // Modal.tsx): if an empty context paragraph rendered instead of nothing, this would find it and
-  // fail, rather than merely checking the title's own text for a stray "undefined".
+  // The title is the only possible sibling in the header's text column, so this catches an empty
+  // context paragraph rendering where a missing `context` should render nothing at all.
   expect(title.previousElementSibling).toBeNull();
 
   await expectNoAccessibilityViolations(document.body);
@@ -276,9 +268,8 @@ test("centers the header's icon (as a 56px circle) and title when headerLayout i
   expect(boxRect.width).toBeLessThan(57);
   expect(boxRect.height).toBeGreaterThan(55);
   expect(boxRect.height).toBeLessThan(57);
-  // `rounded-full` resolves to an arbitrarily large px radius rather than 50%, so what makes the
-  // box a circle is a radius of at least half its own size, not one exact value (see
-  // Toggle.test.tsx's own knob check for the same reasoning).
+  // rounded-full computes to an arbitrarily large radius, not 50%, so circularity is a radius at
+  // least half the box's own size, not an exact value.
   expect(Number.parseFloat(getComputedStyle(iconBox).borderRadius)).toBeGreaterThanOrEqual(
     boxRect.width / 2,
   );
@@ -368,7 +359,6 @@ test('lays a flush body out as a column its content can fill, so an inner region
 test("goes straight from the header to the footer when there is nothing to show in the body", async () => {
   const cases: Array<Partial<ModalProps>> = [
     { children: undefined },
-    // A caller's conditional content that currently has nothing to show.
     {
       children: (
         <>
@@ -574,11 +564,9 @@ test("keeps a bottom body control reachable by Tab, scrolled into the body's vis
 
     expect(reachedBottomField).toBe(true);
 
-    // The real test of "reachable": the focused control must land inside the actual browser
-    // viewport, not merely inside the body element's own (potentially unclipped) box — a fixed,
-    // centered panel taller than the viewport never scrolls the page, so without the body itself
-    // becoming a scroll container, a focused descendant stays visually off-screen regardless of
-    // where it sits within its own ancestor's bounding box.
+    // Checked against the browser viewport, not just the body's own (potentially unclipped) box:
+    // a panel taller than the viewport never scrolls the page, so a focused descendant can sit
+    // inside its ancestor's box while still rendering off-screen unless the body itself scrolls.
     const focusedRect = (document.activeElement as HTMLElement).getBoundingClientRect();
     const bodyRect = body.getBoundingClientRect();
 
@@ -603,9 +591,8 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   expect(rect.width).toBeLessThan(41);
   expect(rect.height).toBeGreaterThan(39);
   expect(rect.height).toBeLessThan(41);
-  // Tailwind's rounded-full resolves to a huge computed radius (calc(infinity * 1px)) rather than
-  // a fixed pixel value, so a full circle is asserted by the radius exceeding half the button's
-  // own size, not by an exact string.
+  // rounded-full computes to a huge radius, not a fixed value, so circularity is checked as a
+  // radius exceeding the button's own size, not as an exact string.
   expect(Number.parseFloat(getComputedStyle(closeButton).borderRadius)).toBeGreaterThan(rect.width);
   expect(getComputedStyle(closeButton).backgroundColor).toBe(tokenRgb("surface-bone"));
 
@@ -691,9 +678,8 @@ test("shows no close button and ignores Escape and the backdrop when not closabl
   const screen = await render(<Modal {...baseProps({ closable: false, onOpenChange })} />);
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
 
-  // Scoped to the dialog's own rendered content, so this fails the moment a close button exists
-  // anywhere inside it (e.g. if `closable` were mistakenly true) instead of always reading 0 from
-  // vitest-browser-react's empty portal placeholder.
+  // Scoped to the dialog's own content, not vitest-browser-react's empty portal placeholder,
+  // which would always read 0 regardless of what the modal renders.
   expect(dialog.querySelectorAll("button")).toHaveLength(0);
 
   await userEvent.keyboard("{Escape}");
@@ -822,11 +808,10 @@ test("opens a second modal over the first with its own backdrop and returns to t
   await expectNoAccessibilityViolations(document.body);
 });
 
-// Distributes Omit over ModalProps' union first (see Button.test.tsx's ButtonPropsWithoutText for
-// the same trick): a plain Omit on a union collapses each branch's optionality and would stop
-// catching that a close label is tied to `closable`. Omit is used instead of Pick because Pick's
-// second parameter is constrained to `keyof P`, which fails to typecheck against the not-yet-
-// distributed P; Omit's parameter has no such constraint.
+// Distributes Omit over ModalProps' union first: a plain Omit on a union collapses each branch's
+// optionality and would stop catching that a close label is tied to `closable`. Omit, not Pick,
+// since Pick's second parameter is constrained to `keyof P`, which fails to typecheck against the
+// not-yet-distributed P.
 type ModalCommonKeys =
   | "isOpen"
   | "onOpenChange"

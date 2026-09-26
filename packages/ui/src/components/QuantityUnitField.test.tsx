@@ -24,8 +24,8 @@ type Screen = Awaited<ReturnType<typeof render>>;
 
 // A plain (never-invalid) shape rather than `Partial<QuantityUnitFieldProps<Unit>>`: Partial
 // flattens the validity union's three variants into one where `errorMessageId` types as
-// `string | undefined` regardless of variant, which then fails `exactOptionalPropertyTypes`
-// wherever a test spreads this and adds its own `invalid`/`errorMessage` JSX attributes on top.
+// `string | undefined` regardless of variant, which fails `exactOptionalPropertyTypes` wherever a
+// test spreads this and adds its own `invalid`/`errorMessage` JSX attributes on top.
 type BaseFieldProps = {
   label: string;
   quantity: string;
@@ -97,9 +97,6 @@ test("names the unit picker by both its chosen option and the caller's own unitL
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The backoffice frame's own height, padding, label and value are proven once, for TextField,
-// DateField, Select and QuantityUnitField together, in FieldSize.test.tsx; this only proves what's
-// specific to this component's own box: its 8px column gap, 8px radius and 2px line border.
 test("draws the box with an 8px column gap, an 8px radius and a 2px line border", async () => {
   const screen = await render(<QuantityUnitField {...baseProps()} />);
   const box = fieldBox(screen);

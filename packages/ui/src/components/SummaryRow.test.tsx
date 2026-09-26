@@ -196,8 +196,6 @@ test("keeps an unbreakable value inside the row, narrowing the label past its lo
   expect(valueRect.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
   expect(valueRect.width).toBeCloseTo(valueElement.scrollWidth, 0);
 
-  // More lines than words means the label had to break inside a word to fit the room the
-  // unbreakable value leaves it, which is what narrowing it past its longest word looks like.
   expect(labelLineRects.length).toBeGreaterThan(label.split(" ").length);
   for (const lineRect of labelLineRects) {
     expect(lineRect.right).toBeLessThanOrEqual(valueRect.left);

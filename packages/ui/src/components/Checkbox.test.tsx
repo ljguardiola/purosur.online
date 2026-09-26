@@ -16,9 +16,8 @@ import { Checkbox, type CheckboxProps } from "./Checkbox";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// Mirrors OptionCardGroup.test.tsx's radioInput/radioCard split: the accessible "checkbox" role
-// resolves to react-aria's visually hidden native <input>, while the visible box and the pointer
-// target both live on the <label> that wraps it.
+// The accessible "checkbox" role resolves to react-aria's visually hidden native <input>, while
+// the visible box and the pointer target both live on the <label> that wraps it.
 function checkboxInput(screen: Screen, name: string): HTMLInputElement {
   return screen.getByRole("checkbox", { name }).element() as HTMLInputElement;
 }
@@ -245,8 +244,8 @@ test("lets its content fill the remaining width of a wide container", async () =
     </div>,
   );
   const label = checkboxLabel(screen, "Return this line");
-  // The label's last child is the wrapper this component puts around the caller's content (see
-  // Checkbox.tsx), not the caller's own <span>: it's the element the design expects to stretch.
+  // The label's last child is the wrapper Checkbox puts around the caller's content, not the
+  // caller's own <span>: it's the element the design expects to stretch.
   const contentWrapper = label.lastElementChild as HTMLElement;
 
   const labelRect = label.getBoundingClientRect();
@@ -258,8 +257,6 @@ test("lets its content fill the remaining width of a wide container", async () =
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept a checkbox without content", () => {
   expectTypeOf<{
     isSelected: boolean;
@@ -275,8 +272,6 @@ test("does not accept a checkbox without isSelected or onChange", () => {
   expectTypeOf<{ isSelected: boolean; children: ReactNode }>().not.toExtend<CheckboxProps>();
 });
 
-// The design has no indeterminate (or invalid, disabled, uncontrolled...) state, so unlike React
-// Aria's own CheckboxProps, this component's props don't carry `isIndeterminate` at all.
 test("does not accept isIndeterminate, since the design has no indeterminate state", () => {
   expectTypeOf<CheckboxProps>().not.toHaveProperty("isIndeterminate");
 });

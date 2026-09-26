@@ -23,15 +23,10 @@ function baseProps(overrides: Partial<ListFilterProps<Status>> = {}): ListFilter
   };
 }
 
-// The value's own min-w-7 (see AriaSelectValue's own comment in ListFilter.tsx) - kept as one
-// named constant instead of repeating the literal, so every assertion that pins the floor's own
-// value moves together if that number ever changes.
 const VALUE_FLOOR_PX = 28;
 
-// The trigger's own border box has its own 2px border and 12px of padding past its actual
-// content - real slack a comparison against the border box alone would hide behind, letting
-// something that overflows into the padding (though not literally past the trigger's own drawn
-// edge) still read as "contained". Content edge, not border edge, is what containment means here.
+// The trigger's border box adds 2px border and 12px padding past its content, which a border-box
+// comparison would hide; something overflowing into the padding would still read as "contained".
 function contentEdgeRight(trigger: HTMLElement): number {
   const style = getComputedStyle(trigger);
   return (
@@ -141,10 +136,8 @@ test("opens a menu at least 200px wide, matching the trigger, white with an 8px 
   expect(style.boxShadow).toContain("24px");
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-menu-shadow"));
 
-  // react-aria is free to flip the menu to the trigger's opposite side when there isn't room on
-  // its preferred side (proven below with a trigger placed too low for that to fit), so the gap
-  // is checked against whichever side it actually rendered on, read from its own data-placement,
-  // never assumed to be "below" just because there happens to be room for it in this render.
+  // react-aria-components flips the popover to the trigger's opposite side when its preferred
+  // side lacks room, so the gap is checked against whichever side it actually rendered on.
   const placement = menu.getAttribute("data-placement");
   expect(placement).toBe("bottom");
   const triggerRect = trigger.element().getBoundingClientRect();
@@ -184,9 +177,8 @@ test("flips the menu above the trigger, with the same 4px gap, when there is no 
     await page.viewport(originalWidth, originalHeight);
   }
 
-  // This file's tests share one browser tab, so a viewport left at 320x400 here would silently
-  // carry into whatever test runs next. Proves the restore above actually took effect, instead of
-  // trusting the call's success alone.
+  // This file's tests share one browser tab, so a viewport left at 320x400 would carry into
+  // whichever test runs next.
   await expect.poll(() => window.innerWidth).toBe(originalWidth);
   await expect.poll(() => window.innerHeight).toBe(originalHeight);
 });
@@ -255,20 +247,15 @@ test("caps the trigger at a constrained parent's own width instead of growing pa
     .element() as HTMLElement;
 
   expect(trigger.getBoundingClientRect().width).toBeCloseTo(200, 0);
-  // Not just capped in width: proves the chosen value truncated to fit on one line instead of
-  // wrapping. trigger.scrollHeight === trigger.clientHeight alone can't tell a single line from
-  // exactly two: at this trigger's own 40px content box (44px h-11 minus its own 2px+2px
-  // border-2), two 20px lines fill it exactly, with nothing left over to register as overflow.
-  // Comparing the value's own rendered height against a single line height (its own line-height)
-  // catches that case too, not just a third line spilling past the box.
+  // scrollHeight === clientHeight alone can't tell a single line from an exact two-line fit (this
+  // trigger's 40px content box exactly fits two 20px lines), so this compares against a single
+  // line's own height instead.
   const valueLineHeight = Number.parseFloat(getComputedStyle(value).lineHeight);
   expect(value.getBoundingClientRect().height).toBeLessThanOrEqual(valueLineHeight + 1);
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A value narrower than min-w-7 still raises the trigger's own shrink-to-fit width to reserve
-// that floor, so nothing here needs to shrink at all.
 test("keeps the label whole and the chevron flush, with no gap, when the chosen value is narrower than its own floor", async () => {
   const narrow: [ListFilterOption<string>] = [{ value: "a", label: "8" }];
   const screen = await render(
@@ -286,12 +273,6 @@ test("keeps the label whole and the chevron flush, with no gap, when the chosen 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The value's own min-w-7 gives a short value (narrower than the floor) a wider box than its own
-// text needs, so text-align keeps the glyphs flush against the box's own trailing edge instead of
-// its leading one - otherwise the visible gap before the chevron would grow with how much shorter
-// than 28px the value's own text is, instead of staying the trigger's own fixed gap-2 (8px) for
-// every value regardless of length. Measures the visible distance (a Range around the text, not
-// the box's own width, which stays 28px either way).
 test("keeps the same visible gap before the chevron for a value shorter than its own floor", async () => {
   const narrow: [ListFilterOption<string>, ListFilterOption<string>] = [
     { value: "a", label: "8" },
@@ -304,6 +285,7 @@ test("keeps the same visible gap before the chevron for a value shorter than its
   const value = trigger.children[1] as HTMLElement;
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
 
+  // A Range measures the text's own visible extent, not the box's width (fixed at 28px either way).
   const textRange = document.createRange();
   textRange.selectNodeContents(value);
   const textRight = textRange.getBoundingClientRect().right;
@@ -313,8 +295,6 @@ test("keeps the same visible gap before the chevron for a value shorter than its
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Containment is checked against the content edge, not the border box: the trigger's own border
-// and padding are slack a border-box comparison would hide behind.
 test("keeps the label whole and lets the value alone truncate when there's room for the label's own full width", async () => {
   const longOption: [ListFilterOption<string>, ListFilterOption<string>] = [
     { value: "a", label: "Un valor bastante largo para forzar el truncado" },
@@ -335,22 +315,18 @@ test("keeps the label whole and lets the value alone truncate when there's room 
   const label = triggerLocator
     .getByText("Forma de pago del pedido", { exact: true })
     .element() as HTMLElement;
-  // AriaSelectValue's own rendered content reuses the listbox option's own JSX (including its
-  // own nested truncate span), so the flex item that actually carries the min-width floor is the
-  // trigger's own second direct child, not whatever getByText happens to match inside it.
+  // AriaSelectValue reuses the listbox option's own JSX, including a nested truncate span, so
+  // getByText could match inside it; the flex item carrying the min-width floor is the trigger's
+  // second direct child instead.
   const value = trigger.children[1] as HTMLElement;
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
   const contentRight = contentEdgeRight(trigger);
 
-  // Whole: rendered at its own natural (scroll) width, nothing clipped off it.
   expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
 
-  // The value alone gave up the room: truncated, but never down to nothing - it still keeps
-  // more than just its own bare ellipsis here, since there's room past the label's own width.
   expect(value.scrollWidth).toBeGreaterThan(value.clientWidth);
   expect(value.getBoundingClientRect().width).toBeGreaterThan(VALUE_FLOOR_PX);
 
-  // Nothing paints past the trigger's own content edge.
   expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
   expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
   expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
@@ -378,20 +354,14 @@ test("truncates the label too, and pins the value at exactly its own floor, once
   const chevron = trigger.querySelector("svg") as SVGSVGElement;
   const contentRight = contentEdgeRight(trigger);
 
-  // Both give way: the label truncates too, not just wraps or overflows - a height comparison
-  // against its own single line-height proves it never wrapped either, while it's shorter than
-  // its own full scroll width proves it's genuinely clipped, not merely narrow by coincidence.
+  // A height comparison against a single line-height proves the label never wrapped, and its
+  // scrollWidth past clientWidth proves it's genuinely clipped rather than merely narrow.
   const labelLineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
   expect(label.getBoundingClientRect().height).toBeLessThanOrEqual(labelLineHeight + 1);
   expect(label.scrollWidth).toBeGreaterThan(label.clientWidth);
 
-  // The value is pinned at exactly its own floor here, not just "some width greater than zero" -
-  // that weaker check holds identically whether the floor is 28px, 1px or absent altogether
-  // (nothing else in this scenario stops the value shrinking further on its own), so only a
-  // direct comparison against the floor's own value actually exercises min-w-7 itself.
   expect(value.getBoundingClientRect().width).toBeCloseTo(VALUE_FLOOR_PX, 0);
 
-  // Nothing paints past the trigger's own content edge, even here.
   expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
   expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
   expect(chevron.getBoundingClientRect().right).toBeLessThanOrEqual(contentRight);
@@ -399,9 +369,8 @@ test("truncates the label too, and pins the value at exactly its own floor, once
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Pins the common, unconstrained case: truncate's own overflow-hidden makes a stray truncation
-// invisible to a one-line height check alone (a clipped single line is still exactly one line
-// tall), so only comparing the label's own scrollWidth against its clientWidth catches it.
+// A clipped single line is still exactly one line tall, so only comparing scrollWidth against
+// clientWidth catches a stray truncation here.
 test("keeps the label fully legible, not truncated, when there's room for everything", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const label = screen
@@ -414,8 +383,8 @@ test("keeps the label fully legible, not truncated, when there's room for everyt
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// A width/overflow check can't tell truncate's own ellipsis apart from a silent clip - both
-// clip to the same box. Only computed text-overflow catches that swap.
+// A width/overflow check can't tell an ellipsis apart from a silent clip: both clip to the same
+// box. Only computed text-overflow catches that swap.
 test("shows an ellipsis, not a silent clip, on both the label and the value", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
   const trigger = screen.getByRole("button", { name: /Estado/ }).element() as HTMLElement;
@@ -442,15 +411,11 @@ test("scrolls a long options list inside the popover instead of painting it past
   const menuStyle = getComputedStyle(menu);
 
   expect(menuStyle.overflowY).toBe("auto");
-  // The 40 options need more height than the popover's own capped max-height leaves it, so this
-  // only holds if that overflow is real (not a popover already tall enough to fit everything).
   expect(menu.scrollHeight).toBeGreaterThan(menu.clientHeight);
 
-  // The real clip proof: a point just past the popover's own bottom edge, where an unclipped
-  // option would otherwise still paint, must not resolve to any option. Guarded against a null
-  // hit test (an out-of-viewport probe would otherwise pass vacuously, the same escape hatch the
-  // corner test guards against) and against landing on an option's own inner span or icon rather
-  // than the option itself (whose own role lives on the <li>, not on any of its children).
+  // A point just past the popover's bottom edge, where an unclipped option would still paint,
+  // must not resolve to any option; `closest` guards against landing on an inner span or icon
+  // instead of the option element itself (whose role lives on the <li>).
   const menuRect = menu.getBoundingClientRect();
   const probe = document.elementFromPoint(menuRect.left + 10, menuRect.bottom + 5);
   expect(probe, "expected a real hit-test result, not an out-of-viewport null").not.toBeNull();
@@ -475,9 +440,6 @@ test("scrolls the popover to keep a keyboard-focused option below the fold visib
     await userEvent.keyboard("{ArrowDown}");
   }
 
-  // The element focus itself lands on (the <li role="option">, via data-focused) is not the same
-  // element that scrolls (the popover, its ancestor) - proving the option actually stays inside
-  // the popover's own visible box is what shows that mismatch didn't break scroll-into-view.
   const focused = document.querySelector('[role="option"][data-focused]') as HTMLElement;
   expect(focused.textContent).toBe("Option 20");
   const menu = screen.getByRole("listbox").element().parentElement as HTMLElement;
@@ -504,9 +466,8 @@ test("truncates a long option label instead of wrapping it over its own 40px row
   const longLabel = "Esperando confirmación de aprobación del pago del pedido";
   const option = screen.getByRole("option", { name: longLabel }).element() as HTMLElement;
 
-  // scrollHeight === clientHeight is only meaningful once the label can't just wrap and overflow
-  // the fixed row invisibly (overflow: visible would keep both equal at 40 either way) - ellipsis
-  // truncation single-lines the text instead, which this and the style checks below both prove.
+  // scrollHeight === clientHeight alone doesn't rule out overflow:visible also fitting the row;
+  // the text-overflow/white-space/overflow checks below confirm it's ellipsis truncation.
   expect(option.scrollHeight).toBe(option.clientHeight);
   const span = option.querySelector("span") as HTMLElement;
   const spanStyle = getComputedStyle(span);
@@ -514,7 +475,6 @@ test("truncates a long option label instead of wrapping it over its own 40px row
   expect(spanStyle.whiteSpace).toBe("nowrap");
   expect(spanStyle.overflow).toBe("hidden");
 
-  // Painted proof: nothing from this option's own text reaches into the next option's row.
   const nextOption = screen.getByRole("option", { name: "Otro" }).element() as HTMLElement;
   expect(option.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     nextOption.getBoundingClientRect().top,
@@ -612,9 +572,8 @@ test("gives the caller the chosen option and closes the menu, on click", async (
   await expectNoAccessibilityViolations(document.body);
 });
 
-// selectedKey makes this a fully controlled select: it asks for "open" but shows whatever value
-// prop the caller actually gives back, never the option that was merely clicked. A caller whose
-// onChange does nothing leaves value at "all", so the trigger must keep reading "Todos".
+// react-aria-components' selectedKey makes this a fully controlled select: it shows whatever
+// value prop the caller gives back, never the option that was merely clicked.
 test("keeps showing the old value when the caller's onChange does nothing", async () => {
   const onChange = vi.fn();
   const screen = await render(<ListFilter {...baseProps({ onChange })} />);
@@ -630,10 +589,7 @@ test("keeps showing the old value when the caller's onChange does nothing", asyn
   await expectNoAccessibilityViolations(document.body);
 });
 
-// react-aria's own Select treats a selectedKey with no matching option as no selection, so this
-// pins its stable, load-bearing facts (the stale label disappears, react-aria's own
-// data-placeholder marker takes its place, the trigger keeps a real name) rather than the exact,
-// locale-dependent placeholder wording.
+// react-aria-components' Select treats a selectedKey with no matching option as no selection.
 test("shows react-aria's own placeholder, not a stale label, when its value points to an option a narrowed options list no longer has", async () => {
   const narrowedOptions: [ListFilterOption<Status>, ListFilterOption<Status>] = [
     { value: "all", label: "Todos" },
@@ -651,17 +607,11 @@ test("shows react-aria's own placeholder, not a stale label, when its value poin
   const placeholder = trigger.element().querySelector("[data-placeholder]");
   expect(placeholder).not.toBeNull();
   expect(placeholder?.getAttribute("data-placeholder")).toBe("true");
-  // Not the placeholder's own exact wording (react-aria's default, locale-dependent — see above),
-  // but that the trigger still resolves to a real, non-empty accessible name starting with the
-  // label: aria-labelledby reads the placeholder span's own text live, same as any other value.
   expect(screen.getByRole("button", { name: /^Estado\s+\S/ }).element()).toBe(trigger.element());
 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// What assistive technology actually announces on this trigger: not just "Estado" (the label
-// alone would leave a screen reader user with no idea which option is currently chosen), but the
-// label and the current value together, the same sentence the visible text already reads.
 test("names the trigger for assistive technology with both its label and its current value", async () => {
   const screen = await render(<ListFilter {...baseProps()} />);
 
@@ -670,19 +620,8 @@ test("names the trigger for assistive technology with both its label and its cur
     .toBeVisible();
 });
 
-// labelId/valueId come from useId(), which React guarantees unique per component instance (and
-// distinct from any hand-authored id, via its reserved ":" characters) — never a literal like
-// "all" that could repeat across two filters or collide with a caller's own markup. The options'
-// own ids (react-aria's internal collection keys, built from the raw option value) get the same
-// guarantee from react-aria itself: each Select instance prefixes them with its own generated id.
-// Two filters sharing the exact same option values, rendered together, prove both hold in the
-// real DOM: every id is actually unique, and each trigger's name still resolves to its own value.
-// Duplicate values have no sensible interpretation the types could forbid (nothing stops two
-// independent array entries from sharing a `value`, for any V), so this is a runtime question:
-// react-aria's own collection is keyed by `id` (this component's `option.value`), the same Map
-// semantics as any JS object or Map literal — the last entry with a given key is the only one
-// that exists. Pinned here rather than guarded against, since it's exactly the unsurprising
-// "last write wins" a caller already gets from writing `{ ...a, ...b }` with duplicate keys.
+// react-aria-components' collection is keyed by `id` (this component's `option.value`), the same
+// Map semantics as any JS object literal: the last entry with a given key is the only one that exists.
 test("keeps only the last option with a given value, everywhere, when a caller passes duplicates", async () => {
   const dupOptions: [
     ListFilterOption<"a" | "b">,
@@ -724,8 +663,8 @@ test("keeps every generated id unique with two filters sharing the same option v
     .element(screen.getByRole("button", { name: "Segundo Cerradas", exact: true }))
     .toBeVisible();
 
-  // Both trigger's own label/value spans stay in the DOM at once; each filter's options only
-  // exist while its own menu is open, so each set is captured separately, one menu at a time.
+  // Each filter's options only exist while its own menu is open, so each set is captured
+  // separately, one menu at a time.
   const triggerIds = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
 
   await screen.getByRole("button", { name: "Primero Abiertas", exact: true }).click();
@@ -830,15 +769,9 @@ test("does not accept an empty options list", () => {
   }>().not.toExtend<ListFilterProps<Status>>();
 });
 
-// Proves the NoInfer fix at a real call site with no explicit type argument, the way JSX actually
-// invokes the component: TypeScript must reject `value: "other"` by inferring V from `options`
-// alone, not by widening V to also cover `value`. `label` is dropped since it doesn't participate
-// in V at all.
-//
-// A call that fails to compile can't sit in this file as literal code, and this project bans
-// `@ts-expect-error`, so the first (generic) overload only matches a call whose `value`/`onChange`
-// truly fit the inferred V; an invalid call falls through to the second (fallback) overload
-// instead of failing to compile, resolving to `false`.
+// A call that fails to compile can't sit in this file as literal code, so the first (generic)
+// overload only matches a call whose `value`/`onChange` truly fit the inferred V; an invalid call
+// falls through to the second (fallback) overload instead, resolving to `false`.
 type ListFilterValueOnlyProps<V extends string> = {
   options: readonly [Pick<ListFilterOption<V>, "value">, ...Pick<ListFilterOption<V>, "value">[]];
   value: ListFilterProps<V>["value"];
@@ -847,9 +780,6 @@ type ListFilterValueOnlyProps<V extends string> = {
 
 function isValidListFilterCall<V extends string>(props: ListFilterValueOnlyProps<V>): true;
 function isValidListFilterCall(props: unknown): false;
-// This test only cares about which overload TypeScript picks, never about a runtime result, so
-// the implementation itself is a stub: it exists only so the type-only overloads above have a
-// real function to call, instead of throwing at runtime.
 function isValidListFilterCall(_props: unknown): boolean {
   return true;
 }

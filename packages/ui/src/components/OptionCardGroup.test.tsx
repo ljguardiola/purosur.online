@@ -35,8 +35,6 @@ const options: [
   },
 ];
 
-// The helper supplies every field a real caller must pass, so a test only overrides what it is
-// checking.
 function baseProps(
   overrides: Partial<OptionCardGroupProps<MovementValue>> = {},
 ): OptionCardGroupProps<MovementValue> {
@@ -51,10 +49,8 @@ function baseProps(
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-// The "radio" accessibility role resolves to react-aria's underlying (visually hidden) native
-// <input>, since that's the element that actually carries the role natively. This package's
-// styling, hover state and pointer target all live on the visible <label> that wraps it instead,
-// so every style or interaction assertion goes through this helper rather than the role query.
+// The "radio" role resolves to react-aria's visually hidden native <input>; this package's
+// styling, hover state and pointer target live on the <label> that wraps it instead.
 function radioInput(screen: Screen, title: string): HTMLInputElement {
   return screen.getByRole("radio", { name: title }).element() as HTMLInputElement;
 }
@@ -215,8 +211,7 @@ test("does not change the chosen card's background on hover", async () => {
   const card = radioCard(screen, "Income");
 
   await userEvent.hover(card);
-  // Without this, the test would pass even if the hover never registered at all: it proves the
-  // card really is in the hovered state before asserting that its background didn't react to it.
+  // Confirms the hover actually registered, so the assertion below can't pass vacuously.
   await expect.poll(() => card.hasAttribute("data-hovered")).toBe(true);
 
   expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
@@ -370,8 +365,6 @@ test("exposes each card as a radio button named by its title and described by it
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// See Button.test.tsx's icon/label tests for the same "does not compile" pattern: the caller's
-// input is checked at the type level, not just at runtime.
 test("does not accept an option without an icon, title or help text", () => {
   expectTypeOf<{
     value: string;
@@ -408,9 +401,6 @@ test("does not accept a group without a label, a chosen value or an onChange han
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
 });
 
-// "Exactly one option is always chosen" is enforced at the type level, not just at runtime:
-// `value` is pinned to the union of the group's own option values (inferred from `options`), and
-// `options` is a non-empty tuple, so neither a value outside the group nor an empty group compiles.
 test("does not accept a chosen value outside the group's own options, or an empty options list", () => {
   expectTypeOf<{
     label: string;
@@ -427,18 +417,12 @@ test("does not accept a chosen value outside the group's own options, or an empt
   }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
 });
 
-// Proves the NoInfer fix at a real call site with no explicit type argument, the way JSX actually
-// invokes the component: TypeScript must reject `value: "other"` by inferring V from `options`
-// alone, not by widening V to also cover `value`. `icon`/`title`/`helpText` are projected away
-// (via the real `OptionCardOption<V>`/`OptionCardGroupProps<V>` field types, not a hand-copied
-// mirror) since they don't participate in V at all; keeping them breaks TypeScript's overload-based
-// generic inference below for an unrelated reason (a `ReactElement` field confuses it), which would
-// make even a *valid* call wrongly resolve to the "invalid" branch.
-//
-// A call that fails to compile can't sit in this file as literal code, and this project bans
-// `@ts-expect-error`, so the first (generic) overload only matches a call whose `value`/`onChange`
-// truly fit the inferred V; an invalid call falls through to the second (fallback) overload
-// instead of failing to compile, resolving to `false`.
+// `icon`/`title`/`helpText` are left out here because a `ReactElement` field breaks TypeScript's
+// overload-based inference below, which would make even a valid call wrongly resolve to the
+// "invalid" branch. A call that fails to compile can't sit in this file as literal code, and
+// `@ts-expect-error` is banned, so the first (generic) overload only matches a call whose
+// `value`/`onChange` truly fit the inferred V; an invalid call falls through to the fallback
+// overload instead, resolving to `false`.
 type OptionCardGroupValueOnlyProps<V extends string> = {
   options: readonly [Pick<OptionCardOption<V>, "value">, ...Pick<OptionCardOption<V>, "value">[]];
   value: OptionCardGroupProps<V>["value"];
@@ -449,9 +433,7 @@ function isValidOptionCardGroupCall<V extends string>(
   props: OptionCardGroupValueOnlyProps<V>,
 ): true;
 function isValidOptionCardGroupCall(props: unknown): false;
-// This test only cares about which overload TypeScript picks, never about a runtime result, so
-// the implementation itself is a stub: it exists only so the type-only overloads above have a
-// real function to call, instead of throwing at runtime.
+// The implementation is a stub: only the overload TypeScript picks matters, not a runtime result.
 function isValidOptionCardGroupCall(_props: unknown): boolean {
   return true;
 }

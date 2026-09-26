@@ -102,7 +102,7 @@ for (const variantCase of variantCases) {
 
 // The literal box-shadow string Chromium renders for the focused state, both variants alike: a 2px
 // brand-blue-ui inset with no outer shadow, behind the four transparent layers Tailwind v4 always
-// composes (see TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
+// composes.
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
@@ -173,10 +173,8 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await userEvent.tab();
     await userEvent.hover(box);
-    // Both assertions below also hold for a focused field the pointer never reached: focus alone
-    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
-    // as the only thing that puts the pointer on the box, and the poll proves it got there before
-    // asserting that focus won over it.
+    // Focus alone paints this boundary, so the poll below confirms the pointer actually reached
+    // the box before asserting that focus wins over it anyway.
     await expect.poll(() => box.matches(":hover")).toBe(true);
 
     await expect.poll(() => getComputedStyle(box).boxShadow).toBe(FOCUSED_SHADOW);
@@ -217,10 +215,9 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// The register's own use of the field: a scan fills it, and once the product is on the sale the
-// register empties it for the next one. Rendering the caller's state beside the field, and
-// driving the value from there after mount, is what tells a controlled field from an uncontrolled
-// one — the input's own value alone reads the same either way, since the DOM keeps it by itself.
+// Rendering the caller's state beside the field, and driving the value from there after mount, is
+// what tells a controlled field from an uncontrolled one — the input's own value alone reads the
+// same either way, since the DOM keeps it by itself.
 function ScanHarness() {
   const [value, setValue] = useState("");
   return (
@@ -280,13 +277,11 @@ test("clears the field and its caller's state when Escape is pressed", async () 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Neither variant draws a clear button, but the field is a type="search" input, and Chromium
-// paints its own ::-webkit-search-cancel-button inside one holding a value — Tailwind's preflight
-// resets ::-webkit-search-decoration only. getComputedStyle reports the input's own box for that
-// pseudo-element whether or not it is painted, so the only way to tell is to click where it sits:
-// the browser's button clears the field, while a click on the text itself only moves the caret.
-// Where painted, that button spans roughly the last 4 to 13px of the backoffice input and 4 to 17px
-// of the register one, so a single click 8px in from the right edge lands on it in both.
+// Chromium paints its own ::-webkit-search-cancel-button inside a type="search" input holding a
+// value; getComputedStyle can't say whether it's actually painted, so the only way to tell is to
+// click where it sits — the browser's button clears the field, a click on the text itself only
+// moves the caret. Where painted, it spans roughly the last 4-13px of the backoffice input and
+// 4-17px of the register one, so a click 8px in from the right edge lands on it in both.
 for (const variant of ["register", "backoffice"] as const) {
   test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
     const screen = await render(
@@ -382,7 +377,7 @@ test("is a single tab stop", async () => {
 
 // Reads the icon's own painted stroke, not the inherited `color`: getComputedStyle(icon).color
 // only reports the color the icon would inherit, which would pass even for an icon that hardcoded
-// its own stroke and painted differently — see Button.test.tsx's own icon color tests.
+// its own stroke and painted differently.
 test("paints the register chip icon brand-blue-strong and the backoffice icon ink-secondary", async () => {
   const registerScreen = await render(
     <SearchFieldHarness

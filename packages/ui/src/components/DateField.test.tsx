@@ -22,24 +22,21 @@ function fieldGroup(screen: Screen, name: string): HTMLElement {
   return screen.getByRole("group", { name }).element() as HTMLElement;
 }
 
-// This package targets desktop POS displays; the default browser-mode viewport is phone-sized,
-// which would leave no room for the calendar panel below the field. Also gives React Aria a real
-// pointer move before the first hover-driven assertion, the same way Tooltip.test.tsx does.
+// vitest-browser-react's default viewport is phone-sized and leaves no room for the calendar
+// panel below the field. The dispatched mouse move gives React Aria a real pointer position
+// before the first hover-driven assertion.
 beforeEach(async () => {
   await page.viewport(1280, 900);
   const session = cdp() as unknown as DispatchableCdpSession;
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
 });
 
-// Narrowed to the no-range shape rather than `Omit<DateFieldProps, "value" | "onChange">`:
-// DateFieldRangeProps is a union with no common discriminant field, so Omit would collapse it
-// into a shape TypeScript can no longer match back to a single member under
-// `exactOptionalPropertyTypes`. Every call site below only ever renders the field without a
-// range, so this is also the accurate type for what they actually pass.
+// Not `Omit<DateFieldProps, "value" | "onChange">`: DateFieldRangeProps is a union with no common
+// discriminant field, so Omit collapses it into a shape TypeScript can no longer match back to a
+// single member under `exactOptionalPropertyTypes`.
 //
-// `variant` is this harness's own test-only concept, not a DateField prop (DateField reads its
-// size from FieldSizeProvider instead, see FieldSize.tsx): "register" renders with no provider,
-// the default size, and "backoffice" wraps the field in one.
+// `variant` is test-only, not a DateField prop: "register" renders with no FieldSizeProvider, the
+// default size, and "backoffice" wraps the field in one.
 type NoRangeHarnessProps = {
   variant: FieldSize;
   label: string;
@@ -73,7 +70,6 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeCloseTo(18, 0);
   expect(iconRect.height).toBeCloseTo(18, 0);
-  // The icon leads the value in the register variant: it is the group's first element.
   expect(group.firstElementChild?.contains(icon)).toBe(true);
 
   const label = screen.getByText("Expiry").element() as HTMLElement;
@@ -84,10 +80,6 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The backoffice frame's own height, padding, label and value are proven once, for TextField,
-// DateField and Select together, in FieldSize.test.tsx; this only proves what's specific to this
-// component in the backoffice variant: the icon keeps its 18px size but moves to trail the value
-// instead of leading it.
 test("renders the backoffice variant with an 8px-radius box and a trailing icon", async () => {
   const screen = await render(<DateFieldHarness variant="backoffice" label="Date" />);
   const group = fieldGroup(screen, "Date");
@@ -99,7 +91,6 @@ test("renders the backoffice variant with an 8px-radius box and a trailing icon"
   const iconRect = icon.getBoundingClientRect();
   expect(iconRect.width).toBeCloseTo(18, 0);
   expect(iconRect.height).toBeCloseTo(18, 0);
-  // The icon trails the value in the backoffice variant: it is the group's last element.
   expect(group.lastElementChild?.contains(icon)).toBe(true);
 
   await expectNoAccessibilityViolations(screen.container);
@@ -203,9 +194,8 @@ test("marks the helper line as disabled too when the field itself is disabled", 
     />,
   );
 
-  // Dimmed by the field's own 45% opacity, the helper line would otherwise fail the contrast
-  // minimum despite being correctly hidden away rather than miscolored; naming it disabled is
-  // what claims the exemption an inactive component's own text already has.
+  // The helper line's 45% opacity would otherwise fail the contrast minimum; `aria-disabled`
+  // claims the exemption WCAG grants an inactive component's own text.
   const helper = screen
     .getByText("A different expiry for the same product is entered as a separate line.")
     .element();
@@ -280,16 +270,13 @@ test("tells the caller the complete date once typing finishes it", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The allowed range includes both of the days that name it: the field refuses what falls outside
-// the bounds, never the bounds themselves.
 const RANGE_MIN = new CalendarDate(2027, 1, 1);
 const RANGE_MAX = new CalendarDate(2027, 2, 28);
 const RANGE_MESSAGE = "The date must be 28/02/2027 or earlier.";
 const RANGE_HELPER = "A different expiry for the same product is entered as a separate line.";
 
-// The literal box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset
-// with no outer shadow, behind the four transparent layers Tailwind v4 always composes (see
-// TextField.test.tsx's FOCUSED_SHADOW comment for why they are there).
+// The box-shadow string Chromium renders for the focused state: a 2px brand-blue-ui inset with no
+// outer shadow, behind the four transparent layers Tailwind v4 always composes.
 const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
@@ -298,8 +285,7 @@ const FOCUSED_SHADOW =
 async function focusFirstSegment(group: HTMLElement, variant: FieldSize) {
   await userEvent.tab();
   if (variant === "register") {
-    // The register variant leads with the calendar toggle button, so the first date segment is
-    // its second tab stop; the backoffice variant trails that button and reaches a segment first.
+    // The register variant leads with the calendar toggle button, so a segment is the second tab stop.
     await userEvent.tab();
   }
   expect(document.activeElement).toBe(group.querySelector('[role="spinbutton"]'));
@@ -323,10 +309,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
     await focusFirstSegment(group, variant);
     await userEvent.hover(group);
-    // Both assertions below also hold for a focused field the pointer never reached: focus alone
-    // paints the boundary, and white is the resting fill too. Focusing by keyboard leaves the hover
-    // as the only thing that puts the pointer on the box, and the poll proves it got there before
-    // asserting that focus won over it.
+    // Confirms the hover registered before checking focus still wins over it.
     await expect.poll(() => group.matches(":hover")).toBe(true);
 
     await expect.poll(() => getComputedStyle(group).boxShadow).toBe(FOCUSED_SHADOW);
@@ -372,9 +355,6 @@ for (const variant of ["register", "backoffice"] as const) {
     const group = fieldGroup(screen, "Expiry");
     const day = group.querySelector('[role="spinbutton"]') as HTMLElement;
 
-    // Drawn in the value's own full-strength tone, an empty field reads as one already holding a
-    // date; the package dims a placeholder to the secondary tone for exactly this reason
-    // (see SearchField.tsx's own inputBaseClassName).
     expect(day.getAttribute("data-placeholder")).toBe("true");
     expect(getComputedStyle(day).color).toBe(tokenRgb("ink-secondary"));
 
@@ -393,15 +373,12 @@ for (const variant of ["register", "backoffice"] as const) {
     const separator = () => group.querySelector('[data-type="literal"]') as HTMLElement;
     expect(separator().textContent?.trim()).not.toBe("");
 
-    // react-aria marks only editable segments as placeholders, so a separator left at the value's
-    // own tone draws near-black slashes between dimmed digits: an empty field that reads as
-    // half entered, which is the very thing dimming the placeholder is there to avoid.
+    // react-aria's `isPlaceholder` only applies to editable segments, never to literal ones.
     expect(getComputedStyle(separator()).color).toBe(tokenRgb("ink-secondary"));
 
     await userEvent.click(group);
     await userEvent.keyboard("28022027");
 
-    // Once the field holds a date, the separators are part of the value the design draws.
     await expect.poll(() => getComputedStyle(separator()).color).toBe(tokenRgb("ink"));
 
     await expectNoAccessibilityViolations(screen.container);
@@ -418,8 +395,6 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.click(day);
     await expect.poll(() => day.getAttribute("data-focused")).toBe("true");
 
-    // The box's own focus shadow is the same whichever segment is active, and this field draws no
-    // caret, so without a mark of its own nothing says where the next digit lands.
     const focused = getComputedStyle(day);
     expect(focused.backgroundColor).not.toBe(getComputedStyle(month).backgroundColor);
 
@@ -434,7 +409,6 @@ for (const variant of ["register", "backoffice"] as const) {
 test("shows the package's own outline focus ring on the calendar button when it is keyboard-focused", async () => {
   const screen = await render(<DateFieldHarness variant="register" label="Expiry" />);
 
-  // The register variant leads with the calendar button, so it is the field's first tab stop.
   await userEvent.tab();
   const button = screen.getByRole("button").element() as HTMLElement;
   expect(document.activeElement).toBe(button);
@@ -442,9 +416,6 @@ test("shows the package's own outline focus ring on the calendar button when it 
   await expect.poll(() => getComputedStyle(button).outlineStyle).toBe("solid");
   expect(getComputedStyle(button).outlineColor).toBe(tokenRgb("brand-blue-strong"));
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineWidth))).toBe(3);
-  // The package's own focus ring keeps a 3px offset everywhere else (Button, Checkbox, Modal,
-  // OptionCardGroup, SegmentedControl, RadioGroup, IconButton, Toggle): this button is no
-  // exception, so a narrower offset here would be a different, package-inconsistent ring.
   expect(Math.round(Number.parseFloat(getComputedStyle(button).outlineOffset))).toBe(3);
 
   await expectNoAccessibilityViolations(screen.container);
@@ -457,17 +428,14 @@ for (const variant of ["register", "backoffice"] as const) {
     const toggle = group.querySelector("button") as HTMLElement;
     const toggleRect = toggle.getBoundingClientRect();
 
-    // A pointer target smaller than 24x24 CSS px fails WCAG 2.5.8, and this package draws
-    // touch-screen point-of-sale screens; an 18px glyph is not something a finger can aim at.
+    // WCAG 2.5.8 requires a 24x24 CSS px pointer target.
     expect(toggleRect.width).toBeGreaterThanOrEqual(24);
     expect(toggleRect.height).toBeGreaterThanOrEqual(24);
 
-    // The glyph itself stays the size the design draws: the target grows around it, not with it.
     const icon = toggle.querySelector("svg") as SVGSVGElement;
     expect(icon.getBoundingClientRect().width).toBeCloseTo(18, 0);
     expect(icon.getBoundingClientRect().height).toBeCloseTo(18, 0);
 
-    // And it grows inside the box the design draws, never past either variant's own height.
     const groupRect = group.getBoundingClientRect();
     expect(toggleRect.top).toBeGreaterThanOrEqual(groupRect.top);
     expect(toggleRect.bottom).toBeLessThanOrEqual(groupRect.bottom);
@@ -476,8 +444,6 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// What the design draws is where the glyph sits, not where its pointer target does: the glyph's
-// own leading edge is at the box's own padding, and the value starts one gap past the glyph.
 const drawnGlyphInset: Record<FieldSize, number> = {
   register: 16,
   backoffice: 12,
@@ -494,9 +460,8 @@ for (const variant of ["register", "backoffice"] as const) {
       .parentElement as HTMLElement;
     const inputRect = input.getBoundingClientRect();
 
-    // A 24px target around an 18px glyph is 3px wider than it on each side, so a target laid out
-    // as an ordinary flex item would inset the glyph by that 3px and push the value 3px further
-    // than the gap the design draws.
+    // A 24px target around an 18px glyph is 3px wider on each side; without the negative margin
+    // pulling that back out of the flex layout, it would push the value 3px past the design's gap.
     if (variant === "register") {
       expect(glyphRect.left - groupRect.left).toBeCloseTo(drawnGlyphInset[variant], 0);
       expect(inputRect.left - glyphRect.right).toBeCloseTo(8, 0);
@@ -505,7 +470,6 @@ for (const variant of ["register", "backoffice"] as const) {
       expect(glyphRect.left - inputRect.right).toBeCloseTo(8, 0);
     }
 
-    // Putting the glyph back on the drawing moves the target, it never shrinks it.
     const toggleRect = toggle.getBoundingClientRect();
     expect(toggleRect.width).toBeGreaterThanOrEqual(24);
     expect(toggleRect.height).toBeGreaterThanOrEqual(24);
@@ -515,9 +479,8 @@ for (const variant of ["register", "backoffice"] as const) {
 }
 
 // react-aria-components portals the calendar's whole DOM into document.body, outside
-// vitest-browser-react's own render container (see Tooltip.test.tsx's own comment on this), so
-// every accessibility check about the open calendar audits document.body rather than
-// screen.container.
+// vitest-browser-react's own render container, so accessibility checks on the open calendar
+// audit document.body rather than screen.container.
 
 async function openCalendar(screen: Screen, name: string): Promise<HTMLElement> {
   const group = fieldGroup(screen, name);
@@ -573,8 +536,6 @@ test("draws the calendar's weekday row in the package's own supporting tone and 
   for (const weekday of weekdays) {
     expect(weekday.textContent?.trim()).not.toBe("");
     const style = getComputedStyle(weekday);
-    // Without a scale and tone of its own this row falls back to inherited typography, which is
-    // the only calendar surface that does.
     expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
     expect(style.fontWeight).toBe("400");
     expect(style.color).toBe(tokenRgb("ink-secondary"));
@@ -608,11 +569,8 @@ test("dims the calendar's month controls once the allowed range reaches no furth
 
   expect(previous.getAttribute("data-disabled")).toBe("true");
   expect(next.getAttribute("data-disabled")).toBe("true");
-  // Every inert control in this package dims to 45%; at full strength these two read as working
-  // controls that silently do nothing.
   expect(getComputedStyle(previous).opacity).toBe("0.45");
   expect(getComputedStyle(next).opacity).toBe("0.45");
-  // The hand cursor promises a control that responds; neither one does here.
   expect(getComputedStyle(previous).cursor).toBe("default");
   expect(getComputedStyle(next).cursor).toBe("default");
 
@@ -712,9 +670,8 @@ test("shows the package's own outline focus ring on the focused day", async () =
   const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
-  // Opening with the keyboard, instead of a click, keeps the input modality "keyboard" so the day
-  // react-aria auto-focuses on open (the chosen day) shows its focus-visible ring, the same way a
-  // real keyboard-only user would open it.
+  // react-aria only shows the focus-visible ring when the input modality is "keyboard", which a
+  // real click on the toggle would not set.
   toggle.focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => screen.getByRole("dialog").elements().length).toBe(1);
@@ -725,8 +682,6 @@ test("shows the package's own outline focus ring on the focused day", async () =
   const style = getComputedStyle(focused);
   expect(style.outlineStyle).toBe("solid");
   expect(style.outlineColor).toBe(tokenRgb("brand-blue-strong"));
-  // Same package-wide 3px offset as every other focus ring (see the calendar toggle button's own
-  // test above).
   expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(3);
 
   await expectNoAccessibilityViolations(document.body);
@@ -849,7 +804,6 @@ test("moves the focused day by one with the arrow keys, wrapping into the neighb
 
   expect(focusedDayLabel(dialog)).toBe("1");
 
-  // Moving left from the first day of the month wraps into the last day of January.
   await userEvent.keyboard("{ArrowLeft}");
   await expect
     .poll(() => dialog.querySelector("h2")?.textContent?.toLowerCase())
@@ -1059,16 +1013,12 @@ test("still tells the caller a date typed outside the allowed range, while drawi
   await userEvent.click(group);
   await userEvent.keyboard("15032027");
 
-  // The caller hears every complete date the user finishes, in range or not: it is the caller's
-  // own decision what to do with one the field is refusing.
   await expect
     .poll(() => screen.getByTestId("caller-value").element().textContent)
     .toBe("2027-03-15");
 
   await expect.element(screen.getByText(RANGE_MESSAGE)).toBeVisible();
 
-  // The focused box draws the package's focus border over every other state, so the refused
-  // boundary is what the field settles on once the user moves away from it.
   (document.activeElement as HTMLElement).blur();
   await expect
     .poll(() => getComputedStyle(group).boxShadow)
@@ -1141,8 +1091,6 @@ test("does not accept a field without a label, a value or onChange", () => {
 
 test("holds a day the calendar system itself constrains, with no text left for the field to parse", async () => {
   function ControlledHarness() {
-    // February 30th: the calendar system constrains it to the month's real last day instead of
-    // refusing it, so no caller value can reach the field as something it cannot render.
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 30));
     return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
@@ -1285,7 +1233,7 @@ test("marks a required field with an asterisk and exposes it as required", async
     <DateField label="Start" value={null} onChange={() => {}} required />,
   );
   const label = screen.getByText("Start").element() as HTMLElement;
-  // The generated asterisk folds into the group's accessible name, as TextField.test.tsx notes.
+  // A CSS-generated ::after asterisk still folds into the group's accessible name.
   const group = screen.getByRole("group", { name: /^Start/ }).element() as HTMLElement;
 
   expect(getComputedStyle(label, "::after").content).toContain("*");
