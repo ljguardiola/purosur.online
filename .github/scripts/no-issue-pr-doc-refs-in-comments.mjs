@@ -2,70 +2,89 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 
-const SCAN_ROOTS = ["packages", "apps", ".github/scripts"];
-const SCAN_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+const SCAN_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".css"];
 
-function parse(source, fileName) {
-  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
+function isJSDocNode(node) {
+  return node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
 }
 
-const OPAQUE_KINDS = new Set([
-  ts.SyntaxKind.JsxText,
-  ts.SyntaxKind.StringLiteral,
-  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
-  ts.SyntaxKind.TemplateHead,
-  ts.SyntaxKind.TemplateMiddle,
-  ts.SyntaxKind.TemplateTail,
-  ts.SyntaxKind.RegularExpressionLiteral,
-]);
-
-function opaqueSpans(sourceFile) {
-  const spans = [];
-  const visit = (node) => {
-    if (OPAQUE_KINDS.has(node.kind)) spans.push([node.getStart(sourceFile), node.getEnd()]);
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return spans;
+function collectTokens(node, sourceFile, tokens) {
+  if (isJSDocNode(node)) return;
+  const children = node.getChildren(sourceFile);
+  if (children.length === 0 && node.kind !== ts.SyntaxKind.SyntaxList) {
+    tokens.push(node);
+    return;
+  }
+  for (const child of children) collectTokens(child, sourceFile, tokens);
 }
 
-function isInsideAnySpan(position, spans) {
-  return spans.some(([start, end]) => position >= start && position < end);
-}
-
-const COMMENT_PATTERN = /\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
-
-export function findComments(source, fileName = "a.ts") {
-  const sourceFile = parse(source, fileName);
-  const spans = opaqueSpans(sourceFile);
+function commentsInTrivia(sourceFile, start, end) {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    false,
+    sourceFile.languageVariant,
+    sourceFile.text,
+    undefined,
+    start,
+    end - start,
+  );
   const comments = [];
-  for (const match of source.matchAll(COMMENT_PATTERN)) {
-    if (isInsideAnySpan(match.index, spans)) continue;
-    comments.push({
-      line: sourceFile.getLineAndCharacterOfPosition(match.index).line + 1,
-      text: match[0],
-    });
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    if (
+      kind === ts.SyntaxKind.SingleLineCommentTrivia ||
+      kind === ts.SyntaxKind.MultiLineCommentTrivia
+    ) {
+      comments.push({ position: scanner.getTokenStart(), text: scanner.getTokenText() });
+    }
   }
   return comments;
 }
 
-const ISSUE_OR_PR_NUMBER = /^#\d+$/;
-const LEADING_PUNCTUATION = /^[([{"'`]+/;
-const TRAILING_PUNCTUATION = /[)\]}"'`.,;:!?]+$/;
-
-function mentionsIssueOrPrNumber(text) {
-  return text.split(/\s+/).some((token) => {
-    const stripped = token.replace(LEADING_PUNCTUATION, "").replace(TRAILING_PUNCTUATION, "");
-    return ISSUE_OR_PR_NUMBER.test(stripped);
-  });
+function findScriptComments(source, fileName) {
+  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
+  const tokens = [];
+  collectTokens(sourceFile, sourceFile, tokens);
+  return tokens
+    .filter((token) => token.kind !== ts.SyntaxKind.JsxText)
+    .flatMap((token) => commentsInTrivia(sourceFile, token.pos, token.getStart(sourceFile)))
+    .map(({ position, text }) => ({
+      line: sourceFile.getLineAndCharacterOfPosition(position).line + 1,
+      text,
+    }));
 }
 
+const CSS_COMMENT_OR_SKIPPED_TOKEN =
+  /\/\*[\s\S]*?(?:\*\/|$)|"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?|url\([^)"']*\)?/gi;
+
+function findCssComments(source) {
+  const comments = [];
+  for (const match of source.matchAll(CSS_COMMENT_OR_SKIPPED_TOKEN)) {
+    if (!match[0].startsWith("/*")) continue;
+    comments.push({ line: source.slice(0, match.index).split("\n").length, text: match[0] });
+  }
+  return comments;
+}
+
+export function findComments(source, fileName = "a.ts") {
+  return fileName.endsWith(".css") ? findCssComments(source) : findScriptComments(source, fileName);
+}
+
+const ISSUE_OR_PR_NUMBER = /(?<!\w)#\d+(?!\w)/;
+const GITHUB_ISSUE_OR_PULL_URL = /github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+/i;
+
 const DOCUMENT_REFERENCE_RULES = [
-  { reason: "cites an issue or pull request number", test: mentionsIssueOrPrNumber },
+  {
+    reason: "cites an issue or pull request number",
+    test: (text) => ISSUE_OR_PR_NUMBER.test(text),
+  },
+  {
+    reason: "links a GitHub issue or pull request",
+    test: (text) => GITHUB_ISSUE_OR_PULL_URL.test(text),
+  },
   { reason: 'mentions "this issue"', test: (text) => /\bthis issue\b/i.test(text) },
   { reason: 'mentions "this PR"', test: (text) => /\bthis pr\b/i.test(text) },
-  { reason: 'mentions "pull request"', test: (text) => /\bpull request\b/i.test(text) },
-  { reason: 'uses "PR" as a standalone word', test: (text) => /\bPR\b/.test(text) },
+  { reason: 'mentions "pull request"', test: (text) => /\bpull requests?\b/i.test(text) },
+  { reason: 'uses "PR" as a standalone word', test: (text) => /\bPRs?\b/.test(text) },
   { reason: 'mentions "design doc"', test: (text) => /\bdesign doc\b/i.test(text) },
   { reason: "names a Markdown file", test: (text) => /\b[\w-]+\.md\b/i.test(text) },
   { reason: "names a design (.pen) file", test: (text) => /\b[\w-]+\.pen\b/i.test(text) },
@@ -98,14 +117,10 @@ function defaultListTrackedFiles(cwd) {
     .filter((path) => path !== "");
 }
 
-function hasScanRoot(path) {
-  return SCAN_ROOTS.some((root) => path === root || path.startsWith(`${root}/`));
-}
-
 function hasScanExtension(path) {
   return SCAN_EXTENSIONS.some((extension) => path.endsWith(extension));
 }
 
 export function findScannedFiles(cwd = process.cwd(), listTrackedFiles = defaultListTrackedFiles) {
-  return listTrackedFiles(cwd).filter(hasScanRoot).filter(hasScanExtension).sort();
+  return listTrackedFiles(cwd).filter(hasScanExtension).sort();
 }

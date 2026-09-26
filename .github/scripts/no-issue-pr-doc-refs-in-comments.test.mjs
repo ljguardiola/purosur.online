@@ -81,6 +81,57 @@ test("does not mistake JSX text for a comment, but still finds a real comment in
   );
 });
 
+test("finds a comment that follows a string containing //", () => {
+  const comments = findComments('fetch("https://x"); // closes #123');
+
+  assert.deepEqual(comments, [{ line: 1, text: "// closes #123" }]);
+});
+
+test("finds the comments that follow a string containing /*", () => {
+  const source = ['const g = "src/*.ts";', "// see #5", "/* end */"].join("\n");
+
+  const comments = findComments(source);
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "// see #5" },
+    { line: 3, text: "/* end */" },
+  ]);
+});
+
+test("finds a comment that follows a template literal containing //", () => {
+  const comments = findComments("const u = `https://x/y`; // see #5");
+
+  assert.deepEqual(
+    comments.map((comment) => comment.text),
+    ["// see #5"],
+  );
+});
+
+test("finds a comment that follows a regex literal containing //", () => {
+  const comments = findComments("const r = /\\/\\//; // see #5");
+
+  assert.deepEqual(
+    comments.map((comment) => comment.text),
+    ["// see #5"],
+  );
+});
+
+test("finds a CSS comment but not a comment-like string in a CSS file", () => {
+  const source = ['a { content: "/* not a comment */"; }', "/* see #5 */"].join("\n");
+
+  const comments = findComments(source, "a.css");
+
+  assert.deepEqual(comments, [{ line: 2, text: "/* see #5 */" }]);
+});
+
+test("reports an issue number in a comment that follows a URL string", () => {
+  const violations = findDocumentReferences('fetch("https://x"); // closes #123');
+
+  assert.deepEqual(violations, [
+    { line: 1, text: "// closes #123", reason: "cites an issue or pull request number" },
+  ]);
+});
+
 test("flags a comment citing an issue number", () => {
   assert.equal(describeDocumentReference("closes #123"), "cites an issue or pull request number");
 });
@@ -91,6 +142,22 @@ test("flags a comment citing a PR number in parentheses", () => {
 
 test("flags a comment listing more than one issue number", () => {
   assert.ok(describeDocumentReference("closes #123, #456"));
+});
+
+test("flags an issue number followed by a possessive", () => {
+  assert.ok(describeDocumentReference("#123's fix moved here"));
+});
+
+test("flags issue numbers separated by a slash", () => {
+  assert.ok(describeDocumentReference("see #12/#13"));
+});
+
+test("flags a GitHub issue URL", () => {
+  assert.ok(describeDocumentReference("see https://github.com/acme/app/issues/12"));
+});
+
+test("flags a GitHub pull URL", () => {
+  assert.ok(describeDocumentReference("github.com/acme/app/pull/7 moved this"));
 });
 
 test("does not flag a hex color with letters, such as #1a2b3c", () => {
@@ -127,6 +194,14 @@ test('flags "this PR"', () => {
 
 test('flags "pull request"', () => {
   assert.ok(describeDocumentReference("opened a pull request to fix this"));
+});
+
+test('flags "pull requests"', () => {
+  assert.ok(describeDocumentReference("two pull requests changed this"));
+});
+
+test('flags "PRs"', () => {
+  assert.ok(describeDocumentReference("earlier PRs kept this shape"));
 });
 
 test('flags standalone uppercase "PR"', () => {
@@ -225,15 +300,15 @@ test("describeViolation includes the path, line, source text and reason", () => 
   assert.equal(message, "a.ts:1: // closes #123 (cites an issue or pull request number)");
 });
 
-test("scans tracked TS/JS files under packages/, apps/ and .github/scripts, including tests", () => {
+test("scans every tracked TS, JS and CSS file in the repository, including tests", () => {
   const tracked = [
     "packages/domain/src/index.ts",
     "packages/domain/src/index.test.ts",
     "apps/pos/electron/main.ts",
     ".github/scripts/foo.mjs",
     ".github/scripts/foo.test.mjs",
+    ".claude/hooks/pretool.mjs",
     "packages-other/x.ts",
-    "docs/readme.ts",
     "packages/ui/README.md",
     ".railway/railway.ts",
   ];
@@ -241,9 +316,12 @@ test("scans tracked TS/JS files under packages/, apps/ and .github/scripts, incl
   const files = findScannedFiles("/repo", () => tracked);
 
   assert.deepEqual(files, [
+    ".claude/hooks/pretool.mjs",
     ".github/scripts/foo.mjs",
     ".github/scripts/foo.test.mjs",
+    ".railway/railway.ts",
     "apps/pos/electron/main.ts",
+    "packages-other/x.ts",
     "packages/domain/src/index.test.ts",
     "packages/domain/src/index.ts",
   ]);
@@ -259,6 +337,7 @@ test("scans every listed extension", () => {
     "packages/a/x.jsx",
     "packages/a/x.mjs",
     "packages/a/x.cjs",
+    "packages/a/x.css",
     "packages/a/x.json",
   ];
 
@@ -266,6 +345,7 @@ test("scans every listed extension", () => {
 
   assert.deepEqual(files, [
     "packages/a/x.cjs",
+    "packages/a/x.css",
     "packages/a/x.cts",
     "packages/a/x.js",
     "packages/a/x.jsx",
@@ -281,6 +361,8 @@ test("no scanned file in the repository has a comment citing an issue, a pull re
   for (const sentinel of [
     "apps/backoffice/src/test-support/productsListScreen.tsx",
     ".github/scripts/no-issue-pr-doc-refs-in-comments.test.mjs",
+    ".railway/railway.ts",
+    "packages/ui/src/styles/tokens.css",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }
