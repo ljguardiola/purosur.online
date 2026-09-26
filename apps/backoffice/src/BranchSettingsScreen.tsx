@@ -1,6 +1,7 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import {
   Button,
+  backofficeFieldHeightClassName,
   Checkbox,
   IconButton,
   type IconButtonProps,
@@ -506,7 +507,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       <div className="flex-1">
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={label}
           value={values[field]}
           onChange={(value) => setTextValue(field, value)}
@@ -522,7 +522,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       <div className="min-w-0 flex-1">
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={label}
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
@@ -548,7 +547,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       <div className="w-[5.5rem]">
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={label}
           labelVisuallyHidden
           value={values[day].ranges[index]?.[part] ?? ""}
@@ -570,10 +568,14 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     return (
       <div key={day} className="flex flex-col gap-2 border-line border-t py-3">
         <div className="flex flex-wrap items-start gap-4">
-          <div className="flex h-12 w-[8.75rem] shrink-0 items-center">
+          <div
+            className={`flex ${backofficeFieldHeightClassName} w-[8.75rem] shrink-0 items-center`}
+          >
             <p className="font-semibold text-ink">{dayLabel}</p>
           </div>
-          <div className="flex h-12 w-[6.25rem] shrink-0 items-center">
+          <div
+            className={`flex ${backofficeFieldHeightClassName} w-[6.25rem] shrink-0 items-center`}
+          >
             <Checkbox
               isSelected={dayValues.closed}
               onChange={(closed) => setDayClosed(day, closed)}
