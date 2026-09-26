@@ -73,19 +73,97 @@ test("shows the self-registered passkey title, description, opened/escalated/sco
   await expect
     .element(
       screen.getByText(
-        "Lucía Pérez registró la passkey «Teléfono de Lucía». Si no fue ella, conviene dar de baja esa passkey desde Usuarios.",
+        "Lucía Pérez registró la passkey «Teléfono de Lucía». Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.",
       ),
     )
     .toBeVisible();
   await expect.element(screen.getByText("Todavía no")).toBeVisible();
   await expect
-    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisar el cambio."))
+    .element(screen.getByText("No se cierra sola: se cierra a mano después de revisarla."))
     .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the escalation line once the alert has escalated", async () => {
+test("shows the self-removed passkey description", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        detail: { action: "removed", passkeyName: "Teléfono de Lucía", via: "self" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Lucía Pérez dio de baja la passkey «Teléfono de Lucía». Si no se reconoce este cambio, conviene revisar sus passkeys desde Usuarios.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("shows the passkey registered through account recovery", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        detail: { action: "registered", passkeyName: "Teléfono de Lucía", via: "recovery" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Lucía Pérez registró la passkey «Teléfono de Lucía» al usar el enlace de recuperación de acceso. Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("describes no passkey removal through account recovery, which only registers", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
+    ok(
+      baseDetail({
+        detail: { action: "removed", passkeyName: "Teléfono de Lucía", via: "recovery" },
+      }),
+    ),
+  );
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Lucía Pérez", { exact: true })).toBeVisible();
+
+  expect(screen.getByText(/Teléfono de Lucía/).query()).toBeNull();
+});
+
+test("describes no Administrator's registration of someone else's passkey", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValueOnce(
+    ok(
+      baseDetail({
+        detail: {
+          action: "registered",
+          passkeyName: "Teléfono de Lucía",
+          via: "administrator",
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Lucía Pérez", { exact: true })).toBeVisible();
+
+  expect(screen.getByText(/Teléfono de Lucía/).query()).toBeNull();
+});
+
+test("shows when an escalated alert escalated, with no fixed escalation line repeating it", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
     ok(baseDetail({ level: "critical", escalatedAt: "2026-01-06T12:00:00.000Z" })),
@@ -93,9 +171,38 @@ test("shows the escalation line once the alert has escalated", async () => {
 
   const screen = await renderModal(services);
 
-  await expect
-    .element(screen.getByText("Advertencia al abrirse · escaló a las 24 horas"))
-    .toBeVisible();
+  await expect.element(screen.getByText("Crítica")).toBeVisible();
+  expect(screen.getByText("Todavía no").query()).toBeNull();
+  expect(screen.getByText(/24 horas/).query()).toBeNull();
+});
+
+test("shows the closing note only while the alert is still open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(baseDetail({ resolvedAt: "2026-01-05T13:00:00.000Z" })),
+  );
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+
+  expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
+});
+
+test("never shows an Administrator's change without that Administrator's name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "user_email_changed",
+        detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Se cambió un correo")).toBeVisible();
+
+  expect(screen.getByText(/Administrador/).query()).toBeNull();
 });
 
 test("shows the administrator-driven removal description with the actor's name", async () => {
@@ -146,7 +253,7 @@ test("shows the recovery-requested description", async () => {
   await expect
     .element(
       screen.getByText(
-        "Alguien pidió el enlace de acceso para Lucía Pérez porque no pudo entrar con ninguna de sus passkeys. Si no fue ella, conviene revisar sus passkeys desde Usuarios.",
+        "Alguien pidió el enlace de acceso para Lucía Pérez. Si no se reconoce este pedido, conviene revisar sus passkeys desde Usuarios.",
       ),
     )
     .toBeVisible();

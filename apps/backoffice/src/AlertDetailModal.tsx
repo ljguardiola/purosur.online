@@ -91,21 +91,26 @@ function alertIcon(kind: string): Icon {
   }
 }
 
-type PasskeyChangeDetail = {
-  action: "registered" | "removed";
-  passkeyName: string;
-  via: "self" | "administrator" | "recovery";
-  actorName?: string;
-};
+// Account recovery only ever registers a passkey, and an Administrator only ever removes someone
+// else's (see the cloud's `PasskeyChangedDetail`).
+type PasskeyChangeDetail =
+  | { action: "registered" | "removed"; passkeyName: string; via: "self" }
+  | { action: "registered"; passkeyName: string; via: "recovery" }
+  | { action: "removed"; passkeyName: string; via: "administrator"; actorName: string };
 
 function passkeyChangeDetail(detail: Record<string, unknown>): PasskeyChangeDetail | undefined {
   const { action, passkeyName, via, actorName } = detail;
-  if (
-    (action === "registered" || action === "removed") &&
-    typeof passkeyName === "string" &&
-    (via === "self" || via === "administrator" || via === "recovery")
-  ) {
-    return { action, passkeyName, via, ...(typeof actorName === "string" ? { actorName } : {}) };
+  if (typeof passkeyName !== "string") {
+    return undefined;
+  }
+  if (via === "self" && (action === "registered" || action === "removed")) {
+    return { action, passkeyName, via };
+  }
+  if (via === "recovery" && action === "registered") {
+    return { action, passkeyName, via };
+  }
+  if (via === "administrator" && action === "removed" && typeof actorName === "string") {
+    return { action, passkeyName, via, actorName };
   }
   return undefined;
 }
@@ -149,39 +154,28 @@ function alertDescription(alert: AlertDetail): string {
             });
       }
       if (detail.via === "recovery") {
-        return detail.action === "registered"
-          ? detailMessages.descriptions.passkeyRegisteredByRecovery({
-              targetName,
-              passkeyName: detail.passkeyName,
-            })
-          : detailMessages.descriptions.passkeyRemovedByRecovery({
-              targetName,
-              passkeyName: detail.passkeyName,
-            });
+        return detailMessages.descriptions.passkeyRegisteredByRecovery({
+          targetName,
+          passkeyName: detail.passkeyName,
+        });
       }
-      const actorName = detail.actorName ?? alertsMessages.unknownAdministrator;
-      return detail.action === "registered"
-        ? detailMessages.descriptions.passkeyRegisteredByAdministrator({
-            actorName,
-            targetName,
-            passkeyName: detail.passkeyName,
-          })
-        : detailMessages.descriptions.passkeyRemovedByAdministrator({
-            actorName,
-            targetName,
-            passkeyName: detail.passkeyName,
-          });
+      return detailMessages.descriptions.passkeyRemovedByAdministrator({
+        actorName: detail.actorName,
+        targetName,
+        passkeyName: detail.passkeyName,
+      });
     }
     case "backoffice_recovery_requested":
       return detailMessages.descriptions.recoveryRequested({ targetName });
     case "user_email_changed": {
-      const previousEmail =
-        typeof alert.detail.previousEmail === "string" ? alert.detail.previousEmail : "";
-      const newEmail = typeof alert.detail.newEmail === "string" ? alert.detail.newEmail : "";
-      const actorName =
-        typeof alert.detail.actorName === "string"
-          ? alert.detail.actorName
-          : alertsMessages.unknownAdministrator;
+      const { previousEmail, newEmail, actorName } = alert.detail;
+      if (
+        typeof previousEmail !== "string" ||
+        typeof newEmail !== "string" ||
+        typeof actorName !== "string"
+      ) {
+        return "";
+      }
       return detailMessages.descriptions.emailChanged({
         actorName,
         targetName,
@@ -421,9 +415,6 @@ export function AlertDetailModal({
               <StatusIndicator tone={LEVEL_TONE[alert.level]}>
                 {levelLabel(alert.level)}
               </StatusIndicator>
-              {alert.escalatedAt && (
-                <p className="text-ink-secondary text-sm">{detailMessages.escalationLine}</p>
-              )}
             </div>
             <p className="text-ink text-base">{alertDescription(alert)}</p>
             <div className="flex flex-col gap-1 rounded-lg border border-line p-3 text-sm">
@@ -465,7 +456,9 @@ export function AlertDetailModal({
                 ))}
               </div>
             </div>
-            <p className="text-ink-secondary text-sm">{detailMessages.closingNote}</p>
+            {alert.resolvedAt === null && (
+              <p className="text-ink-secondary text-sm">{detailMessages.closingNote}</p>
+            )}
           </>
         )}
       </div>

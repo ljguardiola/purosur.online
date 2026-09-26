@@ -926,21 +926,17 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailChanged: "Se cambió un correo",
         signInLockout: "Se bloqueó un origen de ingreso",
       },
-      unknownAdministrator: "alguien con permisos de Administrador",
       detail: {
         eyebrow: "ALERTA DE SEGURIDAD",
         closeLabel: "Cerrar",
-        escalationLine: "Advertencia al abrirse · escaló a las 24 horas",
         openedLabel: "Abierta",
         escalatedLabel: "Escaló",
         notEscalatedYet: "Todavía no",
         scopeLabel: "Alcance",
         deliveriesTitle: "Aviso por el backoffice",
-        deliveriesWhoColumn: "Quién",
-        deliveriesStatusColumn: "Estado",
         deliverySent: "Enviado",
         deliveryFailed: "No se pudo enviar",
-        closingNote: "No se cierra sola: se cierra a mano después de revisar el cambio.",
+        closingNote: "No se cierra sola: se cierra a mano después de revisarla.",
         back: "Volver",
         closeAlert: "Cerrar la alerta",
         closeFailedTitle: "No se pudo cerrar la alerta",
@@ -953,15 +949,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         loadErrorDetail: "Probá de nuevo en unos minutos.",
         descriptions: {
           passkeyRegisteredSelf: (params: { targetName: string; passkeyName: string }) =>
-            `${params.targetName} registró la passkey «${params.passkeyName}». Si no fue ella, conviene dar de baja esa passkey desde Usuarios.`,
+            `${params.targetName} registró la passkey «${params.passkeyName}». Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`,
           passkeyRemovedSelf: (params: { targetName: string; passkeyName: string }) =>
-            `${params.targetName} dio de baja la passkey «${params.passkeyName}». Si no fue ella, conviene revisar sus passkeys desde Usuarios.`,
-          passkeyRegisteredByAdministrator: (params: {
-            actorName: string;
-            targetName: string;
-            passkeyName: string;
-          }) =>
-            `El Administrador ${params.actorName} registró la passkey «${params.passkeyName}» de ${params.targetName}. Si no fue así, conviene revisarlo.`,
+            `${params.targetName} dio de baja la passkey «${params.passkeyName}». Si no se reconoce este cambio, conviene revisar sus passkeys desde Usuarios.`,
           passkeyRemovedByAdministrator: (params: {
             actorName: string;
             targetName: string;
@@ -969,11 +959,9 @@ export const messages = defineMessages("es-AR", (f) => ({
           }) =>
             `El Administrador ${params.actorName} dio de baja la passkey «${params.passkeyName}» de ${params.targetName}. Si no fue así, conviene revisarlo.`,
           passkeyRegisteredByRecovery: (params: { targetName: string; passkeyName: string }) =>
-            `${params.targetName} registró la passkey «${params.passkeyName}» al usar el enlace de recuperación de acceso. Si no fue ella, conviene dar de baja esa passkey desde Usuarios.`,
-          passkeyRemovedByRecovery: (params: { targetName: string; passkeyName: string }) =>
-            `${params.targetName} dio de baja la passkey «${params.passkeyName}» al usar el enlace de recuperación de acceso. Si no fue ella, conviene revisar sus passkeys desde Usuarios.`,
+            `${params.targetName} registró la passkey «${params.passkeyName}» al usar el enlace de recuperación de acceso. Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`,
           recoveryRequested: (params: { targetName: string }) =>
-            `Alguien pidió el enlace de acceso para ${params.targetName} porque no pudo entrar con ninguna de sus passkeys. Si no fue ella, conviene revisar sus passkeys desde Usuarios.`,
+            `Alguien pidió el enlace de acceso para ${params.targetName}. Si no se reconoce este pedido, conviene revisar sus passkeys desde Usuarios.`,
           emailChanged: (params: {
             actorName: string;
             targetName: string;
