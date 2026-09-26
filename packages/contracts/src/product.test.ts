@@ -7,6 +7,7 @@ import {
   LABELS_MAX_TOTAL_COUNT,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_UNITS,
+  PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product.js";
@@ -49,6 +50,18 @@ describe("BARCODE_MAX_LENGTH", () => {
 describe("barcodeLength", () => {
   it("counts each character as one", () => {
     expect(barcodeLength("7791234567890")).toBe(13);
+  });
+
+  it("counts each emoji as one character toward the 64-character limit", () => {
+    expect(barcodeLength("🔖".repeat(64))).toBe(BARCODE_MAX_LENGTH);
+    expect(barcodeLength("🔖".repeat(64))).toBeLessThanOrEqual(BARCODE_MAX_LENGTH);
+    expect(barcodeLength("🔖".repeat(65))).toBeGreaterThan(BARCODE_MAX_LENGTH);
+  });
+});
+
+describe("PRODUCT_BARCODES_MAX_COUNT", () => {
+  it("allows up to 20 barcodes on a product", () => {
+    expect(PRODUCT_BARCODES_MAX_COUNT).toBe(20);
   });
 });
 
