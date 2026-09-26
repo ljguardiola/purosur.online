@@ -3,8 +3,7 @@ import { renderHook } from "vitest-browser-react";
 import type { SessionStatusOutcome } from "./sessionApi";
 import { type SessionWatcherOptions, useSessionWatcher } from "./sessionWatcher";
 
-// Fake timers let each test advance exactly to its own deadline or interval boundary instead of
-// racing a real timer; the *Async variant also flushes the microtasks a check's own await needs.
+// The *Async variant of advanceTimersByTime also flushes the microtasks a check's own await needs.
 async function usingFakeTimers(steps: () => Promise<void>): Promise<void> {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
   try {

@@ -272,8 +272,7 @@ test("shows no Select, but a locked Rol field with a keyboard-focusable lock and
   const lock = dialog.getByRole("button", { name: "Por qué el rol está fijo" });
   await expect.element(lock).toBeVisible();
 
-  // The modal is wider than the default phone-sized browser-mode viewport, which would leave the
-  // lock (near the field's right edge) outside it and unhoverable.
+  // Wider than the default phone-sized browser-mode viewport, or the lock is unhoverable.
   await page.viewport(1280, 900);
   await userEvent.hover(lock);
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
@@ -1141,8 +1140,6 @@ const sofia: BranchUser = {
 
 test("hides Editar and the whole Passkeys section for a non-Administrator, never reading the passkeys", async () => {
   window.history.pushState(null, "", "/settings/users/user-1");
-  // The passkeys read is Administrator-only on the cloud, so a forbidden mock here would send a
-  // viewer that actually asked for it to Mi cuenta instead of staying on the user.
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

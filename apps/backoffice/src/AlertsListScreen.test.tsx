@@ -189,8 +189,7 @@ test("keeps a page chosen right after opening once the untouched search settles"
       .toContainEqual([{ open: true, page: 2 }]);
     await vi.advanceTimersByTimeAsync(300);
 
-    // Only setTimeout/clearTimeout are faked, so React's own re-render still settles over real
-    // frames: poll for it instead of advancing a fixed number of frames.
+    // Only setTimeout/clearTimeout are faked, so React's re-render still settles over real frames.
     await expect
       .element(screen.getByRole("button", { name: "Página 2" }))
       .toHaveAttribute("aria-current", "page");
@@ -226,7 +225,7 @@ test("drops a late response once the filters have changed since it was sent, sti
   await screen.getByRole("option", { name: "Crítica" }).click();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
   // vitest-browser-react only marks the environment act-aware around its own render/userEvent
-  // calls, so a manual resolution outside of those needs the flag set to use act() here too.
+  // calls; a manual resolution outside those needs the flag set to use act() here too.
   const globalWithActEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT;
   globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;

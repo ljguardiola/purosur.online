@@ -21,7 +21,6 @@ function createServices(
   };
 }
 
-// The only textbox on this screen is the passkey name field.
 async function fillName(screen: Awaited<ReturnType<typeof render>>, value: string) {
   await userEvent.fill(screen.getByRole("textbox"), value);
 }
@@ -241,7 +240,7 @@ test("lets the person retry, without a new link, after the browser cancels regis
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
-test("lets the person retry, without a new link, after redeem rejects the registration", async () => {
+test("lets the person retry, without a new link, after redeem rejects the registration, signaling the device to forget the credential", async () => {
   const services = createServices({
     fetchRegistrationOptions: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -258,8 +257,6 @@ test("lets the person retry, without a new link, after redeem rejects the regist
   await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Registrar la passkey" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Pedir un enlace nuevo" }).query()).toBeNull();
-  // The device already created the credential but the cloud rejected saving it, so it must be
-  // told to forget it.
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",
     credentialId: "cred-1",

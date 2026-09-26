@@ -37,8 +37,8 @@ async function openPrintLabelsModal(screen: Screen) {
   return screen.getByRole("dialog");
 }
 
-// A native click reaches the same handler as userEvent (react-aria's usePress falls back to the
-// click event), so repeated clicks below run fast without weakening what they prove.
+// A native click reaches the same handler as userEvent: react-aria's usePress falls back to the
+// click event, so repeated clicks below run fast without weakening what they prove.
 function clickManyTimesNatively(element: { element: () => Element }, times: number): void {
   for (let clickIndex = 0; clickIndex < times; clickIndex += 1) {
     (element.element() as HTMLButtonElement).click();

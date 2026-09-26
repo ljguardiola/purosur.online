@@ -16,8 +16,8 @@ import type {
   RoleSummary,
 } from "./rolesApi";
 
-// The editor modal is 1040px wide, wider than the browser mode's phone-sized default viewport,
-// which would leave its footer's save button outside the viewport and unclickable.
+// The editor modal is 1040px wide, wider than browser mode's phone-sized default viewport,
+// which would leave its footer's save button unclickable.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });

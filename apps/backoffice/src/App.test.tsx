@@ -1017,7 +1017,6 @@ test("lets a non-Administrator holding deactivate_users open Usuarios, without N
       },
     ],
   });
-  // Reading the roles is Administrator-only on the cloud.
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users");
 
@@ -1053,7 +1052,6 @@ test("opens a user's detail for a non-Administrator holding deactivate_users, of
       isLastActiveAdministrator: false,
     },
   });
-  // Reading a user's passkeys is Administrator-only on the cloud.
   vi.mocked(services.userDetailScreen.fetchUserPasskeys).mockResolvedValue({ kind: "forbidden" });
   window.history.pushState(null, "", "/settings/users/user-3");
 

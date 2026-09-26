@@ -608,7 +608,6 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
   window.history.pushState(null, "", "/settings/users");
-  // The cloud restricts the roles read to Administrators; this viewer must not trigger it.
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

@@ -12,8 +12,8 @@ import {
   validateRoleName,
 } from "./RoleEditorForm";
 
-// React Aria opens a tooltip on hover only after seeing a real pointer move; the first hover on
-// a fresh page fires before that move and is silently dropped. This throwaway move supplies it.
+// React Aria opens a tooltip only after a real pointer move; the first hover on a fresh page
+// fires before that move and is silently dropped, so this throwaway move supplies it.
 async function warmUpPointer() {
   await page.viewport(1280, 900);
   const session = cdp() as unknown as DispatchableCdpSession;

@@ -369,7 +369,7 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
   expect(services.startRegistration).not.toHaveBeenCalled();
 });
 
-test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited", async () => {
+test("shows a rate-limited notice, instead of a generic attempt-failed one, when registering itself is rate limited, and still signals the device to forget the unsaved credential", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
@@ -390,8 +390,6 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  // The device already created the credential but the rate-limited cloud never saved it, so it
-  // must be told to forget it.
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",
     credentialId: "new-cred",
@@ -488,7 +486,7 @@ test("never signals the device on a generic registration failure (network error 
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
-test("shows an attempt-failed notice when the browser cancels the registration ceremony itself", async () => {
+test("shows an attempt-failed notice when the browser cancels the registration ceremony itself, without signaling the device since no credential was created", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
   const screen = await renderScreen(services);
@@ -505,7 +503,6 @@ test("shows an attempt-failed notice when the browser cancels the registration c
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
   expect(services.registerPasskey).not.toHaveBeenCalled();
-  // A cancelled ceremony never creates a credential, so there is nothing to ask the device to forget.
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 

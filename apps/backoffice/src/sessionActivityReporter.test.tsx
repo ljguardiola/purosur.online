@@ -19,8 +19,7 @@ function createControllableClock(startMs = 0) {
   };
 }
 
-// Awaiting the mock's own returned promise queues after the hook's continuation on that same
-// promise, so this resumes only once the hook has actually finished handling it.
+// Awaiting the mock's own promise queues after the hook's continuation on that same promise.
 async function awaitHookToSettleAfterTouch(touchSession: TouchSessionMock): Promise<void> {
   const results = touchSession.mock.results;
   await results.at(-1)?.value;

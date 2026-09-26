@@ -15,8 +15,7 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-// Renders inside a <nav> over the rail's own dark background: the text tone needs it for
-// AA contrast, and axe would otherwise flag content outside a landmark.
+// axe flags content with no enclosing landmark, so this wraps it in a <nav> as the rail would.
 function renderInRail(props: {
   displayName: string;
   onSignedOut: () => void;
