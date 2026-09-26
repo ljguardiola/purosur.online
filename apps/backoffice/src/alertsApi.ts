@@ -46,13 +46,27 @@ export type AlertDetail = {
   deliveries: AlertDelivery[];
 };
 
-export type AlertListFilters = {
+export type AlertListQuery = {
   level?: AlertLevel;
   open?: boolean;
+  /** 1-based. */
+  page?: number;
+  /** `kinds` lists the kinds whose own title matched `text`: those titles live only in this app's message catalog. */
+  search?: { text: string; kinds: readonly string[] };
+};
+
+export type AlertListPage = {
+  alerts: AlertSummary[];
+  /** How many alerts matched the query, across every page. */
+  total: number;
+  pageSize: number;
+  /** Every open alert the session can see, regardless of the query. */
+  openCount: number;
+  openCriticalCount: number;
 };
 
 export type FetchAlertsOutcome =
-  | { kind: "ok"; value: AlertSummary[] }
+  | { kind: "ok"; value: AlertListPage }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
@@ -161,23 +175,58 @@ function alertDetailFromWire(row: {
   };
 }
 
-function queryString(filters: AlertListFilters): string {
+function queryString(listQuery: AlertListQuery): string {
   const params = new URLSearchParams();
-  if (filters.level) {
-    params.set("level", filters.level);
+  if (listQuery.level) {
+    params.set("level", listQuery.level);
   }
-  if (filters.open !== undefined) {
-    params.set("open", filters.open ? "true" : "false");
+  if (listQuery.open !== undefined) {
+    params.set("open", listQuery.open ? "true" : "false");
+  }
+  if (listQuery.page !== undefined) {
+    params.set("page", String(listQuery.page));
+  }
+  if (listQuery.search) {
+    params.set("q", listQuery.search.text);
+    params.set("kinds", listQuery.search.kinds.join(","));
   }
   const query = params.toString();
   return query ? `?${query}` : "";
 }
 
-/** Lists every alert the session can see, filtered by level and open/closed status (`GET /alerts`). */
-export async function fetchAlerts(filters: AlertListFilters = {}): Promise<FetchAlertsOutcome> {
+type AlertListPageWire = {
+  alerts: Array<Parameters<typeof alertSummaryFromWire>[0]>;
+  total: number;
+  page_size: number;
+  open_count: number;
+  open_critical_count: number;
+};
+
+function isAlertListPageWire(body: unknown): body is AlertListPageWire {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "alerts" in body &&
+    Array.isArray(body.alerts) &&
+    "total" in body &&
+    typeof body.total === "number" &&
+    "page_size" in body &&
+    typeof body.page_size === "number" &&
+    "open_count" in body &&
+    typeof body.open_count === "number" &&
+    "open_critical_count" in body &&
+    typeof body.open_critical_count === "number"
+  );
+}
+
+/**
+ * Lists one page of the alerts the session can see, filtered by level, open/closed status and
+ * search text, plus the counts of every open one (`GET /alerts`).
+ */
+export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<FetchAlertsOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/alerts${queryString(filters)}`);
+    response = await fetch(`/alerts${queryString(listQuery)}`);
   } catch {
     return { kind: "failed" };
   }
@@ -193,13 +242,20 @@ export async function fetchAlerts(filters: AlertListFilters = {}): Promise<Fetch
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const body = (await response.json().catch(() => undefined)) as
-    | Array<Parameters<typeof alertSummaryFromWire>[0]>
-    | undefined;
-  if (!Array.isArray(body)) {
+  const body: unknown = await response.json().catch(() => undefined);
+  if (!isAlertListPageWire(body)) {
     return { kind: "failed" };
   }
-  return { kind: "ok", value: body.map(alertSummaryFromWire) };
+  return {
+    kind: "ok",
+    value: {
+      alerts: body.alerts.map(alertSummaryFromWire),
+      total: body.total,
+      pageSize: body.page_size,
+      openCount: body.open_count,
+      openCriticalCount: body.open_critical_count,
+    },
+  };
 }
 
 /** Reads one alert's detail, with its deliveries per recipient (`GET /alerts/:id`). */

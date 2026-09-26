@@ -887,6 +887,12 @@ export const messages = defineMessages("es-AR", (f) => ({
       viewAria: (params: { title: string }) => `Ver la alerta «${params.title}»`,
       footer: (params: { count: number; criticalCount: number }) =>
         `${f.plural(params.count, { one: "1 alerta abierta", other: `${params.count} alertas abiertas` })} · ${f.plural(params.criticalCount, { one: "1 crítica", other: `${params.criticalCount} críticas` })}`,
+      pagination: {
+        label: "Páginas de alertas",
+        previous: "Anterior",
+        next: "Siguiente",
+        page: (params: { page: number }) => `Página ${params.page}`,
+      },
       emptyTitle: "Sin alertas abiertas",
       emptyDetail: "Cuando algo necesite atención, aparece acá.",
       noResultsTitle: "No encontramos alertas",

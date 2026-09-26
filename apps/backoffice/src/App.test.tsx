@@ -1187,7 +1187,10 @@ test("hides the Inicio item in the rail for a user without either alert-view per
 test("following the rail's Inicio item opens the Alertas list, with Inicio and Alertas active", async () => {
   window.history.pushState(null, "", "/help");
   const services = createServices();
-  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
 

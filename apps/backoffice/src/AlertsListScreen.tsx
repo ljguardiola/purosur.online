@@ -1,6 +1,7 @@
 import {
   InlineNotice,
   ListFilter,
+  Pagination,
   SearchField,
   StatusIndicator,
   type StatusIndicatorTone,
@@ -11,7 +12,12 @@ import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertDetailModal, type AlertDetailModalServices } from "./AlertDetailModal";
 import type { BackofficeAccess } from "./access";
-import { type AlertLevel, type AlertSummary, fetchAlerts as fetchAlertsDefault } from "./alertsApi";
+import {
+  type AlertLevel,
+  type AlertListPage,
+  type AlertSummary,
+  fetchAlerts as fetchAlertsDefault,
+} from "./alertsApi";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -36,9 +42,13 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  // `openAlerts` is fetched separately (always `open=true`, ignoring the level/status filters
-  // below): the header pill and footer summarize every open alert, not just the filtered rows.
-  | { kind: "loaded"; alerts: AlertSummary[]; openAlerts: AlertSummary[] };
+  // The page's open counts ignore the level/status filters and search: the header pill and footer
+  // summarize every open alert, not just the rows shown.
+  | { kind: "loaded"; page: AlertListPage };
+
+// Every search is a request against the backoffice's own hourly rate limit, so one is sent only
+// once typing pauses, not per keystroke.
+const SEARCH_DELAY_MS = 300;
 
 type LevelFilter = "all" | AlertLevel;
 type StatusFilter = "open" | "closed";
@@ -67,8 +77,13 @@ function listKindDescription(kind: string): string {
     : "";
 }
 
-function searchText(alert: AlertSummary): string {
-  return `${listKindLabel(alert.kind)} ${listKindDescription(alert.kind)} ${alert.scopeDisplay}`.toLowerCase();
+const LIST_KINDS = Object.keys(alertsMessages.listKindLabels);
+
+function kindsMatching(text: string): string[] {
+  const query = text.toLowerCase();
+  return LIST_KINDS.filter((kind) =>
+    `${listKindLabel(kind)} ${listKindDescription(kind)}`.toLowerCase().includes(query),
+  );
 }
 
 const LEVEL_FILTER_OPTIONS = [
@@ -85,7 +100,7 @@ const STATUS_FILTER_OPTIONS = [
 
 /**
  * "Alertas": every alert the viewer's own permission admits (`canSeeAlertsArea`), filtered by
- * level and open/closed status server-side, searched client-side, with a detail modal (never its
+ * level and open/closed status, searched and paged server-side, with a detail modal (never its
  * own route, the same pattern `RoleEditorModal` uses over Roles) for the eye action.
  */
 export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
@@ -94,50 +109,59 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
   const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
+  // Bumped on every request, so a response to one sent before the filters, search or page
+  // changed knows it no longer belongs here.
+  const requestRef = useRef(0);
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(search.trim());
+      setPage(1);
+    }, SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const load = useCallback(async () => {
+    requestRef.current += 1;
+    const request = requestRef.current;
     setList({ kind: "loading" });
-    const [filteredOutcome, openOutcome] = await Promise.all([
-      fetchAlerts({
-        ...(levelFilter === "all" ? {} : { level: levelFilter }),
-        open: statusFilter === "open",
-      }),
-      fetchAlerts({ open: true }),
-    ]);
-    const outcomes = [filteredOutcome, openOutcome];
-    if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
-      onSessionEndedRef.current();
+    const outcome = await fetchAlerts({
+      ...(levelFilter === "all" ? {} : { level: levelFilter }),
+      open: statusFilter === "open",
+      page,
+      ...(searchQuery ? { search: { text: searchQuery, kinds: kindsMatching(searchQuery) } } : {}),
+    });
+    if (request !== requestRef.current) {
       return;
     }
-    const rateLimited = outcomes.flatMap((outcome) =>
-      outcome.kind === "rate_limited" ? [outcome.retryAfterSeconds] : [],
-    );
-    if (rateLimited.length > 0) {
-      setList({ kind: "rate_limited", retryAfterSeconds: Math.max(...rateLimited) });
-    } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
+    if (outcome.kind === "ok") {
+      setList({ kind: "loaded", page: outcome.value });
+    } else if (outcome.kind === "unauthenticated") {
+      onSessionEndedRef.current();
+    } else if (outcome.kind === "rate_limited") {
+      setList({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else if (outcome.kind === "forbidden") {
       sendToMyAccount();
-    } else if (filteredOutcome.kind === "ok" && openOutcome.kind === "ok") {
-      setList({ kind: "loaded", alerts: filteredOutcome.value, openAlerts: openOutcome.value });
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchAlerts, levelFilter, statusFilter]);
+  }, [fetchAlerts, levelFilter, statusFilter, page, searchQuery]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const alerts = list.kind === "loaded" ? list.alerts : [];
-  const openAlerts = list.kind === "loaded" ? list.openAlerts : [];
-  const openCount = openAlerts.length;
-  const criticalCount = openAlerts.filter((alert) => alert.level === "critical").length;
-  const query = search.trim().toLowerCase();
-  const filtered = query ? alerts.filter((alert) => searchText(alert).includes(query)) : alerts;
-  const isFiltered = query.length > 0 || levelFilter !== "all" || statusFilter !== "open";
+  const alerts = list.kind === "loaded" ? list.page.alerts : [];
+  const openCount = list.kind === "loaded" ? list.page.openCount : 0;
+  const criticalCount = list.kind === "loaded" ? list.page.openCriticalCount : 0;
+  const pageCount = list.kind === "loaded" ? Math.ceil(list.page.total / list.page.pageSize) : 0;
+  const isFiltered = searchQuery.length > 0 || levelFilter !== "all" || statusFilter !== "open";
 
   const columns = [
     {
@@ -235,20 +259,26 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                 label={alertsMessages.levelFilterLabel}
                 options={LEVEL_FILTER_OPTIONS}
                 value={levelFilter}
-                onChange={setLevelFilter}
+                onChange={(value) => {
+                  setLevelFilter(value);
+                  setPage(1);
+                }}
               />
               <ListFilter
                 label={alertsMessages.statusFilterLabel}
                 options={STATUS_FILTER_OPTIONS}
                 value={statusFilter}
-                onChange={setStatusFilter}
+                onChange={(value) => {
+                  setStatusFilter(value);
+                  setPage(1);
+                }}
               />
             </div>
             <Table
               aria-label={alertsMessages.heading}
               columns={columns}
               loading={list.kind === "loading" ? "initial" : false}
-              rows={filtered.map((alert) => ({ id: alert.id, item: alert }))}
+              rows={alerts.map((alert) => ({ id: alert.id, item: alert }))}
               empty={
                 isFiltered
                   ? {
@@ -265,9 +295,20 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                     }
               }
               footer={
-                <p className="text-ink-secondary text-sm">
-                  {alertsMessages.footer({ count: openCount, criticalCount })}
-                </p>
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-ink-secondary text-sm">
+                    {alertsMessages.footer({ count: openCount, criticalCount })}
+                  </p>
+                  <Pagination
+                    page={page}
+                    pageCount={pageCount}
+                    onPageChange={setPage}
+                    previousLabel={alertsMessages.pagination.previous}
+                    nextLabel={alertsMessages.pagination.next}
+                    label={alertsMessages.pagination.label}
+                    pageLabel={(pageNumber) => alertsMessages.pagination.page({ page: pageNumber })}
+                  />
+                </div>
               }
             />
           </>

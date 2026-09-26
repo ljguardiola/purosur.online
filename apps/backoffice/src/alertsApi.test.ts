@@ -46,21 +46,53 @@ const alert: AlertSummary = {
   resolvedAt: null,
 };
 
-test("fetchAlerts lists every visible alert on 200", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [alertRow]));
+const emptyListBody = {
+  alerts: [],
+  total: 0,
+  page_size: 25,
+  open_count: 0,
+  open_critical_count: 0,
+};
+
+test("fetchAlerts answers one page of visible alerts and the open-alert counts on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      alerts: [alertRow],
+      total: 26,
+      page_size: 25,
+      open_count: 3,
+      open_critical_count: 1,
+    }),
+  );
 
   const outcome = await fetchAlerts();
 
-  expect(outcome).toEqual({ kind: "ok", value: [alert] });
+  expect(outcome).toEqual({
+    kind: "ok",
+    value: { alerts: [alert], total: 26, pageSize: 25, openCount: 3, openCriticalCount: 1 },
+  });
   expect(fetch).toHaveBeenCalledWith("/alerts");
 });
 
-test("fetchAlerts sends the level and open filters as query params", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, []));
+test("fetchAlerts sends the level, open, page and search as query params", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, emptyListBody));
 
-  await fetchAlerts({ level: "critical", open: true });
+  await fetchAlerts({
+    level: "critical",
+    open: true,
+    page: 2,
+    search: { text: "recu", kinds: ["backoffice_recovery_requested", "user_email_changed"] },
+  });
 
-  expect(fetch).toHaveBeenCalledWith("/alerts?level=critical&open=true");
+  expect(fetch).toHaveBeenCalledWith(
+    "/alerts?level=critical&open=true&page=2&q=recu&kinds=backoffice_recovery_requested%2Cuser_email_changed",
+  );
+});
+
+test("fetchAlerts reports failed when the body isn't a list page", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [alertRow]));
+
+  await expect(fetchAlerts()).resolves.toEqual({ kind: "failed" });
 });
 
 test("fetchAlerts reports forbidden on 403", async () => {
