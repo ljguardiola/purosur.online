@@ -45,6 +45,7 @@ const CANCEL_LABEL = "Cancelar";
 const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
+const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
 // Shared by the create and edit category modals: the same "Categoría superior" select, hint and
 // empty option either way.
@@ -244,7 +245,7 @@ export const messages = defineMessages("es-AR", (f) => ({
       nameLabel: "Nombre de la passkey",
       nameHelper: "Por ejemplo, Notebook del local.",
       nameRequired: "Ingresá un nombre para la passkey.",
-      nameTooLong: `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`,
+      nameTooLong: PASSKEY_NAME_TOO_LONG,
       submit: "Registrar la passkey",
       footerHint:
         "Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.",
@@ -317,7 +318,7 @@ export const messages = defineMessages("es-AR", (f) => ({
           nameLabel: "Nombre de la passkey",
           nameHelper: "Por ejemplo, Teléfono de Lucía.",
           nameRequired: "Ingresá un nombre para la passkey.",
-          nameTooLong: `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`,
+          nameTooLong: PASSKEY_NAME_TOO_LONG,
           cancel: "Cancelar",
           submit: "Registrar la passkey",
           closeLabel: "Cerrar",
