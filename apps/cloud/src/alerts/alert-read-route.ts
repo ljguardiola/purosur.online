@@ -1,3 +1,4 @@
+import type { AlertAudience, AlertLevel } from "@purosur/contracts";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -11,7 +12,6 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
-import type { AlertAudience, AlertLevel } from "./alert-kind-catalog.js";
 import {
   holdsOnlySourceAddressHash,
   loadScopeDisplayNames,

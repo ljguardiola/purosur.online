@@ -1,7 +1,8 @@
+import type { AlertKind } from "@purosur/contracts";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
-import { type AlertKind, alertKindDefinition } from "./alert-kind-catalog.js";
+import { alertKindDefinition } from "./alert-kind-catalog.js";
 import { visibleToUsersCondition } from "./alert-visibility.js";
 
 const UNIQUE_VIOLATION = "23505";

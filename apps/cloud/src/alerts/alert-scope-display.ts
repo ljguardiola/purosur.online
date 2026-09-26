@@ -1,7 +1,8 @@
+import { isAlertKind } from "@purosur/contracts";
 import { inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { users } from "../db/schema.js";
-import { alertKindDefinition, isAlertKind } from "./alert-kind-catalog.js";
+import { alertKindDefinition } from "./alert-kind-catalog.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

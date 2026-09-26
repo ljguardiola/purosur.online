@@ -1,7 +1,7 @@
+import type { AlertAudience } from "@purosur/contracts";
 import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, rolePermissions, roles, users } from "../db/schema.js";
-import type { AlertAudience } from "./alert-kind-catalog.js";
 
 /** Sees every alert regardless of audience or branch. */
 export const VIEW_ALL_ALERTS_PERMISSION = "view_all_alerts";

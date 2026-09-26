@@ -1,4 +1,10 @@
 import {
+  type AlertAudience,
+  type AlertKind,
+  type AlertLevel,
+  isAlertKind,
+} from "@purosur/contracts";
+import {
   and,
   count,
   desc,
@@ -23,14 +29,7 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
-import {
-  ALERT_KIND_CATALOG,
-  type AlertAudience,
-  type AlertKind,
-  type AlertLevel,
-  type AlertScopeKind,
-  isAlertKind,
-} from "./alert-kind-catalog.js";
+import { ALERT_KIND_CATALOG, type AlertScopeKind } from "./alert-kind-catalog.js";
 import { loadScopeDisplayNames, scopeDisplay, wireScope } from "./alert-scope-display.js";
 import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";
 

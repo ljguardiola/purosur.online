@@ -1,22 +1,7 @@
-// Mirrors `@purosur/contracts`'s alert kinds, levels and audiences; `alert-kind-catalog.test.ts`
-// guards against drift.
-export type AlertLevel = "informational" | "warning" | "critical";
-
-export type AlertAudience = "local" | "all";
+import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
 
 /** What `alerts.scope` identifies for a kind: a user id, or a source address (not looked up as a user). */
 export type AlertScopeKind = "user" | "sourceAddress";
-
-const ALERT_KIND_LIST = [
-  "backoffice_passkey_changed",
-  "backoffice_recovery_requested",
-  "user_email_changed",
-  "backoffice_sign_in_lockout",
-] as const;
-
-export type AlertKind = (typeof ALERT_KIND_LIST)[number];
-
-export const ALERT_KINDS: readonly AlertKind[] = ALERT_KIND_LIST;
 
 export interface AlertKindDefinition {
   kind: AlertKind;
@@ -67,12 +52,6 @@ export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
 const ALERT_KIND_CATALOG_BY_KIND: ReadonlyMap<AlertKind, AlertKindDefinition> = new Map(
   ALERT_KIND_CATALOG.map((definition) => [definition.kind, definition]),
 );
-
-const ALERT_KIND_SET: ReadonlySet<string> = new Set(ALERT_KIND_LIST);
-
-export function isAlertKind(value: unknown): value is AlertKind {
-  return typeof value === "string" && ALERT_KIND_SET.has(value);
-}
 
 export function alertKindDefinition(kind: AlertKind): AlertKindDefinition {
   const definition = ALERT_KIND_CATALOG_BY_KIND.get(kind);
