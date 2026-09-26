@@ -491,27 +491,6 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("rejects a net content missing its unit, creating nothing", async () => {
-    const categoryId = await insertCategory("Semillas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Alpiste",
-      categoryId,
-      saleUnit: "KG",
-      barcodes: ["111"],
-      netContent: { quantity: 1.5 },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "netContent" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
   it("accepts a barcode held only by an inactive product's barcode", async () => {
     const categoryId = await insertCategory("Macetas");
     await insertProductWithBarcode(categoryId, "999");

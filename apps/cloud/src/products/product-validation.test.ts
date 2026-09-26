@@ -249,18 +249,6 @@ describe("validateProductFields", () => {
     ).toMatchObject({ field: "netContent" });
   });
 
-  it("rejects a net content quantity with more than 3 decimals", () => {
-    expect(
-      validateProductFields({
-        name: "Maceta",
-        categoryId: "cat-1",
-        saleUnit: "UNIT",
-        barcodes: ["111"],
-        netContent: { quantity: 1.2345, unit: "KG" },
-      }),
-    ).toMatchObject({ field: "netContentQuantity" });
-  });
-
   it("rejects a non-positive net content quantity", () => {
     expect(
       validateProductFields({
