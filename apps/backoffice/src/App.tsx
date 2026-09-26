@@ -1,5 +1,7 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import {
+  Bell,
+  Home,
   LifeBuoy,
   Package,
   Settings,
@@ -22,7 +24,13 @@ import {
   defaultAccountRecoveryScreenServices,
 } from "./AccountRecoveryScreen";
 import {
+  AlertsListScreen,
+  type AlertsListScreenServices,
+  defaultAlertsListScreenServices,
+} from "./AlertsListScreen";
+import {
   type BackofficeAccess,
+  canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCashArea,
   canSeeCatalogArea,
@@ -49,6 +57,7 @@ import {
 } from "./FiscalConfigurationScreen";
 import { HelpContent, HelpSectionColumn } from "./HelpScreen";
 import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "./helpRoutes";
+import { ALERTS_LIST_PATH } from "./inicioRoutes";
 import { linkProps } from "./linkProps";
 import {
   defaultMyAccountScreenServices,
@@ -117,6 +126,7 @@ export type AppServices = {
   productsListScreen: ProductsListScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
+  alertsListScreen: AlertsListScreenServices;
 };
 
 const defaultAppServices: AppServices = {
@@ -134,6 +144,7 @@ const defaultAppServices: AppServices = {
   productsListScreen: defaultProductsListScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
+  alertsListScreen: defaultAlertsListScreenServices,
 };
 
 export type AppProps = {
@@ -196,6 +207,23 @@ function HelpAreaItem({ active }: { active: boolean }) {
 }
 
 /**
+ * Puro Sur's Inicio area item — the single shared definition of its label, icon and link. Like
+ * Catálogo and Caja, it only shows for someone who unlocks it (`canSeeAlertsArea`): the caller
+ * decides whether to render it at all. Its own section holds "Alertas" (this issue) and, once it
+ * ships in its own issue, "Resumen" — Inicio's own landing is Alertas for now.
+ */
+function InicioAreaItem({ active }: { active: boolean }) {
+  return (
+    <AreaNavItem
+      label={messages.inicio.areaLabel}
+      icon={<Home />}
+      active={active}
+      {...linkProps(ALERTS_LIST_PATH)}
+    />
+  );
+}
+
+/**
  * Puro Sur's Catálogo area item — the single shared definition of its label, icon and link.
  * Unlike Config and Ayuda, it only shows for someone who unlocks it: the caller decides whether
  * to render it at all.
@@ -230,6 +258,7 @@ function CashAreaItem({ active }: { active: boolean }) {
 type HelpAppProps = {
   help: BackofficeHelpCatalog;
   displayName: string;
+  canSeeAlerts: boolean;
   canSeeCatalog: boolean;
   canSeeCash: boolean;
   onSignedOut: () => void;
@@ -240,6 +269,7 @@ type HelpAppProps = {
 function HelpApp({
   help,
   displayName,
+  canSeeAlerts,
   canSeeCatalog,
   canSeeCash,
   onSignedOut,
@@ -278,6 +308,7 @@ function HelpApp({
       sectionColumnLabel={messages.help.sectionsNavLabel}
       railAreas={
         <>
+          {canSeeAlerts && <InicioAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
@@ -322,6 +353,7 @@ type SettingsAppProps = {
   canSeeUsers: boolean;
   canSeeRoles: boolean;
   canSeeBranch: boolean;
+  canSeeAlerts: boolean;
   canSeeCatalog: boolean;
   canSeeCash: boolean;
   onSignedOut: () => void;
@@ -348,6 +380,7 @@ function SettingsApp({
   canSeeUsers,
   canSeeRoles,
   canSeeBranch,
+  canSeeAlerts,
   canSeeCatalog,
   canSeeCash,
   onSignedOut,
@@ -377,6 +410,7 @@ function SettingsApp({
       sectionColumnLabel={messages.settings.sectionsNavLabel}
       railAreas={
         <>
+          {canSeeAlerts && <InicioAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active />
@@ -484,6 +518,7 @@ function SettingsApp({
 
 type CatalogAppProps = {
   displayName: string;
+  canSeeAlerts: boolean;
   canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
@@ -499,6 +534,7 @@ type CatalogAppProps = {
  */
 function CatalogApp({
   displayName,
+  canSeeAlerts,
   canSeeCash,
   onSignedOut,
   onSessionEnded,
@@ -522,6 +558,7 @@ function CatalogApp({
       sectionColumnLabel={messages.catalog.sectionsNavLabel}
       railAreas={
         <>
+          {canSeeAlerts && <InicioAreaItem active={false} />}
           <CatalogAreaItem active />
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
@@ -578,6 +615,7 @@ function CatalogApp({
 
 type CashAppProps = {
   displayName: string;
+  canSeeAlerts: boolean;
   canSeeCatalog: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
@@ -594,6 +632,7 @@ type CashAppProps = {
  */
 function CashApp({
   displayName,
+  canSeeAlerts,
   canSeeCatalog,
   onSignedOut,
   onSessionEnded,
@@ -611,6 +650,7 @@ function CashApp({
       sectionColumnLabel={messages.cash.sectionsNavLabel}
       railAreas={
         <>
+          {canSeeAlerts && <InicioAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} />}
           <CashAreaItem active />
           <ConfigAreaItem active={false} />
@@ -656,6 +696,88 @@ function CashApp({
   );
 }
 
+type InicioAppProps = {
+  access: BackofficeAccess;
+  displayName: string;
+  canSeeCatalog: boolean;
+  canSeeCash: boolean;
+  onSignedOut: () => void;
+  onSessionEnded: () => void;
+  accountFooterServices: AccountFooterServices;
+  alertsListScreenServices: AlertsListScreenServices;
+};
+
+/**
+ * The Inicio-in-Shell part of the app: "Alertas" (this issue) is its only section and its own
+ * landing for now — "Resumen" (design.pen) has no screen yet and ships in its own issue. App.tsx
+ * only ever routes here for someone `canSeeAlertsArea` admits, so `InicioAreaItem` and "Alertas"
+ * always render active.
+ */
+function InicioApp({
+  access,
+  displayName,
+  canSeeCatalog,
+  canSeeCash,
+  onSignedOut,
+  onSessionEnded,
+  accountFooterServices,
+  alertsListScreenServices,
+}: InicioAppProps) {
+  useEffect(() => {
+    document.title = messages.inicio.alerts.documentTitle;
+  }, []);
+
+  return (
+    <Shell
+      brandName={messages.shell.brandName}
+      areaRailLabel={messages.shell.areaRailLabel}
+      sectionColumnLabel={messages.inicio.sectionsNavLabel}
+      railAreas={
+        <>
+          <InicioAreaItem active />
+          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCash && <CashAreaItem active={false} />}
+          <ConfigAreaItem active={false} />
+        </>
+      }
+      railFooter={
+        <>
+          <HelpAreaItem active={false} />
+          <AccountFooter
+            displayName={displayName}
+            onSignedOut={onSignedOut}
+            services={accountFooterServices}
+          />
+        </>
+      }
+      sectionColumn={
+        <>
+          <h2 className="font-bold text-brand-blue-strong text-xl">
+            {messages.inicio.sectionsHeading}
+          </h2>
+          <div className="h-2.5" />
+          <ul className="flex flex-col gap-1">
+            <li>
+              <SectionNavItem
+                label={messages.inicio.alertsSectionLabel}
+                icon={<Bell />}
+                active
+                {...linkProps(ALERTS_LIST_PATH)}
+              />
+            </li>
+          </ul>
+        </>
+      }
+    >
+      <AlertsListScreen
+        access={access}
+        onSessionEnded={onSessionEnded}
+        services={alertsListScreenServices}
+      />
+    </Shell>
+  );
+}
+
 export function App({ help, services }: AppProps) {
   const {
     fetchSession,
@@ -672,6 +794,7 @@ export function App({ help, services }: AppProps) {
     productsListScreen,
     fiscalConfigurationScreen,
     accountFooter,
+    alertsListScreen,
   } = services ?? defaultAppServices;
   const route = useRoute();
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
@@ -737,6 +860,8 @@ export function App({ help, services }: AppProps) {
   const wantsCatalog = isCatalogRoute;
   const isCashRoute = route === FISCAL_CONFIGURATION_PATH;
   const wantsCash = isCashRoute;
+  const isInicioRoute = route === ALERTS_LIST_PATH;
+  const wantsInicio = isInicioRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
@@ -744,12 +869,14 @@ export function App({ help, services }: AppProps) {
   const canSeeBranch = canSeeBranchArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
   const canSeeCash = canSeeCashArea(access);
+  const canSeeAlerts = canSeeAlertsArea(access);
   const wantsUnlockedSection =
     (wantsUsers && !canSeeUsers) ||
     (wantsRoles && !canSeeRoles) ||
     (wantsBranch && !canSeeBranch) ||
     (wantsCatalog && !canSeeCatalog) ||
-    (wantsCash && !canSeeCash);
+    (wantsCash && !canSeeCash) ||
+    (wantsInicio && !canSeeAlerts);
 
   useEffect(() => {
     if (session.kind === "loading") {
@@ -875,6 +1002,7 @@ export function App({ help, services }: AppProps) {
         canSeeUsers={canSeeUsers}
         canSeeRoles={canSeeRoles}
         canSeeBranch={canSeeBranch}
+        canSeeAlerts={canSeeAlerts}
         canSeeCatalog={canSeeCatalog}
         canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
@@ -901,6 +1029,7 @@ export function App({ help, services }: AppProps) {
     return (
       <CatalogApp
         displayName={session.displayName}
+        canSeeAlerts={canSeeAlerts}
         canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
@@ -923,11 +1052,35 @@ export function App({ help, services }: AppProps) {
     return (
       <CashApp
         displayName={session.displayName}
+        canSeeAlerts={canSeeAlerts}
         canSeeCatalog={canSeeCatalog}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
         fiscalConfigurationScreenServices={fiscalConfigurationScreen}
+      />
+    );
+  }
+
+  if (isInicioRoute) {
+    if (session.kind !== "signed-in") {
+      return null;
+    }
+    if (wantsUnlockedSection) {
+      // The effect above is already redirecting to Mi cuenta: never render the section itself,
+      // not even for one frame.
+      return null;
+    }
+    return (
+      <InicioApp
+        access={access}
+        displayName={session.displayName}
+        canSeeCatalog={canSeeCatalog}
+        canSeeCash={canSeeCash}
+        onSignedOut={handleSignedOut}
+        onSessionEnded={handleSessionEnded}
+        accountFooterServices={accountFooter}
+        alertsListScreenServices={alertsListScreen}
       />
     );
   }
@@ -950,6 +1103,7 @@ export function App({ help, services }: AppProps) {
         <HelpApp
           help={help}
           displayName={session.displayName}
+          canSeeAlerts={canSeeAlerts}
           canSeeCatalog={canSeeCatalog}
           canSeeCash={canSeeCash}
           onSignedOut={handleSignedOut}
