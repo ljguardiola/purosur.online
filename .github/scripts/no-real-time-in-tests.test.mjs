@@ -852,12 +852,155 @@ test("flags a wait after a test restores the real timers a hook or helper instal
   );
 });
 
-test("flags a setTimeout after a module-scope vi.useFakeTimers() call", () => {
-  const source = ["vi.useFakeTimers();", 'test("a", () => {', "  setTimeout(fn, 500);", "});"].join(
-    "\n",
-  );
+test("treats module-scope fake timers as installed for the tests after them, until restored", () => {
+  const source = [
+    "vi.useFakeTimers();",
+    'test("a", () => {',
+    "  setTimeout(fn, 500);",
+    "});",
+    "vi.useRealTimers();",
+    'test("b", () => {',
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
 
-  assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [7],
+  );
+});
+
+test("flags a wait under module-scope fake timers that a file-level hook restores", () => {
+  const source = [
+    "vi.useFakeTimers();",
+    "beforeEach(() => vi.useRealTimers());",
+    'test("a", () => {',
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [4],
+  );
+});
+
+test("flags a wait written before the call to a same-file helper that installs fake timers", () => {
+  const source = [
+    "function withTimers() { vi.useFakeTimers(); }",
+    'test("a", async () => {',
+    "  await new Promise((r) => setTimeout(r, 500));",
+    "  withTimers();",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [3],
+  );
+});
+
+test("flags a wait in a nested describe whose own beforeEach restores the real timers", () => {
+  const source = [
+    "function realTimers() { vi.useRealTimers(); }",
+    'describe("a", () => {',
+    "  beforeEach(() => vi.useFakeTimers());",
+    '  describe("real", () => {',
+    "    beforeEach(() => vi.useRealTimers());",
+    '    test("x", async () => {',
+    "      await new Promise((r) => setTimeout(r, 500));",
+    "    });",
+    "  });",
+    '  describe("real through a helper", () => {',
+    "    beforeEach(realTimers);",
+    '    test("x", async () => {',
+    "      await new Promise((r) => setTimeout(r, 500));",
+    "    });",
+    "  });",
+    '  test("fake", () => {',
+    "    setTimeout(fn, 500);",
+    "  });",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [7, 13],
+  );
+});
+
+test("flags a wait after a call to a same-file helper that restores the real timers", () => {
+  const source = [
+    "function realTimers() { vi.useRealTimers(); }",
+    "function whileFrozen(steps) {",
+    "  vi.useFakeTimers();",
+    "  steps();",
+    "  vi.useRealTimers();",
+    "}",
+    'describe("s", () => {',
+    "  beforeEach(() => vi.useFakeTimers());",
+    '  test("restore helper", async () => {',
+    "    setTimeout(fn, 500);",
+    "    realTimers();",
+    "    await new Promise((r) => setTimeout(r, 500));",
+    "  });",
+    '  test("bracketing helper", () => {',
+    "    whileFrozen(() => {});",
+    "    setTimeout(fn, 500);",
+    "  });",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [12, 16],
+  );
+});
+
+test("follows node:test mock timers: enable installs what its apis list, reset restores", () => {
+  const source = [
+    'test("a", (t) => {',
+    '  t.mock.timers.enable({ apis: ["setTimeout"] });',
+    "  setTimeout(fn, 500);",
+    "  setInterval(fn, 500);",
+    "  t.mock.timers.reset();",
+    "  setTimeout(fn, 500);",
+    "});",
+    'describe("b", () => {',
+    "  beforeEach(() => mock.timers.enable());",
+    '  test("x", () => {',
+    "    setInterval(fn, 500);",
+    "    const started = Date.now();",
+    "    expect(Date.now() - started).toBe(0);",
+    "  });",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.mjs").map((violation) => violation.line),
+    [4, 6],
+  );
+});
+
+test("follows fake timers installed through a renamed or namespaced vi import", () => {
+  const source = [
+    'import { vi as v } from "vitest";',
+    'import * as vitest from "vitest";',
+    'test("a", () => {',
+    "  v.useFakeTimers();",
+    "  setTimeout(fn, 500);",
+    "  v.useRealTimers();",
+    "  vitest.vi.useFakeTimers();",
+    "  setTimeout(fn, 500);",
+    "  vitest.vi.useRealTimers();",
+    "  setTimeout(fn, 500);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [10],
+  );
 });
 
 test("flags a process.uptime() elapsed comparison even under fake timers", () => {

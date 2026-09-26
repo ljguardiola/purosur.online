@@ -581,17 +581,19 @@ function allExcept(names) {
  * What a `vi.useFakeTimers(...)` call fakes, as names plus `allExcept` entries. Options it
  * cannot read, and fake timers that advance with real time, fake nothing for this guard.
  */
+function isReadableOptions(options) {
+  return (
+    ts.isObjectLiteralExpression(options) &&
+    options.properties.every(
+      (property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name),
+    )
+  );
+}
+
 function fakedByUseFakeTimers(call) {
   const [options] = call.arguments;
   if (!options) return [ALL_FAKED];
-  if (
-    !ts.isObjectLiteralExpression(options) ||
-    options.properties.some(
-      (property) => !ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name),
-    )
-  ) {
-    return [];
-  }
+  if (!isReadableOptions(options)) return [];
   const advancesWithRealTime = propertyNamed(options, "shouldAdvanceTime");
   if (advancesWithRealTime && advancesWithRealTime.kind !== ts.SyntaxKind.FalseKeyword) return [];
   const toFake = propertyNamed(options, "toFake");
@@ -602,6 +604,19 @@ function fakedByUseFakeTimers(call) {
     return kept ? [allExcept(kept)] : [];
   }
   return [ALL_FAKED];
+}
+
+// What node:test's `mock.timers.enable()` fakes when its options list no `apis`.
+const NODE_TEST_MOCKED_APIS = ["setTimeout", "setInterval", "setImmediate", "Date"];
+
+/** What a node:test `mock.timers.enable(...)` call fakes: its `apis` list, or every API it mocks. */
+function fakedByMockTimersEnable(call) {
+  const [options] = call.arguments;
+  if (!options) return NODE_TEST_MOCKED_APIS;
+  if (!isReadableOptions(options)) return [];
+  const apis = propertyNamed(options, "apis");
+  if (!apis) return NODE_TEST_MOCKED_APIS;
+  return stringLiterals(apis) ?? [];
 }
 
 function isFaked(faked, name) {
@@ -622,61 +637,154 @@ function isDescribeCallee(expr) {
   return name === "describe" || !!name?.startsWith("describe.");
 }
 
-function isUseFakeTimersCall(node) {
-  return ts.isCallExpression(node) && dottedName(node.expression) === "vi.useFakeTimers";
+function isDescribeCallback(fn) {
+  const call = fn.parent;
+  return (
+    !!call &&
+    ts.isCallExpression(call) &&
+    isDescribeCallee(call.expression) &&
+    call.arguments.includes(fn)
+  );
 }
 
-function isUseRealTimersCall(node) {
-  return ts.isCallExpression(node) && dottedName(node.expression) === "vi.useRealTimers";
-}
-
+// `before` is node:test's name for `beforeAll`.
 function isFakeTimersHook(expr) {
   const name = dottedName(expr);
-  return name === "beforeEach" || name === "beforeAll";
+  return name === "beforeEach" || name === "beforeAll" || name === "before";
+}
+
+/** The names Vitest's `vi` is reachable through: `vi`, a renamed import, or `ns.vi` of a namespace import. */
+function vitestViNames(sourceFile) {
+  const names = new Set(["vi"]);
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isImportDeclaration(statement) ||
+      !ts.isStringLiteral(statement.moduleSpecifier) ||
+      statement.moduleSpecifier.text !== "vitest"
+    ) {
+      continue;
+    }
+    const bindings = statement.importClause?.namedBindings;
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      names.add(`${bindings.name.text}.vi`);
+      continue;
+    }
+    for (const specifier of bindings.elements) {
+      if ((specifier.propertyName ?? specifier.name).text === "vi") names.add(specifier.name.text);
+    }
+  }
+  return names;
+}
+
+function isViCall(node, method, viNames) {
+  return (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === method &&
+    viNames.has(dottedName(node.expression.expression))
+  );
+}
+
+// node:test's `t.mock.timers` or the imported `mock.timers`.
+function isMockTimersCall(node, method) {
+  if (!ts.isCallExpression(node)) return false;
+  const name = dottedName(node.expression);
+  return name === `mock.timers.${method}` || !!name?.endsWith(`.mock.timers.${method}`);
 }
 
 /**
- * Which timers and clocks `vi.useFakeTimers` has replaced wherever a node runs. In an enclosing
- * function: what its own body installs before the node and has not restored by then, and what a
- * same-file function it calls leaves installed. Inside the arguments of a call to a same-file
- * function that installs and then restores fake timers: what that function installs. Plus what a
- * `beforeEach`/`beforeAll` hook installs in an enclosing `describe` or at the top of the file.
+ * How a file installs and restores fake timers: Vitest's `vi.useFakeTimers`/`vi.useRealTimers`
+ * and node:test's `mock.timers.enable`/`mock.timers.reset`.
  */
-function fakeTimersScope(sourceFile, functions) {
-  // The same-file functions `fn`'s own body calls from `from` on and starting before `until`.
-  const calledFunctionsBetween = (fn, from, until) =>
-    ownBodyNodes(fn)
-      .filter(
-        (n) =>
-          ts.isCallExpression(n) &&
-          ts.isIdentifier(n.expression) &&
-          functions.has(n.expression.text) &&
-          n.getStart() >= from &&
-          n.getStart() < until,
-      )
-      .flatMap((n) => functions.get(n.expression.text));
+function timerControl(sourceFile) {
+  const viNames = vitestViNames(sourceFile);
+  return {
+    viNames,
+    // What an install call fakes, or undefined when `node` is not one.
+    installs(node) {
+      if (isViCall(node, "useFakeTimers", viNames)) return fakedByUseFakeTimers(node);
+      if (isMockTimersCall(node, "enable")) return fakedByMockTimersEnable(node);
+      return undefined;
+    },
+    restores(node) {
+      return isViCall(node, "useRealTimers", viNames) || isMockTimersCall(node, "reset");
+    },
+  };
+}
 
-  // What `fn` leaves installed once it returns: what its own body installs, directly or through a
-  // same-file call, after its last `vi.useRealTimers()`.
-  const leftBy = new Map();
+/** The nodes `scope` runs itself: its own body, without descending into the functions nested in it. */
+function ownScopeNodes(scope) {
+  if (!ts.isSourceFile(scope)) return ownBodyNodes(scope);
+  const nodes = [];
+  const visit = (n) => {
+    nodes.push(n);
+    if (ts.isFunctionLike(n)) return;
+    ts.forEachChild(n, visit);
+  };
+  for (const statement of scope.statements) visit(statement);
+  return nodes;
+}
+
+function isCodeScope(node) {
+  return ts.isSourceFile(node) || ts.isFunctionLike(node);
+}
+
+function callsByEnd(nodes) {
+  return nodes.filter(ts.isCallExpression).sort((a, b) => a.getEnd() - b.getEnd());
+}
+
+/**
+ * Which timers and clocks fake timers have replaced wherever a node runs, following the order the
+ * code runs in. First what the file's top level and each enclosing `describe` body install and
+ * restore before the node; then their `beforeEach`/`beforeAll` hooks, outermost first; then what
+ * each enclosing function body installs and restores before the node. A call to a same-file
+ * function counts as what it does: it restores when its body does, and leaves installed what its
+ * body installs after its last restore. Inside the arguments of a call to a same-file function
+ * that installs and then restores fake timers, what that function installs is faked too.
+ */
+function fakeTimersScope(functions, control) {
+  const namedFns = [...functions.values()].flat();
+  const calledFunctions = (call) =>
+    ts.isCallExpression(call) && ts.isIdentifier(call.expression)
+      ? (functions.get(call.expression.text) ?? [])
+      : [];
+
+  // Same-file functions whose body restores the real timers, directly or through another one.
+  const restoring = new Set();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const fn of namedFns) {
+      if (restoring.has(fn)) continue;
+      const restores = ownBodyNodes(fn).some(
+        (n) => control.restores(n) || calledFunctions(n).some((callee) => restoring.has(callee)),
+      );
+      if (restores) {
+        restoring.add(fn);
+        changed = true;
+      }
+    }
+  }
+  const restoresThrough = (call) =>
+    control.restores(call) || calledFunctions(call).some((callee) => restoring.has(callee));
+  const fnRestores = (fn) => restoring.has(fn) || ownBodyNodes(fn).some(restoresThrough);
+
+  // What `fn` leaves installed once it returns: what it installs, directly or through a same-file
+  // call, after its last restore.
+  const leftBy = new Map(namedFns.map((fn) => [fn, new Set()]));
   const leaves = (fn) => {
-    const nodes = ownBodyNodes(fn);
-    const restoredAt = Math.max(-1, ...nodes.filter(isUseRealTimersCall).map((n) => n.getEnd()));
     const faked = new Set();
-    for (const n of nodes) {
-      if (n.getStart() < restoredAt || !ts.isCallExpression(n)) continue;
-      if (isUseFakeTimersCall(n)) for (const entry of fakedByUseFakeTimers(n)) faked.add(entry);
-      if (ts.isIdentifier(n.expression)) {
-        for (const callee of functions.get(n.expression.text) ?? []) {
-          for (const entry of leftBy.get(callee) ?? []) faked.add(entry);
-        }
+    for (const call of callsByEnd(ownBodyNodes(fn))) {
+      if (restoresThrough(call)) faked.clear();
+      for (const entry of control.installs(call) ?? []) faked.add(entry);
+      for (const callee of calledFunctions(call)) {
+        for (const entry of leftBy.get(callee) ?? []) faked.add(entry);
       }
     }
     return faked;
   };
-  const namedFns = [...functions.values()].flat();
-  for (const fn of namedFns) leftBy.set(fn, new Set());
-  let changed = true;
+  changed = true;
   while (changed) {
     changed = false;
     for (const fn of namedFns) {
@@ -696,109 +804,104 @@ function fakeTimersScope(sourceFile, functions) {
   const bracketedBy = new Map(
     namedFns.map((fn) => {
       const nodes = ownBodyNodes(fn);
-      const restores = nodes.filter(isUseRealTimersCall);
+      const restores = nodes.filter((n) => control.restores(n));
       const bracketed = nodes
-        .filter(isUseFakeTimersCall)
+        .filter((n) => control.installs(n))
         .filter((install) => restores.some((restore) => restore.getStart() >= install.getEnd()))
-        .flatMap(fakedByUseFakeTimers);
+        .flatMap((install) => control.installs(install));
       return [fn, bracketed];
     }),
   );
 
-  // What `fn`'s own body installs after `from` and before `position`, and has not restored by then.
-  const installedBefore = (fn, position, from = -1) => {
-    const nodes = ownBodyNodes(fn);
-    const restores = nodes.filter(isUseRealTimersCall);
-    return nodes
-      .filter(
-        (install) =>
-          isUseFakeTimersCall(install) &&
-          install.getStart() >= from &&
-          install.getEnd() <= position,
-      )
-      .filter(
-        (install) =>
-          !restores.some(
-            (restore) => restore.getStart() >= install.getEnd() && restore.getEnd() <= position,
-          ),
-      )
-      .flatMap(fakedByUseFakeTimers);
-  };
-
-  const hookInstalls = (suiteBodyNodes) =>
-    suiteBodyNodes
-      .filter((n) => ts.isCallExpression(n) && isFakeTimersHook(n.expression))
-      .flatMap((hook) => {
-        const [callback] = hook.arguments;
-        if (isFunctionValue(callback)) return [...leftInstalled(callback)];
-        if (callback && ts.isIdentifier(callback)) {
-          return (functions.get(callback.text) ?? []).flatMap((fn) => [...leftInstalled(fn)]);
-        }
-        return [];
-      });
-
-  const topLevelNodes = sourceFile.statements.flatMap((statement) =>
-    ts.isExpressionStatement(statement) ? [statement.expression] : [],
-  );
-
-  const enclosingFunctions = (node) => {
-    const enclosing = [];
-    for (let current = node.parent; current; current = current.parent) {
-      if (ts.isFunctionLike(current)) enclosing.push(current);
+  const applyCall = (faked, call) => {
+    if (restoresThrough(call)) faked.clear();
+    for (const entry of control.installs(call) ?? []) faked.add(entry);
+    for (const callee of calledFunctions(call)) {
+      for (const entry of leftInstalled(callee)) faked.add(entry);
     }
-    return enclosing;
   };
 
-  // Where the last `vi.useRealTimers()` before `position`, in any enclosing function body, ends:
-  // it ends every fake timer installed before it, by a hook, a helper or the body itself.
-  const restoredBefore = (node, position) =>
-    Math.max(
-      -1,
-      ...enclosingFunctions(node).flatMap((fn) =>
-        ownBodyNodes(fn)
-          .filter((n) => isUseRealTimersCall(n) && n.getEnd() <= position)
-          .map((n) => n.getEnd()),
-      ),
+  // Whether `node` runs later than `scope`'s own code reaches it: inside a function nested in
+  // `scope` other than a `new Promise` executor, which runs at once.
+  const runsDeferredIn = (scope, node) => {
+    for (let current = node.parent; current && current !== scope; current = current.parent) {
+      if (ts.isFunctionLike(current) && !isPromiseExecutor(current)) return true;
+    }
+    return false;
+  };
+
+  // What `scope`'s own code does before `node`. A callback that runs later also runs under what a
+  // same-file function called after it leaves installed.
+  const applyOwnCode = (faked, scope, node) => {
+    const position = node.getStart();
+    const deferred = runsDeferredIn(scope, node);
+    for (const call of callsByEnd(ownScopeNodes(scope))) {
+      if (call.getEnd() <= position) {
+        applyCall(faked, call);
+      } else if (deferred && call.getStart() >= position) {
+        for (const callee of calledFunctions(call)) {
+          for (const entry of leftInstalled(callee)) faked.add(entry);
+        }
+      }
+    }
+  };
+
+  const applyHooks = (faked, scope, node) => {
+    const position = node.getStart();
+    const hooks = ownScopeNodes(scope).filter(
+      (n) =>
+        ts.isCallExpression(n) &&
+        isFakeTimersHook(n.expression) &&
+        !(n.getStart() <= position && position < n.getEnd()),
     );
+    for (const hook of hooks) {
+      const [callback] = hook.arguments;
+      let fns = [];
+      if (isFunctionValue(callback)) fns = [callback];
+      else if (callback && ts.isIdentifier(callback)) fns = functions.get(callback.text) ?? [];
+      if (fns.some(fnRestores)) faked.clear();
+      for (const fn of fns) for (const entry of leftInstalled(fn)) faked.add(entry);
+    }
+  };
+
+  const applyBracket = (faked, call, child) => {
+    if (!ts.isCallExpression(call) || !call.arguments.includes(child)) return;
+    for (const fn of calledFunctions(call)) {
+      for (const entry of bracketedBy.get(fn) ?? []) faked.add(entry);
+    }
+  };
 
   return {
     fakes(node, name) {
-      const position = node.getStart();
-      const restoredAt = restoredBefore(node, position);
-      const faked = new Set(restoredAt < 0 ? hookInstalls(topLevelNodes) : []);
+      // Outermost first: the source file, then each enclosing function and call.
+      const chain = [];
       for (
         let child = node, current = node.parent;
         current;
         child = current, current = current.parent
       ) {
-        if (
-          ts.isCallExpression(current) &&
-          ts.isIdentifier(current.expression) &&
-          current.arguments.includes(child) &&
-          current.getStart() >= restoredAt
-        ) {
-          for (const fn of functions.get(current.expression.text) ?? []) {
-            for (const entry of bracketedBy.get(fn)) faked.add(entry);
-          }
-        }
-        if (!ts.isFunctionLike(current)) continue;
-        for (const entry of installedBefore(current, position, restoredAt)) faked.add(entry);
-        // Without a restore before the node, a helper installs for the whole body wherever it is
-        // called; after one, only a helper called again before the node re-installs.
-        const until = restoredAt < 0 ? Number.POSITIVE_INFINITY : position;
-        for (const callee of calledFunctionsBetween(current, restoredAt, until)) {
-          for (const entry of leftInstalled(callee)) faked.add(entry);
-        }
-        const call = current.parent;
-        if (
-          restoredAt < 0 &&
-          call &&
-          ts.isCallExpression(call) &&
-          isDescribeCallee(call.expression) &&
-          call.arguments.includes(current)
-        ) {
-          for (const n of hookInstalls(ownBodyNodes(current))) faked.add(n);
-        }
+        chain.unshift({ current, child });
+      }
+      let collected = 1;
+      while (
+        collected < chain.length &&
+        (!ts.isFunctionLike(chain[collected].current) ||
+          isDescribeCallback(chain[collected].current))
+      ) {
+        collected++;
+      }
+      const faked = new Set();
+      const collection = chain.slice(0, collected);
+      for (const { current, child } of collection) {
+        if (isCodeScope(current)) applyOwnCode(faked, current, node);
+        else applyBracket(faked, current, child);
+      }
+      for (const { current } of collection) {
+        if (isCodeScope(current)) applyHooks(faked, current, node);
+      }
+      for (const { current, child } of chain.slice(collected)) {
+        if (ts.isFunctionLike(current)) applyOwnCode(faked, current, node);
+        else applyBracket(faked, current, child);
       }
       return isFaked(faked, name);
     },
@@ -806,8 +909,16 @@ function fakeTimersScope(sourceFile, functions) {
     // Whether the nearest function body enclosing `node` installs fake timers faking `name` before
     // `node` and has not restored them by then.
     installedDirectlyAt(node, name) {
-      const [fn] = enclosingFunctions(node);
-      return !!fn && isFaked(installedBefore(fn, node.getStart()), name);
+      let fn = node.parent;
+      while (fn && !ts.isFunctionLike(fn)) fn = fn.parent;
+      if (!fn) return false;
+      const faked = new Set();
+      for (const call of callsByEnd(ownBodyNodes(fn))) {
+        if (call.getEnd() > node.getStart()) break;
+        if (control.restores(call)) faked.clear();
+        for (const entry of control.installs(call) ?? []) faked.add(entry);
+      }
+      return isFaked(faked, name);
     },
   };
 }
@@ -852,7 +963,7 @@ export function findRealTimeViolations(source, fileName) {
   const sourceFile = parse(source, fileName);
   const functions = namedFunctions(sourceFile);
   const clock = computeClockSources(sourceFile, functions);
-  const fakeTimers = fakeTimersScope(sourceFile, functions);
+  const fakeTimers = fakeTimersScope(functions, timerControl(sourceFile));
   const violations = [
     ...elapsedTimeViolations(sourceFile, clock, fakeTimers),
     ...waitsRealTimeViolations(sourceFile, fakeTimers),
