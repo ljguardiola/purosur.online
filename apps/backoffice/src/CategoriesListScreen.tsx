@@ -326,8 +326,8 @@ function EditCategoryModal({
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
-  // The dialog's own title: the category's name as it was when the dialog opened, held here
-  // (rather than read straight from `target`) so it stays a non-nullable string without ever
+  // The dialog's own title: the category's saved name (as opened, or as a reload brought it),
+  // held here (rather than read straight from `target`) so it stays a non-nullable string without ever
   // falling back to a literal, which the message-catalog lint rule forbids in a title attribute.
   const [title, setTitle] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
