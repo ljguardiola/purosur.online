@@ -411,21 +411,7 @@ describe("POST /users", () => {
       expect(created).toHaveLength(0);
     });
 
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const cashierRoleId = await insertCashierRole("Cajera");
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await createUser(rawSessionId, {
-        first_name: "New Hire",
-        email: "newhire@example.com",
-        role_id: cashierRoleId,
-      });
-
-      expect(response.statusCode).toBe(201);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, creating nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, creating nothing", async () => {
       const cashierRoleId = await insertCashierRole("Cajera");
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);

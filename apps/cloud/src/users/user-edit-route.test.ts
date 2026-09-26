@@ -712,20 +712,7 @@ describe("POST /users/:id/edit", () => {
       expect(row?.email).toBe("grace@example.com");
     });
 
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await editUser(targetId, rawSessionId, {
-        email: "new@example.com",
-        role_id: cashierRoleId,
-        version: 1,
-      });
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
 

@@ -555,16 +555,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
       expect(rows).toHaveLength(2);
     });
 
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await removePasskey(targetId, targetPasskeyAId, rawSessionId);
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, deleting nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, deleting nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
 

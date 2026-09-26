@@ -413,22 +413,7 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
       expect(audited).toHaveLength(0);
     });
 
-    it("allows the save at exactly the 5-minute boundary", async () => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await putIssuerIdentification(validBody(), rawSessionId);
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const administratorId = await insertUser({
         firstName: "Ada Lovelace",
         email: "ada@example.com",

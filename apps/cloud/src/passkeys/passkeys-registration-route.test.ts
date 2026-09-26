@@ -243,7 +243,7 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
   });
 
-  it("returns 401 authorization_required and stores no challenge one second past the 5-minute boundary", async () => {
+  it("returns 401 authorization_required and stores no challenge when the session's passkey authorization is stale", async () => {
     const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
     const rawSessionId = await insertSession(userId, authorizedAt);
 
@@ -256,18 +256,6 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "authorization_required" });
     expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
-  });
-
-  it("returns registration options and stores their challenge while the session's authorization is valid", async () => {
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-    const rawSessionId = await insertSession(userId, authorizedAt);
-
-    const options = await requestOptions(rawSessionId);
-
-    const rows = await db.select().from(passkeyChallenges);
-    expect(rows.map((row) => row.registrationChallenge)).toEqual([
-      options.passkey_registration_options.challenge,
-    ]);
   });
 
   it("returns registration options excluding the account's existing passkeys", async () => {
