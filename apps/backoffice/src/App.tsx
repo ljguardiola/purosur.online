@@ -4,6 +4,7 @@ import {
   Home,
   Laptop,
   LifeBuoy,
+  ListChecks,
   Package,
   Settings,
   Shield,
@@ -31,10 +32,12 @@ import {
 } from "./AlertsListScreen";
 import {
   type BackofficeAccess,
+  canManageProductsAndCategories,
   canSeeAlertsArea,
   canSeeBranchArea,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeePricesArea,
   canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
@@ -51,7 +54,7 @@ import {
   defaultCategoriesListScreenServices,
 } from "./CategoriesListScreen";
 import { FISCAL_CONFIGURATION_PATH } from "./cashRoutes";
-import { CATEGORIES_LIST_PATH, PRODUCTS_LIST_PATH } from "./catalogRoutes";
+import { CATEGORIES_LIST_PATH, PRICES_LIST_PATH, PRODUCTS_LIST_PATH } from "./catalogRoutes";
 import {
   defaultFiscalConfigurationScreenServices,
   FiscalConfigurationScreen,
@@ -67,6 +70,11 @@ import {
   type MyAccountScreenServices,
 } from "./MyAccountScreen";
 import { messages } from "./messages";
+import {
+  defaultPricesListScreenServices,
+  PricesListScreen,
+  type PricesListScreenServices,
+} from "./PricesListScreen";
 import {
   defaultProductsListScreenServices,
   ProductsListScreen,
@@ -133,6 +141,7 @@ export type AppServices = {
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   productsListScreen: ProductsListScreenServices;
+  pricesListScreen: PricesListScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   accountFooter: AccountFooterServices;
   alertsListScreen: AlertsListScreenServices;
@@ -152,6 +161,7 @@ const defaultAppServices: AppServices = {
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
+  pricesListScreen: defaultPricesListScreenServices,
   fiscalConfigurationScreen: defaultFiscalConfigurationScreenServices,
   accountFooter: defaultAccountFooterServices,
   alertsListScreen: defaultAlertsListScreenServices,
@@ -234,17 +244,19 @@ function InicioAreaItem({ active }: { active: boolean }) {
 }
 
 /**
- * Puro Sur's Catálogo area item — the single shared definition of its label, icon and link.
- * Unlike Config and Ayuda, it only shows for someone who unlocks it: the caller decides whether
- * to render it at all.
+ * Puro Sur's Catálogo area item — the single shared definition of its label and icon. Unlike
+ * Config and Ayuda, it only shows for someone who unlocks it: the caller decides whether to
+ * render it at all, and where it links to, since which of Catálogo's own sections someone can
+ * open depends on which of its two permissions their role holds (`defaultPath`: Productos for
+ * someone holding `manage_products_and_categories`, Precios otherwise).
  */
-function CatalogAreaItem({ active }: { active: boolean }) {
+function CatalogAreaItem({ active, defaultPath }: { active: boolean; defaultPath: string }) {
   return (
     <AreaNavItem
       label={messages.catalog.areaLabel}
       icon={<Package />}
       active={active}
-      {...linkProps(PRODUCTS_LIST_PATH)}
+      {...linkProps(defaultPath)}
     />
   );
 }
@@ -270,6 +282,7 @@ type HelpAppProps = {
   displayName: string;
   canSeeAlerts: boolean;
   canSeeCatalog: boolean;
+  catalogDefaultPath: string;
   canSeeCash: boolean;
   onSignedOut: () => void;
   accountFooterServices: AccountFooterServices;
@@ -281,6 +294,7 @@ function HelpApp({
   displayName,
   canSeeAlerts,
   canSeeCatalog,
+  catalogDefaultPath,
   canSeeCash,
   onSignedOut,
   accountFooterServices,
@@ -319,7 +333,7 @@ function HelpApp({
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
         </>
@@ -372,6 +386,7 @@ type SettingsAppProps = {
   canSeeBranch: boolean;
   canSeeAlerts: boolean;
   canSeeCatalog: boolean;
+  catalogDefaultPath: string;
   canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
@@ -401,6 +416,7 @@ function SettingsApp({
   canSeeBranch,
   canSeeAlerts,
   canSeeCatalog,
+  catalogDefaultPath,
   canSeeCash,
   onSignedOut,
   onSessionEnded,
@@ -433,7 +449,7 @@ function SettingsApp({
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active />
         </>
@@ -557,37 +573,52 @@ function SettingsApp({
 type CatalogAppProps = {
   displayName: string;
   canSeeAlerts: boolean;
+  canManageCatalogProducts: boolean;
+  canSeePrices: boolean;
+  catalogDefaultPath: string;
   canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
   categoriesListScreenServices: CategoriesListScreenServices;
   productsListScreenServices: ProductsListScreenServices;
+  pricesListScreenServices: PricesListScreenServices;
 };
 
 /**
- * The Catálogo-in-Shell part of the app: Productos (its own landing) and Categorías. App.tsx only
- * ever routes here for someone who unlocks the area, so `CatalogAreaItem` always renders active;
- * which of its two sections does depends on the current route.
+ * The Catálogo-in-Shell part of the app: Productos (its own landing for someone who can manage
+ * them), Categorías, and Precios. App.tsx only ever routes here for someone who unlocks at least
+ * one of Catálogo's two permissions, so `CatalogAreaItem` always renders active; which section
+ * shows in the sidebar and the body depends on both the current route and which permission the
+ * signed-in role holds — someone holding only `manage_prices_and_review` never sees Productos or
+ * Categorías, and someone holding only `manage_products_and_categories` never sees Precios.
  */
 function CatalogApp({
   displayName,
   canSeeAlerts,
+  canManageCatalogProducts,
+  canSeePrices,
+  catalogDefaultPath,
   canSeeCash,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
   categoriesListScreenServices,
   productsListScreenServices,
+  pricesListScreenServices,
 }: CatalogAppProps) {
   const route = useRoute();
   const isCategoriesRoute = route === CATEGORIES_LIST_PATH;
+  const isPricesRoute = route === PRICES_LIST_PATH;
+  const isProductsRoute = !isCategoriesRoute && !isPricesRoute;
 
   useEffect(() => {
     document.title = isCategoriesRoute
       ? messages.catalog.categories.documentTitle
-      : messages.catalog.products.documentTitle;
-  }, [isCategoriesRoute]);
+      : isPricesRoute
+        ? messages.catalog.prices.documentTitle
+        : messages.catalog.products.documentTitle;
+  }, [isCategoriesRoute, isPricesRoute]);
 
   return (
     <Shell
@@ -597,7 +628,7 @@ function CatalogApp({
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
-          <CatalogAreaItem active />
+          <CatalogAreaItem active defaultPath={catalogDefaultPath} />
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
         </>
@@ -619,22 +650,36 @@ function CatalogApp({
           </h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
-            <li>
-              <SectionNavItem
-                label={messages.catalog.productsSectionLabel}
-                icon={<Package />}
-                active={!isCategoriesRoute}
-                {...linkProps(PRODUCTS_LIST_PATH)}
-              />
-            </li>
-            <li>
-              <SectionNavItem
-                label={messages.catalog.categoriesSectionLabel}
-                icon={<Tags />}
-                active={isCategoriesRoute}
-                {...linkProps(CATEGORIES_LIST_PATH)}
-              />
-            </li>
+            {canManageCatalogProducts && (
+              <>
+                <li>
+                  <SectionNavItem
+                    label={messages.catalog.productsSectionLabel}
+                    icon={<Package />}
+                    active={isProductsRoute}
+                    {...linkProps(PRODUCTS_LIST_PATH)}
+                  />
+                </li>
+                <li>
+                  <SectionNavItem
+                    label={messages.catalog.categoriesSectionLabel}
+                    icon={<Tags />}
+                    active={isCategoriesRoute}
+                    {...linkProps(CATEGORIES_LIST_PATH)}
+                  />
+                </li>
+              </>
+            )}
+            {canSeePrices && (
+              <li>
+                <SectionNavItem
+                  label={messages.catalog.pricesSectionLabel}
+                  icon={<ListChecks />}
+                  active={isPricesRoute}
+                  {...linkProps(PRICES_LIST_PATH)}
+                />
+              </li>
+            )}
           </ul>
         </>
       }
@@ -644,6 +689,8 @@ function CatalogApp({
           onSessionEnded={onSessionEnded}
           services={categoriesListScreenServices}
         />
+      ) : isPricesRoute ? (
+        <PricesListScreen onSessionEnded={onSessionEnded} services={pricesListScreenServices} />
       ) : (
         <ProductsListScreen onSessionEnded={onSessionEnded} services={productsListScreenServices} />
       )}
@@ -655,6 +702,7 @@ type CashAppProps = {
   displayName: string;
   canSeeAlerts: boolean;
   canSeeCatalog: boolean;
+  catalogDefaultPath: string;
   onSignedOut: () => void;
   onSessionEnded: () => void;
   accountFooterServices: AccountFooterServices;
@@ -672,6 +720,7 @@ function CashApp({
   displayName,
   canSeeAlerts,
   canSeeCatalog,
+  catalogDefaultPath,
   onSignedOut,
   onSessionEnded,
   accountFooterServices,
@@ -689,7 +738,7 @@ function CashApp({
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           <CashAreaItem active />
           <ConfigAreaItem active={false} />
         </>
@@ -738,6 +787,7 @@ type InicioAppProps = {
   access: BackofficeAccess;
   displayName: string;
   canSeeCatalog: boolean;
+  catalogDefaultPath: string;
   canSeeCash: boolean;
   onSignedOut: () => void;
   onSessionEnded: () => void;
@@ -755,6 +805,7 @@ function InicioApp({
   access,
   displayName,
   canSeeCatalog,
+  catalogDefaultPath,
   canSeeCash,
   onSignedOut,
   onSessionEnded,
@@ -773,7 +824,7 @@ function InicioApp({
       railAreas={
         <>
           <InicioAreaItem active />
-          {canSeeCatalog && <CatalogAreaItem active={false} />}
+          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
         </>
@@ -845,6 +896,7 @@ function AppContent({ help, services }: AppProps) {
     branchSettingsScreen,
     categoriesListScreen,
     productsListScreen,
+    pricesListScreen,
     fiscalConfigurationScreen,
     accountFooter,
     alertsListScreen,
@@ -911,8 +963,9 @@ function AppContent({ help, services }: AppProps) {
   const wantsRoles = route === ROLES_LIST_PATH;
   const wantsRegisters = route === REGISTERS_LIST_PATH;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
-  const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
-  const wantsCatalog = isCatalogRoute;
+  const wantsProductsOrCategories = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
+  const wantsPrices = route === PRICES_LIST_PATH;
+  const isCatalogRoute = wantsProductsOrCategories || wantsPrices;
   const isCashRoute = route === FISCAL_CONFIGURATION_PATH;
   const wantsCash = isCashRoute;
   const isInicioRoute = route === ALERTS_LIST_PATH;
@@ -923,7 +976,12 @@ function AppContent({ help, services }: AppProps) {
   const canSeeRoles = canSeeRolesArea(access);
   const canSeeRegisters = canSeeRegistersArea(access);
   const canSeeBranch = canSeeBranchArea(access);
+  // Catálogo's own two sub-permissions: someone holding only one of them still unlocks the area
+  // (see canSeeCatalogArea/CatalogApp), but each section itself stays gated on its own permission.
+  const canManageCatalogProducts = canManageProductsAndCategories(access);
+  const canSeePrices = canSeePricesArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
+  const catalogDefaultPath = canManageCatalogProducts ? PRODUCTS_LIST_PATH : PRICES_LIST_PATH;
   const canSeeCash = canSeeCashArea(access);
   const canSeeAlerts = canSeeAlertsArea(access);
   const wantsUnlockedSection =
@@ -931,7 +989,8 @@ function AppContent({ help, services }: AppProps) {
     (wantsRoles && !canSeeRoles) ||
     (wantsRegisters && !canSeeRegisters) ||
     (wantsBranch && !canSeeBranch) ||
-    (wantsCatalog && !canSeeCatalog) ||
+    (wantsProductsOrCategories && !canManageCatalogProducts) ||
+    (wantsPrices && !canSeePrices) ||
     (wantsCash && !canSeeCash) ||
     (wantsInicio && !canSeeAlerts);
 
@@ -1064,6 +1123,7 @@ function AppContent({ help, services }: AppProps) {
         canSeeBranch={canSeeBranch}
         canSeeAlerts={canSeeAlerts}
         canSeeCatalog={canSeeCatalog}
+        catalogDefaultPath={catalogDefaultPath}
         canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
@@ -1091,12 +1151,16 @@ function AppContent({ help, services }: AppProps) {
       <CatalogApp
         displayName={session.displayName}
         canSeeAlerts={canSeeAlerts}
+        canManageCatalogProducts={canManageCatalogProducts}
+        canSeePrices={canSeePrices}
+        catalogDefaultPath={catalogDefaultPath}
         canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
         categoriesListScreenServices={categoriesListScreen}
         productsListScreenServices={productsListScreen}
+        pricesListScreenServices={pricesListScreen}
       />
     );
   }
@@ -1115,6 +1179,7 @@ function AppContent({ help, services }: AppProps) {
         displayName={session.displayName}
         canSeeAlerts={canSeeAlerts}
         canSeeCatalog={canSeeCatalog}
+        catalogDefaultPath={catalogDefaultPath}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
         accountFooterServices={accountFooter}
@@ -1137,6 +1202,7 @@ function AppContent({ help, services }: AppProps) {
         access={access}
         displayName={session.displayName}
         canSeeCatalog={canSeeCatalog}
+        catalogDefaultPath={catalogDefaultPath}
         canSeeCash={canSeeCash}
         onSignedOut={handleSignedOut}
         onSessionEnded={handleSessionEnded}
@@ -1166,6 +1232,7 @@ function AppContent({ help, services }: AppProps) {
           displayName={session.displayName}
           canSeeAlerts={canSeeAlerts}
           canSeeCatalog={canSeeCatalog}
+          catalogDefaultPath={catalogDefaultPath}
           canSeeCash={canSeeCash}
           onSignedOut={handleSignedOut}
           accountFooterServices={accountFooter}

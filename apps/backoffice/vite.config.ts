@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => {
         "/branch-settings": cloudApiProxy,
         "/categories": cloudApiProxy,
         "/products": cloudApiProxy,
+        "/prices": cloudApiProxy,
         "/fiscal-configuration": cloudApiProxy,
         "/alerts": cloudApiProxy,
         "/registers": cloudApiProxy,

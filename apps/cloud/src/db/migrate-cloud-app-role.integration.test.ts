@@ -123,6 +123,80 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`alter table audit_log add column extra text`);
   });
 
+  // Setup shared by the `prices`/`price_reviews` append-only checks below: a category, a product,
+  // a user, and the single "Lista general" price list the migration itself seeds.
+  async function insertPricedRow(): Promise<{ priceId: string; priceListId: string }> {
+    const [category] = await cloudApp<{ id: string }[]>`
+      insert into categories (name) values (${`cloud_app_role_test_${randomUUID()}`}) returning id
+    `;
+    const [priceList] = await cloudApp<{ id: string }[]>`select id from price_lists limit 1`;
+    if (!category || !priceList) {
+      throw new Error("test setup: seeding the category or price list returned no row");
+    }
+    const [product] = await cloudApp<{ id: string }[]>`
+      insert into products (name, category_id, sale_unit)
+      values ('cloud_app_role_test', ${category.id}, 'UNIT') returning id
+    `;
+    if (!product) {
+      throw new Error("test setup: seeding the product returned no row");
+    }
+    const [price] = await cloudApp<{ id: string }[]>`
+      insert into prices (product_id, price_list_id, unit_price)
+      values (${product.id}, ${priceList.id}, 500) returning id
+    `;
+    if (!price) {
+      throw new Error("test setup: seeding the price returned no row");
+    }
+    return { priceId: price.id, priceListId: priceList.id };
+  }
+
+  it("cannot update a prices row", async () => {
+    const { priceId } = await insertPricedRow();
+    await expectPermissionDenied(
+      cloudApp`update prices set unit_price = 999 where id = ${priceId}`,
+    );
+  });
+
+  it("cannot delete a prices row", async () => {
+    const { priceId } = await insertPricedRow();
+    await expectPermissionDenied(cloudApp`delete from prices where id = ${priceId}`);
+  });
+
+  it("cannot truncate prices", async () => {
+    await expectPermissionDenied(cloudApp`truncate prices`);
+  });
+
+  it("cannot update or delete a price_reviews row", async () => {
+    const { priceId, priceListId } = await insertPricedRow();
+    const [product] = await cloudApp<{ productId: string }[]>`
+      select product_id as "productId" from prices where id = ${priceId}
+    `;
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!product || !location) {
+      throw new Error("test setup: reading the product or the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    if (!user) {
+      throw new Error("test setup: seeding the user returned no row");
+    }
+    const [review] = await cloudApp<{ id: string }[]>`
+      insert into price_reviews (product_id, price_list_id, actor_id, price_id)
+      values (${product.productId}, ${priceListId}, ${user.id}, ${priceId}) returning id
+    `;
+    if (!review) {
+      throw new Error("test setup: seeding the price review returned no row");
+    }
+
+    await expectPermissionDenied(
+      cloudApp`update price_reviews set price_id = ${priceId} where id = ${review.id}`,
+    );
+    await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
+  });
+
   // The control: proves the rejections above come from audit_log's own revoked privileges, not
   // from cloud_app being unable to write at all.
   it("still updates and deletes an ordinary table's row", async () => {

@@ -40,6 +40,7 @@ export {
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
 } from "./permission-catalog.js";
+export { MAX_UNIT_PRICE_CENTS } from "./price.js";
 export type { NetContentUnit } from "./product.js";
 export {
   BARCODE_MAX_LENGTH,

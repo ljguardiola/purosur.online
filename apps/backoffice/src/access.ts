@@ -62,11 +62,29 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
 }
 
 /**
- * Whether "Catálogo" and its pages show at all. Unlike Usuarios and Roles, this is delegable: a
- * non-Administrator whose role holds `manage_products_and_categories` sees it too.
+ * Whether "Productos" and "Categorías" show: the Administrator or a role delegated
+ * `manage_products_and_categories`. Kept separate from `canSeeCatalogArea` because someone
+ * delegated only `manage_prices_and_review` (see `canSeePricesArea`) unlocks the Catálogo area
+ * too, without unlocking these two sections.
+ */
+export function canManageProductsAndCategories(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
+}
+
+/**
+ * Whether "Precios" shows: the Administrator or a role delegated `manage_prices_and_review`.
+ */
+export function canSeePricesArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("manage_prices_and_review");
+}
+
+/**
+ * Whether "Catálogo" and its pages show at all. Delegable through either of its two sections'
+ * own permissions: someone holding only `manage_products_and_categories` or only
+ * `manage_prices_and_review` still unlocks the area, landing on whichever section they hold.
  */
 export function canSeeCatalogArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
+  return canManageProductsAndCategories(access) || canSeePricesArea(access);
 }
 
 /**

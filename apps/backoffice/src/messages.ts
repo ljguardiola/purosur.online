@@ -675,6 +675,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Catálogo",
     categoriesSectionLabel: "Categorías",
     productsSectionLabel: "Productos",
+    pricesSectionLabel: "Precios",
     products: {
       documentTitle: "Productos · Puro Sur",
       breadcrumb: "Catálogo",
@@ -948,6 +949,108 @@ export const messages = defineMessages("es-AR", (f) => ({
         staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
         notFoundTitle: "Esta categoría ya no existe",
         reload: "Recargar",
+        reloadFailedTitle: "No se pudieron recargar los datos",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+    },
+    prices: {
+      documentTitle: "Precios · Puro Sur",
+      breadcrumb: "Catálogo",
+      heading: "Precios",
+      reviewButton: (params: { count: number }) =>
+        f.plural(params.count, { one: "Revisar 1", other: `Revisar los ${params.count}` }),
+      searchPlaceholder: "Buscar un producto",
+      categoryFilterLabel: "Categoría:",
+      categoryFilterAllOption: "Todas",
+      reviewFilterLabel: "Revisión:",
+      reviewFilterPendingOption: "Por revisar",
+      reviewFilterAllOption: "Todos",
+      columns: { product: "PRODUCTO", price: "PRECIO", reviewed: "REVISADO" },
+      noPrice: "Sin precio",
+      noPriceValue: "—",
+      neverReviewed: "Nunca",
+      reviewedToday: "Hoy",
+      reviewedDaysAgo: (params: { days: number }) =>
+        f.plural(params.days, { one: "Hace 1 día", other: `Hace ${params.days} días` }),
+      rowActionsLabel: "Acciones",
+      confirmAria: (params: { name: string }) =>
+        `Confirmar el precio de ${params.name} sin cambios`,
+      confirmTooltip: "Confirmar sin cambios: cuenta como revisar el precio.",
+      editAria: (params: { name: string }) => `Cambiar el precio de ${params.name}`,
+      footerPending: (params: { count: number }) =>
+        f.plural(params.count, {
+          one: "1 producto sin revisar, del más viejo al más nuevo",
+          other: `${params.count} productos sin revisar, del más viejo al más nuevo`,
+        }),
+      footerAll: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 producto", other: `${params.count} productos` }),
+      emptyPendingTitle: "Precios al día",
+      emptyPendingDetail: (params: { days: number }) =>
+        f.plural(params.days, {
+          one: "Todos los precios se revisaron en el último día.",
+          other: `Todos los precios se revisaron en los últimos ${params.days} días.`,
+        }),
+      noResultsTitle: "Sin resultados",
+      noResultsDetail: "Probá con otro nombre o categoría.",
+      loadErrorTitle: "No pudimos abrir los precios",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowConfirmStaleTitle: "El precio cambió recién",
+      rowConfirmStaleDetail: (params: { name: string }) =>
+        `Revisá el precio actual de ${params.name}.`,
+      rowConfirmFailedTitle: (params: { name: string }) =>
+        `No se pudo confirmar el precio de ${params.name}`,
+      reviewStartFailedTitle: "No se pudo empezar la revisión",
+      reviewStartFailedDetail: "Probá de nuevo.",
+      nothingPendingTitle: "No quedan precios por revisar",
+      noPriceToConfirmTitle: "No hay un precio para confirmar",
+      noPriceToConfirmDetail: (params: { name: string }) =>
+        `${params.name} todavía no tiene precio.`,
+      goneTitle: "Producto desactivado",
+      goneDetail: (params: { name: string }) => `${params.name} ya no está en el catálogo.`,
+      confirmedNoticeTitle: "Precio confirmado",
+      confirmedNoticeDetail: (params: { name: string; amount: string }) =>
+        `${params.name} sigue a ${params.amount}.`,
+      savedNoticeTitle: "Precio actualizado",
+      savedNoticeDetail: (params: { name: string; amount: string }) =>
+        `${params.name} pasa a ${params.amount}.`,
+      changePriceModal: {
+        eyebrowNoPrice: "SIN PRECIO",
+        eyebrowOverdue: (params: { days: number }) =>
+          f.plural(params.days, {
+            one: "SIN REVISAR HACE 1 DÍA",
+            other: `SIN REVISAR HACE ${params.days} DÍAS`,
+          }),
+        eyebrowRecentToday: "REVISADO HOY",
+        eyebrowRecent: (params: { days: number }) =>
+          f.plural(params.days, {
+            one: "REVISADO HACE 1 DÍA",
+            other: `REVISADO HACE ${params.days} DÍAS`,
+          }),
+        closeLabel: CLOSE_LABEL,
+        priceLabel: { UNIT: "Precio de venta por unidad", KG: "Precio de venta por kilo" },
+        unitSuffix: { UNIT: "", KG: "/ kg" },
+        currentPriceHelper: (params: { amount: string }) => `Precio actual: ${params.amount}`,
+        amountRequired: "Ingresá el precio nuevo.",
+        amountInvalid: "Ingresá un precio válido, mayor a cero.",
+        amountFormat: "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.",
+        amountTooLarge: (params: { amount: string }) =>
+          `Ingresá un precio de hasta ${params.amount}.`,
+        amountUnchanged: "Es el precio actual: confirmalo sin cambios en vez de guardarlo.",
+        confirm: "Confirmar sin cambios",
+        submit: "Guardar el precio nuevo",
+        attemptFailedTitle: "No se pudo guardar el precio",
+        attemptFailedDetail: "Probá de nuevo.",
+        confirmFailedTitle: "No se pudo confirmar el precio",
+        confirmFailedDetail: "Probá de nuevo.",
+        staleTitle: "Este precio cambió mientras lo mirabas",
+        staleDetail: "Recargá el precio actual y volvé a intentarlo.",
+        reload: "Recargar el precio",
         reloadFailedTitle: "No se pudieron recargar los datos",
         rateLimitedTitle: "Demasiadas solicitudes",
         rateLimitedDetail: (params: { minutes: number }) =>
