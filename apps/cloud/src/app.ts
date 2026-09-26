@@ -19,6 +19,10 @@ import type { PasskeysListRouteOptions } from "./passkeys/passkeys-list-route.js
 import { registerPasskeysListRoute } from "./passkeys/passkeys-list-route.js";
 import { registerPasskeyRegistrationRoutes } from "./passkeys/passkeys-registration-route.js";
 import { registerPasskeyRemovalRoutes } from "./passkeys/passkeys-removal-route.js";
+import { registerPriceConfirmationRoute } from "./prices/price-confirmation-route.js";
+import { registerPriceSetRoute } from "./prices/price-set-route.js";
+import type { PricesRouteOptions } from "./prices/prices-list-route.js";
+import { registerPricesListRoute } from "./prices/prices-list-route.js";
 import { registerInternalBarcodeRoute } from "./products/internal-barcode-route.js";
 import { registerProductCreationRoute } from "./products/product-creation-route.js";
 import { registerProductDeactivationRoute } from "./products/product-deactivation-route.js";
@@ -152,6 +156,14 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    */
   products?: ProductsRouteOptions<TQueryResult>;
   /**
+   * Registers `GET /prices`, `POST /products/:id/price`, and `POST
+   * /products/:id/price-confirmation`, the backoffice Prices screen's list, set, and
+   * confirm-without-change sides: every one is gated by the `manage_prices_and_review` permission
+   * (an Administrator always holds it too) and scoped to the price list the session's own branch
+   * settings point at, the same optional-feature-wiring shape `products` uses above.
+   */
+  prices?: PricesRouteOptions<TQueryResult>;
+  /**
    * Registers `GET /registers`, `POST /registers`, and `POST /registers/:id/enrollment-code`, the
    * backoffice Cajas registradoras screen's list, create, and code-emission sides: every one is
    * gated by the `enroll_register_devices` permission (an Administrator always holds it too), the
@@ -262,6 +274,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductDeactivationRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
     registerProductLabelsRoute(app, options.products);
+  }
+
+  if (options.prices) {
+    registerPricesListRoute(app, options.prices);
+    registerPriceSetRoute(app, options.prices);
+    registerPriceConfirmationRoute(app, options.prices);
   }
 
   if (options.registers) {

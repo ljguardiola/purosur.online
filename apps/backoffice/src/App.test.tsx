@@ -73,6 +73,11 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
     },
+    pricesListScreen: {
+      fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
+      setPrice: vi.fn(),
+      confirmPrice: vi.fn(),
+    },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),
@@ -1372,6 +1377,108 @@ test("redirects a non-permitted user's typed /catalog/products to Mi cuenta, wit
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/settings/users/me");
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
+});
+
+test("redirects a non-permitted user's typed /catalog/prices to Mi cuenta, without listing prices", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: [],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/prices");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+  expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
+});
+
+test("redirects a user holding only manage_products_and_categories away from a typed /catalog/prices", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories"],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/prices");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
+});
+
+test("redirects a user holding only manage_prices_and_review away from a typed /catalog/products", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_prices_and_review"],
+    }),
+  });
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/catalog/products");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
+});
+
+test("shows the Precios section, and only it, for a user holding only manage_prices_and_review, opening it by default from the rail's Catálogo item", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_prices_and_review"],
+    }),
+  });
+  vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Precios", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/catalog/prices");
+  expect(screen.getByRole("link", { name: "Productos" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Categorías" }).query()).toBeNull();
+  await expect.element(screen.getByRole("link", { name: "Precios" })).toBeVisible();
+});
+
+test("hides the Precios section item for a user holding only manage_products_and_categories", async () => {
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValue({
+      kind: "ok",
+      userId: "user-2",
+      displayName: "Grace Hopper",
+      isAdministrator: false,
+      permissions: ["manage_products_and_categories"],
+    }),
+  });
+  window.history.pushState(null, "", "/catalog/products");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Precios" }).query()).toBeNull();
 });
 
 test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Configuración fiscal", async () => {

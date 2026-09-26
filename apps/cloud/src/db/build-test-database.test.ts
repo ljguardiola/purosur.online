@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import {
   auditLog,
@@ -15,6 +16,9 @@ import {
   locations,
   passkeyChallenges,
   passkeys,
+  priceLists,
+  priceReviews,
+  prices,
   productBarcodes,
   products,
   recoveryRateLimitAttempts,
@@ -116,12 +120,14 @@ describe("buildTestDatabase", () => {
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
     // The migrations seed the single Administrator role, the single location, that location's
-    // branch settings, and the one issuer identification row; the baseline must hold all four for
-    // the comparison below to prove clear() restores them.
+    // branch settings, the one issuer identification row, and the single "Lista general" price
+    // list; the baseline must hold all five for the comparison below to prove clear() restores
+    // them.
     expect(baseline.get("roles")).toBe(1);
     expect(baseline.get("locations")).toBe(1);
     expect(baseline.get("branch_settings")).toBe(1);
     expect(baseline.get("issuer_identification")).toBe(1);
+    expect(baseline.get("price_lists")).toBe(1);
 
     const [user] = await db
       .insert(users)
@@ -140,7 +146,9 @@ describe("buildTestDatabase", () => {
       throw new Error("seeding users/roles/locations returned no row");
     }
 
-    await db.insert(branchSettings).values({ locationId: otherLocation.id });
+    await db
+      .insert(branchSettings)
+      .values({ locationId: otherLocation.id, priceListId: await seededPriceListId(db) });
     await db.insert(branchHours).values({
       locationId: otherLocation.id,
       dayOfWeek: 1,
@@ -165,6 +173,26 @@ describe("buildTestDatabase", () => {
       throw new Error("seeding products returned no row");
     }
     await db.insert(productBarcodes).values({ productId: product.id, code: "111", position: 0 });
+    const [otherPriceList] = await db
+      .insert(priceLists)
+      .values({ name: "Lista mayorista" })
+      .returning({ id: priceLists.id });
+    if (!otherPriceList) {
+      throw new Error("seeding price lists returned no row");
+    }
+    const [price] = await db
+      .insert(prices)
+      .values({ productId: product.id, priceListId: await seededPriceListId(db), unitPrice: 500 })
+      .returning({ id: prices.id });
+    if (!price) {
+      throw new Error("seeding prices returned no row");
+    }
+    await db.insert(priceReviews).values({
+      productId: product.id,
+      priceListId: await seededPriceListId(db),
+      priceId: price.id,
+      actorId: user.id,
+    });
     const [register] = await db
       .insert(registers)
       .values({ locationId: await seededLocationId(db), name: "Caja 1" })

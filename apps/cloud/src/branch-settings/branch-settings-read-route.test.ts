@@ -15,6 +15,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -288,6 +289,7 @@ describe("GET /branch-settings", () => {
     await db.insert(branchSettings).values({
       locationId: otherLocation.id,
       address: "Av. Norte 200",
+      priceListId: await seededPriceListId(db),
     });
 
     const administratorId = await insertUser({

@@ -16,6 +16,7 @@ import {
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings-edit-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-settings-validation.js";
@@ -802,7 +803,9 @@ describe("PUT /branch-settings", () => {
     if (!otherLocation) {
       throw new Error("test setup: seeding the other location returned no row");
     }
-    await db.insert(branchSettings).values({ locationId: otherLocation.id });
+    await db
+      .insert(branchSettings)
+      .values({ locationId: otherLocation.id, priceListId: await seededPriceListId(db) });
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
