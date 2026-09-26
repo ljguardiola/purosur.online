@@ -1177,7 +1177,7 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
     ],
     {
       cwd,
-      ignore: ["**/node_modules/**", "**/dist/**"],
+      exclude: ["**/node_modules/**", "**/dist/**"],
     },
   );
   return files.filter(isTestOnlyHelperPath).sort();

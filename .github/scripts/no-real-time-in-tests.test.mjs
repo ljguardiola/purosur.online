@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   checkFiles,
   describeViolation,
   findRealTimeViolations,
   findScannedFiles,
+  findTestOnlyHelperFiles,
   isTestOnlyHelperPath,
   readVerifyStaticTestGlobs,
   readVitestProjects,
@@ -860,7 +864,7 @@ test("does not flag a setTimeout in a tagged-template describe.each suite whose 
   assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
 });
 
-test("returns for fake timers installed with toNotFake through a hook helper", () => {
+test("does not flag a timer under a hook helper that installs fake timers with toNotFake", () => {
   const source = [
     'function freeze() { vi.useFakeTimers({ toNotFake: ["nextTick"] }); }',
     "beforeAll(freeze);",
@@ -1246,12 +1250,35 @@ test("does not treat production files as test helpers", () => {
   }
 });
 
+test("finds test-only helpers under src, leaving out node_modules and dist", () => {
+  const root = mkdtempSync(join(tmpdir(), "no-real-time-in-tests-"));
+  try {
+    for (const path of [
+      "apps/a/src/test-support/helper.ts",
+      "apps/a/src/node_modules/pkg/test/helper.ts",
+      "packages/b/src/dist/test/helper.ts",
+    ]) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), "");
+    }
+
+    assert.deepEqual(findTestOnlyHelperFiles(root), ["apps/a/src/test-support/helper.ts"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 // The guard itself: every scanned file in the repository. This is what fails `pnpm verify` (via
 // `node --test .github/scripts/*.test.mjs`) when a test waits a fixed real time, or measures real
 // elapsed time, to decide its result.
 test("no scanned test file in the repository depends on real elapsed time", () => {
   const files = findScannedFiles();
-  assert.ok(files.length > 0, "expected to find at least one scanned test file");
+  for (const sentinel of [
+    "apps/backoffice/src/test-support/productsListScreen.tsx",
+    ".github/scripts/no-real-time-in-tests.test.mjs",
+  ]) {
+    assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
+  }
 
   const violations = checkFiles(files);
 
