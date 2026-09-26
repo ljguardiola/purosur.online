@@ -347,6 +347,47 @@ test("describes a closed sign-in lockout without its source address, and leaves 
   expect(screen.getByText("Alcance").query()).toBeNull();
 });
 
+test("shows each recipient's delivery status: sent, or failed with its error", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        deliveries: [
+          {
+            channel: "backoffice",
+            status: "sent",
+            error: null,
+            createdAt: "2026-01-05T12:00:00.000Z",
+            recipient: {
+              id: "admin-1",
+              firstName: "Ada",
+              role: { id: "role-admin", name: "Administrador", isAdministrator: true },
+            },
+          },
+          {
+            channel: "backoffice",
+            status: "failed",
+            error: "connection refused",
+            createdAt: "2026-01-05T12:00:00.000Z",
+            recipient: {
+              id: "user-2",
+              firstName: "Grace",
+              role: { id: "role-cashier", name: "Cajera", isAdministrator: false },
+            },
+          },
+        ],
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Ada · Administrador")).toBeVisible();
+  await expect.element(screen.getByText("Grace · Cajera")).toBeVisible();
+  await expect.element(screen.getByText("Enviado")).toBeVisible();
+  await expect.element(screen.getByText("No se pudo enviar: connection refused")).toBeVisible();
+});
+
 test("hides Cerrar la alerta for a viewer without dismiss_alerts_manually", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));

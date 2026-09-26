@@ -175,11 +175,9 @@ test("keeps a page chosen right after opening once the untouched search settles"
       .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
       .toContainEqual([{ open: true, page: 2 }]);
     await vi.advanceTimersByTimeAsync(300);
-    // setTimeout is faked here, so React's re-render and any fetch it starts settle over real frames.
-    for (let frame = 0; frame < 6; frame += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
 
+    // setTimeout is faked here, so React's re-render (and any fetch it would start) settles over
+    // real frames: waiting for the page-2 render directly, rather than a fixed number of frames.
     await expect
       .element(screen.getByRole("button", { name: "Página 2" }))
       .toHaveAttribute("aria-current", "page");
@@ -195,10 +193,17 @@ test("keeps a page chosen right after opening once the untouched search settles"
 test("drops a late response once the filters have changed since it was sent", async () => {
   const services = createServices();
   let resolveFirst: (outcome: FetchAlertsOutcome) => void = () => {};
+  let resolveFirstSettled: () => void = () => {};
+  const firstSettled = new Promise<void>((resolve) => {
+    resolveFirstSettled = resolve;
+  });
   vi.mocked(services.fetchAlerts)
     .mockReturnValueOnce(
       new Promise((resolve) => {
-        resolveFirst = resolve;
+        resolveFirst = (outcome) => {
+          resolve(outcome);
+          resolveFirstSettled();
+        };
       }),
     )
     .mockResolvedValue(ok([lockoutAlert]));
@@ -208,10 +213,22 @@ test("drops a late response once the filters have changed since it was sent", as
   await screen.getByRole("option", { name: "Crítica" }).click();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
   resolveFirst(ok([passkeyAlert]));
-
+  // Waits for the stale promise's own resolution to reach the screen, which was already awaiting
+  // it (rather than guessing that 50ms is enough for the response itself to settle), then lets
+  // React's own scheduler flush whatever render that resolution would have triggered.
+  await firstSettled;
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(screen.getByText("Lucía Pérez").query()).toBeNull();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+
+  // A control case, checked only now: a further, later filter change must still reach a fresh
+  // render, proving the screen above wasn't just frozen (which would have passed the absence
+  // check above for the wrong reason).
+  await screen.getByRole("button", { name: /Estado/ }).click();
+  await screen.getByRole("option", { name: "Cerradas" }).click();
+  await expect
+    .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
+    .toContainEqual([{ level: "critical", open: false, page: 1 }]);
 });
 
 test("re-fetches with the chosen level when the Nivel filter changes", async () => {
