@@ -1,6 +1,10 @@
 import { NET_CONTENT_QUANTITY_MAX } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import { netContentQuantityError, parseNetContentQuantity } from "./netContentQuantity";
+import {
+  formatNetContentQuantity,
+  netContentQuantityError,
+  parseNetContentQuantity,
+} from "./netContentQuantity";
 
 describe("parseNetContentQuantity", () => {
   it("reads a comma as the decimal separator", () => {
@@ -82,5 +86,23 @@ describe("netContentQuantityError", () => {
     );
     // A million reads fine as grouped thousands, then fails the maximum rather than the format.
     expect(netContentQuantityError("1.000.000", errorMessages)).toBe("too large");
+  });
+});
+
+describe("formatNetContentQuantity", () => {
+  it("uses a decimal comma", () => {
+    expect(formatNetContentQuantity(1.5)).toBe("1,5");
+  });
+
+  it("uses no thousands separator", () => {
+    expect(formatNetContentQuantity(1500.125)).toBe("1500,125");
+  });
+
+  it("keeps an integer plain", () => {
+    expect(formatNetContentQuantity(500)).toBe("500");
+  });
+
+  it("reads back through parseNetContentQuantity to the same number", () => {
+    expect(parseNetContentQuantity(formatNetContentQuantity(1500.125))).toBe(1500.125);
   });
 });

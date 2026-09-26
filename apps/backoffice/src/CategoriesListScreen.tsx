@@ -1,4 +1,3 @@
-import { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -28,6 +27,7 @@ import {
   editCategory,
   fetchCategories,
 } from "./categoriesApi";
+import { categoryNameError } from "./categoryName";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
@@ -59,20 +59,6 @@ type ListState =
 
 const catalogMessages = messages.catalog;
 const categoriesMessages = catalogMessages.categories;
-
-function categoryNameError(
-  name: string,
-  modalMessages: { nameRequired: string; nameTooLong: string },
-): string | undefined {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return modalMessages.nameRequired;
-  }
-  if (categoryNameLength(trimmed) > CATEGORY_NAME_MAX_LENGTH) {
-    return modalMessages.nameTooLong;
-  }
-  return undefined;
-}
 
 /**
  * Every category the "Categoría superior" select offers, in tree order and labelled by path, with

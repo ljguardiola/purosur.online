@@ -1,15 +1,13 @@
 import {
-  BARCODE_MAX_LENGTH,
-  barcodeLength,
   ean13Modules,
+  isBarcodeTooLong,
   isInternalBarcode,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
-  PRODUCT_NAME_MAX_LENGTH,
-  productNameLength,
 } from "@purosur/contracts";
 import {
   Button,
@@ -61,7 +59,11 @@ import {
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
 import { messages } from "./messages";
-import { netContentQuantityError, parseNetContentQuantity } from "./netContentQuantity";
+import {
+  formatNetContentQuantity,
+  netContentQuantityError,
+  parseNetContentQuantity,
+} from "./netContentQuantity";
 import {
   type CreateProductInput,
   createProduct,
@@ -145,11 +147,8 @@ function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | 
     : null;
 }
 
-/** The quantity field's own string form when prefilling the edit modal: blank for a product with
- * no net content, otherwise with a decimal comma and no thousands separator, a form
- * `parseNetContentQuantity` reads back. */
 function netContentQuantityText(netContent: NetContent | null): string {
-  return netContent ? String(netContent.quantity).replace(".", ",") : "";
+  return netContent ? formatNetContentQuantity(netContent.quantity) : "";
 }
 
 function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
@@ -197,7 +196,7 @@ function productNameError(
   if (!trimmed) {
     return modalMessages.nameRequired;
   }
-  if (productNameLength(trimmed) > PRODUCT_NAME_MAX_LENGTH) {
+  if (isProductNameTooLong(trimmed)) {
     return modalMessages.nameTooLong;
   }
   return undefined;
@@ -397,7 +396,7 @@ function scanErrorFor(
   if (/\s/.test(code)) {
     return scanMessages.barcodeHasSpaces;
   }
-  if (barcodeLength(code) > BARCODE_MAX_LENGTH) {
+  if (isBarcodeTooLong(code)) {
     return scanMessages.barcodeTooLong;
   }
   if (listed.includes(code)) {

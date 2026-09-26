@@ -656,6 +656,22 @@ test("rejects creating a product without choosing a sale unit, without calling t
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
+test("shows the name-too-long error on create, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "a".repeat(101));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
 test("shows no category selector when there are no categories yet, and still blocks creating without one", async () => {
   const services = createServices();
   mockLoaded(services, [], []);
@@ -821,20 +837,18 @@ test("the row action opens the edit modal pre-filled with the product's data", a
   await expect.element(dialog.getByText("7790987000015")).toBeVisible();
 });
 
-test("prefills a decimal net content quantity with a decimal comma and no thousands separator, and its unit", async () => {
+test("prefills the edit modal with the product's net content quantity and unit", async () => {
   const services = createServices();
   const mielConContenido: ProductSummary = {
     ...miel,
-    netContent: { quantity: 1500.125, unit: "G" },
+    netContent: { quantity: 1.5, unit: "KG" },
   };
   mockLoaded(services, [mielConContenido]);
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, mielConContenido);
 
-  await expect
-    .element(dialog.getByRole("textbox", { name: "Contenido neto" }))
-    .toHaveValue("1500,125");
-  await expect.element(dialog.getByRole("button", { name: "g Unidad" })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("1,5");
+  await expect.element(dialog.getByRole("button", { name: "kg Unidad" })).toBeVisible();
 });
 
 test("opens the edit modal defaulting the net content unit to g when the product has none", async () => {
@@ -1223,26 +1237,20 @@ test("rejects scanning a code with spaces inside it, without adding a chip", asy
   expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
 });
 
-test("rejects scanning a code longer than 64 characters, counting each emoji once", async () => {
+test("shows the barcode-too-long error when scanning, without listing the code", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
-  await userEvent.fill(scanInputOf(dialog), "🌱".repeat(64));
-  await userEvent.keyboard("{Enter}");
-  await expect
-    .element(dialog.getByRole("button", { name: `Quitar el código ${"🌱".repeat(64)}` }))
-    .toBeVisible();
-
   await userEvent.fill(scanInputOf(dialog), "1".repeat(65));
   await userEvent.keyboard("{Enter}");
 
   await expect
     .element(dialog.getByText("El código de barras puede tener hasta 64 caracteres."))
     .toBeVisible();
-  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
 });
 
 test("refuses scanning more than 20 codes for one product", async () => {
