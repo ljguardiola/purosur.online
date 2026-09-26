@@ -76,27 +76,32 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
     return firstOutcome;
   });
 
-  await firstStarted;
-  if (firstOutcome?.kind !== "opened") {
-    throw new Error("test setup: the first openAlert call never opened the alert");
-  }
-  const firstAlertId = firstOutcome.alertId;
-
-  const secondCommitted = db.transaction(async (tx) => {
-    const outcome = await openAlert(tx, input, { now: () => new Date(NOON.getTime() + 1_000) });
-    // The caller's own other work, in the very same transaction as the losing `openAlert` call: it
-    // must still commit even though the insert attempt inside `openAlert` failed on the unique
-    // index, proving the savepoint kept that failure from poisoning this outer transaction.
-    await tx.update(users).set({ firstName: "Ada (marked)" }).where(eq(users.id, recipientId));
-    return outcome;
-  });
-
+  let firstAlertId: string;
+  let secondCommitted: Promise<OpenAlertOutcome>;
+  // Always releases the first transaction, whatever throws once it has started (the setup check,
+  // the second call, or the wait timing out), so a failure never leaves that transaction open —
+  // which would hang `pool.end()`/`sql.end()` for the full timeout and bury the real error.
   try {
+    // Raced against the transaction itself: if the first `openAlert` call rejects, `firstStarted`
+    // never resolves, so its rejection must surface here as the failure instead.
+    await Promise.race([firstStarted, firstCommitted]);
+    if (firstOutcome?.kind !== "opened") {
+      throw new Error("test setup: the first openAlert call never opened the alert");
+    }
+    firstAlertId = firstOutcome.alertId;
+
+    secondCommitted = db.transaction(async (tx) => {
+      const outcome = await openAlert(tx, input, { now: () => new Date(NOON.getTime() + 1_000) });
+      // The caller's own other work, in the very same transaction as the losing `openAlert` call:
+      // it must still commit even though the insert attempt inside `openAlert` failed on the
+      // unique index, proving the savepoint kept that failure from poisoning this outer
+      // transaction.
+      await tx.update(users).set({ firstName: "Ada (marked)" }).where(eq(users.id, recipientId));
+      return outcome;
+    });
+
     await waitForLockWaiters(1);
   } finally {
-    // Always releases the first transaction, even when the wait itself throws (e.g. it times
-    // out), so a failing wait never leaves that transaction open — which used to hang
-    // `pool.end()`/`sql.end()` for the full timeout and bury the real error underneath it.
     resolveRelease();
   }
   const [, secondOutcome] = await Promise.all([firstCommitted, secondCommitted]);
