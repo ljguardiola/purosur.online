@@ -1,6 +1,6 @@
 import { Lock } from "lucide-react";
 import type { ReactElement } from "react";
-import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
+import { beforeEach, expect, expectTypeOf, type TestContext, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AAA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
@@ -57,25 +57,27 @@ const axeOptions = {
 // shorter grace replaces.
 const REACT_STATELY_DEFAULT_CLOSE_DELAY_MS = 500;
 
-// How long a test waits on the real clock for a page event before reporting which one never
-// arrived, rather than sitting until the runner times the whole test out.
-const MEASUREMENT_DEADLINE_MS = 3000;
-
-// Taken before any test can freeze the page's timers (see whileTimersFrozen), so a deadline still
-// expires while they are frozen.
-const realSetTimeout = globalThis.setTimeout.bind(globalThis);
-const realClearTimeout = globalThis.clearTimeout.bind(globalThis);
-
-function beforeDeadline<T>(measurement: Promise<T>, whatNeverHappened: string): Promise<T> {
-  let deadline: ReturnType<typeof setTimeout>;
-  const expiry = new Promise<never>((_, reject) => {
-    deadline = realSetTimeout(
-      () => reject(new Error(`${whatNeverHappened} within ${MEASUREMENT_DEADLINE_MS}ms`)),
-      MEASUREMENT_DEADLINE_MS,
-    );
+// The runner's own test timeout is the only deadline. Its error only says the test timed out, so
+// when it aborts the test, the wait annotates the page event that never arrived and rejects, letting
+// every pending finally block, the frozen timers' included, still run.
+function beforeDeadline<T>(
+  measurement: Promise<T>,
+  whatNeverHappened: string,
+  { signal, annotate }: Pick<TestContext, "signal" | "annotate">,
+): Promise<T> {
+  let fail = () => {};
+  const timedOut = new Promise<never>((_, reject) => {
+    fail = () => {
+      void annotate(whatNeverHappened, "error");
+      reject(new Error(whatNeverHappened));
+    };
+    if (signal.aborted) fail();
+    signal.addEventListener("abort", fail, { once: true });
   });
 
-  return Promise.race([measurement, expiry]).finally(() => realClearTimeout(deadline));
+  return Promise.race([measurement, timedOut]).finally(() =>
+    signal.removeEventListener("abort", fail),
+  );
 }
 
 function whenTooltipIs(change: "added" | "removed", signal: AbortSignal): Promise<void> {
@@ -360,7 +362,7 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("stays open while the pointer moves from its element onto the tooltip itself", async () => {
+test("stays open while the pointer moves from its element onto the tooltip itself", async (context) => {
   const ui = (
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -407,13 +409,13 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   try {
     await whileTimersFrozen(async () => {
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gapX, y: gapY });
-      await beforeDeadline(leftElement, "the pointer never left the element");
+      await beforeDeadline(leftElement, "the pointer never left the element", context);
       await session.send("Input.dispatchMouseEvent", {
         type: "mouseMoved",
         x: tooltipRect.left + tooltipRect.width / 2,
         y: tooltipRect.top + tooltipRect.height / 2,
       });
-      await beforeDeadline(reachedTooltip, "the pointer never reached the tooltip");
+      await beforeDeadline(reachedTooltip, "the pointer never reached the tooltip", context);
     });
   } finally {
     watch.abort();
@@ -429,7 +431,7 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("appears on hover and disappears within a short grace period once the pointer leaves both its element and the tooltip", async () => {
+test("appears on hover and disappears within a short grace period once the pointer leaves both its element and the tooltip", async (context) => {
   const ui = (
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
@@ -466,7 +468,7 @@ test("appears on hover and disappears within a short grace period once the point
   try {
     await whileTimersFrozen(async () => {
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
-      await beforeDeadline(leftElement, "the pointer never left the element");
+      await beforeDeadline(leftElement, "the pointer never left the element", context);
 
       vi.advanceTimersByTime(CLOSE_DELAY_MS - 1);
       await screen.rerender(ui);
@@ -475,7 +477,7 @@ test("appears on hover and disappears within a short grace period once the point
       );
 
       vi.advanceTimersByTime(1);
-      await beforeDeadline(closed, "the tooltip was never removed once the grace ran out");
+      await beforeDeadline(closed, "the tooltip was never removed once the grace ran out", context);
     });
   } finally {
     watch.abort();
@@ -484,7 +486,7 @@ test("appears on hover and disappears within a short grace period once the point
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("appears on keyboard focus and disappears once focus leaves its element", async () => {
+test("appears on keyboard focus and disappears once focus leaves its element", async (context) => {
   const screen = await render(
     <>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -511,7 +513,7 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
       expect(document.activeElement).toBe(
         screen.getByRole("button", { name: "Next control" }).element(),
       );
-      await beforeDeadline(closed, "the tooltip was never removed from the page");
+      await beforeDeadline(closed, "the tooltip was never removed from the page", context);
     });
   } finally {
     watch.abort();
@@ -520,7 +522,7 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("disappears when Escape is pressed while its element is focused", async () => {
+test("disappears when Escape is pressed while its element is focused", async (context) => {
   const screen = await render(
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
@@ -537,7 +539,7 @@ test("disappears when Escape is pressed while its element is focused", async () 
   try {
     await whileTimersFrozen(async () => {
       await userEvent.keyboard("{Escape}");
-      await beforeDeadline(closed, "the tooltip was never removed from the page");
+      await beforeDeadline(closed, "the tooltip was never removed from the page", context);
     });
   } finally {
     watch.abort();
@@ -600,7 +602,7 @@ test("exposes the tooltip as its element's description instead of separate conte
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("waits 300ms of hover before appearing, neither instantly nor on react-aria's 1500ms default", async () => {
+test("waits 300ms of hover before appearing, neither instantly nor on react-aria's 1500ms default", async (context) => {
   const ui = (
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
@@ -639,16 +641,16 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
       // and running every timer that close schedules, its cooldown included, puts the flag back
       // down, so the hover below waits out the real delay.
       await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
-      await beforeDeadline(leftElement, "the pointer never left the element");
+      await beforeDeadline(leftElement, "the pointer never left the element", context);
       vi.runAllTimers();
-      await beforeDeadline(closed, "the tooltip was never removed from the page");
+      await beforeDeadline(closed, "the tooltip was never removed from the page", context);
 
       await session.send("Input.dispatchMouseEvent", {
         type: "mouseMoved",
         x: triggerRect.left + triggerRect.width / 2,
         y: triggerRect.top + triggerRect.height / 2,
       });
-      await beforeDeadline(enteredElement, "the pointer never entered the element");
+      await beforeDeadline(enteredElement, "the pointer never entered the element", context);
 
       vi.advanceTimersByTime(299);
       await screen.rerender(ui);
@@ -657,7 +659,7 @@ test("waits 300ms of hover before appearing, neither instantly nor on react-aria
       );
 
       vi.advanceTimersByTime(1);
-      await beforeDeadline(opened, "the tooltip never appeared after 300ms of hover");
+      await beforeDeadline(opened, "the tooltip never appeared after 300ms of hover", context);
     });
   } finally {
     watch.abort();

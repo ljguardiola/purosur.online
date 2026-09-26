@@ -109,17 +109,23 @@ function hangingFetch(_url, { signal }) {
   });
 }
 
-test("fetchHealth gives up on a response that never arrives once its request timeout passes", async () => {
-  const started = Date.now();
+test("fetchHealth gives up on a response that never arrives once its request timeout passes", async (t) => {
+  const controller = new AbortController();
+  const timeout = t.mock.method(AbortSignal, "timeout", () => controller.signal);
+  const fetchImpl = t.mock.fn(hangingFetch);
 
-  const result = await fetchHealth("https://cloud.example/health", {
-    fetchImpl: hangingFetch,
+  const result = fetchHealth("https://cloud.example/health", {
+    fetchImpl,
     requestTimeoutMs: 50,
     log: () => {},
   });
+  controller.abort(new DOMException("The operation timed out.", "TimeoutError"));
 
-  assert.equal(result, null);
-  assert.ok(Date.now() - started < 1000, "expected the request to be aborted near its timeout");
+  assert.equal(await result, null);
+  assert.equal(timeout.mock.calls.length, 1);
+  assert.equal(timeout.mock.calls[0].arguments[0], 50);
+  assert.equal(fetchImpl.mock.calls.length, 1);
+  assert.equal(fetchImpl.mock.calls[0].arguments[1].signal, controller.signal);
 });
 
 test("fetchHealth returns the status and parsed body of a response", async () => {
