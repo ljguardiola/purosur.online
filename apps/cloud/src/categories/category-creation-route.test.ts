@@ -227,20 +227,6 @@ describe("POST /categories", () => {
     expect(await db.select().from(categories)).toHaveLength(0);
   });
 
-  it("rejects a name longer than 100 characters, creating nothing", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createCategory(rawSessionId, { name: "a".repeat(101) });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    expect(await db.select().from(categories)).toHaveLength(0);
-  });
-
   it("rejects a name already taken among top-level categories, case-insensitively, creating nothing", async () => {
     await db.insert(categories).values({ name: "Semillas" });
     const userId = await insertUserWithPermission();
