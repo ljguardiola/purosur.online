@@ -201,7 +201,7 @@ describe("GET /prices", () => {
     expect(response.json().reviewWindowDays).toBe(45);
   });
 
-  it("hands a role holding only manage_prices_and_review every category to filter by, by name", async () => {
+  it("hands a role holding only manage_prices_and_review every leaf category to filter by, ordered by path", async () => {
     const userId = await insertUserWithPermission(["manage_prices_and_review"]);
     const rawSessionId = await insertSession(userId);
     const cleaning = await insertCategory("Limpieza");
@@ -226,6 +226,71 @@ describe("GET /prices", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().categories).toEqual([{ id: leaf, name: "Almacén › Fiambres" }]);
+  });
+
+  it("labels a leaf nested three levels deep with its whole path, from the top-level category down", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const root = await insertCategory("Almacén");
+    const middle = await insertCategory("Fiambres", root);
+    const leaf = await insertCategory("Jamones", middle);
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories).toEqual([
+      { id: leaf, name: "Almacén › Fiambres › Jamones" },
+    ]);
+  });
+
+  it("offers two leaves sharing a name under different parents, told apart by their paths", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const groceries = await insertCategory("Almacén");
+    const cleaning = await insertCategory("Limpieza");
+    const groceriesDeals = await insertCategory("Ofertas", groceries);
+    const cleaningDeals = await insertCategory("Ofertas", cleaning);
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories).toEqual([
+      { id: groceriesDeals, name: "Almacén › Ofertas" },
+      { id: cleaningDeals, name: "Limpieza › Ofertas" },
+    ]);
+  });
+
+  it("orders the filter by each leaf's full path, not by the leaf's own name", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const groceries = await insertCategory("Almacén");
+    const drinks = await insertCategory("Bebidas");
+    const mate = await insertCategory("Yerba", groceries);
+    const water = await insertCategory("Agua", drinks);
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories).toEqual([
+      { id: mate, name: "Almacén › Yerba" },
+      { id: water, name: "Bebidas › Agua" },
+    ]);
+  });
+
+  it("still answers when a corrupt parent chain loops back on itself", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const first = await insertCategory("Almacén");
+    const second = await insertCategory("Fiambres", first);
+    const leaf = await insertCategory("Jamones", first);
+    await db.update(categories).set({ parentId: second }).where(eq(categories.id, first));
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories.map((category: { id: string }) => category.id)).toEqual([
+      leaf,
+    ]);
   });
 
   it("lists a never-priced product ahead of every reviewed one, as having no price", async () => {

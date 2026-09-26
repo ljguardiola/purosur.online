@@ -56,7 +56,7 @@ export interface PriceCategoryOption {
 export interface ListPricesResult {
   products: PriceProductRow[];
   /**
-   * Every leaf category (the only kind a product can be assigned to, #382) to filter the list by,
+   * Every leaf category (the only kind a product can be assigned to) to filter the list by,
    * labeled with its full path ("Almacén › Fiambres") since nesting can put two leaves under the
    * same name. `GET /categories` is gated by `manage_products_and_categories`, which a role
    * holding only `manage_prices_and_review` lacks, so this route reads the category tree itself
@@ -81,16 +81,26 @@ function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceCategoryOpt
     allCategories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
   );
   const byId = new Map(allCategories.map((category) => [category.id, category]));
+  // An ancestor's label is shared by every one of its descendants, so each is built only once.
+  const labels = new Map<string, string>();
 
   function pathLabel(categoryId: string, ancestors: ReadonlySet<string>): string {
+    const cached = labels.get(categoryId);
+    if (cached !== undefined) {
+      return cached;
+    }
     const category = byId.get(categoryId);
     if (!category) {
       return "";
     }
-    if (!category.parentId || ancestors.has(category.parentId)) {
-      return category.name;
-    }
-    return `${pathLabel(category.parentId, new Set(ancestors).add(categoryId))} › ${category.name}`;
+    // The move rules reject a cycle before it is saved, but stopping here instead of recursing
+    // forever keeps a corrupt row from failing the whole list.
+    const label =
+      category.parentId && !ancestors.has(category.parentId)
+        ? `${pathLabel(category.parentId, new Set(ancestors).add(categoryId))} › ${category.name}`
+        : category.name;
+    labels.set(categoryId, label);
+    return label;
   }
 
   return allCategories
