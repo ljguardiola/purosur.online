@@ -15,10 +15,11 @@ export type FieldSizeProviderProps = {
 };
 
 /**
- * Chooses the field size for every TextField and DateField underneath, once, instead of each
- * screen passing its own size to each field. The backoffice app's own root provides "backoffice"
- * once (see apps/backoffice/src/App.tsx); nothing renders this for the register app, whose fields
- * keep the default register scale.
+ * Chooses the field size read by FieldGroup, a plain-text TextField and DateField underneath,
+ * once, instead of each screen passing its own size to each field; Select always draws the
+ * backoffice entry regardless of this context, and every other TextField kind ignores it. The
+ * backoffice app's own root provides "backoffice" once (see apps/backoffice/src/App.tsx); nothing
+ * renders this for the register app, whose fields keep the default register scale.
  */
 export function FieldSizeProvider({ size, children }: FieldSizeProviderProps) {
   return <FieldSizeContext.Provider value={size}>{children}</FieldSizeContext.Provider>;
@@ -39,8 +40,8 @@ export const fieldLabelClassName: Record<FieldSize, string> = {
 // caller-owned copy, appended to the label's own class list only when the field is required.
 export const requiredFieldLabelSuffixClassName = "after:ml-1 after:content-['*']";
 
-// The gap between the label and the box, drawn identically by TextField and DateField in both
-// sizes.
+// The gap between the label and the box, drawn identically by TextField, DateField and
+// FieldGroup in both sizes.
 export const fieldWrapperGapClassName: Record<FieldSize, string> = {
   register: "gap-1.5",
   backoffice: "gap-1",
