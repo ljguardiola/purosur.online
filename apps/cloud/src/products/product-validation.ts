@@ -7,10 +7,6 @@ export interface NetContentInput {
   unit: NetContentUnit;
 }
 
-// Shared by the creation route (`categoryId` in the body) and the edit route (both the `:id`
-// path parameter and `categoryId` in the body), the same shape `category-edit-route.ts` uses.
-export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export interface ProductFieldValidationFailure {
   field:
     | "name"

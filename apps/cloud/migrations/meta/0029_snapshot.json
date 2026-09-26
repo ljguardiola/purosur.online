@@ -1,6 +1,6 @@
 {
-  "id": "06f238d6-5feb-40a5-8062-062420b441a7",
-  "prevId": "6b2c7cea-4819-4aaa-8679-bc8438045fbf",
+  "id": "f3082fdc-5eb9-4d63-80ef-7f8a99b22f21",
+  "prevId": "06f238d6-5feb-40a5-8062-062420b441a7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -756,6 +756,18 @@
           "notNull": true,
           "default": true
         },
+        "net_content_quantity": {
+          "name": "net_content_quantity",
+          "type": "numeric(10, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "net_content_unit": {
+          "name": "net_content_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -783,6 +795,18 @@
         "products_sale_unit_check": {
           "name": "products_sale_unit_check",
           "value": "\"products\".\"sale_unit\" in ('UNIT', 'KG')"
+        },
+        "products_net_content_unit_check": {
+          "name": "products_net_content_unit_check",
+          "value": "\"products\".\"net_content_unit\" in ('G', 'KG', 'ML', 'L', 'UNIT')"
+        },
+        "products_net_content_both_or_neither_check": {
+          "name": "products_net_content_both_or_neither_check",
+          "value": "(\"products\".\"net_content_quantity\" is null) = (\"products\".\"net_content_unit\" is null)"
+        },
+        "products_net_content_quantity_positive_check": {
+          "name": "products_net_content_quantity_positive_check",
+          "value": "\"products\".\"net_content_quantity\" > 0"
         }
       },
       "isRLSEnabled": false

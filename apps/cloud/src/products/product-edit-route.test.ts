@@ -99,8 +99,11 @@ async function insertUserWithPermission(
   });
 }
 
-async function insertCategory(name: string): Promise<string> {
-  const [category] = await db.insert(categories).values({ name }).returning({ id: categories.id });
+async function insertCategory(name: string, parentId: string | null = null): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name, parentId })
+    .returning({ id: categories.id });
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
@@ -493,6 +496,60 @@ describe("POST /products/:id/edit", () => {
     });
     const [unchanged] = await db.select().from(products).where(eq(products.id, product.id));
     expect(unchanged).toMatchObject({ name: "Maceta", categoryId, version: 1 });
+  });
+
+  it("rejects a categoryId that has subcategories of its own, changing nothing", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const nonLeafCategoryId = await insertCategory("Almacén");
+    await insertCategory("Untables", nonLeafCategoryId);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Maceta",
+      categoryId: nonLeafCategoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "category_not_leaf" });
+    const [unchanged] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(unchanged).toMatchObject({ name: "Maceta", categoryId, version: 1 });
+  });
+
+  it("moves the product into a subcategory that has no subcategories of its own", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const product = await insertProduct({
+      name: "Dulce de leche",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+    const parentId = await insertCategory("Almacén");
+    const leafCategoryId = await insertCategory("Untables", parentId);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Dulce de leche",
+      categoryId: leafCategoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ categoryId: leafCategoryId, categoryName: "Untables" });
+    const [moved] = await db.select().from(products).where(eq(products.id, product.id));
+    expect(moved).toMatchObject({ categoryId: leafCategoryId, version: 2 });
   });
 
   it("rejects a missing or non-positive-integer version, changing nothing", async () => {

@@ -148,6 +148,12 @@ test("createProduct returns barcode_taken with the taken codes on 409", async ()
   });
 });
 
+test("createProduct returns category_not_leaf on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
+
+  expect(await createProduct(createInput)).toEqual({ kind: "category_not_leaf" });
+});
+
 test("createProduct returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
@@ -222,6 +228,12 @@ test("editProduct returns stale_version on a 409 carrying that code", async () =
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "stale_version" }));
 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "stale_version" });
+});
+
+test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
+
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "category_not_leaf" });
 });
 
 test("editProduct returns not_found on 404", async () => {

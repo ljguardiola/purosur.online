@@ -441,7 +441,6 @@ function EditIssuerIdentificationModal({
               </div>
               <div className="flex-1">
                 <DateField
-                  variant="backoffice"
                   label={modalMessages.activityStartDateLabel}
                   value={values.activityStartDate}
                   onChange={(value) => {

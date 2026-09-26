@@ -6,6 +6,14 @@ import {
   Text as AriaText,
   TextField as AriaTextField,
 } from "react-aria-components";
+import {
+  backofficeFieldBoxClassName,
+  backofficeFieldValueClassName,
+  fieldLabelClassName,
+  fieldWrapperGapClassName,
+  requiredFieldLabelSuffixClassName,
+  useFieldSize,
+} from "./FieldSize";
 
 // The six value kinds the design defines: each carries its own box height, padding, gap and
 // value alignment, and only some of them take a prefix or a suffix (see TextFieldKindProps).
@@ -58,7 +66,10 @@ type TextFieldValidityProps =
 // Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
 // require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
 // días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
-// not compile.
+// not compile. The design draws no backoffice money or kg field: those five kinds always keep
+// their own whole register-sized field below, regardless of the ambient FieldSizeProvider, the
+// same way SearchField.tsx's own icon size never varies with them either; only plain text's size
+// follows the context.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
@@ -66,41 +77,42 @@ type TextFieldKindProps =
 
 export type TextFieldProps = TextFieldCommonProps & TextFieldValidityProps & TextFieldKindProps;
 
-const wrapperClassName = "flex flex-col gap-1.5 data-[disabled]:opacity-[0.45]";
-
-const baseLabelClassName = "text-base font-bold text-ink";
-// The asterisk is a CSS pseudo-element, not JSX text: a language-agnostic mark rather than
-// caller-owned copy, drawn only when `required` is true. The field's required state itself
-// already reaches assistive technology through the native `required` attribute on the input.
-const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-['*']`;
+const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-// Height, horizontal padding and gap per value kind, in the exact px the design specifies.
-const frameClassName: Record<TextFieldValueKind, string> = {
+// Height, horizontal padding and gap for every kind but plain text, in the exact px the design
+// specifies; those five only ever draw at this register scale (see TextFieldKindProps above).
+// Plain text's own frame varies by size instead (see registerPlainTextFrameClassName and
+// FieldSize.tsx's own backofficeFieldBoxClassName).
+const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-[4.5rem] gap-2 px-4",
   "counted-cash": "h-[5rem] gap-3 px-6",
   price: "h-[4.5rem] gap-2 px-4",
   weight: "h-[4rem] gap-2 px-4",
   quantity: "h-[4.5rem] gap-2 px-4",
-  "plain-text": "h-[3.25rem] gap-2 px-4",
 };
+// This field's own long-standing register frame for plain text; the backoffice one is
+// FieldSize.tsx's own shared backofficeFieldBoxClassName.
+const registerPlainTextFrameClassName = "h-[3.25rem] gap-2 px-4";
 
 // The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
 // right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
-// Plain text is left-aligned unless it carries a suffix (see plainTextSuffixedValueClassName).
-const valueClassName: Record<TextFieldValueKind, string> = {
+// Those five only ever draw at this register scale (see TextFieldKindProps above); plain text's
+// own value varies by size instead (see registerPlainTextValueClassName below and FieldSize.tsx's
+// own backofficeFieldValueClassName).
+const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "text-right text-3xl font-bold text-ink",
   "counted-cash": "text-right text-3xl font-bold text-ink",
   price: "text-right text-3xl font-bold text-ink",
   weight: "text-left text-3xl font-bold text-ink",
   quantity: "text-right text-3xl font-bold text-ink",
-  "plain-text": "text-left text-base font-normal text-ink",
 };
-
+// Plain text is left-aligned unless it carries a suffix (see registerPlainTextSuffixedValueClassName).
+const registerPlainTextValueClassName = "text-left text-base font-normal text-ink";
 // A plain-text value with a suffix sits immediately before it ("30 días"), like every other kind
 // that takes one, instead of leaving the input's empty width between the value and its unit.
-const plainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
+const registerPlainTextSuffixedValueClassName = "text-right text-base font-normal text-ink";
 
 const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-brand-blue-strong outline-none";
 
@@ -173,6 +185,26 @@ export function TextField(props: TextFieldProps) {
   const suffix =
     kind === "weight" || kind === "quantity" || kind === "plain-text" ? props.suffix : undefined;
 
+  // The design never draws a backoffice money or kg field; those five kinds keep their whole
+  // register-sized field — frame, label and gap, not the frame alone — regardless of the ambient
+  // FieldSizeProvider, since only plain text's size varies with it.
+  const contextSize = useFieldSize();
+  const size = kind === "plain-text" ? contextSize : "register";
+  const boxFrameClassName =
+    kind === "plain-text"
+      ? size === "backoffice"
+        ? backofficeFieldBoxClassName
+        : registerPlainTextFrameClassName
+      : frameClassName[kind];
+  const plainTextValueClass =
+    size === "backoffice"
+      ? `${backofficeFieldValueClassName} text-left`
+      : registerPlainTextValueClassName;
+  const plainTextSuffixedValueClass =
+    size === "backoffice"
+      ? `${backofficeFieldValueClassName} text-right`
+      : registerPlainTextSuffixedValueClassName;
+
   // The prefix and suffix are visual-only (`aria-hidden`) so a screen reader doesn't hit them a
   // second time as stray text while moving through the field, but a sighted user reads the unit
   // right there in the box, so a screen reader user needs it too — as part of the field's own
@@ -221,18 +253,22 @@ export function TextField(props: TextFieldProps) {
       isRequired={required}
       isInvalid={invalid}
       {...describedByProps}
-      className={wrapperClassName}
+      className={`${wrapperBaseClassName} ${fieldWrapperGapClassName[size]}`}
     >
       <AriaLabel
         id={labelId}
         className={
-          labelVisuallyHidden ? "sr-only" : required ? requiredLabelClassName : baseLabelClassName
+          labelVisuallyHidden
+            ? "sr-only"
+            : required
+              ? `${fieldLabelClassName[size]} ${requiredFieldLabelSuffixClassName}`
+              : fieldLabelClassName[size]
         }
       >
         {label}
       </AriaLabel>
       <div
-        className={`${boxBaseClassName} ${frameClassName[kind]} ${boxStateClassName(disabled, readOnly, invalid)}`}
+        className={`${boxBaseClassName} ${boxFrameClassName} ${boxStateClassName(disabled, readOnly, invalid)}`}
       >
         {prefix !== undefined && (
           <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>
@@ -241,8 +277,10 @@ export function TextField(props: TextFieldProps) {
         )}
         <AriaInput
           className={`${inputBaseClassName} ${
-            kind === "plain-text" && suffix !== undefined
-              ? plainTextSuffixedValueClassName
+            kind === "plain-text"
+              ? suffix !== undefined
+                ? plainTextSuffixedValueClass
+                : plainTextValueClass
               : valueClassName[kind]
           }`}
           {...labelledByProps}

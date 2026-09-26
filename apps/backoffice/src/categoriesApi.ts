@@ -6,6 +6,7 @@ export type CategorySummary = {
   id: string;
   name: string;
   version: number;
+  parentId: string | null;
 };
 
 export type FetchCategoriesOutcome =
@@ -15,27 +16,30 @@ export type FetchCategoriesOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type CreateCategoryInput = { name: string };
+export type CreateCategoryInput = { name: string; parentId: string | null };
 
-export type CreateCategoryFieldError = "name";
+export type CreateCategoryFieldError = "name" | "parentId";
 
 export type CreateCategoryOutcome =
   | { kind: "ok"; value: CategorySummary }
   | { kind: "validation_failed"; field: CreateCategoryFieldError }
   | { kind: "name_taken" }
+  | { kind: "parent_has_products" }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type EditCategoryInput = { name: string; version: number };
+export type EditCategoryInput = { name: string; parentId: string | null; version: number };
 
-export type EditCategoryFieldError = "name" | "version";
+export type EditCategoryFieldError = "name" | "parentId" | "version";
 
 export type EditCategoryOutcome =
   | { kind: "ok"; value: CategorySummary }
   | { kind: "validation_failed"; field: EditCategoryFieldError }
   | { kind: "name_taken" }
+  | { kind: "parent_has_products" }
+  | { kind: "move_not_allowed" }
   | { kind: "stale_version" }
   | { kind: "not_found" }
   | { kind: "forbidden" }
@@ -57,8 +61,8 @@ function postJson(path: string, body?: unknown): Promise<Response> {
   });
 }
 
-function categoryFieldFromWire(field: unknown): "name" | "version" | undefined {
-  return field === "name" || field === "version" ? field : undefined;
+function categoryFieldFromWire(field: unknown): "name" | "parentId" | "version" | undefined {
+  return field === "name" || field === "parentId" || field === "version" ? field : undefined;
 }
 
 /** Lists every catalog category, gated by `manage_products_and_categories` (`GET /categories`). */
@@ -92,7 +96,7 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
   let response: Response;
   try {
-    response = await postJson("/categories", { name: input.name });
+    response = await postJson("/categories", { name: input.name, parentId: input.parentId });
   } catch {
     return { kind: "failed" };
   }
@@ -109,14 +113,17 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
       | undefined;
     if (body?.code === "validation_failed") {
       const field = categoryFieldFromWire(body.details?.[0]?.field);
-      if (field === "name") {
+      if (field === "name" || field === "parentId") {
         return { kind: "validation_failed", field };
       }
     }
     return { kind: "failed" };
   }
   if (response.status === 409) {
-    return { kind: "name_taken" };
+    const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
+    return body?.code === "category_parent_has_products"
+      ? { kind: "parent_has_products" }
+      : { kind: "name_taken" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
@@ -139,6 +146,7 @@ export async function editCategory(
   try {
     response = await postJson(`/categories/${id}/edit`, {
       name: input.name,
+      parentId: input.parentId,
       version: input.version,
     });
   } catch {
@@ -168,7 +176,16 @@ export async function editCategory(
   }
   if (response.status === 409) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    return body?.code === "stale_version" ? { kind: "stale_version" } : { kind: "name_taken" };
+    if (body?.code === "stale_version") {
+      return { kind: "stale_version" };
+    }
+    if (body?.code === "category_parent_has_products") {
+      return { kind: "parent_has_products" };
+    }
+    if (body?.code === "category_move_not_allowed") {
+      return { kind: "move_not_allowed" };
+    }
+    return { kind: "name_taken" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -185,17 +186,32 @@ export const userRoles = pgTable(
   ],
 );
 
-// Catalog categories aren't scoped to a branch (the business runs a single one today), so this is
-// a global, case-insensitive uniqueness rule, the same shape `roles.name` enforces.
+// Catalog categories form a tree (#332): `parent_id` is nullable and self-referencing, and a null
+// parent means a top-level category, exactly like every category before nesting existed. Names
+// are unique among siblings, case-insensitively, rather than globally: two top-level categories
+// (both with a null parent) still collide with each other, which `NULLS NOT DISTINCT` on the
+// index below is what makes happen, since Postgres otherwise treats every null as distinct from
+// every other null. `parentId` has no `onDelete` because, like every other row referenced by a
+// category (`products.categoryId`), categories are never deleted.
 export const categories = pgTable(
   "categories",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
     // Optimistic concurrency for a category row, the same shape `roles.version` gives role rows.
     version: integer("version").notNull().default(1),
   },
-  (table) => [uniqueIndex("categories_name_lower_key").on(sql`lower(${table.name})`)],
+  (table) => [
+    // `NULLS NOT DISTINCT` has no fluent builder for an index in this drizzle-orm version (only
+    // `unique()`'s table-level constraint builder has one, and that builder can't take the
+    // `lower(name)` expression this index needs), so the migration drizzle-kit generates for this
+    // is hand-edited to add it, the same way 0026_deactivate_products.sql hand-edits generated SQL
+    // for a trigger drizzle-kit has no declarative support for.
+    uniqueIndex("categories_name_lower_key").on(table.parentId, sql`lower(${table.name})`),
+    index("categories_parent_id_idx").on(table.parentId),
+    check("categories_parent_is_not_itself", sql`${table.parentId} <> ${table.id}`),
+  ],
 );
 
 // A product's own name carries no uniqueness rule (unlike a category's), so only its sale unit is

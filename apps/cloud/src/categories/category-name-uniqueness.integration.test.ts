@@ -38,8 +38,8 @@ describe("creating two categories with the same name concurrently on a real Post
     const name = `Semillas ${suffix}`;
 
     const [first, second] = await Promise.all([
-      createCategory(db, { name }),
-      createCategory(db, { name: name.toUpperCase() }),
+      createCategory(db, { name, parentId: null }),
+      createCategory(db, { name: name.toUpperCase(), parentId: null }),
     ]);
 
     const outcomes = [first, second];

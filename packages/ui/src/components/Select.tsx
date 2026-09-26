@@ -10,6 +10,13 @@ import {
   Text as AriaText,
   type Key,
 } from "react-aria-components";
+import {
+  backofficeFieldBoxClassName,
+  backofficeFieldValueClassName,
+  fieldLabelClassName,
+  fieldWrapperGapClassName,
+  requiredFieldLabelSuffixClassName,
+} from "./FieldSize";
 
 export type SelectOption<V extends string = string> = {
   value: V;
@@ -43,18 +50,15 @@ export type SelectProps<V extends string> = SelectCommonProps &
     placeholder?: string;
   };
 
-const wrapperClassName = "flex flex-col gap-1 data-[disabled]:opacity-[0.45]";
+// This field only ever draws the backoffice size: the design has no register-scale select, so
+// every class below reads FieldSize.tsx's own shared backoffice definition directly instead of
+// consulting FieldSizeProvider.
+const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 
-const baseLabelClassName = "text-sm font-bold text-ink";
-// The asterisk is a CSS pseudo-element, not JSX text (see TextField.tsx's own
-// requiredLabelClassName): a language-agnostic mark rather than caller-owned copy.
-const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-['*']`;
+const baseLabelClassName = fieldLabelClassName.backoffice;
+const requiredLabelClassName = `${baseLabelClassName} ${requiredFieldLabelSuffixClassName}`;
 
-// Height, gap and padding match DateField.tsx's own "backoffice" variant frame exactly (the
-// design draws this field inside a backoffice modal at the same 48px/8px/12px metrics), not
-// TextField.tsx's own register-sized plain-text kind.
-const triggerBaseClassName =
-  "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg border-2 px-3 outline-none";
+const triggerBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg border-2 outline-none ${backofficeFieldBoxClassName}`;
 
 // The same field standard TextField.tsx's own boxStateClassName draws (resting, hovered and
 // disabled share the 2px line border, invalid swaps in the error tone, focus draws a 2px
@@ -79,7 +83,7 @@ function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: bool
 }
 
 const valueClassName =
-  "min-w-0 flex-1 truncate text-left text-base font-semibold text-ink " +
+  `min-w-0 flex-1 truncate text-left ${backofficeFieldValueClassName} ` +
   "data-[placeholder]:font-normal data-[placeholder]:text-ink-secondary";
 
 const chevronClassName = "size-[1.125rem] shrink-0 text-ink-secondary";

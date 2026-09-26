@@ -1,14 +1,20 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { categories, productBarcodes, products } from "../db/schema.js";
+import { productBarcodes, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import {
   originGuard,
   permissionAccess,
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { CATEGORY_NOT_FOUND_FAILURE, isBarcodeUniqueViolation } from "./product-creation-route.js";
+import {
+  CATEGORY_NOT_FOUND_FAILURE,
+  CATEGORY_NOT_LEAF_RESPONSE,
+  isBarcodeUniqueViolation,
+  lockLeafCategory,
+} from "./product-creation-route.js";
 import {
   type NetContentInput,
   type ProductFieldValidationFailure,
@@ -18,7 +24,6 @@ import {
   readProductName,
   readSaleUnit,
   type SaleUnit,
-  UUID_PATTERN,
   validateProductFields,
 } from "./product-validation.js";
 import {
@@ -112,6 +117,7 @@ export interface EditProductInput {
 export type EditProductOutcome =
   | { kind: "stale_version" }
   | { kind: "category_not_found" }
+  | { kind: "category_not_leaf" }
   | { kind: "barcode_taken"; codes: string[] }
   | { kind: "applied"; product: ProductRow };
 
@@ -163,17 +169,11 @@ export async function editProduct<TQueryResult extends PgQueryResultHKT>(
         return { kind: "stale_version" };
       }
 
-      if (!UUID_PATTERN.test(input.categoryId)) {
-        return { kind: "category_not_found" };
+      const locked = await lockLeafCategory(tx, input.categoryId);
+      if (locked.kind !== "locked") {
+        return locked;
       }
-      const [category] = await tx
-        .select({ id: categories.id, name: categories.name })
-        .from(categories)
-        .where(eq(categories.id, input.categoryId))
-        .limit(1);
-      if (!category) {
-        return { kind: "category_not_found" };
-      }
+      const { category } = locked;
 
       // An inactive product's barcodes are written inactive below, and uniqueness only binds active
       // barcodes, so a code an active product holds does not conflict with them.
@@ -299,6 +299,10 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
           message: CATEGORY_NOT_FOUND_FAILURE.message,
           details: [{ field: CATEGORY_NOT_FOUND_FAILURE.field }],
         });
+        return;
+      }
+      if (outcome.kind === "category_not_leaf") {
+        await reply.code(409).send(CATEGORY_NOT_LEAF_RESPONSE);
         return;
       }
       if (outcome.kind === "barcode_taken") {
