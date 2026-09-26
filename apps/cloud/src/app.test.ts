@@ -3,12 +3,12 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PERMISSION_KEYS } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp as buildRealApp } from "./app.js";
 import { buildTestDatabase, type TestDatabase } from "./db/build-test-database.js";
 import { rolePermissions, roles, sessions, userRoles, users } from "./db/schema.js";
-import { PERMISSION_KEYS } from "./roles/permission-catalog.js";
 import {
   ADMINISTRATOR_ACCESS,
   OPEN_SESSION_ACCESS,

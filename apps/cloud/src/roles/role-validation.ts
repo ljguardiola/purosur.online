@@ -1,14 +1,12 @@
-import { ALERT_VIEW_PERMISSION_KEYS, isPermissionKey } from "./permission-catalog.js";
+import {
+  ALERT_VIEW_PERMISSION_KEYS,
+  isPermissionKey,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
+} from "@purosur/contracts";
 
 /** The Administrator role's own reserved name, checked case-insensitively; shared by creation and edit. */
 export const ADMINISTRATOR_NAME = "administrador";
-
-// Mirrors `@purosur/contracts`'s role name limit; `role-validation.test.ts` guards against drift.
-export const ROLE_NAME_MAX_LENGTH = 100;
-
-export function roleNameLength(name: string): number {
-  return Array.from(name).length;
-}
 
 export interface RoleFieldValidationFailure {
   field: "name" | "permissions" | "version";

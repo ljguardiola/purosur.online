@@ -1,3 +1,4 @@
+import { PERMISSION_KEYS } from "@purosur/contracts";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -10,7 +11,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { PERMISSION_KEYS } from "./permission-catalog.js";
 import {
   isRoleNameUniqueViolation,
   ROLE_NAME_TAKEN_RESPONSE,

@@ -1,9 +1,9 @@
+import { PERMISSION_KEYS, type PermissionKey } from "@purosur/contracts";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { rolePermissions, roles, sessions, userRoles, users } from "../db/schema.js";
 import { resolveSourceAddress } from "../recovery/recovery-source-address.js";
-import { PERMISSION_KEYS, type PermissionKey } from "../roles/permission-catalog.js";
 import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
 import { readSessionCookie } from "./session-cookie.js";
 import { hashSessionId } from "./session-id.js";
