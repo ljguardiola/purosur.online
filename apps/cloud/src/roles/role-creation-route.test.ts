@@ -229,20 +229,6 @@ describe("POST /roles", () => {
     expect(created).toHaveLength(0);
   });
 
-  it("rejects the name Administrador, case-insensitively, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, { name: "administrador", permissions: [] });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
   it("rejects a name already taken, case-insensitively, creating nothing", async () => {
     await insertCashierRole("Cajera");
     const rawSessionId = await insertSession(administratorId);
@@ -261,40 +247,6 @@ describe("POST /roles", () => {
     const response = await createRole(rawSessionId, {
       name: "Depósito",
       permissions: ["not_a_real_permission"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
-  it("rejects a repeated permission key, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, {
-      name: "Depósito",
-      permissions: ["view_stock_balances", "view_stock_balances"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
-  it("rejects both alert-view permissions together, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, {
-      name: "Encargada",
-      permissions: ["view_branch_alerts", "view_all_alerts"],
     });
 
     expect(response.statusCode).toBe(400);

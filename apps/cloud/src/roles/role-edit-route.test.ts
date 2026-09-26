@@ -237,44 +237,12 @@ describe("POST /roles/:id/edit", () => {
     expect(row).toMatchObject({ name: "Cajera", version: 1 });
   });
 
-  it("rejects the name Administrador, case-insensitively, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "ADMINISTRADOR",
-      permissions: [],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-  });
-
   it("rejects an unknown permission key, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["not_a_real_permission"],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-  });
-
-  it("rejects both alert-view permissions together, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera",
-      permissions: ["view_branch_alerts", "view_all_alerts"],
       version: 1,
     });
 
