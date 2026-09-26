@@ -616,7 +616,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 </div>
               ))}
               {!atCap && (
-                <div className="flex h-12 items-center">
+                <div className={`flex ${backofficeFieldHeightClassName} items-center`}>
                   <IconButton
                     icon={<Plus />}
                     aria-label={branchMessages.addRangeAria({ day: dayLower })}
