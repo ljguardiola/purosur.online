@@ -42,7 +42,6 @@ function attempt(sourceAddress: string, now: Date) {
   return admitSignInAttempt(db, { sourceAddress, now });
 }
 
-/** One whole attempt that the credential check went on to reject, settled as such. */
 async function rejectedAttempt(
   sourceAddress: string,
   now: Date,

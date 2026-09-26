@@ -115,11 +115,8 @@ function postJson(
   });
 }
 
-/**
- * Runs `change` right after the route's own transaction commits, the one opened once the route has
- * read its target (the branch-user read, the only one selecting `roleIsAdministrator`): the window
- * in which a concurrent request can commit a change of its own before the route answers.
- */
+// Runs `change` right after the route's own transaction commits: the window a concurrent request
+// can commit a change of its own into, before the route answers.
 function withChangeAfterCommit(change: () => Promise<unknown>): TestDatabase["db"] {
   let targetRead = false;
   let changed = false;

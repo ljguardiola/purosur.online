@@ -8,9 +8,7 @@ import {
 import { allocateInternalBarcode } from "./internal-barcode-route.js";
 
 // A Postgres sequence's `nextval` is itself concurrency-safe (each caller gets its own value, with
-// no locking needed), so this proves that guarantee holds end to end for `allocateInternalBarcode`
-// running over a real multi-connection pool against a real Postgres, the same shape
-// `product-barcode-uniqueness.integration.test.ts` uses to prove the barcode-uniqueness race.
+// no locking needed); this proves that guarantee holds end to end over a real multi-connection pool.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

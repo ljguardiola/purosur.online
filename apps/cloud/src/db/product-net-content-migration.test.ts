@@ -27,7 +27,6 @@ async function migrationsFolderBeforeNetContent(destFolder: string): Promise<voi
   await migrationsFolderBefore(destFolder, await netContentEntry());
 }
 
-/** Adds this feature's real, already hand-edited product_net_content migration to the folder. */
 async function addNetContentMigration(destFolder: string): Promise<void> {
   await addMigrationEntry(destFolder, await netContentEntry());
 }

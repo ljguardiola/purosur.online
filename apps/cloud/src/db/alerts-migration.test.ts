@@ -25,7 +25,6 @@ async function migrationsFolderBeforeAlerts(destFolder: string): Promise<void> {
   await migrationsFolderBefore(destFolder, await alertsEntry());
 }
 
-/** Adds this feature's real, already hand-edited alerts migration to the folder. */
 async function addAlertsMigration(destFolder: string): Promise<void> {
   await addMigrationEntry(destFolder, await alertsEntry());
 }
@@ -57,7 +56,7 @@ describe("the alerts migration applied over a database that already holds data",
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());
 
-    // Seeded by migration 0011: the one location every earlier migration already assumes exists.
+    // The migrations already seed one location; earlier ones assume it exists.
     const { rows: seededLocationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );
@@ -74,7 +73,6 @@ describe("the alerts migration applied over a database that already holds data",
     await addAlertsMigration(folder);
     await migrate(drizzle(client), { migrationsFolder: folder });
 
-    // The rows seeded before the migration are untouched.
     const { rows: usersAfter } = await client.query<{ id: string }>(
       "select id from users where id = $1",
       [actorId],
@@ -86,8 +84,6 @@ describe("the alerts migration applied over a database that already holds data",
     );
     expect(auditAfter).toHaveLength(1);
 
-    // An alert can be opened scoped to a user that already existed before the migration, and
-    // resolved by one too.
     const { rows: alertRows } = await client.query<{ id: string }>(
       `insert into alerts (kind, scope, level, audience, detail, resolved_by)
          values ($1, $2, $3, $4, $5, $6) returning id`,
@@ -96,7 +92,6 @@ describe("the alerts migration applied over a database that already holds data",
     const alert = alertRows[0];
     expect(alert?.id).toEqual(expect.any(String));
 
-    // A delivery of that alert can be recorded for a recipient that already existed too.
     await expect(
       client.query(
         "insert into alert_deliveries (alert_id, recipient_user_id) values ($1, $2) returning id",

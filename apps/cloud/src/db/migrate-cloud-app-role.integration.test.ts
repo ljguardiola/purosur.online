@@ -6,16 +6,10 @@ import { runMigrations } from "../migrate.js";
 import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
 import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 
-// Proves the real production wiring `runMigrations` sets up against a real Postgres: the
-// `cloud_app` role its migration creates can insert and read `audit_log`, but the database
-// itself refuses every attempt to rewrite or erase a row already written there, even one that
-// tries to grant itself that power back. PGlite's own tests cover that the migration SQL applies
-// cleanly; this suite covers what the role can and cannot do against a real Postgres.
-//
-// `cloud_app` is one cluster-wide role, so this suite's own migrations set the same password the
-// global setup set migrating the template database (`CLOUD_APP_PASSWORD`).
-// `withExclusiveMigration` keeps this suite's direct `runMigrations` calls from racing
-// `wait-for-ready.integration.test.ts`'s own.
+// PGlite's own tests already cover that the migration SQL applies cleanly; this suite proves what
+// the cloud_app role can and cannot do against a real Postgres.
+// `cloud_app` is one cluster-wide role, so this suite reuses CLOUD_APP_PASSWORD; withExclusiveMigration
+// keeps its runMigrations calls from racing another integration suite's own.
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const PERMISSION_DENIED = "42501";
 
@@ -107,9 +101,8 @@ describe("the cloud_app role runMigrations creates", () => {
   });
 
   it("cannot grant itself update back on audit_log", async () => {
-    // Postgres answers a role's own no-op GRANT attempt with a warning, not an error: it is not
-    // the owner of audit_log and holds no grant option on it, so nothing is actually granted.
-    // What proves the attempt failed is that the update it tried to unlock is still rejected.
+    // A role granting itself a privilege it doesn't own only warns, it doesn't error — nothing is
+    // actually granted; the update failing afterward is what proves the attempt had no effect.
     await cloudApp`grant update on audit_log to cloud_app`;
 
     const entityId = randomUUID();
@@ -123,8 +116,6 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`alter table audit_log add column extra text`);
   });
 
-  // Setup shared by the `prices`/`price_reviews` append-only checks below: a category, a product,
-  // a user, and the single "Lista general" price list the migration itself seeds.
   async function insertPricedRow(): Promise<{ priceId: string; priceListId: string }> {
     const [category] = await cloudApp<{ id: string }[]>`
       insert into categories (name) values (${`cloud_app_role_test_${randomUUID()}`}) returning id
@@ -197,9 +188,7 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`delete from price_reviews where id = ${review.id}`);
   });
 
-  // The control: proves the rejections above come from audit_log's own revoked privileges, not
-  // from cloud_app being unable to write at all.
-  it("still updates and deletes an ordinary table's row", async () => {
+  it("still updates and deletes an ordinary table's row, proving the rejections above come from audit_log's own revoked privileges, not from cloud_app being unable to write at all", async () => {
     const [role] = await cloudApp<{ id: string }[]>`
       insert into roles (name, is_administrator) values ('cloud_app_role_test', false) returning id
     `;
@@ -244,8 +233,8 @@ describe("the cloud_app role runMigrations creates", () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
-  // The previous deployment keeps serving as cloud_app while the next deploy migrates, so a
-  // policy dropped and re-created would leave it refused every graphile-worker row in between.
+  // The previous deployment keeps serving as cloud_app while the next migrates; dropping and
+  // recreating this policy would refuse it every graphile-worker row in between.
   it("keeps its graphile-worker row-security policies in place when migrations run again", async () => {
     const admin = postgres(databaseUrlFor(adminUrl, databaseName), { max: 1 });
     try {
@@ -272,9 +261,9 @@ describe("the cloud_app role runMigrations creates", () => {
     }
   }, 60_000);
 
-  // Postgres refuses `CREATE DATABASE ... TEMPLATE` and waits on `DROP DATABASE` while anyone is
-  // still connected to that database, so a connection runMigrations leaves closing behind it
-  // makes whatever runs next on that database depend on how fast the backend happens to exit.
+  // Postgres refuses `CREATE DATABASE ... TEMPLATE` and blocks `DROP DATABASE` while anyone is
+  // still connected, so a connection runMigrations leaves open would make whatever runs next
+  // depend on how fast it happens to close.
   it("leaves no connection open on the database once it resolves", async () => {
     const admin = postgres(adminUrl, { max: 1 });
     try {
@@ -293,10 +282,9 @@ describe("the cloud_app role runMigrations creates", () => {
     }
   }, 60_000);
 
-  // graphile-worker checks its own schema is current every time it starts (`makeWorkerUtils`,
-  // `run()`), which `server.ts` does as `cloud_app` at runtime. `runMigrations` already applied
-  // graphile-worker's migrations as the admin role above, so this check finds nothing left to
-  // install and never needs to run any DDL as `cloud_app` (which it has no privilege for).
+  // graphile-worker checks its own schema on every start (makeWorkerUtils, run()); since
+  // runMigrations already applied its migrations as admin, this never needs DDL privilege as
+  // cloud_app.
   it("starts graphile-worker as cloud_app without it needing any DDL privilege", async () => {
     const workerUtils = await makeWorkerUtils({ connectionString: cloudAppUrl });
     await workerUtils.release();

@@ -15,11 +15,6 @@ function fakeRunner() {
   return { stop: vi.fn().mockResolvedValue(undefined) };
 }
 
-/**
- * Stands in for the `pg.Pool` `startRecoveryWorker` now owns itself, so a test can assert its
- * error handler stays installed and that `stop()` actually awaits closing it, without opening a
- * real socket.
- */
 class FakePool extends EventEmitter {
   readonly end = vi.fn().mockResolvedValue(undefined);
 }
@@ -32,7 +27,6 @@ function deferred(): { promise: Promise<void>; settle: () => void } {
   return { promise, settle };
 }
 
-/** Lets every pending microtask and the timers queued before it run. */
 function flushPendingWork(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -196,8 +190,6 @@ describe("startRecoveryWorker", () => {
     await flushPendingWork();
 
     expect(runner.stop).toHaveBeenCalledTimes(1);
-    // The runner must fully stop using the pool before we close it, so a job the runner is still
-    // draining never sees its connection cut from under it.
     expect(pool.end).not.toHaveBeenCalled();
 
     drain.settle();
@@ -211,8 +203,7 @@ describe("startRecoveryWorker", () => {
     let capturedEvents: EventEmitter | undefined;
     const drain = deferred();
     const runner = {
-      // A second stop() on a runner that already stopped itself rejects with "Runner is already
-      // stopped" (graphile-worker 0.18); this must never be called in that case.
+      // graphile-worker rejects a second stop() after a self-stop; must never be called here.
       stop: vi.fn().mockRejectedValue(new Error("Runner is already stopped")),
       promise: drain.promise,
     };
@@ -232,8 +223,7 @@ describe("startRecoveryWorker", () => {
       { runWorker, createPool },
     );
 
-    // Stands in for the runner's own worker pool or cron exiting on its own (e.g. its database
-    // connections were dropped), which emits "stop" on the events emitter passed to run().
+    // Simulates the runner's own worker pool or cron exiting on its own.
     mustExist(capturedEvents, "the events emitter passed to graphile-worker's run()").emit("stop", {
       ctx: {},
     });
@@ -684,9 +674,6 @@ describe("startRecoveryWorker", () => {
     expect(escalate).toHaveBeenCalledTimes(1);
     const [dbArgument, depsArgument] = escalate.mock.calls[0] as [unknown, { now: () => Date }];
     expect(dbArgument).toBe(fakeDb);
-    // `expect.any(Function)` alone would pass for any clock, including one that never reaches
-    // this call; this proves the exact clock startRecoveryWorker was given is what escalation runs
-    // against.
     expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });
 });

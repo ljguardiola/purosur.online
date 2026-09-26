@@ -17,9 +17,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { editIssuerIdentification } from "./issuer-identification-edit-route.js";
 
 // PGlite runs every query over one connection, so it can never race two saves for the single
-// issuer identification row. This runs them over a real postgres-js pool of more than one
-// connection against a real Postgres, the same reasoning `branch-settings-edit.integration.test.ts`
-// gives for a branch settings save.
+// issuer identification row; this runs them over a real postgres-js pool of more than one
+// connection against a real Postgres.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

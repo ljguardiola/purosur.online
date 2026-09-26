@@ -72,7 +72,7 @@ async function snapshotPathWithMarkerRole(): Promise<string> {
 }
 
 async function clusterDumpPathWithMarkerTable(): Promise<string> {
-  // Starts from the run's own cluster dump, so building the marker dump pays no initdb either.
+  // Starts from the run's own cluster dump, so this pays no initdb either.
   const runClusterDumpPath = inject("testDatabaseClusterDumpPath");
   const client = new PGlite({ loadDataDir: new Blob([await readFile(runClusterDumpPath)]) });
   onTestFinished(() => client.close());
@@ -121,10 +121,8 @@ describe("buildTestDatabase", () => {
     const baseline = await countsByTable(client);
     // Fails loudly instead of vacuously passing if the schema ever loses every table.
     expect(baseline.size).toBeGreaterThanOrEqual(12);
-    // The migrations seed the single Administrator role, the single location, that location's
-    // branch settings, the one issuer identification row, and the single "Lista general" price
-    // list; the baseline must hold all five for the comparison below to prove clear() restores
-    // them.
+    // These five rows the migrations seed must be present in the baseline, for the comparison
+    // below to prove clear() actually restores them.
     expect(baseline.get("roles")).toBe(1);
     expect(baseline.get("locations")).toBe(1);
     expect(baseline.get("branch_settings")).toBe(1);
@@ -280,9 +278,8 @@ describe("buildTestDatabase", () => {
       channel: "backoffice",
       status: "sent",
     });
-    // `issuer_identification` is a true singleton (a second row is impossible by construction), so
-    // its row count can never grow the way every other table's does below; changing its content
-    // instead is what this table's own version of "seeded before clear()" looks like.
+    // issuer_identification is a true singleton, so its row count can never grow like every other
+    // table's does below; changing its content is this table's own version of "seeded before clear()".
     await db.update(issuerIdentification).set({ legalName: "Temporary legal name" });
 
     const afterSeeding = await countsByTable(client);
@@ -311,7 +308,7 @@ describe("buildTestDatabase", () => {
 
     await clear();
 
-    // The email is unique: reinserting it only succeeds because clear() actually removed the row.
+    // Reinserting the same unique email only succeeds because clear() actually removed the row.
     const [user] = await db
       .insert(users)
       .values({ firstName: "Grace", email: "grace@example.com", locationId })
@@ -321,7 +318,7 @@ describe("buildTestDatabase", () => {
 
   it("restores seeded rows on clear() whatever order their tables reference each other in", async () => {
     // Each table references the other, so no insertion order of the two seeded rows satisfies
-    // both foreign keys at once.
+    // both foreign keys at once — clear() must restore them without relying on one.
     const migrationsFolder = await migrationsFolderWith([
       'create table "seed_a" ("id" integer primary key, "b_id" integer)',
       'create table "seed_b" ("id" integer primary key, "a_id" integer not null references "seed_a" ("id"))',
@@ -343,7 +340,6 @@ describe("buildTestDatabase", () => {
 
   it("closes its database and rejects with the migration's own error when migrating fails", async () => {
     const migrationsFolder = await migrationsFolderWith(["select * from missing_table"]);
-    // The database the migration ran against is the one that received queries.
     const query = vi.spyOn(PGlite.prototype, "query");
     onTestFinished(() => query.mockRestore());
 
@@ -362,8 +358,8 @@ describe("buildTestDatabase", () => {
 
   it("rejects with the migration's own error even when closing its database also fails", async () => {
     const migrationsFolder = await migrationsFolderWith(["select * from missing_table"]);
-    // PGlite also closes a throwaway instance of its own while starting up; only the database the
-    // migration queried is made to fail on close.
+    // PGlite closes a throwaway instance of its own on startup; only the database the migration
+    // queried is made to fail on close.
     const query = vi.spyOn(PGlite.prototype, "query");
     onTestFinished(() => query.mockRestore());
     const realClose = PGlite.prototype.close;
@@ -382,7 +378,7 @@ describe("buildTestDatabase", () => {
       return database;
     });
     await expect(attempt).rejects.toThrow(/missing_table/);
-    // The rejected close really was attempted: the error it raised was the one swallowed.
+    // Proves the rejected close was really attempted: its error was the one swallowed.
     expect(query.mock.contexts.some((database) => close.mock.contexts.includes(database))).toBe(
       true,
     );
@@ -429,8 +425,8 @@ describe("buildTestDatabase", () => {
     const database = await buildTestDatabase({ migrationsFolder, snapshotPath });
     onTestFinished(() => database.close());
 
-    // Also shows the spy the run-once test relies on sees calls made from inside buildTestDatabase,
-    // and that it defaults to the "node" project's own cluster dump rather than running initdb.
+    // Also proves the spy sees calls made from inside buildTestDatabase, and that it defaults to
+    // the run's own cluster dump rather than running initdb.
     expect(migrateFreshDatabase).toHaveBeenCalledWith(
       migrationsFolder,
       inject("testDatabaseClusterDumpPath"),

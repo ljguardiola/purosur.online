@@ -121,10 +121,9 @@ describe("moving two unrelated categories under each other concurrently on a rea
   });
 });
 
-// A product write queued first waits behind the held row lock even without its own `FOR UPDATE`
-// (its foreign key check takes a key-share lock on the category), so only the write queued second
-// proves that its own row lock is what makes it see the other's result. Each pair therefore runs
-// in both orders.
+// A product write queues behind the held row lock even without its own `FOR UPDATE`, because its
+// foreign key check takes a key-share lock on the category; only the write queued second proves
+// its own lock matters. Each pair runs in both orders.
 const ORDERS = ["product write first", "category write first"] as const;
 
 async function raceOnCategory<ProductOutcome, CategoryOutcome>(

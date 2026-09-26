@@ -55,8 +55,7 @@ async function insertToken(userId: string, rawToken: string): Promise<void> {
   });
 }
 
-// The 12:00 window's hour ends at 13:00; it only counts as closed once the grace period after that
-// has passed too.
+// The 12:00 window's hour ends at 13:00, plus the grace period, before it counts as closed.
 const CLOSED_NOW = new Date("2026-01-05T13:10:00.000Z");
 const OPEN_NOW = new Date("2026-01-05T12:30:00.000Z");
 
@@ -222,9 +221,8 @@ describe("flushClosedRecoveryRejectedAttemptWindows", () => {
     let batchCount = 0;
     let graceId: string | undefined;
     const originalTransaction = db.transaction.bind(db);
-    // Grace's account is created only once the first batch (ada's older window) has already
-    // committed, so it exists before the second batch (grace's window) runs, but did not exist
-    // when the run started.
+    // Creates grace's account between the first and second batch commits, so it exists for the
+    // second but did not when the run started.
     const transaction = vi
       .spyOn(db, "transaction")
       .mockImplementation((callback: Parameters<typeof db.transaction>[0]) => {

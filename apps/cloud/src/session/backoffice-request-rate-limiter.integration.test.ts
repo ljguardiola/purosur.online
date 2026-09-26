@@ -11,8 +11,7 @@ import {
   recordBackofficeRequest,
 } from "./backoffice-request-rate-limiter.js";
 
-// PGlite serves every query on one connection, so only a real Postgres pool can race two
-// requests for the last slot of the same limit.
+// PGlite serves every query on one connection, so only a real Postgres pool can race two requests for the last slot.
 let integrationDb: IntegrationDatabase;
 let sql: postgres.Sql;
 
@@ -36,11 +35,7 @@ function connectAs(applicationName: string): ReturnType<typeof postgres> {
   });
 }
 
-/**
- * Resolves "held up" once the named backend is observed waiting on an advisory lock, or never
- * resolves once `isDone` reports the race's other side already settled — so this side of the
- * race stops polling instead of running for as long as the test does.
- */
+/** Never resolves once `isDone` reports the race's other side already settled, so this stops polling instead of running for as long as the test does. */
 async function waitUntilBlockedOnAnAdvisoryLock(
   applicationName: string,
   isDone: () => boolean,
@@ -62,7 +57,7 @@ async function waitUntilBlockedOnAnAdvisoryLock(
   return await new Promise<"held up">(() => {});
 }
 
-/** Seeds `count` already-admitted rows for one key, directly, so a race only needs to contend for the few slots left under its limit. */
+/** Seeds `count` already-admitted rows for one key directly, so a race only needs to contend for the few slots left. */
 async function seedAttempts(
   keyKind: "session" | "source_address",
   keyValue: string,
@@ -136,8 +131,7 @@ describe("the backoffice rate limiter on concurrent connections", () => {
     });
 
     try {
-      // A transaction that fails before taking its lock rejects the test here instead of leaving
-      // it waiting on a lock that is never taken.
+      // A transaction that fails before taking its lock rejects here instead of hanging forever.
       await Promise.race([recoveryLockHeld, recoveryTransaction]);
       let requestSettled = false;
       const request = recordBackofficeRequest(requestDb, {

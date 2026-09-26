@@ -10,13 +10,11 @@ import {
 } from "./migrate.js";
 
 describe("runMigrations", () => {
-  it("rejects when the database is unreachable", async () => {
+  it("rejects immediately when the database is unreachable and the wait budget is zero", async () => {
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
         migrationsFolder: new URL("../migrations", import.meta.url).pathname,
         connectTimeoutSeconds: 1,
-        // A zero wait budget keeps this test fast: it proves an unreachable database still
-        // fails the deploy, not that the retry loop is bounded (the waitForDatabase tests cover that).
         waitForDatabaseSeconds: 0,
       }),
     ).rejects.toThrow();

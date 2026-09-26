@@ -8,9 +8,8 @@ import {
   type IntegrationDatabase,
 } from "../recovery/recovery-integration-database.js";
 
-// Application code (`product-validation.ts`) already keeps every one of these three bad shapes
-// from ever reaching an insert or update, so these checks are the database's own backstop for
-// them and are exercised here by writing straight to the table, bypassing that application code.
+// Application code already keeps these three bad shapes from ever reaching an insert or update, so
+// these checks are the database's own backstop, exercised here by writing straight to the table.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

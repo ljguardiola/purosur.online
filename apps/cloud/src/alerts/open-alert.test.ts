@@ -81,7 +81,7 @@ beforeEach(async () => {
   locationId = await seededLocationId(db);
 });
 
-/** The migrations seed the one, fixed Administrator role; no test may insert a second one. */
+// The migrations seed the one, fixed Administrator role; no test may insert a second one.
 async function seededAdministratorRoleId(): Promise<string> {
   const [administratorRole] = await db
     .select({ id: roles.id })
@@ -163,21 +163,14 @@ describe("openAlert", () => {
     });
   });
 
-  // The audience rule itself (who can see an All- or Local-audience alert) is owned and tested
-  // once in alert-visibility.test.ts's own visibleToUsersCondition suite, and the "active" filter
-  // plus forwarding of audience/locationId is owned and tested once by the recipientsFor suite
-  // below. This only proves openAlert wires that into its own delivery rows correctly: one row per
-  // recipient recipientsFor returns for the alert it just opened, on the right channel and status.
   it("writes a delivery row for each recipient recipientsFor returns for the alert's audience", async () => {
     const viewAllRoleId = await insertRole({
       name: "Supervisor",
       permissionKeys: ["view_all_alerts"],
     });
     await insertUser({ firstName: "Grace", email: "grace@example.com", roleId: viewAllRoleId });
-    // A user recipientsFor never returns, so the equality below can tell "only recipientsFor's
-    // users" apart from "every active user".
     const noPermissionRoleId = await insertRole({ name: "Repositor" });
-    const hedyId = await insertUser({
+    const neverRecipientId = await insertUser({
       firstName: "Hedy",
       email: "hedy@example.com",
       roleId: noPermissionRoleId,
@@ -204,7 +197,7 @@ describe("openAlert", () => {
     if (outcome.kind !== "opened") throw new Error("unreachable");
     const expectedRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
     expect(expectedRecipients).not.toHaveLength(0);
-    expect(expectedRecipients).not.toContain(hedyId);
+    expect(expectedRecipients).not.toContain(neverRecipientId);
     const delivered = await deliveriesOf(outcome.alertId);
     expect(delivered.map((row) => row.recipientUserId).sort()).toEqual(expectedRecipients.sort());
     for (const row of delivered) {
@@ -316,11 +309,6 @@ describe("openAlert", () => {
 });
 
 describe("recipientsFor", () => {
-  // The audience rule itself (Local vs All, own branch vs another, no permission, Administrator,
-  // view_all_alerts) is owned and tested once in alert-visibility.test.ts's own
-  // visibleToUsersCondition suite. This only proves recipientsFor wires that shared condition into
-  // its own query correctly: the "active" filter it owns (the condition doesn't know about it),
-  // and forwarding the audience and locationId it's given.
   it("delivers to an active Administrator, excludes an inactive one, and forwards the audience and locationId it's given", async () => {
     const administratorRoleId = await seededAdministratorRoleId();
     const activeAdministratorId = await insertUser({

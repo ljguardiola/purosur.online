@@ -14,9 +14,8 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
-// PGlite reports a unique violation with its own error shape; production talks to Postgres
-// through postgres-js, whose error names the violated index differently. This proves the taken
-// address the email UPDATE runs into is still answered as email_taken on that real driver.
+// PGlite and postgres-js name the violated index differently in their unique-violation errors;
+// this proves the taken address is still answered as email_taken on the real driver.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
@@ -67,7 +66,6 @@ async function administratorRoleId(): Promise<string> {
   return role.id;
 }
 
-/** Inserts a session already carrying a valid passkey authorization, the way a passkey sign-in would. */
 async function insertSession(userId: string): Promise<string> {
   const rawSessionId = generateSessionId();
   const now = new Date();

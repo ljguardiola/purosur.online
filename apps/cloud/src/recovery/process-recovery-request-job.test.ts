@@ -64,8 +64,7 @@ describe("processRecoveryRequestJob", () => {
 
     await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
-    // An unknown email must open no alert of its own: doing so would let a caller learn whether the
-    // address has an account by watching for the alert.
+    // No alert either: one would let a caller learn the address has no account by its absence.
     await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
     expect(result).toEqual({});
   });
@@ -169,8 +168,6 @@ describe("processRecoveryRequestJob", () => {
       request("ada@example.com", newerRequestAt),
       jobDeps(newerRequestAt),
     );
-    // Closes the alert the admitted request above opened, so a superseded request reopening it
-    // would show up as a freshly open one below.
     await db
       .update(alerts)
       .set({ resolvedAt: newerRequestAt, resolvedBy: userId })
@@ -264,7 +261,6 @@ describe("processRecoveryRequestJob", () => {
     expect(send.to).toBe("ada@example.com");
     expect(send.link).toMatch(/^https:\/\/staging\.purosur\.online\/account-recovery\/passkey#.+$/);
     const rawToken = mustExist(send.link.split("#")[1], "the link to carry a token fragment");
-    // The link's fragment carries the raw token; the row only ever stores its hash.
     const expectedHash = createHash("sha256").update(rawToken).digest("base64url");
     const token = mustExist(tokens[0], "one recovery token row");
     expect(token.tokenHash).toBe(expectedHash);
@@ -279,7 +275,6 @@ describe("processRecoveryRequestJob", () => {
       actorId: userId,
       previousValue: null,
     });
-    // The audit trail never carries the token or its hash, only when it was issued and expires.
     expect(JSON.stringify(auditRow.newValue)).not.toContain(rawToken);
     expect(JSON.stringify(auditRow.newValue)).not.toContain(token.tokenHash);
   });

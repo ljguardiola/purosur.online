@@ -28,7 +28,7 @@ async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
-// Found by name rather than by number, so a renumbering after merging another branch's migration
+// Found by tag suffix, not number, so a renumbering after merging another branch's migration
 // doesn't silently point this test at the wrong file.
 async function registersEntry(): Promise<JournalEntry> {
   const journal = await readRealJournal();
@@ -42,11 +42,8 @@ async function registersEntry(): Promise<JournalEntry> {
 }
 
 /**
- * Builds a migrations folder holding only the real migrations that precede the registers one: the
- * schema as it stood right before this feature's own migration existed, so it can be applied
- * afterward, on its own, against data seeded in that pre-migration shape. Only `_journal.json` and
- * the migration `.sql` files themselves matter to the runtime migrator (unlike `drizzle-kit
- * generate`, it never reads the per-migration snapshot files).
+ * Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
+ * unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
  */
 async function migrationsFolderBeforeRegisters(destFolder: string): Promise<void> {
   await mkdir(join(destFolder, "meta"), { recursive: true });
@@ -65,7 +62,6 @@ async function migrationsFolderBeforeRegisters(destFolder: string): Promise<void
   }
 }
 
-/** Adds this feature's real, already hand-edited registers migration to the folder. */
 async function addRegistersMigration(destFolder: string): Promise<void> {
   const journalPath = join(destFolder, "meta", "_journal.json");
   const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
@@ -113,7 +109,7 @@ describe("the registers migration applied over a database that already holds dat
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());
 
-    // Seeded by migration 0011: the one location every earlier migration already assumes exists.
+    // The migrations already seed one location; earlier ones assume it exists.
     const { rows: seededLocationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );
@@ -131,7 +127,6 @@ describe("the registers migration applied over a database that already holds dat
     await addRegistersMigration(folder);
     await migrate(drizzle(client), { migrationsFolder: folder });
 
-    // The rows seeded before the migration are untouched.
     const { rows: locationsAfter } = await client.query<{ id: string }>("select id from locations");
     expect(locationsAfter.map((row) => row.id).sort()).toEqual(
       [seededLocation.id, otherLocationId].sort(),
@@ -147,7 +142,6 @@ describe("the registers migration applied over a database that already holds dat
     );
     expect(auditAfter).toHaveLength(1);
 
-    // A register can be inserted for a location that already existed before the migration.
     await expect(
       client.query("insert into registers (location_id, name) values ($1, $2) returning id", [
         seededLocation.id,

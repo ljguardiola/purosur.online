@@ -5,7 +5,6 @@ import { reportPoolErrors } from "./pool-connection-error-handler.js";
 class FakePool extends EventEmitter {}
 class FakeClient extends EventEmitter {}
 
-/** Mirrors how pg hands a client out and takes it back, around which this reporting turns. */
 function checkOut(pool: FakePool, client: FakeClient): void {
   pool.emit("connect", client);
   pool.emit("acquire", client);
@@ -116,8 +115,7 @@ describe("reportPoolErrors", () => {
     release(pool, client);
     const error = new Error("connection terminated unexpectedly");
 
-    // pg reattaches its own idle listener on release, and that listener republishes the error on
-    // the pool, so both of these fire for one dropped connection.
+    // pg reattaches its own idle listener on release, which republishes the error on the pool.
     expect(() => client.emit("error", error)).not.toThrow();
     pool.emit("error", error);
 

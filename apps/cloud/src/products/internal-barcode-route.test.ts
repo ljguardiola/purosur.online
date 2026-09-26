@@ -37,8 +37,7 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-// `setval(..., false)` makes the very next `nextval` return exactly `value`, so a test knows the
-// code the allocator will pull first no matter what earlier tests left the sequence at.
+// `setval(..., false)` makes the very next `nextval` return exactly `value`.
 async function setNextSequenceValue(value: bigint): Promise<void> {
   await testDatabase.client.query("select setval('internal_barcode_sequence', $1, false)", [
     value.toString(),

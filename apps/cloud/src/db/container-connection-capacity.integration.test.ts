@@ -1,8 +1,8 @@
 import postgres from "postgres";
 import { expect, inject, it } from "vitest";
 
-// The pools every integration file can open at once add up to about 300 (see
-// vitest.global-setup.postgres.ts); this leaves headroom above that for non-superuser roles.
+// Integration files' pools add up to about 300 connections at once; this leaves headroom above
+// that for non-superuser roles.
 const PEAK_CONNECTIONS_WITH_MARGIN = 400;
 
 it("leaves room for every integration file's pool to be open at once", async () => {

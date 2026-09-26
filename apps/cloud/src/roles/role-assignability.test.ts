@@ -40,7 +40,6 @@ async function seededAdministratorRoleId(): Promise<string> {
   return administratorRole.id;
 }
 
-/** Inserts a session already carrying a valid passkey authorization, the way a passkey sign-in would. */
 async function insertSession(userId: string): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({

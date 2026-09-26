@@ -9,8 +9,8 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { findBranchSettings } from "./branch-settings-read-route.js";
 
 // PGlite runs every query over one connection, so a save can never commit between the read's own
-// statements there. This runs the read against a real Postgres while a second connection commits a
-// save in between them.
+// statements there; this runs the read against a real Postgres instead, with a second connection
+// committing a save in between them.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;
@@ -46,8 +46,8 @@ describe("reading a branch's settings while a save commits, on a real Postgres t
     const locationId = await seededLocationId(db);
     expect(await findBranchSettings(db, locationId)).toMatchObject({ version: 1, hours: [] });
 
-    // Holding branch_hours' lock lets the read take its settings row and then wait on the hours,
-    // so the save below commits exactly between the read's two statements.
+    // Holding branch_hours' lock stalls the read between its settings and hours statements, so the
+    // save below commits exactly in that gap.
     const writer = await adminSql.reserve();
     let read: ReturnType<typeof findBranchSettings> | undefined;
     try {

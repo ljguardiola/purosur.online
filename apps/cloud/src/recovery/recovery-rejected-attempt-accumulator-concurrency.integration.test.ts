@@ -32,7 +32,7 @@ afterAll(async () => {
 
 describe("recordRejectedAttempt against a real pool", () => {
   it("counts every concurrent attempt on one key and keeps the earliest and latest time, whatever order they land in", async () => {
-    // Spread across the hour and interleaved, so the latest attempts are not the last to land.
+    // Interleaved so the latest attempt times are not the last to land.
     const attemptTimes = Array.from(
       { length: CONCURRENT_ATTEMPTS },
       (_, i) => new Date(WINDOW_START_MS + ((i * 37) % CONCURRENT_ATTEMPTS) * 60_000 + 1_000),

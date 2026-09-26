@@ -83,7 +83,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
   );
 }
 
-/** Registers a real first passkey for `forUserId`, backed by `emulator`, through the recovery redeem route. */
 async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulator): Promise<void> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -294,8 +293,7 @@ describe("POST /users/session/authorization", () => {
     const rawSessionId = await insertSession(userId);
     const options = await requestAuthorizationOptions(rawSessionId);
     const authorization = emulator.getJSON(BACKOFFICE_ORIGIN, options.authorization_options);
-    // Only the kind separates this row from a genuine pending authorization: its
-    // reauthentication challenge is exactly the one the assertion above signed.
+    // Only the kind differs from a genuine pending authorization.
     await db.update(passkeyChallenges).set({ kind: "registration" });
 
     const response = await authorize(rawSessionId, { authorization });

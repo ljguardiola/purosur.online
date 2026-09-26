@@ -66,11 +66,8 @@ describe("layoutLabelSheet", () => {
     ]);
     const labels = pages[0]?.labels ?? [];
 
-    // First label (col 0, row 0): a label to its right and below, so both cuts are drawn.
     expect(labels[0]).toMatchObject({ cutRight: true, cutBottom: true });
-    // Third label (col 2, row 0): the sheet's right edge, no cut even though a label follows below.
     expect(labels[2]).toMatchObject({ cutRight: false, cutBottom: true });
-    // Last label (col 2, row 7): the sheet's bottom-right corner, no cuts at all.
     expect(labels[23]).toMatchObject({ cutRight: false, cutBottom: false });
   });
 

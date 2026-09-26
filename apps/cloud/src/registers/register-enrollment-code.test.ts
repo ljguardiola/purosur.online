@@ -11,7 +11,6 @@ const BASE32_CHARACTER_PATTERN = /^[A-Z2-7]+$/;
 
 describe("base32Encode", () => {
   it("matches the RFC 4648 test vector for a length already a multiple of 5 bits", () => {
-    // "fooba" is 5 bytes (40 bits), so it encodes to exactly 8 base32 characters with no padding.
     expect(base32Encode(Buffer.from("fooba"))).toBe("MZXW6YTB");
   });
 
@@ -34,8 +33,6 @@ describe("generateRegisterEnrollmentCode", () => {
   it("generates exactly 16 base32 characters, carrying 80 bits (10 bytes) of CSPRNG entropy", () => {
     const code = generateRegisterEnrollmentCode();
 
-    // 16 base32 characters * 5 bits/character = 80 bits, RFC 4648's exact encoding of 10 bytes
-    // with no padding, since 80 is already a multiple of 5.
     expect(REGISTER_ENROLLMENT_CODE_LENGTH).toBe(16);
     expect(code).toHaveLength(REGISTER_ENROLLMENT_CODE_LENGTH);
     expect(code).toMatch(BASE32_CHARACTER_PATTERN);

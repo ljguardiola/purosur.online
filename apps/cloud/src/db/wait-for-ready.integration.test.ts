@@ -59,12 +59,9 @@ interface JournalEntry {
   breakpoints: boolean;
 }
 
-/**
- * Copies the real migrations folder into a temp directory with one extra migration appended to
- * its journal, so a database migrated with the real folder is one migration behind what this
- * temp folder bundles — proving `waitForReady` notices a migration it expects is missing, without
- * needing to touch (or wait on) the repository's own real migrations.
- */
+// Appends one extra migration to a copy of the real journal, so a database migrated with the real
+// folder is one migration behind what this temp folder bundles — proving waitForReady notices a
+// missing migration without touching the repository's own real migrations.
 function migrationsFolderWithOneExtraMigration(): { path: string; cleanup: () => void } {
   const path = mkdtempSync(join(tmpdir(), "wait-for-ready-migrations-"));
   cpSync(REAL_MIGRATIONS_FOLDER, path, { recursive: true });
@@ -159,8 +156,8 @@ describe("waitForReady", () => {
     const extra = migrationsFolderWithOneExtraMigration();
 
     try {
-      // The database only ever gets the real, unmodified migrations: the extra one below exists
-      // only in the image's own bundled folder, never applied to this database.
+      // The database only ever gets the real, unmodified migrations; the extra one is never
+      // applied, only bundled in the image's own folder.
       await withExclusiveMigration(() =>
         runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
           migrationsFolder: REAL_MIGRATIONS_FOLDER,

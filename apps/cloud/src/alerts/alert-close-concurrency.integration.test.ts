@@ -10,9 +10,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type CloseAlertOutcome, closeAlert } from "./alert-close-route.js";
 
-// PGlite serves every query on one connection and can never race two closes of the same alert
-// against each other, so `closeAlert`'s own `SELECT ... FOR UPDATE` never has to stop a real
-// double close. This races it for real on a real Postgres.
+// PGlite serves every query on one connection and can never race two closes against each other, so
+// this races `closeAlert`'s `SELECT ... FOR UPDATE` for real on a real Postgres.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 let integrationDb: IntegrationDatabase;
@@ -41,12 +40,8 @@ async function waitForLockWaiters(count: number): Promise<void> {
   throw new Error(`test setup: ${count} closes never queued behind the held lock`);
 }
 
-/**
- * Holds `FOR UPDATE` on the alert row on a reserved connection, starts `first`, starts `second`
- * only once `first` is queued behind that lock, then lets both go once `second` is queued too.
- * Postgres's lock wait queue is FIFO for two waiters on the very same lock, so `first` — queued
- * strictly before `second` — is guaranteed to be granted the row first.
- */
+// Postgres's lock wait queue is FIFO for two waiters on the same lock, so `first` — queued
+// strictly before `second` — is guaranteed to be granted the row first.
 async function runQueuedBehindRowLock<T>(
   alertId: string,
   first: () => Promise<T>,

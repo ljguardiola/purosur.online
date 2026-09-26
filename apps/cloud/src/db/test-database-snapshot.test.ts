@@ -46,9 +46,8 @@ interface Provided {
   value: string | undefined;
 }
 
-// Each test initializes one embedded Postgres cluster from scratch, about a second on a fast machine
-// and several on a busy CI one, then loads up to four more from dumps, which together the default
-// five-second test limit does not cover.
+// Each test initializes one Postgres cluster from scratch (about a second, more on a busy CI
+// machine) then loads several more from dumps, past the default five-second test limit.
 describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
   it("rebuilds the provided snapshot from the migrations as they are when tests rerun, without rebuilding the cluster dump", async () => {
     const folder = await mkdtemp(join(tmpdir(), "test-database-snapshot-"));

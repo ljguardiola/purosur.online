@@ -12,8 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { editBranchSettings } from "./branch-settings-edit-route.js";
 
 // PGlite runs every query over one connection, so it can never race two saves for the same
-// location. This runs them over a real postgres-js pool of more than one connection against a
-// real Postgres, the same reasoning `role-edit.integration.test.ts` gives for role edits.
+// location; this runs them over a real postgres-js pool against a real Postgres instead.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

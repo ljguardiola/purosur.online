@@ -243,9 +243,7 @@ describe("POST /products/:id/deactivation", () => {
 
 describe("a raw DELETE FROM products", () => {
   it("fails against the database, whoever sends it", async () => {
-    // No barcodes, so the trigger this proves is the one rejecting it: `product_barcodes`'s own
-    // foreign key (`ON DELETE no action`) would already block deleting a product that still has
-    // any.
+    // No barcodes: their foreign key would otherwise block the delete before the trigger does.
     const categoryId = await insertCategory("Macetas");
     const product = await insertProduct({ name: "Maceta", categoryId, barcodes: [] });
 

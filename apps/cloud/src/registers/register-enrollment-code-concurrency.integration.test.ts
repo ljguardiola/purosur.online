@@ -62,10 +62,9 @@ describe("emitting two enrollment codes for a register with no code yet concurre
     const firstNow = new Date();
     const secondNow = new Date(firstNow.getTime() + 1_000);
 
-    // A SHARE lock on the codes table parks the first emission at its INSERT, after it has locked
-    // the register row and found no code row; the second then waits on that register row and only
-    // reads the codes table once the first commits, so it sees the first code as the one replaced.
-    // Without the register-row lock nothing would stop the second, and both would read no row.
+    // A SHARE lock on the codes table parks the first emission at its INSERT after it has locked
+    // the register row; the second then waits on that row and sees the first's code as replaced
+    // only once it commits.
     const holder = await adminSql.reserve();
     let emissions: ReturnType<typeof emitRegisterEnrollmentCode>[] = [];
     try {

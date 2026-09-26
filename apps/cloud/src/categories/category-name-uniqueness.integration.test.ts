@@ -10,13 +10,9 @@ import {
 } from "../recovery/recovery-integration-database.js";
 import { createCategory } from "./category-creation-route.js";
 
-// PGlite runs every query over one connection, so it can never race two creations for the same
-// name. This runs them over a real postgres-js pool of more than one connection against a real
-// Postgres, so the name each one races for is caught either by the transaction's own
-// case-insensitive check or, when both slip past it concurrently, by the database's unique index
-// on `lower(categories.name)` — reported as `constraint_name` by postgres-js, unlike PGlite's
-// `constraint`, which is what `isCategoryNameUniqueViolation` (in `category-creation-route.ts`)
-// must map correctly for this driver too.
+// PGlite can't race two creations for the same name; this runs them on a real postgres-js pool.
+// Its driver reports the violated index as `constraint_name`, unlike PGlite's `constraint` field —
+// both must be handled correctly.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

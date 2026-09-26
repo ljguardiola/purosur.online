@@ -9,10 +9,8 @@ interface PdfObject {
   stream: Buffer | undefined;
 }
 
-/**
- * Splits a pdfkit-written PDF into its numbered objects, inflating each FlateDecode stream, so
- * tests read the same compressed bytes production serves without a full PDF parser.
- */
+// Splits a pdfkit-written PDF into its numbered objects, inflating each FlateDecode stream, so
+// tests read the same compressed bytes production serves without a full PDF parser.
 function pdfObjects(pdf: Buffer): Map<number, PdfObject> {
   const text = pdf.toString("latin1");
   const objects = new Map<number, PdfObject>();
@@ -112,11 +110,8 @@ function pageContents(objects: Map<number, PdfObject>): string[] {
   );
 }
 
-/**
- * Every `[<hex>...] TJ` show-text operator of every page, decoded through the font selected by
- * the `Tf` before it: an embedded font's codes through its ToUnicode CMap (an unmapped code, or the
- * `.notdef` glyph 0, as U+FFFD), a built-in font's WinAnsi bytes as Latin-1.
- */
+// Every `[<hex>...] TJ` show-text operator, decoded through the font the `Tf` before it selected:
+// an embedded font's codes through its ToUnicode CMap, a built-in font's WinAnsi bytes as Latin-1.
 function renderedTextRuns(pdf: Buffer): RenderedText[] {
   const objects = pdfObjects(pdf);
   const fontIds = new Map<string, string>();
@@ -236,10 +231,8 @@ describe("renderLabelSheetPdf", () => {
 
     expect(texts).toContain("Almendras peladas");
     expect(texts).toContain("Nueces mariposa");
-    // 2000000000015's first digit, then its two 6-digit halves either side of the check digit.
     expect(texts).toContain("000000");
     expect(texts).toContain("000015");
-    // 2912345678906's own halves, proving the digits come from each product's own code.
     expect(texts).toContain("912345");
     expect(texts).toContain("678906");
   });
@@ -338,7 +331,7 @@ describe("renderLabelSheetPdf", () => {
 
       expect(nameRuns.length).toBe(name.length > 20 ? 2 : 1);
       for (const run of nameRuns) {
-        // The font's ascent bounds every glyph's top, accented capitals included.
+        // A font's ascent, from its descriptor, is per 1000 units of its size.
         const glyphTopPt = run.baselinePt - ((run.font.ascent ?? 0) / 1000) * run.fontSizePt;
         expect(glyphTopPt).toBeGreaterThanOrEqual(paddedTopPt);
       }

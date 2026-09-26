@@ -12,11 +12,8 @@ import { createProduct } from "./product-creation-route.js";
 
 // PGlite runs every query over one connection, so it can never race two creations for the same
 // barcode. This runs them over a real postgres-js pool of more than one connection against a real
-// Postgres, so the code each one races for is caught either by the transaction's own uniqueness
-// check or, when both slip past it concurrently, by the database's unique index on
-// `product_barcodes.code` — reported as `constraint_name` by postgres-js, unlike PGlite's
-// `constraint`, which is what `isBarcodeUniqueViolation` (in `product-creation-route.ts`) must map
-// correctly for this driver too.
+// Postgres, so a code that slips past the transaction's own uniqueness check concurrently is still
+// caught by the database's unique index on `product_barcodes.code`.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

@@ -10,11 +10,10 @@ import {
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
-// PGlite serves every query on one connection and serializes transactions outright, so only a
-// real Postgres pool can land a burst of requests on this route the way a shared office address
-// would. Pool size leaves room for every request to hold a connection at once: sized to the
-// burst, an exhausted pool would wait instead of failing, and the assertions below would never
-// be reached.
+// PGlite serves every query on one connection and serializes transactions outright, so only a real
+// Postgres pool can land a burst of requests the way a shared office address would. Pool size
+// leaves room for every request to hold a connection at once, so an exhausted pool fails loudly
+// instead of leaving the assertions below unreached.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const SOURCE_ADDRESS = "198.51.100.30";

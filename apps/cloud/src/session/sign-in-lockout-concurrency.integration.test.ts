@@ -8,13 +8,9 @@ import {
 import { admitSignInAttempt, SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
 // PGlite serves every query on one connection, so only a real Postgres pool can race a burst of
-// attempts from one source address against the ceiling that is supposed to cap them.
-//
-// One admission needs a connection to prune and another for its locked transaction, which it
-// holds while it waits its turn on the advisory lock. A pool sized to the burst itself would
-// leave later requests queueing for a connection with no timeout of their own, so the suite would
-// hang rather than report anything: the headroom below, and each test's own timeout, keep an
-// exhausted pool a loud failure instead of a silent wait.
+// attempts against the ceiling meant to cap them. One admission needs a connection to prune and
+// another for its locked transaction, so the pool below is sized with headroom above the burst;
+// otherwise queued requests with no timeout of their own would hang the suite instead of failing loudly.
 const BURST = 20;
 
 let integrationDb: IntegrationDatabase;

@@ -558,7 +558,6 @@ describe("startServer with the real app", () => {
         headers: { "x-edge-origin-secret": "edge-secret" },
       });
 
-      // No session cookie was sent, so the route's own 401 answers before any database read.
       expect(response.statusCode).toBe(401);
       expect(response.json()).toMatchObject({ code: "unauthenticated" });
       expect(builtApps).toEqual([app]);

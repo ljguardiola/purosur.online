@@ -15,9 +15,7 @@ import { setPrice } from "./price-set-route.js";
 
 // PGlite serves every query on one connection and serializes transactions outright, so two price
 // writes on the same product can only interleave on a real Postgres pool. Each test pins the
-// interleaving by holding the product's row lock on a connection of its own and waiting until
-// both writes queue behind it, so the order in which they reach the database is decided by the
-// test, not by timing.
+// interleaving by holding the product's row lock and waiting until both writes queue behind it.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
@@ -59,9 +57,8 @@ async function seedActorAndProduct(): Promise<{ actorId: string; productId: stri
 }
 
 async function waitForLockWaiters(count: number): Promise<void> {
-  // Bounded well under the test timeout, so a write that never queues fails with this message.
-  // Counted across this file's own database: the second write waits on the first one's tuple
-  // lock, not on the holder, so pg_blocking_pids of the holder never lists it.
+  // The second write waits on the first one's tuple lock, not on the holder, so
+  // pg_blocking_pids of the holder never lists it; counting pg_stat_activity waiters does.
   for (let attempt = 0; attempt < 200; attempt += 1) {
     const [row] = await sql<{ waiting: number }[]>`
       select count(*)::int as waiting from pg_stat_activity
@@ -72,10 +69,6 @@ async function waitForLockWaiters(count: number): Promise<void> {
   throw new Error(`test setup: ${count} writes never queued behind the held lock`);
 }
 
-/**
- * Holds `FOR UPDATE` on the product row, starts `first`, starts `second` only once `first` is
- * waiting on that same lock, then lets both go once `second` waits too.
- */
 async function runQueuedBehindProductLock<TFirst, TSecond>(
   productId: string,
   first: () => Promise<TFirst>,

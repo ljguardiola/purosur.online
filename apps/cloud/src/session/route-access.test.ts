@@ -51,16 +51,13 @@ beforeEach(async () => {
     handlerRuns += 1;
     await reply.code(200).send({ ok: true });
   };
-  // No production endpoint needs a delegable permission yet: `void_sale` stands in for whichever
-  // permission is checked.
+  // `void_sale` stands in for whichever permission a route might declare.
   app.get(
     "/test-only/void-sale",
     { config: { access: permissionAccess("void_sale"), sessionSource } },
     answerWithSession,
   );
-  // Stands in for a route reachable by holding either of two permissions (an any-of declaration),
-  // the same way the Users area is reachable by holding either `deactivate_users` or
-  // `reactivate_users`.
+  // Stands in for a route reachable by holding either of two permissions (an any-of declaration).
   app.get(
     "/test-only/void-sale-or-process-return",
     {

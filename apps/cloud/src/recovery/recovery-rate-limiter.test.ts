@@ -55,7 +55,6 @@ describe("recordRecoveryRequestAttempt", () => {
       });
 
     for (let i = 0; i < 5; i++) {
-      // A different source address each time isolates the destination limit from the source one.
       expect((await attempt(`203.0.113.${i}`)).allowed).toBe(true);
     }
 

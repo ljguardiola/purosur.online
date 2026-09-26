@@ -85,7 +85,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
   );
 }
 
-/** Registers a real passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerPasskey(
   forUserId: string,
   emulator: WebAuthnEmulator,
@@ -166,9 +165,8 @@ describe("POST /users/passkeys/:id/remove", () => {
     await registerPasskey(userId, emulatorA, "Notebook del local");
     await registerPasskey(userId, emulatorB, "Teléfono del local");
 
-    // Redeeming the two setup passkeys above already opened (and, on the second, deduped into) the
-    // account's own backoffice_passkey_changed alert; closing it here keeps each test's own
-    // assertions about that alert free of this setup's side effect.
+    // Closes the alert the two setup passkeys above already opened, so each test's own alert
+    // assertions stay free of this setup's side effect.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: userId })

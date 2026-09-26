@@ -122,13 +122,9 @@ function postAuthenticate(body: Record<string, unknown>, headers: Record<string,
 
 let tokenSequence = 0;
 
-/**
- * Issues a live recovery token for `forUserId` and requests fresh registration options for it,
- * both through the real `/users/recovery/*` HTTP routes so every WebAuthn options/response value
- * this test passes to `WebAuthnEmulator` crosses the same JSON boundary a real browser would,
- * instead of being typed directly against `@simplewebauthn/server`'s exports (which
- * `nid-webauthn-emulator`'s own bundled types don't structurally match one-for-one).
- */
+// Goes through the real HTTP routes so every WebAuthn value this test passes to `WebAuthnEmulator`
+// crosses the same JSON boundary a browser would, instead of being typed directly against
+// `@simplewebauthn/server`'s exports (which the emulator's bundled types don't match one-for-one).
 async function requestRegistrationOptions(forUserId: string) {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -152,7 +148,6 @@ async function requestRegistrationOptions(forUserId: string) {
   return { rawToken, options: response.json().passkey_registration_options };
 }
 
-/** Registers a real passkey for `forUserId`, backed by `emulator`, via the actual redeem route. */
 async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   const { rawToken, options } = await requestRegistrationOptions(forUserId);
   const credential = emulator.createJSON(BACKOFFICE_ORIGIN, options);
@@ -171,11 +166,8 @@ async function registerPasskey(forUserId: string, emulator: WebAuthnEmulator) {
   }
 }
 
-/**
- * An assertion the server can read and takes all the way to the credential check, and rejects
- * there because no passkey was ever registered under that credential id — a genuine rejected
- * sign-in attempt, without an authenticator's key material behind it.
- */
+// Reaches the credential check and rejects there because no passkey was ever registered under this
+// id — a genuine rejected sign-in attempt, without an authenticator's key material behind it.
 function rejectedAssertion() {
   const clientDataJSON = Buffer.from(
     JSON.stringify({
@@ -274,13 +266,13 @@ describe("POST /users/session/authenticate", () => {
     await registerPasskey(userId, emulator);
     const first = await postAuthenticate({ assertion: await getAuthenticationAssertion(emulator) });
     const firstRawId = String(first.headers["set-cookie"]).split(";")[0]?.split("=")[1];
-    // The database is shared across this file's tests: the injected schema break is undone however
-    // this test ends, or every later test's session insert would fail against it.
+    // Undoes the injected schema break however this test ends, since the database is shared across
+    // this file's tests.
     onTestFinished(async () => {
       await client.exec("alter table sessions drop column if exists injected_failure");
     });
     // A column with no default fails exactly the INSERT of the new session, while the revoke of
-    // the incoming one — an UPDATE of a row already stored — still goes through on its own.
+    // the incoming one (an UPDATE of an already-stored row) still goes through on its own.
     await client.exec(
       "alter table sessions add column injected_failure text not null default 'x';" +
         "alter table sessions alter column injected_failure drop default;",
@@ -302,8 +294,7 @@ describe("POST /users/session/authenticate", () => {
   it("rejects an unknown credential as unknown_passkey, so the backoffice can tell the device to forget it", async () => {
     const registeredEmulator = new WebAuthnEmulator();
     await registerPasskey(userId, registeredEmulator);
-    // A distinct account whose registration this server never redeemed: its own emulator holds a
-    // real, valid credential that the `passkeys` table simply has no row for.
+    // A distinct account whose emulator holds a real credential the `passkeys` table has no row for.
     const [strangerUser] = await db
       .insert(users)
       .values({
@@ -488,7 +479,7 @@ describe("POST /users/session/authenticate", () => {
   it("rejects a signature counter that does not exceed the stored one once it left zero", async () => {
     const emulator = new WebAuthnEmulator();
     await registerPasskey(userId, emulator);
-    // Bump the stored counter above the authenticator's own next value to force a clone signal.
+    // Bumps the stored counter above the authenticator's own next value, forcing a clone signal.
     await db.update(passkeys).set({ counter: 1_000_000 }).where(eq(passkeys.userId, userId));
     const assertion = await getAuthenticationAssertion(emulator);
 
