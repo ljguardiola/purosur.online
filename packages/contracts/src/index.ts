@@ -37,6 +37,7 @@ export type {
   PermissionKey,
   PermissionRegisterMarker,
 } from "./permission-catalog.js";
+export { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH, passkeyNameLength } from "./passkey-name.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
   isPermissionKey,
