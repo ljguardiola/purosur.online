@@ -121,12 +121,16 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
   onSessionEndedRef.current = onSessionEnded;
 
   useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed === searchQuery) {
+      return;
+    }
     const timer = setTimeout(() => {
-      setSearchQuery(search.trim());
+      setSearchQuery(trimmed);
       setPage(1);
     }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, searchQuery]);
 
   const load = useCallback(async () => {
     requestRef.current += 1;

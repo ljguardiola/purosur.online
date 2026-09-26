@@ -162,6 +162,36 @@ test("pages through the alerts, going back to the first page when a filter chang
     .toContainEqual([{ level: "critical", open: true, page: 1 }]);
 });
 
+test("keeps a page chosen right after opening once the untouched search settles", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const services = createServices();
+    vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+    await expect
+      .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
+      .toContainEqual([{ open: true, page: 2 }]);
+    await vi.advanceTimersByTimeAsync(300);
+    // setTimeout is faked here, so React's re-render and any fetch it starts settle over real frames.
+    for (let frame = 0; frame < 6; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    await expect
+      .element(screen.getByRole("button", { name: "Página 2" }))
+      .toHaveAttribute("aria-current", "page");
+    expect(vi.mocked(services.fetchAlerts).mock.calls).toEqual([
+      [{ open: true, page: 1 }],
+      [{ open: true, page: 2 }],
+    ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("drops a late response once the filters have changed since it was sent", async () => {
   const services = createServices();
   let resolveFirst: (outcome: FetchAlertsOutcome) => void = () => {};
