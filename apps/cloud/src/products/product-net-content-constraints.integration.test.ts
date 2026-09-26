@@ -62,6 +62,20 @@ describe("the products table's net content constraints on a real Postgres", () =
     );
   });
 
+  it("rejects a unit set without a quantity", async () => {
+    await expect(
+      db.insert(products).values({
+        name: "Alpiste",
+        categoryId,
+        saleUnit: "KG",
+        netContentQuantity: null,
+        netContentUnit: "KG",
+      }),
+    ).rejects.toSatisfy((error) =>
+      constraintViolatedBy(error, "products_net_content_both_or_neither_check"),
+    );
+  });
+
   it("rejects a non-positive quantity", async () => {
     await expect(
       db.insert(products).values({
