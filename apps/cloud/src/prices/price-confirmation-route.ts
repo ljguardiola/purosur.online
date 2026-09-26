@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, priceReviews, prices, products } from "../db/schema.js";
-import { findProductById } from "../products/product-edit-route.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
   openSessionOf,
@@ -11,6 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
+import { findActiveProductById } from "./active-product.js";
 import { branchPriceListId } from "./branch-price-list.js";
 import { latestReviewedAt, momentAfter, NEWEST_PRICE_FIRST } from "./current-price.js";
 import {
@@ -125,7 +125,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
       config: { access: permissionAccess("manage_prices_and_review"), sessionSource },
     },
     async (request, reply) => {
-      const target = await findProductById(options.db, request.params.id);
+      const target = await findActiveProductById(options.db, request.params.id);
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

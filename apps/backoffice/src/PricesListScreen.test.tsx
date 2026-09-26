@@ -455,3 +455,48 @@ test("Revisar los N walks the pending products one by one, opening the next afte
 
   expect(screen.getByRole("heading", { name: "Arroz" }).query()).toBeNull();
 });
+
+test("a product that no longer exists disables the modal's actions and refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "not_found" });
+  const screen = await openArrozPriceModal(services);
+  const loadsBefore = vi.mocked(services.fetchPrices).mock.calls.length;
+
+  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(screen.getByText("Este producto ya no existe").first()).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Guardar el precio nuevo" }))
+    .toBeDisabled();
+  await expect
+    .element(screen.getByRole("button", { name: "Confirmar sin cambios" }))
+    .toBeDisabled();
+  await expect
+    .poll(() => vi.mocked(services.fetchPrices).mock.calls.length)
+    .toBeGreaterThan(loadsBefore);
+});
+
+test("Revisar los N moves past a product that no longer exists, and ends when none is left", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockImplementation(async () => ({
+    kind: "ok",
+    value: { products: [sinPrecio, arroz], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+  }));
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "not_found" });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "not_found" });
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisar los 2" }));
+  await expect.element(screen.getByRole("heading", { name: "Fideos" })).toBeVisible();
+
+  await userEvent.fill(screen.getByLabelText("Precio de venta por unidad"), "1");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Arroz" })).toBeVisible();
+  await expect.element(screen.getByText("Este producto ya no existe").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Confirmar sin cambios" }));
+
+  await expect.poll(() => screen.getByRole("heading", { name: "Arroz" }).query()).toBeNull();
+});

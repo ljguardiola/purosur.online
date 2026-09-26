@@ -203,6 +203,20 @@ describe("POST /products/:id/price", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
+  it("rejects a deactivated product as not found even before validating the body", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    await db.update(products).set({ active: false }).where(eq(products.id, productId));
+
+    const response = await setPriceRequest(rawSessionId, productId, {
+      unitPrice: 0,
+      expectedCurrentPriceId: "not-a-uuid",
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
   it("rejects a non-positive unit price with a validation failure", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

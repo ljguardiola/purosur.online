@@ -167,6 +167,7 @@ type PriceChangeModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
   onSaved: (product: PriceProduct, outcome: PriceModalOutcome) => void;
+  onGone: () => void;
   fetchPrices: typeof fetchPrices;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
@@ -183,6 +184,7 @@ function PriceChangeModal({
   onClose,
   onSessionEnded,
   onSaved,
+  onGone,
   fetchPrices,
   setPrice,
   confirmPrice,
@@ -257,6 +259,7 @@ function PriceChangeModal({
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
+      onGone();
     } else if (outcome.kind === "stale_price") {
       setNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
@@ -305,6 +308,7 @@ function PriceChangeModal({
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
+      onGone();
     } else if (outcome.kind === "stale_price") {
       setNotice({ kind: "stale" });
     } else if (outcome.kind === "rate_limited") {
@@ -340,6 +344,7 @@ function PriceChangeModal({
       if (!fresh) {
         setNotice({ kind: "notFound" });
         setSubmitting(false);
+        onGone();
         return;
       }
       setCurrent(fresh);
@@ -365,6 +370,7 @@ function PriceChangeModal({
   }
 
   const offersReload = notice?.kind === "stale" || notice?.kind === "reloadFailed";
+  const actionsDisabled = submitting || notice?.kind === "notFound";
 
   return (
     <Modal
@@ -389,7 +395,7 @@ function PriceChangeModal({
                 variant="secondary"
                 size="large"
                 icon={<Check />}
-                isDisabled={submitting}
+                isDisabled={actionsDisabled}
                 onPress={() => void handleConfirm()}
               >
                 {modalMessages.confirm}
@@ -400,7 +406,7 @@ function PriceChangeModal({
               size="large"
               icon={<Check />}
               fullWidth
-              isDisabled={submitting}
+              isDisabled={actionsDisabled}
               onPress={() => void handleSave()}
             >
               {modalMessages.submit}
@@ -642,7 +648,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
           },
     );
     void load();
+    moveToNextInWalkOrClose();
+  }
 
+  function moveToNextInWalkOrClose() {
     if (walk) {
       const nextIndex = walk.index + 1;
       const next = walk.queue[nextIndex];
@@ -654,6 +663,18 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       setWalk(null);
     }
     setModalTarget(null);
+  }
+
+  /**
+   * The modal's product was deactivated after the list loaded. Outside a walk the modal stays open
+   * on its not-found notice; during one, the walk moves on and the notice moves to the screen.
+   */
+  function handleModalProductGone() {
+    void load();
+    if (walk) {
+      setNotice({ tone: "error", title: modalMessages.notFoundTitle, detail: "" });
+      moveToNextInWalkOrClose();
+    }
   }
 
   function handleModalClose() {
@@ -895,6 +916,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         onClose={handleModalClose}
         onSessionEnded={onSessionEnded}
         onSaved={handleModalSaved}
+        onGone={handleModalProductGone}
         fetchPrices={fetchPricesService}
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
