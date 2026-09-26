@@ -7,9 +7,11 @@ import {
 // Argentine format: the comma is the only decimal separator, and a dot only groups thousands, in
 // valid 3-digit groups ("1.000", "12.345,5", "1.000.000"). A dot anywhere else ("1.5", "1.00",
 // ".5") fails this format check before the value or its decimals are looked at, which is what
-// keeps "1.000" from being misread as 1 the way a locale-agnostic decimal dot would read it.
+// keeps "1.000" from being misread as 1 the way a locale-agnostic decimal dot would read it. The
+// first group can't start with a zero either ("0.500", "00.500"): a real thousands group never
+// does, and a leading zero there is the same 1000x misreading as "1.000" for "1000 g".
 const NET_CONTENT_QUANTITY_PATTERN = new RegExp(
-  `^(\\d+|\\d{1,3}(\\.\\d{3})+)(,\\d{1,${NET_CONTENT_QUANTITY_MAX_DECIMALS}})?$`,
+  `^(\\d+|[1-9]\\d{0,2}(\\.\\d{3})+)(,\\d{1,${NET_CONTENT_QUANTITY_MAX_DECIMALS}})?$`,
 );
 
 export function parseNetContentQuantity(value: string): number | undefined {

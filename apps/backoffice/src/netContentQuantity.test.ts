@@ -26,6 +26,11 @@ describe("parseNetContentQuantity", () => {
     expect(parseNetContentQuantity(".5")).toBeUndefined();
   });
 
+  it("rejects a leading zero in the first thousands group, which can never be a real one", () => {
+    expect(parseNetContentQuantity("0.500")).toBeUndefined();
+    expect(parseNetContentQuantity("00.500")).toBeUndefined();
+  });
+
   it("rejects text that is not a number", () => {
     expect(parseNetContentQuantity("abc")).toBeUndefined();
   });
