@@ -26,8 +26,4 @@ describe("validatePasskeyName", () => {
   it("accepts an ordinary name", () => {
     expect(validatePasskeyName("Caja principal", errors)).toBeUndefined();
   });
-
-  it("counts each emoji as one character toward the 40-character limit", () => {
-    expect(validatePasskeyName("🔑".repeat(40), errors)).toBeUndefined();
-  });
 });

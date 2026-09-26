@@ -316,6 +316,22 @@ test("requires the three fields, without calling the API", async () => {
   expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
 });
 
+test("refuses a legal name and an Ingresos Brutos registration that are too long, without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "a".repeat(201));
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }), "a".repeat(101));
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Ingresá como mucho 200 caracteres.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá como mucho 100 caracteres.")).toBeVisible();
+  expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
+});
+
 function dateSegments(dialog: Locator): HTMLElement[] {
   const group = dialog.getByRole("group", { name: /^Inicio de actividades/ }).element();
   return Array.from(group.querySelectorAll('[role="spinbutton"]')) as HTMLElement[];
