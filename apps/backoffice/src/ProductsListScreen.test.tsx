@@ -1168,11 +1168,6 @@ test("marks the fallback category label as required when there are no categories
   expect(getComputedStyle(editLabel, "::after").content).toContain("*");
 });
 
-// The Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels now come from
-// packages/ui's own FieldGroup (see ProductsListScreen.tsx), which owns both the label's look and
-// its gap above the control: FieldGroup.test.tsx already proves them once, so this screen no
-// longer re-checks them here.
-
 function generateButtonOf(dialog: ScreenLocator) {
   return dialog.getByRole("button", { name: "Generar código interno" });
 }

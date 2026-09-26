@@ -131,9 +131,6 @@ test("keeps the label 6px above the register field's box", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// The backoffice label-to-box gap is proven once, for TextField, DateField and Select together,
-// in FieldSize.test.tsx.
-
 for (const variant of ["register", "backoffice"] as const) {
   test(`shows a white box with a 2px line border at rest in the ${variant} variant`, async () => {
     const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
