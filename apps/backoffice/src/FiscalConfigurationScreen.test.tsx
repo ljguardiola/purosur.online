@@ -1,3 +1,4 @@
+import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -58,13 +59,15 @@ function renderScreen(
   now?: () => Date,
 ) {
   return render(
-    <main>
-      <FiscalConfigurationScreen
-        services={services}
-        onSessionEnded={onSessionEnded}
-        {...(now ? { now } : {})}
-      />
-    </main>,
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <FiscalConfigurationScreen
+          services={services}
+          onSessionEnded={onSessionEnded}
+          {...(now ? { now } : {})}
+        />
+      </main>
+    </FieldSizeProvider>,
   );
 }
 
@@ -251,11 +254,9 @@ test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, s
     .getByRole("group", { name: /^Inicio de actividades/ })
     .element() as HTMLElement;
 
-  const grossIncomeLabelStyle = getComputedStyle(grossIncomeLabel);
-  const activityStartLabelStyle = getComputedStyle(activityStartLabel);
-  expect(grossIncomeLabelStyle.fontSize).toBe(activityStartLabelStyle.fontSize);
-  expect(grossIncomeLabelStyle.fontWeight).toBe(activityStartLabelStyle.fontWeight);
-  expect(grossIncomeLabelStyle.color).toBe(activityStartLabelStyle.color);
+  // The label's own font size, weight and color are TextField's and DateField's own backoffice
+  // size, already proven once for both in fieldSize.test.tsx; this only proves what that test
+  // can't: the two labels actually share a baseline in this row.
   expect(grossIncomeLabel.getBoundingClientRect().top).toBeCloseTo(
     activityStartLabel.getBoundingClientRect().top,
     0,

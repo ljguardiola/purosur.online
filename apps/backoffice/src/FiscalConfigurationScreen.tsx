@@ -414,7 +414,6 @@ function EditIssuerIdentificationModal({
             </div>
             <TextField
               kind="plain-text"
-              variant="backoffice"
               label={modalMessages.legalNameLabel}
               value={values.legalName}
               onChange={(value) => {
@@ -428,7 +427,6 @@ function EditIssuerIdentificationModal({
               <div className="flex-1">
                 <TextField
                   kind="plain-text"
-                  variant="backoffice"
                   label={modalMessages.grossIncomeRegistrationLabel}
                   value={values.grossIncomeRegistration}
                   onChange={(value) => {
@@ -443,7 +441,6 @@ function EditIssuerIdentificationModal({
               </div>
               <div className="flex-1">
                 <DateField
-                  variant="backoffice"
                   label={modalMessages.activityStartDateLabel}
                   value={values.activityStartDate}
                   onChange={(value) => {
