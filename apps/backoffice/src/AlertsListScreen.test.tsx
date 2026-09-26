@@ -46,6 +46,18 @@ const lockoutAlert: AlertSummary = {
   resolvedAt: null,
 };
 
+const closedAlert: AlertSummary = {
+  id: "alert-3",
+  kind: "backoffice_passkey_changed",
+  scope: "user-3",
+  scopeDisplay: "Marta Ruiz",
+  level: "warning",
+  audience: "all",
+  openedAt: "2026-01-04T12:00:00.000Z",
+  escalatedAt: null,
+  resolvedAt: "2026-01-05T09:00:00.000Z",
+};
+
 function ok(
   alerts: AlertSummary[],
   page: Partial<Omit<AlertListPage, "alerts">> = {},
@@ -218,22 +230,31 @@ test("drops a late response once the filters have changed since it was sent", as
   // before this continues: no arbitrary wait, just "whatever that resolution caused has happened".
   // vitest-browser-react only marks the environment act-aware around its own render/userEvent
   // calls, so this call needs the flag set too.
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  await act(async () => {
-    resolveFirst(ok([passkeyAlert]));
-    await firstSettled;
-  });
+  const globalWithActEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousActEnvironment = globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT;
+  globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    await act(async () => {
+      resolveFirst(ok([passkeyAlert]));
+      await firstSettled;
+    });
+  } finally {
+    globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  }
   expect(screen.getByText("Lucía Pérez").query()).toBeNull();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
 
   // A control case, checked only now: a further, later filter change must still reach a fresh
   // render, proving the screen above wasn't just frozen (which would have passed the absence
-  // check above for the wrong reason).
+  // check above for the wrong reason). The response for this call is distinct from every other
+  // mocked response so that the assertion can't pass on a stale render.
+  vi.mocked(services.fetchAlerts).mockResolvedValueOnce(ok([closedAlert]));
   await screen.getByRole("button", { name: /Estado/ }).click();
   await screen.getByRole("option", { name: "Cerradas" }).click();
   await expect
     .poll(() => vi.mocked(services.fetchAlerts).mock.calls)
     .toContainEqual([{ level: "critical", open: false, page: 1 }]);
+  await expect.element(screen.getByText("Marta Ruiz")).toBeVisible();
 });
 
 test("re-fetches with the chosen level when the Nivel filter changes", async () => {
