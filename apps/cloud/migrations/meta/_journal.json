@@ -204,6 +204,13 @@
       "when": 1790393040054,
       "tag": "0028_nested_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790394409263,
+      "tag": "0029_product_net_content",
+      "breakpoints": true
     }
   ]
 }

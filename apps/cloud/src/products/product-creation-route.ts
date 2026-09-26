@@ -10,15 +10,21 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import {
+  type NetContentInput,
   type ProductFieldValidationFailure,
   readBarcodes,
   readCategoryId,
+  readNetContent,
   readProductName,
   readSaleUnit,
   type SaleUnit,
   validateProductFields,
 } from "./product-validation.js";
-import type { ProductRow, ProductsRouteOptions } from "./products-list-route.js";
+import {
+  netContentRow,
+  type ProductRow,
+  type ProductsRouteOptions,
+} from "./products-list-route.js";
 
 const UNIQUE_VIOLATION = "23505";
 const BARCODE_UNIQUE_INDEX = "product_barcodes_code_key";
@@ -65,6 +71,7 @@ interface CreationRequestBody {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  netContent: NetContentInput | null;
 }
 
 function readCreationBody(body: unknown): CreationRequestBody | ProductFieldValidationFailure {
@@ -72,7 +79,8 @@ function readCreationBody(body: unknown): CreationRequestBody | ProductFieldVali
   const categoryId = readCategoryId(body);
   const saleUnit = readSaleUnit(body);
   const barcodes = readBarcodes(body);
-  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes });
+  const netContent = readNetContent(body);
+  const failure = validateProductFields({ name, categoryId, saleUnit, barcodes, netContent });
   if (failure) {
     return failure;
   }
@@ -82,6 +90,7 @@ function readCreationBody(body: unknown): CreationRequestBody | ProductFieldVali
     categoryId: categoryId as string,
     saleUnit: saleUnit as SaleUnit,
     barcodes: barcodes as string[],
+    netContent: netContent === undefined ? null : (netContent as NetContentInput),
   };
 }
 
@@ -96,6 +105,7 @@ export interface CreateProductInput {
   categoryId: string;
   saleUnit: SaleUnit;
   barcodes: string[];
+  netContent?: NetContentInput | null;
 }
 
 export type CreateProductOutcome =
@@ -180,12 +190,20 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
 
       const [newProduct] = await tx
         .insert(products)
-        .values({ name: input.name, categoryId: input.categoryId, saleUnit: input.saleUnit })
+        .values({
+          name: input.name,
+          categoryId: input.categoryId,
+          saleUnit: input.saleUnit,
+          netContentQuantity: input.netContent?.quantity,
+          netContentUnit: input.netContent?.unit,
+        })
         .returning({
           id: products.id,
           name: products.name,
           categoryId: products.categoryId,
           saleUnit: products.saleUnit,
+          netContentQuantity: products.netContentQuantity,
+          netContentUnit: products.netContentUnit,
           active: products.active,
           version: products.version,
         });
@@ -207,6 +225,7 @@ export async function createProduct<TQueryResult extends PgQueryResultHKT>(
           categoryName: category.name,
           saleUnit: newProduct.saleUnit as SaleUnit,
           barcodes: input.barcodes,
+          netContent: netContentRow(newProduct),
           active: newProduct.active,
           version: newProduct.version,
         },

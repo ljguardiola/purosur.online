@@ -3,6 +3,9 @@ import {
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
+  type NetContentUnit,
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
@@ -11,7 +14,7 @@ import {
   REGISTER_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
-import { defineMessages } from "@purosur/ui";
+import { defineMessages, type MessageFormatters } from "@purosur/ui";
 import type { ProductStatusFilter } from "./productsApi";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -70,6 +73,11 @@ const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro prod
 const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
+const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
+const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
+const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
+const productNetContentQuantityInvalid = (f: MessageFormatters) =>
+  `Ingresá una cantidad mayor que cero, con hasta ${f.number(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
@@ -661,6 +669,13 @@ export const messages = defineMessages("es-AR", (f) => ({
       unitFilterLabel: "Unidad:",
       unitFilterAllOption: "Todas",
       unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
+      netContentUnitOptionLabels: {
+        G: "g",
+        KG: "kg",
+        ML: "ml",
+        L: "l",
+        UNIT: "u",
+      } satisfies Record<NetContentUnit, string>,
       statusFilterLabel: "Estado:",
       statusFilterActiveOption: "Activos",
       statusFilterInactiveOption: "Inactivos",
@@ -711,6 +726,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryPlaceholder: "Elegí una categoría",
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+        netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+        netContentQuantityInvalid: productNetContentQuantityInvalid(f),
+        netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
+        netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitRequired: "Elegí la unidad de venta.",
@@ -753,6 +773,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameTooLong: PRODUCT_NAME_TOO_LONG,
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+        netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+        netContentQuantityInvalid: productNetContentQuantityInvalid(f),
+        netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
+        netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitOptionUnitTitle: "Por unidad",

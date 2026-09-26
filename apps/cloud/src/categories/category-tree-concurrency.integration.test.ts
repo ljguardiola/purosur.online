@@ -199,6 +199,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             categoryId: almacen.id,
             saleUnit: product.saleUnit,
             barcodes: product.barcodes,
+            netContent: null,
             version: product.version,
           }),
         () =>
