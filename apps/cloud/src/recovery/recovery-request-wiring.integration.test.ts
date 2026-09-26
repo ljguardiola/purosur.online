@@ -27,9 +27,9 @@ import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 // Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
 // pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
-// cannot exercise (no LISTEN/NOTIFY, no advisory locks). The email sender is faked, and one test
-// swaps in a job-queue pool that never reaps idle connections; every other seam (job enqueue, job
-// processing, token issuance, auditing) runs for real.
+// cannot exercise (no LISTEN/NOTIFY, and every query served on one connection). The email sender
+// is faked, and one test swaps in a job-queue pool that never reaps idle connections; every other
+// seam (job enqueue, job processing, token issuance, auditing) runs for real.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 

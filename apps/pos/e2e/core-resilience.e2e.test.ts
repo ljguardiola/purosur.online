@@ -45,7 +45,11 @@ describe("the core process's supervision and message gate", () => {
       })
       .toBe(true);
 
-    await page.evaluate(() => {
+    // Installed before any page script runs, so no port main posts to a document can arrive
+    // ahead of its listener. The first document was already loading before the script existed,
+    // so the reload hands the test a document under it; its own `did-finish-load` port is the
+    // one waited for here.
+    await app.context().addInitScript(() => {
       (window as unknown as { __ports: MessagePort[] }).__ports = [];
       window.addEventListener("message", (event) => {
         if (event.data === "core-port" && event.ports[0]) {
@@ -53,6 +57,14 @@ describe("the core process's supervision and message gate", () => {
         }
       });
     });
+    await page.reload();
+    await expect
+      .poll(() => portCount(page), {
+        timeout: 20_000,
+        interval: 100,
+        message: "expected the reloaded page to receive its post-load core port",
+      })
+      .toBeGreaterThanOrEqual(1);
   });
 
   afterAll(async () => {
@@ -70,14 +82,15 @@ describe("the core process's supervision and message gate", () => {
     if (killed === undefined) {
       throw new Error("expected a core process to be running before killing it");
     }
-    // The first launch's port may or may not have reached the listener, so only a port that
-    // arrives after the kill proves the restarted core was handed to the renderer.
+    // The page's post-load port has already arrived (see beforeAll), and main only posts another
+    // one on a later load or a core restart, so any port counted beyond this snapshot came from
+    // the restart.
     const portsBefore = await portCount(page);
     process.kill(killed.pid, "SIGKILL");
 
     // Catches core-supervisor.ts no longer restarting a killed core, or index.ts's
-    // onProcessStarted no longer reconnecting the already-loaded renderer: either way this never
-    // becomes true and the poll times out.
+    // onProcessStarted no longer reconnecting the already-loaded renderer (no port arrives after
+    // the kill): either way this never becomes true and the poll times out.
     await expect
       .poll(
         async () => {

@@ -134,9 +134,11 @@ describe("the backoffice rate limiter on concurrent connections", () => {
       recoveryLockTaken();
       await recoveryLockReleased;
     });
-    await recoveryLockHeld;
 
     try {
+      // A transaction that fails before taking its lock rejects the test here instead of leaving
+      // it waiting on a lock that is never taken.
+      await Promise.race([recoveryLockHeld, recoveryTransaction]);
       let requestSettled = false;
       const request = recordBackofficeRequest(requestDb, {
         sessionKeyValue: "unrelated-session",
