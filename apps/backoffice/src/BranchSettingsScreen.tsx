@@ -1,4 +1,4 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
 import {
   Button,
   backofficeFieldHeightClassName,
@@ -127,9 +127,6 @@ function valuesFrom(settings: BranchSettings): FormValues {
   };
 }
 
-// The server stores each days value in a Postgres `integer` column and rejects anything above it.
-const DAYS_MAX = 2147483647;
-
 function parseDays(value: string): number | undefined {
   const trimmed = value.trim();
   return /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
@@ -150,8 +147,9 @@ function normalizedTime(value: string): string | undefined {
 }
 
 /** Validates every days field client-side, mirroring the server (`branch-settings-validation.ts`):
- * an integer from 0 to `DAYS_MAX`. Returns one error per invalid field, keyed by our own field name so it
- * lines up directly with the corresponding TextField's `invalid`/`errorMessage` props. */
+ * an integer from 0 to `BRANCH_SETTINGS_DAYS_MAX`. Returns one error per invalid field, keyed by our
+ * own field name so it lines up directly with the corresponding TextField's `invalid`/`errorMessage`
+ * props. */
 function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, string>> {
   const errors: Partial<Record<DaysFieldName, string>> = {};
   const daysFields: readonly DaysFieldName[] = [
@@ -163,7 +161,7 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
     const parsed = parseDays(values[field]);
     if (parsed === undefined) {
       errors[field] = branchMessages.daysFieldError;
-    } else if (parsed > DAYS_MAX) {
+    } else if (parsed > BRANCH_SETTINGS_DAYS_MAX) {
       errors[field] = branchMessages.daysTooLargeError;
     }
   }

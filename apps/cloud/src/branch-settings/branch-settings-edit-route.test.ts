@@ -1,3 +1,4 @@
+import { BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -525,7 +526,7 @@ describe("PUT /branch-settings", () => {
     expect(response.json()).not.toHaveProperty("timezone");
   });
 
-  it("accepts a window value of 2147483647 days, the largest the database stores", async () => {
+  it("accepts the maximum window value in days, the largest the database stores", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -535,12 +536,14 @@ describe("PUT /branch-settings", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putBranchSettings(
-      validBody({ unreviewed_price_alert_days: 2147483647 }),
+      validBody({ unreviewed_price_alert_days: BRANCH_SETTINGS_DAYS_MAX }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ unreviewed_price_alert_days: 2147483647 });
+    expect(response.json()).toMatchObject({
+      unreviewed_price_alert_days: BRANCH_SETTINGS_DAYS_MAX,
+    });
   });
 
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
