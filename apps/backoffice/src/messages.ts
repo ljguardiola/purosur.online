@@ -14,7 +14,7 @@ import {
   REGISTER_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
-import { defineMessages } from "@purosur/ui";
+import { defineMessages, type MessageFormatters } from "@purosur/ui";
 import type { ProductStatusFilter } from "./productsApi";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
@@ -64,6 +64,8 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
 const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
 const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
 const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
+const productNetContentQuantityInvalid = (f: MessageFormatters) =>
+  `Ingresá una cantidad mayor que cero, con hasta ${f.number(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
@@ -714,7 +716,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
         netContentLabel: PRODUCT_NET_CONTENT_LABEL,
         netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
-        netContentQuantityInvalid: `Ingresá una cantidad mayor que cero, con hasta ${f.number(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`,
+        netContentQuantityInvalid: productNetContentQuantityInvalid(f),
         netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
         netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
@@ -760,7 +762,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
         netContentLabel: PRODUCT_NET_CONTENT_LABEL,
         netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
-        netContentQuantityInvalid: `Ingresá una cantidad mayor que cero, con hasta ${f.number(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`,
+        netContentQuantityInvalid: productNetContentQuantityInvalid(f),
         netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
         netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
