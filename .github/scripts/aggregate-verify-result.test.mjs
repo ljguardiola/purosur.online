@@ -237,6 +237,8 @@ const failingJobEnv = {
   TESTS_RESULT: "failure",
 };
 
+const passingJobEnv = { ...failingJobEnv, TESTS_RESULT: "success" };
+
 async function withTempDir(run) {
   const dir = await mkdtemp(join(tmpdir(), "aggregate verify result "));
   try {
@@ -261,12 +263,7 @@ test("the script exits 1 when a required job failed", () => {
 });
 
 test("the script exits 0 when every required job succeeded", () => {
-  const result = runScript({
-    EVENT_NAME: "push",
-    SCOPE_RESULT: "skipped",
-    STATIC_RESULT: "success",
-    TESTS_RESULT: "success",
-  });
+  const result = runScript(passingJobEnv);
 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /every required job succeeded/);
@@ -280,6 +277,19 @@ test("the script still exits 1 when run through a linked directory", async () =>
     const result = runScript(failingJobEnv, join(linkedScriptsDir, "aggregate-verify-result.mjs"));
 
     assert.equal(result.status, 1);
+    assert.match(result.stderr, /tests: failure/);
+  });
+});
+
+test("the script still exits 0 when run through a linked directory", async () => {
+  await withTempDir(async (dir) => {
+    const linkedScriptsDir = join(dir, "scripts");
+    await symlink(dirname(scriptPath), linkedScriptsDir, "junction");
+
+    const result = runScript(passingJobEnv, join(linkedScriptsDir, "aggregate-verify-result.mjs"));
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /every required job succeeded/);
   });
 });
 
@@ -291,5 +301,18 @@ test("the script still exits 1 from a path that needs percent-encoding in a URL"
     const result = runScript(failingJobEnv, copiedScript);
 
     assert.equal(result.status, 1);
+    assert.match(result.stderr, /tests: failure/);
+  });
+});
+
+test("the script still exits 0 from a path that needs percent-encoding in a URL", async () => {
+  await withTempDir(async (dir) => {
+    const copiedScript = join(dir, "aggregate-verify-result.mjs");
+    await copyFile(scriptPath, copiedScript);
+
+    const result = runScript(passingJobEnv, copiedScript);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /every required job succeeded/);
   });
 });

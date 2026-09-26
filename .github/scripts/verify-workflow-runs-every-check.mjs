@@ -1,10 +1,13 @@
 // Proves that .github/workflows/verify.yml still runs the parts of `pnpm verify` and lets a
 // failure of any of them reach the required verify check: the static and tests jobs run under the
-// expected condition, neither they nor their verify step may continue on error, each runs its
-// exact pnpm command over a complete shard range, the verify job needs both, and package.json's
-// scripts still compose tsc, biome, dependency-cruiser, the automation tests and vitest without
-// swallowing a failure. An edit that breaks any of these fails this guard instead of quietly
-// shipping a weaker merge gate.
+// expected condition, neither they nor their verify step may continue on error or carry its own
+// if, each runs its exact pnpm command, and the tests matrix is a complete shard range with no
+// include or exclude. The verify job needs both, runs under exactly `always()`, neither it nor its
+// aggregate step may continue on error, that step carries no if of its own, runs exactly the
+// aggregate script and passes it every result and scope input from the job that produces it.
+// package.json's scripts still compose tsc, biome, dependency-cruiser, the automation tests and
+// vitest without swallowing a failure. An edit that breaks any of these fails this guard instead
+// of quietly shipping a weaker merge gate.
 
 import { readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
@@ -21,6 +24,15 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
 ];
 const EXPECTED_RUN_CONDITION =
   "${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}";
+const EXPECTED_VERIFY_CONDITION = "always()";
+const AGGREGATE_COMMAND = "node .github/scripts/aggregate-verify-result.mjs";
+const EXPECTED_AGGREGATE_ENV = {
+  EVENT_NAME: "${{ github.event_name }}",
+  SCOPE_RESULT: "${{ needs.scope.result }}",
+  SCOPE_DOCS_ONLY: "${{ needs.scope.outputs.docs_only }}",
+  STATIC_RESULT: "${{ needs.static.result }}",
+  TESTS_RESULT: "${{ needs.tests.result }}",
+};
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
@@ -70,11 +82,14 @@ function mayContinueOnError(doc, node) {
   );
 }
 
+function matrixNode(doc, job) {
+  const strategyNode = resolveNode(doc, mapGet(doc, job, "strategy"));
+  return resolveNode(doc, mapGet(doc, strategyNode, "matrix"));
+}
+
 /** The job's `strategy.matrix.shard` values, or null when that path is not a sequence. */
 function matrixShardValues(doc, job) {
-  const strategyNode = resolveNode(doc, mapGet(doc, job, "strategy"));
-  const matrixNode = resolveNode(doc, mapGet(doc, strategyNode, "matrix"));
-  const shardNode = resolveNode(doc, mapGet(doc, matrixNode, "shard"));
+  const shardNode = resolveNode(doc, mapGet(doc, matrixNode(doc, job), "shard"));
   if (!isSeq(shardNode)) return null;
   return shardNode.items.map((item) => Number(resolveScalar(doc, item)));
 }
@@ -122,12 +137,58 @@ function runnerJobViolations(doc, jobId, job, command) {
   return violations;
 }
 
+/** Violations for the verify job, the one that reports the required check's result. */
+function verifyJobViolations(doc, job) {
+  const violations = [];
+
+  const needs = neededJobs(doc, job);
+  for (const jobId of ["static", "tests"]) {
+    if (!needs.includes(jobId)) {
+      violations.push(`verify.yml's verify job does not need ${jobId}`);
+    }
+  }
+
+  const condition = resolveScalar(doc, mapGet(doc, job, "if"));
+  if (condition !== EXPECTED_VERIFY_CONDITION) {
+    violations.push(
+      `verify.yml's verify job runs under \`if: ${condition}\`, expected \`if: ${EXPECTED_VERIFY_CONDITION}\``,
+    );
+  }
+  if (mayContinueOnError(doc, job)) {
+    violations.push("verify.yml's verify job sets continue-on-error");
+  }
+
+  const step = stepRunningExactly(doc, job, AGGREGATE_COMMAND);
+  if (step === undefined) {
+    violations.push(
+      `verify.yml's verify job has no step whose run is exactly \`${AGGREGATE_COMMAND}\``,
+    );
+    return violations;
+  }
+  if (mayContinueOnError(doc, step)) {
+    violations.push("verify.yml's verify job's aggregate step sets continue-on-error");
+  }
+  if (mapHas(doc, step, "if")) {
+    violations.push("verify.yml's verify job's aggregate step has its own if");
+  }
+  const envNode = mapGet(doc, step, "env");
+  for (const [name, expected] of Object.entries(EXPECTED_AGGREGATE_ENV)) {
+    const actual = resolveScalar(doc, mapGet(doc, envNode, name));
+    if (actual !== expected) {
+      violations.push(
+        `verify.yml's verify job's aggregate step's ${name} is \`${actual}\`, expected \`${expected}\``,
+      );
+    }
+  }
+  return violations;
+}
+
 /** Whether the script is `&&`-joined plain commands that include every required one. */
 function composesEveryCommand(script, requiredCommands) {
   if (typeof script !== "string") return false;
   const commands = script.split("&&").map((command) => command.trim());
   const everyCommandPropagatesFailure = commands.every(
-    (command) => command !== "" && !/[|;&`]|\$\(/.test(command),
+    (command) => command !== "" && !/[|;&`\n\r]|\$\(/.test(command),
   );
   return (
     everyCommandPropagatesFailure &&
@@ -156,6 +217,11 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   if (testsJob === undefined) {
     violations.push("verify.yml has no tests job");
   } else {
+    for (const key of ["exclude", "include"]) {
+      if (mapHas(doc, matrixNode(doc, testsJob), key)) {
+        violations.push(`verify.yml's tests job strategy.matrix sets ${key}`);
+      }
+    }
     const shardValues = matrixShardValues(doc, testsJob);
     if (!isContiguousShardRange(shardValues)) {
       violations.push(
@@ -177,12 +243,7 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   if (verifyJob === undefined) {
     violations.push("verify.yml has no verify job");
   } else {
-    const needs = neededJobs(doc, verifyJob);
-    for (const jobId of ["static", "tests"]) {
-      if (!needs.includes(jobId)) {
-        violations.push(`verify.yml's verify job does not need ${jobId}`);
-      }
-    }
+    violations.push(...verifyJobViolations(doc, verifyJob));
   }
 
   const scripts = JSON.parse(packageJsonSource).scripts;

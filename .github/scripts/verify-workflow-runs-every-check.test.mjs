@@ -8,6 +8,39 @@ import {
 const RUN_CONDITION =
   "${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}";
 
+const AGGREGATE_RUN = "node .github/scripts/aggregate-verify-result.mjs";
+
+const AGGREGATE_ENV = {
+  EVENT_NAME: "${{ github.event_name }}",
+  SCOPE_RESULT: "${{ needs.scope.result }}",
+  SCOPE_DOCS_ONLY: "${{ needs.scope.outputs.docs_only }}",
+  STATIC_RESULT: "${{ needs.static.result }}",
+  TESTS_RESULT: "${{ needs.tests.result }}",
+};
+
+function verifyJobLines({
+  needs = "[scope, static, tests]",
+  condition = "always()",
+  jobExtra = [],
+  run = AGGREGATE_RUN,
+  stepExtra = [],
+  env = AGGREGATE_ENV,
+} = {}) {
+  return [
+    "  verify:",
+    `    needs: ${needs}`,
+    ...(condition === null ? [] : [`    if: ${condition}`]),
+    ...jobExtra.map((line) => `    ${line}`),
+    "    runs-on: ubuntu-24.04",
+    "    steps:",
+    "      - uses: actions/checkout@v7",
+    `      - run: ${run}`,
+    ...stepExtra.map((line) => `        ${line}`),
+    "        env:",
+    ...Object.entries(env).map(([name, value]) => `          ${name}: ${value}`),
+  ];
+}
+
 function workflow({
   staticRun = "pnpm verify:static",
   shardValues = [1, 2, 3, 4],
@@ -16,9 +49,15 @@ function workflow({
   testsIf = RUN_CONDITION,
   staticJobExtra = [],
   testsJobExtra = [],
+  testsMatrixExtra = [],
   staticStepExtra = [],
   testsStepExtra = [],
   verifyNeeds = "[scope, static, tests]",
+  verifyIf = "always()",
+  verifyJobExtra = [],
+  verifyRun = AGGREGATE_RUN,
+  verifyStepExtra = [],
+  verifyEnv = AGGREGATE_ENV,
 } = {}) {
   const shardLines = shardValues.map((value) => `          - ${value}`).join("\n");
   const testsRunLine =
@@ -26,7 +65,14 @@ function workflow({
   const verifyJob =
     verifyNeeds === null
       ? []
-      : ["  verify:", `    needs: ${verifyNeeds}`, "    runs-on: ubuntu-24.04"];
+      : verifyJobLines({
+          needs: verifyNeeds,
+          condition: verifyIf,
+          jobExtra: verifyJobExtra,
+          run: verifyRun,
+          stepExtra: verifyStepExtra,
+          env: verifyEnv,
+        });
   return [
     "jobs:",
     "  static:",
@@ -45,6 +91,7 @@ function workflow({
     "      matrix:",
     "        shard:",
     shardLines,
+    ...testsMatrixExtra.map((line) => `        ${line}`),
     "    steps:",
     `      - run: ${testsRunLine}`,
     ...testsStepExtra.map((line) => `        ${line}`),
@@ -90,8 +137,7 @@ test("flags a missing static job", () => {
     "          - 2",
     "    steps:",
     `      - run: pnpm verify:tests --shard=\${{ matrix.shard }}/2`,
-    "  verify:",
-    "    needs: [tests]",
+    ...verifyJobLines({ needs: "[tests]" }),
   ].join("\n");
 
   const violations = findVerifyWorkflowViolations(source, packageJson());
@@ -118,8 +164,7 @@ test("flags a missing tests job", () => {
     `    if: ${RUN_CONDITION}`,
     "    steps:",
     "      - run: pnpm verify:static",
-    "  verify:",
-    "    needs: [static]",
+    ...verifyJobLines({ needs: "[static]" }),
   ].join("\n");
 
   const violations = findVerifyWorkflowViolations(source, packageJson());
@@ -276,6 +321,138 @@ test("flags a verify job whose needs names only the static job", () => {
 
   assertSingleViolation(violations, /verify job does not need tests/);
 });
+
+test("flags a tests matrix that excludes a shard combination", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ testsMatrixExtra: ["exclude:", "  - shard: 4"] }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /tests job strategy\.matrix sets exclude/);
+});
+
+test("flags a tests matrix that includes an extra shard combination", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ testsMatrixExtra: ["include:", "  - shard: 5"] }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /tests job strategy\.matrix sets include/);
+});
+
+for (const [label, condition] of [
+  ["never runs", "false"],
+  ["skips a cancelled run", "${{ !cancelled() }}"],
+  ["runs only on success", "success()"],
+]) {
+  test(`flags a verify job whose if ${label}`, () => {
+    const violations = findVerifyWorkflowViolations(
+      workflow({ verifyIf: condition }),
+      packageJson(),
+    );
+
+    assertSingleViolation(violations, /verify job runs under/);
+  });
+}
+
+test("flags a verify job with no if, which a failed static or tests job skips", () => {
+  const violations = findVerifyWorkflowViolations(workflow({ verifyIf: null }), packageJson());
+
+  assertSingleViolation(violations, /verify job runs under/);
+});
+
+test("flags a verify job allowed to fail without failing the workflow", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyJobExtra: ["continue-on-error: true"] }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job sets continue-on-error/);
+});
+
+test("flags a verify job that no longer runs the aggregate script", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyRun: "echo ok" }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job has no step whose run is exactly/);
+});
+
+test("flags a verify job whose aggregate run swallows its failure", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyRun: `${AGGREGATE_RUN} || true` }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job has no step whose run is exactly/);
+});
+
+test("flags a verify aggregate step allowed to fail without failing its job", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyStepExtra: ["continue-on-error: true"] }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job's aggregate step sets continue-on-error/);
+});
+
+test("flags a verify aggregate step that only runs under its own condition", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyStepExtra: ["if: false"] }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /verify job's aggregate step has its own if/);
+});
+
+for (const name of Object.keys(AGGREGATE_ENV)) {
+  test(`flags a verify aggregate step that does not pass ${name}`, () => {
+    const verifyEnv = Object.fromEntries(
+      Object.entries(AGGREGATE_ENV).filter(([envName]) => envName !== name),
+    );
+
+    const violations = findVerifyWorkflowViolations(workflow({ verifyEnv }), packageJson());
+
+    assertSingleViolation(violations, new RegExp(`aggregate step's ${name} is`));
+  });
+}
+
+test("flags a verify aggregate step whose tests result is wired to the static job", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({
+      verifyEnv: { ...AGGREGATE_ENV, TESTS_RESULT: "${{ needs.static.result }}" },
+    }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /aggregate step's TESTS_RESULT is/);
+});
+
+test("flags a verify aggregate step whose static result is hardcoded to success", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow({ verifyEnv: { ...AGGREGATE_ENV, STATIC_RESULT: "success" } }),
+    packageJson(),
+  );
+
+  assertSingleViolation(violations, /aggregate step's STATIC_RESULT is/);
+});
+
+for (const [separator, label] of [
+  ["\n", "a newline"],
+  ["\r", "a carriage return"],
+]) {
+  test(`flags a verify:static script that hides a command behind ${label}`, () => {
+    const violations = findVerifyWorkflowViolations(
+      workflow(),
+      packageJson({
+        verifyStatic: `${VERIFY_STATIC_SCRIPT} && pnpm lint:extra${separator}true`,
+      }),
+    );
+
+    assertSingleViolation(violations, /"verify:static" script/);
+  });
+}
 
 for (const dropped of [
   "tsc --noEmit",
