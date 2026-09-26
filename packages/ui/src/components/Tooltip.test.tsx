@@ -139,7 +139,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("glues the arrow's near corner to the box, its tip 8px clear of the element and centered on it", async () => {
+test("centers the arrow on the box's edge, the box 10px clear of the element and the arrow centered on it", async () => {
   const screen = await render(
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -161,19 +161,20 @@ test("glues the arrow's near corner to the box, its tip 8px clear of the element
   const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // A 45deg-rotated 10px square's bounding box is a 14.14px diamond: its far corner (the tip,
-  // away from the box) is what points at the element, 8px clear of it; its near corner dips past
-  // the box's own top edge by that same rotation math, which is what glues the shape to the box
-  // instead of leaving visible air between them. react-aria floors the box's position to a whole
-  // pixel, so the tip's gap lands at 7 or 8 depending on where the element's own edge falls.
-  const tipToElementGap = diamondRect.top - triggerRect.bottom;
-  expect(tipToElementGap).toBeGreaterThanOrEqual(7);
-  expect(tipToElementGap).toBeLessThanOrEqual(8);
+  // Rotating a square around its own center never moves that center, so the rotated diamond's
+  // bounding-rect center is still the plain square's center: the design puts it exactly on the
+  // box's edge, half the diamond merged into the box and the rest rotated out into the visible
+  // point. Centered anywhere else, either the diamond floats clear of the box (center outside it)
+  // or it reads as a plain square merely grazing the box at one corner (center inside it).
+  const diamondCenterY = diamondRect.top + diamondRect.height / 2;
+  expect(Math.abs(diamondCenterY - tooltipRect.top)).toBeLessThanOrEqual(1);
 
-  // A diamond that only touches the box (0) or falls short of it reads as a shape floating in the
-  // air between the box and the element, which is the detached look this guards against.
-  const nearCornerOverlapIntoBox = diamondRect.bottom - tooltipRect.top;
-  expect(nearCornerOverlapIntoBox).toBeGreaterThan(0);
+  // The design's own gap from the element to the box's edge; react-aria floors the offset
+  // position to a whole pixel, so it lands at 9 or 10 depending on where the element's own edge
+  // falls.
+  const boxOffset = tooltipRect.top - triggerRect.bottom;
+  expect(boxOffset).toBeGreaterThanOrEqual(9);
+  expect(boxOffset).toBeLessThanOrEqual(10);
 
   const diamondCenterX = diamondRect.left + diamondRect.width / 2;
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
@@ -182,7 +183,7 @@ test("glues the arrow's near corner to the box, its tip 8px clear of the element
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("keeps the arrow glued to the box, pointing down at the element, once flipped above it", async () => {
+test("keeps the arrow centered on the box's edge, pointing down at the element, once flipped above it", async () => {
   const screen = await render(
     <div style={{ position: "fixed", bottom: 4, left: 4 }}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -205,14 +206,14 @@ test("keeps the arrow glued to the box, pointing down at the element, once flipp
   const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // Flipped above the element, the diamond's tip points down instead of up, so the same two gaps
-  // are read from the opposite edges.
-  const tipToElementGap = triggerRect.top - diamondRect.bottom;
-  expect(tipToElementGap).toBeGreaterThanOrEqual(7);
-  expect(tipToElementGap).toBeLessThanOrEqual(8);
+  // Flipped above the element, the arrow sits on the box's bottom edge instead of its top one, so
+  // the same three checks are read from the opposite edges.
+  const diamondCenterY = diamondRect.top + diamondRect.height / 2;
+  expect(Math.abs(diamondCenterY - tooltipRect.bottom)).toBeLessThanOrEqual(1);
 
-  const nearCornerOverlapIntoBox = tooltipRect.bottom - diamondRect.top;
-  expect(nearCornerOverlapIntoBox).toBeGreaterThan(0);
+  const boxOffset = triggerRect.top - tooltipRect.bottom;
+  expect(boxOffset).toBeGreaterThanOrEqual(9);
+  expect(boxOffset).toBeLessThanOrEqual(10);
 
   const diamondCenterX = diamondRect.left + diamondRect.width / 2;
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
