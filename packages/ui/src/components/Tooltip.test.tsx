@@ -1,3 +1,4 @@
+import { Lock } from "lucide-react";
 import type { ReactElement } from "react";
 import { beforeEach, expect, expectTypeOf, test } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
@@ -7,6 +8,7 @@ import { expectNoAccessibilityViolations } from "../test/axe";
 import type { DispatchableCdpSession } from "../test/setup-browser";
 import { rgbToHex, tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { Button } from "./Button";
+import { IconButton } from "./IconButton";
 import { Tooltip, type TooltipProps } from "./Tooltip";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -137,7 +139,7 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
-test("draws no arrow, only the box itself sitting 8px clear of its element", async () => {
+test("glues the arrow's near corner to the box, its tip 8px clear of the element and centered on it", async () => {
   const screen = await render(
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
@@ -151,20 +153,107 @@ test("draws no arrow, only the box itself sitting 8px clear of its element", asy
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
 
   const tooltip = tooltipElement(screen);
-
-  // The description is plain text, so the box has no element children at all once no arrow (or
-  // any other shape) is drawn inside it.
-  expect(tooltip.children).toHaveLength(0);
+  const arrow = tooltip.querySelector("[data-placement]") as HTMLElement | null;
+  expect(arrow, "no arrow element found inside the tooltip").not.toBeNull();
+  const diamond = (arrow as HTMLElement).firstElementChild as HTMLElement;
 
   const tooltipRect = tooltip.getBoundingClientRect();
+  const diamondRect = diamond.getBoundingClientRect();
   const triggerRect = trigger.getBoundingClientRect();
 
-  // The box itself is the nearest thing the user sees of the tooltip, so the design's 8px of air
-  // is measured straight from its own top edge. react-aria floors the offset position to a whole
-  // pixel, so the gap lands at 7 or 8 depending on where the element's own edge falls.
-  const gapPx = tooltipRect.top - triggerRect.bottom;
-  expect(gapPx).toBeGreaterThanOrEqual(7);
-  expect(gapPx).toBeLessThanOrEqual(8);
+  // A 45deg-rotated 10px square's bounding box is a 14.14px diamond: its far corner (the tip,
+  // away from the box) is what points at the element, 8px clear of it; its near corner dips past
+  // the box's own top edge by that same rotation math, which is what glues the shape to the box
+  // instead of leaving visible air between them. react-aria floors the box's position to a whole
+  // pixel, so the tip's gap lands at 7 or 8 depending on where the element's own edge falls.
+  const tipToElementGap = diamondRect.top - triggerRect.bottom;
+  expect(tipToElementGap).toBeGreaterThanOrEqual(7);
+  expect(tipToElementGap).toBeLessThanOrEqual(8);
+
+  // A diamond that only touches the box (0) or falls short of it reads as a shape floating in the
+  // air between the box and the element, which is the detached look this guards against.
+  const nearCornerOverlapIntoBox = diamondRect.bottom - tooltipRect.top;
+  expect(nearCornerOverlapIntoBox).toBeGreaterThan(0);
+
+  const diamondCenterX = diamondRect.left + diamondRect.width / 2;
+  const triggerCenterX = triggerRect.left + triggerRect.width / 2;
+  expect(Math.abs(diamondCenterX - triggerCenterX)).toBeLessThanOrEqual(1);
+
+  await expectNoAccessibilityViolations(document.body, axeOptions);
+});
+
+test("keeps the arrow glued to the box, pointing down at the element, once flipped above it", async () => {
+  const screen = await render(
+    <div style={{ position: "fixed", bottom: 4, left: 4 }}>
+      <Tooltip description="Voided at checkout by the manager on duty">
+        <Button>Void reason</Button>
+      </Tooltip>
+    </div>,
+  );
+  const trigger = screen.getByRole("button", { name: "Void reason" }).element();
+
+  await userEvent.hover(trigger);
+  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  await expect.poll(() => tooltipElement(screen).dataset.placement).toBe("top");
+
+  const tooltip = tooltipElement(screen);
+  const arrow = tooltip.querySelector("[data-placement]") as HTMLElement | null;
+  expect(arrow, "no arrow element found inside the tooltip").not.toBeNull();
+  const diamond = (arrow as HTMLElement).firstElementChild as HTMLElement;
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const diamondRect = diamond.getBoundingClientRect();
+  const triggerRect = trigger.getBoundingClientRect();
+
+  // Flipped above the element, the diamond's tip points down instead of up, so the same two gaps
+  // are read from the opposite edges.
+  const tipToElementGap = triggerRect.top - diamondRect.bottom;
+  expect(tipToElementGap).toBeGreaterThanOrEqual(7);
+  expect(tipToElementGap).toBeLessThanOrEqual(8);
+
+  const nearCornerOverlapIntoBox = tooltipRect.bottom - diamondRect.top;
+  expect(nearCornerOverlapIntoBox).toBeGreaterThan(0);
+
+  const diamondCenterX = diamondRect.left + diamondRect.width / 2;
+  const triggerCenterX = triggerRect.left + triggerRect.width / 2;
+  expect(Math.abs(diamondCenterX - triggerCenterX)).toBeLessThanOrEqual(1);
+
+  await expectNoAccessibilityViolations(document.body, axeOptions);
+});
+
+test("keeps the arrow off the box's rounded corner when clamped near a screen edge", async () => {
+  await page.viewport(400, 900);
+
+  const screen = await render(
+    <div style={{ position: "fixed", top: "50%", left: 370 }}>
+      <Tooltip description="Voided at checkout by the manager on duty">
+        <IconButton icon={<Lock />} aria-label="Locked role" />
+      </Tooltip>
+    </div>,
+  );
+  const trigger = screen.getByRole("button", { name: "Locked role" }).element();
+
+  await userEvent.hover(trigger);
+  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+
+  const tooltip = tooltipElement(screen);
+  const arrow = tooltip.querySelector("[data-placement]") as HTMLElement | null;
+  expect(arrow, "no arrow element found inside the tooltip").not.toBeNull();
+  const diamond = (arrow as HTMLElement).firstElementChild as HTMLElement;
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const diamondRect = diamond.getBoundingClientRect();
+
+  // The trigger sits close enough to this narrow viewport's right edge that the box has to shift
+  // left to stay on screen, which is exactly when react-aria's own arrow clamp crowds the diamond
+  // against an edge: it only reserves room for the plain 10px square it measures, not the wider
+  // 14.14px diamond that square's 45deg rotation actually paints. Landing any closer than the
+  // box's own 6px corner radius (rounded-md) puts the diamond over where the curve has already
+  // pulled the box's fill back, which is what reads as the diamond floating free of the box
+  // instead of glued to it.
+  const BOX_CORNER_RADIUS_PX = 6;
+  expect(tooltipRect.right - diamondRect.right).toBeGreaterThanOrEqual(BOX_CORNER_RADIUS_PX);
+  expect(diamondRect.left - tooltipRect.left).toBeGreaterThanOrEqual(BOX_CORNER_RADIUS_PX);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
