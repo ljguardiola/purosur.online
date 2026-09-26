@@ -126,24 +126,20 @@ describe("the register's hardened window", () => {
 
   it("blocks a remote image, a remote script, and an inline script", async () => {
     const violations = await page.evaluate(async () => {
-      const violatedDirectives: string[] = [];
       const blockedUris: string[] = [];
+      const allSeen = (): boolean =>
+        blockedUris.includes("https://example.com/x.png") &&
+        blockedUris.includes("https://example.com/x.js") &&
+        blockedUris.includes("inline");
       // Resolves once every one of the three violations this test triggers has been recorded, so
-      // this in-page wait is driven by the events themselves rather than an elapsed duration;
-      // the timeout below is only a cap in case a policy change stops one of them from firing.
+      // this in-page wait is driven by the events themselves; the cap only bounds a run where a
+      // policy change stops one of them from firing, and the assertions below then fail on it.
       const allViolationsSeen = new Promise<void>((resolve) => {
-        function checkComplete(): void {
-          const hasImage = blockedUris.some((uri) => uri.includes("x.png"));
-          const hasScript = blockedUris.some((uri) => uri.includes("x.js"));
-          const hasInline = blockedUris.includes("inline");
-          if (hasImage && hasScript && hasInline) {
+        document.addEventListener("securitypolicyviolation", (event) => {
+          blockedUris.push(event.blockedURI);
+          if (allSeen()) {
             resolve();
           }
-        }
-        document.addEventListener("securitypolicyviolation", (event) => {
-          violatedDirectives.push(event.violatedDirective);
-          blockedUris.push(event.blockedURI);
-          checkComplete();
         });
       });
 
@@ -164,17 +160,16 @@ describe("the register's hardened window", () => {
         new Promise((resolve) => setTimeout(resolve, 10_000)),
       ]);
       return {
-        violatedDirectives,
+        blockedUris,
+        allSeen: allSeen(),
         inlineRan: (window as unknown as Record<string, unknown>).__inlineRan === true,
       };
     });
 
-    expect(violations.violatedDirectives.some((directive) => directive.startsWith("img"))).toBe(
-      true,
-    );
-    expect(violations.violatedDirectives.some((directive) => directive.startsWith("script"))).toBe(
-      true,
-    );
+    expect(violations.blockedUris).toContain("https://example.com/x.png");
+    expect(violations.blockedUris).toContain("https://example.com/x.js");
+    expect(violations.blockedUris).toContain("inline");
+    expect(violations.allSeen).toBe(true);
     expect(violations.inlineRan).toBe(false);
   });
 

@@ -150,12 +150,11 @@ describe("the backoffice rate limiter on concurrent connections", () => {
         request.then(() => "completed" as const),
         waitUntilBlockedOnAnAdvisoryLock("backoffice-request", () => requestSettled),
       ]);
-      releaseRecoveryLock();
-      await recoveryTransaction;
-      await request;
 
       expect(outcome).toBe("completed");
     } finally {
+      releaseRecoveryLock();
+      await recoveryTransaction;
       await requestConnection.end({ timeout: 1 });
     }
   });

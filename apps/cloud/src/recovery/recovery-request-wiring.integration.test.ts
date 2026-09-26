@@ -27,8 +27,9 @@ import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 // Proves the real production wiring `server.ts`'s `setUpRecovery` builds — a real postgres-js
 // pool and graphile-worker's real `run()` inside the cloud process — end to end, which PGlite
-// cannot exercise (no LISTEN/NOTIFY, no advisory locks). Only the email sender is faked; every
-// other seam (job enqueue, job processing, token issuance, auditing) runs for real.
+// cannot exercise (no LISTEN/NOTIFY, no advisory locks). The email sender is faked, and one test
+// swaps in a job-queue pool that never reaps idle connections; every other seam (job enqueue, job
+// processing, token issuance, auditing) runs for real.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 
@@ -161,8 +162,8 @@ async function startRealServer(
         ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
       },
       {
-        // The only seams this test touches: everything else (the pool, graphile-worker's run(),
-        // the routes) is `setUpRecovery`'s real production wiring, unmodified.
+        // The only seams touched: the email sender and, when a test passes one, the job-queue
+        // pool. graphile-worker's run() and the routes are `setUpRecovery`'s real wiring.
         setUpRecovery: async (recoveryEnv) => {
           recovery = await setUpRecovery(recoveryEnv, { emailSender, createJobQueuePool });
           return recovery;

@@ -70,15 +70,22 @@ describe("the core process's supervision and message gate", () => {
     if (killed === undefined) {
       throw new Error("expected a core process to be running before killing it");
     }
+    // The first launch's port may or may not have reached the listener, so only a port that
+    // arrives after the kill proves the restarted core was handed to the renderer.
+    const portsBefore = await portCount(page);
     process.kill(killed.pid, "SIGKILL");
 
-    // Catches core-supervisor.ts no longer restarting a killed core: this never becomes true and
-    // the poll times out instead of a fixed sleep silently passing on a stale process list.
+    // Catches core-supervisor.ts no longer restarting a killed core, or index.ts's
+    // onProcessStarted no longer reconnecting the already-loaded renderer: either way this never
+    // becomes true and the poll times out.
     await expect
       .poll(
         async () => {
           const list = await coreProcesses(app);
-          return list.some((process) => process.pid !== killed.pid) && (await portCount(page)) >= 1;
+          return (
+            list.some((process) => process.pid !== killed.pid) &&
+            (await portCount(page)) > portsBefore
+          );
         },
         { timeout: 20_000, interval: 100, message: "expected a new core process and a fresh port" },
       )
@@ -86,7 +93,7 @@ describe("the core process's supervision and message gate", () => {
 
     const after = await coreProcesses(app);
     expect(after.some((process) => process.pid !== killed.pid)).toBe(true);
-    expect(await portCount(page)).toBeGreaterThanOrEqual(1);
+    expect(await portCount(page)).toBeGreaterThan(portsBefore);
   });
 
   it("rejects an invalid message, records it without its payload values, and accepts a valid one", async () => {
