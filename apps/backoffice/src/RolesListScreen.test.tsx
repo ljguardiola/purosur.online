@@ -76,10 +76,10 @@ test("shows a hand-picked role's name, its permission count out of the full cata
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Depósito")).toBeVisible();
-  await expect.element(screen.getByText("2 de 48 permisos")).toBeVisible();
+  await expect.element(screen.getByText("2 de 49 permisos")).toBeVisible();
   await expect.element(screen.getByText("Sin usuarios")).toBeVisible();
   await expect.element(screen.getByText("Cajera")).toBeVisible();
-  await expect.element(screen.getByText("1 de 48 permisos")).toBeVisible();
+  await expect.element(screen.getByText("1 de 49 permisos")).toBeVisible();
   await expect.element(screen.getByText("3 usuarios")).toBeVisible();
   await expect.element(screen.getByText("3 roles")).toBeVisible();
 });

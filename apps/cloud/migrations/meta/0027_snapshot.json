@@ -1,5 +1,5 @@
 {
-  "id": "2ceb4e77-ce86-4516-af98-1fba33cd79e0",
+  "id": "6b2c7cea-4819-4aaa-8679-bc8438045fbf",
   "prevId": "4db914f5-691b-458f-859c-924949763498",
   "version": "7",
   "dialect": "postgresql",
@@ -714,18 +714,6 @@
           "notNull": true,
           "default": true
         },
-        "net_content_quantity": {
-          "name": "net_content_quantity",
-          "type": "numeric(10, 3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "net_content_unit": {
-          "name": "net_content_unit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -753,18 +741,6 @@
         "products_sale_unit_check": {
           "name": "products_sale_unit_check",
           "value": "\"products\".\"sale_unit\" in ('UNIT', 'KG')"
-        },
-        "products_net_content_unit_check": {
-          "name": "products_net_content_unit_check",
-          "value": "\"products\".\"net_content_unit\" in ('G', 'KG', 'ML', 'L', 'UNIT')"
-        },
-        "products_net_content_both_or_neither_check": {
-          "name": "products_net_content_both_or_neither_check",
-          "value": "(\"products\".\"net_content_quantity\" is null) = (\"products\".\"net_content_unit\" is null)"
-        },
-        "products_net_content_quantity_positive_check": {
-          "name": "products_net_content_quantity_positive_check",
-          "value": "\"products\".\"net_content_quantity\" > 0"
         }
       },
       "isRLSEnabled": false
@@ -1066,6 +1042,137 @@
           "tableFrom": "recovery_tokens",
           "tableTo": "users",
           "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.register_enrollment_codes": {
+      "name": "register_enrollment_codes",
+      "schema": "",
+      "columns": {
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "redeemed_at": {
+          "name": "redeemed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failed_attempts": {
+          "name": "failed_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "register_enrollment_codes_register_id_registers_id_fk": {
+          "name": "register_enrollment_codes_register_id_registers_id_fk",
+          "tableFrom": "register_enrollment_codes",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.registers": {
+      "name": "registers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "registers_location_id_name_lower_key": {
+          "name": "registers_location_id_name_lower_key",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "registers_location_id_locations_id_fk": {
+          "name": "registers_location_id_locations_id_fk",
+          "tableFrom": "registers",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"

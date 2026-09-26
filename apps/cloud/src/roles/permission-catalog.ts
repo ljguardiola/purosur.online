@@ -35,6 +35,7 @@ const PERMISSION_KEY_LIST = [
   "manage_batches",
   "reset_user_pin",
   "deactivate_users",
+  "reactivate_users",
   "correct_register_clock",
   "view_fiscal_documents",
   "close_fiscal_tasks",

@@ -275,6 +275,45 @@ export const internalBarcodeSequence = pgSequence("internal_barcode_sequence", {
   cycle: false,
 });
 
+// A backoffice register: created from the "Nueva caja" modal by a holder of
+// `enroll_register_devices`, belonging to the branch of the session that created it. Its name must
+// be unique within its own branch (case-insensitive, trimmed), the same shape `categories.name`
+// enforces globally; points of sale and fiscal address are configured elsewhere, not here.
+export const registers = pgTable(
+  "registers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("registers_location_id_name_lower_key").on(
+      table.locationId,
+      sql`lower(${table.name})`,
+    ),
+  ],
+);
+
+// The single pending enrollment code for a register: one row per register (`register_id` is both
+// primary and foreign key), so emitting a new code overwrites the previous pending one instead of
+// accumulating a history. Only `code_hash` (SHA-256, the same shape `sessions.session_id_hash`
+// stores its own secret in) is ever stored, never the raw code. `redeemed_at` and `failed_attempts`
+// exist for #341 (redemption) to enforce single use and the 5-failed-attempt burn; this migration
+// only adds the columns that issue needs, without implementing redemption itself.
+export const registerEnrollmentCodes = pgTable("register_enrollment_codes", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  codeHash: text("code_hash").notNull(),
+  issuedAt: timestamp("issued_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+});
+
 // `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
 export const auditLog = pgTable("audit_log", {
