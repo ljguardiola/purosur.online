@@ -1,6 +1,6 @@
 import {
-  ALERT_KINDS as SHARED_ALERT_KINDS,
   isAlertKind as isSharedAlertKind,
+  ALERT_KINDS as SHARED_ALERT_KINDS,
 } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {

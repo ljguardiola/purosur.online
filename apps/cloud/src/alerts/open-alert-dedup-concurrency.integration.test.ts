@@ -78,7 +78,7 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
   });
 
   await firstStarted;
-  if (!firstOutcome || firstOutcome.kind !== "opened") {
+  if (firstOutcome?.kind !== "opened") {
     throw new Error("test setup: the first openAlert call never opened the alert");
   }
   const firstAlertId = firstOutcome.alertId;
@@ -145,13 +145,9 @@ describe("openAlert dedup raced through postgres-js on a real Postgres", () => {
     throw new Error(`test setup: ${count} openAlert calls never queued behind the first`);
   }
 
-  it(
-    "dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits",
-    async () => {
-      await racesOpenAlertDedup(db, waitForLockWaiters);
-    },
-    30_000,
-  );
+  it("dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits", async () => {
+    await racesOpenAlertDedup(db, waitForLockWaiters);
+  }, 30_000);
 });
 
 describe("openAlert dedup raced through node-postgres on a real Postgres", () => {
@@ -182,11 +178,7 @@ describe("openAlert dedup raced through node-postgres on a real Postgres", () =>
     throw new Error(`test setup: ${count} openAlert calls never queued behind the first`);
   }
 
-  it(
-    "dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits",
-    async () => {
-      await racesOpenAlertDedup(db, waitForLockWaiters);
-    },
-    30_000,
-  );
+  it("dedups: the second call gets already_open, one alert, one set of deliveries, and its own transaction still commits", async () => {
+    await racesOpenAlertDedup(db, waitForLockWaiters);
+  }, 30_000);
 });

@@ -82,7 +82,11 @@ async function insertActor(name: string): Promise<string> {
   }
   const [user] = await db
     .insert(users)
-    .values({ firstName: name, email: `${name.toLowerCase()}-${randomUUID()}@example.com`, locationId })
+    .values({
+      firstName: name,
+      email: `${name.toLowerCase()}-${randomUUID()}@example.com`,
+      locationId,
+    })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: inserting the user returned no row");
@@ -109,37 +113,33 @@ async function insertOpenAlert(): Promise<string> {
 }
 
 describe("closing the same alert from two actors at once on a real Postgres", () => {
-  it(
-    "closes it for the first to queue, tells the second it was already closed, and audits only the first",
-    async () => {
-      const alertId = await insertOpenAlert();
-      const firstActorId = await insertActor("Grace");
-      const secondActorId = await insertActor("Ada");
+  it("closes it for the first to queue, tells the second it was already closed, and audits only the first", async () => {
+    const alertId = await insertOpenAlert();
+    const firstActorId = await insertActor("Grace");
+    const secondActorId = await insertActor("Ada");
 
-      const [firstOutcome, secondOutcome] = await runQueuedBehindRowLock<CloseAlertOutcome>(
-        alertId,
-        () => closeAlert(db, { id: alertId, actorId: firstActorId }, { now: () => NOON }),
-        () =>
-          closeAlert(
-            db,
-            { id: alertId, actorId: secondActorId },
-            { now: () => new Date(NOON.getTime() + 1_000) },
-          ),
-      );
+    const [firstOutcome, secondOutcome] = await runQueuedBehindRowLock<CloseAlertOutcome>(
+      alertId,
+      () => closeAlert(db, { id: alertId, actorId: firstActorId }, { now: () => NOON }),
+      () =>
+        closeAlert(
+          db,
+          { id: alertId, actorId: secondActorId },
+          { now: () => new Date(NOON.getTime() + 1_000) },
+        ),
+    );
 
-      expect(firstOutcome.kind).toBe("closed");
-      expect(secondOutcome).toEqual({ kind: "already_closed" });
-      const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
-      expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: firstActorId });
-      const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
-      expect(audited).toHaveLength(1);
-      expect(audited[0]).toMatchObject({
-        entity: "alert",
-        actorId: firstActorId,
-        previousValue: { resolvedAt: null },
-        newValue: { resolvedAt: NOON.toISOString() },
-      });
-    },
-    30_000,
-  );
+    expect(firstOutcome.kind).toBe("closed");
+    expect(secondOutcome).toEqual({ kind: "already_closed" });
+    const [row] = await db.select().from(alerts).where(eq(alerts.id, alertId));
+    expect(row).toMatchObject({ resolvedAt: NOON, resolvedBy: firstActorId });
+    const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, alertId));
+    expect(audited).toHaveLength(1);
+    expect(audited[0]).toMatchObject({
+      entity: "alert",
+      actorId: firstActorId,
+      previousValue: { resolvedAt: null },
+      newValue: { resolvedAt: NOON.toISOString() },
+    });
+  }, 30_000);
 });
