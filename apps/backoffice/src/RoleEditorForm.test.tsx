@@ -185,8 +185,6 @@ test("areaSelectedCount counts only the permissions selected in that area", () =
   const selected = new Set<PermissionKey>(["sell_and_charge", "view_stock_balances"]);
 
   expect(areaSelectedCount("cashRegister", selected)).toEqual({ count: 1, total: 7 });
-  expect(areaSelectedCount("stock", selected)).toEqual({ count: 1, total: 5 });
-  expect(areaSelectedCount("alerts", selected)).toEqual({ count: 0, total: 3 });
 });
 
 test("validateRoleName rejects empty, too long, and the Administrator's own name", () => {

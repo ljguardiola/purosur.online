@@ -13,6 +13,12 @@ export function parseNetContentQuantity(value: string): number | undefined {
   return Number(digits.fraction ? `${digits.whole}.${digits.fraction}` : digits.whole);
 }
 
+/** A quantity's own string form for prefilling an edit modal: a decimal comma and no thousands
+ * separator, a form `parseNetContentQuantity` reads back to the same number. */
+export function formatNetContentQuantity(quantity: number): string {
+  return String(quantity).replace(".", ",");
+}
+
 export type NetContentQuantityMessages = {
   netContentQuantityInvalid: string;
   netContentQuantityTooLarge: string;

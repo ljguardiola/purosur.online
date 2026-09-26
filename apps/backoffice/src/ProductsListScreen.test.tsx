@@ -837,20 +837,18 @@ test("the row action opens the edit modal pre-filled with the product's data", a
   await expect.element(dialog.getByText("7790987000015")).toBeVisible();
 });
 
-test("prefills a decimal net content quantity with a decimal comma and no thousands separator, and its unit", async () => {
+test("prefills the edit modal with the product's net content quantity and unit", async () => {
   const services = createServices();
   const mielConContenido: ProductSummary = {
     ...miel,
-    netContent: { quantity: 1500.125, unit: "G" },
+    netContent: { quantity: 1.5, unit: "KG" },
   };
   mockLoaded(services, [mielConContenido]);
   const screen = await renderScreen(services);
   const dialog = await openEditProductModal(screen, mielConContenido);
 
-  await expect
-    .element(dialog.getByRole("textbox", { name: "Contenido neto" }))
-    .toHaveValue("1500,125");
-  await expect.element(dialog.getByRole("button", { name: "g Unidad" })).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("1,5");
+  await expect.element(dialog.getByRole("button", { name: "kg Unidad" })).toBeVisible();
 });
 
 test("opens the edit modal defaulting the net content unit to g when the product has none", async () => {

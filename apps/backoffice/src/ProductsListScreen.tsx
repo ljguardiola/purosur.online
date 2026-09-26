@@ -59,7 +59,11 @@ import {
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
 import { messages } from "./messages";
-import { netContentQuantityError, parseNetContentQuantity } from "./netContentQuantity";
+import {
+  formatNetContentQuantity,
+  netContentQuantityError,
+  parseNetContentQuantity,
+} from "./netContentQuantity";
 import {
   type CreateProductInput,
   createProduct,
@@ -143,11 +147,8 @@ function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | 
     : null;
 }
 
-/** The quantity field's own string form when prefilling the edit modal: blank for a product with
- * no net content, otherwise with a decimal comma and no thousands separator, a form
- * `parseNetContentQuantity` reads back. */
 function netContentQuantityText(netContent: NetContent | null): string {
-  return netContent ? String(netContent.quantity).replace(".", ",") : "";
+  return netContent ? formatNetContentQuantity(netContent.quantity) : "";
 }
 
 function netContentUnitOf(netContent: NetContent | null): NetContentUnit {
