@@ -1,10 +1,11 @@
 // Proves that .github/workflows/verify.yml still runs the parts of `pnpm verify` and lets a
 // failure of any of them reach the required verify check: the static and tests jobs run under the
 // expected condition, neither they nor their verify step may continue on error or carry its own
-// if, each runs its exact pnpm command, and the tests matrix is a complete shard range with no
+// if or shell, each runs its exact pnpm command, and the tests matrix is a complete shard range with no
 // include or exclude. The verify job needs both, runs under exactly `always()`, neither it nor its
-// aggregate step may continue on error, that step carries no if of its own, runs exactly the
+// aggregate step may continue on error, that step carries no if or shell of its own, runs exactly the
 // aggregate script and passes it every result and scope input from the job that produces it.
+// Neither the workflow nor any of those jobs sets defaults, which could replace the run shell.
 // package.json's scripts still compose tsc, biome, dependency-cruiser, the automation tests and
 // vitest without swallowing a failure. An edit that breaks any of these fails this guard instead
 // of quietly shipping a weaker merge gate.
@@ -122,6 +123,9 @@ function runnerJobViolations(doc, jobId, job, command) {
   if (mayContinueOnError(doc, job)) {
     violations.push(`verify.yml's ${jobId} job sets continue-on-error`);
   }
+  if (mapHas(doc, job, "defaults")) {
+    violations.push(`verify.yml's ${jobId} job sets defaults`);
+  }
 
   const step = stepRunningExactly(doc, job, command);
   if (step === undefined) {
@@ -133,6 +137,9 @@ function runnerJobViolations(doc, jobId, job, command) {
   }
   if (mapHas(doc, step, "if")) {
     violations.push(`verify.yml's ${jobId} job's verify:${jobId} step has its own if`);
+  }
+  if (mapHas(doc, step, "shell")) {
+    violations.push(`verify.yml's ${jobId} job's verify:${jobId} step sets its own shell`);
   }
   return violations;
 }
@@ -157,6 +164,9 @@ function verifyJobViolations(doc, job) {
   if (mayContinueOnError(doc, job)) {
     violations.push("verify.yml's verify job sets continue-on-error");
   }
+  if (mapHas(doc, job, "defaults")) {
+    violations.push("verify.yml's verify job sets defaults");
+  }
 
   const step = stepRunningExactly(doc, job, AGGREGATE_COMMAND);
   if (step === undefined) {
@@ -170,6 +180,9 @@ function verifyJobViolations(doc, job) {
   }
   if (mapHas(doc, step, "if")) {
     violations.push("verify.yml's verify job's aggregate step has its own if");
+  }
+  if (mapHas(doc, step, "shell")) {
+    violations.push("verify.yml's verify job's aggregate step sets its own shell");
   }
   const envNode = mapGet(doc, step, "env");
   for (const [name, expected] of Object.entries(EXPECTED_AGGREGATE_ENV)) {
@@ -188,7 +201,7 @@ function composesEveryCommand(script, requiredCommands) {
   if (typeof script !== "string") return false;
   const commands = script.split("&&").map((command) => command.trim());
   const everyCommandPropagatesFailure = commands.every(
-    (command) => command !== "" && !/[|;&`\n\r]|\$\(/.test(command),
+    (command) => command !== "" && !/[|;&`#\n\r]|\$\(/.test(command),
   );
   return (
     everyCommandPropagatesFailure &&
@@ -205,6 +218,10 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   }
 
   const violations = [];
+
+  if (mapHas(doc, doc.contents, "defaults")) {
+    violations.push("verify.yml sets workflow-level defaults");
+  }
 
   const staticJob = jobNode(doc, "static");
   if (staticJob === undefined) {

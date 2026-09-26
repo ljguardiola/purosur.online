@@ -42,6 +42,7 @@ function verifyJobLines({
 }
 
 function workflow({
+  topExtra = [],
   staticRun = "pnpm verify:static",
   shardValues = [1, 2, 3, 4],
   testsRun,
@@ -74,6 +75,7 @@ function workflow({
           env: verifyEnv,
         });
   return [
+    ...topExtra,
     "jobs:",
     "  static:",
     `    if: ${staticIf}`,
@@ -437,6 +439,59 @@ test("flags a verify aggregate step whose static result is hardcoded to success"
 
   assertSingleViolation(violations, /aggregate step's STATIC_RESULT is/);
 });
+
+test("flags a verify:static script that turns the required commands into a shell comment", () => {
+  const violations = findVerifyWorkflowViolations(
+    workflow(),
+    packageJson({ verifyStatic: `true # && ${VERIFY_STATIC_SCRIPT}` }),
+  );
+
+  assertSingleViolation(violations, /"verify:static" script/);
+});
+
+for (const [label, options, pattern] of [
+  [
+    "the static job's verify:static step",
+    { staticStepExtra: ["shell: bash -c 'exit 0' {0}"] },
+    /static job's verify:static step sets its own shell/,
+  ],
+  [
+    "the tests job's verify:tests step",
+    { testsStepExtra: ["shell: bash -c 'exit 0' {0}"] },
+    /tests job's verify:tests step sets its own shell/,
+  ],
+  [
+    "the verify job's aggregate step",
+    { verifyStepExtra: ["shell: bash -c 'exit 0' {0}"] },
+    /verify job's aggregate step sets its own shell/,
+  ],
+  [
+    "the static job's defaults",
+    { staticJobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /static job sets defaults/,
+  ],
+  [
+    "the tests job's defaults",
+    { testsJobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /tests job sets defaults/,
+  ],
+  [
+    "the verify job's defaults",
+    { verifyJobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /verify job sets defaults/,
+  ],
+  [
+    "the workflow's defaults",
+    { topExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /verify\.yml sets workflow-level defaults/,
+  ],
+]) {
+  test(`flags a shell override in ${label}, which can discard the command's exit status`, () => {
+    const violations = findVerifyWorkflowViolations(workflow(options), packageJson());
+
+    assertSingleViolation(violations, pattern);
+  });
+}
 
 for (const [separator, label] of [
   ["\n", "a newline"],
