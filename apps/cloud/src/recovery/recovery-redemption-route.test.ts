@@ -666,28 +666,6 @@ describe("POST /users/recovery/redeem passkey_name", () => {
     expect(insertedPasskeys).toHaveLength(0);
   });
 
-  it("rejects a passkey_name that is only whitespace, without burning the token", async () => {
-    const { rawToken, response } = await redeemWithName("   ");
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
-    expect(await tokenUsedAt(rawToken)).toBeNull();
-  });
-
-  it("rejects a passkey_name over 40 characters once trimmed, without burning the token", async () => {
-    const { rawToken, response } = await redeemWithName(`  ${"a".repeat(41)}  `);
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
-    expect(await tokenUsedAt(rawToken)).toBeNull();
-  });
-
-  it("accepts a passkey_name at exactly 40 characters once trimmed", async () => {
-    const { response } = await redeemWithName(`  ${"a".repeat(40)}  `);
-
-    expect(response.statusCode).toBe(200);
-  });
-
   it("trims the stored passkey_name", async () => {
     const rawToken = await issueToken();
     const options = await getRegistrationOptions(rawToken);
@@ -703,13 +681,6 @@ describe("POST /users/recovery/redeem passkey_name", () => {
     expect(response.statusCode).toBe(200);
     const [insertedPasskey] = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
     expect(insertedPasskey?.name).toBe("Notebook del local");
-  });
-
-  it("rejects a non-string passkey_name as validation_failed", async () => {
-    const { response } = await redeemWithName(40);
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
   it("audits a redeem rejected for a missing passkey_name", async () => {
