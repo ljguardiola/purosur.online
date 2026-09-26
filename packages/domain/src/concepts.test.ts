@@ -2,7 +2,6 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// Editing this list is how you add, rename, or remove a domain concept.
 const CONCEPTS = [
   "sales",
   "returns",

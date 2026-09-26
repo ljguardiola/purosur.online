@@ -1,6 +1,3 @@
-// The security-alert kinds, levels and audiences the cloud and the backoffice both need to agree
-// on: the cloud opens and escalates alerts of these kinds, and the backoffice renders their icon,
-// title and level without inventing its own copy of what kinds or levels exist.
 const ALERT_KIND_LIST = [
   "backoffice_passkey_changed",
   "backoffice_recovery_requested",
