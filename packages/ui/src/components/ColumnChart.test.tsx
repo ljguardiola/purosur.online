@@ -1113,13 +1113,30 @@ async function collectKeyWarnings(renderChart: () => Promise<Screen>): Promise<{
   warnings: string[];
 }> {
   const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-  const screen = await renderChart();
-  const warnings = spy.mock.calls
-    .map((call) => call.map(String).join(" "))
-    .filter((message) => message.includes("same key"));
-  spy.mockRestore();
-  return { screen, warnings };
+  try {
+    const screen = await renderChart();
+    const warnings = spy.mock.calls
+      .map((call) => call.map(String).join(" "))
+      .filter((message) => message.includes("same key"));
+    return { screen, warnings };
+  } finally {
+    spy.mockRestore();
+  }
 }
+
+test("the duplicate-key probe catches colliding keys", async () => {
+  const { warnings } = await collectKeyWarnings(() =>
+    render(
+      <ul>
+        {["same", "same"].map((text) => (
+          <li key={text}>{text}</li>
+        ))}
+      </ul>,
+    ),
+  );
+
+  expect(warnings).not.toEqual([]);
+});
 
 test("does not collide two unlabeled bars that share the same value", async () => {
   const bars: ColumnChartBar[] = [

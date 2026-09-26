@@ -261,12 +261,14 @@ test("titles every state with an on-screen level-1 heading", async () => {
 // `render()` resolves; nothing here waits on the page's own clock.
 async function collectKeyWarnings(renderContent: () => Promise<unknown>): Promise<string[]> {
   const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-  await renderContent();
-  const warnings = spy.mock.calls
-    .map((call) => call.map(String).join(" "))
-    .filter((message) => message.includes("same key"));
-  spy.mockRestore();
-  return warnings;
+  try {
+    await renderContent();
+    return spy.mock.calls
+      .map((call) => call.map(String).join(" "))
+      .filter((message) => message.includes("same key"));
+  } finally {
+    spy.mockRestore();
+  }
 }
 
 test("the duplicate-key probe catches colliding keys", async () => {
