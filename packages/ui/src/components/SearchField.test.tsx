@@ -201,8 +201,7 @@ for (const variant of ["register", "backoffice"] as const) {
     const nextControl = screen.getByRole("button", { name: "Next control" }).element();
 
     expect(getComputedStyle(wrapper).opacity).toBe("0.45");
-    // The box itself still renders the field's ordinary resting look underneath that dimming —
-    // it's the wrapper's opacity that communicates "disabled", not a different box appearance.
+    // The wrapper's opacity communicates "disabled"; the box itself keeps its ordinary resting look.
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
     expect(input.disabled).toBe(true);
@@ -215,9 +214,8 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
-// Rendering the caller's state beside the field, and driving the value from there after mount, is
-// what tells a controlled field from an uncontrolled one — the input's own value alone reads the
-// same either way, since the DOM keeps it by itself.
+// Driving the input's value from state proves it's controlled: the DOM keeps a stale value by
+// itself either way, so an uncontrolled field would read the same.
 function ScanHarness() {
   const [value, setValue] = useState("");
   return (
@@ -277,11 +275,9 @@ test("clears the field and its caller's state when Escape is pressed", async () 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Chromium paints its own ::-webkit-search-cancel-button inside a type="search" input holding a
-// value; getComputedStyle can't say whether it's actually painted, so the only way to tell is to
-// click where it sits — the browser's button clears the field, a click on the text itself only
-// moves the caret. Where painted, it spans roughly the last 4-13px of the backoffice input and
-// 4-17px of the register one, so a click 8px in from the right edge lands on it in both.
+// getComputedStyle can't say whether Chromium's own ::-webkit-search-cancel-button is painted, so
+// clicking where it would sit (it clears the field; the text itself only moves the caret) is the
+// only way to tell. 8px from the right edge lands on it in both variants, where painted.
 for (const variant of ["register", "backoffice"] as const) {
   test(`keeps the value when the right edge of the ${variant} variant is clicked, since it draws no clear button`, async () => {
     const screen = await render(
@@ -375,9 +371,7 @@ test("is a single tab stop", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// Reads the icon's own painted stroke, not the inherited `color`: getComputedStyle(icon).color
-// only reports the color the icon would inherit, which would pass even for an icon that hardcoded
-// its own stroke and painted differently.
+// `.stroke`, not the inherited `.color`, which would pass even for an icon with a hardcoded stroke.
 test("paints the register chip icon brand-blue-strong and the backoffice icon ink-secondary", async () => {
   const registerScreen = await render(
     <SearchFieldHarness

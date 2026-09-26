@@ -523,7 +523,6 @@ test("activates a page button with Enter, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "3", exact: true }).element();
 
-  // Previous is unavailable but still tabbable, so it's the first stop: Previous, page1, page2, page3.
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();
@@ -545,7 +544,6 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   );
   const target = screen.getByRole("button", { name: "4", exact: true }).element();
 
-  // Previous is unavailable but still tabbable, so it's the first stop: Previous, page1, page2, page3, page4.
   await userEvent.tab();
   await userEvent.tab();
   await userEvent.tab();

@@ -90,10 +90,7 @@ function pageBackgroundHex(): string {
   return rgbToHex(getComputedStyle(document.body).backgroundColor);
 }
 
-// axis 64 + gap 12 + half a bar's own 20px width (10) = at least 86: the room a label has on the
-// left of the first bar's centre (the axis only ever grows past its 64px floor, so this is a
-// floor on the room too), and the room the chart reserves on the right of the last bar's centre.
-// A label is capped at twice that, 86px on each side of its own bar's centre, and shortened past it.
+// Mirrors the component's own label width cap and right-edge reserve.
 const LABEL_MAX_WIDTH_PX = 172;
 const CHART_RIGHT_RESERVE_PX = 76;
 
@@ -259,7 +256,7 @@ test("scales each bar's height to its value against the top tick, sitting on the
   const rendered = chartBars(screen);
   const plotRect = plotArea(screen).getBoundingClientRect();
 
-  // topTick for a highest of 214300 is 250000 (see the rounding test below).
+  // topTick for a highest of 214300 rounds up to 250000.
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo((214300 / 250000) * 150, 0);
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo((107150 / 250000) * 150, 0);
   expect(at(rendered, 2).getBoundingClientRect().height).toBeCloseTo(0, 0);

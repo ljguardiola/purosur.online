@@ -244,8 +244,7 @@ test("lets its content fill the remaining width of a wide container", async () =
     </div>,
   );
   const label = checkboxLabel(screen, "Return this line");
-  // The label's last child is the wrapper Checkbox puts around the caller's content, not the
-  // caller's own <span>: it's the element the design expects to stretch.
+  // The label's last child is Checkbox's own content wrapper, not the caller's <span>.
   const contentWrapper = label.lastElementChild as HTMLElement;
 
   const labelRect = label.getBoundingClientRect();

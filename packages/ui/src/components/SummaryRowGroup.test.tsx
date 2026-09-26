@@ -114,8 +114,6 @@ test("does not accept a group without rows to hold", () => {
   expectTypeOf<{ rows: undefined }>().not.toExtend<SummaryRowGroupProps>();
 });
 
-// A plain array from a `rows.map(...)` call site fails to compile too: TypeScript cannot prove
-// it holds at least one row.
 test("does not accept an empty rows list, or one TypeScript cannot prove is non-empty", () => {
   expectTypeOf<{ rows: [] }>().not.toExtend<SummaryRowGroupProps>();
   expectTypeOf<{ rows: SummaryRowProps[] }>().not.toExtend<SummaryRowGroupProps>();
