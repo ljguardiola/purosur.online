@@ -1,12 +1,13 @@
+import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
+
 // Same fallback the backoffice API rate limiter's other outcomes use (usersApi.ts, rolesApi.ts).
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
-export type AlertLevel = "informational" | "warning" | "critical";
-export type AlertAudience = "local" | "all";
+export type { AlertAudience, AlertKind, AlertLevel };
 
 export type AlertSummary = {
   id: string;
-  kind: string;
+  kind: AlertKind;
   scope: string | null;
   /**
    * `scope` as a person reads it: a user's first name for a user-scoped kind, the raw scope
@@ -36,7 +37,7 @@ export type AlertDelivery = {
 
 export type AlertDetail = {
   id: string;
-  kind: string;
+  kind: AlertKind;
   scope: string | null;
   scopeDisplay: string | null;
   level: AlertLevel;
@@ -100,7 +101,7 @@ function retryAfterSeconds(response: Response): number {
 
 function alertSummaryFromWire(row: {
   id: string;
-  kind: string;
+  kind: AlertKind;
   scope: string | null;
   scope_display: string | null;
   level: AlertLevel;
@@ -152,7 +153,7 @@ function alertDeliveryFromWire(row: {
 
 function alertDetailFromWire(row: {
   id: string;
-  kind: string;
+  kind: AlertKind;
   scope: string | null;
   scope_display: string | null;
   level: AlertLevel;

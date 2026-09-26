@@ -1,4 +1,5 @@
 import {
+  type AlertKind,
   BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -121,6 +122,23 @@ const PERMISSION_LABELS = {
   recover_contingency_receipts: "Rescatar tickets de contingencia",
   configure_branch: "Configurar la sucursal",
 } satisfies Record<PermissionKey, string>;
+
+// The ALERTA column's own title and one-line subtitle per kind: `Record<AlertKind, string>` keeps
+// this in sync with the shared catalog (@purosur/contracts) at compile time, so a kind the catalog
+// adds or removes is caught here too, instead of silently falling back to the raw key.
+const ALERT_KIND_LABELS = {
+  backoffice_passkey_changed: "Passkey",
+  backoffice_recovery_requested: "Recuperación de acceso",
+  user_email_changed: "Correo",
+  backoffice_sign_in_lockout: "Bloqueo de ingreso",
+} satisfies Record<AlertKind, string>;
+
+const ALERT_KIND_DESCRIPTIONS = {
+  backoffice_passkey_changed: "Se registró o dio de baja una passkey",
+  backoffice_recovery_requested: "Se pidió el enlace de acceso",
+  user_email_changed: "Se cambió una dirección de correo",
+  backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
+} satisfies Record<AlertKind, string>;
 
 const AREA_LABELS = {
   cashRegister: "Caja",
@@ -1040,18 +1058,8 @@ export const messages = defineMessages("es-AR", (f) => ({
       // each row's detail — the ALCANCE column already carries who/what it's about, from the
       // summary alone); the detail modal's title (below) is specific about what happened, once the
       // fact itself is on hand.
-      listKindLabels: {
-        backoffice_passkey_changed: "Passkey",
-        backoffice_recovery_requested: "Recuperación de acceso",
-        user_email_changed: "Correo",
-        backoffice_sign_in_lockout: "Bloqueo de ingreso",
-      },
-      listKindDescriptions: {
-        backoffice_passkey_changed: "Se registró o dio de baja una passkey",
-        backoffice_recovery_requested: "Se pidió el enlace de acceso",
-        user_email_changed: "Se cambió una dirección de correo",
-        backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
-      },
+      listKindLabels: ALERT_KIND_LABELS,
+      listKindDescriptions: ALERT_KIND_DESCRIPTIONS,
       kindTitles: {
         passkeyRegistered: "Se registró una passkey",
         passkeyRemoved: "Se dio de baja una passkey",

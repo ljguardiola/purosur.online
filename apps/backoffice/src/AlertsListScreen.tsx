@@ -1,3 +1,4 @@
+import { ALERT_KINDS } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -78,7 +79,7 @@ function listKindDescription(kind: string): string {
     : "";
 }
 
-const LIST_KINDS = Object.keys(alertsMessages.listKindLabels);
+const LIST_KINDS: readonly string[] = ALERT_KINDS;
 
 function kindsMatching(text: string): string[] {
   const query = text.toLowerCase();

@@ -1,3 +1,5 @@
+export type { AlertAudience, AlertKind, AlertLevel } from "./alert-catalog";
+export { ALERT_KINDS, isAlertKind } from "./alert-catalog";
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar";
 export { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-hours";
 export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name";
