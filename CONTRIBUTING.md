@@ -59,6 +59,31 @@ A feature too large for one pull request stays as a parent feature issue holding
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
 
+## Testing
+
+Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.
+
+Each risk has one kind of test that owns it:
+
+| Risk | Owning test | Runs |
+|---|---|---|
+| Domain rules: money, taxes, rounding, pricing, field validation | Unit tests of the domain or `packages/contracts`, with generated cases where a rule must hold for every input | `verify` |
+| API behavior: authorization, input validation wiring, response shape, audit rows | Route tests in process against the lightweight database | `verify` |
+| Database constraints, row locks and concurrency, background jobs | Integration tests against a real Postgres, used only for these | `verify` |
+| Migrations, in the cloud and on the register | Applying each migration to a database that already holds data in the previous schema | `verify` |
+| Registers and the cloud running different versions | Recorded events of every `schema_version` still in the field, accepted by the current cloud | `verify` |
+| Offline sale and sync | Use-case tests with fakes for duplicated, reordered and interrupted deliveries | `verify` |
+| The tax authority's web services | A fake of each web service and responses recorded from its test environment | `verify`; live calls to its test environment run on a schedule |
+| Hardware: printer, scanner, scale, cash drawer | A fake behind each device's port, and the printed receipt compared with its expected output | `verify`; the real device by a written manual check before a hardware adapter change ships |
+| Design-system components, including accessibility | Component tests in a real browser, in `packages/ui` | `verify` |
+| Backoffice screens | Screen tests of how each screen presents its states and outcomes, and its wiring to the cloud | `verify` |
+| Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
+| Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
+
+A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
+
+A CI run that fails because of a flaky test unrelated to the change is rerun only after an issue naming the test and its error has been filed. A rerun hides the instability, and it would equally hide a real failure.
+
 ## Dependabot
 
 Dependency and GitHub Actions update PRs are opened by Dependabot (`.github/dependabot.yml`), not by a person, so they carry no linked issue and don't fill in the pull request template. The `pr-contract` check recognizes them by author login `dependabot[bot]` and author type `Bot` and skips the issue reference and section requirements for them, but a Dependabot PR title must still be a Conventional Commit of type `chore` or `ci`, and the `verify` check still runs. A human-authored PR whose title or body merely imitates Dependabot's style is not exempt.
