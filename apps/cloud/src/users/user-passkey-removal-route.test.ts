@@ -473,19 +473,6 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     });
   });
 
-  it("dedups: removing the target's second passkey while the alert is still open opens nothing new", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    await removePasskey(targetId, targetPasskeyAId, rawSessionId);
-
-    await removePasskey(targetId, targetPasskeyBId, rawSessionId);
-
-    const opened = await db
-      .select()
-      .from(alerts)
-      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
-    expect(opened).toHaveLength(1);
-  });
-
   it("opens no alert for a removal that answers not_found, deleting nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 

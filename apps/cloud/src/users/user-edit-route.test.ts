@@ -586,24 +586,6 @@ describe("POST /users/:id/edit", () => {
     );
   });
 
-  it("dedups: editing the email again while the alert is still open opens nothing new", async () => {
-    const rawSessionId = await insertSession(administratorId);
-    await editUser(targetId, rawSessionId, {
-      email: "first.new@example.com",
-      role_id: cashierRoleId,
-      version: 1,
-    });
-
-    await editUser(targetId, rawSessionId, {
-      email: "second.new@example.com",
-      role_id: cashierRoleId,
-      version: 2,
-    });
-
-    const opened = await db.select().from(alerts).where(eq(alerts.kind, "user_email_changed"));
-    expect(opened).toHaveLength(1);
-  });
-
   it("answers with the edit it applied even when the user is deactivated right after it commits", async () => {
     const rawSessionId = await insertSession(administratorId);
     const racedApp = Fastify();

@@ -274,26 +274,6 @@ describe("POST /users/passkeys/:id/remove", () => {
     });
   });
 
-  it("dedups: removing a second passkey while the alert is still open opens nothing new", async () => {
-    const rawSessionId = await insertSession(userId);
-    const [first] = await db.select().from(passkeys).where(eq(passkeys.name, "Teléfono del local"));
-    if (!first) throw new Error("test setup: target passkey not found");
-    await removePasskey(rawSessionId, first.id);
-    const [second] = await db
-      .select()
-      .from(passkeys)
-      .where(eq(passkeys.name, "Notebook del local"));
-    if (!second) throw new Error("test setup: target passkey not found");
-
-    await removePasskey(rawSessionId, second.id);
-
-    const opened = await db
-      .select()
-      .from(alerts)
-      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
-    expect(opened).toHaveLength(1);
-  });
-
   it("opens no alert for a removal that answers not_found, deleting nothing", async () => {
     const rawSessionId = await insertSession(userId);
 

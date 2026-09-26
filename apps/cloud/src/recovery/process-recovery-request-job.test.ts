@@ -221,9 +221,6 @@ describe("processRecoveryRequestJob", () => {
     expect(tokens.filter((token) => token.voidedAt === null)).toHaveLength(1);
     expect(first.send).toBeDefined();
     expect(retry.send).toBeDefined();
-    // Both calls admitted and issued a link for the very same account, but the alert deduplicates:
-    // the retry opens nothing new while the first one is still open.
-    await expect(recoveryRequestedAlerts()).resolves.toHaveLength(1);
   });
 
   it("opens a backoffice_recovery_requested alert scoped to the account when a link is issued", async () => {

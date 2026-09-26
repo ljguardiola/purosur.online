@@ -463,19 +463,6 @@ describe("POST /users/passkeys", () => {
     expect(opened).toHaveLength(0);
   });
 
-  it("dedups: registering a third passkey while the alert is still open opens nothing new", async () => {
-    const rawSessionId = await insertSession(userId);
-    await registerSecondPasskey(rawSessionId, "Teléfono del local");
-
-    await registerSecondPasskey(rawSessionId, "Tablet del local");
-
-    const opened = await db
-      .select()
-      .from(alerts)
-      .where(and(eq(alerts.kind, "backoffice_passkey_changed"), isNull(alerts.resolvedAt)));
-    expect(opened).toHaveLength(1);
-  });
-
   it("does not revoke the session on a successful registration", async () => {
     const rawSessionId = await insertSession(userId);
 

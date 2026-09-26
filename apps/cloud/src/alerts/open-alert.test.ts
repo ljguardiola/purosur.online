@@ -247,6 +247,48 @@ describe("openAlert", () => {
     expect(delivered).toHaveLength(1);
   });
 
+  it("opens its own alert for a different kind of the same scope, never deduping across kinds", async () => {
+    const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
+    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
+
+    const emailChanged = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "user_email_changed",
+          scope: "a-user-id",
+          detail: { previousEmail: "old@example.com", newEmail: "new@example.com" },
+        },
+        { now: () => NOON },
+      ),
+    );
+    const passkeyChanged = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "backoffice_passkey_changed",
+          scope: "a-user-id",
+          detail: {
+            action: "registered",
+            passkeyName: "Teléfono",
+            actorId: "a-user-id",
+            via: "self",
+          },
+        },
+        { now: () => NOON },
+      ),
+    );
+
+    expect(emailChanged.kind).toBe("opened");
+    expect(passkeyChanged.kind).toBe("opened");
+    if (emailChanged.kind !== "opened" || passkeyChanged.kind !== "opened") {
+      throw new Error("unreachable");
+    }
+    expect(passkeyChanged.alertId).not.toBe(emailChanged.alertId);
+    const openAlerts = await db.select().from(alerts).where(eq(alerts.scope, "a-user-id"));
+    expect(openAlerts).toHaveLength(2);
+  });
+
   it("opens a fresh alert once the earlier one of the same kind and scope is resolved", async () => {
     const roleId = await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] });
     await insertUser({ firstName: "Grace", email: "grace@example.com", roleId });
