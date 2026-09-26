@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH, passkeyNameLength } from "./passkey-name.js";
+import {
+  isPasskeyNameTooLong,
+  PASSKEY_NAME_MAX_LENGTH,
+  passkeyNameLength,
+} from "./passkey-name.js";
 
 describe("PASSKEY_NAME_MAX_LENGTH", () => {
   it("allows passkey names of up to 40 characters", () => {
