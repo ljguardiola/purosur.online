@@ -19,16 +19,8 @@ function collectTokens(node, sourceFile, tokens) {
   for (const child of children) collectTokens(child, sourceFile, tokens);
 }
 
-function commentsInTrivia(sourceFile, start, end) {
-  const scanner = ts.createScanner(
-    ts.ScriptTarget.Latest,
-    false,
-    sourceFile.languageVariant,
-    sourceFile.text,
-    undefined,
-    start,
-    end - start,
-  );
+function commentsInTrivia(scanner, text, start, end) {
+  scanner.setText(text, start, end - start);
   const comments = [];
   for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
     if (
@@ -45,9 +37,12 @@ function findScriptComments(source, fileName) {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true);
   const tokens = [];
   collectTokens(sourceFile, sourceFile, tokens);
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, sourceFile.languageVariant);
   return tokens
     .filter((token) => token.kind !== ts.SyntaxKind.JsxText)
-    .flatMap((token) => commentsInTrivia(sourceFile, token.pos, token.getStart(sourceFile)))
+    .map((token) => ({ start: token.pos, end: token.getStart(sourceFile) }))
+    .filter(({ start, end }) => start < end)
+    .flatMap(({ start, end }) => commentsInTrivia(scanner, sourceFile.text, start, end))
     .map(({ position, text }) => ({
       line: sourceFile.getLineAndCharacterOfPosition(position).line + 1,
       text,
