@@ -7,8 +7,7 @@ import ts from "typescript";
 // thing itself, or it measures real elapsed time to decide pass/fail. Both are rejected in favor
 // of fake timers, an injected clock, or waiting on the condition the test actually cares about.
 
-const REJECTED_COMPARISON_OPERATORS = new Set([
-  ts.SyntaxKind.MinusToken,
+const RELATIONAL_OPERATORS = new Set([
   ts.SyntaxKind.LessThanToken,
   ts.SyntaxKind.LessThanEqualsToken,
   ts.SyntaxKind.GreaterThanToken,
@@ -100,18 +99,21 @@ const DIRECT_CLOCK_READS = new Map([
   ["performance.now", "performance"],
   ["process.hrtime.bigint", "hrtime"],
   ["process.hrtime", "hrtime"],
-  // Fake timers never replace process.uptime.
   ["process.uptime", "uptime"],
 ]);
 
-/** The clock a call reads directly (`Date`, `performance`, `hrtime` or `uptime`), if any. */
-function directClockRead(node) {
+// Fake timers never replace these clocks.
+const NEVER_FAKED_CLOCKS = new Set(["uptime", "realSystemTime"]);
+
+/** The clock a call reads directly (`Date`, `performance`, `hrtime`, `uptime` or `realSystemTime`), if any. */
+function directClockRead(node, viNames) {
   if (ts.isNewExpression(node)) {
     return dottedName(node.expression) === "Date" && (node.arguments?.length ?? 0) === 0
       ? "Date"
       : undefined;
   }
   if (!ts.isCallExpression(node)) return undefined;
+  if (isViCall(node, "getRealSystemTime", viNames)) return "realSystemTime";
   return DIRECT_CLOCK_READS.get(dottedName(node.expression));
 }
 
@@ -131,7 +133,8 @@ function isPropertyNamePosition(node) {
   if (ts.isBindingElement(parent)) return parent.propertyName === node;
   if (ts.isShorthandPropertyAssignment(parent)) return false;
   return (
-    (ts.isPropertyAccessExpression(parent) ||
+    ts.isJsxAttribute(parent) ||
+    ((ts.isPropertyAccessExpression(parent) ||
       ts.isPropertyAssignment(parent) ||
       ts.isMethodDeclaration(parent) ||
       ts.isPropertyDeclaration(parent) ||
@@ -140,7 +143,7 @@ function isPropertyNamePosition(node) {
       ts.isPropertySignature(parent) ||
       ts.isMethodSignature(parent) ||
       ts.isEnumMember(parent)) &&
-    parent.name === node
+      parent.name === node)
   );
 }
 
@@ -151,7 +154,7 @@ function isPropertyNamePosition(node) {
 function clockReadsIn(node, clock) {
   const clocks = new Set();
   const visit = (n) => {
-    const direct = directClockRead(n);
+    const direct = directClockRead(n, clock.viNames);
     if (direct) clocks.add(direct);
     if (isHrtimeWithArgument(n)) clocks.add("hrtime");
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) {
@@ -179,7 +182,7 @@ function returnedExpressions(fn) {
  * same-file function whose returned expression does, each with the clocks it carries, computed
  * together to a fixpoint.
  */
-function computeClockSources(sourceFile, functions) {
+function computeClockSources(sourceFile, functions, viNames) {
   const assignments = [];
   for (const node of descendants(sourceFile)) {
     if (
@@ -201,7 +204,7 @@ function computeClockSources(sourceFile, functions) {
     fns.flatMap((fn) => returnedExpressions(fn).map((expr) => ({ name, expr }))),
   );
 
-  const clock = { names: new Map(), functions: new Map() };
+  const clock = { names: new Map(), functions: new Map(), viNames };
   const merge = (map, name, clocks) => {
     const known = map.get(name) ?? new Set();
     const grown = [...clocks].filter((c) => !known.has(c));
@@ -222,22 +225,33 @@ function computeClockSources(sourceFile, functions) {
   return clock;
 }
 
+/** The operands of `expect(a).matcher(b)`, also through `.not` and `expect.soft(a)`. */
 function expectMatcherCallOperands(node) {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression))
     return undefined;
   if (!ELAPSED_MATCHER_NAMES.has(node.expression.name.text)) return undefined;
-  const expectCall = node.expression.expression;
-  if (!ts.isCallExpression(expectCall) || dottedName(expectCall.expression) !== "expect") {
+  let expectCall = node.expression.expression;
+  if (ts.isPropertyAccessExpression(expectCall) && expectCall.name.text === "not") {
+    expectCall = expectCall.expression;
+  }
+  if (
+    !ts.isCallExpression(expectCall) ||
+    !["expect", "expect.soft"].includes(dottedName(expectCall.expression))
+  ) {
     return undefined;
   }
   return { a: expectCall.arguments[0], b: node.arguments[0] };
 }
 
+/**
+ * A difference of two clock reads is an elapsed time; a comparison with a clock read on either
+ * side has a result that depends on the current real time.
+ */
 function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
-  const violations = [];
+  const reported = [];
   const report = (node, clocks) => {
-    if (![...clocks].every((c) => c !== "uptime" && fakeTimers.fakes(node, c))) {
-      violations.push({ node, reason: "measures real elapsed time" });
+    if (![...clocks].every((c) => !NEVER_FAKED_CLOCKS.has(c) && fakeTimers.fakes(node, c))) {
+      reported.push(node);
     }
   };
   for (const node of descendants(sourceFile)) {
@@ -245,8 +259,13 @@ function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
       report(node, ["hrtime"]);
       continue;
     }
+    const isSubtraction =
+      ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.MinusToken;
     let operands;
-    if (ts.isBinaryExpression(node) && REJECTED_COMPARISON_OPERATORS.has(node.operatorToken.kind)) {
+    if (
+      ts.isBinaryExpression(node) &&
+      (isSubtraction || RELATIONAL_OPERATORS.has(node.operatorToken.kind))
+    ) {
       operands = { a: node.left, b: node.right };
     } else {
       operands = expectMatcherCallOperands(node);
@@ -254,9 +273,19 @@ function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
     if (!operands?.a || !operands.b) continue;
     const a = clockReadsIn(operands.a, clock);
     const b = clockReadsIn(operands.b, clock);
-    if (a.size > 0 && b.size > 0) report(node, new Set([...a, ...b]));
+    const dependsOnClock = isSubtraction ? a.size > 0 && b.size > 0 : a.size > 0 || b.size > 0;
+    if (dependsOnClock) report(node, new Set([...a, ...b]));
   }
-  return violations;
+  // One violation per comparison: an elapsed difference inside a reported comparison is the same one.
+  const isInside = (node, outer) => {
+    for (let current = node.parent; current; current = current.parent) {
+      if (current === outer) return true;
+    }
+    return false;
+  };
+  return reported
+    .filter((node) => !reported.some((outer) => outer !== node && isInside(node, outer)))
+    .map((node) => ({ node, reason: "measures real elapsed time" }));
 }
 
 // --- Rule 2: waits a fixed real time -----------------------------------------------------------
@@ -413,10 +442,40 @@ function timersPromisesBindings(sourceFile) {
 }
 
 /**
+ * Local names bound to `setTimeout`/`setInterval` imported from the callback `node:timers` module,
+ * and to the module itself through a namespace or default import. Fake timers replace only the
+ * global timers, never these.
+ */
+function callbackTimersBindings(sourceFile) {
+  const timerNames = new Map();
+  const moduleNames = new Set();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier))
+      continue;
+    if (!["node:timers", "timers"].includes(statement.moduleSpecifier.text)) continue;
+    const clause = statement.importClause;
+    if (clause?.name) moduleNames.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      moduleNames.add(bindings.name.text);
+      continue;
+    }
+    for (const specifier of bindings.elements) {
+      const imported = (specifier.propertyName ?? specifier.name).text;
+      if (imported === "setTimeout" || imported === "setInterval") {
+        timerNames.set(specifier.name.text, imported);
+      }
+    }
+  }
+  return { timerNames, moduleNames };
+}
+
+/**
  * `{ delayIndex, timer, captured }` when `node` is a real timer call, given the file's aliases and
  * imports. `captured` marks a real timer that installing fake timers doesn't replace.
  */
-function classifyTimerCall(node, aliases, promisesBindings, resolve) {
+function classifyTimerCall(node, aliases, promisesBindings, callbackBindings, resolve) {
   if (!ts.isCallExpression(node)) return undefined;
   const callee = node.expression;
 
@@ -430,6 +489,8 @@ function classifyTimerCall(node, aliases, promisesBindings, resolve) {
     if (promisesBindings.setTimeoutNames.has(callee.text)) {
       return { delayIndex: 0, timer: "setTimeout", captured: true };
     }
+    const imported = callbackBindings.timerNames.get(callee.text);
+    if (imported) return { delayIndex: 1, timer: imported, captured: true };
     if (callee.text === "setTimeout" || callee.text === "setInterval") {
       return { delayIndex: 1, timer: callee.text, captured: false };
     }
@@ -441,6 +502,12 @@ function classifyTimerCall(node, aliases, promisesBindings, resolve) {
 
   const object = ts.isPropertyAccessExpression(callee) ? callee.expression : undefined;
   if (!object) return undefined;
+  if (
+    (callee.name.text === "setTimeout" || callee.name.text === "setInterval") &&
+    callbackBindings.moduleNames.has(dottedName(object))
+  ) {
+    return { delayIndex: 1, timer: callee.name.text, captured: true };
+  }
   if (callee.name.text === "setTimeout" && promisesBindings.moduleNames.has(dottedName(object))) {
     return { delayIndex: 0, timer: "setTimeout", captured: true };
   }
@@ -933,6 +1000,7 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
   );
   const resolve = declarationResolver();
   const promisesBindings = timersPromisesBindings(sourceFile);
+  const callbackBindings = callbackTimersBindings(sourceFile);
   const violations = [];
 
   for (const node of descendants(sourceFile)) {
@@ -943,7 +1011,7 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
       continue;
     }
 
-    const timer = classifyTimerCall(node, aliases, promisesBindings, resolve);
+    const timer = classifyTimerCall(node, aliases, promisesBindings, callbackBindings, resolve);
     if (!timer) continue;
 
     const delayArg = node.arguments[timer.delayIndex];
@@ -962,8 +1030,9 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
 export function findRealTimeViolations(source, fileName) {
   const sourceFile = parse(source, fileName);
   const functions = namedFunctions(sourceFile);
-  const clock = computeClockSources(sourceFile, functions);
-  const fakeTimers = fakeTimersScope(functions, timerControl(sourceFile));
+  const control = timerControl(sourceFile);
+  const clock = computeClockSources(sourceFile, functions, control.viNames);
+  const fakeTimers = fakeTimersScope(functions, control);
   const violations = [
     ...elapsedTimeViolations(sourceFile, clock, fakeTimers),
     ...waitsRealTimeViolations(sourceFile, fakeTimers),

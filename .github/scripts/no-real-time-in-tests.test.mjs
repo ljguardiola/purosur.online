@@ -94,10 +94,73 @@ for (const matcher of [
   });
 }
 
-test("does not flag expect(a).toBeLessThan(b) when only one operand is clock-derived", () => {
-  const source = ["expect(Date.now()).toBeLessThan(1000);"].join("\n");
+test("flags a comparison whose result depends on one real clock read", () => {
+  const source = [
+    "function elapsedSince(startedAt) { return Date.now() - startedAt; }",
+    'test("a", () => {',
+    "  expect(Date.now()).toBeLessThan(1000);",
+    "  expect(record.createdAt.getTime()).toBeGreaterThan(Date.now() - 1000);",
+    "  expect(elapsedSince(started)).toBeLessThan(100);",
+    "  assert.ok(Date.now() < deadline);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [3, 4, 5, 6],
+  );
+});
+
+test("does not flag a comparison with one clock read that fake timers replace", () => {
+  const source = [
+    'test("a", () => {',
+    "  vi.useFakeTimers();",
+    "  expect(Date.now()).toBeGreaterThan(0);",
+    "});",
+  ].join("\n");
 
   assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
+});
+
+test("flags a negated or soft comparison matcher on clock reads", () => {
+  const source = [
+    "const started = Date.now();",
+    "expect(Date.now()).not.toBeGreaterThan(started + 100);",
+    "expect.soft(Date.now()).toBeLessThan(started + 100);",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [2, 3],
+  );
+});
+
+test("flags an elapsed comparison on vi.getRealSystemTime(), even under fake timers", () => {
+  const source = [
+    'test("a", () => {',
+    "  vi.useFakeTimers();",
+    "  const started = vi.getRealSystemTime();",
+    "  expect(vi.getRealSystemTime() - started).toBe(0);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [4],
+  );
+});
+
+test("does not treat a JSX attribute named like a clock-derived value as a clock read", () => {
+  const source = [
+    "const now = new Date();",
+    'test("a", () => {',
+    "  const first = <Screen now={1} />;",
+    "  const second = <Screen now={2} />;",
+    "  expect(width(first) - width(second)).toBe(0);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(findRealTimeViolations(source, "a.test.tsx"), []);
 });
 
 test("does not flag new Date(Date.now() + X) on its own", () => {
@@ -329,6 +392,26 @@ test("flags setTimeout through a default import of timers/promises", () => {
   );
 
   assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
+});
+
+test("flags callback timers imported from node:timers, even under fake timers", () => {
+  const source = [
+    'import { setTimeout, setInterval as every } from "node:timers";',
+    'import * as timers from "node:timers";',
+    'import nodeTimers from "timers";',
+    'test("a", async () => {',
+    "  vi.useFakeTimers();",
+    "  await new Promise((r) => setTimeout(r, 200));",
+    "  every(fn, 200);",
+    "  timers.setTimeout(fn, 200);",
+    "  nodeTimers.setInterval(fn, 200);",
+    "});",
+  ].join("\n");
+
+  assert.deepEqual(
+    findRealTimeViolations(source, "a.test.ts").map((violation) => violation.line),
+    [6, 7, 8, 9],
+  );
 });
 
 test("flags a setTimeout alias destructured from globalThis", () => {
