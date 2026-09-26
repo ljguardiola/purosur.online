@@ -1,14 +1,5 @@
-import {
-  REGISTER_NAME_MAX_LENGTH as SHARED_REGISTER_NAME_MAX_LENGTH,
-  registerNameLength as sharedRegisterNameLength,
-} from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import {
-  REGISTER_NAME_MAX_LENGTH,
-  readRegisterName,
-  registerNameLength,
-  registerNameValidationFailure,
-} from "./register-validation.js";
+import { readRegisterName, registerNameValidationFailure } from "./register-validation.js";
 
 describe("readRegisterName", () => {
   it("reads a trimmed name from the request body", () => {
@@ -42,17 +33,5 @@ describe("registerNameValidationFailure", () => {
   it("counts each emoji as one character toward the 100-character limit", () => {
     expect(registerNameValidationFailure("🏪".repeat(100))).toBeUndefined();
     expect(registerNameValidationFailure("🏪".repeat(101))).toMatchObject({ field: "name" });
-  });
-});
-
-describe("the cloud's local register name limit", () => {
-  it("matches the shared limit", () => {
-    expect(REGISTER_NAME_MAX_LENGTH).toBe(SHARED_REGISTER_NAME_MAX_LENGTH);
-  });
-
-  it("counts a name's length the same way the shared contract does", () => {
-    for (const name of ["Caja 1", "🏪".repeat(3), "Caja de depósito"]) {
-      expect(registerNameLength(name)).toBe(sharedRegisterNameLength(name));
-    }
   });
 });

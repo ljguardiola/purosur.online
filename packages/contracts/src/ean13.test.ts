@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { appendEan13CheckDigit, ean13CheckDigit, ean13Modules, isInternalBarcode } from "./ean13";
+import {
+  appendEan13CheckDigit,
+  ean13CheckDigit,
+  ean13Modules,
+  isInternalBarcode,
+} from "./ean13.js";
 
 describe("ean13CheckDigit", () => {
   it("computes the standard GS1 EAN-13 check digit for a 12-digit body", () => {

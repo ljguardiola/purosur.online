@@ -215,7 +215,7 @@ export default {
       path: "node_modules",
     },
     exclude: {
-      path: "\\.test\\.(ts|tsx)$",
+      path: ["\\.test\\.(ts|tsx)$", "(^|/)dist/"],
     },
     tsPreCompilationDeps: true,
     tsConfig: {

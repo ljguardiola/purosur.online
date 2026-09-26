@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name";
+import { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name.js";
 
 describe("REGISTER_NAME_MAX_LENGTH", () => {
   it("allows register names of up to 100 characters", () => {

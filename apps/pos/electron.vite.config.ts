@@ -28,6 +28,13 @@ function contentSecurityPolicyMeta(): Plugin {
 
 export default defineConfig({
   main: {
+    resolve: {
+      // Contracts' package.json points `main` at its compiled dist/, built only by the cloud's
+      // own `tsc -b`; the register's build never runs that, so it reads the source directly.
+      alias: {
+        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
+      },
+    },
     build: {
       // electron-vite externalizes every entry in package.json's `dependencies` by default, which
       // would leave workspace packages as bare imports resolving to their TypeScript sources at
@@ -55,6 +62,7 @@ export default defineConfig({
     root: "src/renderer",
     resolve: {
       alias: {
+        "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
         "@purosur/domain": r("../../packages/domain/src/index.ts"),
         "@purosur/ui": r("../../packages/ui/src/index.ts"),
       },

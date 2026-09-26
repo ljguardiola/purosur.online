@@ -9,7 +9,7 @@ import {
   NET_CONTENT_UNITS,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
-} from "./product";
+} from "./product.js";
 
 describe("PRODUCT_NAME_MAX_LENGTH", () => {
   it("allows product names of up to 100 characters", () => {

@@ -1,39 +1,44 @@
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar";
-export { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-hours";
-export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name";
+export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar.js";
+export { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-hours.js";
+export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name.js";
 export type {
   CoreStatusMessage,
   MainHealthCheckMessage,
   MainToCoreMessage,
   RendererPingMessage,
   RendererToCoreMessage,
-} from "./core-messages";
+} from "./core-messages.js";
 export {
   coreStatusMessageSchema,
   mainHealthCheckMessageSchema,
   mainToCoreMessageSchema,
   rendererPingMessageSchema,
   rendererToCoreMessageSchema,
-} from "./core-messages";
-export { appendEan13CheckDigit, ean13CheckDigit, ean13Modules, isInternalBarcode } from "./ean13";
+} from "./core-messages.js";
+export {
+  appendEan13CheckDigit,
+  ean13CheckDigit,
+  ean13Modules,
+  isInternalBarcode,
+} from "./ean13.js";
 export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
-} from "./issuer-identification";
+} from "./issuer-identification.js";
 export type {
   PermissionArea,
   PermissionDefinition,
   PermissionKey,
   PermissionRegisterMarker,
-} from "./permission-catalog";
+} from "./permission-catalog.js";
 export {
   ALERT_VIEW_PERMISSION_KEYS,
   isPermissionKey,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   PERMISSION_KEYS,
-} from "./permission-catalog";
-export type { NetContentUnit } from "./product";
+} from "./permission-catalog.js";
+export type { NetContentUnit } from "./product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
@@ -46,6 +51,6 @@ export {
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
-} from "./product";
-export { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name";
-export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name";
+} from "./product.js";
+export { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name.js";
+export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name.js";
