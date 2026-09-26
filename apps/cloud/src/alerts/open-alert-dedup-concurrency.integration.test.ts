@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { drizzle as drizzleNodePostgres, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -34,7 +33,7 @@ async function insertAdministrator<TQueryResult extends PgQueryResultHKT>(
   }
   const [user] = await db
     .insert(users)
-    .values({ firstName: "Ada", email: `ada-${randomUUID()}@example.com`, locationId })
+    .values({ firstName: "Ada", email: "ada@example.com", locationId })
     .returning({ id: users.id });
   if (!user) {
     throw new Error("test setup: inserting the user returned no row");
@@ -54,7 +53,7 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
   waitForLockWaiters: (count: number) => Promise<void>,
 ): Promise<void> {
   const recipientId = await insertAdministrator(db);
-  const scope = `user-${randomUUID()}`;
+  const scope = "user-ada";
   const input: OpenAlertInput = {
     kind: "user_email_changed",
     scope,

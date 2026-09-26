@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -75,7 +74,7 @@ async function insertActor(name: string): Promise<string> {
   const locationId = await seededLocationId(db);
   const [role] = await db
     .insert(roles)
-    .values({ name: `Closer ${randomUUID()}`, isAdministrator: false })
+    .values({ name: `Closer ${name}`, isAdministrator: false })
     .returning({ id: roles.id });
   if (!role) {
     throw new Error("test setup: inserting the role returned no row");
@@ -84,7 +83,7 @@ async function insertActor(name: string): Promise<string> {
     .insert(users)
     .values({
       firstName: name,
-      email: `${name.toLowerCase()}-${randomUUID()}@example.com`,
+      email: `${name.toLowerCase()}@example.com`,
       locationId,
     })
     .returning({ id: users.id });
@@ -99,7 +98,7 @@ async function insertOpenAlert(): Promise<string> {
     .insert(alerts)
     .values({
       kind: "user_email_changed",
-      scope: `user-${randomUUID()}`,
+      scope: "user-1",
       level: "warning",
       audience: "all",
       detail: {},

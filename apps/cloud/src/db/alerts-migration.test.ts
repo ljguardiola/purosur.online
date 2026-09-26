@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -66,10 +65,10 @@ describe("the alerts migration applied over a database that already holds data",
     if (!seededLocation) {
       throw new Error("test setup: no location seeded by the migrations run so far");
     }
-    const actorId = await insertUser(client, seededLocation.id, `ada-${randomUUID()}@example.com`);
+    const actorId = await insertUser(client, seededLocation.id, "ada@example.com");
     await client.query(
       "insert into audit_log (entity, entity_id, actor_id, new_value) values ($1, $2, $3, $4)",
-      ["user", actorId, actorId, JSON.stringify({ email: `ada-${randomUUID()}@example.com` })],
+      ["user", actorId, actorId, JSON.stringify({ email: "ada.new@example.com" })],
     );
 
     await addAlertsMigration(folder);
