@@ -29,6 +29,10 @@ import { registerProductsListRoute } from "./products/products-list-route.js";
 import { registerRecoveryRedemptionRoutes } from "./recovery/recovery-redemption-route.js";
 import type { RecoveryRouteOptions } from "./recovery/request-recovery-route.js";
 import { registerRecoveryRoutes } from "./recovery/request-recovery-route.js";
+import { registerRegisterCreationRoute } from "./registers/register-creation-route.js";
+import { registerRegisterEnrollmentCodeRoute } from "./registers/register-enrollment-code-route.js";
+import type { RegistersRouteOptions } from "./registers/registers-list-route.js";
+import { registerRegistersListRoute } from "./registers/registers-list-route.js";
 import { registerRoleCreationRoutes } from "./roles/role-creation-route.js";
 import { registerRoleEditRoutes } from "./roles/role-edit-route.js";
 import { registerRoleReadRoute } from "./roles/role-read-route.js";
@@ -147,6 +151,13 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
    * `categories` uses above.
    */
   products?: ProductsRouteOptions<TQueryResult>;
+  /**
+   * Registers `GET /registers`, `POST /registers`, and `POST /registers/:id/enrollment-code`, the
+   * backoffice Cajas registradoras screen's list, create, and code-emission sides: every one is
+   * gated by the `enroll_register_devices` permission (an Administrator always holds it too), the
+   * same optional-feature-wiring shape `categories` uses above.
+   */
+  registers?: RegistersRouteOptions<TQueryResult>;
 }
 
 const backofficeSecurityHeaders: Record<string, string> = {
@@ -251,6 +262,12 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     registerProductDeactivationRoute(app, options.products);
     registerInternalBarcodeRoute(app, options.products);
     registerProductLabelsRoute(app, options.products);
+  }
+
+  if (options.registers) {
+    registerRegistersListRoute(app, options.registers);
+    registerRegisterCreationRoute(app, options.registers);
+    registerRegisterEnrollmentCodeRoute(app, options.registers);
   }
 
   const staticDir = options.staticDir;

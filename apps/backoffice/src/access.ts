@@ -77,3 +77,11 @@ export function canSeeCatalogArea(access: BackofficeAccess): boolean {
 export function canSeeCashArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
 }
+
+/**
+ * Whether "Cajas registradoras" shows at all: the Administrator or a role that was delegated
+ * `enroll_register_devices`, the same permission that gates the cloud's own register routes.
+ */
+export function canSeeRegistersArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("enroll_register_devices");
+}
