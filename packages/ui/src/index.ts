@@ -16,8 +16,17 @@ export type { CheckboxProps } from "./components/Checkbox";
 export { Checkbox } from "./components/Checkbox";
 export type { ColumnChartBar, ColumnChartProps } from "./components/ColumnChart";
 export { ColumnChart } from "./components/ColumnChart";
-export type { DateFieldProps, DateFieldVariant } from "./components/DateField";
+export type { DateFieldProps } from "./components/DateField";
 export { DateField } from "./components/DateField";
+export type { FieldLabelProps } from "./components/FieldLabel";
+export { FieldLabel } from "./components/FieldLabel";
+export type { FieldSize, FieldSizeProviderProps } from "./components/fieldSize";
+export {
+  backofficeFieldHeightClassName,
+  FieldSizeProvider,
+  fieldWrapperGapClassName,
+  useFieldSize,
+} from "./components/fieldSize";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
@@ -98,7 +107,6 @@ export type {
   TextFieldAffix,
   TextFieldProps,
   TextFieldValueKind,
-  TextFieldVariant,
 } from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";

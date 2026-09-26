@@ -14,6 +14,7 @@ import {
   tokenRgb,
 } from "../test/token-colors";
 import { DateField, type DateFieldProps } from "./DateField";
+import { type FieldSize, FieldSizeProvider } from "./fieldSize";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -35,16 +36,25 @@ beforeEach(async () => {
 // into a shape TypeScript can no longer match back to a single member under
 // `exactOptionalPropertyTypes`. Every call site below only ever renders the field without a
 // range, so this is also the accurate type for what they actually pass.
+//
+// `variant` is this harness's own test-only concept, not a DateField prop (DateField reads its
+// size from FieldSizeProvider instead, see fieldSize.ts): "register" renders with no provider,
+// the default size, and "backoffice" wraps the field in one.
 type NoRangeHarnessProps = {
-  variant: DateFieldProps["variant"];
+  variant: FieldSize;
   label: string;
   helperText?: string;
   disabled?: boolean;
 };
 
-function DateFieldHarness(props: NoRangeHarnessProps) {
+function DateFieldHarness({ variant, ...props }: NoRangeHarnessProps) {
   const [value, setValue] = useState<CalendarDate | null>(null);
-  return <DateField {...props} value={value} onChange={setValue} />;
+  const field = <DateField {...props} value={value} onChange={setValue} />;
+  return variant === "backoffice" ? (
+    <FieldSizeProvider size="backoffice">{field}</FieldSizeProvider>
+  ) : (
+    field
+  );
 }
 
 test("renders the register variant at 56px with 16px padding, a leading icon, bold 20px ink value and bold 16px ink label", async () => {
@@ -228,7 +238,6 @@ test("marks the range message as disabled too when the field itself is disabled"
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
     return (
       <DateField
-        variant="register"
         label="Expiry"
         value={value}
         onChange={setValue}
@@ -261,13 +270,18 @@ test("reads the date as it is typed, day by day, month by month, and a four-digi
   await expectNoAccessibilityViolations(screen.container);
 });
 
-function CallerValueHarness(props: NoRangeHarnessProps) {
+function CallerValueHarness({ variant, ...props }: NoRangeHarnessProps) {
   const [value, setValue] = useState<CalendarDate | null>(null);
-  return (
+  const field = (
     <>
       <DateField {...props} value={value} onChange={setValue} />
       <p data-testid="caller-value">{value?.toString() ?? ""}</p>
     </>
+  );
+  return variant === "backoffice" ? (
+    <FieldSizeProvider size="backoffice">{field}</FieldSizeProvider>
+  ) : (
+    field
   );
 }
 
@@ -300,7 +314,7 @@ const FOCUSED_SHADOW =
   "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, " +
   "rgb(79, 108, 126) 0px 0px 0px 2px inset";
 
-async function focusFirstSegment(group: HTMLElement, variant: DateFieldProps["variant"]) {
+async function focusFirstSegment(group: HTMLElement, variant: FieldSize) {
   await userEvent.tab();
   if (variant === "register") {
     // The register variant leads with the calendar toggle button, so the first date segment is
@@ -341,16 +355,22 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 
   test(`shows the focused border instead of the out-of-range one once a refused field is focused in the ${variant} variant`, async () => {
-    const screen = await render(
+    const field = (
       <DateField
-        variant={variant}
         label="Expiry"
         value={new CalendarDate(2027, 3, 15)}
         onChange={() => {}}
         minValue={RANGE_MIN}
         maxValue={RANGE_MAX}
         rangeMessage={RANGE_MESSAGE}
-      />,
+      />
+    );
+    const screen = await render(
+      variant === "backoffice" ? (
+        <FieldSizeProvider size="backoffice">{field}</FieldSizeProvider>
+      ) : (
+        field
+      ),
     );
     const group = fieldGroup(screen, "Expiry");
 
@@ -477,7 +497,7 @@ for (const variant of ["register", "backoffice"] as const) {
 
 // What the design draws is where the glyph sits, not where its pointer target does: the glyph's
 // own leading edge is at the box's own padding, and the value starts one gap past the glyph.
-const drawnGlyphInset: Record<DateFieldProps["variant"], number> = {
+const drawnGlyphInset: Record<FieldSize, number> = {
   register: 16,
   backoffice: 12,
 };
@@ -545,7 +565,7 @@ test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 
 test("shows the month and year heading with previous and next controls, each with a real accessible name", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const dialog = await openCalendar(screen, "Expiry");
@@ -590,7 +610,6 @@ test("dims the calendar's month controls once the allowed range reaches no furth
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
     return (
       <DateField
-        variant="register"
         label="Expiry"
         value={value}
         onChange={setValue}
@@ -638,7 +657,7 @@ test("shows the hand cursor on the calendar's month controls while the range sti
 test("shows the chosen day with a blue UI fill and a white number, clearing the AA text contrast minimum", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const dialog = await openCalendar(screen, "Expiry");
@@ -659,7 +678,7 @@ test("shows the chosen day with a blue UI fill and a white number, clearing the 
 test("shows an unchosen day in ink that turns bone on hover", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const dialog = await openCalendar(screen, "Expiry");
@@ -681,7 +700,6 @@ test("shows the hand cursor on a selectable day and the arrow on a day outside t
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
     return (
       <DateField
-        variant="register"
         label="Expiry"
         value={value}
         onChange={setValue}
@@ -707,7 +725,7 @@ test("shows the hand cursor on a selectable day and the arrow on a day outside t
 test("shows the package's own outline focus ring on the focused day", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
@@ -736,7 +754,7 @@ test("shows the package's own outline focus ring on the focused day", async () =
 test("keeps the focused day's outline ring inside the calendar panel", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
@@ -780,7 +798,7 @@ test("keeps the focused day's outline ring inside the calendar panel", async () 
 test("keeps at least the focus ring's own reach as a real gap between adjacent day cells, horizontally and vertically", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 17));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
@@ -843,7 +861,7 @@ function focusedDayLabel(dialog: HTMLElement): string {
 test("moves the focused day by one with the arrow keys, wrapping into the neighbouring month", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const dialog = await openCalendarWithKeyboard(screen, "Expiry");
@@ -918,7 +936,7 @@ test("clicking a day with the mouse chooses it, updates the typed value and clos
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
     return (
       <>
-        <DateField variant="register" label="Expiry" value={value} onChange={setValue} />
+        <DateField label="Expiry" value={value} onChange={setValue} />
         <p data-testid="caller-value">{value?.toString() ?? ""}</p>
       </>
     );
@@ -963,7 +981,6 @@ test("refuses a date outside the caller's allowed range, showing its message und
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
     return (
       <DateField
-        variant="register"
         label="Expiry"
         value={value}
         onChange={setValue}
@@ -989,7 +1006,6 @@ test("does not select the out-of-range day in the calendar", async () => {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
     return (
       <DateField
-        variant="register"
         label="Expiry"
         value={value}
         onChange={setValue}
@@ -1011,7 +1027,6 @@ function BoundedHarness({ value }: { value: CalendarDate }) {
   const [current, setCurrent] = useState<CalendarDate | null>(value);
   return (
     <DateField
-      variant="register"
       label="Expiry"
       value={current}
       onChange={setCurrent}
@@ -1046,7 +1061,6 @@ test("still tells the caller a date typed outside the allowed range, while drawi
     return (
       <>
         <DateField
-          variant="register"
           label="Expiry"
           value={value}
           onChange={setValue}
@@ -1084,14 +1098,12 @@ test("still tells the caller a date typed outside the allowed range, while drawi
 
 test("does not accept an allowed range without the message the field shows outside it", () => {
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
     minValue: CalendarDate;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
@@ -1101,13 +1113,11 @@ test("does not accept an allowed range without the message the field shows outsi
 
 test("accepts a field with no range at all, and separately with a range and its message", () => {
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
   }>().toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
@@ -1119,13 +1129,11 @@ test("accepts a field with no range at all, and separately with a range and its 
 
 test("does not accept a date, a lower bound or an upper bound written as text", () => {
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: string;
     onChange: (value: string) => void;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
@@ -1135,24 +1143,16 @@ test("does not accept a date, a lower bound or an upper bound written as text", 
   }>().not.toExtend<DateFieldProps>();
 });
 
-test("does not accept a field without a variant, a label, a value or onChange", () => {
+test("does not accept a field without a label, a value or onChange", () => {
   expectTypeOf<{
-    label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "register";
-    value: CalendarDate | null;
-    onChange: (value: CalendarDate | null) => void;
-  }>().not.toExtend<DateFieldProps>();
-  expectTypeOf<{
-    variant: "register";
     label: string;
     onChange: (value: CalendarDate | null) => void;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "register";
     label: string;
     value: CalendarDate | null;
   }>().not.toExtend<DateFieldProps>();
@@ -1163,7 +1163,7 @@ test("holds a day the calendar system itself constrains, with no text left for t
     // February 30th: the calendar system constrains it to the month's real last day instead of
     // refusing it, so no caller value can reach the field as something it cannot render.
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 30));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
@@ -1178,7 +1178,7 @@ test("holds a day the calendar system itself constrains, with no text left for t
 test("announces the field with its label and current value through its segments", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const group = fieldGroup(screen, "Expiry");
@@ -1197,7 +1197,7 @@ test("announces the field with its label and current value through its segments"
 test("announces the open calendar as a dialog named by the month and year it shows", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   await openCalendar(screen, "Expiry");
@@ -1222,7 +1222,7 @@ test("announces the open calendar as a dialog named by the month and year it sho
 test("announces the chosen day's button as selected", async () => {
   function ControlledHarness() {
     const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField variant="register" label="Expiry" value={value} onChange={setValue} />;
+    return <DateField label="Expiry" value={value} onChange={setValue} />;
   }
   const screen = await render(<ControlledHarness />);
   const dialog = await openCalendar(screen, "Expiry");
@@ -1247,16 +1247,22 @@ function describedTextOf(element: HTMLElement): string {
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`replaces the helper line with the caller's message and exposes the field as invalid, described by that message, in the ${variant} variant`, async () => {
-    const screen = await render(
+    const field = (
       <DateField
-        variant={variant}
         label="Start"
         value={null}
         onChange={() => {}}
         helperText="Should not be visible."
         invalid
         errorMessage="Choose a start date."
-      />,
+      />
+    );
+    const screen = await render(
+      variant === "backoffice" ? (
+        <FieldSizeProvider size="backoffice">{field}</FieldSizeProvider>
+      ) : (
+        field
+      ),
     );
     const group = fieldGroup(screen, "Start");
 
@@ -1277,7 +1283,6 @@ for (const variant of ["register", "backoffice"] as const) {
 test("shows the caller's message instead of the range message when both apply", async () => {
   const screen = await render(
     <DateField
-      variant="backoffice"
       label="Start"
       value={new CalendarDate(2027, 3, 15)}
       onChange={() => {}}
@@ -1296,7 +1301,7 @@ test("shows the caller's message instead of the range message when both apply", 
 
 test("marks a required field with an asterisk and exposes it as required", async () => {
   const screen = await render(
-    <DateField variant="backoffice" label="Start" value={null} onChange={() => {}} required />,
+    <DateField label="Start" value={null} onChange={() => {}} required />,
   );
   const label = screen.getByText("Start").element() as HTMLElement;
   // The generated asterisk folds into the group's accessible name, as TextField.test.tsx notes.
@@ -1312,14 +1317,12 @@ test("marks a required field with an asterisk and exposes it as required", async
 
 test("does not accept an invalid field without the message it shows", () => {
   expectTypeOf<{
-    variant: "backoffice";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;
     invalid: true;
   }>().not.toExtend<DateFieldProps>();
   expectTypeOf<{
-    variant: "backoffice";
     label: string;
     value: CalendarDate | null;
     onChange: (value: CalendarDate | null) => void;

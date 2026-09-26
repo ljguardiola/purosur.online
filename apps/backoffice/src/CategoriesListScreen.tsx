@@ -216,7 +216,6 @@ function NewCategoryModal({
         )}
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={modalMessages.nameLabel}
           value={name}
           onChange={(value) => {
@@ -473,7 +472,6 @@ function EditCategoryModal({
           )}
           <TextField
             kind="plain-text"
-            variant="backoffice"
             label={modalMessages.nameLabel}
             value={name}
             onChange={(value) => {

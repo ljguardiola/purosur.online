@@ -249,7 +249,6 @@ export function RoleEditorForm({
       <div className="shrink-0 border-line border-b bg-surface-white px-6 py-4">
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={formMessages.nameLabel}
           value={name}
           onChange={onNameChange}

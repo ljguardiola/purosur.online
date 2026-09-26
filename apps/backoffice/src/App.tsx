@@ -1,4 +1,4 @@
-import { AreaNavItem, SectionNavItem } from "@purosur/ui";
+import { AreaNavItem, FieldSizeProvider, SectionNavItem } from "@purosur/ui";
 import {
   LifeBuoy,
   Package,
@@ -656,7 +656,21 @@ function CashApp({
   );
 }
 
-export function App({ help, services }: AppProps) {
+/**
+ * Every field this app draws — every screen's own TextField, DateField and Select — takes the
+ * backoffice size from this one provider at the root, instead of each screen choosing it. There
+ * is no other place in the tree that renders a field outside AppContent, so nothing here needs to
+ * repeat it.
+ */
+export function App(props: AppProps) {
+  return (
+    <FieldSizeProvider size="backoffice">
+      <AppContent {...props} />
+    </FieldSizeProvider>
+  );
+}
+
+function AppContent({ help, services }: AppProps) {
   const {
     fetchSession,
     checkSessionStatus,

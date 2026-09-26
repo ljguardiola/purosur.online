@@ -109,7 +109,6 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={messages.access.accountRecovery.emailLabel}
           value={email}
           onChange={(value) => {

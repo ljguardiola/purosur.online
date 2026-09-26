@@ -334,7 +334,6 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
       )}
       <TextField
         kind="plain-text"
-        variant="backoffice"
         label={messages.access.registerPasskey.nameLabel}
         value={name}
         onChange={(value) => {

@@ -266,7 +266,6 @@ function RegisterPasskeyModal({
           )}
           <TextField
             kind="plain-text"
-            variant="backoffice"
             label={registerMessages.nameLabel}
             value={name}
             onChange={(value) => {

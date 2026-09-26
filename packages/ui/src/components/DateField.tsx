@@ -21,14 +21,19 @@ import {
   I18nProvider,
 } from "react-aria-components";
 import type { Locale } from "../messages/formatters";
-
-export type DateFieldVariant = "register" | "backoffice";
+import {
+  backofficeFieldBoxClassName,
+  backofficeFieldValueClassName,
+  fieldLabelClassName,
+  fieldWrapperGapClassName,
+  requiredFieldLabelSuffixClassName,
+  useFieldSize,
+} from "./fieldSize";
 
 // The date is a calendar date, never text: a CalendarDate can only ever hold a day that exists
 // (its own constructor constrains February 30th to the 28th rather than refusing it), so no
 // caller value can reach this component as something it would have to parse and could fail on.
 type DateFieldCommonProps = {
-  variant: DateFieldVariant;
   label: string;
   // `null` when no date is chosen.
   value: CalendarDate | null;
@@ -60,29 +65,12 @@ const LOCALE: Locale = "es-AR";
 
 const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
 
-const wrapperGapClassName: Record<DateFieldVariant, string> = {
-  register: "gap-1.5",
-  backoffice: "gap-1",
-};
-
-const registerLabelClassName = "text-base font-bold text-ink";
-// Matches Select.tsx's own label exactly (14px bold, the same ink tone as the register scale, not
-// a dimmer secondary one) and TextField.tsx's own backoffice plain-text label.
-const backofficeLabelClassName = "text-sm font-bold text-ink";
-// The same CSS-drawn asterisk TextField.tsx uses for a required field.
-const requiredLabelClassName = "after:ml-1 after:content-['*']";
-
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-const frameClassName: Record<DateFieldVariant, string> = {
-  register: "h-14 gap-2 px-4",
-  backoffice: "h-12 gap-2 px-3",
-};
-
-const valueClassName: Record<DateFieldVariant, string> = {
-  register: "text-xl font-bold text-ink",
-  backoffice: "text-base font-semibold text-ink",
-};
+// This field's own long-standing register frame and value; the backoffice ones are fieldSize.ts's
+// own shared backofficeFieldBoxClassName and backofficeFieldValueClassName.
+const registerFrameClassName = "h-14 gap-2 px-4";
+const registerValueClassName = "text-xl font-bold text-ink";
 
 const inputBaseClassName = "flex min-w-0 flex-1 outline-none";
 
@@ -194,7 +182,8 @@ function CalendarToggleButton() {
 }
 
 export function DateField(props: DateFieldProps) {
-  const { variant, label, value, onChange, helperText, disabled = false, required = false } = props;
+  const { label, value, onChange, helperText, disabled = false, required = false } = props;
+  const size = useFieldSize();
   const errorMessage = props.invalid ? props.errorMessage : undefined;
   // Names the open calendar's own dialog by the month and year it shows, instead of react-aria's
   // own default of reusing the field's label: that label already names the field itself.
@@ -217,7 +206,11 @@ export function DateField(props: DateFieldProps) {
       (maxValue !== null && value.compare(maxValue) > 0));
   const shownError = errorMessage ?? (outOfRange ? rangeMessage : undefined);
   const invalid = shownError !== undefined;
-  const labelClassName = variant === "register" ? registerLabelClassName : backofficeLabelClassName;
+  const labelClassName = fieldLabelClassName[size];
+  const frameClassName =
+    size === "backoffice" ? backofficeFieldBoxClassName : registerFrameClassName;
+  const valueClassName =
+    size === "backoffice" ? backofficeFieldValueClassName : registerValueClassName;
 
   return (
     <I18nProvider locale={LOCALE}>
@@ -229,18 +222,20 @@ export function DateField(props: DateFieldProps) {
         isRequired={required}
         minValue={minValue}
         maxValue={maxValue}
-        className={`${wrapperBaseClassName} ${wrapperGapClassName[variant]}`}
+        className={`${wrapperBaseClassName} ${fieldWrapperGapClassName[size]}`}
       >
         <AriaLabel
-          className={required ? `${labelClassName} ${requiredLabelClassName}` : labelClassName}
+          className={
+            required ? `${labelClassName} ${requiredFieldLabelSuffixClassName}` : labelClassName
+          }
         >
           {label}
         </AriaLabel>
         <AriaGroup
-          className={`${boxBaseClassName} ${frameClassName[variant]} ${boxStateClassName(disabled, invalid)}`}
+          className={`${boxBaseClassName} ${frameClassName} ${boxStateClassName(disabled, invalid)}`}
         >
-          {variant === "register" && <CalendarToggleButton />}
-          <AriaDateInput className={`${inputBaseClassName} ${valueClassName[variant]}`}>
+          {size === "register" && <CalendarToggleButton />}
+          <AriaDateInput className={`${inputBaseClassName} ${valueClassName}`}>
             {(segment) => (
               <AriaDateSegment
                 segment={segment}
@@ -252,7 +247,7 @@ export function DateField(props: DateFieldProps) {
               />
             )}
           </AriaDateInput>
-          {variant === "backoffice" && <CalendarToggleButton />}
+          {size === "backoffice" && <CalendarToggleButton />}
         </AriaGroup>
         {shownError !== undefined ? (
           <AriaText slot="errorMessage" className={errorClassName} {...disabledTextProps}>
