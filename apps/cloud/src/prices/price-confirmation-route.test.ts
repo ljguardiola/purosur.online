@@ -190,6 +190,19 @@ describe("POST /products/:id/price-confirmation", () => {
     expect(response.statusCode).toBe(404);
   });
 
+  it("rejects a deactivated product's id exactly the way an unknown id is rejected", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+    await db.update(products).set({ active: false }).where(eq(products.id, productId));
+
+    const response = await confirmPriceRequest(rawSessionId, productId, {
+      expectedCurrentPriceId: "11111111-1111-1111-1111-111111111111",
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
   it("rejects a missing or malformed expectedCurrentPriceId", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

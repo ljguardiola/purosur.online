@@ -371,6 +371,22 @@ describe("GET /prices", () => {
     expect(response.json().pendingCount).toBe(1);
   });
 
+  it("leaves a deactivated product out of the list and its pending count", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const activeId = await insertProduct("Fideos", categoryId);
+    const inactiveId = await insertProduct("Arroz", categoryId);
+    await db.update(products).set({ active: false }).where(eq(products.id, inactiveId));
+
+    const response = await listPricesRequest(rawSessionId, { review: "all" });
+
+    expect(response.statusCode).toBe(200);
+    const ids = response.json().products.map((product: { id: string }) => product.id);
+    expect(ids).toEqual([activeId]);
+    expect(response.json().pendingCount).toBe(1);
+  });
+
   it("shows each product's newest price and newest review, whatever older history it has", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

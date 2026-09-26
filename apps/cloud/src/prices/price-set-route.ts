@@ -69,11 +69,13 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
   return db.transaction<SetPriceOutcome>(async (tx) => {
     // Locks this one product row so a concurrent price change on it waits instead of racing: the
     // current-price read below, and the write it may lead to, both happen against a value that
-    // cannot change out from under this transaction while it holds the lock.
+    // cannot change out from under this transaction while it holds the lock. A deactivated product
+    // (#309) is rejected exactly the way an unknown id is, the same convention
+    // `labelableProductsById` (`products-labels-route.ts`) documents.
     const [product] = await tx
       .select({ id: products.id })
       .from(products)
-      .where(eq(products.id, input.productId))
+      .where(and(eq(products.id, input.productId), eq(products.active, true)))
       .for("update");
     if (!product) {
       return { kind: "not_found" };
