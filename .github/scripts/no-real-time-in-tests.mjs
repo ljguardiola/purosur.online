@@ -58,22 +58,69 @@ function dottedName(node) {
   return undefined;
 }
 
+// --- Same-file functions -----------------------------------------------------------------------
+
+function isFunctionValue(node) {
+  return !!node && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
+}
+
+/** Every function declared in the file, by the name a call reaches it through. */
+function namedFunctions(sourceFile) {
+  const functions = new Map();
+  const add = (name, fn) => functions.set(name, [...(functions.get(name) ?? []), fn]);
+  for (const node of descendants(sourceFile)) {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) add(node.name.text, node);
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      isFunctionValue(node.initializer)
+    ) {
+      add(node.name.text, node.initializer);
+    }
+  }
+  return functions;
+}
+
+/** Nodes of `fn`'s own body, without descending into the functions nested in it. */
+function ownBodyNodes(fn) {
+  const nodes = [];
+  const visit = (n) => {
+    nodes.push(n);
+    if (ts.isFunctionLike(n)) return;
+    ts.forEachChild(n, visit);
+  };
+  if (fn.body) visit(fn.body);
+  return nodes;
+}
+
+/** Names of the same-file functions that `fn`'s own body calls directly. */
+function calledFunctionNames(fn, functions) {
+  return ownBodyNodes(fn)
+    .filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression))
+    .map((n) => n.expression.text)
+    .filter((name) => functions.has(name));
+}
+
 // --- Rule 1: measures real elapsed time -------------------------------------------------------
 
-const DIRECT_CLOCK_READS = new Set([
-  "Date.now",
-  "performance.now",
-  "process.hrtime.bigint",
-  "process.hrtime",
-  "process.uptime",
+const DIRECT_CLOCK_READS = new Map([
+  ["Date.now", "Date"],
+  ["performance.now", "performance"],
+  ["process.hrtime.bigint", "hrtime"],
+  ["process.hrtime", "hrtime"],
+  // Fake timers never replace process.uptime.
+  ["process.uptime", "uptime"],
 ]);
 
-function isDirectClockReadCall(node) {
+/** The clock a call reads directly (`Date`, `performance`, `hrtime` or `uptime`), if any. */
+function directClockRead(node) {
   if (ts.isNewExpression(node)) {
-    return dottedName(node.expression) === "Date" && (node.arguments?.length ?? 0) === 0;
+    return dottedName(node.expression) === "Date" && (node.arguments?.length ?? 0) === 0
+      ? "Date"
+      : undefined;
   }
-  if (!ts.isCallExpression(node)) return false;
-  return DIRECT_CLOCK_READS.has(dottedName(node.expression));
+  if (!ts.isCallExpression(node)) return undefined;
+  return DIRECT_CLOCK_READS.get(dottedName(node.expression));
 }
 
 function isHrtimeWithArgument(node) {
@@ -84,33 +131,71 @@ function isHrtimeWithArgument(node) {
   );
 }
 
-/** Whether `node`, or anything inside it, reads the real clock or references a clock-derived name. */
-function containsClockRead(node, clockDerivedNames) {
-  let found = false;
+/** Whether identifier `node` names a property or member rather than referencing a value. */
+function isPropertyNamePosition(node) {
+  const parent = node.parent;
+  if (!parent) return false;
+  if (ts.isQualifiedName(parent)) return parent.right === node;
+  if (ts.isBindingElement(parent)) return parent.propertyName === node;
+  if (ts.isShorthandPropertyAssignment(parent)) return false;
+  return (
+    (ts.isPropertyAccessExpression(parent) ||
+      ts.isPropertyAssignment(parent) ||
+      ts.isMethodDeclaration(parent) ||
+      ts.isPropertyDeclaration(parent) ||
+      ts.isGetAccessorDeclaration(parent) ||
+      ts.isSetAccessorDeclaration(parent) ||
+      ts.isPropertySignature(parent) ||
+      ts.isMethodSignature(parent) ||
+      ts.isEnumMember(parent)) &&
+    parent.name === node
+  );
+}
+
+/**
+ * The clocks `node`, or anything inside it, reads: directly, through a clock-derived name, or by
+ * calling a same-file function that returns a clock read.
+ */
+function clockReadsIn(node, clock) {
+  const clocks = new Set();
   const visit = (n) => {
-    if (found) return;
-    if (
-      isDirectClockReadCall(n) ||
-      isHrtimeWithArgument(n) ||
-      (ts.isIdentifier(n) && clockDerivedNames.has(n.text))
-    ) {
-      found = true;
-      return;
+    const direct = directClockRead(n);
+    if (direct) clocks.add(direct);
+    if (isHrtimeWithArgument(n)) clocks.add("hrtime");
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) {
+      for (const c of clock.functions.get(n.expression.text) ?? []) clocks.add(c);
+    }
+    if (ts.isIdentifier(n) && !isPropertyNamePosition(n)) {
+      for (const c of clock.names.get(n.text) ?? []) clocks.add(c);
     }
     ts.forEachChild(n, visit);
   };
   visit(node);
-  return found;
+  return clocks;
+}
+
+/** The expressions `fn` returns: an arrow's expression body or its own return statements. */
+function returnedExpressions(fn) {
+  if (!ts.isBlock(fn.body)) return [fn.body];
+  return ownBodyNodes(fn)
+    .filter((n) => ts.isReturnStatement(n) && n.expression)
+    .map((n) => n.expression);
 }
 
 /**
- * Every name assigned, anywhere in the file, from an expression that contains a clock read or
- * another already clock-derived name, computed to a fixpoint.
+ * Every name assigned, anywhere in the file, from an expression that reads the clock, and every
+ * same-file function whose returned expression does, each with the clocks it carries, computed
+ * together to a fixpoint.
  */
-function computeClockDerivedNames(sourceFile) {
+function computeClockSources(sourceFile, functions) {
   const assignments = [];
   for (const node of descendants(sourceFile)) {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      !isFunctionValue(node.initializer)
+    ) {
       assignments.push({ name: node.name.text, expr: node.initializer });
     } else if (
       ts.isBinaryExpression(node) &&
@@ -120,19 +205,29 @@ function computeClockDerivedNames(sourceFile) {
       assignments.push({ name: node.left.text, expr: node.right });
     }
   }
+  const returns = [...functions].flatMap(([name, fns]) =>
+    fns.flatMap((fn) => returnedExpressions(fn).map((expr) => ({ name, expr }))),
+  );
 
-  const derived = new Set();
+  const clock = { names: new Map(), functions: new Map() };
+  const merge = (map, name, clocks) => {
+    const known = map.get(name) ?? new Set();
+    const grown = [...clocks].filter((c) => !known.has(c));
+    if (grown.length === 0) return false;
+    map.set(name, new Set([...known, ...grown]));
+    return true;
+  };
   let changed = true;
   while (changed) {
     changed = false;
     for (const { name, expr } of assignments) {
-      if (!derived.has(name) && containsClockRead(expr, derived)) {
-        derived.add(name);
-        changed = true;
-      }
+      if (merge(clock.names, name, clockReadsIn(expr, clock))) changed = true;
+    }
+    for (const { name, expr } of returns) {
+      if (merge(clock.functions, name, clockReadsIn(expr, clock))) changed = true;
     }
   }
-  return derived;
+  return clock;
 }
 
 function expectMatcherCallOperands(node) {
@@ -146,31 +241,28 @@ function expectMatcherCallOperands(node) {
   return { a: expectCall.arguments[0], b: node.arguments[0] };
 }
 
-function elapsedTimeViolations(sourceFile, clockDerivedNames) {
+function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
   const violations = [];
+  const report = (node, clocks) => {
+    if (![...clocks].every((c) => c !== "uptime" && fakeTimers.fakes(node, c))) {
+      violations.push({ node, reason: "measures real elapsed time" });
+    }
+  };
   for (const node of descendants(sourceFile)) {
     if (isHrtimeWithArgument(node)) {
-      violations.push({ node, reason: "measures real elapsed time" });
+      report(node, ["hrtime"]);
       continue;
     }
+    let operands;
     if (ts.isBinaryExpression(node) && REJECTED_COMPARISON_OPERATORS.has(node.operatorToken.kind)) {
-      if (
-        containsClockRead(node.left, clockDerivedNames) &&
-        containsClockRead(node.right, clockDerivedNames)
-      ) {
-        violations.push({ node, reason: "measures real elapsed time" });
-      }
-      continue;
+      operands = { a: node.left, b: node.right };
+    } else {
+      operands = expectMatcherCallOperands(node);
     }
-    const operands = expectMatcherCallOperands(node);
-    if (
-      operands?.a &&
-      operands.b &&
-      containsClockRead(operands.a, clockDerivedNames) &&
-      containsClockRead(operands.b, clockDerivedNames)
-    ) {
-      violations.push({ node, reason: "measures real elapsed time" });
-    }
+    if (!operands?.a || !operands.b) continue;
+    const a = clockReadsIn(operands.a, clock);
+    const b = clockReadsIn(operands.b, clock);
+    if (a.size > 0 && b.size > 0) report(node, new Set([...a, ...b]));
   }
   return violations;
 }
@@ -202,55 +294,104 @@ function globalTimerTarget(expr) {
   return undefined;
 }
 
-/** Local names aliased (directly, or through `.bind(...)`) from the real `setTimeout`/`setInterval`. */
+const GLOBAL_OBJECTS = new Set(["globalThis", "window", "self"]);
+
+/**
+ * Local names aliased from the real `setTimeout`/`setInterval`: assigned directly, through
+ * `.bind(...)`, or destructured from the global object. Each maps to the timer it reaches.
+ */
 function globalTimerAliases(sourceFile) {
-  const names = new Set(["setTimeout", "setInterval"]);
+  const aliases = new Map();
   for (const node of descendants(sourceFile)) {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      if (globalTimerTarget(node.initializer)) names.add(node.name.text);
+    if (!ts.isVariableDeclaration(node) || !node.initializer) continue;
+    if (ts.isIdentifier(node.name)) {
+      const timer = globalTimerTarget(node.initializer);
+      if (timer) aliases.set(node.name.text, timer);
+    } else if (
+      ts.isObjectBindingPattern(node.name) &&
+      GLOBAL_OBJECTS.has(dottedName(node.initializer))
+    ) {
+      for (const element of node.name.elements) {
+        const imported = (element.propertyName ?? element.name).getText();
+        if (
+          (imported === "setTimeout" || imported === "setInterval") &&
+          ts.isIdentifier(element.name)
+        ) {
+          aliases.set(element.name.text, imported);
+        }
+      }
     }
   }
-  return names;
+  return aliases;
 }
 
-/** Local names bound to `setTimeout` and `scheduler` imported from `node:timers/promises`. */
+/**
+ * Local names bound to `setTimeout` and `scheduler` imported from `node:timers/promises`, and to
+ * the module itself through a namespace or default import.
+ */
 function timersPromisesBindings(sourceFile) {
   const setTimeoutNames = new Set();
   const schedulerNames = new Set();
+  const moduleNames = new Set();
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier))
       continue;
     if (!["node:timers/promises", "timers/promises"].includes(statement.moduleSpecifier.text))
       continue;
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    const clause = statement.importClause;
+    if (clause?.name) moduleNames.add(clause.name.text);
+    const bindings = clause?.namedBindings;
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      moduleNames.add(bindings.name.text);
+      continue;
+    }
     for (const specifier of bindings.elements) {
       const imported = (specifier.propertyName ?? specifier.name).text;
       if (imported === "setTimeout") setTimeoutNames.add(specifier.name.text);
       if (imported === "scheduler") schedulerNames.add(specifier.name.text);
     }
   }
-  return { setTimeoutNames, schedulerNames };
+  return { setTimeoutNames, schedulerNames, moduleNames };
 }
 
-/** `{ delayIndex }` when `node` is a real timer call, given the file's aliases and imports. */
+/**
+ * `{ delayIndex, timer, captured }` when `node` is a real timer call, given the file's aliases and
+ * imports. `captured` marks a real timer taken before any fake timers could replace it.
+ */
 function classifyTimerCall(node, aliases, promisesBindings) {
   if (!ts.isCallExpression(node)) return undefined;
   const callee = node.expression;
 
-  if (ts.isIdentifier(callee) && aliases.has(callee.text)) return { delayIndex: 1 };
-  if (!ts.isIdentifier(callee) && globalTimerTarget(callee)) return { delayIndex: 1 };
-
-  if (ts.isIdentifier(callee) && promisesBindings.setTimeoutNames.has(callee.text)) {
-    return { delayIndex: 0 };
+  if (ts.isIdentifier(callee)) {
+    if (callee.text === "setTimeout" || callee.text === "setInterval") {
+      return { delayIndex: 1, timer: callee.text, captured: false };
+    }
+    if (aliases.has(callee.text)) {
+      return { delayIndex: 1, timer: aliases.get(callee.text), captured: true };
+    }
+    if (promisesBindings.setTimeoutNames.has(callee.text)) {
+      return { delayIndex: 0, timer: "setTimeout", captured: false };
+    }
+    return undefined;
   }
-  if (
-    ts.isPropertyAccessExpression(callee) &&
-    callee.name.text === "wait" &&
-    ts.isIdentifier(callee.expression) &&
-    promisesBindings.schedulerNames.has(callee.expression.text)
-  ) {
-    return { delayIndex: 0 };
+
+  const timer = globalTimerTarget(callee);
+  if (timer) return { delayIndex: 1, timer, captured: ts.isCallExpression(callee) };
+
+  const object = ts.isPropertyAccessExpression(callee) ? callee.expression : undefined;
+  if (!object) return undefined;
+  if (callee.name.text === "setTimeout" && promisesBindings.moduleNames.has(dottedName(object))) {
+    return { delayIndex: 0, timer: "setTimeout", captured: false };
+  }
+  const scheduler = dottedName(object);
+  const isScheduler =
+    promisesBindings.schedulerNames.has(scheduler) ||
+    (ts.isPropertyAccessExpression(object) &&
+      object.name.text === "scheduler" &&
+      promisesBindings.moduleNames.has(dottedName(object.expression)));
+  if (callee.name.text === "wait" && isScheduler) {
+    return { delayIndex: 0, timer: "setTimeout", captured: false };
   }
   return undefined;
 }
@@ -284,19 +425,32 @@ function isLoopStatement(node) {
   );
 }
 
-/** Whether `bodyNode`, without descending into a nested function, contains a return/break/throw. */
-function bodyHasCheckedExit(bodyNode) {
+function isBreakableStatement(node) {
+  return isLoopStatement(node) || ts.isSwitchStatement(node);
+}
+
+/**
+ * Whether `loop`'s body, without descending into a nested function, can leave the loop: a return,
+ * a throw, or a break that exits this loop rather than an inner loop, switch or labeled statement.
+ */
+function bodyHasCheckedExit(loop) {
   let found = false;
-  const visit = (n) => {
+  const visit = (n, insideInnerBreakable, innerLabels) => {
     if (found) return;
-    if (n !== bodyNode && ts.isFunctionLike(n)) return;
-    if (ts.isReturnStatement(n) || ts.isBreakStatement(n) || ts.isThrowStatement(n)) {
+    if (ts.isFunctionLike(n)) return;
+    if (ts.isReturnStatement(n) || ts.isThrowStatement(n)) {
       found = true;
       return;
     }
-    ts.forEachChild(n, visit);
+    if (ts.isBreakStatement(n)) {
+      found = n.label ? !innerLabels.has(n.label.text) : !insideInnerBreakable;
+      return;
+    }
+    const labels = ts.isLabeledStatement(n) ? new Set([...innerLabels, n.label.text]) : innerLabels;
+    const inner = insideInnerBreakable || isBreakableStatement(n);
+    ts.forEachChild(n, (child) => visit(child, inner, labels));
   };
-  visit(bodyNode);
+  visit(loop.statement, false, new Set());
   return found;
 }
 
@@ -316,7 +470,7 @@ function containsCallOrAwait(expr) {
 }
 
 function loopCanExitOnCheckedCondition(loop) {
-  if (bodyHasCheckedExit(loop.statement)) return true;
+  if (bodyHasCheckedExit(loop)) return true;
   return (
     (ts.isWhileStatement(loop) || ts.isDoStatement(loop)) && containsCallOrAwait(loop.expression)
   );
@@ -379,46 +533,108 @@ function isRejectOrThrowOnlyCallback(callNode, callbackArg) {
   return ts.isExpressionStatement(statement) && isRejectCall(statement.expression);
 }
 
+const ALL_FAKED = "*";
+
+/** What a `vi.useFakeTimers(...)` call fakes: only its literal `toFake` list, otherwise everything. */
+function fakedByUseFakeTimers(call) {
+  const [options] = call.arguments;
+  if (!options || !ts.isObjectLiteralExpression(options)) return [ALL_FAKED];
+  const toFake = propertyNamed(options, "toFake");
+  if (!toFake || !ts.isArrayLiteralExpression(toFake)) return [ALL_FAKED];
+  if (!toFake.elements.every(ts.isStringLiteralLike)) return [ALL_FAKED];
+  return toFake.elements.map((element) => element.text);
+}
+
 function isDescribeCallee(expr) {
   const name = dottedName(expr);
   return name === "describe" || !!name?.startsWith("describe.");
 }
 
-function nearestEnclosingDescribeCallback(node) {
-  for (let current = node.parent; current; current = current.parent) {
-    if (
-      ts.isCallExpression(current) &&
-      isDescribeCallee(current.expression) &&
-      current.arguments.length >= 2 &&
-      (ts.isArrowFunction(current.arguments[1]) || ts.isFunctionExpression(current.arguments[1]))
-    ) {
-      return current.arguments[1];
+function isFakeTimersHook(expr) {
+  const name = dottedName(expr);
+  return name === "beforeEach" || name === "beforeAll";
+}
+
+/**
+ * Which timers and clocks `vi.useFakeTimers` has replaced wherever a node runs: those an enclosing
+ * function installs, in its own body or through a same-file function it calls, plus those a
+ * `beforeEach`/`beforeAll` hook installs in an enclosing `describe` or at the top of the file.
+ */
+function fakeTimersScope(sourceFile, functions) {
+  const installedBy = new Map();
+  const ownlyInstalled = (fn) =>
+    ownBodyNodes(fn)
+      .filter((n) => ts.isCallExpression(n) && dottedName(n.expression) === "vi.useFakeTimers")
+      .flatMap(fakedByUseFakeTimers);
+  const namedFns = [...functions.values()].flat();
+  for (const fn of namedFns) installedBy.set(fn, new Set(ownlyInstalled(fn)));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const fn of namedFns) {
+      const faked = installedBy.get(fn);
+      for (const callee of calledFunctionNames(fn, functions).flatMap((name) =>
+        functions.get(name),
+      )) {
+        for (const name of installedBy.get(callee)) {
+          if (!faked.has(name)) {
+            faked.add(name);
+            changed = true;
+          }
+        }
+      }
     }
   }
-  return undefined;
-}
 
-/** Whether `root`'s subtree, including inside nested functions, contains `vi.useFakeTimers(...)`. */
-function containsUseFakeTimers(root) {
-  let found = false;
-  const visit = (n) => {
-    if (found) return;
-    if (ts.isCallExpression(n) && dottedName(n.expression) === "vi.useFakeTimers") {
-      found = true;
-      return;
+  const installs = (fn) => {
+    if (installedBy.has(fn)) return installedBy.get(fn);
+    const faked = new Set(ownlyInstalled(fn));
+    for (const callee of calledFunctionNames(fn, functions).flatMap((name) =>
+      functions.get(name),
+    )) {
+      for (const name of installedBy.get(callee)) faked.add(name);
     }
-    ts.forEachChild(n, visit);
+    return faked;
   };
-  visit(root);
-  return found;
+
+  const hookInstalls = (suiteBodyNodes) =>
+    suiteBodyNodes
+      .filter((n) => ts.isCallExpression(n) && isFakeTimersHook(n.expression))
+      .flatMap((hook) => {
+        const [callback] = hook.arguments;
+        if (isFunctionValue(callback)) return [...installs(callback)];
+        if (callback && ts.isIdentifier(callback)) {
+          return (functions.get(callback.text) ?? []).flatMap((fn) => [...installs(fn)]);
+        }
+        return [];
+      });
+
+  const topLevelNodes = sourceFile.statements.flatMap((statement) =>
+    ts.isExpressionStatement(statement) ? [statement.expression] : [],
+  );
+
+  return {
+    fakes(node, name) {
+      const faked = new Set(hookInstalls(topLevelNodes));
+      for (let current = node.parent; current; current = current.parent) {
+        if (!ts.isFunctionLike(current)) continue;
+        for (const n of installs(current)) faked.add(n);
+        const call = current.parent;
+        if (
+          call &&
+          ts.isCallExpression(call) &&
+          isDescribeCallee(call.expression) &&
+          call.arguments.includes(current)
+        ) {
+          for (const n of hookInstalls(ownBodyNodes(current))) faked.add(n);
+        }
+      }
+      return faked.has(ALL_FAKED) || faked.has(name);
+    },
+  };
 }
 
-function fakeTimersInScope(callNode, sourceFile) {
-  const scope = nearestEnclosingDescribeCallback(callNode) ?? sourceFile;
-  return containsUseFakeTimers(scope);
-}
-
-function waitsRealTimeViolations(sourceFile) {
+function waitsRealTimeViolations(sourceFile, fakeTimers) {
   const aliases = globalTimerAliases(sourceFile);
   const promisesBindings = timersPromisesBindings(sourceFile);
   const violations = [];
@@ -438,7 +654,7 @@ function waitsRealTimeViolations(sourceFile) {
     if (isZeroOrAbsentDelay(delayArg)) continue;
     if (isInsidePollingLoop(node)) continue;
     if (timer.delayIndex === 1 && isRejectOrThrowOnlyCallback(node, node.arguments[0])) continue;
-    if (fakeTimersInScope(node, sourceFile)) continue;
+    if (!timer.captured && fakeTimers.fakes(node, timer.timer)) continue;
 
     violations.push({ node, reason: "waits a fixed real time" });
   }
@@ -450,10 +666,12 @@ function waitsRealTimeViolations(sourceFile) {
 /** Violations in one source file's text, at their 1-indexed line and trimmed source text. */
 export function findRealTimeViolations(source, fileName) {
   const sourceFile = parse(source, fileName);
-  const clockDerivedNames = computeClockDerivedNames(sourceFile);
+  const functions = namedFunctions(sourceFile);
+  const clock = computeClockSources(sourceFile, functions);
+  const fakeTimers = fakeTimersScope(sourceFile, functions);
   const violations = [
-    ...elapsedTimeViolations(sourceFile, clockDerivedNames),
-    ...waitsRealTimeViolations(sourceFile),
+    ...elapsedTimeViolations(sourceFile, clock, fakeTimers),
+    ...waitsRealTimeViolations(sourceFile, fakeTimers),
   ];
 
   const lineStarts = sourceFile.getLineStarts();
@@ -494,10 +712,18 @@ function pathStringOf(node) {
   return undefined;
 }
 
+/** A `setupFiles`/`globalSetup` value's paths: one path or an array of them, each readable. */
 function pathArrayProperty(objectLiteral, name) {
   const property = propertyNamed(objectLiteral, name);
-  if (!property || !ts.isArrayLiteralExpression(property)) return [];
-  return property.elements.map(pathStringOf).filter((path) => path !== undefined);
+  if (!property) return [];
+  const elements = ts.isArrayLiteralExpression(property) ? property.elements : [property];
+  return elements.map((element) => {
+    const path = pathStringOf(element);
+    if (path === undefined) {
+      throw new Error(`Vitest config project ${name} must list string literal paths`);
+    }
+    return path;
+  });
 }
 
 /** Every Vitest project's `include` globs, `setupFiles` and `globalSetup` paths, from the config's source. */
@@ -547,18 +773,31 @@ export function readVitestProjects(configSource) {
 export function readVerifyStaticTestGlobs(packageJsonSource) {
   const script = JSON.parse(packageJsonSource).scripts?.["verify:static"];
   if (!script) throw new Error("package.json has no verify:static script");
-  const match = script.match(/node --test\s+(.+)$/);
-  if (!match) throw new Error("verify:static script has no `node --test` glob");
-  return match[1].trim().split(/\s+/);
+  const globs = script
+    .match(/node --test\b([^&;|]*)/)?.[1]
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!globs?.length) throw new Error("verify:static script has no `node --test` glob");
+  return globs;
 }
 
 function stripLeadingDotSlash(path) {
   return path.replace(/^\.\//, "");
 }
 
-function isTestOnlyHelperPath(relativePath) {
+const TEST_ONLY_DIRECTORIES = new Set([
+  "test",
+  "tests",
+  "__tests__",
+  "test-support",
+  "fixtures",
+  "fakes",
+]);
+
+export function isTestOnlyHelperPath(relativePath) {
   const segments = relativePath.split("/");
-  if (segments.some((segment) => segment === "test" || segment === "test-support")) return true;
+  if (segments.slice(0, -1).some((segment) => TEST_ONLY_DIRECTORIES.has(segment))) return true;
   const basename = segments[segments.length - 1].replace(/\.[^.]+$/, "");
   return basename.split(/[-.]/).some((token) => token === "test");
 }
