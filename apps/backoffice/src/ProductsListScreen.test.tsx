@@ -1168,35 +1168,10 @@ test("marks the fallback category label as required when there are no categories
   expect(getComputedStyle(editLabel, "::after").content).toContain("*");
 });
 
-test("draws the Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels at the same size, weight, color, and row gap as the Nombre field's own label, in both the create and the edit modal", async () => {
-  const services = createServices();
-  mockLoaded(services, [miel], []);
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("1 producto activo")).toBeVisible();
-
-  const createDialog = await openNewProductModal(screen);
-  expectPseudoLabelsMatchNameLabel(createDialog);
-  await userEvent.click(createDialog.getByRole("button", { name: "Cancelar" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-
-  const editDialog = await openEditProductModal(screen, miel);
-  expectPseudoLabelsMatchNameLabel(editDialog);
-});
-
-function expectPseudoLabelsMatchNameLabel(dialog: ScreenLocator) {
-  const nameLabel = dialog.getByText("Nombre", { exact: true }).element() as HTMLElement;
-  const nameLabelStyle = getComputedStyle(nameLabel);
-  const nameRowGap = getComputedStyle(nameLabel.parentElement as HTMLElement).rowGap;
-
-  for (const labelText of ["Categoría", "Unidad de venta", "Códigos de barras"]) {
-    const pseudoLabel = dialog.getByText(labelText, { exact: true }).element() as HTMLElement;
-    const pseudoLabelStyle = getComputedStyle(pseudoLabel);
-    expect(pseudoLabelStyle.fontSize).toBe(nameLabelStyle.fontSize);
-    expect(pseudoLabelStyle.fontWeight).toBe(nameLabelStyle.fontWeight);
-    expect(pseudoLabelStyle.color).toBe(nameLabelStyle.color);
-    expect(getComputedStyle(pseudoLabel.parentElement as HTMLElement).rowGap).toBe(nameRowGap);
-  }
-}
+// The Categoría fallback, Unidad de venta and Códigos de barras pseudo-labels now come from
+// packages/ui's own FieldLabel (see ProductsListScreen.tsx), the same component TextField and
+// DateField build their label from: FieldLabel.test.tsx already proves its size, weight, color
+// and gap once, so this screen no longer re-checks them here.
 
 function generateButtonOf(dialog: ScreenLocator) {
   return dialog.getByRole("button", { name: "Generar código interno" });

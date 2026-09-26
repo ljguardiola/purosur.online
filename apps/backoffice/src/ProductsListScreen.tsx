@@ -11,6 +11,8 @@ import {
 } from "@purosur/contracts";
 import {
   Button,
+  FieldLabel,
+  fieldWrapperGapClassName,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -23,6 +25,7 @@ import {
   Table,
   type TableSort,
   TextField,
+  useFieldSize,
 } from "@purosur/ui";
 import {
   Ban,
@@ -150,10 +153,6 @@ function productNameError(
   return undefined;
 }
 
-// Same asterisk, size and color TextField's and Select's own backoffice label draw on a required
-// field's own label.
-const requiredLabelClassName = "text-sm font-bold text-ink after:ml-1 after:content-['*']";
-
 // Shared by the scan input and the "Generar código interno" button: the design's own outlined
 // control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
 const barcodeActionClassName =
@@ -212,10 +211,11 @@ function BarcodeChips({
   const generateErrorId = useId();
   const [scanFocused, setScanFocused] = useState(false);
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
+  const fieldSize = useFieldSize();
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
+    <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
+      <FieldLabel required>{labels.barcodesLabel}</FieldLabel>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -563,6 +563,7 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
+  const fieldSize = useFieldSize();
   // Neither starts pre-chosen: defaulting to the first category or a fixed unit would let someone
   // save a product in a category or unit nobody actually picked, which is exactly what the
   // "neither can be left out" rule guards against (a KG product silently saved as UNIT, or filed
@@ -736,7 +737,6 @@ function NewProductModal({
         )}
         <TextField
           kind="plain-text"
-          variant="backoffice"
           label={modalMessages.nameLabel}
           value={name}
           onChange={(value) => {
@@ -764,15 +764,15 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <div className="flex flex-col gap-1">
-            <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+          <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
+            <FieldLabel required>{modalMessages.categoryLabel}</FieldLabel>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
           </div>
         )}
-        <div className="flex flex-col gap-1">
-          <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+        <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
+          <FieldLabel required>{modalMessages.unitLabel}</FieldLabel>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -850,6 +850,7 @@ function EditProductModal({
   categories,
 }: EditProductModalProps) {
   const modalMessages = productsMessages.editProductModal;
+  const fieldSize = useFieldSize();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -1120,7 +1121,6 @@ function EditProductModal({
           )}
           <TextField
             kind="plain-text"
-            variant="backoffice"
             label={modalMessages.nameLabel}
             value={name}
             onChange={(value) => {
@@ -1147,15 +1147,15 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <div className="flex flex-col gap-1">
-              <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+            <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
+              <FieldLabel required>{modalMessages.categoryLabel}</FieldLabel>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
             </div>
           )}
-          <div className="flex flex-col gap-1">
-            <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+          <div className={`flex flex-col ${fieldWrapperGapClassName[fieldSize]}`}>
+            <FieldLabel required>{modalMessages.unitLabel}</FieldLabel>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
