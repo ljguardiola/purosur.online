@@ -56,9 +56,7 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
 ): Promise<ConfirmPriceOutcome> {
   return db.transaction<ConfirmPriceOutcome>(async (tx) => {
     // Same reasoning as `setPrice`'s own lock: a concurrent price change or confirmation on this
-    // product waits instead of racing the current-price read below. A deactivated product (#309)
-    // is rejected exactly the way an unknown id is, the same convention `labelableProductsById`
-    // (`products-labels-route.ts`) documents.
+    // product waits instead of racing the current-price read below.
     const [product] = await tx
       .select({ id: products.id })
       .from(products)

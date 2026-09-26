@@ -101,8 +101,6 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     })
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id))
-    // A deactivated product (#309) has nothing left to price or review, so it never appears here
-    // or counts toward `pendingCount`, computed from this same query below.
     .where(eq(products.active, true));
 
   const latestPriceRows = await db
