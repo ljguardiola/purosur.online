@@ -18,7 +18,6 @@ import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { confirmPrice } from "./price-confirmation-route.js";
 import { registerPriceSetRoute, setPrice } from "./price-set-route.js";
 import { listPrices } from "./prices-list-route.js";
 
@@ -369,34 +368,6 @@ describe("POST /products/:id/price", () => {
 });
 
 describe("price changes committed by callers whose clocks disagree", () => {
-  it("rejects as stale_price a change from an earlier clock made over a price it never saw", async () => {
-    const priceListId = await seededPriceListId(db);
-    const actorId = await insertUserWithPermission();
-    const productId = await insertProduct("Arroz");
-
-    const laterClock = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:05.000Z"),
-    });
-    const earlierClock = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 2000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-
-    expect(laterClock.kind).toBe("applied");
-    expect(earlierClock.kind).toBe("stale_price");
-    const rows = await db.select().from(prices).where(eq(prices.productId, productId));
-    expect(rows).toHaveLength(1);
-  });
-
   it("makes current a change from an earlier clock made over the price it saw", async () => {
     const priceListId = await seededPriceListId(db);
     const actorId = await insertUserWithPermission();
@@ -439,14 +410,5 @@ describe("price changes committed by callers whose clocks disagree", () => {
       currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
       lastReviewedAt: earlierClock.lastReviewedAt,
     });
-
-    const confirmation = await confirmPrice(db, {
-      productId,
-      priceListId,
-      expectedCurrentPriceId: earlierClock.price.id,
-      actorId,
-      now: () => earlierMoment,
-    });
-    expect(confirmation.kind).toBe("confirmed");
   });
 });

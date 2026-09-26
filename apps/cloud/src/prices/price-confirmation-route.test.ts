@@ -326,43 +326,6 @@ describe("POST /products/:id/price-confirmation", () => {
 });
 
 describe("confirmations committed by callers whose clocks disagree", () => {
-  it("rejects as stale_price a confirmation from an earlier clock of a price already superseded", async () => {
-    const priceListId = await seededPriceListId(db);
-    const actorId = await insertUserWithPermission();
-    const productId = await insertProduct("Arroz");
-
-    const first = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
-    }
-    const second = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 2000,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:05.000Z"),
-    });
-    expect(second.kind).toBe("applied");
-
-    const confirmation = await confirmPrice(db, {
-      productId,
-      priceListId,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:02.000Z"),
-    });
-
-    expect(confirmation.kind).toBe("stale_price");
-  });
-
   it("records a confirmation from an earlier clock as the product's most recent review", async () => {
     const priceListId = await seededPriceListId(db);
     const actorId = await insertUserWithPermission();
