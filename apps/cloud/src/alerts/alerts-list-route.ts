@@ -226,6 +226,13 @@ export async function countOpenVisibleAlerts<TQueryResult extends PgQueryResultH
   return { openCount: counts?.openCount ?? 0, openCriticalCount: counts?.openCriticalCount ?? 0 };
 }
 
+type AlertsQuery = { level?: string; open?: string; page?: string; q?: string; kinds?: string };
+
+// A repeated key (`?q=a&q=b`) reaches the handler as an array rather than a string.
+function isSingleValuedQuery(query: Record<string, unknown>): query is AlertsQuery {
+  return Object.values(query).every((value) => typeof value === "string");
+}
+
 function pageFromQuery(value: string | undefined): number {
   const page = Number(value);
   return Number.isSafeInteger(page) && page >= 1 ? page : 1;
@@ -258,9 +265,7 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  app.get<{
-    Querystring: { level?: string; open?: string; page?: string; q?: string; kinds?: string };
-  }>(
+  app.get<{ Querystring: Record<string, unknown> }>(
     "/alerts",
     {
       preHandler: originGuard((request, reply) =>
@@ -275,16 +280,23 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const level = isAlertLevel(request.query.level) ? request.query.level : undefined;
-      const open =
-        request.query.open === "true" ? true : request.query.open === "false" ? false : undefined;
-      const search = searchFromQuery(request.query.q, request.query.kinds);
+      const { query } = request;
+      if (!isSingleValuedQuery(query)) {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "each query parameter may be given only once",
+        });
+        return;
+      }
+      const level = isAlertLevel(query.level) ? query.level : undefined;
+      const open = query.open === "true" ? true : query.open === "false" ? false : undefined;
+      const search = searchFromQuery(query.q, query.kinds);
 
       const { rows, total } = await listVisibleAlerts(
         options.db,
         openSession,
         { level, open, search },
-        pageFromQuery(request.query.page),
+        pageFromQuery(query.page),
       );
       const openCounts = await countOpenVisibleAlerts(options.db, openSession);
       const namesByUserId = await loadScopeDisplayNames(

@@ -384,6 +384,16 @@ describe("GET /alerts", () => {
     expect(body.alerts.map((row) => row.id)).toEqual([matchingId]);
   });
 
+  it("rejects a repeated query key as bad input", async () => {
+    const rawSessionId = await signedInViewer();
+
+    for (const query of ["?q=a&q=b", "?q=a&kinds=kind_a&kinds=kind_b"]) {
+      const response = await getAlerts(rawSessionId, query);
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "validation_failed" });
+    }
+  });
+
   it("searches by an open lockout alert's source address, taking the text literally", async () => {
     const rawSessionId = await signedInViewer();
     const matchingId = await insertAlert({
