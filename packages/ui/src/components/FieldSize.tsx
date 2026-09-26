@@ -28,9 +28,9 @@ export function useFieldSize(): FieldSize {
   return useContext(FieldSizeContext);
 }
 
-// The label's own typography per size, drawn identically by TextField and DateField in both
-// sizes; Select and FieldLabel only ever draw the backoffice entry, since the design has no
-// register-scale select or pseudo-label.
+// The label's own typography per size, drawn identically by TextField, DateField and FieldLabel
+// (which reads the same context) in both sizes; Select only ever draws the backoffice entry,
+// since the design has no register-scale select.
 export const fieldLabelClassName: Record<FieldSize, string> = {
   register: "text-base font-bold text-ink",
   backoffice: "text-sm font-bold text-ink",

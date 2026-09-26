@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fieldLabelClassName, requiredFieldLabelSuffixClassName, useFieldSize } from "./fieldSize";
+import { fieldLabelClassName, requiredFieldLabelSuffixClassName, useFieldSize } from "./FieldSize";
 
 export type FieldLabelProps = {
   children: ReactNode;

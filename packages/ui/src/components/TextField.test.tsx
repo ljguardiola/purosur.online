@@ -4,7 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { insetBoundary, paintedBoxShadowLayers, tokenRgb } from "../test/token-colors";
-import { FieldSizeProvider } from "./fieldSize";
+import { FieldSizeProvider } from "./FieldSize";
 import { TextField, type TextFieldProps } from "./TextField";
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -94,7 +94,7 @@ test("renders the label 6px above an 8px-radius box", async () => {
 });
 
 // The backoffice size's own label, gap, box and value are proven once, for TextField, DateField
-// and Select together, in fieldSize.test.tsx; this test only proves the one thing specific to
+// and Select together, in FieldSize.test.tsx; this test only proves the one thing specific to
 // this component's own suffixed plain text: the value stays semibold even then, unlike its unit.
 test("keeps the backoffice plain text value semibold even with a suffix, unlike its own unit", async () => {
   const screen = await render(
@@ -1043,6 +1043,6 @@ test("does not accept a field without a label, a value or onChange", () => {
 });
 
 // TextFieldProps no longer carries a variant at all (the size comes from FieldSizeProvider
-// instead, see fieldSize.ts), so the two former type tests that pinned "backoffice" to
+// instead, see FieldSize.tsx), so the two former type tests that pinned "backoffice" to
 // plain-text only, and the one requiring a variant at all, no longer have a rule to express:
 // removed rather than kept as dead assertions.

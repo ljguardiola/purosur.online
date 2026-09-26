@@ -3,12 +3,12 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
 import { DateField } from "./DateField";
-import { FieldSizeProvider } from "./fieldSize";
+import { FieldSizeProvider } from "./FieldSize";
 import { Select } from "./Select";
 import { TextField } from "./TextField";
 
 // TextField, DateField and Select all draw the backoffice frame from the one shared definition in
-// fieldSize.ts: this is the only place that measures it, so no component repeats these numbers as
+// FieldSize.tsx: this is the only place that measures it, so no component repeats these numbers as
 // its own "matches X exactly" comment.
 test("draws the label, gap, box and value at the backoffice size, identically for TextField, DateField and Select", async () => {
   const screen = await render(

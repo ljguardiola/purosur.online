@@ -16,7 +16,7 @@ import {
   fieldLabelClassName,
   fieldWrapperGapClassName,
   requiredFieldLabelSuffixClassName,
-} from "./fieldSize";
+} from "./FieldSize";
 
 export type SelectOption<V extends string = string> = {
   value: V;
@@ -51,7 +51,7 @@ export type SelectProps<V extends string> = SelectCommonProps &
   };
 
 // This field only ever draws the backoffice size: the design has no register-scale select, so
-// every class below reads fieldSize.ts's own shared backoffice definition directly instead of
+// every class below reads FieldSize.tsx's own shared backoffice definition directly instead of
 // consulting FieldSizeProvider.
 const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 

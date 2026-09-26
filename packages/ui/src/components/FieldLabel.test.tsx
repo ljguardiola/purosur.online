@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
 import { FieldLabel } from "./FieldLabel";
-import { FieldSizeProvider } from "./fieldSize";
+import { FieldSizeProvider } from "./FieldSize";
 
 test("draws at the register scale with no FieldSizeProvider above it", async () => {
   const screen = await render(<FieldLabel>Motivo</FieldLabel>);

@@ -28,7 +28,7 @@ import {
   fieldWrapperGapClassName,
   requiredFieldLabelSuffixClassName,
   useFieldSize,
-} from "./fieldSize";
+} from "./FieldSize";
 
 // The date is a calendar date, never text: a CalendarDate can only ever hold a day that exists
 // (its own constructor constrains February 30th to the 28th rather than refusing it), so no
@@ -67,7 +67,7 @@ const wrapperBaseClassName = "flex flex-col data-[disabled]:opacity-[0.45]";
 
 const boxBaseClassName = "flex items-center rounded-lg outline-none";
 
-// This field's own long-standing register frame and value; the backoffice ones are fieldSize.ts's
+// This field's own long-standing register frame and value; the backoffice ones are FieldSize.tsx's
 // own shared backofficeFieldBoxClassName and backofficeFieldValueClassName.
 const registerFrameClassName = "h-14 gap-2 px-4";
 const registerValueClassName = "text-xl font-bold text-ink";

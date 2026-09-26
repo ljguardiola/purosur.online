@@ -13,7 +13,7 @@ import {
   fieldWrapperGapClassName,
   requiredFieldLabelSuffixClassName,
   useFieldSize,
-} from "./fieldSize";
+} from "./FieldSize";
 
 // The six value kinds the design defines: each carries its own box height, padding, gap and
 // value alignment, and only some of them take a prefix or a suffix (see TextFieldKindProps).
@@ -84,7 +84,7 @@ const boxBaseClassName = "flex items-center rounded-lg outline-none";
 // Height, horizontal padding and gap for every kind but plain text, in the exact px the design
 // specifies; those five only ever draw at this register scale (see TextFieldKindProps above).
 // Plain text's own frame varies by size instead (see registerPlainTextFrameClassName and
-// fieldSize.ts's own backofficeFieldBoxClassName).
+// FieldSize.tsx's own backofficeFieldBoxClassName).
 const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "h-[4.5rem] gap-2 px-4",
   "counted-cash": "h-[5rem] gap-3 px-6",
@@ -93,13 +93,13 @@ const frameClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
   quantity: "h-[4.5rem] gap-2 px-4",
 };
 // This field's own long-standing register frame for plain text; the backoffice one is
-// fieldSize.ts's own shared backofficeFieldBoxClassName.
+// FieldSize.tsx's own shared backofficeFieldBoxClassName.
 const registerPlainTextFrameClassName = "h-[3.25rem] gap-2 px-4";
 
 // The value's own typography and alignment per kind: 32 bold ink for every kind but plain text,
 // right-aligned against a prefix or immediately before a suffix, left-aligned only for weight.
 // Those five only ever draw at this register scale (see TextFieldKindProps above); plain text's
-// own value varies by size instead (see registerPlainTextValueClassName below and fieldSize.ts's
+// own value varies by size instead (see registerPlainTextValueClassName below and FieldSize.tsx's
 // own backofficeFieldValueClassName).
 const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> = {
   amount: "text-right text-3xl font-bold text-ink",

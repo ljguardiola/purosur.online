@@ -255,7 +255,7 @@ test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, s
     .element() as HTMLElement;
 
   // The label's own font size, weight and color are TextField's and DateField's own backoffice
-  // size, already proven once for both in fieldSize.test.tsx; this only proves what that test
+  // size, already proven once for both in FieldSize.test.tsx; this only proves what that test
   // can't: the two labels actually share a baseline in this row.
   expect(grossIncomeLabel.getBoundingClientRect().top).toBeCloseTo(
     activityStartLabel.getBoundingClientRect().top,

@@ -14,7 +14,7 @@ import {
   tokenRgb,
 } from "../test/token-colors";
 import { DateField, type DateFieldProps } from "./DateField";
-import { type FieldSize, FieldSizeProvider } from "./fieldSize";
+import { type FieldSize, FieldSizeProvider } from "./FieldSize";
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
@@ -38,7 +38,7 @@ beforeEach(async () => {
 // range, so this is also the accurate type for what they actually pass.
 //
 // `variant` is this harness's own test-only concept, not a DateField prop (DateField reads its
-// size from FieldSizeProvider instead, see fieldSize.ts): "register" renders with no provider,
+// size from FieldSizeProvider instead, see FieldSize.tsx): "register" renders with no provider,
 // the default size, and "backoffice" wraps the field in one.
 type NoRangeHarnessProps = {
   variant: FieldSize;
