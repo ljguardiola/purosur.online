@@ -80,6 +80,7 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
       deactivateUser: vi.fn(),
+      reactivateUser: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

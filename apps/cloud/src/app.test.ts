@@ -1012,8 +1012,16 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/users", access: permissionAccess("deactivate_users") },
-      { method: "GET", url: "/users/:id", access: permissionAccess("deactivate_users") },
+      {
+        method: "GET",
+        url: "/users",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
+      {
+        method: "GET",
+        url: "/users/:id",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
       { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/users/:id/edit", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
@@ -1026,6 +1034,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
+      },
+      {
+        method: "POST",
+        url: "/users/:id/reactivation",
+        access: permissionAccess("reactivate_users"),
       },
       { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
@@ -1310,8 +1323,13 @@ describe("every route enforces the access it declares", () => {
 
     for (const route of routesDeclaring(app, ["permission"])) {
       const access = route.access as Extract<RouteAccess, { level: "permission" }>;
+      // An any-of declaration (more than one permission) needs every one of them withheld, not
+      // just one, before a route declaring it is expected to forbid the request.
+      const declaredPermissions = Array.isArray(access.permission)
+        ? access.permission
+        : [access.permission];
       const rawSessionId = await signedInWithRole(
-        PERMISSION_KEYS.filter((key) => key !== access.permission),
+        PERMISSION_KEYS.filter((key) => !declaredPermissions.includes(key)),
       );
 
       const response = await send(app, route, rawSessionId);

@@ -1,4 +1,13 @@
-import { Button, IconButton, InlineNotice, Modal, Select, TextField, Tooltip } from "@purosur/ui";
+import {
+  Button,
+  IconButton,
+  InlineNotice,
+  Modal,
+  Select,
+  Tag,
+  TextField,
+  Tooltip,
+} from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
@@ -9,13 +18,14 @@ import {
   ShieldX,
   Trash2,
   TriangleAlert,
+  UserCheck,
   UserPen,
   UserX,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import { type BackofficeAccess, canDeactivateUser } from "./access";
+import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
@@ -33,7 +43,9 @@ import {
   editUser,
   fetchUser,
   fetchUserPasskeys,
+  type ReactivateUserOutcome,
   type RemoveUserPasskeyOutcome,
+  reactivateUser,
   removeUserPasskey,
   type UserPasskey,
 } from "./usersApi";
@@ -45,6 +57,7 @@ export type UserDetailScreenServices = {
   fetchUserPasskeys: typeof fetchUserPasskeys;
   removeUserPasskey: typeof removeUserPasskey;
   deactivateUser: typeof deactivateUser;
+  reactivateUser: typeof reactivateUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
   startAuthentication: typeof startAuthentication;
@@ -57,6 +70,7 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
   fetchUserPasskeys,
   removeUserPasskey,
   deactivateUser,
+  reactivateUser,
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,
@@ -98,6 +112,7 @@ const passkeysMessages = messages.settings.myAccount.passkeys;
 const selfRemoveMessages = passkeysMessages.removeModal;
 const removePasskeyModalMessages = usersMessages.removePasskeyModal;
 const deactivateModalMessages = usersMessages.deactivateModal;
+const reactivateModalMessages = usersMessages.reactivateModal;
 
 function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
   return passkeysMessages.rowDetail({
@@ -736,13 +751,159 @@ function DeactivateUserModal({
   );
 }
 
+type ReactivateUserModalProps = {
+  isOpen: boolean;
+  user: BranchUser;
+  onClose: () => void;
+  onReactivated: () => void;
+  onSessionEnded: () => void;
+  reactivateUser: typeof reactivateUser;
+  fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
+  authorizeSession: typeof authorizeSession;
+  startAuthentication: typeof startAuthentication;
+};
+
+/**
+ * Confirms reactivating a deactivated user, confirming with the shared passkey-authorization modal
+ * only when the cloud asks for it. Unlike deactivation, this keeps the caller on the same screen:
+ * on success (or a 404, which only ever means someone else already reactivated or removed the
+ * target), the parent refetches the user instead of navigating away.
+ */
+function ReactivateUserModal({
+  isOpen,
+  user,
+  onClose,
+  onReactivated,
+  onSessionEnded,
+  reactivateUser,
+  fetchSessionAuthorizationOptions,
+  authorizeSession,
+  startAuthentication,
+}: ReactivateUserModalProps) {
+  const [attemptFailed, setAttemptFailed] = useState(false);
+  const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { run, modal } = useAuthorization<ReactivateUserOutcome>({
+    action: "userReactivation",
+    onSessionEnded,
+    services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      setAttemptFailed(false);
+      setRateLimitedSeconds(null);
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  async function handleConfirm() {
+    setAttemptFailed(false);
+    setRateLimitedSeconds(null);
+    setSubmitting(true);
+
+    const outcome = await run(() => reactivateUser(user.id));
+    if (outcome.kind === "cancelled") {
+      setSubmitting(false);
+      return;
+    }
+    // A 404 only ever means the target is no longer inactive: either this reactivated it
+    // concurrently or the target is otherwise gone, and either way a refetch shows the right state.
+    if (outcome.kind === "ok" || outcome.kind === "not_found") {
+      onReactivated();
+      return;
+    }
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setRateLimitedSeconds(outcome.retryAfterSeconds);
+      setSubmitting(false);
+      return;
+    }
+    setAttemptFailed(true);
+    setSubmitting(false);
+  }
+
+  return (
+    <>
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="confirmation"
+        tone="info"
+        icon={<RotateCcw />}
+        headerLayout="centered"
+        title={reactivateModalMessages.title({ name: user.firstName })}
+        closable
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              icon={<X />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={onClose}
+            >
+              {reactivateModalMessages.cancel}
+            </Button>
+            <Button
+              variant="primary"
+              size="large"
+              icon={<RotateCcw />}
+              fullWidth
+              isDisabled={submitting}
+              onPress={() => void handleConfirm()}
+            >
+              {reactivateModalMessages.confirm}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-center text-base text-ink-secondary">{reactivateModalMessages.body}</p>
+          {attemptFailed && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={reactivateModalMessages.attemptFailedTitle}
+              detail={reactivateModalMessages.attemptFailedDetail}
+            />
+          )}
+          {rateLimitedSeconds !== null && (
+            <InlineNotice
+              tone="error"
+              icon={<ShieldX />}
+              title={usersMessages.rateLimitedTitle}
+              detail={usersMessages.rateLimitedDetail({
+                minutes: Math.ceil(rateLimitedSeconds / 60),
+              })}
+            />
+          )}
+        </div>
+      </Modal>
+      {modal}
+    </>
+  );
+}
+
 /**
  * "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email
- * edit, passkey removal, and deactivation. Every action here is gated by `access`: an Administrator
- * can do everything; a role delegated only `deactivate_users` can reach this screen but sees just
- * Datos and the Desactivar row (never against another Administrator, nor on their own account).
- * A `forbidden` read (a role change mid-session) sends the browser to Mi cuenta instead of showing
- * a notice.
+ * edit, passkey removal, deactivation, and reactivation. Every action here is gated by `access`: an
+ * Administrator can do everything; a role delegated only `deactivate_users` or `reactivate_users`
+ * can reach this screen but sees only the action it holds (never against another Administrator, nor
+ * on their own account). A `forbidden` read (a role change mid-session) sends the browser to Mi
+ * cuenta instead of showing a notice.
  */
 export function UserDetailScreen({
   userId,
@@ -759,6 +920,7 @@ export function UserDetailScreen({
     fetchUserPasskeys,
     removeUserPasskey,
     deactivateUser,
+    reactivateUser,
     fetchSessionAuthorizationOptions,
     authorizeSession,
     startAuthentication,
@@ -769,6 +931,7 @@ export function UserDetailScreen({
   const [removeTarget, setRemoveTarget] = useState<UserPasskey | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
+  const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
   // Read from a ref, not a reactive dependency: the parent hands a new function on every render
   // (each session-activity touch re-renders it), which would otherwise reload the user and unmount
   // an open edit modal along with what was typed in it.
@@ -841,6 +1004,9 @@ export function UserDetailScreen({
   // The cloud accepts a user id in any letter case, so the id in the URL may differ in case
   // from the session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
+  // `active` is only ever `false` for a caller who can see a deactivated user at all: everyone
+  // else's target is always active (or this screen would already be showing its not-found state).
+  const isInactive = state.kind === "loaded" && state.user.active === false;
 
   return (
     <>
@@ -849,7 +1015,10 @@ export function UserDetailScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">{detailMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
+                {isInactive && <Tag tone="neutral">{usersMessages.inactiveTag}</Tag>}
+              </div>
             </div>
           </div>
         }
@@ -898,7 +1067,7 @@ export function UserDetailScreen({
               <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
                 {detailMessages.datosHeading}
               </h2>
-              {access.isAdministrator && (
+              {access.isAdministrator && !isInactive && (
                 <Button
                   variant="secondary"
                   size="small"
@@ -980,7 +1149,7 @@ export function UserDetailScreen({
                           {passkeyRowDetail(passkey, clock())}
                         </p>
                       </div>
-                      {access.isAdministrator && !isOwnAccount && (
+                      {access.isAdministrator && !isOwnAccount && !isInactive && (
                         <IconButton
                           icon={<Trash2 />}
                           aria-label={passkeysMessages.remove({ name: passkey.name })}
@@ -993,19 +1162,37 @@ export function UserDetailScreen({
               ))}
           </div>
         )}
-        {state.kind === "loaded" && canDeactivateUser(access, state.user.role) && !isOwnAccount && (
+        {state.kind === "loaded" &&
+          !isInactive &&
+          canDeactivateUser(access, state.user.role) &&
+          !isOwnAccount && (
+            <div className="flex items-center gap-3">
+              <p className="flex-1 text-ink-secondary text-sm">
+                {detailMessages.deactivateHelp({ name: state.user.firstName })}
+              </p>
+              <Button
+                variant="secondary"
+                size="small"
+                tone="destructive"
+                icon={<UserX />}
+                onPress={() => setDeactivateModalOpen(true)}
+              >
+                {detailMessages.deactivateButton({ name: state.user.firstName })}
+              </Button>
+            </div>
+          )}
+        {state.kind === "loaded" && isInactive && canReactivateUser(access) && (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-ink-secondary text-sm">
-              {detailMessages.deactivateHelp({ name: state.user.firstName })}
+              {detailMessages.reactivateHelp({ name: state.user.firstName })}
             </p>
             <Button
               variant="secondary"
               size="small"
-              tone="destructive"
-              icon={<UserX />}
-              onPress={() => setDeactivateModalOpen(true)}
+              icon={<UserCheck />}
+              onPress={() => setReactivateModalOpen(true)}
             >
-              {detailMessages.deactivateButton({ name: state.user.firstName })}
+              {detailMessages.reactivateButton({ name: state.user.firstName })}
             </Button>
           </div>
         )}
@@ -1070,6 +1257,22 @@ export function UserDetailScreen({
           }}
           onSessionEnded={endSession}
           deactivateUser={deactivateUser}
+          fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
+          authorizeSession={authorizeSession}
+          startAuthentication={startAuthentication}
+        />
+      )}
+      {state.kind === "loaded" && (
+        <ReactivateUserModal
+          isOpen={reactivateModalOpen}
+          user={state.user}
+          onClose={() => setReactivateModalOpen(false)}
+          onReactivated={() => {
+            setReactivateModalOpen(false);
+            void load();
+          }}
+          onSessionEnded={endSession}
+          reactivateUser={reactivateUser}
           fetchSessionAuthorizationOptions={fetchSessionAuthorizationOptions}
           authorizeSession={authorizeSession}
           startAuthentication={startAuthentication}
