@@ -1,5 +1,5 @@
 import { globSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 
 // Vitest browser mode intermittently does not apply a test file's `vi.mock` factories: the real
@@ -67,9 +67,9 @@ function isModuleMockCall(node, bindings) {
   );
 }
 
-/** `vi.mock`, `vi.doMock` and `vi.importMock` calls in a browser test file's source, at their 1-indexed start line. */
-export function findViMockCalls(source) {
-  const sourceFile = parse(source, "browser.test.tsx");
+/** `vi.mock`, `vi.doMock` and `vi.importMock` calls in a module's source, at their 1-indexed start line. */
+export function findViMockCalls(source, fileName = "browser.test.tsx") {
+  const sourceFile = parse(source, fileName);
   const bindings = vitestBindings(sourceFile);
   const lineStarts = sourceFile.getLineStarts();
   return descendants(sourceFile)
@@ -84,8 +84,54 @@ export function findViMockCalls(source) {
 /** Scans the given file paths and returns one violation per module mock call found. */
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) =>
-    findViMockCalls(readFile(path)).map((match) => ({ path, ...match })),
+    findViMockCalls(readFile(path), path).map((match) => ({ path, ...match })),
   );
+}
+
+/** The module specifiers a source imports, re-exports from, or imports dynamically. */
+export function findImportSpecifiers(source) {
+  return ts.preProcessFile(source, true, true).importedFiles.map((file) => file.fileName);
+}
+
+/** The entry files and every module they import, transitively, that `resolveImport` resolves. */
+export function collectImportedModules(
+  entries,
+  { resolveImport, readFile = (path) => readFileSync(path, "utf8") },
+) {
+  const seen = new Set();
+  const pending = [...entries];
+  while (pending.length > 0) {
+    const path = pending.pop();
+    if (seen.has(path)) continue;
+    seen.add(path);
+    for (const specifier of findImportSpecifiers(readFile(path))) {
+      const resolved = resolveImport(specifier, path);
+      if (resolved !== undefined) pending.push(resolved);
+    }
+  }
+  return [...seen].sort();
+}
+
+/**
+ * Resolves an import the way the repository's TypeScript config does, to a path relative to `cwd`,
+ * or to undefined when it names an installed dependency or no file at all.
+ */
+export function createImportResolver(cwd = process.cwd()) {
+  const configPath = join(cwd, "tsconfig.json");
+  const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
+  const { options } = ts.parseJsonConfigFileContent(config, ts.sys, cwd, undefined, configPath);
+  const cache = ts.createModuleResolutionCache(cwd, (name) => name, options);
+  return (specifier, fromPath) => {
+    const { resolvedModule } = ts.resolveModuleName(
+      specifier,
+      resolve(cwd, fromPath),
+      options,
+      ts.sys,
+      cache,
+    );
+    if (!resolvedModule || resolvedModule.isExternalLibraryImport) return undefined;
+    return relative(cwd, resolvedModule.resolvedFileName);
+  };
 }
 
 function propertyNamed(objectLiteral, name) {
