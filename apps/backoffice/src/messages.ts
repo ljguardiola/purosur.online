@@ -3,6 +3,7 @@ import {
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  NET_CONTENT_QUANTITY_MAX,
   type NetContentUnit,
   PERMISSION_KEYS,
   type PermissionArea,
@@ -62,7 +63,6 @@ const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
 const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
 const PRODUCT_NET_CONTENT_QUANTITY_INVALID =
   "Ingresá una cantidad mayor que cero, con hasta 3 decimales.";
-const PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE = "Ingresá una cantidad más chica.";
 const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
@@ -628,7 +628,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         netContentLabel: PRODUCT_NET_CONTENT_LABEL,
         netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
         netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
-        netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+        netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
         netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitRequired: "Elegí la unidad de venta.",
@@ -674,7 +674,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         netContentLabel: PRODUCT_NET_CONTENT_LABEL,
         netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
         netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
-        netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+        netContentQuantityTooLarge: `Ingresá una cantidad de hasta ${f.number(NET_CONTENT_QUANTITY_MAX)}.`,
         netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitOptionUnitTitle: "Por unidad",

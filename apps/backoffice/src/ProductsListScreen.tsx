@@ -178,10 +178,10 @@ function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | 
 }
 
 /** The quantity field's own string form when prefilling the edit modal: blank for a product with
- * no net content, in the same dot-decimal form `Number.prototype.toString` gives (also accepted
- * back by `parseNetContentQuantity`). */
+ * no net content, otherwise with a decimal comma and no thousands separator, a form
+ * `parseNetContentQuantity` reads back. */
 function netContentQuantityText(netContent: NetContent | null): string {
-  return netContent ? String(netContent.quantity) : "";
+  return netContent ? String(netContent.quantity).replace(".", ",") : "";
 }
 
 function netContentUnitOf(netContent: NetContent | null): NetContentUnit {

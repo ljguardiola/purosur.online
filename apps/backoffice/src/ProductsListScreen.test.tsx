@@ -447,6 +447,44 @@ test("shows the server's net content error inline on create", async () => {
     .toBeVisible();
 });
 
+test("rejects a net content quantity above the maximum, stating the limit, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "100001");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Ingresá una cantidad de hasta 100.000.")).toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("shows the server's rejection of the whole net content inline on create", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContent",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Escanear otro código" }), "12345");
+  await userEvent.keyboard("{Enter}");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
+});
+
 test("a product created while only inactive products are listed stays out of the list", async () => {
   const services = createServices();
   const inactiveAlmendras: ProductSummary = { ...almendras, active: false };
@@ -675,6 +713,21 @@ test("prefills the net content quantity and unit when editing a product that has
   await expect.element(dialog.getByRole("button", { name: "kg Unidad" })).toBeVisible();
 });
 
+test("prefills a decimal net content quantity with a decimal comma and no thousands separator", async () => {
+  const services = createServices();
+  const mielConContenido: ProductSummary = {
+    ...miel,
+    netContent: { quantity: 1500.125, unit: "G" },
+  };
+  mockLoaded(services, [mielConContenido]);
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, mielConContenido);
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Contenido neto" }))
+    .toHaveValue("1500,125");
+});
+
 test("opens the edit modal defaulting the net content unit to g when the product has none", async () => {
   const services = createServices();
   mockLoaded(services, [miel]);
@@ -781,6 +834,44 @@ test("shows the server's net content error inline on edit", async () => {
   await expect
     .element(dialog.getByText("Ingresá una cantidad mayor que cero, con hasta 3 decimales."))
     .toBeVisible();
+});
+
+test("shows the server's rejection of the whole net content inline on edit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "netContent",
+  });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Revisá el contenido neto.")).toBeVisible();
+});
+
+test("reloading after a stale-version conflict restores the fresh net content quantity and unit", async () => {
+  const services = createServices();
+  mockLoaded(services, [miel]);
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  const dialog = await openEditProductModal(screen, miel);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect.element(dialog.getByText("Otra persona cambió este producto")).toBeVisible();
+
+  const freshened: ProductSummary = {
+    ...miel,
+    netContent: { quantity: 2.5, unit: "L" },
+    version: 2,
+  };
+  vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "ok", value: [freshened] });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar el producto" }));
+
+  await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("2,5");
+  await expect.element(dialog.getByRole("button", { name: "l Unidad" })).toBeVisible();
 });
 
 test("shows a stale-version conflict banner, and reloading restores the fresh product before saving again", async () => {
