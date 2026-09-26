@@ -1,4 +1,4 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
 // No field-specific length is documented anywhere in the codebase (the same gap
 // `user-creation-route.ts` notes for `first_name`), so every free-text field here shares one
 // generous bound: long enough for a ticket header line, short enough to guard against an
@@ -126,9 +126,6 @@ function readDayHours(body: unknown, key: BranchSettingsDayField): BranchHoursRa
   }
   return ranges;
 }
-
-// The days columns are Postgres `integer` (int4): anything larger would fail the write itself.
-export const BRANCH_SETTINGS_DAYS_MAX = 2147483647;
 
 function readDays(body: unknown, key: string): number | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.[key];
