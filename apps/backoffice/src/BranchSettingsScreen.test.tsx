@@ -1,4 +1,4 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -645,7 +645,7 @@ test("editing a day's range clears its error", async () => {
     .toHaveAccessibleDescription("");
 });
 
-test("rejects a days value above 2147483647 with an error that asks for a smaller number, without saving", async () => {
+test("rejects a days value above the maximum with an error that asks for a smaller number, without saving", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
@@ -653,7 +653,10 @@ test("rejects a days value above 2147483647 with an error that asks for a smalle
     .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
     .toHaveValue("30");
 
-  await userEvent.fill(screen.getByRole("textbox", { name: "Precio sin revisar" }), "2147483648");
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Precio sin revisar" }),
+    String(BRANCH_SETTINGS_DAYS_MAX + 1),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect
@@ -663,7 +666,7 @@ test("rejects a days value above 2147483647 with an error that asks for a smalle
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
-test("accepts a days value of exactly 2147483647", async () => {
+test("accepts a days value of exactly the maximum", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
@@ -672,13 +675,16 @@ test("accepts a days value of exactly 2147483647", async () => {
     .element(screen.getByRole("textbox", { name: "Precio sin revisar" }))
     .toHaveValue("30");
 
-  await userEvent.fill(screen.getByRole("textbox", { name: "Precio sin revisar" }), "2147483647");
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Precio sin revisar" }),
+    String(BRANCH_SETTINGS_DAYS_MAX),
+  );
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
   expect(services.saveBranchSettings).toHaveBeenCalledWith({
     ...loaded,
-    unreviewedPriceAlertDays: 2147483647,
+    unreviewedPriceAlertDays: BRANCH_SETTINGS_DAYS_MAX,
   });
 });
 
