@@ -37,6 +37,11 @@ describe("parseEsArNumber", () => {
     expect(parseEsArNumber("1,2555", 3)).toBeUndefined();
   });
 
+  it("reads whole numbers only when no decimals are allowed", () => {
+    expect(parseEsArNumber("1.250", 0)).toEqual({ whole: "1250", fraction: "" });
+    expect(parseEsArNumber("1,5", 0)).toBeUndefined();
+  });
+
   it("rejects a comma with no digits on either side of it", () => {
     expect(parseEsArNumber("1,", 2)).toBeUndefined();
     expect(parseEsArNumber(",5", 2)).toBeUndefined();

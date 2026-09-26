@@ -59,7 +59,10 @@ async function seedActorAndProduct(): Promise<{ actorId: string; productId: stri
 }
 
 async function waitForLockWaiters(count: number): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  // Bounded well under the test timeout, so a write that never queues fails with this message.
+  // Counted across this file's own database: the second write waits on the first one's tuple
+  // lock, not on the holder, so pg_blocking_pids of the holder never lists it.
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const [row] = await sql<{ waiting: number }[]>`
       select count(*)::int as waiting from pg_stat_activity
       where datname = current_database() and wait_event_type = 'Lock'`;

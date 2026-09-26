@@ -6,7 +6,8 @@ export type EsArNumberDigits = { whole: string; fraction: string };
 // first group can't start with a zero either ("0.500", "00.500"): a real thousands group never
 // does, and a leading zero there is the same 1000x misreading.
 function esArNumberPattern(maxDecimals: number): RegExp {
-  return new RegExp(`^(\\d+|[1-9]\\d{0,2}(?:\\.\\d{3})+)(?:,(\\d{1,${maxDecimals}}))?$`);
+  const fraction = maxDecimals > 0 ? `(?:,(\\d{1,${maxDecimals}}))?` : "";
+  return new RegExp(`^(\\d+|[1-9]\\d{0,2}(?:\\.\\d{3})+)${fraction}$`);
 }
 
 /** The whole and fraction digits of an Argentine-formatted number, kept as text so a caller can
