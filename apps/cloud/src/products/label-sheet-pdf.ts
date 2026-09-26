@@ -5,6 +5,8 @@ import {
   ean13BarcodeGeometry,
   GUARD_BAR_EXTRA_MM,
   HUMAN_READABLE_HEIGHT_MM,
+  MODULE_WIDTH_MM,
+  QUIET_ZONE_LEFT_MODULES,
 } from "./ean13-barcode-geometry.js";
 import {
   CONTENT_GAP_MM,
@@ -30,13 +32,13 @@ const PADDING_LEFT_RIGHT_MM = 6;
 const BARCODE_HEIGHT_MM = BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM + HUMAN_READABLE_HEIGHT_MM;
 const CUT_LINE_WIDTH_MM = 0.2;
 const CUT_LINE_COLOR = "#999999";
-// The six-digit half of a barcode's own module width (6 digits × 7 modules × the module width).
-const DIGIT_GROUP_WIDTH_MM = 42 * 0.33;
-const FIRST_DIGIT_BOX_WIDTH_MM = 11 * 0.33;
+const DIGITS_PER_GROUP = 6;
+const MODULES_PER_DIGIT = 7;
+const DIGIT_GROUP_WIDTH_MM = DIGITS_PER_GROUP * MODULES_PER_DIGIT * MODULE_WIDTH_MM;
+const FIRST_DIGIT_BOX_WIDTH_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
 
 // pdfkit's built-in Helvetica-Bold only encodes WinAnsi, silently garbling any other character
 // (Greek, Cyrillic, "ő", "≈"); Liberation Sans Bold is metric-compatible with it and covers them.
-// `fonts/` sits beside `src/` and `dist/` alike, and ships through package.json's `files`.
 const NAME_FONT = "LiberationSans-Bold";
 const NAME_FONT_FILE = readFileSync(
   new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url),
@@ -71,14 +73,8 @@ function drawCutLines(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
 
 const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
 
-/**
- * The name's own rendered height at the label's content width, word-wrapped up to
- * `NAME_MAX_LINES` lines and clamped there (`drawName`'s `ellipsis: true` then truncates whatever
- * doesn't fit). Measured with pdfkit's own `heightOfString` and the same line spacing `drawName`
- * renders with: reserving a height computed from a different (e.g. CSS-derived)
- * per-line estimate would under- or over-shoot pdfkit's real wrapping and either clip a line that
- * should have shown, or leave a gap above a name that didn't need the full box.
- */
+// Measured with pdfkit's own `heightOfString` and the same line spacing `drawName` renders with:
+// a height from any other per-line estimate would under- or over-shoot pdfkit's real wrapping.
 function measuredNameHeightMm(doc: PDFKit.PDFDocument, name: string): number {
   doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT);
   const maxHeightPt = NAME_LINE_HEIGHT_PT * NAME_MAX_LINES;
@@ -96,9 +92,8 @@ function nameLineGapPt(doc: PDFKit.PDFDocument): number {
 
 function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
   doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT).fillColor("#000000");
-  // pdfkit's wrapper decides where to stop and ellipsize from the font's own line height, ignoring
-  // `lineGap`: it ellipsizes a line unless two more of those fit under `height`, and stops once
-  // one more doesn't. This height lets exactly `NAME_MAX_LINES` lines through, ellipsizing the last.
+  // pdfkit's wrapper ellipsizes from the font's own line height, ignoring `lineGap`: this height
+  // lets exactly `NAME_MAX_LINES` lines through before it ellipsizes the last.
   const wrapHeightPt =
     (NAME_MAX_LINES - 1) * NAME_LINE_HEIGHT_PT + 1.5 * doc.currentLineHeight(true);
   doc.text(label.name, mm(label.xMm + PADDING_LEFT_RIGHT_MM), mm(topMm), {
@@ -122,7 +117,6 @@ function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: num
 
   const digitsTopMm = topMm + BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM;
   const fontSizePt = HUMAN_READABLE_HEIGHT_MM * PT_PER_MM;
-  // Bold, not the proof's plain weight, to read at print size the way the proof's own digits did.
   doc.font("Courier-Bold").fontSize(fontSizePt).fillColor("#000000");
 
   const firstDigitBoxWidthMm = FIRST_DIGIT_BOX_WIDTH_MM;
@@ -158,12 +152,6 @@ function drawLabel(doc: PDFKit.PDFDocument, label: PositionedLabel): void {
   drawBarcode(doc, label, label.yMm + layout.barcodeTopMm);
 }
 
-/**
- * Renders an ordered, product-by-product list of labels as a printable A4 PDF: a 3×8 grid of
- * 70 × 37.125mm labels tiling each sheet with no page margin, dashed cut lines only between
- * labels, and each label's name plus its EAN-13 barcode, the format the owner validated on the
- * plain-paper proof (`drafts/odd/assets/310-label-sheet-proof.html`).
- */
 export function renderLabelSheetPdf(items: LabelSheetItem[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({

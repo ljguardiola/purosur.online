@@ -16,15 +16,14 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape (and same "malformed/missing/other-branch are indistinguishable" reasoning)
-// `user-read-route.ts` answers with.
+// A malformed, missing, or other-branch id all answer alike, so none is distinguishable from the
+// others.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
 } as const;
 
-// Same uniform code `passkeys-removal-route.ts` answers with for an id that doesn't belong to the
-// acting account; here "the acting account" is the target user, never the Administrator's own.
+// The acting account here is the target user, never the Administrator's own.
 const PASSKEY_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no passkey with that id belongs to this user",
@@ -37,16 +36,6 @@ const OWN_ACCOUNT_RESPONSE = {
   message: "use Mi cuenta to manage your own passkeys",
 } as const;
 
-/**
- * Registers `POST /users/:id/passkeys/:passkeyId/remove`: lets an Administrator remove another
- * branch user's passkey, gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Checks the target
- * belongs to the session's own branch before doing anything else (identical 404 for a malformed,
- * missing, or other-branch id, matching `user-read-route.ts`), and rejects the session's own user
- * as a target (that self-service lives in Mi cuenta, which never ends the acting session). Unlike
- * self-removal, a successful removal here ends every backoffice session already open on the
- * target's account and audits the target's id alongside the removed passkey.
- */
 export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -117,8 +106,7 @@ export function registerUserPasskeyRemovalRoutes<TQueryResult extends PgQueryRes
         }
 
         // A session already open on a lost device must not outlive its passkey, so every session
-        // of the target ends here, the same way a redeemed recovery link ends every session on the
-        // account (`recovery-redemption-route.ts`). Self-removal from Mi cuenta never does this.
+        // of the target ends here. Self-removal from Mi cuenta never does this.
         await tx
           .update(sessions)
           .set({ revokedAt: attemptedAt })

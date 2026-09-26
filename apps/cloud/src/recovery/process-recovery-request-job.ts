@@ -8,11 +8,8 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 export interface RecoveryRequestJobPayload {
   email: string;
-  /** ISO 8601: graphile-worker stores the payload as JSON. */
+  /** graphile-worker stores the payload as JSON, hence the ISO 8601 string. */
   requestedAt: string;
-  /** Fixed when the request is enqueued, so every retry of its job carries the same one. Only an
-   * admitted request is ever enqueued (see `recovery-rejected-attempt-accumulator.ts` for a
-   * rejected one), so this job never carries a rate-limit rejection of its own. */
   requestId: string;
 }
 
@@ -22,12 +19,12 @@ export interface ProcessRecoveryRequestJobDeps {
 }
 
 export interface ProcessRecoveryRequestJobResult {
-  /** Set only when a link was actually issued; the caller sends it after releasing the pool
-   * client this job borrowed, so a slow Resend call never holds it checked out. */
+  /** Sent by the caller only after it releases the pool client this job borrowed, so a slow send
+   * never holds a connection checked out. */
   send?: SendRecoveryLinkInput;
 }
 
-const TOKEN_BYTES = 20; // 160 bits, well over the minimum entropy floor for this kind of token.
+const TOKEN_BYTES = 20; // 160 bits: well above the entropy floor for this kind of token.
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 function generateRawToken(): string {
@@ -35,24 +32,11 @@ function generateRawToken(): string {
 }
 
 function recoveryLink(backofficeOrigin: string, rawToken: string): string {
-  // The token lives in the URL fragment, never sent to the server, so it never reaches access
-  // logs or a Referer header.
+  // The token lives in the URL fragment, so it never reaches the server, access logs, or a
+  // Referer header.
   return `${backofficeOrigin}/account-recovery/passkey#${rawToken}`;
 }
 
-/**
- * The graphile-worker task body for every admitted `POST /users/recovery/request` (a rejected one
- * is never enqueued: see `recovery-rejected-attempt-accumulator.ts`). Resolves the account and,
- * for a deactivated one, only audits it against that account. Otherwise it issues a fresh token in
- * the same transaction that voids any live one for that account and audits the issuance, then
- * returns the link for the caller to send once it has released the pool client this job borrowed:
- * the caller must propagate a send failure so graphile-worker's own retry applies, and that
- * retry replaces the link its own request already issued, but never one issued for a different
- * request made at the same time or later, which instead leaves the request audited as superseded.
- * Every audit row this job writes is stamped `at` the request's own time, not whenever this
- * job happens to run. Jobs for the same account are serialized, so concurrent ones can never both
- * leave a live link.
- */
 export async function processRecoveryRequestJob<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   payload: RecoveryRequestJobPayload,
@@ -153,9 +137,8 @@ export async function processRecoveryRequestJob<TQueryResult extends PgQueryResu
       at: requestedAt,
     });
 
-    // Only an admitted request that actually issues a link opens this alert: a rejected or
-    // superseded one must never distinguish itself from "no account with that email" to whoever
-    // triggered it.
+    // Only an issued link opens this alert: a rejected/superseded request must stay
+    // indistinguishable from an unknown email to whoever triggered it.
     await openAlert(
       tx,
       {

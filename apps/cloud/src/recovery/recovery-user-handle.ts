@@ -1,7 +1,5 @@
-/**
- * The WebAuthn user handle a passkey binds to, derived deterministically from the account's own
- * id instead of a random value the cloud would then have to store: the 16 raw bytes of the UUID.
- */
+/** Derived from the account's own id (its 16 raw UUID bytes) instead of a random value the cloud
+ * would then have to store. */
 export function deriveUserHandle(userId: string): Uint8Array<ArrayBuffer> {
   const hex = userId.replace(/-/g, "");
   const bytes = new Uint8Array(16);

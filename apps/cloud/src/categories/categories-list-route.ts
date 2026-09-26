@@ -13,7 +13,6 @@ import {
 export interface CategoriesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
@@ -38,10 +37,6 @@ export async function listCategories<TQueryResult extends PgQueryResultHKT>(
     .orderBy(asc(categories.name));
 }
 
-/**
- * Registers `GET /categories`: gated by the `manage_products_and_categories` permission (an
- * Administrator always holds it too), the same open-session shape `GET /roles` uses.
- */
 export function registerCategoriesListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,

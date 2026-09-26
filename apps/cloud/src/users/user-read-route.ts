@@ -20,13 +20,6 @@ const NOT_FOUND_RESPONSE = {
   message: "no user with that id belongs to this branch",
 } as const;
 
-/**
- * Registers `GET /users/:id`: same session, origin, and access guard as `GET /users`, then answers
- * that one user's shape only when they belong to the session's own branch. A malformed id, a
- * missing id, and an id from another branch all get the identical 404 `not_found`; so does an
- * inactive id, unless the caller can reactivate (`canReactivateUsers`), in which case it answers
- * that deactivated user's shape, with its `active` field, instead.
- */
 export function registerUserReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,

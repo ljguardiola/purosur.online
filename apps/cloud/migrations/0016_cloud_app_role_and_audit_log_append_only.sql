@@ -1,9 +1,5 @@
--- Roles are cluster-wide in Postgres, and the integration test suite creates many databases in
--- one container, migrating several of them at once, so two migrations can both see the role
--- missing and race to create it. The loser normally fails with "role already exists"
--- (duplicate_object, 42710) once it looks the name up again, but a tight enough race instead
--- surfaces as the underlying catalog index rejecting the second physical insert
--- (unique_violation, 23505); the nested block catches both instead of failing the migration.
+-- Roles are cluster-wide, so two migrations across the integration suite's databases can race to
+-- create this one, failing as duplicate_object (42710) or, in a tighter race, unique_violation (23505).
 DO $$
 BEGIN
   BEGIN

@@ -40,9 +40,8 @@ CREATE INDEX "price_reviews_product_id_price_list_id_reviewed_at_idx" ON "price_
 CREATE INDEX "prices_product_id_price_list_id_valid_from_idx" ON "prices" USING btree ("product_id","price_list_id","valid_from");--> statement-breakpoint
 ALTER TABLE "branch_settings" ADD CONSTRAINT "branch_settings_price_list_id_price_lists_id_fk" FOREIGN KEY ("price_list_id") REFERENCES "public"."price_lists"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
--- Append-only, the same way migration 0016 makes audit_log append-only: cloud_app can insert and
--- read a price or a price review, but the database itself refuses to rewrite or erase one, even
--- from application code, so the full price and review history is never lost.
+-- Append-only: cloud_app can insert and read a price or review, but the database itself refuses
+-- to rewrite or erase one, even from application code.
 REVOKE UPDATE, DELETE, TRUNCATE ON "prices" FROM cloud_app;
 --> statement-breakpoint
 REVOKE UPDATE, DELETE, TRUNCATE ON "price_reviews" FROM cloud_app;

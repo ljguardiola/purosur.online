@@ -1,9 +1,3 @@
-/**
- * The recovery-request email's copy, in Spanish (the only locale the product ships), kept as one
- * small catalog so the sender never carries user-facing text as a literal. Wording matches the
- * backoffice's own screens for this flow: it never mentions that the request or the registration
- * is audited.
- */
 export const recoveryEmailMessages = {
   subject: "Recuperar el acceso a Puro Sur",
   heading: "Recuperar el acceso",

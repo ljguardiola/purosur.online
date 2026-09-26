@@ -15,11 +15,7 @@ export const ISSUER_IDENTIFICATION_TAX_STATUS = "Responsable Monotributo";
 export interface IssuerIdentificationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /**
-   * The CUIT the business is authorized under at the tax authority: deployment configuration
-   * (`ARCA_CERTIFICATE`, resolved in `server.ts`), never stored in the database and never accepted
-   * from a client.
-   */
+  /** The CUIT authorized at the tax authority: deployment configuration (ARCA_CERTIFICATE), never stored in the database or accepted from a client. */
   authorizedCuit: string;
   /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
@@ -55,12 +51,8 @@ export function toIssuerIdentificationWire(
   };
 }
 
-/**
- * Reads the business's one issuer identification row for `GET /fiscal-configuration/issuer-
- * identification`. The migration that creates `issuer_identification` seeds its single row, so a
- * missing row here means that invariant broke, not a legitimate "not found" a caller should ever
- * see, the same reasoning `branch-settings-read-route.ts` gives its own seeded row.
- */
+// The seeding migration guarantees this row exists; a missing row means that invariant broke, not
+// a legitimate "not found" a caller should ever see.
 export async function findIssuerIdentification<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<IssuerIdentificationRow> {
@@ -79,13 +71,6 @@ export async function findIssuerIdentification<TQueryResult extends PgQueryResul
   return row;
 }
 
-/**
- * Registers `GET /fiscal-configuration/issuer-identification`: gated by
- * `change_fiscal_configuration` (an Administrator always holds it implicitly). The authorized CUIT
- * and the tax status are never read from the database: they come from `options.authorizedCuit`
- * (deployment configuration) and the fixed `ISSUER_IDENTIFICATION_TAX_STATUS`, so nothing a client
- * sends can ever change either.
- */
 export function registerIssuerIdentificationReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: IssuerIdentificationRouteOptions<TQueryResult>,

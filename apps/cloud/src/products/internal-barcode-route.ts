@@ -15,8 +15,7 @@ const INTERNAL_BARCODE_SEQUENCE_NAME = "internal_barcode_sequence";
 const NEXTVAL_QUERY = sql.raw(`select nextval('${INTERNAL_BARCODE_SEQUENCE_NAME}') as value`);
 
 // `db.execute`'s result shape differs by driver: node-postgres and PGlite return `{ rows }`,
-// postgres-js returns the row array itself. The same kind of driver-shape normalization
-// `isBarcodeUniqueViolation` (`product-creation-route.ts`) already does for error objects.
+// postgres-js returns the row array itself.
 function rowsOf<TRow>(result: unknown): TRow[] {
   if (Array.isArray(result)) {
     return result;
@@ -36,15 +35,8 @@ async function nextSequenceValue<TQueryResult extends PgQueryResultHKT>(
   return BigInt(row.value);
 }
 
-/**
- * Allocates an internal EAN-13 barcode for a product with no manufacturer barcode: pulls the next
- * value from `internal_barcode_sequence` (GS1's 20-29 restricted-circulation range, see
- * `db/schema.ts`), appends its check digit, and skips any code that already exists on
- * `product_barcodes` by pulling another value, so a sequence value is never handed out twice and a
- * concurrent allocation racing this one is always given a different one. The range holds around
- * 10^11 codes, so the sequence running out is not a real case: it errors like any unexpected
- * database failure instead of a handled outcome.
- */
+// Pulls from GS1's 20-29 restricted-circulation range, appending the check digit, and skips any
+// value already taken. The range holds around 10^11 codes, so running out isn't a handled case.
 export async function allocateInternalBarcode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {
@@ -62,11 +54,6 @@ export async function allocateInternalBarcode<TQueryResult extends PgQueryResult
   }
 }
 
-/**
- * Registers `POST /products/internal-barcode`, gated by the `manage_products_and_categories`
- * permission (an Administrator always holds it too), the same access and origin-check shape
- * `POST /products` uses.
- */
 export function registerInternalBarcodeRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,

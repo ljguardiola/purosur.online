@@ -2,10 +2,8 @@ import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts } from "../db/schema.js";
 
-/** The hour every backoffice API limit counts over. */
 export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-// Sized well above normal use: 10/min sustained per session, and per-address well above that
-// since several people can use the backoffice at once from one connection, such as a location's.
+// The address limit sits above the session limit since several people can share one connection, such as a location's.
 export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
 export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;
@@ -44,13 +42,7 @@ async function pruneExpiredAttempts<TQueryResult extends PgQueryResultHKT>(
     .where(inArray(backofficeRateLimitAttempts.id, expired));
 }
 
-/**
- * Admits a backoffice API request only when its session and its source address each have fewer
- * than their limit of requests in the last 60 minutes, and records it against both in that case.
- * A rejected request records nothing, so the reported wait is
- * exactly when the oldest counted request leaves the window. Each key is locked for the
- * transaction, so concurrent requests can never both take the last slot.
- */
+/** Each key is locked for the transaction, so concurrent requests can never both take the last slot. */
 export async function recordBackofficeRequest<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: BackofficeRateLimitInput,

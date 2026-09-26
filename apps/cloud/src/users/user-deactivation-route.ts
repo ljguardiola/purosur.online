@@ -15,9 +15,8 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape (and same "malformed/missing/other-branch/inactive/Administrator are
-// indistinguishable" reasoning) `user-read-route.ts` answers with: an Administrator is never
-// offered as a target, so attempting one gets the same 404 as one that doesn't exist.
+// A malformed, missing, other-branch, inactive, or Administrator target id all answer alike, so
+// none of them is distinguishable from the others.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -25,17 +24,6 @@ const USER_NOT_FOUND_RESPONSE = {
 
 type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
 
-/**
- * Registers `POST /users/:id/deactivation`: lets a holder of `deactivate_users` (an Administrator
- * always holds it too) deactivate another branch user, gated by the shared passkey-authorization
- * window (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Checks the
- * target belongs to the session's own branch, is still active, is not an Administrator, and is not
- * the actor themselves before doing anything else (identical 404 for a malformed, missing,
- * other-branch, inactive, Administrator, or own id — an Administrator is never deactivated through
- * this permission, not even by another Administrator). A successful deactivation ends every
- * backoffice session already open on the target's account, the same way removing their last passkey
- * would, and audits the target's id alongside the actor who did it.
- */
 export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -55,10 +43,8 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
     return true;
   }
 
-  /**
-   * Folds a malformed id, an Administrator target, and the actor's own account (a deactivation
-   * cannot be undone) into the same 404 a missing id gets.
-   */
+  // Folds a malformed id, an Administrator target, and the actor's own account (a deactivation
+  // can't be undone) into the same 404 a missing id gets.
   async function findTarget(locationId: string, actorId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -95,11 +81,9 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
       }
 
       const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Takes the Administrator role row lock, then the user row lock, in the same order
-        // `user-edit-route.ts` does (so the two never deadlock): a concurrent role change waits,
-        // and `active` and the role are re-read under the locks. The role check above ran before
-        // them, so a target promoted since would otherwise be deactivated as an Administrator, and a
-        // second request against an already-deactivated target would re-revoke and re-audit.
+        // Locks the Administrator role row, then the user row, in the same order as the edit route
+        // (so the two never deadlock), and re-reads `active` and the role under those locks: the
+        // check above ran before them, so a target promoted or deactivated since is caught here.
         const [administratorRole] = await tx
           .select({ id: roles.id })
           .from(roles)
@@ -126,8 +110,8 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
           .set({ active: false, version: current.version + 1 })
           .where(eq(users.id, target.id));
 
-        // A deactivated user's open backoffice session ends at once (drafts/docs §12.3, CA-ACC-19),
-        // the same way removing their last passkey ends every session already open on the account.
+        // A deactivated user's open backoffice sessions end at once, the same way removing their
+        // last passkey ends every session already open on the account.
         await tx
           .update(sessions)
           .set({ revokedAt: attemptedAt })

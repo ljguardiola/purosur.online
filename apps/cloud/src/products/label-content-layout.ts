@@ -10,10 +10,8 @@ export interface LabelContentLayoutInput {
   labelHeightMm: number;
   paddingTopBottomMm: number;
   /**
-   * The name's own rendered height, already clamped to at most `NAME_MAX_LINES`. This must be
-   * measured with the exact font and line spacing the name is drawn with (e.g. pdfkit's own
-   * `heightOfString`): reserving less than the renderer's real per-line height
-   * makes it clip a wrapped line early instead of showing it.
+   * The name's own rendered height, clamped to `NAME_MAX_LINES`. Must be measured with the exact
+   * font and line spacing it's drawn with, or a wrapped line clips early instead of showing.
    */
   nameHeightMm: number;
   gapMm: number;
@@ -26,12 +24,8 @@ export interface LabelContentLayout {
   barcodeTopMm: number;
 }
 
-/**
- * Vertically centers a label's whole content group (name block + gap + barcode) within its padded
- * box, the way the proof's CSS (`justify-content: center` on the label, `gap: 1.5mm`) centered it:
- * a 1-line name's shorter group sits lower (a bigger gap above it) than a 2-line name's taller one,
- * instead of a fixed-height name box always pinned to the top.
- */
+// Centers the whole content group (name + gap + barcode) as a unit, rather than pinning the name
+// to a fixed-height box at the top.
 export function layoutLabelContent(input: LabelContentLayoutInput): LabelContentLayout {
   const groupHeightMm = input.nameHeightMm + input.gapMm + input.barcodeHeightMm;
   const availableHeightMm = input.labelHeightMm - 2 * input.paddingTopBottomMm;

@@ -1,13 +1,13 @@
 import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
 
-/** What `alerts.scope` identifies for a kind: a user id, or a source address (not looked up as a user). */
+/** `user`: `alerts.scope` is a user id. `sourceAddress`: it's an address, never looked up as a user. */
 export type AlertScopeKind = "user" | "sourceAddress";
 
 export interface AlertKindDefinition {
   kind: AlertKind;
-  /** The level an alert of this kind opens at; `alerts.level` moves to `critical` from here once escalated. */
+  /** The level an alert of this kind opens at; escalation moves it to `critical` from here. */
   level: AlertLevel;
-  /** How long an open alert of this kind waits before escalating from Warning to Critical, or `null` if it never escalates. */
+  /** How long an open alert waits before escalating Warning to Critical; `null` if it never does. */
   escalatesAfterMs: number | null;
   audience: AlertAudience;
   scopeKind: AlertScopeKind;
@@ -15,9 +15,6 @@ export interface AlertKindDefinition {
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
-// Each fact keeps its own kind instead of sharing one with subtypes: the deduplication key is the
-// kind plus its scope, so sharing a kind would let a still-open record for one fact swallow a
-// same-night occurrence of a different fact instead of that second fact opening its own alert.
 export const ALERT_KIND_CATALOG: readonly AlertKindDefinition[] = [
   {
     kind: "backoffice_passkey_changed",

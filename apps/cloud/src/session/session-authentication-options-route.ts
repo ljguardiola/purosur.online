@@ -8,18 +8,12 @@ import { pruneExpiredSignInChallenges, storeSignInChallenge } from "./sign-in-ch
 export interface SessionAuthenticationOptionsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the issued challenge's stored lifetime is deterministic. */
   now?: () => Date;
 }
 
 const AUTHENTICATION_TIMEOUT_MS = 60_000;
 
-/**
- * Registers `POST /users/session/authentication-options`: hands back WebAuthn request options for
- * a discoverable credential (no `allowCredentials`, so the browser lets the person pick their own
- * account) and stashes the challenge it generated so `POST /users/session/authenticate` can later
- * confirm the assertion answers a challenge this server actually issued.
- */
+/** No `allowCredentials`, so the browser lets the person pick their own account (discoverable credential). */
 export function registerSessionAuthenticationOptionsRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionAuthenticationOptionsRouteOptions<TQueryResult>,

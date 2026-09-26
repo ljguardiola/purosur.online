@@ -12,21 +12,17 @@ import {
 
 export interface WaitForReadyOptions {
   migrationsFolder?: string;
-  /** Kept short in tests so an unreachable database fails fast instead of hanging. */
   connectTimeoutSeconds?: number;
-  /** Total time budget to wait for the schema to reach the version bundled in this image. */
   waitForReadySeconds?: number;
-  /** Interval between readiness probes while waiting. */
   waitIntervalMs?: number;
-  /** Injected in tests so waiting does not consume real time. */
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
 const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
-// Above the Schema Migrations service's own worst case (a fresh image pull, its 60 s wait for the database,
-// then every migration), yet under the 600 s the deploy workflow allows the whole deploy.
+// Above the Schema Migrations service's own worst case (image pull, its 60s database wait, then
+// every migration), yet under the 600s the deploy workflow allows the whole deploy.
 const DEFAULT_WAIT_FOR_READY_SECONDS = 480;
 const DEFAULT_WAIT_INTERVAL_MS = 1000;
 const GRAPHILE_WORKER_SCHEMA = "graphile_worker";
@@ -39,12 +35,8 @@ function notReadyError(reason: string): Error & { code: string } {
   });
 }
 
-// A role or database this early in a deploy can be missing altogether (28000, invalid_authorization
-// specification), its password not set yet (28P01, invalid_password), or the schema it needs not
-// created yet: the schema itself missing (3F000, invalid_schema_name), one of its tables missing
-// (42P01, undefined_table), or no grant on it yet (42501, insufficient_privilege). Every one of
-// these is exactly what "the migrate step has not finished yet" looks like from `cloud_app`'s own
-// connection, so all of them count as not ready rather than fatal.
+// Postgres SQLSTATEs for "not there yet" from cloud_app's own connection: missing role (28000),
+// no password yet (28P01), missing schema (3F000), missing table (42P01), no grant yet (42501).
 const NOT_MIGRATED_YET_ERROR_CODES = new Set(["28000", "28P01", "3F000", "42P01", "42501"]);
 
 export function isNotMigratedYetError(error: unknown): boolean {
@@ -71,11 +63,7 @@ interface JournalEntry {
   when: number;
 }
 
-/**
- * Reads the same `meta/_journal.json` drizzle's own migrator reads, and hashes each migration
- * file the same way it does (`readMigrationFiles` in `drizzle-orm/migrator`): the full file
- * content's sha256, matched against `drizzle.__drizzle_migrations`'s own `hash` column.
- */
+/** Hashes each migration file the same way drizzle's own migrator does, to match its `hash` column. */
 function readExpectedMigrationRecords(migrationsFolder: string): ExpectedMigrationRecord[] {
   const journalPath = `${migrationsFolder}/meta/_journal.json`;
   const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: JournalEntry[] };
@@ -113,8 +101,8 @@ async function checkDrizzleMigrationsApplied(
   }
 }
 
-// graphile-worker's package exports only its entry point, so the migration list it bundles is
-// loaded by file URL from next to that entry point, which package exports do not restrict.
+// graphile-worker's package exports only its entry point; its bundled migration list is loaded by
+// file URL relative to it instead, which package exports do not restrict.
 async function bundledGraphileWorkerMigration(): Promise<number> {
   const entryPoint = createRequire(import.meta.url).resolve("graphile-worker");
   const generatedSql = new URL("./generated/sql.js", pathToFileURL(entryPoint));
@@ -144,7 +132,7 @@ async function checkGraphileWorkerMigrated(sql: postgres.Sql): Promise<void> {
 }
 
 // A table with row-level security enabled refuses every row to a role no policy names, even one
-// holding every table privilege, so both are required.
+// holding every table privilege.
 async function checkGraphileWorkerUsable(sql: postgres.Sql): Promise<void> {
   const tables = await sql<{ tablename: string; usable: boolean }[]>`
     select t.tablename,
@@ -176,16 +164,8 @@ async function checkSchemaReady(sql: postgres.Sql, migrationsFolder: string): Pr
 }
 
 /**
- * Waits, within a bounded budget, until `databaseUrl` (the cloud's own `cloud_app` connection) is
- * ready to take traffic: every migration bundled in this image's `migrationsFolder` is recorded in
- * `drizzle.__drizzle_migrations`, graphile-worker's own schema is at the migration its bundled
- * package ships, and `cloud_app` can use every one of its tables. This is a read-only check —
- * `cloud_app` has no privilege to apply any of it — meant to run before the deploy takes traffic,
- * while a separate one-shot service migrates the database as the admin role.
- *
- * A connection failure that means "not created or not ready yet" (the role or its password not
- * set up yet, the schema not there yet) is retried instead of failing the deploy immediately; any
- * other error is fatal right away.
+ * A read-only check, as `cloud_app` (no privilege to migrate): waits until every bundled migration
+ * is recorded, graphile-worker's schema is current, and `cloud_app` can use its tables.
  */
 export async function waitForReady(
   databaseUrl: string,

@@ -1,8 +1,6 @@
 /**
- * Self-signed test certificates (generated once with openssl, never used against a real
- * service) whose subject's serialNumber carries a CUIT, for exercising `requireAuthorizedCuit`
- * without a real ARCA certificate. The CUIT `20123456786` normalizes to `20-12345678-6`, the
- * same value the rest of this test suite already uses as a stand-in authorized CUIT.
+ * Self-signed test certificates (never a real ARCA certificate) whose subject's serialNumber
+ * carries a CUIT. `20123456786` normalizes to `20-12345678-6`, this suite's stand-in authorized CUIT.
  */
 export const VALID_ARCA_CERTIFICATE = `-----BEGIN CERTIFICATE-----
 MIIDNzCCAh+gAwIBAgIUWxRlGEGJGDEzQxzKn4lYZw2xrZ8wDQYJKoZIhvcNAQEL

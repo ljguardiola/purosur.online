@@ -10,7 +10,6 @@ import { hashSessionId } from "./session-id.js";
 /** The source address Fastify's `inject` reports for every test request. */
 export const INJECTED_SOURCE_ADDRESS = "127.0.0.1";
 
-/** Fills a session's own backoffice request limit with requests made at `at`, for route tests. */
 export async function exhaustSessionRateLimit<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   rawSessionId: string,
@@ -32,7 +31,6 @@ export async function exhaustSessionRateLimit<TQueryResult extends PgQueryResult
   );
 }
 
-/** Fills a source address's backoffice request limit with requests made at `at`, for route tests. */
 export async function exhaustSourceAddressRateLimit<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   sourceAddress: string,

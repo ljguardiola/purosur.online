@@ -37,12 +37,8 @@ const CATEGORY_NAME_UNIQUE_INDEX = "categories_name_lower_key";
 
 export class CategoryNameTaken extends Error {}
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on the
- * case-insensitive `categories.name` index, the same shape `isRoleNameUniqueViolation`
- * (`role-creation-route.ts`) maps for `roles.name`; `category-edit-route.ts` reuses this mapping
- * for its own edit transaction.
- */
+// Walks the driver error Drizzle wraps as `cause`, looking for a Postgres unique violation on
+// the case-insensitive `categories.name` index.
 export function isCategoryNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -99,12 +95,8 @@ export type CreateCategoryOutcome =
   | { kind: "parent_has_products" }
   | { kind: "created"; category: CategoryRow };
 
-/**
- * Locks the category about to receive a child `FOR UPDATE` (the same lock `lockLeafCategory`,
- * `product-creation-route.ts`, takes on a category it assigns a product to), so the two "does
- * this category have children" and "does this category have products" checks can never both slip
- * past a concurrent write on the other side. Any assigned product blocks, inactive ones included.
- */
+// `FOR UPDATE` row lock, so the "has children"/"has products" checks below can't race a
+// concurrent write on the same category; any assigned product blocks, inactive ones included.
 export async function lockParentForNewChild<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   parentId: string,
@@ -128,10 +120,6 @@ export async function lockParentForNewChild<TQueryResult extends PgQueryResultHK
   return product ? "parent_has_products" : "locked";
 }
 
-/**
- * Whether a category other than `excludingId` under `parentId` (top level for `null`) already
- * has `name`, compared case-insensitively.
- */
 export async function siblingNameTaken<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
   parentId: string | null,
@@ -152,14 +140,8 @@ export async function siblingNameTaken<TQueryResult extends PgQueryResultHKT>(
   return sibling !== undefined;
 }
 
-/**
- * Creates a category in one transaction, first locking its parent through
- * `lockParentForNewChild`. The sibling name uniqueness check runs next, inside the same
- * transaction; the database's own case-insensitive unique index (`categories_name_lower_key`,
- * scoped per parent with `NULLS NOT DISTINCT`) is the backstop for a name that lands
- * concurrently, mapped by `isCategoryNameUniqueViolation` the same way `createRole`
- * (`role-creation-route.ts`) maps its own.
- */
+// The database's own `categories_name_lower_key` unique index (NULLS NOT DISTINCT per parent)
+// backstops a name that lands concurrently; the catch below maps that failure.
 export async function createCategory<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: CreateCategoryInput,
@@ -200,11 +182,7 @@ export async function createCategory<TQueryResult extends PgQueryResultHKT>(
     });
 }
 
-/**
- * Registers `POST /categories`, gated by the `manage_products_and_categories` permission (an
- * Administrator always holds it too). Unlike `POST /roles`, this needs no passkey step-up: roles
- * require it because they're Administrator-only; categories don't.
- */
+// No passkey step-up here: this permission isn't Administrator-only, unlike role management.
 export function registerCategoryCreationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: CategoriesRouteOptions<TQueryResult>,

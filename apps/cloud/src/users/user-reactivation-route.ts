@@ -15,8 +15,8 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape `user-deactivation-route.ts` answers with for a malformed, missing, other-branch, or
-// (here) still-active target: none of them leaks which one it was.
+// A malformed, missing, other-branch, or already-active target id all answer alike, so none of
+// them leaks which one it was.
 const USER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -24,14 +24,6 @@ const USER_NOT_FOUND_RESPONSE = {
 
 type ReactivationOutcome = { kind: "not_found" } | { kind: "reactivated" };
 
-/**
- * Registers `POST /users/:id/reactivation`: lets a holder of `reactivate_users` (an Administrator
- * always holds it too) reactivate a branch user `user-deactivation-route.ts` had deactivated,
- * gated by the shared passkey-authorization window instead of its own per-action step-up. Checks
- * the target belongs to the session's own branch and is still inactive before doing anything else
- * (identical 404 for a malformed, missing, other-branch, or already-active id). Keeps the target's
- * role, email, and passkeys untouched, and audits the target's id alongside the actor who did it.
- */
 export function registerUserReactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,

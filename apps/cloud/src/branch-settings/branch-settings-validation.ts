@@ -1,14 +1,9 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
-// No field-specific length is documented anywhere in the codebase (the same gap
-// `user-creation-route.ts` notes for `first_name`), so every free-text field here shares one
-// generous bound: long enough for a ticket header line, short enough to guard against an
-// unbounded payload.
 export const BRANCH_SETTINGS_TEXT_MAX_LENGTH = 200;
 
 const HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-// Monday through Sunday, in the order the backoffice's "Horario de atención" rows appear and the
-// order `day_of_week` numbers them in `branch_hours` (1 = Monday … 7 = Sunday).
+// Monday..Sunday order, matching how `day_of_week` numbers them in `branch_hours` (1 = Monday).
 export const BRANCH_SETTINGS_DAY_FIELDS = [
   "monday_hours",
   "tuesday_hours",
@@ -82,13 +77,8 @@ function readRange(raw: unknown): BranchHoursRange | undefined {
   return { opensAt, closesAt };
 }
 
-/**
- * True once any two ranges share a moment in time. Comparing the `HH:MM` strings directly is
- * enough, the same way a single range's own opens/closes comparison is: two ranges overlap when
- * one starts before the other ends and ends after the other starts, so a range that only touches
- * another (one's `closesAt` equal to the other's `opensAt`) is not an overlap. Every pair is
- * checked regardless of the order the ranges were sent in, since the server never sorts them.
- */
+// Zero-padded HH:MM strings compare lexicographically the same way the times they represent do,
+// so no time parsing is needed here.
 function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   for (let i = 0; i < ranges.length; i++) {
     for (let j = i + 1; j < ranges.length; j++) {
@@ -102,12 +92,6 @@ function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   return false;
 }
 
-/**
- * Reads one day's hours: a list of at most `BRANCH_HOURS_RANGES_PER_DAY_MAX` `{ opens_at,
- * closes_at }` ranges, each a zero-padded 24h `HH:MM` with `closes_at` strictly later than
- * `opens_at`, and none overlapping another range of the same day. An empty list means the day is
- * closed.
- */
 function readDayHours(body: unknown, key: BranchSettingsDayField): BranchHoursRange[] | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.[key];
   if (!Array.isArray(raw) || raw.length > BRANCH_HOURS_RANGES_PER_DAY_MAX) {
@@ -142,11 +126,6 @@ function readVersion(body: unknown): number | undefined {
   return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : undefined;
 }
 
-/**
- * Parses and validates a `PUT /branch-settings` body, mirroring how `role-validation.ts` reads and
- * validates a role edit. Every text field may be empty and every day may be closed (an empty
- * list), the same way the seeded row's own defaults are empty strings and closed days.
- */
 export function readBranchSettingsEditBody(
   body: unknown,
 ): BranchSettingsEditInput | BranchSettingsFieldValidationFailure {

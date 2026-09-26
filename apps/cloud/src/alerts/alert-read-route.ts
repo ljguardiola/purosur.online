@@ -27,9 +27,7 @@ import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// A malformed id, a missing one, and one the viewer cannot see all answer alike, the same "none of
-// the three ever leaks which one it was" reasoning `role-read-route.ts` applies to a role id.
-// Reused by `alert-close-route.ts` for the same lookup.
+// Answers alike for a malformed id, a missing one, and one outside visibility, so none leaks which.
 export const ALERT_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no alert with that id",
@@ -84,13 +82,7 @@ export interface AlertDetailWire {
   scope_display: string | null;
   level: AlertLevel;
   audience: AlertAudience;
-  /**
-   * The kind's own fact payload, passed through as stored, plus one addition: when it carries an
-   * `actorId` (who performed the change — `backoffice_passkey_changed`, `user_email_changed`), an
-   * `actorName` next to it, resolved the same way `scope_display` is. Never added when that id
-   * can't be resolved, rather than showing a raw id. A closed source-address-scoped kind's
-   * `sourceAddress`, stored only as a hash, is left out.
-   */
+  /** Stored `detail`, plus `actorName` next to `actorId` when it resolves; never a raw id. */
   detail: Record<string, unknown>;
   opened_at: string;
   escalated_at: string | null;
@@ -98,7 +90,6 @@ export interface AlertDetailWire {
   deliveries: AlertDeliveryWire[];
 }
 
-/** Adds `actorName` next to a `detail.actorId` when it resolves to a known user; passes `detail` through untouched otherwise. */
 export function detailWithActorName(
   detail: Record<string, unknown>,
   namesByUserId: ReadonlyMap<string, string>,
@@ -157,11 +148,8 @@ export function toAlertDetailWire(
   };
 }
 
-/**
- * Looks up one alert by id, answering `undefined` alike for a malformed id, a missing one, and one
- * outside `access`'s own audience visibility (`alert-visibility.ts`'s `visibleAlertsCondition`) —
- * one query, rather than fetching the row unconditionally and checking it in memory.
- */
+// One query merges the id lookup with the visibility check, rather than fetching then checking in
+// memory; a malformed id, a missing one, and one outside visibility all answer `undefined` alike.
 export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
@@ -190,7 +178,6 @@ export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
   return row;
 }
 
-/** Every delivery of `alertId`, with the recipient's name and role, ordered by when it was written. */
 export async function listAlertDeliveries<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   alertId: string,
@@ -215,13 +202,6 @@ export async function listAlertDeliveries<TQueryResult extends PgQueryResultHKT>
     .where(eq(alertDeliveries.alertId, alertId));
 }
 
-/**
- * Registers `GET /alerts/:id`: open to any signed-in user, refused with 403 for one who holds
- * neither alert-view permission, and 404 for a malformed id, a missing one, or one the viewer's
- * own audience visibility (`alert-visibility.ts`) does not extend to — the same alike-answer shape
- * `not_found` gives everywhere else in this codebase, so none of the three ever leaks which one it
- * was.
- */
 export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: AlertsRouteOptions<TQueryResult>,
@@ -258,7 +238,6 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
   );
 }
 
-/** Every id worth resolving to a name for one alert: its own scope, plus its detail's `actorId` when it has one. */
 export function userIdsToResolve(alert: Pick<AlertDetailRow, "scope" | "detail">): string[] {
   const actorId = alert.detail.actorId;
   return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];

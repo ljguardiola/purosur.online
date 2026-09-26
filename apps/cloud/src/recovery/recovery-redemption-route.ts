@@ -45,12 +45,6 @@ function readRawToken(body: unknown): string | undefined {
   return typeof recoveryToken === "string" && recoveryToken !== "" ? recoveryToken : undefined;
 }
 
-/**
- * Registers the two WebAuthn-facing endpoints that complete recovery-by-email:
- * `registration-options` hands back creation options for a still-live token without touching it,
- * and `redeem` verifies the browser's response and, in one transaction, burns the token and
- * registers the new passkey. Neither ever opens a session.
- */
 export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RecoveryRedemptionRouteOptions<TQueryResult>,
@@ -84,10 +78,8 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
       now: attemptedAt,
     });
     if (!rateLimit.allowed) {
-      // One synchronous upsert keyed by the token's own stored hash, never a lookup: known and
-      // unknown tokens do identical work. A bookkeeping failure here must never turn this 429
-      // into a 500.
-      // A request that carries no token at all has nothing to key the accumulator by.
+      // Upserts keyed by the token's own stored hash, never a lookup, so known and unknown
+      // tokens do identical work.
       const rawToken = readRawToken(request.body);
       if (rawToken) {
         try {
@@ -109,8 +101,6 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     return true;
   }
 
-  // Every rejected attempt on a token that exists is audited against the account it belongs to;
-  // an unknown token has no account to attribute the attempt to.
   async function auditRejectedAttempt(
     token: RecoveryTokenRow,
     attempt: RedemptionAttempt,
@@ -146,8 +136,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
     await reply.code(400).send({ code: "validation_failed", ...body });
   }
 
-  // A distinct code from every other redemption rejection: the device already created a
-  // credential the cloud does know, so it must never be asked to forget it.
+  // Distinct code: the device already holds this credential and can't be asked to forget it.
   async function rejectRedemptionAsAlreadyRegistered(
     reply: FastifyReply,
     token: RecoveryTokenRow,
@@ -204,12 +193,11 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         .where(eq(users.id, token.userId))
         .limit(1);
       if (!account) {
-        // The account backing this token no longer exists; nothing to register against.
         sendTokenError(reply, "invalid");
         return;
       }
       if (!account.active) {
-        // A deactivated account can't recover access, so its link is as unusable as an unknown one.
+        // Same response as an unknown token, so a deactivated account isn't distinguishable.
         await rejectToken(reply, "registration_options", "invalid", token);
         return;
       }
@@ -358,7 +346,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           .onConflictDoNothing({ target: passkeys.credentialId })
           .returning({ id: passkeys.id });
         if (!newPasskey) {
-          // Throwing rolls the burn back, so the link stays usable with a different authenticator.
+          // Throws to roll the transaction's burn back, so the link stays usable for a retry.
           throw new CredentialAlreadyRegistered();
         }
 
@@ -398,8 +386,6 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
           { now },
         );
 
-        // Redeeming a recovery link ends every session already open on the account (drafts/docs
-        // §12.3 ~3878, §9.7 ~3204); it never opens a new one itself.
         await tx
           .update(sessions)
           .set({ revokedAt: redeemedAt })
@@ -419,8 +405,7 @@ export function registerRecoveryRedemptionRoutes<TQueryResult extends PgQueryRes
         return;
       }
       if (!outcome.burned) {
-        // Lost a race with a concurrent redemption of the same token: reclassify it fresh so the
-        // response matches what actually happened instead of assuming it was this request's own.
+        // Lost a race to another redemption; reclassify fresh instead of assuming why it lost.
         const raced = await classifyRecoveryToken(options.db, tokenHash, now());
         await rejectToken(
           reply,

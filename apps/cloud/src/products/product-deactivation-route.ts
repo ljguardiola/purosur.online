@@ -18,14 +18,9 @@ const NOT_FOUND_RESPONSE = {
 
 type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
 
-/**
- * Registers `POST /products/:id/deactivation`, gated by the `manage_products_and_categories`
- * permission (an Administrator always holds it too), the same access and origin-check shape
- * `POST /products` and `POST /products/:id/edit` use. Unlike a user's own deactivation, this needs
- * no passkey step-up (#309 only asks for the permission). A product is never deleted, only
- * deactivated (the migration's trigger rejects any `DELETE` on `products` outright), so history
- * that already references it stays intact.
- */
+// No passkey step-up, unlike a user's own deactivation. A product is never deleted, only
+// deactivated: a database trigger rejects any `DELETE` on `products` outright, so history that
+// already references it stays intact.
 export function registerProductDeactivationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: ProductsRouteOptions<TQueryResult>,
@@ -59,10 +54,8 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
       }
 
       const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Locks this row before checking it, the same way `user-deactivation-route.ts` does: a
-        // concurrent deactivation of the same product waits instead of racing, and re-reads
-        // `active` under the lock so a second request against an already-deactivated product
-        // never re-deactivates its barcodes or re-bumps its version.
+        // Locks and re-reads `active` under the lock, so a concurrent deactivation of the same
+        // product waits instead of racing, and a second request never re-deactivates it.
         const [current] = await tx
           .select({ active: products.active, version: products.version })
           .from(products)
@@ -77,8 +70,8 @@ export function registerProductDeactivationRoute<TQueryResult extends PgQueryRes
           .set({ active: false, version: current.version + 1 })
           .where(eq(products.id, targetId));
 
-        // Mirrors the product's own flag onto its barcodes (schema.ts comment on
-        // `productBarcodes`): frees every code it held for reuse by a different, active product.
+        // Mirrors the product's own flag onto its barcodes: frees every code it held for reuse by
+        // a different, active product.
         await tx
           .update(productBarcodes)
           .set({ active: false })

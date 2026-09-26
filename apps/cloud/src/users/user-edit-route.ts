@@ -17,10 +17,8 @@ import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Same shape (and same "malformed/missing/other-branch are indistinguishable" reasoning)
-// `user-read-route.ts` answers with; both this route and its options route check the target
-// against the session's own branch before doing anything else, so an outsider never learns the id
-// exists by getting a different response from one route than the other.
+// A malformed id, a missing one, and one from another branch all answer alike, so an outsider
+// never learns which case it was.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no user with that id belongs to this branch",
@@ -50,11 +48,8 @@ const LAST_ADMINISTRATOR_RESPONSE = {
 const UNIQUE_VIOLATION = "23505";
 const EMAIL_UNIQUE_INDEX = "users_email_key";
 
-/**
- * Walks the driver error (wrapped by Drizzle as its `cause`) for a unique violation on
- * `users.email`. postgres-js, the production driver, names the index `constraint_name`; PGlite,
- * which the unit tests run on, names it `constraint`.
- */
+// Walks the driver error Drizzle wraps as `cause`, looking for a Postgres unique violation on
+// `users.email`. postgres-js names the index `constraint_name`; PGlite names it `constraint`.
 function isEmailUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
@@ -121,13 +116,6 @@ type EditOutcome =
   | { kind: "last_administrator" }
   | { kind: "applied"; user: BranchUserRow };
 
-/**
- * Registers `POST /users/:id/edit`: changes another branch user's email and role together, in one
- * transaction with a single `users.version` bump, gated by the shared passkey-authorization window
- * (`passkey-authorization-guard.ts`) instead of its own per-action step-up. Replaces the old
- * `POST /users/:id/email` (two sequential requests, one per field, could conflict on `version` and
- * half-apply). Checks the target belongs to the session's own branch before doing anything else.
- */
 export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: UsersRouteOptions<TQueryResult>,
@@ -136,8 +124,8 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
 
-  /** A malformed id would otherwise reach the database as an invalid uuid input error (500); this
-   * folds it into the same 404 a missing or another branch's id gets, matching `user-read-route.ts`. */
+  // A malformed id would otherwise reach the database as an invalid uuid input error (500); this
+  // folds it into the same 404 a missing or another branch's id gets.
   async function findTarget(locationId: string, targetId: string) {
     if (!UUID_PATTERN.test(targetId)) {
       return undefined;
@@ -199,9 +187,7 @@ export function registerUserEditRoutes<TQueryResult extends PgQueryResultHKT>(
       const outcome = await options.db
         .transaction<EditOutcome>(async (tx) => {
           // Locks the single Administrator role row before counting its active holders, so two
-          // concurrent role changes that could each leave the business without an active
-          // Administrator serialize on it instead of both reading "not the last one" and both
-          // succeeding (see the "user-role-change-concurrency" integration test).
+          // concurrent role changes serialize on it instead of both reading "not the last one".
           const [administratorRole] = await tx
             .select({ id: roles.id })
             .from(roles)

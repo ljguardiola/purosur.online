@@ -53,23 +53,13 @@ export type SetPriceOutcome =
   | { kind: "price_unchanged" }
   | { kind: "applied"; price: SetPricePriceRow; lastReviewedAt: Date };
 
-/**
- * Sets a product's price: inserts a new, append-only `prices` row and a `price_reviews` row
- * pointing at it (setting a price always counts as reviewing it), and an `audit_log` row, all in
- * one transaction. Rejects a save made over a current price the caller didn't see
- * (`expectedCurrentPriceId`, including a product just priced by someone else since) the same way
- * `editProduct` (`product-edit-route.ts`) rejects a stale product version, and rejects setting the
- * exact same price the product already carries, since confirming it without a change is a
- * separate, cheaper action (`price-confirmation-route.ts`).
- */
 export async function setPrice<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: SetPriceInput,
 ): Promise<SetPriceOutcome> {
   return db.transaction<SetPriceOutcome>(async (tx) => {
-    // Locks this one product row so a concurrent price change on it waits instead of racing: the
-    // current-price read below, and the write it may lead to, both happen against a value that
-    // cannot change out from under this transaction while it holds the lock.
+    // Locks the product row so a concurrent price change waits instead of racing the current-price
+    // read below and the write it may lead to.
     const [product] = await tx
       .select({ id: products.id })
       .from(products)
@@ -132,12 +122,7 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Registers `POST /products/:id/price`: gated by `manage_prices_and_review` (an Administrator
- * always holds it too), scoped to the price list the session's own branch works on. Like
- * `product-edit-route.ts`, this needs no passkey step-up: pricing is routine daily work, not a
- * sensitive account or role action.
- */
+// No passkey step-up: pricing is routine daily work, not a sensitive account or role action.
 export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,

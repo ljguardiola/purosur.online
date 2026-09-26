@@ -15,16 +15,10 @@ import { hashSessionId } from "./session-id.js";
 export interface SessionSignOutRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so the revoked-at timestamp is deterministic. */
   now?: () => Date;
 }
 
-/**
- * Registers `POST /users/session/sign-out`: requires the session cookie, revokes that session,
- * and clears the cookie. Revoking only a still-live row (`revokedAt is null`) makes a repeated
- * call idempotent, and a cookie whose session is already gone or unknown still succeeds and still
- * clears the cookie, since there is nothing left to sign out of.
- */
+/** Revoking only a still-live row (`revokedAt is null`) makes a repeated call idempotent. */
 export function registerSessionSignOutRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: SessionSignOutRouteOptions<TQueryResult>,

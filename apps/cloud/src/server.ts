@@ -30,23 +30,14 @@ export interface ServerEnv {
   SENTRY_DSN?: string | undefined;
   SENTRY_ENVIRONMENT?: string | undefined;
   BACKOFFICE_STATIC_DIR?: string | undefined;
-  /** Once set, the recovery-by-email feature wires up: see `resolveRecoveryEnv`. */
   DATABASE_URL?: string | undefined;
   RESEND_API_KEY?: string | undefined;
   RECOVERY_EMAIL_FROM?: string | undefined;
   RECOVERY_EMAIL_REPLY_TO?: string | undefined;
   BACKOFFICE_ORIGIN?: string | undefined;
-  /** Opts into `resolveRecoveryEmailSenderEnv`'s logging transport on the exact value "log". */
   RECOVERY_EMAIL_TRANSPORT?: string | undefined;
-  /** The value Cloudflare's edge sets on every request it forwards; see `edge-origin-guard.ts`. */
   EDGE_ORIGIN_SECRET?: string | undefined;
-  /**
-   * The PEM text of the ARCA X.509 certificate the business is authorized under at the tax
-   * authority: its subject carries the authorized CUIT (see `requireAuthorizedCuit`). Required
-   * once `DATABASE_URL` is configured, the same "required whenever the database-backed features
-   * wire up" shape `RECOVERY_EMAIL_FROM` and friends already have in `resolveRecoveryEnv`. #46
-   * will add the matching private key alongside it.
-   */
+  /** PEM text of the ARCA X.509 certificate authorizing this business at the tax authority. */
   ARCA_CERTIFICATE?: string | undefined;
 }
 
@@ -56,7 +47,6 @@ const DEFAULT_VERSION = "unknown";
 // apps/cloud/Dockerfile copies the backoffice build to public/, a sibling of this file's dist/.
 const DEFAULT_STATIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
-/** `APP_VERSION` is baked into the image at build time (the commit SHA); "unknown" is a dev-only fallback. */
 export function resolveVersion(env: ServerEnv): string {
   return env.APP_VERSION ? env.APP_VERSION : DEFAULT_VERSION;
 }
@@ -70,10 +60,6 @@ function holdsBackofficeBuild(dir: string): boolean {
   return existsSync(join(dir, "index.html"));
 }
 
-/**
- * An explicit `BACKOFFICE_STATIC_DIR` must hold a build, or startup fails. The default directory
- * is used only when it holds one, so the service still starts without a backoffice build.
- */
 export function resolveStaticDir(env: ServerEnv, defaultDir: string): string | undefined {
   const explicitDir = env.BACKOFFICE_STATIC_DIR;
   if (explicitDir) {
@@ -101,10 +87,7 @@ function requireRecoveryEnvVar(env: ServerEnv, name: keyof ServerEnv & string): 
   return value;
 }
 
-/**
- * Required on every start, not only once a database is configured: the edge guard applies to
- * every route (`GET /health` excepted) regardless of which optional features are wired up.
- */
+/** Required unconditionally: the edge guard applies to every route (`GET /health` excepted). */
 export function requireEdgeOriginSecret(env: ServerEnv): string {
   const value = env.EDGE_ORIGIN_SECRET;
   if (!value) {
@@ -116,10 +99,7 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
 const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (\d{11})$/;
 const SERIAL_NUMBER_PREFIX = "serialNumber=";
 
-/**
- * Node renders each RDN of the subject on its own line, joining the attributes of a
- * multi-valued RDN with ` + ` (a literal `+` inside a value comes out escaped as `\+`).
- */
+/** Node renders each RDN on its own line, joining a multi-valued RDN's attributes with ` + `. */
 function extractSerialNumber(subject: string): string | undefined {
   for (const line of subject.split("\n")) {
     for (const attribute of line.split(" + ")) {
@@ -132,21 +112,14 @@ function extractSerialNumber(subject: string): string | undefined {
 }
 
 /**
- * Railway and GitHub deliver a multi-line variable either with real newlines or, when the
- * delivery mechanism collapses them into one line, as the literal two-character sequence `\n`;
- * both are accepted so the PEM parses either way.
+ * Railway and GitHub deliver a multi-line variable either with real newlines or, collapsed to one
+ * line, as the literal two-character sequence `\n`; both are accepted so the PEM parses either way.
  */
 function normalizePemNewlines(pem: string): string {
   return pem.includes("\\n") ? pem.replaceAll("\\n", "\n") : pem;
 }
 
-/**
- * Parses `ARCA_CERTIFICATE` (the PEM text of the ARCA X.509 certificate) and returns the CUIT
- * carried in its subject's `serialNumber` (ARCA's own `CUIT <11 digits>` form), normalized to
- * `NN-NNNNNNNN-N`: called once `DATABASE_URL` is configured, so a missing or malformed
- * certificate fails startup the same way a missing `RESEND_API_KEY` does in
- * `resolveRecoveryEnv`, before any database or job-queue resource opens.
- */
+/** ARCA's X.509 subject carries the authorized CUIT as `serialNumber=CUIT <11 digits>`. */
 export function requireAuthorizedCuit(env: ServerEnv): string {
   const pem = env.ARCA_CERTIFICATE;
   if (!pem) {
@@ -177,10 +150,6 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
 const LOG_RECOVERY_EMAIL_TRANSPORT_VALUE = "log";
 const LOCAL_BACKOFFICE_ORIGIN_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 
-/**
- * True only for a `BACKOFFICE_ORIGIN` whose hostname is exactly "localhost" or "127.0.0.1" (any
- * port); a malformed origin is never local.
- */
 function isLocalBackofficeOrigin(backofficeOrigin: string | undefined): boolean {
   if (!backofficeOrigin) {
     return false;
@@ -193,12 +162,8 @@ function isLocalBackofficeOrigin(backofficeOrigin: string | undefined): boolean 
 }
 
 /**
- * Fails closed to `resend`: only the exact value "log", together with a local `BACKOFFICE_ORIGIN`,
- * opts into the logging transport, so an unset or misspelled `RECOVERY_EMAIL_TRANSPORT` can never
- * silently stop sending real recovery email in a deployed environment, and a `log` value that
- * reaches a deployed environment by mistake fails startup loudly instead of silently going dark —
- * recovery is the only way back into an account, so a crash here is safer than a no-op. Deployed
- * environments never set `RECOVERY_EMAIL_TRANSPORT` at all, so they always resolve to `resend`.
+ * Fails closed to `resend`: an unset or misspelled `RECOVERY_EMAIL_TRANSPORT` must never silently
+ * stop sending real recovery email, so a stray "log" value crashes startup instead of going dark.
  */
 export function resolveRecoveryEmailSenderEnv(env: ServerEnv): RecoveryEmailSenderEnv {
   if (env.RECOVERY_EMAIL_TRANSPORT === LOG_RECOVERY_EMAIL_TRANSPORT_VALUE) {
@@ -213,12 +178,6 @@ export function resolveRecoveryEmailSenderEnv(env: ServerEnv): RecoveryEmailSend
   return { transport: "resend", resendApiKey: requireRecoveryEnvVar(env, "RESEND_API_KEY") };
 }
 
-/**
- * The recovery-by-email feature wires up once `DATABASE_URL` is set, the same
- * dev-friendly default `resolveStaticDir` uses for the backoffice build above: a missing database
- * lets the service start without it (e.g. in a test), but a configured database with the rest of
- * this config missing is a real misconfiguration and fails fast instead of starting half-wired.
- */
 export function resolveRecoveryEnv(env: ServerEnv): RecoveryEnv | undefined {
   if (!env.DATABASE_URL) {
     return undefined;
@@ -241,14 +200,10 @@ export interface RecoveryInfrastructure {
 }
 
 export interface CreateRecoveryJobQueuePoolDeps {
-  /** Injected in tests; defaults to a real `pg.Pool` for `connectionString`. */
   createPool?: (connectionString: string) => Pick<pg.Pool, "on" | "end">;
 }
 
-/**
- * Owned here rather than by graphile-worker, whose own `release()` ends a pool it created without
- * waiting for it, and drops that pool's error handlers first.
- */
+/** graphile-worker's own `release()` ends a pool it created without awaiting it, so it's owned here. */
 export function createRecoveryJobQueuePool(
   connectionString: string,
   deps: CreateRecoveryJobQueuePoolDeps = {},
@@ -281,28 +236,14 @@ export async function closeRecoveryResources({
 }
 
 export interface SetUpRecoveryDeps {
-  /**
-   * Only the apps/cloud/src/recovery/*.integration.test.ts suite injects this (a fake sender), so
-   * it can run this same function — a real postgres-js pool and graphile-worker's real `run()` —
-   * against a real Testcontainers Postgres without sending a real email. Production never passes
-   * it, so `startServer` always gets the sender `resolveRecoveryEmailSenderEnv` selected.
-   */
+  /** Only an integration test injects a fake sender, to run this against a real Postgres without sending real email. */
   emailSender?: RecoveryEmailSender;
-  /**
-   * Forwarded to `createRecoveryJobQueuePool`'s own `createPool` seam. Only
-   * recovery-request-wiring.integration.test.ts injects this, to hand the job-queue pool a
-   * `pg.Pool` with no idle reaper, so a test observing its connection stays there while it
-   * waits — and never races pg-pool's own idle timeout to do so.
-   */
+  /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateRecoveryJobQueuePoolDeps["createPool"];
 }
 
 /**
- * Connects to the database for the HTTP request path, and separately starts graphile-worker
- * (`recovery-worker.ts`) so this same process also processes the jobs `POST
- * /users/recovery/request` enqueues. Covered by apps/cloud/src/recovery/*.integration.test.ts
- * against a real Testcontainers Postgres: graphile-worker's `run()` expects its schema already
- * installed by `migrate.ts` and needs a real Postgres connection with LISTEN/NOTIFY, which this
+ * graphile-worker's `run()` needs a real Postgres connection with LISTEN/NOTIFY, which this
  * repository's PGlite-based test database does not provide.
  */
 export async function setUpRecovery(
@@ -357,9 +298,6 @@ export async function startServer(
 
   const edgeOriginSecret = requireEdgeOriginSecret(env);
   const recoveryEnv = resolveRecoveryEnv(env);
-  // Validated before any database or job-queue resource opens, the same "fails fast" shape
-  // `edgeOriginSecret` above has; gated on `DATABASE_URL` because the routes that need it only
-  // wire up alongside every other database-backed feature below.
   const database = recoveryEnv
     ? { authorizedCuit: requireAuthorizedCuit(env), recovery: await doSetUpRecovery(recoveryEnv) }
     : undefined;

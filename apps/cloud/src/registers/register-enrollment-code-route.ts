@@ -18,18 +18,15 @@ import type { RegistersRouteOptions } from "./registers-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** A malformed id and one that simply doesn't belong to this branch answer alike, the same
- * "none of the two ever leaks which one it was" reasoning `user-deactivation-route.ts` applies to a
- * user id. */
+// A malformed id and one that simply doesn't belong to this branch answer alike, so the response
+// never leaks which case it was.
 const REGISTER_NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no register with that id belongs to this branch",
 } as const;
 
-/** 15 minutes from the moment a code is emitted, the design doc's own window for it. */
 export const REGISTER_ENROLLMENT_CODE_WINDOW_MS = 15 * 60 * 1000;
 
-/** Finds `registerId` only when it belongs to `locationId`; otherwise `undefined`, same as a missing id. */
 async function findBranchRegister<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
@@ -57,12 +54,8 @@ export interface EmittedRegisterEnrollmentCode {
   expiresAt: Date;
 }
 
-/**
- * Replaces the register's pending enrollment code (there is ever only one, `register_id` being
- * both primary and foreign key on `register_enrollment_codes`) and audits it, in one transaction.
- * The audit row records only the new `expires_at`, and the previous one when this emission replaced
- * a still-pending code: the code and its hash never appear in it.
- */
+// register_id is both primary and foreign key on register_enrollment_codes, so there's ever only
+// one code per register; onConflictDoUpdate below replaces it.
 export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EmitRegisterEnrollmentCodeInput,
@@ -127,14 +120,6 @@ export async function emitRegisterEnrollmentCode<TQueryResult extends PgQueryRes
   return { code: rawCode, expiresAt };
 }
 
-/**
- * Registers `POST /registers/:id/enrollment-code`: emits a fresh, single-use enrollment code for a
- * register of the session's own branch (404 for a malformed, missing, or other-branch id, the same
- * "identical 404" shape `user-deactivation-route.ts` uses for its own target lookup), gated by the
- * `enroll_register_devices` permission (an Administrator always holds it too) and the shared
- * passkey-authorization window (`passkey-authorization-guard.ts`). The register lookup runs before
- * the passkey check, the same order `user-deactivation-route.ts` uses for its own target lookup.
- */
 export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RegistersRouteOptions<TQueryResult>,

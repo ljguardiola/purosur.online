@@ -57,7 +57,6 @@ type SessionCheck<TResult> = <TQueryResult extends PgQueryResultHKT>(
   options: BackofficeSessionCheckOptions<TQueryResult>,
 ) => Promise<TResult>;
 
-/** The database and clock a route's session is checked against, whatever driver it runs on. */
 export interface RouteSessionSource {
   check<TResult>(
     sessionCheck: SessionCheck<TResult>,
@@ -79,14 +78,12 @@ export function routeSessionSource<TQueryResult extends PgQueryResultHKT>(option
 
 declare module "fastify" {
   interface FastifyContextConfig {
-    /** The route's declared access level, enforced before its handler runs. */
     access?: RouteAccess;
     /** Where the session is checked, for every declared level other than `public`. */
     sessionSource?: RouteSessionSource;
   }
 
   interface FastifyInstance {
-    /** Every route registered since `registerRouteAccess`, with its declared access. */
     routeAccessInventory(): RouteAccessEntry[];
   }
 }
@@ -100,7 +97,6 @@ export interface RouteAccessEntry {
 const resolvedSessions = new WeakMap<FastifyRequest, OpenSession>();
 const resolvedSessionCookies = new WeakMap<FastifyRequest, string>();
 
-/** The session cookie a `session_cookie` route's declared access required before its handler ran. */
 export function sessionCookieOf(request: FastifyRequest): string {
   const rawSessionId = resolvedSessionCookies.get(request);
   if (!rawSessionId) {
@@ -111,10 +107,7 @@ export function sessionCookieOf(request: FastifyRequest): string {
   return rawSessionId;
 }
 
-/**
- * The open session the route's declared access resolved before its handler ran. Only a route
- * declaring `open_session`, `open_session_peek`, `administrator`, or a `permission` has one.
- */
+/** Only a route declaring `open_session`, `open_session_peek`, `administrator`, or a `permission` has one. */
 export function openSessionOf(request: FastifyRequest): OpenSession {
   const session = resolvedSessions.get(request);
   if (!session) {
@@ -125,10 +118,7 @@ export function openSessionOf(request: FastifyRequest): OpenSession {
   return session;
 }
 
-/**
- * Adapts a route's own origin check to a `preHandler`, so it runs before the declared access is
- * enforced (the enforcement is appended after the route's own `preHandler`s).
- */
+/** Adapts a route's own origin check to a `preHandler`, so it runs before the declared access enforcement, appended after it. */
 export function originGuard(
   check: (request: FastifyRequest, reply: FastifyReply) => boolean,
 ): preHandlerAsyncHookHandler {
@@ -211,11 +201,7 @@ async function enforceDeclaredAccess(
   return undefined;
 }
 
-/**
- * Declares `access` for every route a third-party plugin registers inside `scope`, for a plugin
- * (like `@fastify/static`) that takes no per-route config of its own. Only reaches routes
- * registered in that encapsulated scope, never the rest of the app.
- */
+/** For a plugin (like `@fastify/static`) that takes no per-route config of its own; reaches only routes registered in `scope`, never the rest of the app. */
 export function declarePluginRoutesAccess(scope: FastifyInstance, access: RouteAccess): void {
   scope.addHook("onRoute", (routeOptions) => {
     routeOptions.config = { ...routeOptions.config, access };
@@ -226,15 +212,7 @@ function declaredAccessOf(routeOptions: RouteOptions): RouteAccess | undefined {
   return routeOptions.config?.access;
 }
 
-/**
- * Installs, once per app, the one mechanism that enforces every route's declared `config.access`
- * before its handler: each route registered afterwards gets `enforceDeclaredAccess` appended to its
- * own `preHandler`s (so a route's origin guard still runs first), and is recorded for
- * `routeAccessInventory()`. Every route-registration function calls it, so a route registered on a
- * bare `Fastify()` instance in a test is enforced exactly as in the built app. A route with no
- * declaration is refused with 403, and one declaring a session level without a session source
- * can't be registered at all.
- */
+/** A route with no declared access is refused with 403; one declaring a session level without a session source can't be registered at all. */
 export function registerRouteAccess(app: FastifyInstance): void {
   if (app.hasDecorator("routeAccessInventory")) {
     return;

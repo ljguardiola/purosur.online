@@ -14,16 +14,9 @@ import {
 export interface PasskeysListRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so idle/absolute expiry are checked against a deterministic clock. */
   now?: () => Date;
 }
 
-/**
- * Registers `GET /users/passkeys`: requires an already-open session (the same open-session
- * access `GET /users/session` declares, behind its same-origin guard) and
- * returns only that session's own account passkeys, oldest first, so the backoffice can list them
- * by name with registration date and last use.
- */
 export function registerPasskeysListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeysListRouteOptions<TQueryResult>,

@@ -15,7 +15,6 @@ import {
 export interface PasskeyRemovalRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
   backofficeOrigin: string;
-  /** Injected in tests so audited timestamps are deterministic. */
   now?: () => Date;
 }
 
@@ -26,13 +25,6 @@ const NOT_FOUND_RESPONSE = {
   message: "no passkey with that id belongs to this account",
 } as const;
 
-/**
- * Registers `POST /users/passkeys/:id/remove`: removes a passkey from an already-open session's
- * account — which may be the very one used to (re)authorize — gated by the shared
- * passkey-authorization window (`passkey-authorization-guard.ts`) instead of its own per-action
- * step-up. Never revokes the session, and removing the account's only remaining passkey is
- * allowed.
- */
 export function registerPasskeyRemovalRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PasskeyRemovalRouteOptions<TQueryResult>,

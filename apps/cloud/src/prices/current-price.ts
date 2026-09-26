@@ -19,10 +19,7 @@ export async function latestReviewedAt<TQueryResult extends PgQueryResultHKT>(
   return latest?.reviewedAt;
 }
 
-/**
- * `now`, unless an already committed moment is at or after it: then one millisecond after the
- * latest of those. Callers' clocks can disagree, so this keeps a later commit recorded as later.
- */
+// Callers' clocks can disagree, so this keeps a later commit recorded as later than an earlier one.
 export function momentAfter(now: Date, committed: (Date | undefined)[]): Date {
   let moment = now.getTime();
   for (const date of committed) {

@@ -2,11 +2,7 @@ import { eq, inArray, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { signInChallenges } from "../db/schema.js";
 
-/**
- * How long a challenge `POST /users/session/authentication-options` issued stays redeemable.
- * Generous relative to `generateAuthenticationOptions`'s own 60-second client-side timeout, so a
- * slow biometric prompt never loses to server-side pruning before the browser itself gives up.
- */
+/** Generous relative to `generateAuthenticationOptions`'s own 60-second client-side timeout, so a slow biometric prompt never loses to server-side pruning. */
 export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
@@ -28,11 +24,7 @@ export async function storeSignInChallenge<TQueryResult extends PgQueryResultHKT
   await db.insert(signInChallenges).values({ challenge: input.challenge, createdAt: input.now });
 }
 
-/**
- * Reports whether `challenge` is one this server issued and is still within its lifetime, and
- * deletes its row either way: a challenge is redeemable at most once, whether the attempt that
- * spends it succeeds or not.
- */
+/** Deletes the row either way: a challenge is redeemable at most once, whether the attempt succeeds or not. */
 export async function consumeSignInChallenge<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: ConsumeSignInChallengeInput,
@@ -47,7 +39,6 @@ export async function consumeSignInChallenge<TQueryResult extends PgQueryResultH
   return row.createdAt.getTime() + CHALLENGE_TTL_MS > input.now.getTime();
 }
 
-/** Deletes challenges nobody ever redeemed once they've aged past their lifetime. */
 export async function pruneExpiredSignInChallenges<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   now: Date,

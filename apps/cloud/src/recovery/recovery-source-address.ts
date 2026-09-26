@@ -5,9 +5,8 @@ export interface SourceAddressRequest {
   ip: string;
 }
 
-// Cloudflare's published edge ranges, from https://www.cloudflare.com/ips-v4 and
-// https://www.cloudflare.com/ips-v6. Cloudflare changes them rarely and announces it; a missing
-// new range only makes clients behind it share that edge's rate limit until this list is updated.
+// Cloudflare's published edge IP ranges. They change rarely; a missing new one only makes
+// clients behind it share that edge's rate limit until this list is updated.
 const CLOUDFLARE_IPV4_RANGES = [
   "173.245.48.0/20",
   "103.21.244.0/22",
@@ -59,12 +58,9 @@ function singleHeader(value: string | string[] | undefined): string | undefined 
 }
 
 /**
- * Railway terminates TLS and sets X-Real-IP to the connecting peer; `request.ip` is only a
- * fallback for an environment without that proxy in front (e.g. running the service directly in
- * tests). Staging's hostname is proxied by Cloudflare, so that peer is often a Cloudflare edge
- * shared by many clients: only then is Cloudflare's own CF-Connecting-IP trusted, since any
- * client can send that header straight to Railway. Shared by every `/users/recovery/*` route so
- * they all key their per-source-address rate limit the same way.
+ * Railway sets X-Real-IP to the connecting peer (`request.ip` is only a no-proxy fallback).
+ * CF-Connecting-IP is trusted only when that peer is a Cloudflare edge, since any client could
+ * otherwise send that header straight to Railway.
  */
 export function resolveSourceAddress(request: SourceAddressRequest): string {
   const peer = singleHeader(request.headers["x-real-ip"]) ?? request.ip;

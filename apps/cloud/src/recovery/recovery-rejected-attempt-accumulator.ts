@@ -16,19 +16,12 @@ export interface RecordRejectedAttemptInput {
   now: Date;
 }
 
-/** Floors a timestamp to the start of its hour, the accumulator's grouping window. */
 export function windowStartFor(now: Date): Date {
   return new Date(Math.floor(now.getTime() / RECOVERY_WINDOW_MS) * RECOVERY_WINDOW_MS);
 }
 
-/**
- * Records one rejected request or redemption attempt against the grouped-audit accumulator: a
- * single synchronous upsert, identical work whether or not the key resolves to a real account, so
- * a flood of rejections never costs more than one row per (kind, key, hour). The
- * row's `count` grows with each attempt, and `first_at`/`last_at` keep the earliest and latest
- * attempt time whatever order concurrent attempts land in. A `recovery-rejected-attempt-flush.ts`
- * cron task later turns closed windows into audit rows and deletes the accumulator rows it flushed.
- */
+/** One row per (kind, key, hour): identical work whether or not the key resolves to a real
+ * account, so a flood of rejections never costs more than one upsert each. */
 export async function recordRejectedAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: RecordRejectedAttemptInput,

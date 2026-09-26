@@ -43,20 +43,13 @@ export type ConfirmPriceOutcome =
   | { kind: "stale_price" }
   | { kind: "confirmed"; lastReviewedAt: Date };
 
-/**
- * Confirms a product's current price without changing it: inserts a `price_reviews` row pointing
- * at that same price (never a new `prices` row) and an `audit_log` row, in one transaction.
- * Rejected the same way `setPrice` (`price-set-route.ts`) rejects a stale current price, and
- * rejected outright for a product with no price yet, since the issue's own business rules give it
- * nothing to confirm: it can only be priced for the first time.
- */
 export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: ConfirmPriceInput,
 ): Promise<ConfirmPriceOutcome> {
   return db.transaction<ConfirmPriceOutcome>(async (tx) => {
-    // Same reasoning as `setPrice`'s own lock: a concurrent price change or confirmation on this
-    // product waits instead of racing the current-price read below.
+    // Locks the product row so a concurrent price change or confirmation waits instead of racing
+    // the current-price read below.
     const [product] = await tx
       .select({ id: products.id })
       .from(products)
@@ -104,10 +97,6 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Registers `POST /products/:id/price-confirmation`: the same gate, scope, and no-reauth reasoning
- * `registerPriceSetRoute` (`price-set-route.ts`) documents for `POST /products/:id/price`.
- */
 export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: PricesRouteOptions<TQueryResult>,

@@ -49,13 +49,6 @@ export function readSaleUnit(body: unknown): SaleUnit | undefined {
   return raw === "UNIT" || raw === "KG" ? raw : undefined;
 }
 
-/**
- * Reads the `netContent` object from the request body: `undefined` when the key is absent or
- * explicitly `null` (no net content, and on edit, clearing it), the literal `"invalid"` when
- * exactly one of `quantity`/`unit` is present or `unit` is not a listed one, or the parsed
- * `{ quantity, unit }` pair otherwise. `quantity`'s own bounds (positive, at most 3 decimals) are
- * checked by `validateProductFields`, the same split `readProductName` and its length limit use.
- */
 export function readNetContent(body: unknown): NetContentInput | "invalid" | undefined {
   const raw = (body as { netContent?: unknown } | undefined)?.netContent;
   if (raw === undefined || raw === null) {
@@ -101,11 +94,8 @@ export interface ProductFieldsInput {
   netContent?: NetContentInput | "invalid" | undefined;
 }
 
-/**
- * Validates the fields shared by product creation and edit, in the order the backoffice's form
- * fields appear: name, category, sale unit, barcodes, then net content. Whether `categoryId` names
- * an existing category is checked separately against the database, not here.
- */
+// Checks fields in the order the backoffice's form fields appear, so a validation error points to
+// the first one the person would actually see. Whether `categoryId` exists is checked separately.
 export function validateProductFields(
   input: ProductFieldsInput,
 ): ProductFieldValidationFailure | undefined {

@@ -7,8 +7,7 @@ import { recoveryRateLimitAttempts } from "../db/schema.js";
 export const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
 const DESTINATION_ADDRESS_LIMIT_PER_HOUR = 5;
 const SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
-// The same per-source budget as the request endpoint's source-address limit, shared by both
-// `registration-options` and `redeem` so probing either one counts against it.
+// Shared by `registration-options` and `redeem`, so probing either one counts against the other.
 const REDEMPTION_SOURCE_ADDRESS_LIMIT_PER_HOUR = 10;
 const PRUNE_BATCH_SIZE = 100;
 
@@ -38,10 +37,7 @@ interface RateLimitedKey {
   limit: number;
 }
 
-/**
- * Shared with `recovery-rejected-attempt-accumulator.ts` so a rejected request's accumulator key
- * hashes the destination address exactly as this rate limiter's own counter does.
- */
+/** Kept consistent with the rejected-attempt accumulator's own hashing of the same address. */
 export function hashDestinationAddress(normalizedAddress: string): string {
   return createHash("sha256").update(normalizedAddress).digest("hex");
 }
@@ -60,12 +56,7 @@ async function pruneExpiredAttempts<TQueryResult extends PgQueryResultHKT>(
   await db.delete(recoveryRateLimitAttempts).where(inArray(recoveryRateLimitAttempts.id, expired));
 }
 
-/**
- * Admits an attempt only when every key has fewer than its limit of attempts in the last 60
- * minutes, and records it against every key in that case. A rejected attempt records nothing, so
- * the reported wait is exactly when the oldest counted attempt leaves the window. Each key is
- * locked for the transaction, so concurrent attempts can never both take the last slot.
- */
+/** Each key is locked for the transaction, so concurrent attempts can never both take the last slot. */
 async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   keys: RateLimitedKey[],
@@ -113,13 +104,8 @@ async function recordAttempt<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Records one recovery-request attempt against both the destination account's address (stored
- * only as its SHA-256 hash) and the source address it came from, and reports whether either
- * rolling one-hour limit (5 per destination, 10 per source) was already reached. Checks both
- * whether or not the destination address belongs to a real account, so the outcome never
- * depends on the account's existence.
- */
+/** Checked regardless of whether the destination address belongs to a real account, so the
+ * outcome never reveals account existence. */
 export async function recordRecoveryRequestAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: RecoveryRateLimitInput,
@@ -142,12 +128,6 @@ export async function recordRecoveryRequestAttempt<TQueryResult extends PgQueryR
   );
 }
 
-/**
- * Records one attempt against `POST /users/recovery/registration-options` or `POST
- * /users/recovery/redeem` and reports whether the shared per-source-address redemption budget
- * (10 in any rolling hour) was already reached. Kept as its own key kind so probing the redeem
- * side never affects, or is affected by, the request endpoint's own source-address limit.
- */
 export async function recordRedemptionAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: RedemptionRateLimitInput,

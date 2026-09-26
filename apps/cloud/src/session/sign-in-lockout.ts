@@ -4,11 +4,9 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { signInFailures, signInLockouts } from "../db/schema.js";
 
-/** The rolling window `sign_in_failures` counts a source address's failed attempts over. */
 export const SIGN_IN_LOCKOUT_WINDOW_MS = 60 * 60 * 1000;
-/** A source address reaching this many failed attempts within the window earns a block. */
 export const SIGN_IN_FAILURE_LIMIT = 10;
-/** How long a tripped block lasts, counted from the attempt that tripped it. */
+/** Counted from the attempt that tripped it, not from when the block was checked. */
 export const SIGN_IN_BLOCK_DURATION_MS = 15 * 60 * 1000;
 const PRUNE_BATCH_SIZE = 100;
 
@@ -33,16 +31,10 @@ export type SignInAttemptAdmission =
     };
 
 export interface ConfirmedSignInRejection {
-  /** Set only by the call that set the block, so each block is audited once. */
   trippedLockout: TrippedSignInLockout | null;
 }
 
-/**
- * Hashes a source address for the audit log the same way the recovery rate limiter hashes its
- * destination-address key (SHA-256, hex-encoded): the lockout tables themselves key by the raw
- * address (never looked up by anything else), but a permanent audit row never stores it in the
- * clear.
- */
+/** The lockout tables key by the raw address, but a permanent audit row never stores it in the clear. */
 export function hashSourceAddress(sourceAddress: string): string {
   return createHash("sha256").update(sourceAddress).digest("hex");
 }
@@ -86,11 +78,7 @@ function countAttemptsInWindow(tx: LockedTransaction, sourceAddress: string, win
     );
 }
 
-/**
- * Sets the address's 15-minute block and spends the attempts it was built from, so the block lasts
- * the 15 minutes it says it does: the next one needs its own `SIGN_IN_FAILURE_LIMIT` rejected
- * attempts instead of the same ones re-arming it for the rest of the hour.
- */
+/** Spends the attempts it was built from, so the next block needs its own `SIGN_IN_FAILURE_LIMIT` rejected attempts instead of the same ones re-arming it. */
 async function tripLockout(
   tx: LockedTransaction,
   sourceAddress: string,
@@ -108,8 +96,6 @@ async function tripLockout(
   }
   await tx.delete(signInFailures).where(eq(signInFailures.sourceAddress, sourceAddress));
 
-  // The one place that actually trips a block, whether admitSignInAttempt caps a burst or
-  // confirmRejectedSignInAttempt settles the attempt that reaches the limit.
   await openAlert(
     tx,
     {
@@ -124,16 +110,9 @@ async function tripLockout(
 }
 
 /**
- * Decides whether a source address may attempt to sign in at all, and records the attempt against
- * it in the same locked transaction, the way `recovery-rate-limiter.ts` records before admitting
- * the work it guards. Recording first is what makes the limit bind: an attempt is counted from the
- * moment it is admitted, so concurrent attempts from one address see each other and only
- * `SIGN_IN_FAILURE_LIMIT` of them ever reach credential verification.
- *
- * Only a caller already holding a real authentication attempt may take a slot. A request with
- * nothing to verify must never reach here, so there is never a slot to give back: the recorded
- * attempt stands as a rejected one until `confirmRejectedSignInAttempt` settles it, or
- * `discardSignInAttempt` takes it back for a sign-in that succeeded.
+ * Records the attempt in the same locked transaction as the admission check, before credential
+ * verification: this is what makes the limit bind under concurrency, since concurrent attempts
+ * from one address see each other's count.
  */
 export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
@@ -154,8 +133,7 @@ export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
       } as const;
     }
 
-    // Reaching the limit with no block live means that many attempts are in flight and none has
-    // been settled yet: refusing here is what caps a burst from one address at the limit.
+    // Reaching the limit with no block live means that many attempts are in flight, unsettled: refusing here caps the burst.
     const counted = await countAttemptsInWindow(tx, input.sourceAddress, windowStart);
     if (counted.length >= SIGN_IN_FAILURE_LIMIT) {
       const tripped = await tripLockout(tx, input.sourceAddress, input.now, counted.length);
@@ -178,12 +156,7 @@ export async function admitSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   });
 }
 
-/**
- * Settles an admitted attempt as the rejected sign-in it turned out to be, and blocks the address
- * when this is the attempt that reaches the limit. The rule blocks an address that *reaches*
- * `SIGN_IN_FAILURE_LIMIT` rejected attempts within the window, so that attempt still gets the
- * uniform rejection it earned, and the block it sets is what the next request meets.
- */
+/** Blocks the address on the attempt that *reaches* the limit, so that attempt still gets the uniform rejection it earned. */
 export async function confirmRejectedSignInAttempt<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: SignInAttemptInput,

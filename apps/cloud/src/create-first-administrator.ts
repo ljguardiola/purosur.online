@@ -41,7 +41,6 @@ export function parseCreateFirstAdministratorArgs(
   return { name: values.name, email: values.email };
 }
 
-/** Runs the use case against a real database connection, closing it whether it succeeds or fails. */
 export async function runCreateFirstAdministrator(
   databaseUrl: string,
   input: ParsedCreateFirstAdministratorArgs,

@@ -6,12 +6,7 @@ export interface EscalateOverdueAlertsDeps {
   now: () => Date;
 }
 
-/**
- * The graphile-worker cron task body for alert escalation: turns every open (`resolved_at is
- * null`) Warning alert whose `escalate_at` has passed into Critical, recording the moment it
- * escalated. An alert with no `escalate_at` (a kind that never escalates) and an already-Critical
- * or already-resolved one are left untouched. Returns how many alerts it escalated.
- */
+// The graphile-worker cron task body for alert escalation.
 export async function escalateOverdueAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   deps: EscalateOverdueAlertsDeps,

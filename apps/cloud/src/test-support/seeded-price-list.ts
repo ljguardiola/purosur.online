@@ -1,12 +1,7 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { priceLists } from "../db/schema.js";
 
-/**
- * Looks up the single price list the migrations seed ("Lista general"). The business runs one
- * price list today, and every branch's settings already point at it, so a test that seeds a price
- * needs this id for its `price_list_id`, the same way `seededLocationId` gives one for
- * `location_id`.
- */
+// The business runs one price list today ("Lista general"); every branch points at it.
 export async function seededPriceListId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {

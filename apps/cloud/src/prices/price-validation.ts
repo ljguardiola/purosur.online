@@ -6,7 +6,7 @@ export interface PriceFieldValidationFailure {
   message: string;
 }
 
-/** A positive integer number of cents per unit or per kilogram; anything else is rejected. */
+// Cents per unit or per kilogram, depending on the product's own sale unit.
 export function readUnitPrice(body: unknown): number | undefined {
   const raw = (body as { unitPrice?: unknown } | undefined)?.unitPrice;
   return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_UNIT_PRICE_CENTS
@@ -14,12 +14,8 @@ export function readUnitPrice(body: unknown): number | undefined {
     : undefined;
 }
 
-/**
- * The price id the caller saw as current when they submitted the change: `null` reads as "the
- * product had no price yet", a well-formed id reads as that price, and anything else is a
- * validation failure. Used by `POST /products/:id/price`, where a product can be priced for the
- * first time.
- */
+// `null` reads as "the product had no price yet"; a well-formed id reads as that price; anything
+// else is a validation failure.
 export function readExpectedCurrentPriceId(body: unknown): string | null | undefined {
   const raw = (body as { expectedCurrentPriceId?: unknown } | undefined)?.expectedCurrentPriceId;
   if (raw === null) {
@@ -28,11 +24,8 @@ export function readExpectedCurrentPriceId(body: unknown): string | null | undef
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;
 }
 
-/**
- * The price id the caller is confirming: unlike `readExpectedCurrentPriceId`, `null` is not a
- * valid answer here, since a product with no price yet has nothing to confirm. Used by
- * `POST /products/:id/price-confirmation`.
- */
+// Unlike `readExpectedCurrentPriceId`, `null` is not valid here: a product with no price yet has
+// nothing to confirm.
 export function readRequiredExpectedCurrentPriceId(body: unknown): string | undefined {
   const raw = (body as { expectedCurrentPriceId?: unknown } | undefined)?.expectedCurrentPriceId;
   return typeof raw === "string" && UUID_PATTERN.test(raw) ? raw : undefined;

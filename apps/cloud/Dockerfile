@@ -1,18 +1,14 @@
 # syntax=docker/dockerfile:1
-#
-# Build context is the repository root (a pnpm workspace): `docker build -f apps/cloud/Dockerfile .`
 
-# node:24-alpine, pinned by digest so the base image never moves under this pipeline. Resolved
-# with `docker buildx imagetools inspect node:24-alpine`.
+# Pinned by digest so the base image never moves under this pipeline.
 FROM node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS base
 RUN corepack enable
 WORKDIR /repo
 
 FROM base AS build
 COPY . .
-# Filtered install: only @purosur/cloud and its dependencies are linked, so the native toolchains
-# the register (better-sqlite3, serialport) and the design system's browser tests need are never
-# pulled into this image.
+# Filtered install: the native toolchains the register (better-sqlite3, serialport) and the
+# design system's browser tests need are never pulled into this image.
 RUN pnpm install --frozen-lockfile --filter @purosur/cloud...
 RUN pnpm --filter @purosur/cloud build
 RUN pnpm --filter @purosur/cloud deploy --prod /deploy/cloud

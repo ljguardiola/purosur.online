@@ -17,16 +17,15 @@ export const RECOVERY_REQUEST_TASK_IDENTIFIER = "recovery-request";
 export const RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER = "recovery-rejected-attempt-flush";
 export const ALERT_ESCALATION_TASK_IDENTIFIER = "alert-escalation";
 
-// Cron support is graphile-worker 0.18's own: its `RunnerOptions` takes this `crontab` string in
-// place of a crontab file (one entry per line), so no cron process or crontab file is deployed
-// alongside the service.
+// graphile-worker 0.18's `RunnerOptions` takes this `crontab` string in place of a crontab file,
+// so no separate cron process is deployed alongside the service.
 const CRONTAB = [
   `*/5 * * * * ${RECOVERY_REJECTED_ATTEMPT_FLUSH_TASK_IDENTIFIER}`,
   `*/5 * * * * ${ALERT_ESCALATION_TASK_IDENTIFIER}`,
 ].join("\n");
 
-// A slow job, such as an admitted request waiting on its email, never holds up every other one;
-// jobs for the same account still serialize on their own lock.
+// A slow job never holds up every other one; jobs for the same account still serialize on their
+// own advisory lock.
 const WORKER_CONCURRENCY = 2;
 
 export interface RecoveryWorkerHandle {
@@ -67,29 +66,16 @@ export interface StartRecoveryWorkerDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   /** Injected in tests to observe the call without a real database. */
   processJob?: typeof processRecoveryRequestJob;
-  /** Injected in tests to observe the call without a real database. */
   flush?: typeof flushClosedRecoveryRejectedAttemptWindows;
-  /** Injected in tests to observe the call without a real database. */
   escalate?: typeof escalateOverdueAlerts;
   /**
-   * Injected in tests; defaults to a real `pg.Pool` for `databaseUrl`. Owned here rather than by
-   * graphile-worker's own pool (the one it builds when only `connectionString` is given), which
-   * removes its own error handlers and calls `pgPool.end()` without awaiting it once the runner
-   * stops — leaving a window where an idle client a test's `DROP DATABASE ... WITH FORCE`
-   * disconnects mid-shutdown has no error listener and crashes the process. Keeping our own
-   * handler installed until `stop()` has actually awaited closing the pool closes that window.
+   * Owned here, not by graphile-worker's own pool: that one removes its error handlers and calls
+   * `pgPool.end()` without awaiting it once the runner stops, leaving a window where a client
+   * disconnecting mid-shutdown has no error listener and crashes the process.
    */
   createPool?: (connectionString: string) => Pick<Pool, "on" | "end">;
 }
 
-/**
- * Starts graphile-worker inside this process, so the cloud service processes its own
- * `recovery-request` jobs, and the `recovery-rejected-attempt-flush` and `alert-escalation` cron
- * tasks, without a separate worker deployment. Each job borrows a client from graphile-worker's
- * own pool rather than sharing a pool with the HTTP request path, and releases it before this task
- * does anything else: `recovery-request`'s own send only ever runs once `withPgClient` has
- * resolved, so a slow Resend call never holds a pool client checked out.
- */
 export async function startRecoveryWorker(
   options: StartRecoveryWorkerOptions,
   deps: StartRecoveryWorkerDeps = {},
@@ -106,9 +92,8 @@ export async function startRecoveryWorker(
   const pool = doCreatePool(options.databaseUrl);
   reportPoolErrors(pool, "recovery worker");
 
-  // graphile-worker 0.18 rejects a second `stop()` with "Runner is already stopped" once its
-  // worker pool or cron exited on its own (e.g. its database connections were dropped), and it
-  // emits "stop" synchronously on the emitter passed as `events` the moment that happens.
+  // graphile-worker 0.18 rejects a second `stop()` once its worker pool or cron exited on its
+  // own, and emits "stop" synchronously on the emitter passed as `events` when that happens.
   const events = new EventEmitter();
   let stoppedItself = false;
   events.once("stop", () => {
@@ -150,9 +135,8 @@ export async function startRecoveryWorker(
         {
           label: "recovery runner",
           run: async () => {
-            // In graphile-worker 0.18, `promise` settles once its worker pool and cron have exited,
-            // so a job it is still draining never sees the pool close from under it, and it never
-            // rejects.
+            // `promise` settles once graphile-worker's own pool and cron have exited, so a
+            // draining job never sees the pool close from under it.
             try {
               if (!stoppedItself) {
                 await runner.stop();

@@ -1,6 +1,5 @@
-// AFIP/ARCA's own weighted check-digit algorithm over an 11-digit CUIT, grouped NN-NNNNNNNN-N:
-// the first two digits are the taxpayer-type prefix, the next eight are per-taxpayer, and the
-// last is the check digit derived from the first ten.
+// CUIT shape NN-NNNNNNNN-N: taxpayer-type prefix, per-taxpayer digits, then AFIP's own
+// weighted check digit derived from the first ten.
 const CUIT_SHAPE_PATTERN = /^(\d{2})-?(\d{8})-?(\d)$/;
 const CUIT_CHECK_DIGIT_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2] as const;
 
@@ -22,11 +21,6 @@ function checkDigitFor(firstTenDigits: number[]): number | undefined {
   return raw;
 }
 
-/**
- * Validates and normalizes a CUIT: accepts it with or without hyphens, and returns it grouped as
- * `NN-NNNNNNNN-N` only when its last digit is the correct AFIP check digit over the first ten.
- * Returns `undefined` for anything else, including a well-shaped value with the wrong check digit.
- */
 export function parseCuit(value: string): string | undefined {
   const match = CUIT_SHAPE_PATTERN.exec(value.trim());
   if (!match) {

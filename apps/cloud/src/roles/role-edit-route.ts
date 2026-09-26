@@ -31,8 +31,7 @@ import {
 } from "./role-validation.js";
 import type { RolesRouteOptions } from "./roles-list-route.js";
 
-// Same reasoning `role-read-route.ts` gives: the Administrator role, a missing id, and a
-// malformed one all answer alike, so none of the three ever leaks which one it was.
+// The Administrator role, a missing id, and a malformed one all answer alike, so none leaks which one it was.
 const NOT_FOUND_RESPONSE = {
   code: "not_found",
   message: "no editable role with that id",
@@ -108,23 +107,14 @@ export type EditRoleOutcome =
   | { kind: "name_taken" }
   | { kind: "applied"; role: EditedRole };
 
-/**
- * Updates one hand-made role's name and permissions in one transaction, rejecting a save made over
- * a version someone else already changed the same way `user-edit-route.ts` rejects a stale user
- * save. A name that already belongs to another role is rejected
- * the same way `createRole` (`role-creation-route.ts`) rejects one, including its own database
- * backstop for a name that lands concurrently. Leaving the name and permission set exactly as they
- * were is a no-op: the version does not bump and nothing is audited.
- */
+/** Leaving the name and permission set exactly as they were is a no-op: the version does not bump and nothing is audited. */
 export async function editRole<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   input: EditRoleInput,
 ): Promise<EditRoleOutcome> {
   const outcome = await db
     .transaction<EditRoleOutcome>(async (tx) => {
-      // Locks this one row so a concurrent edit against the same role waits instead of racing: the
-      // version check below and the write it may lead to happen against a value that cannot change
-      // out from under this transaction while it holds the lock.
+      // Locks this row so a concurrent edit against the same role waits instead of racing the version check.
       const [current] = await tx
         .select({
           name: roles.name,
@@ -135,9 +125,8 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
         .where(eq(roles.id, input.id))
         .for("update");
       if (!current || current.isAdministrator) {
-        // The pre-transaction lookup already confirmed an editable role at this id; nothing in
-        // this codebase deletes a role or flips its Administrator flag, so this is unreachable in
-        // practice. Answering stale_version, not a crash, keeps this route's failure shape uniform.
+        // Unreachable in practice (nothing deletes a role or flips its Administrator flag after the
+        // pre-transaction lookup); answering stale_version keeps this route's failure shape uniform.
         return { kind: "stale_version" };
       }
       if (current.version !== input.version) {
@@ -237,11 +226,6 @@ export async function editRole<TQueryResult extends PgQueryResultHKT>(
   };
 }
 
-/**
- * Registers `POST /roles/:id/edit`: applies a change to an existing hand-made role's name or
- * permissions, gated by the shared passkey-authorization window (`passkey-authorization-guard.ts`)
- * instead of its own per-action step-up. The Administrator role is never a valid target.
- */
 export function registerRoleEditRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RolesRouteOptions<TQueryResult>,
