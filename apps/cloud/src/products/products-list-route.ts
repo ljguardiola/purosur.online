@@ -1,3 +1,4 @@
+import type { NetContentUnit } from "@purosur/contracts";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -9,7 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import type { NetContentInput, NetContentUnit, SaleUnit } from "./product-validation.js";
+import type { NetContentInput, SaleUnit } from "./product-validation.js";
 
 export type ProductStatusFilter = "active" | "inactive" | "all";
 

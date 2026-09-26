@@ -1,6 +1,17 @@
-export type SaleUnit = "UNIT" | "KG";
+import {
+  BARCODE_MAX_LENGTH,
+  barcodeLength,
+  isValidNetContentQuantity,
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
+  NET_CONTENT_UNITS,
+  type NetContentUnit,
+  PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
+  productNameLength,
+} from "@purosur/contracts";
 
-export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
+export type SaleUnit = "UNIT" | "KG";
 
 export interface NetContentInput {
   quantity: number;
@@ -17,30 +28,6 @@ export interface ProductFieldValidationFailure {
     | "netContent"
     | "netContentQuantity";
   message: string;
-}
-
-// Mirrors `@purosur/contracts`'s product limits; `product-validation.test.ts` guards against drift.
-export const PRODUCT_NAME_MAX_LENGTH = 100;
-export const BARCODE_MAX_LENGTH = 64;
-export const PRODUCT_BARCODES_MAX_COUNT = 20;
-export const NET_CONTENT_UNITS: readonly NetContentUnit[] = ["G", "KG", "ML", "L", "UNIT"];
-export const NET_CONTENT_QUANTITY_MAX = 100_000;
-const NET_CONTENT_QUANTITY_MAX_DECIMALS = 3;
-
-export function isValidNetContentQuantity(quantity: number): boolean {
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > NET_CONTENT_QUANTITY_MAX) {
-    return false;
-  }
-  const scale = 10 ** NET_CONTENT_QUANTITY_MAX_DECIMALS;
-  return Math.round(quantity * scale) / scale === quantity;
-}
-
-export function productNameLength(name: string): number {
-  return Array.from(name).length;
-}
-
-export function barcodeLength(code: string): number {
-  return Array.from(code).length;
 }
 
 export function readProductName(body: unknown): string | undefined {

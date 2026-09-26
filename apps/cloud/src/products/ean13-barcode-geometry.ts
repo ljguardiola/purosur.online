@@ -1,4 +1,4 @@
-import { ean13Modules } from "./ean13-modules.js";
+import { ean13Modules } from "@purosur/contracts";
 
 export const MODULE_WIDTH_MM = 0.33;
 export const BAR_HEIGHT_MM = 12;

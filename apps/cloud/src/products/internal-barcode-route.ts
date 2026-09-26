@@ -1,3 +1,4 @@
+import { appendEan13CheckDigit } from "@purosur/contracts";
 import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -8,7 +9,6 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { appendEan13CheckDigit } from "./ean13-check-digit.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 const INTERNAL_BARCODE_SEQUENCE_NAME = "internal_barcode_sequence";
