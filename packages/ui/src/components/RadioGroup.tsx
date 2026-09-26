@@ -5,9 +5,6 @@ export type RadioOption<V extends string = string> = {
   label: string;
 };
 
-// `value`/`onChange` wrap V in NoInfer so only `options` can widen it; combined with a non-empty
-// tuple for `options`, an empty group or an out-of-domain value fails to compile instead of
-// needing a runtime check.
 export type RadioGroupProps<V extends string> = {
   label: string;
   options: readonly [RadioOption<V>, ...RadioOption<V>[]];
@@ -28,9 +25,6 @@ const circleClassName =
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-ui)] " +
-  // Two attribute selectors outrank the single-attribute hover and selected rules above
-  // regardless of stylesheet order: the checked circle's fill stays white on hover (only its
-  // ring darkens), and its ring wins over the resting blue UI one.
   "group-data-[hovered]:group-data-[selected]:bg-surface-white " +
   "group-data-[hovered]:group-data-[selected]:shadow-[inset_0_0_0_6px_var(--color-brand-blue-strong)] " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
@@ -57,9 +51,8 @@ export function RadioGroup<V extends string>({
       aria-label={label}
       value={value}
       isDisabled={disabled}
-      // React Aria's own RadioGroupProps types onChange over plain string, but it only ever
-      // calls this with a value it read off one of our own Radio elements, whose `value` is
-      // always one of `options`' own V values, so this cast can't observe a value outside V.
+      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
+      // value read off one of our own Radio elements, always one of V.
       onChange={(nextValue) => onChange(nextValue as V)}
       className="flex flex-col gap-3"
     >

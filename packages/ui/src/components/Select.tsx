@@ -34,9 +34,8 @@ type SelectValidityProps =
   | { invalid: true; errorMessage: string }
   | { invalid?: false; errorMessage?: undefined };
 
-// `value`/`onChange` are pinned to V, inferred from `options` and wrapped in NoInfer so `value`
-// can't itself widen the inference. `value` may also be `null` for "nothing chosen yet"; `onChange`
-// itself never reports null back, since a chosen option is always one of V.
+// `value` may be `null` for "nothing chosen yet"; `onChange` never reports null back, since a
+// chosen option is always one of V.
 export type SelectProps<V extends string> = SelectCommonProps &
   SelectValidityProps & {
     options: readonly [SelectOption<V>, ...SelectOption<V>[]];
@@ -46,8 +45,6 @@ export type SelectProps<V extends string> = SelectCommonProps &
     placeholder?: string;
   };
 
-// The design has no register-scale select, so this always reads the shared backoffice
-// definitions directly instead of consulting FieldSizeProvider.
 const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 
 const baseLabelClassName = fieldLabelClassName.backoffice;
@@ -55,10 +52,8 @@ const requiredLabelClassName = `${baseLabelClassName} ${requiredFieldLabelSuffix
 
 const triggerBaseClassName = `flex min-w-0 max-w-full items-center rounded-lg border-2 outline-none ${backofficeFieldBoxClassName}`;
 
-// `data-[focused]:` reflects the trigger as focused while its menu is open too, since focus then
-// sits in the listbox but the field is still the one being edited. The attribute selector outranks
-// the plain invalid border, and `not-data-[focused]` keeps the hovered fill off a focused trigger,
-// both regardless of the generated CSS rule order.
+// react-aria keeps `data-[focused]` on the trigger while its menu is open, since focus then sits
+// in the listbox but the trigger is still the field being edited.
 function triggerStateClassName(disabled: boolean, invalid: boolean, isOpen: boolean): string {
   if (disabled) {
     return "bg-surface-white border-line";
@@ -94,16 +89,13 @@ const optionClassName =
   "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg data-[selected]:text-brand-blue-strong " +
-  // Two-attribute selectors outrank the single-attribute hover/focus rules above regardless of
-  // the generated CSS rule order.
   "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
   "data-[focus-visible]:data-[selected]:bg-brand-blue-message-bg";
 
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// react-aria-components' onSelectionChange reports a plain Key (string | number); this narrows
-// it back to V without a cast, by checking it against the actual options.
+// react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(key: Key, options: readonly SelectOption<V>[]): key is V {
   return typeof key === "string" && options.some((option) => option.value === key);
 }

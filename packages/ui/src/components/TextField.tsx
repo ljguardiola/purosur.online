@@ -50,9 +50,6 @@ type TextFieldValidityProps =
   | { invalid: true; errorMessageId: string; errorMessage?: undefined }
   | { invalid?: false; errorMessage?: undefined; errorMessageId?: undefined };
 
-// The design draws no backoffice money or kg field: those five kinds always keep their whole
-// register-sized field regardless of the ambient FieldSizeProvider; only plain text's size
-// follows the context.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }

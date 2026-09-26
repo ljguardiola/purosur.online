@@ -20,12 +20,8 @@ export type ModalContextTone =
   | "status-error-ui"
   | "status-warning-ui";
 
-// "none" is for a caller that lays out its own edge-to-edge regions (e.g. the role editor's areas
-// and detail panes) instead of a single padded block of content.
 export type ModalBodyPadding = "default" | "none";
 
-// "centered" stacks a circular icon, a centered title and the body in one column, with no context
-// line, close button or divider — distinct from the leading layout's icon-beside-title header.
 export type ModalHeaderLayout = "leading" | "centered";
 
 type ModalCommonProps = {
@@ -46,8 +42,6 @@ type ModalLeadingProps = {
   bodyPadding?: ModalBodyPadding;
 };
 
-// The centered layout draws no context line and lays its body out in its own column, so the
-// props that only style those leading-layout regions do not compile there.
 type ModalCenteredProps = {
   headerLayout: "centered";
   context?: undefined;
@@ -55,10 +49,7 @@ type ModalCenteredProps = {
   bodyPadding?: undefined;
 };
 
-// A closable modal's close button needs its own accessible name, and a non-closable modal renders
-// no close button at all, so asking for a label without `closable`, or `closable` without a
-// label, does not compile. The centered layout never draws a close button, so there `closable`
-// only lets Escape dismiss it and a label does not compile.
+// In the centered layout, `closable` only enables Escape to dismiss — it draws no close button.
 export type ModalProps = ModalCommonProps &
   (
     | (ModalLeadingProps & { closable: true; closeLabel: string })
@@ -70,7 +61,6 @@ const widthClassName: Record<ModalWidth, string> = {
   confirmation: "w-[35rem]",
   standard: "w-[40rem]",
   wide: "w-[45rem]",
-  // Wide enough for the role editor's areas pane plus the selected area's permissions side by side.
   editor: "w-[65rem]",
 };
 
@@ -96,10 +86,7 @@ const contextToneClassName: Record<ModalContextTone, string> = {
   "status-warning-ui": "text-status-warning-ui",
 };
 
-// Icon size comes from this wrapper's own CSS, never from cloning a `size` prop onto the icon.
 const headerIconWrapperClassName = "inline-flex size-6 shrink-0 [&>svg]:h-full [&>svg]:w-full";
-// The centered layout's bigger 56px icon box keeps the leading layout's 1:2 icon-to-box ratio
-// (24px in 48px) instead of looking undersized inside it.
 const centeredHeaderIconWrapperClassName =
   "inline-flex size-7 shrink-0 [&>svg]:h-full [&>svg]:w-full";
 const closeIconWrapperClassName = "inline-flex size-5 shrink-0 [&>svg]:h-full [&>svg]:w-full";

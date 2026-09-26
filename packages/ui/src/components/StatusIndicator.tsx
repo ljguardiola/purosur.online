@@ -6,7 +6,6 @@ export type StatusIndicatorTone = "success" | "warning" | "error" | "info" | "ne
 export type StatusIndicatorProps = {
   tone: StatusIndicatorTone;
   busy?: boolean;
-  // The dot/spinner alone never convey the state, so text can't be left out.
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 

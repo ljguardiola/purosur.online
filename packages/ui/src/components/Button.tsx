@@ -81,8 +81,6 @@ const secondaryToneClassName: Record<ButtonTone, string> = {
 const variantClassName: Record<ButtonVariant, string> = {
   primary: "gap-3 rounded-lg font-bold text-surface-white",
   secondary: "gap-2 rounded-md border bg-transparent font-bold data-[hovered]:bg-surface-bone",
-  // rounded-md only shows once hover paints the bone background; there's no border or fill of its
-  // own to round otherwise.
   text: "gap-2 rounded-md bg-transparent font-semibold text-status-error-ui data-[hovered]:bg-surface-bone",
 };
 

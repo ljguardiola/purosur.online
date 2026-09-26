@@ -39,11 +39,9 @@ export function paintedBoxShadowLayers(element: HTMLElement): string[] {
     .filter((layer) => !layer.startsWith("rgba(0, 0, 0, 0) "));
 }
 
-// Extracts an element's own painted boundary color as "#rrggbb", for feeding into
-// contrastRatio() alongside the fill it sits on. A box-shadow layer serializes as "<color> <x>
-// <y> <blur> <spread>[ inset]", so the color is always the leading rgb()/rgba() substring; this
-// only handles a single-layer boundary (a checked ring replaces the resting border rather than
-// stacking under it), which is the only shape this package's controls draw.
+// The color is always the leading rgb()/rgba() substring of a box-shadow layer. Only a
+// single-layer boundary is handled, since a checked ring always replaces the resting border
+// rather than stacking under it.
 export function boundaryColorHex(element: HTMLElement): string {
   const [layer, ...rest] = paintedBoxShadowLayers(element);
   if (!layer) {

@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import { Switch as AriaSwitch } from "react-aria-components";
 
-// children stays required: without it there's nothing to toggle by clicking and nothing for
-// assistive technology to name it by.
 export type ToggleProps = {
   isSelected: boolean;
   onChange: (isSelected: boolean) => void;
@@ -22,8 +20,6 @@ const trackClassName =
   "bg-surface-white shadow-[inset_0_0_0_2px_var(--color-ink-secondary)] " +
   "group-data-[hovered]:bg-surface-bone " +
   "group-data-[selected]:justify-end group-data-[selected]:bg-brand-green-ui group-data-[selected]:shadow-none " +
-  // Two attribute selectors outrank the single-attribute hover rule above regardless of
-  // stylesheet order, guaranteeing the on track's hover color wins over the off one.
   "group-data-[hovered]:group-data-[selected]:bg-brand-green-strong " +
   "group-data-[focus-visible]:outline-[3px] group-data-[focus-visible]:outline-solid " +
   "group-data-[focus-visible]:outline-offset-3 group-data-[focus-visible]:outline-brand-blue-strong";

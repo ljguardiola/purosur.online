@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 export type NoticeAssertiveness = "assertive" | "polite";
 
 // Several screen readers only detect a live region as changed once it already exists in the
-// accessibility tree (documented for @reach/alert's Alert component); one that arrives already
-// holding its full text on the same paint it's inserted with is never announced. Mounting it empty
-// and filling it from an effect a tick later turns the announcement into a real mutation.
+// accessibility tree; one that arrives already holding its full text is never announced. Mounting
+// it empty and filling it from an effect a tick later turns the announcement into a real mutation.
 export function NoticeLiveRegion({
   assertiveness,
   text,

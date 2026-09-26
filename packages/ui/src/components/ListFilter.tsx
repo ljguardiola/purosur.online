@@ -15,8 +15,6 @@ export type ListFilterOption<V extends string = string> = {
   label: string;
 };
 
-// `value`/`onChange` are pinned to V, inferred from `options` and wrapped in NoInfer so `value`
-// can't itself widen the inference.
 export type ListFilterProps<V extends string> = {
   label: string;
   options: readonly [ListFilterOption<V>, ...ListFilterOption<V>[]];
@@ -41,8 +39,7 @@ const optionClassName =
   "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone";
 
-// react-aria-components' onSelectionChange reports a plain Key (string | number); this narrows
-// it back to V without a cast, by checking it against the actual options.
+// react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<V extends string>(
   key: Key,
   options: readonly ListFilterOption<V>[],

@@ -1,7 +1,7 @@
 import { Button as AriaButton } from "react-aria-components";
 
 export type PaginationProps = {
-  // 1-based, like every page a person sees printed on the page itself.
+  // 1-based, not 0-based.
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -25,7 +25,6 @@ function ellipsisPlace(key: string): PaginationPlace {
   return { key, kind: "ellipsis" };
 }
 
-// Every ellipsis gets its own fixed key, since up to two can appear in the list.
 function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   if (pageCount <= 5) {
     return Array.from({ length: pageCount }, (_, index) => pagePlace(index + 1));
@@ -57,12 +56,9 @@ function pagePlaces(page: number, pageCount: number): PaginationPlace[] {
   ];
 }
 
-// Previous/Next are never natively disabled, so they stay focusable and in the tab order at their
-// own boundary; aria-disabled marks them unavailable for assistive technology instead. The dimmed
-// opacity (0.65) keeps the label's text at or above the WCAG AA 4.5:1 minimum against every
-// surface this button can sit on. React Aria still reports data-[hovered] on an aria-disabled
-// button (it isn't natively disabled, so pointer tracking stays live), so the hover background is
-// only ever included for the non-disabled class string.
+// aria-disabled, not native disabled, so Previous/Next stay focusable at their own boundary; the
+// 0.65 opacity keeps the label at or above WCAG AA 4.5:1. react-aria still reports data-[hovered]
+// on an aria-disabled button, so the hover background is only in the non-disabled class string.
 function navButtonClassName(disabled: boolean): string {
   return [
     "flex h-9 items-center justify-center rounded-md border border-line bg-surface-white px-3",
@@ -78,8 +74,8 @@ const pageButtonClassName =
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
 
-// Pressing the current page does nothing, so it keeps the arrow the package's base rule gives
-// only to marked-disabled buttons; marking it disabled would announce the current page as unavailable.
+// cursor-default, not aria-disabled: the current page is still present, just non-actionable, and
+// aria-disabled would announce it as unavailable instead.
 const currentPageClassName = "cursor-default bg-brand-blue-ui font-bold text-surface-white";
 // An inset shadow instead of a real border: a real border on only one of these two class strings
 // would make that button's own box 2px wider than the other's, shifting every button's width as

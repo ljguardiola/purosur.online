@@ -21,7 +21,6 @@ export const fieldLabelClassName: Record<FieldSize, string> = {
   register: "text-base font-bold text-ink",
   backoffice: "text-sm font-bold text-ink",
 };
-// A CSS pseudo-element rather than JSX text, since the asterisk is a mark, not caller-owned copy.
 export const requiredFieldLabelSuffixClassName = "after:ml-1 after:content-['*']";
 
 export const fieldWrapperGapClassName: Record<FieldSize, string> = {

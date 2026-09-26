@@ -16,8 +16,6 @@ export type InlineNoticeProps = {
   icon: ButtonIcon;
 } & NoticeContent;
 
-// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
-// interpret one.
 const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 export function InlineNotice({ tone, icon, title, detail }: InlineNoticeProps) {

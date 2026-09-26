@@ -19,9 +19,6 @@ type OptionCardGroupValidityProps =
   | { invalid: true; errorMessage: string }
   | { invalid?: false; errorMessage?: undefined };
 
-// `value`/`onChange` wrap V in NoInfer so a call site's own `value` can never contribute a
-// candidate to V's inference (only `options` can); without it, an out-of-domain `value` at a real
-// call site would silently widen V to include it instead of failing to compile.
 export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProps & {
   label: string;
   options: readonly [OptionCardOption<V>, ...OptionCardOption<V>[]];
@@ -30,9 +27,7 @@ export type OptionCardGroupProps<V extends string> = OptionCardGroupValidityProp
   required?: boolean;
 };
 
-// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
-// interpret one. Its color reacts to the card's own data-selected state via the `group` class the
-// card sets on itself.
+// Icon color reacts to the card's own data-selected state via the `group` class the card sets on itself.
 const iconWrapperClassName =
   "inline-flex size-5 shrink-0 text-ink-secondary [&>svg]:h-full [&>svg]:w-full " +
   "group-data-[selected]:text-brand-blue-strong";
@@ -51,8 +46,6 @@ const cardClassName =
   "bg-surface-white shadow-[inset_0_0_0_1px_var(--color-line)] " +
   "data-[hovered]:bg-surface-bone " +
   "data-[selected]:bg-brand-blue-message-bg data-[selected]:shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
-  // Two attribute selectors outrank the single-attribute hover rule above regardless of
-  // stylesheet order, guaranteeing the chosen card's background never changes on hover.
   "data-[hovered]:data-[selected]:bg-brand-blue-message-bg " +
   "data-[focus-visible]:outline-[3px] data-[focus-visible]:outline-solid " +
   "data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-brand-blue-strong";
@@ -90,9 +83,8 @@ export function OptionCardGroup<V extends string>(props: OptionCardGroupProps<V>
       aria-label={label}
       orientation="horizontal"
       value={value}
-      // React Aria's own RadioGroupProps types onChange over plain string, but it only ever
-      // calls this with a value it read off one of our own Radio elements, whose `value` is
-      // always one of `options`' own V values, so this cast can't observe a value outside V.
+      // react-aria's RadioGroupProps types onChange over plain string; it only ever fires with a
+      // value read off one of our own Radio elements, always one of V.
       onChange={(nextValue) => onChange(nextValue as V)}
       isRequired={required}
       isInvalid={invalid}

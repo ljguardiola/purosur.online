@@ -1,8 +1,6 @@
 import type { ButtonIcon } from "./Button";
 import { NoticeLiveRegion } from "./NoticeLiveRegion";
 
-// Named NotificationCard, not Notification, so it does not shadow the DOM's global
-// Notification constructor.
 export type NotificationTone = "success" | "warning" | "error";
 
 export type NotificationCardProps = {
@@ -27,8 +25,6 @@ const toneCircleClassName: Record<NotificationTone, string> = {
   error: "bg-status-error-message-bg text-status-error-strong",
 };
 
-// The icon's size is fixed by this span's CSS, not by cloning a `size` prop — only lucide icons
-// interpret one.
 const iconWrapperClassName = "inline-flex size-[1.125rem] shrink-0 [&>svg]:h-full [&>svg]:w-full";
 
 export function NotificationCard({

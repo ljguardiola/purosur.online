@@ -46,8 +46,6 @@ type QuantityUnitFieldValidityProps =
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
   QuantityUnitFieldValidityProps;
 
-// This field only ever draws the backoffice size, so every class below reads FieldSize.tsx's
-// shared backoffice definition directly instead of consulting FieldSizeProvider.
 const wrapperClassName = `flex flex-col ${fieldWrapperGapClassName.backoffice} data-[disabled]:opacity-[0.45]`;
 
 const labelClassName = fieldLabelClassName.backoffice;
@@ -105,9 +103,7 @@ const optionClassName =
 const helperClassName = "text-sm font-normal text-ink-secondary";
 const errorClassName = "text-sm font-normal text-status-error-ui";
 
-// react-aria-components' onSelectionChange reports a plain Key (string | number), since it
-// doesn't know this picker only ever holds one of the caller's own option ids; this narrows it
-// back without a cast.
+// react-aria-components' onSelectionChange reports a plain Key (string | number).
 function isOptionValue<U extends string>(
   key: Key,
   options: readonly QuantityUnitFieldOption<U>[],

@@ -2,8 +2,6 @@ import { Check } from "lucide-react";
 import type { ReactNode } from "react";
 import { Checkbox as AriaCheckbox } from "react-aria-components";
 
-// `children` stays required, so leaving out the content doesn't compile: without it, clicking the
-// checkbox would have nothing to toggle it and assistive technology would have nothing to name it by.
 export type CheckboxProps = {
   isSelected: boolean;
   onChange: (isSelected: boolean) => void;
