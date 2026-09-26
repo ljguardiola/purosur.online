@@ -99,6 +99,9 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
       await tx.update(users).set({ firstName: "Ada (marked)" }).where(eq(users.id, recipientId));
       return outcome;
     });
+    // Observed now so a rejection while the lock wait polls is reported by the await below, not as
+    // a separate unhandled rejection next to the real failure.
+    secondCommitted.catch(() => {});
 
     await waitForLockWaiters(1);
   } finally {

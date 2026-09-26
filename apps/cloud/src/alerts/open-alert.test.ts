@@ -177,7 +177,11 @@ describe("openAlert", () => {
     // A user recipientsFor never returns, so the equality below can tell "only recipientsFor's
     // users" apart from "every active user".
     const noPermissionRoleId = await insertRole({ name: "Repositor" });
-    await insertUser({ firstName: "Hedy", email: "hedy@example.com", roleId: noPermissionRoleId });
+    const hedyId = await insertUser({
+      firstName: "Hedy",
+      email: "hedy@example.com",
+      roleId: noPermissionRoleId,
+    });
 
     const outcome = await db.transaction((tx) =>
       openAlert(
@@ -200,6 +204,7 @@ describe("openAlert", () => {
     if (outcome.kind !== "opened") throw new Error("unreachable");
     const expectedRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
     expect(expectedRecipients).not.toHaveLength(0);
+    expect(expectedRecipients).not.toContain(hedyId);
     const delivered = await deliveriesOf(outcome.alertId);
     expect(delivered.map((row) => row.recipientUserId).sort()).toEqual(expectedRecipients.sort());
     for (const row of delivered) {
