@@ -47,12 +47,12 @@ const wrapperClassName = "flex flex-col gap-1 data-[disabled]:opacity-[0.45]";
 
 const baseLabelClassName = "text-sm font-bold text-ink";
 // The asterisk is a CSS pseudo-element, not JSX text (see TextField.tsx's own
-// requiredLabelClassName): a language-agnostic mark rather than caller-owned copy.
+// requiredLabelSuffixClassName): a language-agnostic mark rather than caller-owned copy.
 const requiredLabelClassName = `${baseLabelClassName} after:ml-1 after:content-['*']`;
 
 // Height, gap and padding match DateField.tsx's own "backoffice" variant frame exactly (the
-// design draws this field inside a backoffice modal at the same 48px/8px/12px metrics), not
-// TextField.tsx's own register-sized plain-text kind.
+// design draws this field inside a backoffice modal at the same 48px/8px/12px metrics) — the
+// same frame TextField.tsx's own "backoffice" plain-text kind now draws too.
 const triggerBaseClassName =
   "flex h-12 min-w-0 max-w-full items-center gap-2 rounded-lg border-2 px-3 outline-none";
 

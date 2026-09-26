@@ -94,7 +94,12 @@ export type {
 export { Table, TableCellText } from "./components/Table";
 export type { TagProps, TagTone } from "./components/Tag";
 export { Tag } from "./components/Tag";
-export type { TextFieldAffix, TextFieldProps, TextFieldValueKind } from "./components/TextField";
+export type {
+  TextFieldAffix,
+  TextFieldProps,
+  TextFieldValueKind,
+  TextFieldVariant,
+} from "./components/TextField";
 export { TextField } from "./components/TextField";
 export type { ToggleProps } from "./components/Toggle";
 export { Toggle } from "./components/Toggle";

@@ -61,9 +61,8 @@ type TextFieldValidityProps =
 // Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
 // require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
 // días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
-// not compile. The design draws no backoffice money or kg field (see Select.tsx's own comment on
-// its frame matching this field's own backoffice one): "backoffice" only type-checks alongside
-// "plain-text", while "register" still keeps every kind.
+// not compile. The design draws no backoffice money or kg field: "backoffice" only type-checks
+// alongside "plain-text", while "register" still keeps every kind.
 type TextFieldKindProps =
   | {
       variant: "register";

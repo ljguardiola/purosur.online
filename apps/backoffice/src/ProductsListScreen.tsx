@@ -150,8 +150,9 @@ function productNameError(
   return undefined;
 }
 
-// Same asterisk TextField and Select draw on a required field's own label.
-const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
+// Same asterisk, size and color TextField's and Select's own backoffice label draw on a required
+// field's own label.
+const requiredLabelClassName = "text-sm font-bold text-ink after:ml-1 after:content-['*']";
 
 // Shared by the scan input and the "Generar código interno" button: the design's own outlined
 // control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
@@ -770,7 +771,7 @@ function NewProductModal({
             )}
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
           <OptionCardGroup
             label={modalMessages.unitLabel}
@@ -1153,7 +1154,7 @@ function EditProductModal({
               )}
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
             <OptionCardGroup
               label={modalMessages.unitLabel}

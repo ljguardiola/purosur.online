@@ -1177,3 +1177,52 @@ test("does not accept a field without a label, a value or onChange", () => {
     value: string;
   }>().not.toExtend<TextFieldProps>();
 });
+
+// Mirrors DateField.test.tsx's own coverage of DateFieldVariant: no caller can forget to choose
+// register or backoffice sizing.
+test("does not accept a field without a variant", () => {
+  expectTypeOf<{
+    kind: "plain-text";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  }>().not.toExtend<TextFieldProps>();
+});
+
+// The design draws no backoffice money or kg field: each candidate below already supplies the
+// affix its own kind requires, so the only thing that can make it fail to extend TextFieldProps
+// is the "backoffice" variant paired with a kind that isn't "plain-text".
+test("does not accept the backoffice variant on a money or kg kind", () => {
+  expectTypeOf<{
+    kind: "weight";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "quantity";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    suffix: string;
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "amount";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+  }>().not.toExtend<TextFieldProps>();
+  expectTypeOf<{
+    kind: "counted-cash";
+    variant: "backoffice";
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    prefix: string;
+  }>().not.toExtend<TextFieldProps>();
+});
