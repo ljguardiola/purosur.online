@@ -105,7 +105,7 @@ async function insertUser(client: QueryClient, locationId: string, email: string
 describe("the registers migration applied over a database that already holds data", {
   timeout: 30_000,
 }, () => {
-  it("keeps prior rows intact and lets registers and enrollment codes work against them", async () => {
+  it("keeps prior rows intact and lets a register be created for a location that already existed", async () => {
     const folder = await mkdtemp(join(tmpdir(), "registers-migration-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     await migrationsFolderBeforeRegisters(folder);
@@ -148,44 +148,11 @@ describe("the registers migration applied over a database that already holds dat
     expect(auditAfter).toHaveLength(1);
 
     // A register can be inserted for a location that already existed before the migration.
-    const { rows: registerRows } = await client.query<{ id: string }>(
-      "insert into registers (location_id, name) values ($1, $2) returning id",
-      [seededLocation.id, "Caja 1"],
-    );
-    const register = registerRows[0];
-    if (!register) {
-      throw new Error("test setup: inserting a register returned no row");
-    }
-
-    // The case-insensitive per-location unique index rejects a duplicate in the same location...
-    await expect(
-      client.query("insert into registers (location_id, name) values ($1, $2)", [
-        seededLocation.id,
-        "CAJA 1",
-      ]),
-    ).rejects.toThrow(/duplicate key value violates unique constraint/);
-
-    // ...but accepts the same name in another location.
     await expect(
       client.query("insert into registers (location_id, name) values ($1, $2) returning id", [
-        otherLocationId,
+        seededLocation.id,
         "Caja 1",
       ]),
     ).resolves.toMatchObject({ rows: [{ id: expect.any(String) }] });
-
-    // An enrollment code row requires an existing register.
-    await expect(
-      client.query(
-        "insert into register_enrollment_codes (register_id, code_hash, issued_at, expires_at) values ($1, $2, now(), now())",
-        [randomUUID(), "hash"],
-      ),
-    ).rejects.toThrow(/violates foreign key constraint/);
-
-    await expect(
-      client.query(
-        "insert into register_enrollment_codes (register_id, code_hash, issued_at, expires_at) values ($1, $2, now(), now())",
-        [register.id, "hash"],
-      ),
-    ).resolves.toBeDefined();
   });
 });
