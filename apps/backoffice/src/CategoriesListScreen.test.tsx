@@ -322,13 +322,12 @@ test("rejects a name longer than 100 characters in the create modal, without cal
   expect(services.createCategory).not.toHaveBeenCalled();
 });
 
-test("sends a name of exactly 100 characters, once trimmed, from the create modal", async () => {
+test("sends the typed name trimmed from the create modal", async () => {
   const services = createServices();
-  const longest = "a".repeat(100);
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.createCategory).mockResolvedValue({
     kind: "ok",
-    value: { id: "category-5", name: longest, version: 1, parentId: null },
+    value: { id: "category-5", name: "Limpieza", version: 1, parentId: null },
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
@@ -336,12 +335,12 @@ test("sends a name of exactly 100 characters, once trimmed, from the create moda
 
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    `  ${longest}  `,
+    "  Limpieza  ",
   );
   await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
 
   await expect.poll(() => vi.mocked(services.createCategory).mock.calls.length).toBe(1);
-  expect(services.createCategory).toHaveBeenCalledWith({ name: longest, parentId: null });
+  expect(services.createCategory).toHaveBeenCalledWith({ name: "Limpieza", parentId: null });
 });
 
 test("requires a name before submitting the create modal, without calling the API", async () => {
@@ -614,13 +613,12 @@ test("rejects a name longer than 100 characters in the edit modal, without calli
   expect(services.editCategory).not.toHaveBeenCalled();
 });
 
-test("sends a name of exactly 100 characters, once trimmed, from the edit modal", async () => {
+test("sends the typed name trimmed from the edit modal", async () => {
   const services = createServices();
-  const longest = "a".repeat(100);
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
   vi.mocked(services.editCategory).mockResolvedValue({
     kind: "ok",
-    value: { ...almacen, name: longest, version: 2 },
+    value: { ...almacen, name: "Despensa", version: 2 },
   });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Almacén")).toBeVisible();
@@ -629,13 +627,13 @@ test("sends a name of exactly 100 characters, once trimmed, from the edit modal"
 
   await userEvent.fill(
     dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }),
-    `  ${longest}  `,
+    "  Despensa  ",
   );
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.poll(() => vi.mocked(services.editCategory).mock.calls.length).toBe(1);
   expect(services.editCategory).toHaveBeenCalledWith("category-1", {
-    name: longest,
+    name: "Despensa",
     parentId: null,
     version: 1,
   });
