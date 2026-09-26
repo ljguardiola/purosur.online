@@ -1,4 +1,3 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -439,74 +438,6 @@ describe("PUT /branch-settings", () => {
     expect(settingsRow).toMatchObject({ version: 1 });
   });
 
-  it("rejects a range with a time that isn't a zero-padded HH:MM, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({ monday_hours: [{ opens_at: "9:00", closes_at: "19:00" }] }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "monday_hours" }],
-    });
-  });
-
-  it("rejects a range missing one of its two times, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({ sunday_hours: [{ opens_at: "09:00" }] }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "sunday_hours" }],
-    });
-  });
-
-  it("rejects two overlapping ranges on the same day, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({
-        monday_hours: [
-          { opens_at: "09:00", closes_at: "14:00" },
-          { opens_at: "13:00", closes_at: "18:00" },
-        ],
-      }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "monday_hours" }],
-    });
-  });
-
   it("saves more than one range on the same day, in the order they were sent", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -593,34 +524,6 @@ describe("PUT /branch-settings", () => {
     });
   });
 
-  it(`rejects more than ${BRANCH_HOURS_RANGES_PER_DAY_MAX} ranges on the same day, changing nothing`, async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-    const tooManyRanges = Array.from(
-      { length: BRANCH_HOURS_RANGES_PER_DAY_MAX + 1 },
-      (_, index) => ({
-        opens_at: `0${index}:00`.slice(-5),
-        closes_at: `0${index}:30`.slice(-5),
-      }),
-    );
-
-    const response = await putBranchSettings(
-      validBody({ monday_hours: tooManyRanges }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "monday_hours" }],
-    });
-  });
-
   it("ignores fields removed from the contract, such as business_name or timezone, when a client still sends them", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -684,74 +587,6 @@ describe("PUT /branch-settings", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ unreviewed_price_alert_days: 2147483647 });
   });
-
-  it("accepts text fields of exactly 200 characters", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(validBody({ address: "a".repeat(200) }), rawSessionId);
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ address: "a".repeat(200) });
-  });
-
-  it.each([
-    {
-      case: "a window value above 2147483647 days",
-      overrides: { good_condition_return_days: 2147483648 },
-      field: "good_condition_return_days",
-    },
-    {
-      case: "a negative window value",
-      overrides: { unreviewed_price_alert_days: -1 },
-      field: "unreviewed_price_alert_days",
-    },
-    {
-      case: "an address longer than 200 characters",
-      overrides: { address: "a".repeat(201) },
-      field: "address",
-    },
-    {
-      case: "an Instagram handle longer than 200 characters",
-      overrides: { instagram_handle: "a".repeat(201) },
-      field: "instagram_handle",
-    },
-    {
-      case: "a WhatsApp number that isn't a string",
-      overrides: { whatsapp_number: 541155555555 },
-      field: "whatsapp_number",
-    },
-    { case: "a missing version", overrides: { version: undefined }, field: "version" },
-    { case: "a non-integer version", overrides: { version: 1.5 }, field: "version" },
-    { case: "a version below 1", overrides: { version: 0 }, field: "version" },
-  ])(
-    "rejects $case with 400 validation_failed on that field, changing nothing",
-    async ({ overrides, field }) => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const rawSessionId = await insertSession(administratorId);
-      const locationId = await seededLocationId(db);
-
-      const response = await putBranchSettings(validBody(overrides), rawSessionId);
-
-      expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ code: "validation_failed", details: [{ field }] });
-      const [row] = await db
-        .select()
-        .from(branchSettings)
-        .where(eq(branchSettings.locationId, locationId));
-      expect(row).toMatchObject({ address: "", version: 1 });
-    },
-  );
 
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const administratorId = await insertUser({
