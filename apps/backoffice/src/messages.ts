@@ -839,7 +839,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowConfirmStaleTitle: "El precio cambió recién",
       rowConfirmStaleDetail: (params: { name: string }) =>
-        `Volvimos a cargar la lista con el precio actual de ${params.name}.`,
+        `Revisá el precio actual de ${params.name}.`,
       rowConfirmFailedTitle: (params: { name: string }) =>
         `No se pudo confirmar el precio de ${params.name}`,
       goneTitle: "Producto desactivado",

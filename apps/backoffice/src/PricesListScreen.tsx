@@ -164,19 +164,14 @@ type ScreenNotice = { tone: "success" | "error"; title: string; detail: string }
 
 type PriceChangeModalProps = {
   target: PriceProduct | null;
-  /** Changes every time the modal opens, moves to another product or closes. */
-  session: number;
-  /** An outcome about another product (a saved one, or one the walk skipped) that lands while open. */
-  otherProductNotice: ScreenNotice | null;
-  /** The modal starts a request or shows an outcome of its own, which replaces `otherProductNotice`. */
-  onOwnActivity: () => void;
+  /** An outcome about the product the walk just left (saved, or skipped as deactivated). */
+  previousProductNotice: ScreenNotice | null;
   reviewWindowDays: number;
   now: () => Date;
   onClose: () => void;
   onSessionEnded: () => void;
-  /** `origin` and `session` are what the modal had when the request was sent. */
-  onSaved: (session: number, product: PriceProduct, outcome: PriceModalOutcome) => void;
-  onGone: (origin: PriceProduct, session: number) => void;
+  onSaved: (product: PriceProduct, outcome: PriceModalOutcome) => void;
+  onGone: (product: PriceProduct) => void;
   fetchPrices: typeof fetchPrices;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
@@ -188,9 +183,7 @@ type PriceChangeModalProps = {
  */
 function PriceChangeModal({
   target,
-  session,
-  otherProductNotice,
-  onOwnActivity,
+  previousProductNotice,
   reviewWindowDays,
   now,
   onClose,
@@ -202,15 +195,7 @@ function PriceChangeModal({
   confirmPrice,
 }: PriceChangeModalProps) {
   const isOpen = target !== null;
-  const targetRef = useRef(target);
-  targetRef.current = target;
-  // A result that arrives after the modal was closed, reopened or moved to another product must not
-  // touch what the modal now shows, except to bring a reopened same product up to date.
-  const sessionRef = useRef(session);
-  sessionRef.current = session;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
-  const currentRef = useRef(current);
-  currentRef.current = current;
   // The dialog's own title, held here (rather than read straight from `current`) so it stays a
   // non-nullable string, the same reasoning EditCategoryModal's own `title` state documents
   // (CategoriesListScreen.tsx).
@@ -218,31 +203,23 @@ function PriceChangeModal({
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
+  const [previousNotice, setPreviousNotice] = useState<ScreenNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function showNotice(ownNotice: ModalNotice) {
     setNotice(ownNotice);
-    onOwnActivity();
+    setPreviousNotice(null);
   }
 
   function showAmountError(error: string) {
     setAmountError(error);
-    onOwnActivity();
+    setPreviousNotice(null);
   }
 
-  /** Whether the open modal shows this product, whichever session it was opened in. */
-  function showsProduct(productId: string): boolean {
-    return targetRef.current !== null && currentRef.current?.id === productId;
-  }
-
-  /**
-   * A result from an earlier session of this same product lands after it was reopened: the
-   * snapshot the modal shows (and sends as the expected current price) must move to it.
-   */
-  function refreshShownProduct(productId: string, changes: Partial<PriceProduct>) {
-    if (showsProduct(productId)) {
-      setCurrent((shown) => (shown ? { ...shown, ...changes } : shown));
-    }
+  function startRequest() {
+    setNotice(null);
+    setPreviousNotice(null);
+    setSubmitting(true);
   }
 
   useEffect(() => {
@@ -252,11 +229,12 @@ function PriceChangeModal({
       setAmount("");
       setAmountError(undefined);
       setNotice(null);
+      setPreviousNotice(previousProductNotice);
       setSubmitting(false);
     }
-  }, [target]);
+  }, [target, previousProductNotice]);
 
-  function validatedAmount(): number | undefined {
+  function validatedAmount(product: PriceProduct): number | undefined {
     if (!amount.trim()) {
       showAmountError(modalMessages.amountRequired);
       return undefined;
@@ -275,28 +253,16 @@ function PriceChangeModal({
       return undefined;
     }
     const cents = parsed.cents;
-    const product = currentRef.current;
-    if (product?.currentPrice && cents === product.currentPrice.unitPrice) {
+    if (product.currentPrice && cents === product.currentPrice.unitPrice) {
       showAmountError(modalMessages.amountUnchanged);
       return undefined;
     }
     return cents;
   }
 
-  function handleSetPriceOutcome(
-    origin: PriceProduct,
-    requestSession: number,
-    product: PriceProduct,
-    outcome: SetPriceOutcome,
-  ) {
+  function handleSetPriceOutcome(product: PriceProduct, outcome: SetPriceOutcome) {
     if (outcome.kind === "ok") {
-      if (sessionRef.current !== requestSession) {
-        refreshShownProduct(product.id, {
-          currentPrice: outcome.value.price,
-          lastReviewedAt: outcome.value.lastReviewedAt,
-        });
-      }
-      onSaved(requestSession, product, {
+      onSaved(product, {
         kind: "saved",
         price: outcome.value.price,
         lastReviewedAt: outcome.value.lastReviewedAt,
@@ -311,18 +277,9 @@ function PriceChangeModal({
       sendToMyAccount();
       return;
     }
-    if (sessionRef.current !== requestSession) {
-      if (outcome.kind === "not_found") {
-        if (showsProduct(product.id)) {
-          showNotice({ kind: "notFound" });
-        }
-        onGone(origin, requestSession);
-      }
-      return;
-    }
     if (outcome.kind === "not_found") {
       showNotice({ kind: "notFound" });
-      onGone(origin, requestSession);
+      onGone(product);
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
@@ -338,41 +295,26 @@ function PriceChangeModal({
   }
 
   async function handleSave() {
-    const origin = target;
-    const requestSession = session;
-    const product = currentRef.current;
-    if (!origin || !product) {
+    const product = current;
+    if (!product) {
       return;
     }
-    const cents = validatedAmount();
+    const cents = validatedAmount(product);
     if (cents === undefined) {
       return;
     }
     setAmountError(undefined);
-    setNotice(null);
-    onOwnActivity();
-    setSubmitting(true);
+    startRequest();
     const outcome = await setPrice(product.id, {
       unitPrice: cents,
       expectedCurrentPriceId: product.currentPrice?.id ?? null,
     });
-    handleSetPriceOutcome(origin, requestSession, product, outcome);
+    handleSetPriceOutcome(product, outcome);
   }
 
-  function handleConfirmPriceOutcome(
-    origin: PriceProduct,
-    requestSession: number,
-    product: PriceProduct,
-    outcome: ConfirmPriceOutcome,
-  ) {
+  function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
     if (outcome.kind === "ok") {
-      if (sessionRef.current !== requestSession) {
-        refreshShownProduct(product.id, { lastReviewedAt: outcome.value.lastReviewedAt });
-      }
-      onSaved(requestSession, product, {
-        kind: "confirmed",
-        lastReviewedAt: outcome.value.lastReviewedAt,
-      });
+      onSaved(product, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -383,18 +325,9 @@ function PriceChangeModal({
       sendToMyAccount();
       return;
     }
-    if (sessionRef.current !== requestSession) {
-      if (outcome.kind === "not_found") {
-        if (showsProduct(product.id)) {
-          showNotice({ kind: "notFound" });
-        }
-        onGone(origin, requestSession);
-      }
-      return;
-    }
     if (outcome.kind === "not_found") {
       showNotice({ kind: "notFound" });
-      onGone(origin, requestSession);
+      onGone(product);
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "rate_limited") {
@@ -406,43 +339,31 @@ function PriceChangeModal({
   }
 
   async function handleConfirm() {
-    const origin = target;
-    const requestSession = session;
-    const product = currentRef.current;
-    if (!origin || !product?.currentPrice) {
+    const product = current;
+    if (!product?.currentPrice) {
       return;
     }
-    setNotice(null);
-    onOwnActivity();
-    setSubmitting(true);
+    startRequest();
     const outcome = await confirmPrice(product.id, {
       expectedCurrentPriceId: product.currentPrice.id,
     });
-    handleConfirmPriceOutcome(origin, requestSession, product, outcome);
+    handleConfirmPriceOutcome(product, outcome);
   }
 
   async function handleReload() {
-    const origin = target;
-    const requestSession = session;
-    const product = currentRef.current;
-    if (!origin || !product) {
+    const product = current;
+    if (!product) {
       return;
     }
-    onOwnActivity();
+    setPreviousNotice(null);
     setSubmitting(true);
     const outcome = await fetchPrices({ review: "all" });
     if (outcome.kind === "ok") {
       const fresh = outcome.value.products.find((candidate) => candidate.id === product.id);
-      if (sessionRef.current !== requestSession) {
-        if (!fresh) {
-          onGone(origin, requestSession);
-        }
-        return;
-      }
       if (!fresh) {
         showNotice({ kind: "notFound" });
         setSubmitting(false);
-        onGone(origin, requestSession);
+        onGone(product);
         return;
       }
       setCurrent(fresh);
@@ -456,9 +377,6 @@ function PriceChangeModal({
     }
     if (outcome.kind === "forbidden") {
       sendToMyAccount();
-      return;
-    }
-    if (sessionRef.current !== requestSession) {
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -486,8 +404,9 @@ function PriceChangeModal({
       icon={<Pencil />}
       context={current ? modalEyebrow(current, reviewWindowDays, now()) : ""}
       title={title}
-      closable
-      closeLabel={modalMessages.closeLabel}
+      {...(submitting
+        ? { closable: false }
+        : { closable: true, closeLabel: modalMessages.closeLabel })}
       footer={
         current && (
           <>
@@ -518,20 +437,20 @@ function PriceChangeModal({
     >
       {current && (
         <div className="flex flex-col gap-4">
-          {otherProductNotice?.tone === "success" && (
+          {previousNotice?.tone === "success" && (
             <NotificationCard
               tone="success"
               icon={<Check />}
-              title={otherProductNotice.title}
-              detail={otherProductNotice.detail}
+              title={previousNotice.title}
+              detail={previousNotice.detail}
             />
           )}
-          {otherProductNotice?.tone === "error" && (
+          {previousNotice?.tone === "error" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={otherProductNotice.title}
-              detail={otherProductNotice.detail}
+              title={previousNotice.title}
+              detail={previousNotice.detail}
             />
           )}
           {notice?.kind === "attemptFailed" && (
@@ -636,23 +555,18 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>("ALL");
   const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>("pending");
-  const [modalTarget, setModalTarget] = useState<PriceProduct | null>(null);
-  const [modalSession, setModalSession] = useState(0);
+  const [modal, setModal] = useState<{
+    target: PriceProduct;
+    previousProductNotice: ScreenNotice | null;
+  } | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
-  const [otherProductNotice, setOtherProductNotice] = useState<ScreenNotice | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
-  const [confirmingIds, setConfirmingIds] = useState<ReadonlySet<string>>(new Set());
+  // While a row confirm, or the read that starts Revisar los N, is in flight, no row action or
+  // Revisar los N can start, so no modal opens before its result lands.
+  const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
-  // The modal reports an outcome from the render its request was sent in; these hold what the
-  // screen shows now.
-  const modalTargetRef = useRef(modalTarget);
-  modalTargetRef.current = modalTarget;
-  const modalSessionRef = useRef(modalSession);
-  modalSessionRef.current = modalSession;
-  const walkRef = useRef(walk);
-  walkRef.current = walk;
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -709,8 +623,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     void load();
   }, [load]);
 
-  // A result that lands after the filters changed reloads with the filters shown now, not the ones
-  // its request was sent under.
+  // The filters stay editable while a request is in flight, so its result reloads with the filters
+  // shown when it settles, not the ones its request was sent under.
   const loadRef = useRef(load);
   loadRef.current = load;
   function reloadWithCurrentFilters() {
@@ -734,19 +648,17 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     { value: "all" as const, label: pricesMessages.reviewFilterAllOption },
   ] as const;
 
-  function showInModal(target: PriceProduct | null) {
-    setModalTarget(target);
-    setModalSession((previous) => previous + 1);
-  }
-
   async function handleReviewButton() {
+    setScreenRequestInFlight(true);
     const outcome = await fetchPricesService({ review: "pending" });
+    setScreenRequestInFlight(false);
     if (outcome.kind === "ok") {
-      if (outcome.value.products.length === 0) {
+      const [first] = outcome.value.products;
+      if (!first) {
         return;
       }
       setWalk({ queue: outcome.value.products, index: 0 });
-      showInModal(outcome.value.products[0] ?? null);
+      setModal({ target: first, previousProductNotice: null });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -781,66 +693,49 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         };
   }
 
-  /** An open modal hides the screen behind it, so a notice about another product goes inside it. */
-  function notifyAboutAnotherProduct(screenNotice: ScreenNotice, modalOpen: boolean) {
-    if (modalOpen) {
-      setOtherProductNotice(screenNotice);
-    } else {
-      setOtherProductNotice(null);
-      setNotice(screenNotice);
-    }
+  function goneNotice(product: PriceProduct): ScreenNotice {
+    return {
+      tone: "error",
+      title: pricesMessages.goneTitle,
+      detail: pricesMessages.goneDetail({ name: product.name }),
+    };
   }
 
-  function handleModalSaved(session: number, product: PriceProduct, outcome: PriceModalOutcome) {
+  /**
+   * Opens the walk's next product, carrying the notice about the one just left into the modal; with
+   * no walk or none left, closes the modal and shows that notice on the screen.
+   */
+  function moveToNextInWalkOrClose(previousProductNotice: ScreenNotice) {
+    const next = walk?.queue[walk.index + 1];
+    if (walk && next) {
+      setWalk({ queue: walk.queue, index: walk.index + 1 });
+      setModal({ target: next, previousProductNotice });
+      return;
+    }
+    setWalk(null);
+    setModal(null);
+    setNotice(previousProductNotice);
+  }
+
+  function handleModalSaved(product: PriceProduct, outcome: PriceModalOutcome) {
     reloadWithCurrentFilters();
-    const modalOpen =
-      modalSessionRef.current === session
-        ? moveToNextInWalkOrClose()
-        : modalTargetRef.current !== null;
-    notifyAboutAnotherProduct(reviewedNotice(product, outcome), modalOpen);
-  }
-
-  /** Returns whether the walk moved on to another product (false: the modal closed). */
-  function moveToNextInWalkOrClose(): boolean {
-    const currentWalk = walkRef.current;
-    if (currentWalk) {
-      const nextIndex = currentWalk.index + 1;
-      const next = currentWalk.queue[nextIndex];
-      if (next) {
-        setWalk({ queue: currentWalk.queue, index: nextIndex });
-        showInModal(next);
-        return true;
-      }
-      setWalk(null);
-    }
-    showInModal(null);
-    return false;
+    moveToNextInWalkOrClose(reviewedNotice(product, outcome));
   }
 
   /**
    * The modal's product was deactivated after the list loaded. Outside a walk the modal stays open
-   * on its own not-found notice; during one, the walk moves on and names the skipped product on the
-   * next one, or on the screen when none is left.
+   * on its own not-found notice; during one, the walk moves on and names the skipped product.
    */
-  function handleModalProductGone(origin: PriceProduct, session: number) {
+  function handleModalProductGone(product: PriceProduct) {
     reloadWithCurrentFilters();
-    if (modalSessionRef.current !== session || !walkRef.current) {
-      return;
+    if (walk) {
+      moveToNextInWalkOrClose(goneNotice(product));
     }
-    notifyAboutAnotherProduct(
-      {
-        tone: "error",
-        title: pricesMessages.goneTitle,
-        detail: pricesMessages.goneDetail({ name: origin.name }),
-      },
-      moveToNextInWalkOrClose(),
-    );
   }
 
   function handleModalClose() {
     setWalk(null);
-    showInModal(null);
-    setOtherProductNotice(null);
+    setModal(null);
   }
 
   /**
@@ -851,21 +746,15 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     if (!item.currentPrice) {
       return;
     }
-    setConfirmingIds((ids) => new Set(ids).add(item.id));
+    setScreenRequestInFlight(true);
     const outcome = await confirmPriceService(item.id, {
       expectedCurrentPriceId: item.currentPrice.id,
     });
-    setConfirmingIds((ids) => {
-      const remaining = new Set(ids);
-      remaining.delete(item.id);
-      return remaining;
-    });
-    const modalOpen = modalTargetRef.current !== null;
+    setScreenRequestInFlight(false);
     if (outcome.kind === "ok") {
       reloadWithCurrentFilters();
-      notifyAboutAnotherProduct(
+      setNotice(
         reviewedNotice(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt }),
-        modalOpen,
       );
       return;
     }
@@ -878,50 +767,34 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "stale_price") {
-      notifyAboutAnotherProduct(
-        {
-          tone: "error",
-          title: pricesMessages.rowConfirmStaleTitle,
-          detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
-        },
-        modalOpen,
-      );
+      setNotice({
+        tone: "error",
+        title: pricesMessages.rowConfirmStaleTitle,
+        detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
+      });
       reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "not_found") {
-      notifyAboutAnotherProduct(
-        {
-          tone: "error",
-          title: pricesMessages.goneTitle,
-          detail: pricesMessages.goneDetail({ name: item.name }),
-        },
-        modalOpen,
-      );
+      setNotice(goneNotice(item));
       reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "rate_limited") {
-      notifyAboutAnotherProduct(
-        {
-          tone: "error",
-          title: pricesMessages.rateLimitedTitle,
-          detail: pricesMessages.rateLimitedDetail({
-            minutes: Math.ceil(outcome.retryAfterSeconds / 60),
-          }),
-        },
-        modalOpen,
-      );
+      setNotice({
+        tone: "error",
+        title: pricesMessages.rateLimitedTitle,
+        detail: pricesMessages.rateLimitedDetail({
+          minutes: Math.ceil(outcome.retryAfterSeconds / 60),
+        }),
+      });
       return;
     }
-    notifyAboutAnotherProduct(
-      {
-        tone: "error",
-        title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
-        detail: modalMessages.confirmFailedDetail,
-      },
-      modalOpen,
-    );
+    setNotice({
+      tone: "error",
+      title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
+      detail: modalMessages.confirmFailedDetail,
+    });
   }
 
   const columns = [
@@ -968,7 +841,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               <IconButton
                 icon={<Check />}
                 aria-label={pricesMessages.confirmAria({ name: item.name })}
-                isDisabled={confirmingIds.has(item.id)}
+                isDisabled={screenRequestInFlight}
                 onPress={() => void handleRowConfirm(item)}
               />
             </Tooltip>
@@ -976,7 +849,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
           <IconButton
             icon={<Pencil />}
             aria-label={pricesMessages.editAria({ name: item.name })}
-            onPress={() => showInModal(item)}
+            isDisabled={screenRequestInFlight}
+            onPress={() => setModal({ target: item, previousProductNotice: null })}
           />
         </div>
       ),
@@ -998,6 +872,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               <Button
                 variant="primary"
                 icon={<ListChecks />}
+                isDisabled={screenRequestInFlight}
                 onPress={() => void handleReviewButton()}
               >
                 {pricesMessages.reviewButton({ count: pendingCount })}
@@ -1092,10 +967,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         )}
       </ScreenLayout>
       <PriceChangeModal
-        target={modalTarget}
-        session={modalSession}
-        otherProductNotice={otherProductNotice}
-        onOwnActivity={() => setOtherProductNotice(null)}
+        target={modal?.target ?? null}
+        previousProductNotice={modal?.previousProductNotice ?? null}
         reviewWindowDays={reviewWindowDays}
         now={clock}
         onClose={handleModalClose}
