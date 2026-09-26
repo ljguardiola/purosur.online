@@ -246,7 +246,7 @@ test("finds the specifiers of static imports, re-exports and dynamic imports", (
     'const lazy = await import("./lazy");',
   ].join("\n");
 
-  assert.deepEqual(findImportSpecifiers(source, "a.test.tsx"), [
+  assert.deepEqual(findImportSpecifiers(source), [
     "vitest",
     "./test-support/productsListScreen",
     "../fixtures",

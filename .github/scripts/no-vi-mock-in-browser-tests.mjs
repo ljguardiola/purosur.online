@@ -88,12 +88,10 @@ export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8"
   );
 }
 
-/** The module specifiers a source imports, re-exports from, or imports dynamically. */
 export function findImportSpecifiers(source) {
   return ts.preProcessFile(source, true, true).importedFiles.map((file) => file.fileName);
 }
 
-/** The entry files and every module they import, transitively, that `resolveImport` resolves. */
 export function collectImportedModules(
   entries,
   { resolveImport, readFile = (path) => readFileSync(path, "utf8") },
@@ -112,10 +110,6 @@ export function collectImportedModules(
   return [...seen].sort();
 }
 
-/**
- * Resolves an import the way the repository's TypeScript config does, to a path relative to `cwd`,
- * or to undefined when it names an installed dependency or no file at all.
- */
 export function createImportResolver(cwd = process.cwd()) {
   const configPath = join(cwd, "tsconfig.json");
   const { config } = ts.readConfigFile(configPath, ts.sys.readFile);
