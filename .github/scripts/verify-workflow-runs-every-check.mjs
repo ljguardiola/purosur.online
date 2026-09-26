@@ -1,6 +1,10 @@
-// Proves that .github/workflows/verify.yml actually runs every part of `pnpm verify`, so an edit
-// to the workflow (or to package.json's scripts) that silently drops a check from CI fails this
-// guard instead of just quietly shipping a weaker merge gate.
+// Proves that .github/workflows/verify.yml still runs the parts of `pnpm verify` and lets a
+// failure of any of them reach the required verify check: the static and tests jobs run under the
+// expected condition, neither they nor their verify step may continue on error, each runs its
+// exact pnpm command over a complete shard range, the verify job needs both, and package.json's
+// scripts still compose tsc, biome, dependency-cruiser, the automation tests and vitest without
+// swallowing a failure. An edit that breaks any of these fails this guard instead of quietly
+// shipping a weaker merge gate.
 
 import { readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
@@ -8,6 +12,15 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
 const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests";
+const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run";
+const REQUIRED_VERIFY_STATIC_COMMANDS = [
+  "tsc --noEmit",
+  "biome ci .",
+  "pnpm depcruise",
+  "node --test .github/scripts/*.test.mjs",
+];
+const EXPECTED_RUN_CONDITION =
+  "${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}";
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
@@ -23,6 +36,11 @@ function mapGet(doc, mapNode, key) {
   return isMap(resolved) ? resolved.get(key, true) : undefined;
 }
 
+function mapHas(doc, mapNode, key) {
+  const resolved = resolveNode(doc, mapNode);
+  return isMap(resolved) && resolved.has(key);
+}
+
 function jobNode(doc, jobId) {
   // doc.get proxies to the document's root node; the root is not itself a Map instance, so
   // mapGet (which checks isMap) cannot be used for this one top-level lookup.
@@ -30,20 +48,26 @@ function jobNode(doc, jobId) {
   return mapGet(doc, jobsNode, jobId);
 }
 
-function stepRunCommands(doc, job) {
+function steps(doc, job) {
   const stepsNode = resolveNode(doc, mapGet(doc, job, "steps"));
   if (!isSeq(stepsNode)) return [];
-
-  return stepsNode.items
-    .map((stepItem) => resolveNode(doc, stepItem))
-    .map((stepNode) => resolveScalar(doc, mapGet(doc, stepNode, "run")))
-    .filter((run) => typeof run === "string");
+  return stepsNode.items.map((stepItem) => resolveNode(doc, stepItem));
 }
 
-/** Whether any step in the job runs the given pnpm script, as `pnpm <script>` or `pnpm run <script>`. */
-function jobRunsPnpmScript(doc, job, scriptName) {
-  const pattern = new RegExp(`(^|\\s)pnpm\\s+(run\\s+)?${scriptName}(\\s|$)`);
-  return stepRunCommands(doc, job).some((run) => pattern.test(run));
+/** The first step whose `run` is exactly the given command, or undefined. */
+function stepRunningExactly(doc, job, command) {
+  return steps(doc, job).find((step) => {
+    const run = resolveScalar(doc, mapGet(doc, step, "run"));
+    return typeof run === "string" && run.trim() === command;
+  });
+}
+
+/** Whether the node sets `continue-on-error` to anything other than false. */
+function mayContinueOnError(doc, node) {
+  return (
+    mapHas(doc, node, "continue-on-error") &&
+    resolveScalar(doc, mapGet(doc, node, "continue-on-error")) !== false
+  );
 }
 
 /** The job's `strategy.matrix.shard` values, or null when that path is not a sequence. */
@@ -62,12 +86,53 @@ function isContiguousShardRange(values) {
   return sorted.every((value, index) => value === index + 1);
 }
 
-/** Whether a step in the job runs the given pnpm script with `--shard=${{ matrix.shard }}/<shardCount>`. */
-function jobRunsShardedPnpmScript(doc, job, scriptName, shardCount) {
-  const pattern = new RegExp(
-    `(^|\\s)pnpm\\s+(run\\s+)?${scriptName}\\b.*--shard=\\$\\{\\{\\s*matrix\\.shard\\s*\\}\\}/${shardCount}(\\s|$)`,
+/** The job ids a job's `needs` names, whether written as one id or a list. */
+function neededJobs(doc, job) {
+  const needsNode = resolveNode(doc, mapGet(doc, job, "needs"));
+  if (isSeq(needsNode)) return needsNode.items.map((item) => resolveScalar(doc, item));
+  const single = resolveScalar(doc, needsNode);
+  return typeof single === "string" ? [single] : [];
+}
+
+/** Violations for a job that must run under the expected condition and a step running `command`. */
+function runnerJobViolations(doc, jobId, job, command) {
+  const violations = [];
+
+  const condition = resolveScalar(doc, mapGet(doc, job, "if"));
+  if (condition !== EXPECTED_RUN_CONDITION) {
+    violations.push(
+      `verify.yml's ${jobId} job runs under \`if: ${condition}\`, expected \`if: ${EXPECTED_RUN_CONDITION}\``,
+    );
+  }
+  if (mayContinueOnError(doc, job)) {
+    violations.push(`verify.yml's ${jobId} job sets continue-on-error`);
+  }
+
+  const step = stepRunningExactly(doc, job, command);
+  if (step === undefined) {
+    violations.push(`verify.yml's ${jobId} job has no step whose run is exactly \`${command}\``);
+    return violations;
+  }
+  if (mayContinueOnError(doc, step)) {
+    violations.push(`verify.yml's ${jobId} job's verify:${jobId} step sets continue-on-error`);
+  }
+  if (mapHas(doc, step, "if")) {
+    violations.push(`verify.yml's ${jobId} job's verify:${jobId} step has its own if`);
+  }
+  return violations;
+}
+
+/** Whether the script is `&&`-joined plain commands that include every required one. */
+function composesEveryCommand(script, requiredCommands) {
+  if (typeof script !== "string") return false;
+  const commands = script.split("&&").map((command) => command.trim());
+  const everyCommandPropagatesFailure = commands.every(
+    (command) => command !== "" && !/[|;&`]|\$\(/.test(command),
   );
-  return stepRunCommands(doc, job).some((run) => pattern.test(run));
+  return (
+    everyCommandPropagatesFailure &&
+    requiredCommands.every((required) => commands.includes(required))
+  );
 }
 
 /** @returns {string[]} one violation per way the workflow or package.json no longer runs every
@@ -83,8 +148,8 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   const staticJob = jobNode(doc, "static");
   if (staticJob === undefined) {
     violations.push("verify.yml has no static job");
-  } else if (!jobRunsPnpmScript(doc, staticJob, "verify:static")) {
-    violations.push("verify.yml's static job does not run pnpm verify:static");
+  } else {
+    violations.push(...runnerJobViolations(doc, "static", staticJob, "pnpm verify:static"));
   }
 
   const testsJob = jobNode(doc, "tests");
@@ -96,17 +161,44 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
       violations.push(
         "verify.yml's tests job strategy.matrix.shard is not a contiguous 1..n range covering every shard once",
       );
-    } else if (!jobRunsShardedPnpmScript(doc, testsJob, "verify:tests", shardValues.length)) {
+    } else {
       violations.push(
-        `verify.yml's tests job does not run pnpm verify:tests --shard=\${{ matrix.shard }}/${shardValues.length} for every shard`,
+        ...runnerJobViolations(
+          doc,
+          "tests",
+          testsJob,
+          `pnpm verify:tests --shard=\${{ matrix.shard }}/${shardValues.length}`,
+        ),
       );
     }
   }
 
-  const packageJson = JSON.parse(packageJsonSource);
-  if (packageJson.scripts?.verify !== EXPECTED_VERIFY_SCRIPT) {
+  const verifyJob = jobNode(doc, "verify");
+  if (verifyJob === undefined) {
+    violations.push("verify.yml has no verify job");
+  } else {
+    const needs = neededJobs(doc, verifyJob);
+    for (const jobId of ["static", "tests"]) {
+      if (!needs.includes(jobId)) {
+        violations.push(`verify.yml's verify job does not need ${jobId}`);
+      }
+    }
+  }
+
+  const scripts = JSON.parse(packageJsonSource).scripts;
+  if (scripts?.verify !== EXPECTED_VERIFY_SCRIPT) {
     violations.push(
-      `package.json's "verify" script is "${packageJson.scripts?.verify}", expected the exact composition "${EXPECTED_VERIFY_SCRIPT}"`,
+      `package.json's "verify" script is "${scripts?.verify}", expected the exact composition "${EXPECTED_VERIFY_SCRIPT}"`,
+    );
+  }
+  if (!composesEveryCommand(scripts?.["verify:static"], REQUIRED_VERIFY_STATIC_COMMANDS)) {
+    violations.push(
+      `package.json's "verify:static" script is "${scripts?.["verify:static"]}", expected plain commands joined by && that include ${REQUIRED_VERIFY_STATIC_COMMANDS.map((command) => `"${command}"`).join(", ")}`,
+    );
+  }
+  if (scripts?.["verify:tests"] !== EXPECTED_VERIFY_TESTS_SCRIPT) {
+    violations.push(
+      `package.json's "verify:tests" script is "${scripts?.["verify:tests"]}", expected exactly "${EXPECTED_VERIFY_TESTS_SCRIPT}"`,
     );
   }
 
