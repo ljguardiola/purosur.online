@@ -494,21 +494,13 @@ function modalFor(request: RoleEditorRequest | null, services: RoleEditorModalSe
 }
 
 /**
- * Lets a late response's own guarded continuation run to completion, and React commit whatever it
- * would set, before asserting it didn't. Awaiting the exact promise the continuation is itself
- * awaiting queues after that continuation's own `.then` (registered first, when the request was
- * made), so this turn already runs it. A state update made from outside any event handler (like
- * that continuation's `setState` calls) schedules its commit through React's own Scheduler, which
- * can land on a later macrotask rather than the next microtask; rerendering the same, unchanged
- * `ui` forces that commit through `act()` before this returns, the same way a real interaction
- * would, instead of guessing how many ticks or milliseconds it takes.
+ * Runs whatever the test already set in motion to completion, and commits what it set, before
+ * asserting it didn't happen. Rerendering the same, unchanged `ui` goes through React's async
+ * `act()`, which yields at least one macrotask before returning and keeps flushing until no update
+ * is left queued: a promise chain the test already resolved runs in that yield however many
+ * `await`s deep it is, and any state it sets commits inside the same `act()`.
  */
-async function settleLateResponse(
-  screen: Screen,
-  ui: ReactElement,
-  resolved: Promise<unknown> = Promise.resolve(),
-): Promise<void> {
-  await resolved;
+async function flushPendingWork(screen: Screen, ui: ReactElement): Promise<void> {
   await screen.rerender(ui);
 }
 
@@ -539,7 +531,7 @@ test("ignores a role that arrives late for an edit already replaced by editing a
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Caja");
   first.resolve({ kind: "ok", value: stockDetail });
-  await settleLateResponse(screen, ui, first.promise);
+  await flushPendingWork(screen, ui);
 
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
@@ -564,7 +556,7 @@ test("ignores a role that arrives late for an edit already closed and replaced b
   await screen.rerender(ui);
 
   first.resolve({ kind: "ok", value: stockDetail });
-  await settleLateResponse(screen, ui, first.promise);
+  await flushPendingWork(screen, ui);
 
   await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
@@ -588,7 +580,7 @@ test("ignores a reload that arrives late for an edit already replaced by a new r
   await screen.rerender(ui);
 
   reload.resolve({ kind: "ok", value: { ...stockDetail, name: "Depósito recargado" } });
-  await settleLateResponse(screen, ui, reload.promise);
+  await flushPendingWork(screen, ui);
 
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
   await expect.element(screen.getByText("0 permisos elegidos")).toBeVisible();
@@ -726,7 +718,7 @@ test("while a save is in flight, neither the close button nor Escape dismisses t
   expect(screen.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   await userEvent.keyboard("{Escape}");
-  await settleLateResponse(screen, ui);
+  await flushPendingWork(screen, ui);
 
   expect(onClose).not.toHaveBeenCalled();
 });
@@ -752,7 +744,7 @@ test("a save that succeeds after the editor moved on to another request never re
       userCount: 0,
     },
   });
-  await settleLateResponse(screen, ui, pendingSave.promise);
+  await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeEnabled();
@@ -780,7 +772,7 @@ test("a confirmed save that fails after the editor moved on to another request l
   await screen.rerender(ui);
 
   pendingSave.resolve({ kind: "name_taken" });
-  await settleLateResponse(screen, ui, pendingSave.promise);
+  await flushPendingWork(screen, ui);
 
   expect(screen.getByText("Ya existe un rol con este nombre.").query()).toBeNull();
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
@@ -816,7 +808,7 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
       userCount: 0,
     },
   });
-  await settleLateResponse(screen, ui, retry.promise);
+  await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
   await expect
