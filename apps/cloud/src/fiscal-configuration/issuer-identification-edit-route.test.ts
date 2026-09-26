@@ -302,7 +302,7 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
     expect(audited).toHaveLength(1);
   });
 
-  it("rejects a missing legal_name with 400 validation_failed on that field, changing nothing", async () => {
+  it("rejects an activity_start_date after the route clock's day with 400 validation_failed on that field, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
       email: "ada@example.com",
@@ -312,14 +312,14 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await putIssuerIdentification(
-      validBody({ legal_name: undefined }),
+      validBody({ activity_start_date: "2026-01-06" }),
       rawSessionId,
     );
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "legal_name" }],
+      details: [{ field: "activity_start_date" }],
     });
     const [row] = await db
       .select()
