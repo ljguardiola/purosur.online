@@ -64,7 +64,6 @@ describe("processRecoveryRequestJob", () => {
 
     await expect(db.select().from(recoveryTokens)).resolves.toEqual([]);
     await expect(db.select().from(auditLog)).resolves.toEqual([]);
-    // No alert either: one would let a caller learn the address has no account by its absence.
     await expect(recoveryRequestedAlerts()).resolves.toEqual([]);
     expect(result).toEqual({});
   });

@@ -15,8 +15,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
-// pool. This test pins the interleaving by holding a row lock and waiting until both requests
-// queue behind it, so the order they reach the database is decided by the test, not by timing.
+// pool; this test pins the order by holding a row lock until both requests queue behind it.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;
@@ -104,8 +103,7 @@ async function waitForLockWaiters(count: number): Promise<void> {
   throw new Error(`test setup: ${count} requests never queued behind the held lock`);
 }
 
-// Holds the Administrator role row lock the edit route itself takes before counting active
-// Administrators, so both requests queue behind it in the order this test controls.
+// Holds the same Administrator role row lock the edit route takes before counting active Administrators, so both requests queue behind it in order.
 async function runQueuedBehindAdministratorRoleLock(
   first: InjectRequest,
   second: InjectRequest,

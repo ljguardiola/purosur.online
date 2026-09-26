@@ -165,8 +165,6 @@ describe("POST /users/passkeys/:id/remove", () => {
     await registerPasskey(userId, emulatorA, "Notebook del local");
     await registerPasskey(userId, emulatorB, "Teléfono del local");
 
-    // Closes the alert the two setup passkeys above already opened, so each test's own alert
-    // assertions stay free of this setup's side effect.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: userId })

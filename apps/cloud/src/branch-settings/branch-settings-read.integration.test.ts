@@ -8,9 +8,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { findBranchSettings } from "./branch-settings-read-route.js";
 
-// PGlite runs every query over one connection, so a save can never commit between the read's own
-// statements there; this runs the read against a real Postgres instead, with a second connection
-// committing a save in between them.
+// A second real-Postgres connection commits a save mid-read; PGlite's single connection can't
+// produce that interleaving.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;

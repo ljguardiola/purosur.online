@@ -7,7 +7,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import {
   canSeeAnyAlerts,
   visibleAlertsCondition,
-  visibleToUsersCondition,
+  visibleToUsersJoinedWithRolesCondition,
 } from "./alert-visibility.js";
 
 let testDatabase: TestDatabase;
@@ -174,7 +174,7 @@ describe("visibleAlertsCondition", () => {
   });
 });
 
-describe("visibleToUsersCondition", () => {
+describe("visibleToUsersJoinedWithRolesCondition", () => {
   async function matchingRecipients(scope: {
     audience: "local" | "all";
     locationId: string | undefined;
@@ -184,7 +184,7 @@ describe("visibleToUsersCondition", () => {
       .from(users)
       .innerJoin(userRoles, eq(userRoles.userId, users.id))
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
-      .where(visibleToUsersCondition(db, scope));
+      .where(visibleToUsersJoinedWithRolesCondition(db, scope));
     return rows.map((row) => row.id);
   }
 

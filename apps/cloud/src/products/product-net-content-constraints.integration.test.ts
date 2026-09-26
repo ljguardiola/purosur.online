@@ -8,8 +8,6 @@ import {
   type IntegrationDatabase,
 } from "../recovery/recovery-integration-database.js";
 
-// Application code already keeps these three bad shapes from ever reaching an insert or update, so
-// these checks are the database's own backstop, exercised here by writing straight to the table.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

@@ -249,8 +249,8 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
     targetPasskeyAId = passkeyA.id;
     targetPasskeyBId = passkeyB.id;
 
-    // Redeeming the setup passkeys already opened the target's own alert; closing it here keeps
-    // each test's assertions about that alert free of this setup's side effect.
+    // Redeeming the setup passkeys already opened an alert on the target; closing it here isolates
+    // each test's own alert assertions.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: administratorId })
@@ -334,8 +334,7 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
   });
 
   it("rejects the session's own user as the target with 403 own_account, changing nothing", async () => {
-    // Registered before the session: redeeming a recovery link ends every session already open on
-    // the account.
+    // Registered before the session, since redeeming a recovery link ends every session already open.
     await registerPasskey(administratorId, newDeviceEmulator(), "Passkey del admin");
     const rawSessionId = await insertSession(administratorId);
     const [ownPasskey] = await db

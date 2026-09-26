@@ -34,7 +34,6 @@ async function storedRowCount(): Promise<number> {
   return Number(result.rows[0]?.count ?? 0);
 }
 
-/** Stores `count` already-admitted requests for one key in a single insert, the n-th made at `attemptedAt(n)`. */
 async function seedAdmittedRequests(
   keyKind: "session" | "source_address",
   keyValue: string,
@@ -72,7 +71,6 @@ describe("recordBackofficeRequest", () => {
 
   it("allows up to 600 requests per hour for the same session, then rejects the 601st", async () => {
     await seedAdmittedRequests("session", "session-1", 599);
-    // A fresh source address each time isolates the session limit from the address limit.
     const attempt = (sourceAddress: string) =>
       recordBackofficeRequest(db, { sessionKeyValue: "session-1", sourceAddress, now: NOON });
 
@@ -167,7 +165,6 @@ describe("recordBackofficeRequest", () => {
       now: minutesAfterNoon(50),
     });
 
-    // Oldest counted request was made at noon; its slot frees at 13:00, ten minutes after `minutesAfterNoon(50)`.
     expect(rejected).toEqual({ allowed: false, retryAfterSeconds: 10 * 60 });
   });
 

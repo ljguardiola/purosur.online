@@ -31,8 +31,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserPasskeyRemovalRoutes } from "./user-passkey-removal-route.js";
 
 // PGlite serializes every transaction, so racing requests can only interleave on a real Postgres
-// pool. Each test pins the interleaving by holding a row lock and waiting until the requests queue
-// behind it, so the order they reach the database is decided by the test, not by timing.
+// pool; each test pins the order by holding a row lock until both requests queue behind it.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
@@ -172,7 +171,6 @@ async function signedInAdministrator(): Promise<{ cookie: string; emulator: WebA
   return { cookie: `${SESSION_COOKIE_NAME}=${await insertSession(administratorId)}`, emulator };
 }
 
-/** Everything up to the removal itself, so only the removal request is left to race. */
 async function prepareRemoval(targetId: string, passkeyId: string) {
   const administrator = await signedInAdministrator();
   const headers = { origin: BACKOFFICE_ORIGIN, cookie: administrator.cookie };
@@ -184,7 +182,6 @@ async function prepareRemoval(targetId: string, passkeyId: string) {
     });
 }
 
-/** Everything up to the sign-in itself, so only the authenticate request is left to race. */
 async function prepareSignIn(emulator: WebAuthnEmulator) {
   const headers = { origin: BACKOFFICE_ORIGIN, "x-real-ip": nextSourceAddress() };
   const options = await app.inject({
@@ -218,8 +215,7 @@ async function waitForLockWaiters(count: number): Promise<void> {
 
 type InjectRequest = () => Promise<LightMyRequestResponse>;
 
-// Releases the lock and settles both requests even when one never queues, so no waiter outlives
-// its test and inflates the next one's count.
+// Settles both requests even when one never queues, so no leftover waiter inflates the next test's count.
 async function runQueuedBehindRowLock(
   lockQuery: (reserved: postgres.ReservedSql) => Promise<unknown>,
   first: InjectRequest,

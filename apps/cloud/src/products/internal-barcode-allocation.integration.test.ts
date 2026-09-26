@@ -7,8 +7,8 @@ import {
 } from "../recovery/recovery-integration-database.js";
 import { allocateInternalBarcode } from "./internal-barcode-route.js";
 
-// A Postgres sequence's `nextval` is itself concurrency-safe (each caller gets its own value, with
-// no locking needed); this proves that guarantee holds end to end over a real multi-connection pool.
+// A Postgres sequence's `nextval` is concurrency-safe: each caller gets its own value with no
+// locking needed.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

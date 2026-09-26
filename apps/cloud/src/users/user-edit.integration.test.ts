@@ -14,8 +14,6 @@ import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerUserEditRoutes } from "./user-edit-route.js";
 
-// PGlite and postgres-js name the violated index differently in their unique-violation errors;
-// this proves the taken address is still answered as email_taken on the real driver.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 
 let integrationDb: IntegrationDatabase;

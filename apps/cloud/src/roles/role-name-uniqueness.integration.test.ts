@@ -12,8 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRole } from "./role-creation-route.js";
 
 // PGlite runs every query over one connection, so it can never race two creations for the same
-// name; this runs them over a real postgres-js pool against a real Postgres, whose unique-index
-// violation reports `constraint_name` unlike PGlite's `constraint`.
+// name; this runs them over a real postgres-js pool against a real Postgres instead.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

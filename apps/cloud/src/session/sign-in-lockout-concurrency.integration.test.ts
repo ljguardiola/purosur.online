@@ -7,10 +7,8 @@ import {
 } from "../recovery/recovery-integration-database.js";
 import { admitSignInAttempt, SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 
-// PGlite serves every query on one connection, so only a real Postgres pool can race a burst of
-// attempts against the ceiling meant to cap them. One admission needs a connection to prune and
-// another for its locked transaction, so the pool below is sized with headroom above the burst;
-// otherwise queued requests with no timeout of their own would hang the suite instead of failing loudly.
+// PGlite serves every query on one connection, so only a real Postgres pool can race a burst.
+// Each admission needs two connections (prune, then its locked transaction), hence the headroom.
 const BURST = 20;
 
 let integrationDb: IntegrationDatabase;

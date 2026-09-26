@@ -81,7 +81,7 @@ beforeEach(async () => {
   locationId = await seededLocationId(db);
 });
 
-// The migrations seed the one, fixed Administrator role; no test may insert a second one.
+// A unique index allows only the one Administrator role the migrations seed.
 async function seededAdministratorRoleId(): Promise<string> {
   const [administratorRole] = await db
     .select({ id: roles.id })

@@ -6,8 +6,6 @@ import { runMigrations } from "../migrate.js";
 import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
 import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 
-// PGlite's own tests already cover that the migration SQL applies cleanly; this suite proves what
-// the cloud_app role can and cannot do against a real Postgres.
 // `cloud_app` is one cluster-wide role, so this suite reuses CLOUD_APP_PASSWORD; withExclusiveMigration
 // keeps its runMigrations calls from racing another integration suite's own.
 const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
@@ -261,11 +259,10 @@ describe("the cloud_app role runMigrations creates", () => {
     }
   }, 60_000);
 
-  // Postgres refuses `CREATE DATABASE ... TEMPLATE` and blocks `DROP DATABASE` while anyone is
-  // still connected, so a connection runMigrations leaves open would make whatever runs next
-  // depend on how fast it happens to close.
   it("leaves no connection open on the database once it resolves", async () => {
     const admin = postgres(adminUrl, { max: 1 });
+    // Postgres refuses `CREATE DATABASE ... TEMPLATE` and blocks `DROP DATABASE` while anyone is
+    // still connected, so a leaked connection here would make whatever runs next flaky.
     try {
       await withExclusiveMigration(async () => {
         await runMigrations(databaseUrlFor(adminUrl, databaseName), CLOUD_APP_PASSWORD, {
@@ -282,9 +279,8 @@ describe("the cloud_app role runMigrations creates", () => {
     }
   }, 60_000);
 
-  // graphile-worker checks its own schema on every start (makeWorkerUtils, run()); since
-  // runMigrations already applied its migrations as admin, this never needs DDL privilege as
-  // cloud_app.
+  // graphile-worker checks its own schema on every start; runMigrations already applied it as
+  // admin, so this never needs DDL privilege as cloud_app.
   it("starts graphile-worker as cloud_app without it needing any DDL privilege", async () => {
     const workerUtils = await makeWorkerUtils({ connectionString: cloudAppUrl });
     await workerUtils.release();

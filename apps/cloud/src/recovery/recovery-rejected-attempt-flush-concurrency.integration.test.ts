@@ -48,8 +48,8 @@ function connectAs(
   });
 }
 
-// An unattached rejection here would surface as vitest's own unhandled-rejection failure, on top
-// of whatever assertion this test already reports; each background promise gets an inert catch.
+// An unattached rejection here would surface as vitest's own unhandled-rejection failure; each
+// background promise gets an inert catch.
 function ignoreUnhandledRejection(promise: Promise<unknown>): void {
   promise.catch(() => {});
 }

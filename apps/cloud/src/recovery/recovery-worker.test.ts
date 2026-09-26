@@ -203,7 +203,6 @@ describe("startRecoveryWorker", () => {
     let capturedEvents: EventEmitter | undefined;
     const drain = deferred();
     const runner = {
-      // graphile-worker rejects a second stop() after a self-stop; must never be called here.
       stop: vi.fn().mockRejectedValue(new Error("Runner is already stopped")),
       promise: drain.promise,
     };
@@ -223,7 +222,6 @@ describe("startRecoveryWorker", () => {
       { runWorker, createPool },
     );
 
-    // Simulates the runner's own worker pool or cron exiting on its own.
     mustExist(capturedEvents, "the events emitter passed to graphile-worker's run()").emit("stop", {
       ctx: {},
     });

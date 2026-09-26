@@ -94,7 +94,6 @@ function newDeviceEmulator(): WebAuthnEmulator {
 
 let tokenSequence = 0;
 
-/** Registers a real first passkey for `forUserId`, backed by `emulator`, through the recovery route. */
 async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulator): Promise<void> {
   tokenSequence += 1;
   const rawToken = `raw-token-${tokenSequence}`;
@@ -312,8 +311,6 @@ describe("POST /users/passkeys", () => {
   beforeEach(async () => {
     await registerFirstPasskey(userId, new WebAuthnEmulator());
 
-    // Closes the alert the setup passkey above already opened, so each test's own alert assertions
-    // stay free of this setup's side effect.
     await db
       .update(alerts)
       .set({ resolvedAt: currentTime, resolvedBy: userId })
@@ -665,7 +662,6 @@ describe("POST /users/passkeys", () => {
         BACKOFFICE_ORIGIN,
         options.passkey_registration_options,
       );
-      // Only the kind differs from a genuine pending registration.
       await db.update(passkeyChallenges).set({ kind: "session_authorization" });
 
       const response = await postJson(

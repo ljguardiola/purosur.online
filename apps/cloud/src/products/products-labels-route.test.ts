@@ -409,7 +409,6 @@ describe("POST /products/labels", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers["content-type"]).toBe("application/pdf");
-    // The downloaded file's name comes from the backoffice's own message catalog.
     expect(response.headers["content-disposition"]).toBe("attachment");
     const pdf = response.rawPayload;
     expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");

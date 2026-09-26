@@ -11,9 +11,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRegister } from "./register-creation-route.js";
 
-// PGlite can't race two creations for the same name; this runs them on a real postgres-js pool.
-// Its driver reports the violated index as `constraint_name`, unlike PGlite's `constraint` field —
-// both must be handled correctly.
+// PGlite can't race two creations for the same name; this runs them on a real postgres-js pool,
+// whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;

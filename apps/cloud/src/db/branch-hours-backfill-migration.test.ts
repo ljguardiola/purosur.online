@@ -56,7 +56,6 @@ describe("the branch_hours migration's backfill of existing hours", {
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());
 
-    // The migrations already seed one location; earlier ones assume it exists.
     const { rows: seededLocationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );

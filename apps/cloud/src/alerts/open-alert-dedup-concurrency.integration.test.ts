@@ -13,9 +13,8 @@ import {
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, type OpenAlertOutcome, openAlert } from "./open-alert.js";
 
-// PGlite serves every query on one connection and can never race two `openAlert` calls against
-// each other, so the dedup index's concurrent path never runs under it. This races it for real on
-// both drivers the app uses: postgres-js and node-postgres.
+// PGlite serves every query on one connection, so these races need a real Postgres, on both
+// drivers the app uses.
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 
 async function insertAdministrator<TQueryResult extends PgQueryResultHKT>(
@@ -70,11 +69,9 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
 
   let firstAlertId: string;
   let secondCommitted: Promise<OpenAlertOutcome>;
-  // Always releases the first transaction on any failure below, or it stays open and hangs
-  // `pool.end()`/`sql.end()` for the full timeout instead of surfacing the real error.
+  // An unreleased transaction hangs `pool.end()`/`sql.end()` until timeout, hiding the real error.
   try {
-    // Raced against the transaction itself: if the first `openAlert` call rejects, `firstStarted`
-    // never resolves, so its rejection must surface here instead.
+    // `firstStarted` never resolves if the first `openAlert` rejects.
     await Promise.race([firstStarted, firstCommitted]);
     if (firstOutcome?.kind !== "opened") {
       throw new Error("test setup: the first openAlert call never opened the alert");
@@ -83,13 +80,11 @@ async function racesOpenAlertDedup<TQueryResult extends PgQueryResultHKT>(
 
     secondCommitted = db.transaction(async (tx) => {
       const outcome = await openAlert(tx, input, { now: () => new Date(NOON.getTime() + 1_000) });
-      // Must still commit even though openAlert's own insert failed on the unique index, proving
-      // the savepoint kept that failure from poisoning this outer transaction.
+      // Commits only if the savepoint kept the unique violation out of this transaction.
       await tx.update(users).set({ firstName: "Ada (marked)" }).where(eq(users.id, recipientId));
       return outcome;
     });
-    // Observed now so a rejection during the lock wait surfaces at the await below, not as a
-    // separate unhandled rejection.
+    // Attached now so a rejection during the lock wait isn't reported as unhandled.
     secondCommitted.catch(() => {});
 
     await waitForLockWaiters(1);

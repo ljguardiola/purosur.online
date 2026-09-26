@@ -26,8 +26,7 @@ import { hashRecoveryToken } from "./recovery-token-hash.js";
 import { RECOVERY_REQUEST_TASK_IDENTIFIER } from "./recovery-worker.js";
 
 // Proves the real production wiring end to end (a real postgres-js pool and graphile-worker's
-// real `run()`), which PGlite cannot exercise: no LISTEN/NOTIFY, and every query served on one
-// connection. Only the email sender is faked.
+// real run()), which PGlite cannot exercise: no LISTEN/NOTIFY, and every query on one connection.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const WAIT_OPTIONS = { timeout: 20_000, interval: 100 };
 
@@ -109,7 +108,6 @@ interface StartedFixture {
 const JOB_QUEUE_FAILURE = /recovery job queue: (idle|active) database client failed/;
 const WORKER_FAILURE = /recovery worker: (idle|active) database client failed/;
 
-/** Cuts every connection both pools hold, the way a database restart or a failover does. */
 async function dropEveryConnection(databaseUrl: string): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1 });
   try {
@@ -123,7 +121,6 @@ async function dropEveryConnection(databaseUrl: string): Promise<void> {
   }
 }
 
-/** Joins `cleanup`'s own failure with `error` via `AggregateError`, instead of losing either. */
 async function rethrowAfter(error: unknown, cleanup: () => Promise<void>): Promise<never> {
   try {
     await cleanup();
@@ -323,7 +320,6 @@ describe("setUpRecovery wired to a real Postgres pool and a real graphile-worker
       const sql = postgres(integrationDb.databaseUrl, { max: 1 });
       try {
         const db = drizzle(sql);
-        // The rejection is bookkept by the accumulator, not an individual audit row.
         const auditRows = await db
           .select()
           .from(auditLog)

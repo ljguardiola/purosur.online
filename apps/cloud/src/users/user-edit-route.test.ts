@@ -115,8 +115,8 @@ function postJson(
   });
 }
 
-// Runs `change` right after the route's own transaction commits: the window a concurrent request
-// can commit a change of its own into, before the route answers.
+// Runs `change` right after the route's own transaction commits: the race window between that
+// commit and the route's answer.
 function withChangeAfterCommit(change: () => Promise<unknown>): TestDatabase["db"] {
   let targetRead = false;
   let changed = false;

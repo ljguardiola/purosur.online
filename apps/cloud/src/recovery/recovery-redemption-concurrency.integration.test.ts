@@ -18,8 +18,7 @@ import {
 import { hashRecoveryToken } from "./recovery-token-hash.js";
 
 // PGlite serializes every query on one connection and can never race for real; this proves the
-// same guarantee against a real Postgres pool of more than one connection, over two genuinely
-// parallel HTTP requests.
+// same guarantee against a real Postgres pool, over two genuinely parallel HTTP requests.
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 

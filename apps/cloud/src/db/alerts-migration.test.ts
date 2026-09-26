@@ -56,7 +56,6 @@ describe("the alerts migration applied over a database that already holds data",
     const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
     onTestFinished(() => client.close());
 
-    // The migrations already seed one location; earlier ones assume it exists.
     const { rows: seededLocationRows } = await client.query<{ id: string }>(
       "select id from locations limit 1",
     );

@@ -12,8 +12,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
 
 // PGlite runs every query over one connection, so it can never race two emissions for the same
-// register. This runs them over a real postgres-js pool of more than one connection against a real
-// Postgres.
+// register; this runs them over a real multi-connection postgres-js pool instead.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let adminSql: ReturnType<typeof postgres>;
@@ -63,8 +62,8 @@ describe("emitting two enrollment codes for a register with no code yet concurre
     const secondNow = new Date(firstNow.getTime() + 1_000);
 
     // A SHARE lock on the codes table parks the first emission at its INSERT after it has locked
-    // the register row; the second then waits on that row and sees the first's code as replaced
-    // only once it commits.
+    // the register row, so the second waits on that row and sees the first's code as replaced only
+    // once it commits.
     const holder = await adminSql.reserve();
     let emissions: ReturnType<typeof emitRegisterEnrollmentCode>[] = [];
     try {

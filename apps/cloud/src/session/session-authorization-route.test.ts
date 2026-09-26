@@ -293,7 +293,6 @@ describe("POST /users/session/authorization", () => {
     const rawSessionId = await insertSession(userId);
     const options = await requestAuthorizationOptions(rawSessionId);
     const authorization = emulator.getJSON(BACKOFFICE_ORIGIN, options.authorization_options);
-    // Only the kind differs from a genuine pending authorization.
     await db.update(passkeyChallenges).set({ kind: "registration" });
 
     const response = await authorize(rawSessionId, { authorization });

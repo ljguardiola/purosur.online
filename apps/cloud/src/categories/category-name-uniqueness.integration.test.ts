@@ -10,9 +10,8 @@ import {
 } from "../recovery/recovery-integration-database.js";
 import { createCategory } from "./category-creation-route.js";
 
-// PGlite can't race two creations for the same name; this runs them on a real postgres-js pool.
-// Its driver reports the violated index as `constraint_name`, unlike PGlite's `constraint` field —
-// both must be handled correctly.
+// PGlite can't race two creations for the same name, so this runs on a real postgres-js pool,
+// whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

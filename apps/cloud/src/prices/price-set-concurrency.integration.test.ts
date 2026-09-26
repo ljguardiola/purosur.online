@@ -13,9 +13,8 @@ import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { confirmPrice } from "./price-confirmation-route.js";
 import { setPrice } from "./price-set-route.js";
 
-// PGlite serves every query on one connection and serializes transactions outright, so two price
-// writes on the same product can only interleave on a real Postgres pool. Each test pins the
-// interleaving by holding the product's row lock and waiting until both writes queue behind it.
+// PGlite serializes all transactions on one connection, so only a real Postgres pool can
+// interleave two writes to the same product; each test holds the row lock and waits for both to queue.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;

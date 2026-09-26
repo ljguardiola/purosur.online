@@ -86,7 +86,6 @@ describe("provideTestDatabaseSnapshot", { timeout: 30_000 }, () => {
       "first_table",
       "second_table",
     ]);
-    // The empty cluster dump does not depend on migrations, so a rerun never rebuilds or re-provides it.
     expect(clusterDumpsProvided()).toHaveLength(1);
     expect((await readFile(join(folder, "cluster-dump.tar"))).equals(clusterDump)).toBe(true);
   });

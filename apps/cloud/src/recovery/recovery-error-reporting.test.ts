@@ -2,8 +2,8 @@ import * as Sentry from "@sentry/node";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reportRecoveryBookkeepingError, reportRecoveryError } from "./recovery-error-reporting.js";
 
-// ESM's non-configurable namespace makes `vi.spyOn` throw "Cannot redefine property" on the
-// module's own export, so only mocking it here lets the "defaults to..." test spy on it.
+// ESM's non-configurable namespace makes vi.spyOn throw on the module's own export; mocking it
+// here is what lets the "defaults to..." test spy on it.
 vi.mock("@sentry/node", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sentry/node")>();
   return { ...actual, captureException: vi.fn() };

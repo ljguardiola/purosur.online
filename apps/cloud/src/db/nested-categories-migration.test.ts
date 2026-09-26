@@ -29,8 +29,6 @@ async function readRealJournal(): Promise<Journal> {
   return JSON.parse(raw) as Journal;
 }
 
-// Found by tag suffix, not number, so a renumbering after merging another branch's migration
-// doesn't silently point this test at the wrong file.
 async function nestedCategoriesEntry(): Promise<JournalEntry> {
   const journal = await readRealJournal();
   const entry = journal.entries.find((candidate) =>
@@ -42,10 +40,8 @@ async function nestedCategoriesEntry(): Promise<JournalEntry> {
   return entry;
 }
 
-/**
- * Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
- * unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
- */
+// Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
+// unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
 async function migrationsFolderBeforeNestedCategories(destFolder: string): Promise<void> {
   await mkdir(join(destFolder, "meta"), { recursive: true });
   const journal = await readRealJournal();

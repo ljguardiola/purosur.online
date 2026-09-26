@@ -184,7 +184,6 @@ describe("GET /users/session", () => {
       throw new Error("test setup: seeding the role returned no row");
     }
     await db.insert(userRoles).values({ userId, roleId: cashierRole.id });
-    // Inserted out of catalog order, to prove the response re-sorts them.
     await db.insert(rolePermissions).values([
       { roleId: cashierRole.id, permissionKey: "void_sale" },
       { roleId: cashierRole.id, permissionKey: "sell_and_charge" },

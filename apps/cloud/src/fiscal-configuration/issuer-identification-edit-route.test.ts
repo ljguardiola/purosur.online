@@ -101,7 +101,6 @@ async function insertUser(input: {
   return user.id;
 }
 
-/** Inserts a session, authorized (by default, at NOON) unless `authorizedAt` is passed as `null`. */
 async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
