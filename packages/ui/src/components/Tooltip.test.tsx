@@ -63,8 +63,8 @@ const COOLDOWN_MARGIN_MS = 250;
 const COOLDOWN_BUFFER_MS = REACT_STATELY_COOLDOWN_MS + COOLDOWN_MARGIN_MS;
 
 // Mirrors Tooltip.tsx's own close delay: the grace a pointer gets to cross from the element onto
-// the tooltip. The close tests bound the measured close on both sides of it, so the two values
-// cannot drift apart unnoticed.
+// the tooltip. The close test checks the tooltip is still open 1ms before it runs out and gone
+// once it has, so the two values cannot drift apart unnoticed.
 const TOOLTIP_CLOSE_GRACE_MS = 100;
 
 // react-stately's own default close delay: the linger after the pointer leaves that the tooltip's
@@ -444,52 +444,55 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
 });
 
 test("appears on hover and disappears within a short grace period once the pointer leaves both its element and the tooltip", async () => {
-  const screen = await render(
+  const ui = (
     <Tooltip description="Voided at checkout by the manager on duty">
       <Button>Void reason</Button>
-    </Tooltip>,
+    </Tooltip>
   );
+  const screen = await render(ui);
   const trigger = screen.getByRole("button", { name: "Void reason" }).element();
 
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
+  const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // Both ends of the interval come from events in the page, the same way the hover-delay test
-  // below measures its own interval, so a lingering close (react-stately's own 500ms cooldown)
-  // shows up as elapsed time instead of this assertion racing that cooldown.
-  const watch = new AbortController();
-  const leftAt = new Promise<number>((resolve) => {
-    trigger.addEventListener("pointerleave", () => resolve(performance.now()), {
-      once: true,
-      signal: watch.signal,
-    });
-  });
-  const closedAt = tooltipRemoved(watch.signal);
+  // The far corner of the viewport, well clear of the element rendered at the top-left and of the
+  // tooltip below it. Unless it really is neither, the pointer never leaves both and the close
+  // under test never starts.
+  const awayX = window.innerWidth - 1;
+  const awayY = window.innerHeight - 1;
+  const awayElement = document.elementFromPoint(awayX, awayY);
+  expect(trigger.contains(awayElement)).toBe(false);
+  expect(tooltip.contains(awayElement)).toBe(false);
 
-  let elapsedMs: number;
+  // Frozen timers make the grace a count of simulated milliseconds instead of wall-clock time a
+  // loaded machine can stretch. Rerendering goes through React's act, which commits anything a
+  // timer that did fire scheduled before the page is read.
+  expect(TOOLTIP_CLOSE_GRACE_MS).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
+  const watch = new AbortController();
+  const leftElement = new Promise<void>((resolve) => {
+    trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
+  });
+  const closed = tooltipRemoved(watch.signal);
+  const session = cdp() as unknown as DispatchableCdpSession;
   try {
-    await userEvent.unhover(trigger);
-    elapsedMs =
-      (await beforeDeadline(closedAt, "the tooltip was never removed from the page")) -
-      (await beforeDeadline(leftAt, "the pointer never left the element"));
+    await whileTimersFrozen(async () => {
+      await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: awayX, y: awayY });
+      await beforeDeadline(leftElement, "the pointer never left the element");
+
+      vi.advanceTimersByTime(TOOLTIP_CLOSE_GRACE_MS - 1);
+      await screen.rerender(ui);
+      expect(screen.getByRole("tooltip").elements().length, "closed before the grace ran out").toBe(
+        1,
+      );
+
+      vi.advanceTimersByTime(1);
+      await beforeDeadline(closed, "the tooltip was never removed once the grace ran out");
+    });
   } finally {
     watch.abort();
   }
-
-  // The close is armed on pointerout, which the browser fires just before the pointerleave this
-  // interval starts from, so the measured close can land a fraction of a millisecond short of the
-  // full grace, never more.
-  const POINTEROUT_TO_POINTERLEAVE_TOLERANCE_MS = 2;
-  // Room for the timer to fire late and for React to commit the removal once it does, while the
-  // bound stays below the old linger.
-  const CLOSE_COMMIT_MARGIN_MS = 150;
-  const closeBoundMs = TOOLTIP_CLOSE_GRACE_MS + CLOSE_COMMIT_MARGIN_MS;
-  expect(closeBoundMs).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
-  expect(elapsedMs).toBeGreaterThanOrEqual(
-    TOOLTIP_CLOSE_GRACE_MS - POINTEROUT_TO_POINTERLEAVE_TOLERANCE_MS,
-  );
-  expect(elapsedMs).toBeLessThan(closeBoundMs);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
