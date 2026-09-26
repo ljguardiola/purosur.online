@@ -174,6 +174,10 @@ describe("openAlert", () => {
       permissionKeys: ["view_all_alerts"],
     });
     await insertUser({ firstName: "Grace", email: "grace@example.com", roleId: viewAllRoleId });
+    // A user recipientsFor never returns, so the equality below can tell "only recipientsFor's
+    // users" apart from "every active user".
+    const noPermissionRoleId = await insertRole({ name: "Repositor" });
+    await insertUser({ firstName: "Hedy", email: "hedy@example.com", roleId: noPermissionRoleId });
 
     const outcome = await db.transaction((tx) =>
       openAlert(
