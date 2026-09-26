@@ -456,6 +456,40 @@ test("Revisar los N walks the pending products one by one, opening the next afte
   expect(screen.getByRole("heading", { name: "Arroz" }).query()).toBeNull();
 });
 
+test("during Revisar los N, a saved price's notice shows inside the next product's modal, naming the saved product, until the modal closes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockImplementation(async () => ({
+    kind: "ok",
+    value: { products: [sinPrecio, arroz], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+  }));
+  vi.mocked(services.setPrice).mockResolvedValue({
+    kind: "ok",
+    value: {
+      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
+      lastReviewedAt: "2026-09-25T12:00:00.000Z",
+    },
+  });
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisar los 2" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por unidad"), "1");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
+  await expect.element(dialog.getByText("Precio actualizado")).toBeVisible();
+  await expect.element(dialog.getByText("Fideos pasa a $ 1,00.")).toBeVisible();
+
+  await userEvent.click(dialog.getByLabelText("Precio de venta por kilo"));
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+  await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
+  expect(dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
+});
+
 test("a product that no longer exists disables the modal's actions and refreshes the list", async () => {
   const services = createServices();
   vi.mocked(services.setPrice).mockResolvedValue({ kind: "not_found" });
@@ -466,7 +500,7 @@ test("a product that no longer exists disables the modal's actions and refreshes
   await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto dado de baja");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto desactivado");
   await expect
     .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
     .toBeDisabled();
@@ -488,7 +522,7 @@ test("confirming a product that no longer exists keeps the modal open on its not
 
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto dado de baja");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto desactivado");
   await expect
     .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
     .toBeDisabled();
@@ -524,7 +558,7 @@ test("reloading a stale price for a product that is no longer listed shows its n
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar el precio" }));
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto dado de baja");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto desactivado");
   await expect
     .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
     .toBeDisabled();
@@ -551,7 +585,7 @@ test("confirming a row whose product no longer exists names it in the screen's n
     screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
   );
 
-  await expect.element(screen.getByText("Producto dado de baja")).toBeVisible();
+  await expect.element(screen.getByText("Producto desactivado")).toBeVisible();
   await expect.element(screen.getByText("Arroz ya no está en el catálogo.")).toBeVisible();
 });
 
@@ -574,7 +608,7 @@ test("Revisar los N moves past a product that no longer exists, naming it on the
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
-  await expect.element(dialog.getByText("Producto dado de baja")).toBeVisible();
+  await expect.element(dialog.getByText("Producto desactivado")).toBeVisible();
   await expect.element(dialog.getByText("Fideos ya no está en el catálogo.")).toBeVisible();
   await expect
     .element(dialog.getByRole("button", { name: "Confirmar sin cambios" }))
@@ -681,7 +715,8 @@ test("a save that succeeds after the modal moved to another product leaves that 
     },
   });
 
-  await expect.element(screen.getByText("Precio actualizado")).toBeVisible();
+  await expect.element(dialog.getByText("Precio actualizado")).toBeVisible();
+  await expect.element(dialog.getByText("Fideos pasa a $ 1,00.")).toBeVisible();
   await settleLateResult();
   await expect.element(dialog.getByRole("heading", { name: "Arroz" })).toBeVisible();
 });
@@ -702,4 +737,93 @@ test("a save that finds the product gone after the modal moved to another produc
   await settleLateResult();
   expect(dialog.getByRole("alert").query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Confirmar sin cambios" })).toBeEnabled();
+});
+
+test("a save that lands after the review filter changed refreshes the list for the current filter", async () => {
+  const services = createServices();
+  const pending = deferred<Awaited<ReturnType<PricesListScreenServices["setPrice"]>>>();
+  vi.mocked(services.setPrice).mockReturnValue(pending.promise);
+  const screen = await startWalkAndCloseWhileSaving(services);
+  const yerba: PriceProduct = { ...arroz, id: "product-3", name: "Yerba" };
+  vi.mocked(services.fetchPrices).mockImplementation(async (params) => ({
+    kind: "ok",
+    value: {
+      products: params.review === "all" ? [sinPrecio, arroz, yerba] : [sinPrecio, arroz],
+      pendingCount: 2,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await expect.element(screen.getByText("Yerba")).toBeVisible();
+  const loadsBefore = vi.mocked(services.fetchPrices).mock.calls.length;
+
+  pending.resolve({
+    kind: "ok",
+    value: {
+      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
+      lastReviewedAt: "2026-09-25T12:00:00.000Z",
+    },
+  });
+
+  await expect
+    .poll(() => vi.mocked(services.fetchPrices).mock.calls.length)
+    .toBeGreaterThan(loadsBefore);
+  await settleLateResult();
+  expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0].review).toBe("all");
+  await expect.element(screen.getByText("Yerba")).toBeVisible();
+});
+
+async function reopenFideosAndType(screen: Awaited<ReturnType<typeof renderScreen>>) {
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Fideos" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por unidad"), "5");
+  return dialog;
+}
+
+test("a save that succeeds after its modal was closed and the same product reopened keeps the reopened modal and its typed price", async () => {
+  const services = createServices();
+  const pending = deferred<Awaited<ReturnType<PricesListScreenServices["setPrice"]>>>();
+  vi.mocked(services.setPrice).mockReturnValue(pending.promise);
+  const screen = await startWalkAndCloseWhileSaving(services);
+  const dialog = await reopenFideosAndType(screen);
+
+  pending.resolve({
+    kind: "ok",
+    value: {
+      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
+      lastReviewedAt: "2026-09-25T12:00:00.000Z",
+    },
+  });
+
+  await expect.element(dialog.getByText("Fideos pasa a $ 1,00.")).toBeVisible();
+  await settleLateResult();
+  await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+  await expect.element(dialog.getByLabelText("Precio de venta por unidad")).toHaveValue("5");
+  await expect
+    .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
+    .toBeEnabled();
+});
+
+test("a save that finds the product gone after its modal was closed and the same product reopened leaves the reopened modal untouched", async () => {
+  const services = createServices();
+  const pending = deferred<Awaited<ReturnType<PricesListScreenServices["setPrice"]>>>();
+  vi.mocked(services.setPrice).mockReturnValue(pending.promise);
+  const screen = await startWalkAndCloseWhileSaving(services);
+  const dialog = await reopenFideosAndType(screen);
+  const loadsBefore = vi.mocked(services.fetchPrices).mock.calls.length;
+
+  pending.resolve({ kind: "not_found" });
+
+  await expect
+    .poll(() => vi.mocked(services.fetchPrices).mock.calls.length)
+    .toBeGreaterThan(loadsBefore);
+  await settleLateResult();
+  expect(dialog.getByRole("alert").query()).toBeNull();
+  await expect.element(dialog.getByLabelText("Precio de venta por unidad")).toHaveValue("5");
+  await expect
+    .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
+    .toBeEnabled();
 });

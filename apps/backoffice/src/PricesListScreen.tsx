@@ -160,17 +160,21 @@ type ModalNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
+type ScreenNotice = { tone: "success" | "error"; title: string; detail: string };
+
 type PriceChangeModalProps = {
   target: PriceProduct | null;
-  /** A product the walk just moved past because it was deactivated. */
-  skippedProductName: string | null;
+  /** Changes every time the modal opens, moves to another product or closes. */
+  session: number;
+  /** An outcome about another product (a saved one, or one the walk skipped) that lands while open. */
+  otherProductNotice: ScreenNotice | null;
   reviewWindowDays: number;
   now: () => Date;
   onClose: () => void;
   onSessionEnded: () => void;
-  /** `origin` is the target the modal showed when the request was sent. */
-  onSaved: (origin: PriceProduct, product: PriceProduct, outcome: PriceModalOutcome) => void;
-  onGone: (origin: PriceProduct) => void;
+  /** `origin` and `session` are what the modal had when the request was sent. */
+  onSaved: (session: number, product: PriceProduct, outcome: PriceModalOutcome) => void;
+  onGone: (origin: PriceProduct, session: number) => void;
   fetchPrices: typeof fetchPrices;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
@@ -182,7 +186,8 @@ type PriceChangeModalProps = {
  */
 function PriceChangeModal({
   target,
-  skippedProductName,
+  session,
+  otherProductNotice,
   reviewWindowDays,
   now,
   onClose,
@@ -194,10 +199,10 @@ function PriceChangeModal({
   confirmPrice,
 }: PriceChangeModalProps) {
   const isOpen = target !== null;
-  // A result that arrives after the modal was closed or moved to another product must not touch
-  // what the modal now shows.
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  // A result that arrives after the modal was closed, reopened or moved to another product must not
+  // touch what the modal now shows.
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const currentRef = useRef(current);
   currentRef.current = current;
@@ -250,11 +255,12 @@ function PriceChangeModal({
 
   function handleSetPriceOutcome(
     origin: PriceProduct,
+    requestSession: number,
     product: PriceProduct,
     outcome: SetPriceOutcome,
   ) {
     if (outcome.kind === "ok") {
-      onSaved(origin, product, {
+      onSaved(requestSession, product, {
         kind: "saved",
         price: outcome.value.price,
         lastReviewedAt: outcome.value.lastReviewedAt,
@@ -269,15 +275,15 @@ function PriceChangeModal({
       sendToMyAccount();
       return;
     }
-    if (targetRef.current !== origin) {
+    if (sessionRef.current !== requestSession) {
       if (outcome.kind === "not_found") {
-        onGone(origin);
+        onGone(origin, requestSession);
       }
       return;
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
-      onGone(origin);
+      onGone(origin, requestSession);
     } else if (outcome.kind === "stale_price") {
       setNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
@@ -294,6 +300,7 @@ function PriceChangeModal({
 
   async function handleSave() {
     const origin = target;
+    const requestSession = session;
     const product = currentRef.current;
     if (!origin || !product) {
       return;
@@ -309,16 +316,17 @@ function PriceChangeModal({
       unitPrice: cents,
       expectedCurrentPriceId: product.currentPrice?.id ?? null,
     });
-    handleSetPriceOutcome(origin, product, outcome);
+    handleSetPriceOutcome(origin, requestSession, product, outcome);
   }
 
   function handleConfirmPriceOutcome(
     origin: PriceProduct,
+    requestSession: number,
     product: PriceProduct,
     outcome: ConfirmPriceOutcome,
   ) {
     if (outcome.kind === "ok") {
-      onSaved(origin, product, {
+      onSaved(requestSession, product, {
         kind: "confirmed",
         lastReviewedAt: outcome.value.lastReviewedAt,
       });
@@ -332,15 +340,15 @@ function PriceChangeModal({
       sendToMyAccount();
       return;
     }
-    if (targetRef.current !== origin) {
+    if (sessionRef.current !== requestSession) {
       if (outcome.kind === "not_found") {
-        onGone(origin);
+        onGone(origin, requestSession);
       }
       return;
     }
     if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
-      onGone(origin);
+      onGone(origin, requestSession);
     } else if (outcome.kind === "stale_price") {
       setNotice({ kind: "stale" });
     } else if (outcome.kind === "rate_limited") {
@@ -353,6 +361,7 @@ function PriceChangeModal({
 
   async function handleConfirm() {
     const origin = target;
+    const requestSession = session;
     const product = currentRef.current;
     if (!origin || !product?.currentPrice) {
       return;
@@ -362,11 +371,12 @@ function PriceChangeModal({
     const outcome = await confirmPrice(product.id, {
       expectedCurrentPriceId: product.currentPrice.id,
     });
-    handleConfirmPriceOutcome(origin, product, outcome);
+    handleConfirmPriceOutcome(origin, requestSession, product, outcome);
   }
 
   async function handleReload() {
     const origin = target;
+    const requestSession = session;
     const product = currentRef.current;
     if (!origin || !product) {
       return;
@@ -375,16 +385,16 @@ function PriceChangeModal({
     const outcome = await fetchPrices({ review: "all" });
     if (outcome.kind === "ok") {
       const fresh = outcome.value.products.find((candidate) => candidate.id === product.id);
-      if (targetRef.current !== origin) {
+      if (sessionRef.current !== requestSession) {
         if (!fresh) {
-          onGone(origin);
+          onGone(origin, requestSession);
         }
         return;
       }
       if (!fresh) {
         setNotice({ kind: "notFound" });
         setSubmitting(false);
-        onGone(origin);
+        onGone(origin, requestSession);
         return;
       }
       setCurrent(fresh);
@@ -400,7 +410,7 @@ function PriceChangeModal({
       sendToMyAccount();
       return;
     }
-    if (targetRef.current !== origin) {
+    if (sessionRef.current !== requestSession) {
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -460,12 +470,20 @@ function PriceChangeModal({
     >
       {current && (
         <div className="flex flex-col gap-4">
-          {skippedProductName && (
+          {otherProductNotice?.tone === "success" && (
+            <NotificationCard
+              tone="success"
+              icon={<Check />}
+              title={otherProductNotice.title}
+              detail={otherProductNotice.detail}
+            />
+          )}
+          {otherProductNotice?.tone === "error" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={pricesMessages.goneTitle}
-              detail={pricesMessages.goneDetail({ name: skippedProductName })}
+              title={otherProductNotice.title}
+              detail={otherProductNotice.detail}
             />
           )}
           {notice?.kind === "attemptFailed" && (
@@ -550,8 +568,6 @@ function PriceChangeModal({
   );
 }
 
-type ScreenNotice = { tone: "success" | "error"; title: string; detail: string };
-
 /**
  * "Precios": every catalog product with its current price (from the branch's own price list) and
  * last review, filterable by name, category and review status. Gated by
@@ -573,8 +589,9 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>("ALL");
   const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>("pending");
   const [modalTarget, setModalTarget] = useState<PriceProduct | null>(null);
+  const [modalSession, setModalSession] = useState(0);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
-  const [skippedProductName, setSkippedProductName] = useState<string | null>(null);
+  const [otherProductNotice, setOtherProductNotice] = useState<ScreenNotice | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const [confirmingIds, setConfirmingIds] = useState<ReadonlySet<string>>(new Set());
 
@@ -584,6 +601,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   // screen shows now.
   const modalTargetRef = useRef(modalTarget);
   modalTargetRef.current = modalTarget;
+  const modalSessionRef = useRef(modalSession);
+  modalSessionRef.current = modalSession;
   const walkRef = useRef(walk);
   walkRef.current = walk;
 
@@ -642,6 +661,14 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     void load();
   }, [load]);
 
+  // A result that lands after the filters changed reloads with the filters shown now, not the ones
+  // its request was sent under.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  function reloadWithCurrentFilters() {
+    void loadRef.current();
+  }
+
   const products = list.kind === "loaded" ? list.products : [];
   const pendingCount = list.kind === "loaded" ? list.pendingCount : 0;
   const reviewWindowDays = list.kind === "loaded" ? list.reviewWindowDays : 30;
@@ -659,6 +686,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     { value: "all" as const, label: pricesMessages.reviewFilterAllOption },
   ] as const;
 
+  function showInModal(target: PriceProduct | null) {
+    setModalTarget(target);
+    setModalSession((previous) => previous + 1);
+  }
+
   async function handleReviewButton() {
     const outcome = await fetchPricesService({ review: "pending" });
     if (outcome.kind === "ok") {
@@ -666,7 +698,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         return;
       }
       setWalk({ queue: outcome.value.products, index: 0 });
-      setModalTarget(outcome.value.products[0] ?? null);
+      showInModal(outcome.value.products[0] ?? null);
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -684,36 +716,40 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     setList({ kind: "loadError" });
   }
 
-  function notifyReviewed(product: PriceProduct, outcome: PriceModalOutcome) {
+  function reviewedNotice(product: PriceProduct, outcome: PriceModalOutcome): ScreenNotice {
     const cents =
       outcome.kind === "saved" ? outcome.price.unitPrice : product.currentPrice?.unitPrice;
     const amount = cents !== undefined ? formatCentsWithUnit(cents, product.saleUnit) : "";
-    setNotice(
-      outcome.kind === "confirmed"
-        ? {
-            tone: "success",
-            title: pricesMessages.confirmedNoticeTitle,
-            detail: pricesMessages.confirmedNoticeDetail({ name: product.name, amount }),
-          }
-        : {
-            tone: "success",
-            title: pricesMessages.savedNoticeTitle,
-            detail: pricesMessages.savedNoticeDetail({ name: product.name, amount }),
-          },
-    );
-    void load();
+    return outcome.kind === "confirmed"
+      ? {
+          tone: "success",
+          title: pricesMessages.confirmedNoticeTitle,
+          detail: pricesMessages.confirmedNoticeDetail({ name: product.name, amount }),
+        }
+      : {
+          tone: "success",
+          title: pricesMessages.savedNoticeTitle,
+          detail: pricesMessages.savedNoticeDetail({ name: product.name, amount }),
+        };
   }
 
-  function handleModalSaved(
-    origin: PriceProduct,
-    product: PriceProduct,
-    outcome: PriceModalOutcome,
-  ) {
-    notifyReviewed(product, outcome);
-    if (modalTargetRef.current === origin) {
-      setSkippedProductName(null);
-      moveToNextInWalkOrClose();
+  /** An open modal hides the screen behind it, so a notice about another product goes inside it. */
+  function notifyAboutAnotherProduct(screenNotice: ScreenNotice, modalOpen: boolean) {
+    if (modalOpen) {
+      setOtherProductNotice(screenNotice);
+    } else {
+      setOtherProductNotice(null);
+      setNotice(screenNotice);
     }
+  }
+
+  function handleModalSaved(session: number, product: PriceProduct, outcome: PriceModalOutcome) {
+    reloadWithCurrentFilters();
+    const modalOpen =
+      modalSessionRef.current === session
+        ? moveToNextInWalkOrClose()
+        : modalTargetRef.current !== null;
+    notifyAboutAnotherProduct(reviewedNotice(product, outcome), modalOpen);
   }
 
   /** Returns whether the walk moved on to another product (false: the modal closed). */
@@ -724,12 +760,12 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       const next = currentWalk.queue[nextIndex];
       if (next) {
         setWalk({ queue: currentWalk.queue, index: nextIndex });
-        setModalTarget(next);
+        showInModal(next);
         return true;
       }
       setWalk(null);
     }
-    setModalTarget(null);
+    showInModal(null);
     return false;
   }
 
@@ -738,26 +774,25 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
    * on its own not-found notice; during one, the walk moves on and names the skipped product on the
    * next one, or on the screen when none is left.
    */
-  function handleModalProductGone(origin: PriceProduct) {
-    void load();
-    if (modalTargetRef.current !== origin || !walkRef.current) {
+  function handleModalProductGone(origin: PriceProduct, session: number) {
+    reloadWithCurrentFilters();
+    if (modalSessionRef.current !== session || !walkRef.current) {
       return;
     }
-    const movedOn = moveToNextInWalkOrClose();
-    setSkippedProductName(movedOn ? origin.name : null);
-    if (!movedOn) {
-      setNotice({
+    notifyAboutAnotherProduct(
+      {
         tone: "error",
         title: pricesMessages.goneTitle,
         detail: pricesMessages.goneDetail({ name: origin.name }),
-      });
-    }
+      },
+      moveToNextInWalkOrClose(),
+    );
   }
 
   function handleModalClose() {
     setWalk(null);
-    setModalTarget(null);
-    setSkippedProductName(null);
+    showInModal(null);
+    setOtherProductNotice(null);
   }
 
   /**
@@ -778,7 +813,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return remaining;
     });
     if (outcome.kind === "ok") {
-      notifyReviewed(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt });
+      reloadWithCurrentFilters();
+      notifyAboutAnotherProduct(
+        reviewedNotice(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt }),
+        modalTargetRef.current !== null,
+      );
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -795,7 +834,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         title: pricesMessages.rowConfirmStaleTitle,
         detail: pricesMessages.rowConfirmStaleDetail,
       });
-      void load();
+      reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "not_found") {
@@ -804,7 +843,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         title: pricesMessages.goneTitle,
         detail: pricesMessages.goneDetail({ name: item.name }),
       });
-      void load();
+      reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -876,7 +915,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
           <IconButton
             icon={<Pencil />}
             aria-label={pricesMessages.editAria({ name: item.name })}
-            onPress={() => setModalTarget(item)}
+            onPress={() => showInModal(item)}
           />
         </div>
       ),
@@ -993,7 +1032,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       </ScreenLayout>
       <PriceChangeModal
         target={modalTarget}
-        skippedProductName={skippedProductName}
+        session={modalSession}
+        otherProductNotice={otherProductNotice}
         reviewWindowDays={reviewWindowDays}
         now={clock}
         onClose={handleModalClose}
