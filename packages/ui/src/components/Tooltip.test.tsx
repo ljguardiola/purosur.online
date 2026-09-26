@@ -1,6 +1,6 @@
 import { Lock } from "lucide-react";
 import type { ReactElement } from "react";
-import { beforeEach, expect, expectTypeOf, test } from "vitest";
+import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AAA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
@@ -53,28 +53,77 @@ const axeOptions = {
   },
 };
 
-// Once a tooltip hides, react-stately starts a cooldown during which the next hover opens a
-// tooltip instantly instead of after the delay. It lasts the larger of 500ms and the close delay,
-// so 500ms here. The test's wait starts when it sees the tooltip gone, barely after the cooldown
-// started, so waiting exactly 500ms would race it; the margin guarantees it has expired.
+// Once a tooltip's close is requested (the pointer leaving its element), react-stately starts a
+// cooldown during which the next hover opens a tooltip instantly instead of after the delay. It
+// lasts the larger of 500ms and the close delay, so 500ms here. The test's wait starts when it
+// sees the tooltip gone, after the cooldown started; the margin keeps a cooldown timer that fires
+// late from still being pending when the next hover arrives.
 const REACT_STATELY_COOLDOWN_MS = 500;
 const COOLDOWN_MARGIN_MS = 250;
 const COOLDOWN_BUFFER_MS = REACT_STATELY_COOLDOWN_MS + COOLDOWN_MARGIN_MS;
+
+// Mirrors Tooltip.tsx's own close delay: the grace a pointer gets to cross from the element onto
+// the tooltip. The close tests bound the measured close on both sides of it, so the two values
+// cannot drift apart unnoticed.
+const TOOLTIP_CLOSE_GRACE_MS = 100;
+
+// react-stately's own default close delay: the linger after the pointer leaves that the tooltip's
+// shorter grace replaces.
+const REACT_STATELY_DEFAULT_CLOSE_DELAY_MS = 500;
 
 // Long enough to outlast react-aria's own 1500ms default delay, so a tooltip that merely opens
 // late still reports its elapsed time rather than this.
 const MEASUREMENT_DEADLINE_MS = 3000;
 
-function beforeDeadline(measurement: Promise<number>, whatNeverHappened: string): Promise<number> {
+// Taken before any test can freeze the page's timers (see whileTimersFrozen), so a deadline still
+// expires while they are frozen.
+const realSetTimeout = globalThis.setTimeout.bind(globalThis);
+const realClearTimeout = globalThis.clearTimeout.bind(globalThis);
+
+function beforeDeadline<T>(measurement: Promise<T>, whatNeverHappened: string): Promise<T> {
   let deadline: ReturnType<typeof setTimeout>;
   const expiry = new Promise<never>((_, reject) => {
-    deadline = setTimeout(
+    deadline = realSetTimeout(
       () => reject(new Error(`${whatNeverHappened} within ${MEASUREMENT_DEADLINE_MS}ms`)),
       MEASUREMENT_DEADLINE_MS,
     );
   });
 
-  return Promise.race([measurement, expiry]).finally(() => clearTimeout(deadline));
+  return Promise.race([measurement, expiry]).finally(() => realClearTimeout(deadline));
+}
+
+function tooltipRemoved(signal: AbortSignal): Promise<number> {
+  return new Promise<number>((resolve) => {
+    const observer = new MutationObserver((records) => {
+      const removed = records.some((record) =>
+        Array.from(record.removedNodes).some(
+          (node) =>
+            node instanceof Element &&
+            (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
+        ),
+      );
+      if (removed) {
+        resolve(performance.now());
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    signal.addEventListener("abort", () => observer.disconnect(), { once: true });
+  });
+}
+
+// react-stately schedules every delayed open, close and cooldown with setTimeout. Freezing it
+// leaves only what happens without waiting on a timer, however long the test runner takes to
+// deliver each step. expect.poll advances frozen timers on every retry, so the steps wait on page
+// events through beforeDeadline instead. Every timer still pending afterwards runs before the real
+// ones come back, so nothing frozen leaks into the next test.
+async function whileTimersFrozen(steps: () => Promise<void>): Promise<void> {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await steps();
+  } finally {
+    vi.runAllTimers();
+    vi.useRealTimers();
+  }
 }
 
 // Everything the browser puts in the sequential tab order, plus the elements that take focus on
@@ -326,13 +375,14 @@ test("caps a long explanation at 300px wide instead of stretching a short one to
 });
 
 test("stays open while the pointer moves from its element onto the tooltip itself", async () => {
-  const screen = await render(
+  const ui = (
     <div style={centeredInViewport}>
       <Tooltip description="Voided at checkout by the manager on duty">
         <Button>Void reason</Button>
       </Tooltip>
-    </div>,
+    </div>
   );
+  const screen = await render(ui);
   const trigger = screen.getByRole("button", { name: "Void reason" }).element();
 
   await userEvent.hover(trigger);
@@ -340,37 +390,51 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   const tooltip = tooltipElement(screen);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  // `userEvent.hover`/`unhover` are two commands with their own actionability waits (checking the
-  // target is visible, stable, and still resolvable by role) between them, which under load would
-  // race the grace delay against that unrelated automation overhead instead of the pointer's own
-  // travel time. Driving the same crossing through two raw pointer moves — first into the real gap
-  // between the element and the box, then onto the box itself — measures only that travel time,
-  // the same way a real pointer crosses the gap in one continuous motion rather than resting on
-  // either end of it. The gap point is offset from the trigger's own horizontal center because the
-  // arrow (part of the tooltip's own DOM) is centered there and bridges most of the vertical gap;
-  // directly under the trigger's left edge, at the same height, is still outside both the trigger
-  // and the box (verified against `document.elementFromPoint`, which resolves to the page body).
+  // The gap point sits under the element's left edge rather than its center, because the arrow
+  // (part of the tooltip's own DOM) is centered under the element and bridges most of the gap
+  // there. Unless that point really is bare page, owned by neither the element nor the tooltip,
+  // the crossing below never leaves both and proves nothing.
   const triggerRect = trigger.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   const gapX = triggerRect.left;
   const gapY = (triggerRect.bottom + tooltipRect.top) / 2;
-  const session = cdp() as unknown as DispatchableCdpSession;
-  await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gapX, y: gapY });
-  // A pause well under a single frame, long enough for the browser to actually commit and paint
-  // the "pointer left the element" state before the next move arrives, so the crossing is measured
-  // against a real close-in-progress rather than one still batched behind the same event tick.
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  await session.send("Input.dispatchMouseEvent", {
-    type: "mouseMoved",
-    x: tooltipRect.left + tooltipRect.width / 2,
-    y: tooltipRect.top + tooltipRect.height / 2,
-  });
+  const gapElement = document.elementFromPoint(gapX, gapY);
+  expect(gapElement, "nothing at all found at the gap point").not.toBeNull();
+  expect(trigger.contains(gapElement)).toBe(false);
+  expect(tooltip.contains(gapElement)).toBe(false);
 
-  // WCAG 2.1 SC 1.4.13 (Hoverable) requires the pointer to be able to cross the gap from the
-  // element to the tooltip without it closing first. Waiting past the grace close delay before
-  // asserting proves the pending close was actually cancelled, not merely that it hasn't fired
-  // yet.
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  // react-stately arms the close with setTimeout the moment the pointer leaves the element, and
+  // each pointer move below is a separate round trip from the test runner to the browser: with
+  // real timers, a slow runner could let the close fire mid-crossing however short the grace.
+  // With timers frozen there is nothing to race, and running every one of them afterwards,
+  // whatever its delay, leaves the tooltip open only if its own hover start actually cancelled the
+  // pending close. Rerendering goes through React's act, which commits whatever that close
+  // scheduled before the assertion reads the page.
+  const watch = new AbortController();
+  const leftElement = new Promise<void>((resolve) => {
+    trigger.addEventListener("pointerleave", () => resolve(), { once: true, signal: watch.signal });
+  });
+  const reachedTooltip = new Promise<void>((resolve) => {
+    tooltip.addEventListener("pointerenter", () => resolve(), { once: true, signal: watch.signal });
+  });
+  const session = cdp() as unknown as DispatchableCdpSession;
+  try {
+    await whileTimersFrozen(async () => {
+      await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gapX, y: gapY });
+      await beforeDeadline(leftElement, "the pointer never left the element");
+      await session.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: tooltipRect.left + tooltipRect.width / 2,
+        y: tooltipRect.top + tooltipRect.height / 2,
+      });
+      await beforeDeadline(reachedTooltip, "the pointer never reached the tooltip");
+    });
+  } finally {
+    watch.abort();
+  }
+  // WCAG 2.1 SC 1.4.13 (Hoverable): the pointer can cross from the element onto the tooltip
+  // without it closing first.
+  await screen.rerender(ui);
   expect(screen.getByRole("tooltip").elements().length).toBe(1);
 
   await session.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
@@ -395,28 +459,13 @@ test("appears on hover and disappears within a short grace period once the point
   // below measures its own interval, so a lingering close (react-stately's own 500ms cooldown)
   // shows up as elapsed time instead of this assertion racing that cooldown.
   const watch = new AbortController();
-  let observer: MutationObserver | undefined;
   const leftAt = new Promise<number>((resolve) => {
     trigger.addEventListener("pointerleave", () => resolve(performance.now()), {
       once: true,
       signal: watch.signal,
     });
   });
-  const closedAt = new Promise<number>((resolve) => {
-    observer = new MutationObserver((records) => {
-      const tooltipRemoved = records.some((record) =>
-        Array.from(record.removedNodes).some(
-          (node) =>
-            node instanceof Element &&
-            (node.matches('[role="tooltip"]') || node.querySelector('[role="tooltip"]') !== null),
-        ),
-      );
-      if (tooltipRemoved) {
-        resolve(performance.now());
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  });
+  const closedAt = tooltipRemoved(watch.signal);
 
   let elapsedMs: number;
   try {
@@ -426,13 +475,21 @@ test("appears on hover and disappears within a short grace period once the point
       (await beforeDeadline(leftAt, "the pointer never left the element"));
   } finally {
     watch.abort();
-    observer?.disconnect();
   }
 
-  // Bound well under react-stately's own 500ms default close delay, the linger the issue
-  // reported, while leaving room for the short grace period the tooltip now waits out so a
-  // pointer can cross the gap onto it instead of closing underneath it.
-  expect(elapsedMs).toBeLessThan(400);
+  // The close is armed on pointerout, which the browser fires just before the pointerleave this
+  // interval starts from, so the measured close can land a fraction of a millisecond short of the
+  // full grace, never more.
+  const POINTEROUT_TO_POINTERLEAVE_TOLERANCE_MS = 2;
+  // Room for the timer to fire late and for React to commit the removal once it does, while the
+  // bound stays below the old linger.
+  const CLOSE_COMMIT_MARGIN_MS = 150;
+  const closeBoundMs = TOOLTIP_CLOSE_GRACE_MS + CLOSE_COMMIT_MARGIN_MS;
+  expect(closeBoundMs).toBeLessThan(REACT_STATELY_DEFAULT_CLOSE_DELAY_MS);
+  expect(elapsedMs).toBeGreaterThanOrEqual(
+    TOOLTIP_CLOSE_GRACE_MS - POINTEROUT_TO_POINTERLEAVE_TOLERANCE_MS,
+  );
+  expect(elapsedMs).toBeLessThan(closeBoundMs);
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
@@ -454,11 +511,21 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  await userEvent.tab();
-  expect(document.activeElement).toBe(
-    screen.getByRole("button", { name: "Next control" }).element(),
-  );
-  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
+  // Losing focus closes the tooltip at once rather than after the pointer's grace: with timers
+  // frozen, a close that waited on one would never land.
+  const watch = new AbortController();
+  const closed = tooltipRemoved(watch.signal);
+  try {
+    await whileTimersFrozen(async () => {
+      await userEvent.tab();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Next control" }).element(),
+      );
+      await beforeDeadline(closed, "the tooltip was never removed from the page");
+    });
+  } finally {
+    watch.abort();
+  }
 
   await expectNoAccessibilityViolations(document.body, axeOptions);
 });
@@ -474,8 +541,17 @@ test("disappears when Escape is pressed while its element is focused", async () 
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   await expectNoAccessibilityViolations(document.body, axeOptions);
 
-  await userEvent.keyboard("{Escape}");
-  await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(0);
+  // Immediate too, not after the pointer's grace: see the focus-loss test above.
+  const watch = new AbortController();
+  const closed = tooltipRemoved(watch.signal);
+  try {
+    await whileTimersFrozen(async () => {
+      await userEvent.keyboard("{Escape}");
+      await beforeDeadline(closed, "the tooltip was never removed from the page");
+    });
+  } finally {
+    watch.abort();
+  }
   // Escape dismisses the tooltip, not the page's own focus: the trigger stays focused.
   expect(document.activeElement).toBe(
     screen.getByRole("button", { name: "Void reason" }).element(),
