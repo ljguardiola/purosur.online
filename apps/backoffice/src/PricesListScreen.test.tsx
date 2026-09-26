@@ -29,6 +29,7 @@ const sinPrecio: PriceProduct = {
   saleUnit: "UNIT",
   currentPrice: null,
   lastReviewedAt: null,
+  pending: true,
 };
 
 const arroz: PriceProduct = {
@@ -43,18 +44,38 @@ const arroz: PriceProduct = {
     validFrom: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
   },
   lastReviewedAt: new Date(NOW().getTime() - 40 * DAY_MS).toISOString(),
+  pending: true,
 };
 
-function renderScreen(
+async function renderScreen(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
   now: () => Date = NOW,
 ) {
-  return render(
+  const screen = (
     <main>
       <PricesListScreen services={services} onSessionEnded={onSessionEnded} now={now} />
-    </main>,
+    </main>
   );
+  const rendered = await render(screen);
+  return Object.assign(rendered, {
+    /** Lets every settled promise's continuation run (they all run before the next task), then
+     * re-renders the same element inside act, which commits every update scheduled by then, so a
+     * following assertion that something did not happen runs after it could have happened. */
+    commitScheduledUpdates: async () => {
+      await nextTask();
+      await rendered.rerender(screen);
+    },
+  });
+}
+
+/** A MessageChannel task rather than a timer, so it still runs while setTimeout is faked. */
+function nextTask() {
+  return new Promise((settle) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => settle(undefined);
+    channel.port2.postMessage(null);
+  });
 }
 
 test("shows the breadcrumb, heading, and each product's name", async () => {
@@ -196,27 +217,6 @@ test("changing a product's price sends the current price id as expectedCurrentPr
   await expect.element(screen.getByText("Arroz pasa a $ 8.000,00 / kg.")).toBeVisible();
 });
 
-test("shows a validation error for an empty or zero new price without calling the server", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPrices).mockResolvedValue({
-    kind: "ok",
-    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
-  });
-
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("Arroz")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
-
-  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
-  await expect.element(screen.getByText("Ingresá el precio nuevo.")).toBeVisible();
-
-  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "0");
-  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
-  await expect.element(screen.getByText("Ingresá un precio válido, mayor a cero.")).toBeVisible();
-
-  expect(services.setPrice).not.toHaveBeenCalled();
-});
-
 async function openArrozPriceModal(services: PricesListScreenServices) {
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
@@ -228,60 +228,45 @@ async function openArrozPriceModal(services: PricesListScreenServices) {
   return screen;
 }
 
-test("reads a comma as the decimal separator and a dot only as a thousands separator", async () => {
-  const services = createServices();
-  vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" });
-  const screen = await openArrozPriceModal(services);
-
-  const accepted: [string, number][] = [
-    ["7.500,50", 750050],
-    ["7500,5", 750050],
-    ["12,50", 1250],
-    ["1.250", 125000],
-    ["1.234.567", 123456700],
-    ["8000", 800000],
-  ];
-  for (const [typed, cents] of accepted) {
-    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), typed);
-    await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
-    await expect.poll(() => vi.mocked(services.setPrice).mock.lastCall?.[1].unitPrice).toBe(cents);
-  }
-});
-
-test("rejects a dot used as a decimal separator, asking for the price written with a comma", async () => {
+test("shows each reason a typed price can't be saved without calling the server", async () => {
   const services = createServices();
   const screen = await openArrozPriceModal(services);
+  const priceField = screen.getByLabelText("Precio de venta por kilo");
+  const save = screen.getByRole("button", { name: "Guardar el precio nuevo" });
 
-  for (const typed of ["12.50", "1.5", "7500.50", "1.50,00", "12,505"]) {
-    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), typed);
-    await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
-    await expect
-      .element(
-        screen.getByText("Escribí el precio con coma para los decimales, por ejemplo 7.500,50."),
-      )
-      .toBeVisible();
-  }
+  await userEvent.click(save);
+  await expect.element(screen.getByText("Ingresá el precio nuevo.")).toBeVisible();
 
-  expect(services.setPrice).not.toHaveBeenCalled();
-});
+  await userEvent.fill(priceField, "12.50");
+  await userEvent.click(save);
+  await expect
+    .element(
+      screen.getByText("Escribí el precio con coma para los decimales, por ejemplo 7.500,50."),
+    )
+    .toBeVisible();
 
-test("rejects a price above the largest one the catalog can store, without calling the server", async () => {
-  const services = createServices();
-  vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" });
-  const screen = await openArrozPriceModal(services);
+  await userEvent.fill(priceField, "0");
+  await userEvent.click(save);
+  await expect.element(screen.getByText("Ingresá un precio válido, mayor a cero.")).toBeVisible();
 
-  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "21.474.836,48");
-  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await userEvent.fill(priceField, "21.474.836,48");
+  await userEvent.click(save);
   await expect
     .element(screen.getByText("Ingresá un precio de hasta $ 21.474.836,47."))
     .toBeVisible();
-  expect(services.setPrice).not.toHaveBeenCalled();
 
-  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "21.474.836,47");
+  expect(services.setPrice).not.toHaveBeenCalled();
+});
+
+test("sends the typed price in cents", async () => {
+  const services = createServices();
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" });
+  const screen = await openArrozPriceModal(services);
+
+  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "7.500,50");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
-  await expect
-    .poll(() => vi.mocked(services.setPrice).mock.lastCall?.[1].unitPrice)
-    .toBe(2147483647);
+
+  await expect.poll(() => vi.mocked(services.setPrice).mock.lastCall?.[1].unitPrice).toBe(750050);
 });
 
 test("shows a stale-price notice on a 409 and offers to reload the row's current price", async () => {
@@ -1037,7 +1022,7 @@ test("an earlier list load that settles after a later one does not replace it", 
     kind: "ok",
     value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
   });
-  await nextPaint();
+  await screen.commitScheduledUpdates();
 
   expect(screen.getByText("Arroz").query()).toBeNull();
   await expect.element(screen.getByText("Yerba")).toBeVisible();
@@ -1242,12 +1227,6 @@ test("the screen with the price modal open has no accessibility violations", asy
   await expectNoAccessibilityViolations(document.body);
 });
 
-function nextPaint() {
-  return new Promise((settle) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => settle(undefined))),
-  );
-}
-
 test("an error notice does not leave with time, only with the person's next action", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
@@ -1267,7 +1246,7 @@ test("an error notice does not leave with time, only with the person's next acti
     await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
 
     vi.advanceTimersByTime(60_000);
-    await nextPaint();
+    await screen.commitScheduledUpdates();
     expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).not.toBeNull();
 
     await userEvent.click(confirm);
@@ -1357,7 +1336,7 @@ test.each([
     vi.mocked(services.fetchPrices).mockResolvedValue({
       kind: "ok",
       value: {
-        products: [{ ...arroz, lastReviewedAt: reviewedAt.toISOString() }],
+        products: [{ ...arroz, lastReviewedAt: reviewedAt.toISOString(), pending: false }],
         pendingCount: 0,
         reviewWindowDays: 30,
         categories: [],
@@ -1447,7 +1426,7 @@ test("a row confirmation answered that there is no price to confirm reloads the 
   await expect.element(screen.getByText("No hay un precio para confirmar")).toBeVisible();
   await expect.element(screen.getByText("Arroz todavía no tiene precio.")).toBeVisible();
   await expect.element(screen.getByText("Sin precio")).toBeVisible();
-  await nextPaint();
+  await screen.commitScheduledUpdates();
   await expect.element(screen.getByText("Arroz todavía no tiene precio.")).toBeVisible();
   expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).toBeNull();
 });
@@ -1631,7 +1610,7 @@ test("an error notice stays when a list load succeeds after it", async () => {
       review: "pending",
       search: "arr",
     });
-    await nextPaint();
+    await screen.commitScheduledUpdates();
     expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).not.toBeNull();
   } finally {
     vi.useRealTimers();
@@ -1658,7 +1637,7 @@ test("a rate-limited notice leaves once its retry window has passed", async () =
     await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
 
     vi.advanceTimersByTime(119_000);
-    await nextPaint();
+    await screen.commitScheduledUpdates();
     expect(screen.getByText("Demasiadas solicitudes").query()).not.toBeNull();
 
     vi.advanceTimersByTime(1_000);
@@ -1692,18 +1671,22 @@ test("a price reviewed earlier today is announced as reviewed today even with a 
 });
 
 test.each([
-  { elapsedMs: 29 * DAY_MS + 23 * 60 * 60 * 1000, eyebrow: "REVISADO HACE 30 DÍAS" },
-  { elapsedMs: 30 * DAY_MS + 60 * 1000, eyebrow: "SIN REVISAR HACE 30 DÍAS" },
+  { pending: false, eyebrow: "REVISADO HACE 30 DÍAS" },
+  { pending: true, eyebrow: "SIN REVISAR HACE 30 DÍAS" },
 ])(
-  "a price is overdue only once more than the review window has elapsed: $eyebrow",
-  async ({ elapsedMs, eyebrow }) => {
+  "the modal calls a price overdue exactly when the cloud marks it pending: $eyebrow",
+  async ({ pending, eyebrow }) => {
     const viewedAt = new Date(2026, 8, 25, 12, 0);
     const services = createServices();
     vi.mocked(services.fetchPrices).mockResolvedValue({
       kind: "ok",
       value: {
         products: [
-          { ...arroz, lastReviewedAt: new Date(viewedAt.getTime() - elapsedMs).toISOString() },
+          {
+            ...arroz,
+            lastReviewedAt: new Date(2026, 7, 26, 12, 0).toISOString(),
+            pending,
+          },
         ],
         pendingCount: 0,
         reviewWindowDays: 30,

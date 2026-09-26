@@ -1,6 +1,4 @@
-// Shared by every price route (list filters and the request bodies below), the same shape
-// `product-validation.ts`'s own pattern uses.
-export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 
 export interface PriceFieldValidationFailure {
   field: "unitPrice" | "expectedCurrentPriceId";

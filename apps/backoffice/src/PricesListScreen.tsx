@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { messages } from "./messages";
+import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import {
   type ConfirmPriceOutcome,
   confirmPrice,
@@ -80,50 +81,10 @@ const catalogMessages = messages.catalog;
 const pricesMessages = catalogMessages.prices;
 const modalMessages = pricesMessages.changePriceModal;
 
-const AMOUNT_FORMAT = new Intl.NumberFormat("es-AR", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatCents(cents: number): string {
-  return `$ ${AMOUNT_FORMAT.format(cents / 100)}`;
-}
-
 /** "$ 7.500,00 / kg" for a per-kilo product; "$ 7.500,00" (no suffix) for a per-unit one. */
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
   const suffix = modalMessages.unitSuffix[saleUnit];
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
-}
-
-// The cloud stores a unit price as a Postgres `integer` number of cents.
-const MAX_UNIT_PRICE_CENTS = 2_147_483_647;
-
-// A comma is the only decimal separator (up to two decimals); a dot is only ever a thousands
-// separator, and then every group after the first has exactly three digits.
-const AMOUNT_PATTERN = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/;
-
-type ParsedAmount =
-  | { kind: "ok"; cents: number }
-  | { kind: "malformed" }
-  | { kind: "notPositive" }
-  | { kind: "tooLarge" };
-
-/** Parses what a person typed as a peso amount (e.g. "7.500,50", "7500,5", "7500") into cents. */
-function parseAmountInput(value: string): ParsedAmount {
-  const match = AMOUNT_PATTERN.exec(value.trim());
-  if (!match) {
-    return { kind: "malformed" };
-  }
-  const whole = (match[1] ?? "").replace(/\./g, "");
-  const fraction = (match[2] ?? "").padEnd(2, "0");
-  const cents = Number(whole) * 100 + Number(fraction);
-  if (cents <= 0) {
-    return { kind: "notPositive" };
-  }
-  if (cents > MAX_UNIT_PRICE_CENTS) {
-    return { kind: "tooLarge" };
-  }
-  return { kind: "ok", cents };
 }
 
 function startOfLocalDay(date: Date): number {
@@ -143,7 +104,7 @@ function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
   return days <= 0 ? pricesMessages.reviewedToday : pricesMessages.reviewedDaysAgo({ days });
 }
 
-function modalEyebrow(product: PriceProduct, reviewWindowDays: number, now: Date): string {
+function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
     return modalMessages.eyebrowNoPrice;
   }
@@ -151,12 +112,9 @@ function modalEyebrow(product: PriceProduct, reviewWindowDays: number, now: Date
   if (days <= 0) {
     return modalMessages.eyebrowRecentToday;
   }
-  const elapsedMs = now.getTime() - new Date(product.lastReviewedAt).getTime();
-  // Overdue by elapsed time, the same comparison the cloud uses to count a price as pending.
-  if (elapsedMs > reviewWindowDays * DAY_MS) {
-    return modalMessages.eyebrowOverdue({ days });
-  }
-  return modalMessages.eyebrowRecent({ days });
+  return product.pending
+    ? modalMessages.eyebrowOverdue({ days })
+    : modalMessages.eyebrowRecent({ days });
 }
 
 type PriceModalOutcome =
@@ -184,7 +142,6 @@ type PriceChangeModalProps = {
   target: PriceProduct | null;
   /** An outcome about the product the walk just left (saved, or skipped as deactivated). */
   previousProductNotice: ScreenNotice | null;
-  reviewWindowDays: number;
   now: () => Date;
   onClose: () => void;
   onSessionEnded: () => void;
@@ -202,7 +159,6 @@ type PriceChangeModalProps = {
 function PriceChangeModal({
   target,
   previousProductNotice,
-  reviewWindowDays,
   now,
   onClose,
   onSessionEnded,
@@ -443,7 +399,7 @@ function PriceChangeModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={current ? modalEyebrow(current, reviewWindowDays, now()) : ""}
+      context={current ? modalEyebrow(current, now()) : ""}
       title={title}
       {...(submitting
         ? { closable: false }
@@ -1106,7 +1062,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       <PriceChangeModal
         target={modal?.target ?? null}
         previousProductNotice={modal?.previousProductNotice ?? null}
-        reviewWindowDays={reviewWindowDays}
         now={clock}
         onClose={handleModalClose}
         onSessionEnded={onSessionEnded}

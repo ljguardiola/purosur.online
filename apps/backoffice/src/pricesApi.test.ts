@@ -24,6 +24,7 @@ const arroz: PriceProduct = {
   saleUnit: "KG",
   currentPrice: { id: "price-1", unitPrice: 750000, validFrom: "2026-01-01T12:00:00.000Z" },
   lastReviewedAt: "2026-01-01T12:00:00.000Z",
+  pending: true,
 };
 
 test("fetchPrices lists the products, the pending count, the review window and the categories on 200", async () => {

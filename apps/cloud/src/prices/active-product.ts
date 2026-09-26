@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products } from "../db/schema.js";
-import { UUID_PATTERN } from "./price-validation.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 
 /**
  * Looks up one product that can still be priced, answering `undefined` for a malformed, missing,

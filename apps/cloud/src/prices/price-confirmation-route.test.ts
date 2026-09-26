@@ -18,7 +18,8 @@ import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { registerPriceConfirmationRoute } from "./price-confirmation-route.js";
+import { confirmPrice, registerPriceConfirmationRoute } from "./price-confirmation-route.js";
+import { setPrice } from "./price-set-route.js";
 import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -209,18 +210,12 @@ describe("POST /products/:id/price-confirmation", () => {
     const productId = await insertProduct("Arroz");
     await db.update(products).set({ active: false }).where(eq(products.id, productId));
 
-    const missing = await confirmPriceRequest(rawSessionId, productId, {});
-    expect(missing.statusCode).toBe(404);
-    expect(missing.json()).toMatchObject({ code: "not_found" });
-
-    const malformed = await confirmPriceRequest(rawSessionId, productId, {
-      expectedCurrentPriceId: "not-a-uuid",
-    });
-    expect(malformed.statusCode).toBe(404);
-    expect(malformed.json()).toMatchObject({ code: "not_found" });
+    const response = await confirmPriceRequest(rawSessionId, productId, {});
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("rejects a missing or malformed expectedCurrentPriceId", async () => {
+  it("reaches the body validator, answering a validation failure on the named field", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
     const productId = await insertProduct("Arroz");
@@ -327,5 +322,85 @@ describe("POST /products/:id/price-confirmation", () => {
       .from(priceReviews)
       .where(eq(priceReviews.productId, productId));
     expect(reviews).toHaveLength(0);
+  });
+});
+
+describe("confirmations committed by callers whose clocks disagree", () => {
+  it("rejects as stale_price a confirmation from an earlier clock of a price already superseded", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUserWithPermission();
+    const productId = await insertProduct("Arroz");
+
+    const first = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:00.000Z"),
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    const second = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 2000,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:05.000Z"),
+    });
+    expect(second.kind).toBe("applied");
+
+    const confirmation = await confirmPrice(db, {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:02.000Z"),
+    });
+
+    expect(confirmation.kind).toBe("stale_price");
+  });
+
+  it("records a confirmation from an earlier clock as the product's most recent review", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUserWithPermission();
+    const productId = await insertProduct("Arroz");
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+
+    const first = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => laterMoment,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+
+    const confirmation = await confirmPrice(db, {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:00.000Z"),
+    });
+    if (confirmation.kind !== "confirmed") {
+      throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
+    }
+    expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: laterMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      lastReviewedAt: confirmation.lastReviewedAt,
+    });
   });
 });

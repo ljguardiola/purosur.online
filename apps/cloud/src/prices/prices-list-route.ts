@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { branchSettings, categories, priceReviews, prices, products } from "../db/schema.js";
+import { UUID_PATTERN } from "../db/uuid-pattern.js";
 import type { SaleUnit } from "../products/product-validation.js";
 import { checkRequestIsSameOrigin } from "../session/open-session.js";
 import {
@@ -12,7 +13,6 @@ import {
   routeSessionSource,
 } from "../session/route-access.js";
 import { NEWEST_PRICE_FIRST } from "./current-price.js";
-import { UUID_PATTERN } from "./price-validation.js";
 
 export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -35,6 +35,7 @@ export interface PriceProductRow {
   saleUnit: SaleUnit;
   currentPrice: CurrentPriceRow | null;
   lastReviewedAt: Date | null;
+  pending: boolean;
 }
 
 export type ReviewFilter = "pending" | "all";
@@ -114,7 +115,7 @@ function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceCategoryOpt
  * price, per the issue's business rules) or its last review is older than the branch's configured
  * window.
  */
-function isPending(
+export function isPending(
   lastReviewedAt: Date | null,
   now: Date,
   unreviewedPriceAlertDays: number,
@@ -223,7 +224,7 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     .from(categories);
 
   return {
-    products: sorted.map(({ pending: _pending, ...row }) => row),
+    products: sorted,
     categories: leafCategoryOptions(allCategories),
     pendingCount,
     reviewWindowDays: input.unreviewedPriceAlertDays,

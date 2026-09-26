@@ -19,7 +19,7 @@ import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { registerPricesListRoute } from "./prices-list-route.js";
+import { isPending, registerPricesListRoute } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -158,6 +158,29 @@ function listPricesRequest(
     },
   });
 }
+
+describe("isPending", () => {
+  const windowDays = 30;
+
+  it("is not pending when the last review is exactly the window old", () => {
+    expect(isPending(new Date(NOON.getTime() - windowDays * DAY_MS), NOON, windowDays)).toBe(false);
+  });
+
+  it("is pending once the last review is 1 ms older than the window", () => {
+    expect(isPending(new Date(NOON.getTime() - windowDays * DAY_MS - 1), NOON, windowDays)).toBe(
+      true,
+    );
+  });
+
+  it("is pending when the product was never reviewed", () => {
+    expect(isPending(null, NOON, windowDays)).toBe(true);
+  });
+
+  it("with a zero-day window, is not pending only for a review at this very moment", () => {
+    expect(isPending(NOON, NOON, 0)).toBe(false);
+    expect(isPending(new Date(NOON.getTime() - 1), NOON, 0)).toBe(true);
+  });
+});
 
 describe("GET /prices", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
@@ -322,7 +345,7 @@ describe("GET /prices", () => {
     const categoryId = await insertCategory("Almacén");
     const priceListId = await seededPriceListId(db);
 
-    // 40 days unreviewed alert window is set below; both are past it, so both are pending.
+    // A 30-day unreviewed alert window is set below; both are past it, so both are pending.
     const olderProductId = await insertProduct("Yerba", categoryId);
     const olderPriceId = await insertPrice(
       olderProductId,
@@ -366,49 +389,39 @@ describe("GET /prices", () => {
     ]);
   });
 
-  it("excludes a recently reviewed product from the pending filter", async () => {
+  it("marks each product pending against the branch's own window, and the pending filter keeps only those", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
     const categoryId = await insertCategory("Almacén");
     const priceListId = await seededPriceListId(db);
+    const tenDaysAgo = new Date(NOON.getTime() - 10 * DAY_MS);
 
-    const productId = await insertProduct("Café", categoryId);
-    const priceId = await insertPrice(productId, priceListId, 500, NOON);
-    await insertReview(productId, priceListId, priceId, userId, NOON);
+    const overdueId = await insertProduct("Café", categoryId);
+    const overduePriceId = await insertPrice(overdueId, priceListId, 500, tenDaysAgo);
+    await insertReview(overdueId, priceListId, overduePriceId, userId, tenDaysAgo);
 
-    const response = await listPricesRequest(rawSessionId, { review: "pending" });
-    expect(response.json().products).toEqual([]);
-  });
-
-  it("takes the unreviewed window from the branch's own settings", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const categoryId = await insertCategory("Almacén");
-    const priceListId = await seededPriceListId(db);
-
-    const productId = await insertProduct("Café", categoryId);
-    const priceId = await insertPrice(
-      productId,
-      priceListId,
-      500,
-      new Date(NOON.getTime() - 10 * DAY_MS),
-    );
-    await insertReview(
-      productId,
-      priceListId,
-      priceId,
-      userId,
-      new Date(NOON.getTime() - 10 * DAY_MS),
-    );
+    const recentId = await insertProduct("Té", categoryId);
+    const recentPriceId = await insertPrice(recentId, priceListId, 300, NOON);
+    await insertReview(recentId, priceListId, recentPriceId, userId, NOON);
 
     await db
       .update(branchSettings)
       .set({ unreviewedPriceAlertDays: 5 })
       .where(eq(branchSettings.locationId, await seededLocationId(db)));
 
-    const response = await listPricesRequest(rawSessionId, { review: "pending" });
-    expect(response.json().products.map((product: { id: string }) => product.id)).toEqual([
-      productId,
+    const all = await listPricesRequest(rawSessionId, { review: "all" });
+    expect(
+      all
+        .json()
+        .products.map((product: { id: string; pending: boolean }) => [product.id, product.pending]),
+    ).toEqual([
+      [overdueId, true],
+      [recentId, false],
+    ]);
+
+    const pending = await listPricesRequest(rawSessionId, { review: "pending" });
+    expect(pending.json().products.map((product: { id: string }) => product.id)).toEqual([
+      overdueId,
     ]);
   });
 

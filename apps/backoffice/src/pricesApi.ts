@@ -13,6 +13,8 @@ export type PriceProduct = {
   saleUnit: ProductSaleUnit;
   currentPrice: PriceRow | null;
   lastReviewedAt: string | null;
+  /** Whether the cloud counts this product as due for review under the branch's own window. */
+  pending: boolean;
 };
 
 export type PricesReviewFilter = "pending" | "all";

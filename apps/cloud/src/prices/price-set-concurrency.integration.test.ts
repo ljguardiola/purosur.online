@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { categories, prices, products, users } from "../db/schema.js";
+import { categories, priceReviews, prices, products, users } from "../db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -12,19 +12,19 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { confirmPrice } from "./price-confirmation-route.js";
 import { setPrice } from "./price-set-route.js";
-import { listPrices } from "./prices-list-route.js";
 
-// PGlite runs every query over one connection, so it can never race two price changes for the
-// same product. This runs them over a real postgres-js pool of more than one connection against a
-// real Postgres, the same reasoning `branch-settings-edit.integration.test.ts` gives for branch
-// settings saves.
+// PGlite serves every query on one connection and serializes transactions outright, so two price
+// writes on the same product can only interleave on a real Postgres pool. Each test pins the
+// interleaving by holding the product's row lock on a connection of its own and waiting until
+// both writes queue behind it, so the order in which they reach the database is decided by the
+// test, not by timing.
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;
 let db: PostgresJsDatabase<Record<string, never>>;
 
 beforeAll(async () => {
   integrationDb = await createIntegrationDatabase("price_set");
-  sql = postgres(integrationDb.databaseUrl, { max: 4 });
+  sql = postgres(integrationDb.databaseUrl, { max: 10 });
   db = drizzle(sql);
 }, 60_000);
 
@@ -58,192 +58,108 @@ async function seedActorAndProduct(): Promise<{ actorId: string; productId: stri
   return { actorId: actor.id, productId: product.id };
 }
 
-describe("two price changes racing on the same never-priced product, on a real Postgres through postgres-js", () => {
+async function waitForLockWaiters(count: number): Promise<void> {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const [row] = await sql<{ waiting: number }[]>`
+      select count(*)::int as waiting from pg_stat_activity
+      where datname = current_database() and wait_event_type = 'Lock'`;
+    if ((row?.waiting ?? 0) >= count) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`test setup: ${count} writes never queued behind the held lock`);
+}
+
+/**
+ * Holds `FOR UPDATE` on the product row, starts `first`, starts `second` only once `first` is
+ * waiting on that same lock, then lets both go once `second` waits too.
+ */
+async function runQueuedBehindProductLock<TFirst, TSecond>(
+  productId: string,
+  first: () => Promise<TFirst>,
+  second: () => Promise<TSecond>,
+): Promise<[TFirst, TSecond]> {
+  const reserved = await sql.reserve();
+  let firstOutcome: Promise<TFirst> | undefined;
+  let secondOutcome: Promise<TSecond> | undefined;
+  try {
+    await reserved`begin`;
+    await reserved`select id from products where id = ${productId} for update`;
+    firstOutcome = first();
+    await waitForLockWaiters(1);
+    secondOutcome = second();
+    await waitForLockWaiters(2);
+  } finally {
+    await reserved`rollback`;
+    reserved.release();
+    await Promise.allSettled([firstOutcome, secondOutcome]);
+  }
+  return Promise.all([firstOutcome, secondOutcome]);
+}
+
+const NOW = () => new Date("2026-01-05T12:00:00.000Z");
+
+describe("two price changes on the same never-priced product queued behind each other, on a real Postgres", () => {
   it("applies exactly one of them and reports the other as stale_price", async () => {
     const priceListId = await seededPriceListId(db);
     const { actorId, productId } = await seedActorAndProduct();
-    const now = () => new Date("2026-01-05T12:00:00.000Z");
-    const [first, second] = await Promise.all([
+    const change = (unitPrice: number) => () =>
       setPrice(db, {
         productId,
         priceListId,
-        unitPrice: 1000,
+        unitPrice,
         expectedCurrentPriceId: null,
         actorId,
-        now,
-      }),
-      setPrice(db, {
-        productId,
-        priceListId,
-        unitPrice: 2000,
-        expectedCurrentPriceId: null,
-        actorId,
-        now,
-      }),
-    ]);
+        now: NOW,
+      });
 
-    const outcomes = [first, second];
-    expect(outcomes.filter((outcome) => outcome.kind === "applied")).toHaveLength(1);
-    expect(outcomes.filter((outcome) => outcome.kind === "stale_price")).toHaveLength(1);
+    const [first, second] = await runQueuedBehindProductLock(productId, change(1000), change(2000));
 
+    const outcomes = [first.kind, second.kind].sort();
+    expect(outcomes).toEqual(["applied", "stale_price"]);
     const rows = await db.select().from(prices).where(eq(prices.productId, productId));
     expect(rows).toHaveLength(1);
   });
 });
 
-describe("price changes committed by callers whose clocks disagree", () => {
-  it("rejects as stale_price a change from an earlier clock made over a price it never saw", async () => {
+describe("a confirmation queued behind a change of the price it confirms, on a real Postgres", () => {
+  it("reports the confirmation as stale_price and records no review of the superseded price", async () => {
     const priceListId = await seededPriceListId(db);
     const { actorId, productId } = await seedActorAndProduct();
-
-    const laterClock = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:05.000Z"),
-    });
-    const earlierClock = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 2000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-
-    expect(laterClock.kind).toBe("applied");
-    expect(earlierClock.kind).toBe("stale_price");
-    const rows = await db.select().from(prices).where(eq(prices.productId, productId));
-    expect(rows).toHaveLength(1);
-  });
-
-  it("rejects as stale_price a confirmation from an earlier clock of a price already superseded", async () => {
-    const priceListId = await seededPriceListId(db);
-    const { actorId, productId } = await seedActorAndProduct();
-
-    const first = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
+    const [superseded] = await db
+      .insert(prices)
+      .values({ productId, priceListId, unitPrice: 1000, validFrom: NOW() })
+      .returning({ id: prices.id });
+    if (!superseded) {
+      throw new Error("test setup: seeding the price returned no row");
     }
-    const second = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 2000,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:05.000Z"),
-    });
-    expect(second.kind).toBe("applied");
 
-    const confirmation = await confirmPrice(db, {
+    const [change, confirmation] = await runQueuedBehindProductLock(
       productId,
-      priceListId,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:02.000Z"),
-    });
+      () =>
+        setPrice(db, {
+          productId,
+          priceListId,
+          unitPrice: 2000,
+          expectedCurrentPriceId: superseded.id,
+          actorId,
+          now: NOW,
+        }),
+      () =>
+        confirmPrice(db, {
+          productId,
+          priceListId,
+          expectedCurrentPriceId: superseded.id,
+          actorId,
+          now: NOW,
+        }),
+    );
 
+    expect(change.kind).toBe("applied");
     expect(confirmation.kind).toBe("stale_price");
-  });
-
-  it("makes current a change from an earlier clock made over the price it saw", async () => {
-    const priceListId = await seededPriceListId(db);
-    const { actorId, productId } = await seedActorAndProduct();
-    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
-    const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
-
-    const first = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => laterMoment,
-    });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
-    }
-    const earlierClock = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 2000,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => earlierMoment,
-    });
-    if (earlierClock.kind !== "applied") {
-      throw new Error(`expected the earlier clock's change to apply, got ${earlierClock.kind}`);
-    }
-    expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
-    expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
-
-    const listed = await listPrices(db, {
-      priceListId,
-      now: earlierMoment,
-      unreviewedPriceAlertDays: 30,
-      review: "all",
-    });
-    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
-      currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
-      lastReviewedAt: earlierClock.lastReviewedAt,
-    });
-
-    const confirmation = await confirmPrice(db, {
-      productId,
-      priceListId,
-      expectedCurrentPriceId: earlierClock.price.id,
-      actorId,
-      now: () => earlierMoment,
-    });
-    expect(confirmation.kind).toBe("confirmed");
-  });
-
-  it("records a confirmation from an earlier clock as the product's most recent review", async () => {
-    const priceListId = await seededPriceListId(db);
-    const { actorId, productId } = await seedActorAndProduct();
-    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
-
-    const first = await setPrice(db, {
-      productId,
-      priceListId,
-      unitPrice: 1000,
-      expectedCurrentPriceId: null,
-      actorId,
-      now: () => laterMoment,
-    });
-    if (first.kind !== "applied") {
-      throw new Error("test setup: the first price was not applied");
-    }
-
-    const confirmation = await confirmPrice(db, {
-      productId,
-      priceListId,
-      expectedCurrentPriceId: first.price.id,
-      actorId,
-      now: () => new Date("2026-01-05T12:00:00.000Z"),
-    });
-    if (confirmation.kind !== "confirmed") {
-      throw new Error(`expected the confirmation to apply, got ${confirmation.kind}`);
-    }
-    expect(confirmation.lastReviewedAt.getTime()).toBeGreaterThan(laterMoment.getTime());
-
-    const listed = await listPrices(db, {
-      priceListId,
-      now: laterMoment,
-      unreviewedPriceAlertDays: 30,
-      review: "all",
-    });
-    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
-      lastReviewedAt: confirmation.lastReviewedAt,
-    });
+    const supersededReviews = await db
+      .select()
+      .from(priceReviews)
+      .where(eq(priceReviews.priceId, superseded.id));
+    expect(supersededReviews).toEqual([]);
   });
 });

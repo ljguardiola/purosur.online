@@ -18,7 +18,8 @@ import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
-import { registerPriceSetRoute } from "./price-set-route.js";
+import { confirmPrice } from "./price-confirmation-route.js";
+import { registerPriceSetRoute, setPrice } from "./price-set-route.js";
 import { listPrices } from "./prices-list-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
@@ -217,7 +218,7 @@ describe("POST /products/:id/price", () => {
     expect(response.json()).toMatchObject({ code: "not_found" });
   });
 
-  it("rejects a non-positive unit price with a validation failure", async () => {
+  it("reaches the body validator, answering a validation failure on the named field", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
     const productId = await insertProduct("Arroz");
@@ -230,38 +231,6 @@ describe("POST /products/:id/price", () => {
     expect(response.json()).toMatchObject({
       code: "validation_failed",
       details: [{ field: "unitPrice" }],
-    });
-  });
-
-  it("rejects a unit price above what the catalog can store with a validation failure", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const productId = await insertProduct("Arroz");
-
-    const response = await setPriceRequest(rawSessionId, productId, {
-      unitPrice: 2_147_483_648,
-      expectedCurrentPriceId: null,
-    });
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "unitPrice" }],
-    });
-  });
-
-  it("rejects a malformed expectedCurrentPriceId", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-    const productId = await insertProduct("Arroz");
-
-    const response = await setPriceRequest(rawSessionId, productId, {
-      unitPrice: 1000,
-      expectedCurrentPriceId: "not-a-uuid",
-    });
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "expectedCurrentPriceId" }],
     });
   });
 
@@ -396,5 +365,88 @@ describe("POST /products/:id/price", () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "stale_price" });
+  });
+});
+
+describe("price changes committed by callers whose clocks disagree", () => {
+  it("rejects as stale_price a change from an earlier clock made over a price it never saw", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUserWithPermission();
+    const productId = await insertProduct("Arroz");
+
+    const laterClock = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:05.000Z"),
+    });
+    const earlierClock = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 2000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => new Date("2026-01-05T12:00:00.000Z"),
+    });
+
+    expect(laterClock.kind).toBe("applied");
+    expect(earlierClock.kind).toBe("stale_price");
+    const rows = await db.select().from(prices).where(eq(prices.productId, productId));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("makes current a change from an earlier clock made over the price it saw", async () => {
+    const priceListId = await seededPriceListId(db);
+    const actorId = await insertUserWithPermission();
+    const productId = await insertProduct("Arroz");
+    const laterMoment = new Date("2026-01-05T12:00:05.000Z");
+    const earlierMoment = new Date("2026-01-05T12:00:00.000Z");
+
+    const first = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 1000,
+      expectedCurrentPriceId: null,
+      actorId,
+      now: () => laterMoment,
+    });
+    if (first.kind !== "applied") {
+      throw new Error("test setup: the first price was not applied");
+    }
+    const earlierClock = await setPrice(db, {
+      productId,
+      priceListId,
+      unitPrice: 2000,
+      expectedCurrentPriceId: first.price.id,
+      actorId,
+      now: () => earlierMoment,
+    });
+    if (earlierClock.kind !== "applied") {
+      throw new Error(`expected the earlier clock's change to apply, got ${earlierClock.kind}`);
+    }
+    expect(earlierClock.price.validFrom.getTime()).toBeGreaterThan(laterMoment.getTime());
+    expect(earlierClock.lastReviewedAt).toEqual(earlierClock.price.validFrom);
+
+    const listed = await listPrices(db, {
+      priceListId,
+      now: earlierMoment,
+      unreviewedPriceAlertDays: 30,
+      review: "all",
+    });
+    expect(listed.products.find((product) => product.id === productId)).toMatchObject({
+      currentPrice: { id: earlierClock.price.id, unitPrice: 2000 },
+      lastReviewedAt: earlierClock.lastReviewedAt,
+    });
+
+    const confirmation = await confirmPrice(db, {
+      productId,
+      priceListId,
+      expectedCurrentPriceId: earlierClock.price.id,
+      actorId,
+      now: () => earlierMoment,
+    });
+    expect(confirmation.kind).toBe("confirmed");
   });
 });
