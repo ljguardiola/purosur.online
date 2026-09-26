@@ -10,7 +10,7 @@ export interface InitSentryDeps {
   init?: typeof Sentry.init;
 }
 
-/** A no-op when no DSN is configured, so a local or PR environment never tries to report anywhere. */
+/** A no-op when no DSN is configured, so a local or preview environment never tries to report anywhere. */
 export function initSentry(env: SentryEnv, deps: InitSentryDeps = {}): void {
   if (!env.dsn) {
     return;

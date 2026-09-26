@@ -1,4 +1,4 @@
-// GitHub renders an issue form's fields as "### Label" headings, and the PR template uses "## Label".
+// GitHub renders a form field as a "### Label" heading, or "## Label" for some templates.
 export function parseSections(body, markerLevel) {
   const sections = new Map();
   if (!body) {
