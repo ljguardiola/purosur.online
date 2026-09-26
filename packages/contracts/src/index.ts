@@ -1,6 +1,10 @@
 export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./argentina-calendar.js";
 export { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-hours.js";
-export { CATEGORY_NAME_MAX_LENGTH, categoryNameLength } from "./category-name.js";
+export {
+  CATEGORY_NAME_MAX_LENGTH,
+  categoryNameLength,
+  isCategoryNameTooLong,
+} from "./category-name.js";
 export type {
   CoreStatusMessage,
   MainHealthCheckMessage,
@@ -42,6 +46,8 @@ export type { NetContentUnit } from "./product.js";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  isBarcodeTooLong,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
@@ -52,5 +58,9 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product.js";
-export { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "./register-name.js";
-export { ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name.js";
+export {
+  isRegisterNameTooLong,
+  REGISTER_NAME_MAX_LENGTH,
+  registerNameLength,
+} from "./register-name.js";
+export { isRoleNameTooLong, ROLE_NAME_MAX_LENGTH, roleNameLength } from "./role-name.js";

@@ -49,4 +49,11 @@ describe("categoryNameValidationFailure", () => {
   it("accepts a non-empty name", () => {
     expect(categoryNameValidationFailure("Semillas")).toBeUndefined();
   });
+
+  it("rejects a name longer than 100 characters", () => {
+    expect(categoryNameValidationFailure("a".repeat(101))).toEqual({
+      field: "name",
+      message: "name must be at most 100 characters",
+    });
+  });
 });

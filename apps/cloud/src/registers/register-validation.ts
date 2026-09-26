@@ -1,4 +1,4 @@
-import { REGISTER_NAME_MAX_LENGTH, registerNameLength } from "@purosur/contracts";
+import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/contracts";
 
 export interface RegisterFieldValidationFailure {
   field: "name";
@@ -20,7 +20,7 @@ export function registerNameValidationFailure(
   if (!name) {
     return { field: "name", message: "name must not be empty" };
   }
-  if (registerNameLength(name) > REGISTER_NAME_MAX_LENGTH) {
+  if (isRegisterNameTooLong(name)) {
     return {
       field: "name",
       message: `name must be at most ${REGISTER_NAME_MAX_LENGTH} characters`,

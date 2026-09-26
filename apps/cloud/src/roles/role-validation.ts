@@ -1,8 +1,8 @@
 import {
   ALERT_VIEW_PERMISSION_KEYS,
   isPermissionKey,
+  isRoleNameTooLong,
   ROLE_NAME_MAX_LENGTH,
-  roleNameLength,
 } from "@purosur/contracts";
 
 /** The Administrator role's own reserved name, checked case-insensitively; shared by creation and edit. */
@@ -40,7 +40,7 @@ export function roleNameValidationFailure(
   if (!name) {
     return { field: "name", message: "name must not be empty" };
   }
-  if (roleNameLength(name) > ROLE_NAME_MAX_LENGTH) {
+  if (isRoleNameTooLong(name)) {
     return { field: "name", message: `name must be at most ${ROLE_NAME_MAX_LENGTH} characters` };
   }
   if (name.toLowerCase() === ADMINISTRATOR_NAME) {

@@ -1,6 +1,7 @@
 import {
   BARCODE_MAX_LENGTH,
-  barcodeLength,
+  isBarcodeTooLong,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   NET_CONTENT_QUANTITY_MAX,
   NET_CONTENT_QUANTITY_MAX_DECIMALS,
@@ -8,7 +9,6 @@ import {
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
-  productNameLength,
 } from "@purosur/contracts";
 
 export type SaleUnit = "UNIT" | "KG";
@@ -112,7 +112,7 @@ export function validateProductFields(
   if (!input.name) {
     return { field: "name", message: "name must not be empty" };
   }
-  if (productNameLength(input.name) > PRODUCT_NAME_MAX_LENGTH) {
+  if (isProductNameTooLong(input.name)) {
     return {
       field: "name",
       message: `name must be at most ${PRODUCT_NAME_MAX_LENGTH} characters`,
@@ -135,7 +135,7 @@ export function validateProductFields(
   }
   const seen = new Set<string>();
   for (const code of input.barcodes) {
-    if (barcodeLength(code) > BARCODE_MAX_LENGTH) {
+    if (isBarcodeTooLong(code)) {
       return {
         field: "barcodes",
         message: `each barcode must be at most ${BARCODE_MAX_LENGTH} characters`,

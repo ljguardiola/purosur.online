@@ -8,11 +8,19 @@ export function productNameLength(name: string): number {
   return Array.from(name).length;
 }
 
+export function isProductNameTooLong(name: string): boolean {
+  return productNameLength(name) > PRODUCT_NAME_MAX_LENGTH;
+}
+
 export const BARCODE_MAX_LENGTH = 64;
 
 /** Same code-point counting as `productNameLength`, kept separate since the two limits differ. */
 export function barcodeLength(code: string): number {
   return Array.from(code).length;
+}
+
+export function isBarcodeTooLong(code: string): boolean {
+  return barcodeLength(code) > BARCODE_MAX_LENGTH;
 }
 
 export const PRODUCT_BARCODES_MAX_COUNT = 20;

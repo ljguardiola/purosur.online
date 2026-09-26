@@ -53,7 +53,8 @@ function readEntry(raw: unknown): LabelRequestEntry | undefined {
 
 /**
  * Reads and validates `{ labels: [{ productId, count }] }`: a non-empty list, no repeated
- * `productId`, each count a whole number 1..999, and a bounded total (2400 labels, 100 sheets).
+ * `productId`, each count a whole number from 1 to `LABELS_MAX_COUNT_PER_PRODUCT`, and a total of
+ * at most `LABELS_MAX_TOTAL_COUNT`.
  * Whether each `productId` names an existing product with an internal barcode is checked
  * separately against the database, not here.
  */

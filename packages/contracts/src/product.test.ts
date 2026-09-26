@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
+  isBarcodeTooLong,
+  isProductNameTooLong,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
@@ -26,6 +28,21 @@ describe("productNameLength", () => {
   it("counts each emoji as one character", () => {
     expect(productNameLength("🌱".repeat(3))).toBe(3);
     expect(productNameLength("Café 🌱")).toBe(6);
+  });
+});
+
+describe("isProductNameTooLong", () => {
+  it("accepts a name of exactly 100 characters", () => {
+    expect(isProductNameTooLong("a".repeat(PRODUCT_NAME_MAX_LENGTH))).toBe(false);
+  });
+
+  it("rejects a name of 101 characters", () => {
+    expect(isProductNameTooLong("a".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toBe(true);
+  });
+
+  it("counts each emoji as one character toward the 100-character limit", () => {
+    expect(isProductNameTooLong("🌱".repeat(PRODUCT_NAME_MAX_LENGTH))).toBe(false);
+    expect(isProductNameTooLong("🌱".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toBe(true);
   });
 });
 
@@ -54,8 +71,22 @@ describe("barcodeLength", () => {
 
   it("counts each emoji as one character toward the 64-character limit", () => {
     expect(barcodeLength("🔖".repeat(64))).toBe(BARCODE_MAX_LENGTH);
-    expect(barcodeLength("🔖".repeat(64))).toBeLessThanOrEqual(BARCODE_MAX_LENGTH);
     expect(barcodeLength("🔖".repeat(65))).toBeGreaterThan(BARCODE_MAX_LENGTH);
+  });
+});
+
+describe("isBarcodeTooLong", () => {
+  it("accepts a barcode of exactly 64 characters", () => {
+    expect(isBarcodeTooLong("a".repeat(BARCODE_MAX_LENGTH))).toBe(false);
+  });
+
+  it("rejects a barcode of 65 characters", () => {
+    expect(isBarcodeTooLong("a".repeat(BARCODE_MAX_LENGTH + 1))).toBe(true);
+  });
+
+  it("counts each emoji as one character toward the 64-character limit", () => {
+    expect(isBarcodeTooLong("🔖".repeat(BARCODE_MAX_LENGTH))).toBe(false);
+    expect(isBarcodeTooLong("🔖".repeat(BARCODE_MAX_LENGTH + 1))).toBe(true);
   });
 });
 

@@ -116,7 +116,7 @@ describe("validateProductFields", () => {
         saleUnit: "UNIT",
         barcodes: ["111"],
       }),
-    ).toMatchObject({ field: "name" });
+    ).toEqual({ field: "name", message: "name must be at most 100 characters" });
   });
 
   it("rejects a missing categoryId", () => {
@@ -160,7 +160,7 @@ describe("validateProductFields", () => {
         saleUnit: "UNIT",
         barcodes: ["a".repeat(65)],
       }),
-    ).toMatchObject({ field: "barcodes" });
+    ).toEqual({ field: "barcodes", message: "each barcode must be at most 64 characters" });
   });
 
   it("accepts up to 20 barcodes and rejects a 21st", () => {

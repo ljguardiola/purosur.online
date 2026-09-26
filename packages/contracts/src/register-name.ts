@@ -7,3 +7,7 @@ export const REGISTER_NAME_MAX_LENGTH = 100;
 export function registerNameLength(name: string): number {
   return Array.from(name).length;
 }
+
+export function isRegisterNameTooLong(name: string): boolean {
+  return registerNameLength(name) > REGISTER_NAME_MAX_LENGTH;
+}
