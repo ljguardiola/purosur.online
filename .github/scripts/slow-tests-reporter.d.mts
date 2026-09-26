@@ -15,7 +15,6 @@ export declare const ROOT_SLOW_TEST_THRESHOLD: number;
 
 export declare class SlowTestsReporter implements Reporter {
   constructor(thresholdsByProject: Record<string, number>);
-  readonly thresholdsByProject: Readonly<Record<string, number>>;
   onInit(vitest: OnInitArg): void;
   onTestRunStart(...args: OnTestRunStartArgs): void;
   onTestCaseResult(testCase: OnTestCaseResultArg): void;

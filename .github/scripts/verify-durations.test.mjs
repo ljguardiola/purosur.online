@@ -135,6 +135,40 @@ test("shows the run attempt only when it is greater than one", () => {
   assert.match(retried, /\b3\b/);
 });
 
+test("lines each column up under its header", () => {
+  const [header, ...lines] = formatDurationsTable([
+    {
+      sha: "abc1234",
+      startedAt: "2026-09-20T10:00:00Z",
+      durationSeconds: 272,
+      conclusion: "success",
+      attempt: 1,
+      url: "https://github.com/o/r/actions/runs/1",
+    },
+    {
+      sha: "def5678",
+      startedAt: "2026-09-21T09:30:00Z",
+      durationSeconds: 3725,
+      conclusion: "cancelled",
+      attempt: 2,
+      url: "https://github.com/o/r/actions/runs/2",
+    },
+  ]).split("\n");
+
+  for (const [line, sha, conclusion] of [
+    [lines[0], "abc1234", "success"],
+    [lines[1], "def5678", "cancelled"],
+  ]) {
+    assert.equal(line.indexOf(sha), header.indexOf("COMMIT"));
+    assert.equal(line.indexOf(conclusion), header.indexOf("CONCLUSION"));
+    assert.equal(line.indexOf("https://"), header.indexOf("URL"));
+  }
+  // Durations are right-aligned, ending where the DURATION header ends.
+  const durationEnd = header.indexOf("DURATION") + "DURATION".length;
+  assert.equal(lines[0].slice(0, durationEnd).endsWith("4:32"), true);
+  assert.equal(lines[1].slice(0, durationEnd).endsWith("62:05"), true);
+});
+
 test("reports when there are no completed runs to show", () => {
   const table = formatDurationsTable([]);
 
@@ -175,4 +209,16 @@ test("fails with a clear message when gh fails", async () => {
 
   assert.equal(exitCode, 1);
   assert.match(errors.join("\n"), /gh: not authenticated/);
+});
+
+test("fails with a clear message when gh returns output that is not JSON", async () => {
+  const errors = [];
+  const exitCode = await runCli({
+    runGh: async () => "<html>rate limited</html>",
+    log: () => {},
+    logError: (message) => errors.push(message),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.match(errors.join("\n"), /gh api returned output that is not valid JSON/);
 });

@@ -5,9 +5,9 @@
 
 const VITEST_CONFIG_PATH = new URL("../../vitest.config.ts", import.meta.url);
 
-// Not Infinity: vitest's config can cross a JSON boundary (e.g. sent to a worker), where Infinity
-// becomes null and the comparison it guards would stop working.
-export const ROOT_SLOW_TEST_THRESHOLD = Number.MAX_SAFE_INTEGER;
+// Infinity is what vitest treats as off: its summary reporter passes any finite slowTestThreshold to
+// setTimeout, which Node clamps to 1ms (with a TimeoutOverflowWarning) above 2^31 - 1.
+export const ROOT_SLOW_TEST_THRESHOLD = Infinity;
 
 /**
  * @param {Array<{ project: string, module: string, name: string, duration: number }>} results
@@ -30,7 +30,8 @@ export function formatSlowTestsBlock(slowTests) {
   }
 
   const lines = slowTests.map(
-    (t) => `  ${t.duration}ms > ${t.threshold}ms (${t.project})  ${t.module} > ${t.name}`,
+    (t) =>
+      `  ${Math.round(t.duration)}ms > ${t.threshold}ms (${t.project})  ${t.module} > ${t.name}`,
   );
   return [`Slow for their kind of test (${slowTests.length})`, ...lines].join("\n");
 }
@@ -49,13 +50,32 @@ export class SlowTestsReporter {
     this.#thresholdsByProject = thresholdsByProject;
   }
 
-  /** A read-only view, so a guard can check every project got a threshold. */
-  get thresholdsByProject() {
-    return { ...this.#thresholdsByProject };
-  }
-
+  /**
+   * Fails the run when the thresholds do not match the projects vitest actually runs, which can
+   * differ from the names in vitest.config.ts (a browser instance runs as "<project> (<browser>)"
+   * unless it is given a name): a test in a project with no threshold would never be marked slow.
+   */
   onInit(vitest) {
     this.#vitest = vitest;
+    const projectNames = vitest.projects.map((project) => project.name);
+    const problems = [];
+    for (const name of projectNames) {
+      const threshold = this.#thresholdsByProject[name];
+      if (typeof threshold !== "number" || !Number.isFinite(threshold) || threshold <= 0) {
+        problems.push(`the "${name}" project has no positive finite threshold`);
+      }
+    }
+    // A --project filter leaves the other projects out of vitest.projects.
+    if (vitest.config.project.length === 0) {
+      for (const name of Object.keys(this.#thresholdsByProject)) {
+        if (!projectNames.includes(name)) {
+          problems.push(`the threshold for "${name}" names no project`);
+        }
+      }
+    }
+    if (problems.length > 0) {
+      throw new Error(`SlowTestsReporter in vitest.config.ts: ${problems.join("; ")}`);
+    }
   }
 
   onTestRunStart() {
@@ -77,30 +97,22 @@ export class SlowTestsReporter {
   }
 
   onTestRunEnd() {
-    // A reporting problem must never fail the run it is only describing.
-    try {
-      const block = formatSlowTestsBlock(
-        slowTestsForTheirKind(this.#results, this.#thresholdsByProject),
-      );
-      if (block) {
-        this.#vitest?.logger.log(`\n${block}`);
-      }
-    } catch (error) {
-      this.#vitest?.logger.error(`slow-tests-reporter: could not report slow tests: ${error}`);
+    const block = formatSlowTestsBlock(
+      slowTestsForTheirKind(this.#results, this.#thresholdsByProject),
+    );
+    if (block) {
+      this.#vitest.logger.log(`\n${block}`);
     }
   }
 }
 
 /** @returns {string[]} one violation per way vitest.config.ts no longer marks tests slow only
- * against their own kind: a root threshold the built-in mark could still fire against, no
- * SlowTestsReporter in test.reporters, a project with no positive finite threshold in it, or a
- * threshold that names a project that does not exist. */
+ * against their own kind: a root threshold the built-in mark could still fire against, or no
+ * SlowTestsReporter in test.reporters. SlowTestsReporter itself checks its thresholds against the
+ * projects vitest runs. */
 export function findSlowTestsReporterViolations(config) {
   const violations = [];
   const test = config?.test ?? {};
-  const projectNames = (test.projects ?? [])
-    .map((project) => project?.test?.name)
-    .filter((name) => typeof name === "string");
 
   if (test.slowTestThreshold !== ROOT_SLOW_TEST_THRESHOLD) {
     violations.push(
@@ -108,27 +120,8 @@ export function findSlowTestsReporterViolations(config) {
     );
   }
 
-  const reporter = (test.reporters ?? []).find((r) => r instanceof SlowTestsReporter);
-  if (reporter === undefined) {
+  if (!(test.reporters ?? []).some((r) => r instanceof SlowTestsReporter)) {
     violations.push("vitest.config.ts's test.reporters does not include a SlowTestsReporter");
-    return violations;
-  }
-
-  const thresholds = reporter.thresholdsByProject;
-  for (const name of projectNames) {
-    const threshold = thresholds[name];
-    if (typeof threshold !== "number" || !Number.isFinite(threshold) || threshold <= 0) {
-      violations.push(
-        `vitest.config.ts's SlowTestsReporter has no positive finite threshold for the "${name}" project`,
-      );
-    }
-  }
-  for (const name of Object.keys(thresholds)) {
-    if (!projectNames.includes(name)) {
-      violations.push(
-        `vitest.config.ts's SlowTestsReporter has a threshold for "${name}", which is not a project`,
-      );
-    }
   }
 
   return violations;

@@ -80,7 +80,9 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright(),
-            instances: [{ browser: "chromium" }],
+            // Named so it runs as "browser", the name SlowTestsReporter keys its threshold by, instead
+            // of vitest's default "browser (chromium)".
+            instances: [{ browser: "chromium", name: "browser" }],
           },
         },
       },

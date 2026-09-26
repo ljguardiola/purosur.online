@@ -47,12 +47,26 @@ export function formatDurationsTable(rows) {
     return "No completed Verify runs on main.";
   }
 
-  const lines = rows.map((row) => {
-    const attempt = row.attempt > 1 ? ` (attempt ${row.attempt})` : "";
-    return `${formatStartedAt(row.startedAt)}  ${row.sha}  ${formatDuration(row.durationSeconds).padStart(5)}  ${row.conclusion}${attempt}  ${row.url}`;
-  });
-  const header = "STARTED (UTC)     COMMIT   DURATION  CONCLUSION  URL";
-  return [header, ...lines].join("\n");
+  const header = ["STARTED (UTC)", "COMMIT", "DURATION", "CONCLUSION", "URL"];
+  const cells = rows.map((row) => [
+    formatStartedAt(row.startedAt),
+    row.sha,
+    formatDuration(row.durationSeconds),
+    row.attempt > 1 ? `${row.conclusion} (attempt ${row.attempt})` : row.conclusion,
+    row.url,
+  ]);
+  const widths = header.map((label, i) => Math.max(label.length, ...cells.map((c) => c[i].length)));
+  const durationColumn = header.indexOf("DURATION");
+  return [header, ...cells]
+    .map((line) =>
+      line
+        .map((cell, i) =>
+          i === durationColumn ? cell.padStart(widths[i]) : cell.padEnd(widths[i]),
+        )
+        .join("  ")
+        .trimEnd(),
+    )
+    .join("\n");
 }
 
 async function runGhViaChildProcess(args) {
