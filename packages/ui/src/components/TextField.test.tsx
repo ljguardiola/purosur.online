@@ -114,6 +114,29 @@ test("keeps the backoffice plain text value semibold even with a suffix, unlike 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+// The design draws no backoffice money or kg field (see TextField.tsx's own TextFieldKindProps),
+// so a kind other than plain text keeps its whole register-sized field — label, gap and value
+// included, not only its frame — regardless of an ambient backoffice FieldSizeProvider.
+test("keeps a non-plain-text kind at its own register size inside a backoffice FieldSizeProvider", async () => {
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <TextField kind="price" label="Sale price per kilo" value="" onChange={() => {}} prefix="$" />
+    </FieldSizeProvider>,
+  );
+  const label = screen.getByText("Sale price per kilo").element() as HTMLElement;
+  const input = fieldInput(screen, "Sale price per kilo");
+  const box = fieldBox(screen, "Sale price per kilo");
+  const wrapper = fieldWrapper(screen, "Sale price per kilo");
+
+  expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
+  expect(getComputedStyle(label).fontWeight).toBe("700");
+  expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
+  expect(box.getBoundingClientRect().height).toBeCloseTo(72, 0);
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(32);
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 type KindCase = {
   kind: TextFieldProps["kind"];
   label: string;

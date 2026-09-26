@@ -68,8 +68,9 @@ type TextFieldValidityProps =
 // días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
 // not compile. The design draws no backoffice money or kg field, but that is no longer a
 // compile-time rule now that size comes from context instead of a caller-supplied prop (see
-// FieldSizeProvider): those five kinds simply keep their own register frame below, regardless of
-// the ambient size, the same way SearchField.tsx's own icon size never varies with them either.
+// FieldSizeProvider): those five kinds simply keep their own whole register-sized field below,
+// regardless of the ambient size, the same way SearchField.tsx's own icon size never varies with
+// them either.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }
@@ -185,9 +186,9 @@ export function TextField(props: TextFieldProps) {
   const suffix =
     kind === "weight" || kind === "quantity" || kind === "plain-text" ? props.suffix : undefined;
 
-  // The design never draws a backoffice money or kg field; those five kinds keep their own
-  // register frame regardless of the ambient FieldSizeProvider, since only plain text's frame
-  // varies with it.
+  // The design never draws a backoffice money or kg field; those five kinds keep their whole
+  // register-sized field — frame, label and gap, not the frame alone — regardless of the ambient
+  // FieldSizeProvider, since only plain text's size varies with it.
   const contextSize = useFieldSize();
   const size = kind === "plain-text" ? contextSize : "register";
   const boxFrameClassName =
