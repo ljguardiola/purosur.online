@@ -656,6 +656,22 @@ test("rejects creating a product without choosing a sale unit, without calling t
   expect(services.createProduct).not.toHaveBeenCalled();
 });
 
+test("shows the name-too-long error on create, without calling the API", async () => {
+  const services = createServices();
+  mockLoaded(services, []);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
+
+  const dialog = await openNewProductModal(screen);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "a".repeat(101));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("El nombre puede tener hasta 100 caracteres."))
+    .toBeVisible();
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
 test("shows no category selector when there are no categories yet, and still blocks creating without one", async () => {
   const services = createServices();
   mockLoaded(services, [], []);
@@ -1223,26 +1239,20 @@ test("rejects scanning a code with spaces inside it, without adding a chip", asy
   expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
 });
 
-test("rejects scanning a code longer than 64 characters, counting each emoji once", async () => {
+test("shows the barcode-too-long error when scanning, without listing the code", async () => {
   const services = createServices();
   mockLoaded(services, []);
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
 
   const dialog = await openNewProductModal(screen);
-  await userEvent.fill(scanInputOf(dialog), "🌱".repeat(64));
-  await userEvent.keyboard("{Enter}");
-  await expect
-    .element(dialog.getByRole("button", { name: `Quitar el código ${"🌱".repeat(64)}` }))
-    .toBeVisible();
-
   await userEvent.fill(scanInputOf(dialog), "1".repeat(65));
   await userEvent.keyboard("{Enter}");
 
   await expect
     .element(dialog.getByText("El código de barras puede tener hasta 64 caracteres."))
     .toBeVisible();
-  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).elements()).toHaveLength(1);
+  expect(dialog.getByRole("button", { name: /^Quitar el código/ }).query()).toBeNull();
 });
 
 test("refuses scanning more than 20 codes for one product", async () => {

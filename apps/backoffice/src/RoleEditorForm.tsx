@@ -1,11 +1,10 @@
 import {
+  isRoleNameTooLong,
   PERMISSION_AREAS,
   PERMISSION_CATALOG,
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
-  ROLE_NAME_MAX_LENGTH,
-  roleNameLength,
 } from "@purosur/contracts";
 import { Checkbox, Focusable, RadioGroup, Tag, TextField, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
@@ -34,7 +33,7 @@ function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
 }
 
 /**
- * Empty (after trimming), longer than `ROLE_NAME_MAX_LENGTH`, or the Administrator role's own
+ * Empty (after trimming), too long for a role name, or the Administrator role's own
  * reserved name, case-insensitively.
  */
 export function validateRoleName(value: string): string | undefined {
@@ -42,7 +41,7 @@ export function validateRoleName(value: string): string | undefined {
   if (!trimmed) {
     return formMessages.nameRequired;
   }
-  if (roleNameLength(trimmed) > ROLE_NAME_MAX_LENGTH) {
+  if (isRoleNameTooLong(trimmed)) {
     return formMessages.nameTooLong;
   }
   if (trimmed.toLowerCase() === rolesMessages.administratorRoleName.toLowerCase()) {
