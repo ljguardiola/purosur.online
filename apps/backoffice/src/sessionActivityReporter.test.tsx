@@ -7,8 +7,30 @@ import {
 } from "./sessionActivityReporter";
 import type { SessionOutcome } from "./sessionApi";
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+type TouchSessionMock = ReturnType<typeof vi.fn<() => Promise<SessionOutcome>>>;
+
+// A controllable stand-in for the wall clock, matching the hook's own `now` option (its own doc
+// comment: "Injected clock so the throttle window is deterministic in tests"). Advancing it proves
+// the throttle window's own boundary directly, instead of a real setTimeout racing against it.
+function createClock(startMs = 0) {
+  let currentMs = startMs;
+  return {
+    now: () => new Date(currentMs),
+    advance(ms: number): void {
+      currentMs += ms;
+    },
+  };
+}
+
+// touchSessionRef.current() is called synchronously inside the DOM event listener, so the mock
+// already records the call before this returns; only the hook's own `await` of that same result
+// (and the onTouched/onEnded it drives) still needs a moment to settle. Awaiting the exact promise
+// the hook is itself awaiting queues after the hook's own continuation (registered on it first),
+// so this resolves only once that continuation has actually run — not a guess at how many ticks it
+// takes.
+async function awaitLastTouch(touchSession: TouchSessionMock): Promise<void> {
+  const results = touchSession.mock.results;
+  await results.at(-1)?.value;
 }
 
 function okOutcome(expiresAt: string): SessionOutcome {
@@ -72,6 +94,7 @@ test("touches the session once real use happens", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -79,20 +102,22 @@ test("touches the session once real use happens", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
   expect(touchSession).not.toHaveBeenCalled();
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("pointerdown"));
 
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
+  expect(touchSession).toHaveBeenCalledTimes(1);
 });
 
 test("collapses a burst of activity within the throttle window into a single touch", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -100,18 +125,17 @@ test("collapses a burst of activity within the throttle window into a single tou
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 30,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(40);
+  clock.advance(40);
   window.dispatchEvent(new Event("pointerdown"));
   window.dispatchEvent(new KeyboardEvent("keydown"));
   window.dispatchEvent(new Event("wheel"));
   window.dispatchEvent(new Event("scroll"));
   window.dispatchEvent(new Event("touchstart"));
 
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
-  await wait(15);
   expect(touchSession).toHaveBeenCalledTimes(1);
 });
 
@@ -119,6 +143,7 @@ test("touches again once the throttle window passes", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -126,22 +151,27 @@ test("touches again once the throttle window passes", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 25,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(30);
+  clock.advance(30);
   window.dispatchEvent(new Event("pointerdown"));
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
+  expect(touchSession).toHaveBeenCalledTimes(1);
+  // The first touch's own "sending" guard clears only once it settles; without waiting for that,
+  // the second dispatch below would still find it in flight regardless of the clock.
+  await awaitLastTouch(touchSession);
 
-  await wait(30);
+  clock.advance(30);
   window.dispatchEvent(new Event("keydown"));
-  await expect.poll(() => touchSession.mock.calls.length).toBe(2);
+  expect(touchSession).toHaveBeenCalledTimes(2);
 });
 
 test("touches nothing when there is no activity at all", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -149,10 +179,12 @@ test("touches nothing when there is no activity at all", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(40);
+  // Past the throttle window, so this really shows the absence of activity, not an untested one.
+  clock.advance(40);
 
   expect(touchSession).not.toHaveBeenCalled();
 });
@@ -161,6 +193,7 @@ test("never treats a resting or moving cursor alone as activity", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -168,13 +201,13 @@ test("never treats a resting or moving cursor alone as activity", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("mousemove"));
   window.dispatchEvent(new Event("pointermove"));
-  await wait(10);
 
   expect(touchSession).not.toHaveBeenCalled();
 });
@@ -183,6 +216,7 @@ test("touches nothing while the document is hidden", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   await withVisibilityState("hidden", async () => {
     const hook = await renderReporter({
@@ -191,12 +225,12 @@ test("touches nothing while the document is hidden", async () => {
       onTouched: vi.fn(),
       onEnded: vi.fn(),
       throttleMs: 10,
+      now: clock.now,
     });
     hooks.push(hook);
 
-    await wait(20);
+    clock.advance(20);
     window.dispatchEvent(new Event("pointerdown"));
-    await wait(10);
 
     expect(touchSession).not.toHaveBeenCalled();
   });
@@ -206,6 +240,7 @@ test("counts an in-app navigation as activity", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -213,13 +248,14 @@ test("counts an in-app navigation as activity", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   navigate("/help", { replace: true });
 
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
+  expect(touchSession).toHaveBeenCalledTimes(1);
 });
 
 test("ends the session when a touch finds it no longer open", async () => {
@@ -227,6 +263,7 @@ test("ends the session when a touch finds it no longer open", async () => {
     kind: "unauthenticated",
   });
   const onEnded = vi.fn();
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -234,13 +271,15 @@ test("ends the session when a touch finds it no longer open", async () => {
     onTouched: vi.fn(),
     onEnded,
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("pointerdown"));
+  await awaitLastTouch(touchSession);
 
-  await expect.poll(() => onEnded.mock.calls.length).toBe(1);
+  expect(onEnded).toHaveBeenCalledTimes(1);
 });
 
 test("hands the refreshed session, with its new expiresAt and current access, to onTouched after a successful touch", async () => {
@@ -254,6 +293,7 @@ test("hands the refreshed session, with its new expiresAt and current access, to
   };
   const touchSession = vi.fn<() => Promise<SessionOutcome>>().mockResolvedValue(refreshed);
   const onTouched = vi.fn();
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -261,13 +301,15 @@ test("hands the refreshed session, with its new expiresAt and current access, to
     onTouched,
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("pointerdown"));
+  await awaitLastTouch(touchSession);
 
-  await expect.poll(() => onTouched.mock.calls.length).toBe(1);
+  expect(onTouched).toHaveBeenCalledTimes(1);
   expect(onTouched).toHaveBeenCalledWith(refreshed);
 });
 
@@ -278,6 +320,7 @@ test("leaves the tab signed in when a touch only finds network trouble or a rate
     .mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 60 });
   const onEnded = vi.fn();
   const onTouched = vi.fn();
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -285,13 +328,15 @@ test("leaves the tab signed in when a touch only finds network trouble or a rate
     onTouched,
     onEnded,
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("pointerdown"));
+  await awaitLastTouch(touchSession);
 
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
+  expect(touchSession).toHaveBeenCalledTimes(1);
   expect(onEnded).not.toHaveBeenCalled();
   expect(onTouched).not.toHaveBeenCalled();
 });
@@ -304,6 +349,7 @@ test("runs at most one touch at a time, even when the previous one is still pend
         resolveFirst = () => resolve(okOutcome("2099-01-01T00:00:00.000Z"));
       }),
   );
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -311,28 +357,34 @@ test("runs at most one touch at a time, even when the previous one is still pend
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   window.dispatchEvent(new Event("pointerdown"));
-  await expect.poll(() => touchSession.mock.calls.length).toBe(1);
+  expect(touchSession).toHaveBeenCalledTimes(1);
 
+  // Still pending: a second activity event during the same in-flight touch calls nothing new,
+  // deterministically, since the pending touch never resolved to clear its own "sending" guard.
   window.dispatchEvent(new Event("keydown"));
-  await wait(30);
   expect(touchSession).toHaveBeenCalledTimes(1);
 
   resolveFirst?.();
-  await wait(15);
-  window.dispatchEvent(new Event("keydown"));
+  // Awaiting the exact promise the pending touch is itself awaiting proves its own "sending"
+  // guard has cleared, rather than guessing how long that settling takes.
+  await awaitLastTouch(touchSession);
 
-  await expect.poll(() => touchSession.mock.calls.length).toBeGreaterThan(1);
+  clock.advance(20);
+  window.dispatchEvent(new Event("keydown"));
+  expect(touchSession).toHaveBeenCalledTimes(2);
 });
 
 test("stops touching once no longer active", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -340,19 +392,20 @@ test("stops touching once no longer active", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   hooks.push(hook);
 
-  await wait(20);
+  clock.advance(20);
   await hook.rerender({
     active: false,
     touchSession,
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
   window.dispatchEvent(new Event("pointerdown"));
-  await wait(15);
 
   expect(touchSession).not.toHaveBeenCalled();
 });
@@ -361,6 +414,7 @@ test("stops touching once the component unmounts", async () => {
   const touchSession = vi
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
+  const clock = createClock();
 
   const hook = await renderReporter({
     active: true,
@@ -368,12 +422,12 @@ test("stops touching once the component unmounts", async () => {
     onTouched: vi.fn(),
     onEnded: vi.fn(),
     throttleMs: 10,
+    now: clock.now,
   });
 
-  await wait(20);
+  clock.advance(20);
   await hook.unmount();
   window.dispatchEvent(new Event("pointerdown"));
-  await wait(15);
 
   expect(touchSession).not.toHaveBeenCalled();
 });
