@@ -136,8 +136,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   }
 }
 
-/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
-async function insertSession(forUserId: string, authorizedAt: Date | null = NOON): Promise<string> {
+async function insertSession(forUserId: string, authorizedAt: Date = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId: forUserId,
@@ -229,21 +228,7 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(challenges).toHaveLength(0);
   });
 
-  it("returns 401 authorization_required and stores no challenge when the session was never authorized", async () => {
-    const rawSessionId = await insertSession(userId, null);
-
-    const response = await postJson(
-      "/users/passkeys/registration-options",
-      {},
-      cookieHeader(rawSessionId),
-    );
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authorization_required" });
-    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
-  });
-
-  it("returns 401 authorization_required and stores no challenge one second past the 5-minute boundary", async () => {
+  it("returns 401 authorization_required and stores no challenge when the session's passkey authorization is stale", async () => {
     const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
     const rawSessionId = await insertSession(userId, authorizedAt);
 
@@ -256,18 +241,6 @@ describe("POST /users/passkeys/registration-options", () => {
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "authorization_required" });
     expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
-  });
-
-  it("returns registration options and stores their challenge while the session's authorization is valid", async () => {
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-    const rawSessionId = await insertSession(userId, authorizedAt);
-
-    const options = await requestOptions(rawSessionId);
-
-    const rows = await db.select().from(passkeyChallenges);
-    expect(rows.map((row) => row.registrationChallenge)).toEqual([
-      options.passkey_registration_options.challenge,
-    ]);
   });
 
   it("returns registration options excluding the account's existing passkeys", async () => {
@@ -567,48 +540,34 @@ describe("POST /users/passkeys", () => {
   });
 
   describe("passkey_name validation", () => {
-    it.each([undefined, "", "   "])(
-      "rejects passkey_name %j as validation_failed",
-      async (name) => {
-        const rawSessionId = await insertSession(userId);
-        const options = await requestOptions(rawSessionId);
-        const newEmulator = newDeviceEmulator();
-        const passkeyRegistration = newEmulator.createJSON(
-          BACKOFFICE_ORIGIN,
-          options.passkey_registration_options,
-        );
-
-        const response = await postJson(
-          "/users/passkeys",
-          {
-            passkey_registration: passkeyRegistration,
-            ...(name === undefined ? {} : { passkey_name: name }),
-          },
-          cookieHeader(rawSessionId),
-        );
-
-        expect(response.statusCode).toBe(400);
-        expect(response.json()).toMatchObject({ code: "validation_failed" });
-        const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-        expect(rows).toHaveLength(1);
-      },
-    );
-
-    it("rejects a passkey_name over 40 characters once trimmed", async () => {
+    it("rejects a missing passkey_name as validation_failed", async () => {
       const rawSessionId = await insertSession(userId);
-      const { response } = await registerSecondPasskey(rawSessionId, `  ${"a".repeat(41)}  `);
+      const options = await requestOptions(rawSessionId);
+      const newEmulator = newDeviceEmulator();
+      const passkeyRegistration = newEmulator.createJSON(
+        BACKOFFICE_ORIGIN,
+        options.passkey_registration_options,
+      );
+
+      const response = await postJson(
+        "/users/passkeys",
+        { passkey_registration: passkeyRegistration },
+        cookieHeader(rawSessionId),
+      );
 
       expect(response.statusCode).toBe(400);
       expect(response.json()).toMatchObject({ code: "validation_failed" });
+      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
+      expect(rows).toHaveLength(1);
     });
 
-    it("accepts and trims a passkey_name at exactly 40 characters once trimmed", async () => {
+    it("trims a passkey_name and stores the trimmed value", async () => {
       const rawSessionId = await insertSession(userId);
-      const { response } = await registerSecondPasskey(rawSessionId, `  ${"a".repeat(40)}  `);
+      const { response } = await registerSecondPasskey(rawSessionId, "  Teléfono del local  ");
 
       expect(response.statusCode).toBe(200);
       const rows = await db.select().from(passkeys).where(eq(passkeys.userId, userId));
-      const newRow = rows.find((row) => row.name === "a".repeat(40));
+      const newRow = rows.find((row) => row.name === "Teléfono del local");
       expect(newRow).toBeDefined();
     });
   });

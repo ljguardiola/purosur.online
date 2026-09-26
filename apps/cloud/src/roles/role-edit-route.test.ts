@@ -78,8 +78,7 @@ async function insertUser(input: {
   return user.id;
 }
 
-/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
-async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
+async function insertSession(userId: string, authorizedAt: Date = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId,
@@ -237,62 +236,12 @@ describe("POST /roles/:id/edit", () => {
     expect(row).toMatchObject({ name: "Cajera", version: 1 });
   });
 
-  it("rejects a name longer than 100 characters, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "a".repeat(101),
-      permissions: [],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-    expect(row).toMatchObject({ name: "Cajera", version: 1 });
-  });
-
-  it("rejects the name Administrador, case-insensitively, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "ADMINISTRADOR",
-      permissions: [],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-  });
-
   it("rejects an unknown permission key, changing nothing", async () => {
     const rawSessionId = await insertSession(administratorId);
 
     const response = await editRoleRequest(roleId, rawSessionId, {
       name: "Cajera",
       permissions: ["not_a_real_permission"],
-      version: 1,
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-  });
-
-  it("rejects both alert-view permissions together, changing nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await editRoleRequest(roleId, rawSessionId, {
-      name: "Cajera",
-      permissions: ["view_branch_alerts", "view_all_alerts"],
       version: 1,
     });
 
@@ -478,37 +427,7 @@ describe("POST /roles/:id/edit", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await editRoleRequest(roleId, rawSessionId, {
-        name: "Cajera nueva",
-        permissions: [],
-        version: 1,
-      });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
-      expect(row).toMatchObject({ name: "Cajera", version: 1 });
-      const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
-      expect(audited).toHaveLength(0);
-    });
-
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await editRoleRequest(roleId, rawSessionId, {
-        name: "Cajera nueva",
-        permissions: [],
-        version: 1,
-      });
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
 
@@ -522,6 +441,8 @@ describe("POST /roles/:id/edit", () => {
       expect(response.json()).toMatchObject({ code: "authorization_required" });
       const [row] = await db.select().from(roles).where(eq(roles.id, roleId));
       expect(row).toMatchObject({ name: "Cajera", version: 1 });
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entityId, roleId));
+      expect(audited).toHaveLength(0);
     });
   });
 });

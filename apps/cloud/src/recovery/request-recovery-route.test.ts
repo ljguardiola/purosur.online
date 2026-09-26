@@ -123,14 +123,6 @@ describe("POST /users/recovery/request", () => {
     expect(jobQueue.requests).toEqual([]);
   });
 
-  it("rejects a missing email as validation_failed without enqueuing a job", async () => {
-    const response = await post({});
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
-    expect(jobQueue.requests).toEqual([]);
-  });
-
   it("rejects a malformed email as validation_failed without enqueuing a job", async () => {
     const response = await post({ email: "not-an-email" });
 
@@ -151,23 +143,6 @@ describe("POST /users/recovery/request", () => {
     expect(sixth.json()).toMatchObject({ code: "rate_limited" });
     expect(sixth.headers["retry-after"]).toBeDefined();
     expect(jobQueue.requests).toHaveLength(5);
-  });
-
-  it("rejects an email longer than 254 characters as validation_failed without enqueuing a job", async () => {
-    const response = await post({ email: `${"a".repeat(243)}@example.com` });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code: "validation_failed" });
-    expect(jobQueue.requests).toEqual([]);
-  });
-
-  it("accepts an email of exactly 254 characters", async () => {
-    const email = `${"a".repeat(242)}@example.com`;
-
-    const response = await post({ email });
-
-    expect(response.statusCode).toBe(200);
-    expect(jobQueue.requests.map((request) => request.email)).toEqual([email]);
   });
 
   it("sends Retry-After as the seconds left until the limit frees a slot", async () => {

@@ -1,6 +1,8 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  BRANCH_SETTINGS_DAYS_MAX,
+  BRANCH_SETTINGS_TEXT_MAX_LENGTH,
   type BranchSettingsFieldValidationFailure,
   readBranchSettingsEditBody,
 } from "./branch-settings-validation.js";
@@ -92,6 +94,12 @@ describe("readBranchSettingsEditBody, per-day hours", () => {
     expect(result).toMatchObject({ field: "monday_hours" });
   });
 
+  it("rejects a range missing one of its two times", () => {
+    const result = readBranchSettingsEditBody(validBody({ sunday_hours: [{ opens_at: "09:00" }] }));
+
+    expect(result).toMatchObject({ field: "sunday_hours" });
+  });
+
   it("rejects a range with a time that isn't a zero-padded HH:MM", () => {
     const result = readBranchSettingsEditBody(
       validBody({ monday_hours: [{ opens_at: "9:00", closes_at: "13:00" }] }),
@@ -175,5 +183,85 @@ describe("readBranchSettingsEditBody, per-day hours", () => {
     const result = readBranchSettingsEditBody(validBody({ monday_hours: ranges }));
 
     expect(result).toMatchObject({ field: "monday_hours" });
+  });
+});
+
+describe("readBranchSettingsEditBody, text fields", () => {
+  it.each(["address", "whatsapp_number", "instagram_handle"])(
+    "accepts %s of exactly the maximum length",
+    (field) => {
+      const text = "a".repeat(BRANCH_SETTINGS_TEXT_MAX_LENGTH);
+
+      const result = readBranchSettingsEditBody(validBody({ [field]: text }));
+
+      expect(isValidationFailure(result)).toBe(false);
+    },
+  );
+
+  it.each(["address", "whatsapp_number", "instagram_handle"])(
+    "rejects %s longer than the maximum length",
+    (field) => {
+      const text = "a".repeat(BRANCH_SETTINGS_TEXT_MAX_LENGTH + 1);
+
+      const result = readBranchSettingsEditBody(validBody({ [field]: text }));
+
+      expect(result).toMatchObject({ field });
+    },
+  );
+
+  it.each(["address", "whatsapp_number", "instagram_handle"])(
+    "rejects %s that isn't a string",
+    (field) => {
+      const result = readBranchSettingsEditBody(validBody({ [field]: 541155555555 }));
+
+      expect(result).toMatchObject({ field });
+    },
+  );
+});
+
+describe("readBranchSettingsEditBody, window values in days", () => {
+  const dayFields = [
+    "expiring_lot_alert_days",
+    "unreviewed_price_alert_days",
+    "good_condition_return_days",
+  ];
+
+  it.each(dayFields)("accepts %s of 0 and of the maximum", (field) => {
+    expect(isValidationFailure(readBranchSettingsEditBody(validBody({ [field]: 0 })))).toBe(false);
+    expect(
+      isValidationFailure(
+        readBranchSettingsEditBody(validBody({ [field]: BRANCH_SETTINGS_DAYS_MAX })),
+      ),
+    ).toBe(false);
+  });
+
+  it.each(dayFields)("rejects %s above the maximum", (field) => {
+    const result = readBranchSettingsEditBody(validBody({ [field]: BRANCH_SETTINGS_DAYS_MAX + 1 }));
+
+    expect(result).toMatchObject({ field });
+  });
+
+  it.each(dayFields)("rejects a negative %s", (field) => {
+    const result = readBranchSettingsEditBody(validBody({ [field]: -1 }));
+
+    expect(result).toMatchObject({ field });
+  });
+
+  it.each(dayFields)("rejects a non-integer %s", (field) => {
+    const result = readBranchSettingsEditBody(validBody({ [field]: 30.5 }));
+
+    expect(result).toMatchObject({ field });
+  });
+});
+
+describe("readBranchSettingsEditBody, version", () => {
+  it.each([
+    { case: "a missing version", version: undefined },
+    { case: "a non-integer version", version: 1.5 },
+    { case: "a version below 1", version: 0 },
+  ])("rejects $case", ({ version }) => {
+    const result = readBranchSettingsEditBody(validBody({ version }));
+
+    expect(result).toMatchObject({ field: "version" });
   });
 });

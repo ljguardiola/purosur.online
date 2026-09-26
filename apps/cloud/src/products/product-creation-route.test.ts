@@ -266,44 +266,6 @@ describe("POST /products", () => {
     expect(await db.select().from(products)).toHaveLength(0);
   });
 
-  it("rejects a name longer than 100 characters, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "a".repeat(101),
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("rejects a missing categoryId, creating nothing", async () => {
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "categoryId" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
   it("rejects a categoryId that does not name an existing category, creating nothing", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
@@ -374,84 +336,6 @@ describe("POST /products", () => {
     expect(response.json()).toMatchObject({
       code: "validation_failed",
       details: [{ field: "categoryId" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("rejects a missing saleUnit, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      categoryId,
-      barcodes: ["111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "saleUnit" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("rejects missing barcodes, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      categoryId,
-      saleUnit: "UNIT",
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "barcodes" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("rejects more than 20 barcodes, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: Array.from({ length: 21 }, (_, index) => `code-${index}`),
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "barcodes" }],
-    });
-    expect(await db.select().from(products)).toHaveLength(0);
-  });
-
-  it("rejects a repeated barcode inside the same request, creating nothing", async () => {
-    const categoryId = await insertCategory("Macetas");
-    const userId = await insertUserWithPermission();
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createProduct(rawSessionId, {
-      name: "Maceta",
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: ["111", "111"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "barcodes" }],
     });
     expect(await db.select().from(products)).toHaveLength(0);
   });

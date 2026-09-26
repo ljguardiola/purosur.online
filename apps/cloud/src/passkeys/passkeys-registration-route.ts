@@ -21,6 +21,7 @@ import {
   pruneExpiredPasskeyChallenges,
   storePendingPasskeyChallenge,
 } from "./passkey-challenge.js";
+import { readPasskeyName } from "./passkey-name-validation.js";
 
 export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -29,8 +30,6 @@ export interface PasskeyRegistrationRouteOptions<TQueryResult extends PgQueryRes
   now?: () => Date;
 }
 
-const PASSKEY_NAME_MAX_LENGTH = 40;
-
 const REGISTRATION_FAILED_RESPONSE = {
   code: "validation_failed",
   message: "the passkey registration did not verify against the backoffice's origin",
@@ -38,16 +37,6 @@ const REGISTRATION_FAILED_RESPONSE = {
 } as const;
 
 class CredentialAlreadyRegistered extends Error {}
-
-/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed. */
-function readPasskeyName(body: unknown): string | undefined {
-  const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;
-  if (typeof rawName !== "string") {
-    return undefined;
-  }
-  const trimmed = rawName.trim();
-  return trimmed.length >= 1 && trimmed.length <= PASSKEY_NAME_MAX_LENGTH ? trimmed : undefined;
-}
 
 /**
  * Registers the two endpoints that add a passkey to an already-open session's account:

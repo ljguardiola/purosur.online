@@ -31,6 +31,11 @@ export {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
 } from "./issuer-identification.js";
+export {
+  isPasskeyNameTooLong,
+  PASSKEY_NAME_MAX_LENGTH,
+  passkeyNameLength,
+} from "./passkey-name.js";
 export type {
   PermissionArea,
   PermissionDefinition,

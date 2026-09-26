@@ -5,6 +5,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { openAlert } from "../alerts/open-alert.js";
 import { auditLog, passkeys, recoveryTokens, sessions, users } from "../db/schema.js";
+import { readPasskeyName } from "../passkeys/passkey-name-validation.js";
 import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import { recordRedemptionAttempt } from "./recovery-rate-limiter.js";
@@ -42,18 +43,6 @@ class CredentialAlreadyRegistered extends Error {}
 function readRawToken(body: unknown): string | undefined {
   const recoveryToken = (body as { recovery_token?: unknown } | undefined)?.recovery_token;
   return typeof recoveryToken === "string" && recoveryToken !== "" ? recoveryToken : undefined;
-}
-
-const PASSKEY_NAME_MAX_LENGTH = 40;
-
-/** Trims `passkey_name` and requires it to be 1-40 characters once trimmed. */
-function readPasskeyName(body: unknown): string | undefined {
-  const rawName = (body as { passkey_name?: unknown } | undefined)?.passkey_name;
-  if (typeof rawName !== "string") {
-    return undefined;
-  }
-  const trimmed = rawName.trim();
-  return trimmed.length >= 1 && trimmed.length <= PASSKEY_NAME_MAX_LENGTH ? trimmed : undefined;
 }
 
 /**

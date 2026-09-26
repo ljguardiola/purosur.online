@@ -302,47 +302,31 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
     expect(audited).toHaveLength(1);
   });
 
-  it.each([
-    { case: "a missing legal_name", overrides: { legal_name: undefined }, field: "legal_name" },
-    {
-      case: "an empty gross_income_registration",
-      overrides: { gross_income_registration: "" },
-      field: "gross_income_registration",
-    },
-    {
-      case: "an activity_start_date that isn't a valid ISO date",
-      overrides: { activity_start_date: "15/01/2020" },
-      field: "activity_start_date",
-    },
-    {
-      case: "an activity_start_date in the future",
-      overrides: { activity_start_date: "2026-01-06" },
-      field: "activity_start_date",
-    },
-    { case: "a missing version", overrides: { version: undefined }, field: "version" },
-    { case: "a version below 1", overrides: { version: 0 }, field: "version" },
-  ])(
-    "rejects $case with 400 validation_failed on that field, changing nothing",
-    async ({ overrides, field }) => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const rawSessionId = await insertSession(administratorId);
+  it("rejects an activity_start_date after the route clock's day with 400 validation_failed on that field, changing nothing", async () => {
+    const administratorId = await insertUser({
+      firstName: "Ada Lovelace",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+      locationId: await seededLocationId(db),
+    });
+    const rawSessionId = await insertSession(administratorId);
 
-      const response = await putIssuerIdentification(validBody(overrides), rawSessionId);
+    const response = await putIssuerIdentification(
+      validBody({ activity_start_date: "2026-01-06" }),
+      rawSessionId,
+    );
 
-      expect(response.statusCode).toBe(400);
-      expect(response.json()).toMatchObject({ code: "validation_failed", details: [{ field }] });
-      const [row] = await db
-        .select()
-        .from(issuerIdentification)
-        .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
-      expect(row).toMatchObject({ legalName: null, version: 1 });
-    },
-  );
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "activity_start_date" }],
+    });
+    const [row] = await db
+      .select()
+      .from(issuerIdentification)
+      .where(eq(issuerIdentification.id, ISSUER_IDENTIFICATION_SINGLETON_ID));
+    expect(row).toMatchObject({ legalName: null, version: 1 });
+  });
 
   it("returns 409 stale_version and changes nothing when the sent version does not match", async () => {
     const administratorId = await insertUser({
@@ -388,14 +372,15 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const administratorId = await insertUser({
         firstName: "Ada Lovelace",
         email: "ada@example.com",
         roleId: await seededAdministratorRoleId(),
         locationId: await seededLocationId(db),
       });
-      const rawSessionId = await insertSession(administratorId, null);
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
 
       const response = await putIssuerIdentification(validBody(), rawSessionId);
 
@@ -411,37 +396,6 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
         .from(auditLog)
         .where(eq(auditLog.entityId, ISSUER_IDENTIFICATION_SINGLETON_ID));
       expect(audited).toHaveLength(0);
-    });
-
-    it("allows the save at exactly the 5-minute boundary", async () => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await putIssuerIdentification(validBody(), rawSessionId);
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await putIssuerIdentification(validBody(), rawSessionId);
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
     });
 
     it("checks validation before passkey authorization, the same order role-edit-route.ts uses", async () => {

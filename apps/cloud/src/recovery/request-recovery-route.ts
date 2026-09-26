@@ -1,6 +1,7 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS, registerRouteAccess } from "../session/route-access.js";
+import { readEmail } from "../users/email-validation.js";
 import { reportRecoveryBookkeepingError } from "./recovery-error-reporting.js";
 import type { RecoveryJobQueue } from "./recovery-job-queue.js";
 import { hashDestinationAddress, recordRecoveryRequestAttempt } from "./recovery-rate-limiter.js";
@@ -17,18 +18,6 @@ export interface RecoveryRouteOptions<TQueryResult extends PgQueryResultHKT> {
   recordRejectedAttempt?: typeof recordRejectedAttempt;
   /** Injected in tests; defaults to logging and reporting to Sentry. */
   reportError?: (error: unknown) => void;
-}
-
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+$/;
-// The longest address SMTP can deliver to (RFC 5321's 256-octet path minus its angle brackets).
-const EMAIL_MAX_LENGTH = 254;
-
-function normalizeEmail(rawEmail: unknown): string | undefined {
-  if (typeof rawEmail !== "string") {
-    return undefined;
-  }
-  const email = rawEmail.trim().toLowerCase();
-  return email.length <= EMAIL_MAX_LENGTH && EMAIL_SHAPE.test(email) ? email : undefined;
 }
 
 /**
@@ -61,8 +50,7 @@ export function registerRecoveryRoutes<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const body = request.body as { email?: unknown } | undefined;
-      const email = normalizeEmail(body?.email);
+      const email = readEmail(request.body);
       if (!email) {
         await reply.code(400).send({
           code: "validation_failed",

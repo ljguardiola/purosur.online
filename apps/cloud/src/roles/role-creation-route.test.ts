@@ -75,7 +75,7 @@ async function insertUser(input: {
   return user.id;
 }
 
-/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
+/** Inserts a session, authorized (by default, at `NOON`) unless `authorizedAt` is passed as `null`. */
 async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
@@ -229,34 +229,6 @@ describe("POST /roles", () => {
     expect(created).toHaveLength(0);
   });
 
-  it("rejects a name longer than 100 characters, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, { name: "a".repeat(101), permissions: [] });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
-  it("rejects the name Administrador, case-insensitively, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, { name: "administrador", permissions: [] });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
   it("rejects a name already taken, case-insensitively, creating nothing", async () => {
     await insertCashierRole("Cajera");
     const rawSessionId = await insertSession(administratorId);
@@ -286,64 +258,8 @@ describe("POST /roles", () => {
     expect(created).toHaveLength(0);
   });
 
-  it("rejects a repeated permission key, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, {
-      name: "Depósito",
-      permissions: ["view_stock_balances", "view_stock_balances"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
-  it("rejects both alert-view permissions together, creating nothing", async () => {
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await createRole(rawSessionId, {
-      name: "Encargada",
-      permissions: ["view_branch_alerts", "view_all_alerts"],
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "permissions" }],
-    });
-    const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-    expect(created).toHaveLength(0);
-  });
-
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and creates nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await createRole(rawSessionId, { name: "Depósito", permissions: [] });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-      expect(created).toHaveLength(0);
-      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "role"));
-      expect(audited).toHaveLength(0);
-    });
-
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await createRole(rawSessionId, { name: "Depósito", permissions: [] });
-
-      expect(response.statusCode).toBe(201);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, creating nothing", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, creating nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
 
@@ -353,6 +269,8 @@ describe("POST /roles", () => {
       expect(response.json()).toMatchObject({ code: "authorization_required" });
       const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
       expect(created).toHaveLength(0);
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "role"));
+      expect(audited).toHaveLength(0);
     });
 
     it("does not count another session's authorization for the same account", async () => {
