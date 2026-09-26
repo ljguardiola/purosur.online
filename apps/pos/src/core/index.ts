@@ -10,9 +10,8 @@ import {
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createRendererConnection } from "./renderer-connection";
 
-// No DSN here: the utility SDK hands every envelope to main, which owns the destination. Main
-// replaces the environment on the core's events but forwards its logs untouched, so the core still
-// needs its own.
+// No DSN here: @sentry/electron's utility SDK hands every envelope to main, which owns the
+// destination and replaces the environment on events, but forwards logs untouched.
 const sentryEnvironment = sentryEnvironmentFromCoreArguments(process.argv);
 if (sentryEnvironment) {
   Sentry.init({
@@ -25,8 +24,8 @@ if (sentryEnvironment) {
   });
 }
 
-// Console output is also shipped as logs and breadcrumbs, so the local line carries the same
-// value-free summary as the reported event.
+// consoleLoggingIntegration also ships this console line as a Sentry log, so it must already
+// carry the same redacted summary as the reported event.
 const recorder: RejectionRecorder = {
   recordRejection(rejection) {
     const summary = summarizeRejection(rejection);
@@ -38,13 +37,9 @@ const recorder: RejectionRecorder = {
 const gateFromMain = createMessageGate(mainToCoreMessageSchema, recorder);
 const gateFromRenderer = createMessageGate(rendererToCoreMessageSchema, recorder);
 
-function handleMainMessage(): void {
-  // No business logic yet: the gate existing and wired up is what this shell proves.
-}
+function handleMainMessage(): void {}
 
-function handleRendererMessage(): void {
-  // No business logic yet: the gate existing and wired up is what this shell proves.
-}
+function handleRendererMessage(): void {}
 
 const rendererConnection = createRendererConnection((data) => {
   gateFromRenderer(data, handleRendererMessage);

@@ -20,10 +20,8 @@ function payloadOf(data: unknown): unknown {
   return data.channel === CORE_STATUS_CHANNEL ? data.payload : undefined;
 }
 
-// Preload relays main's core-status broadcast the same way it relays the core-port handoff: by
-// posting to this same window. A hostile or buggy sender could still post anything on this
-// channel, so the payload is validated against packages/contracts' core-status schema, and
-// anything that doesn't parse is dropped rather than trusted.
+// A hostile or buggy sender could post anything on window's message channel, so the payload is
+// validated against the core-status schema; anything that fails to parse is dropped.
 export function attachCoreStatus(
   source: CoreStatusEventSource,
   ownWindow: unknown,

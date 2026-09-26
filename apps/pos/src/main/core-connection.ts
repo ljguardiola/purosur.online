@@ -9,9 +9,8 @@ export interface EstablishCoreConnectionDeps<Port> {
   sendToRenderer(port: Port): void;
 }
 
-// Called on every core (re)launch and every renderer load/reload: a MessagePort pair is single
-// use, so a fresh core process or a reloaded page each need a brand new pair to reconnect, never
-// a port that was already handed out before.
+// A MessagePort pair is single-use: a fresh core process or a reloaded page each need a brand
+// new pair, never one already handed out.
 export function establishCoreConnection<Port>(deps: EstablishCoreConnectionDeps<Port>): void {
   const { port1, port2 } = deps.createChannel();
   deps.sendToCore(port1);

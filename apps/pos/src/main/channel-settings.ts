@@ -14,7 +14,6 @@ export const DEVELOPMENT_SETTINGS: ChannelSettings = {
 export interface ChannelSettingsSource {
   readonly isPackaged: boolean;
   readonly resourcesPath: string;
-  // Only honored in an unpackaged run (development and end-to-end tests).
   readonly overridePath: string | undefined;
   readonly readFile: (path: string) => string;
 }

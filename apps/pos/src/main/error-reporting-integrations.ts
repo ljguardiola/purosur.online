@@ -1,8 +1,5 @@
-// Names as @sentry/electron's main-process SDK registers its default integrations.
-// - SentryMinidump starts Electron's crash reporter and uploads each native crash's minidump, a
-//   copy of process memory that no event scrubbing ever reads; ElectronMinidump is its alternative.
-// - PreloadInjection injects Sentry's own preload, which exposes an API on the page's window.
-// - ChildProcess reports a crashed or out-of-memory process only through the minidump by default.
+// @sentry/electron's own main-process defaults: minidump crash capture, preload injection exposing
+// an API on window, and minidump-only reporting for a crashed or OOM child process.
 const REPLACED_DEFAULT_INTEGRATIONS = new Set([
   "SentryMinidump",
   "ElectronMinidump",

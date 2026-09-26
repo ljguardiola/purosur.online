@@ -6,7 +6,6 @@ export const CHANNEL_DATA_FOLDERS: Readonly<Record<Channel, string>> = {
   staging: "purosur-pos-staging",
 };
 
-/** What an installed register's channel file carries. */
 export interface ChannelFile {
   readonly channel: Channel;
   readonly sentryDsn?: string;

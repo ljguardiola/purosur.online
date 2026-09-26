@@ -57,7 +57,6 @@ const CORE_ENTRY = join(import.meta.dirname, "core.js");
 const PRELOAD_ENTRY = join(import.meta.dirname, "../preload/index.cjs");
 const RENDERER_ENTRY = join(import.meta.dirname, "../renderer/index.html");
 
-// Bounds both the core's restarts and the interface's reloads.
 const RESTART_POLICY = {
   maxAttempts: 5,
   baseDelayMs: 500,
@@ -65,16 +64,10 @@ const RESTART_POLICY = {
   stableRunMs: 60_000,
 };
 
-// A core that hasn't said it is ready by then is killed and restarted like a crash. Its boot takes
-// milliseconds today; the margin is for the database and hardware setup it will do before saying
-// it is ready, which must never be mistaken for a hang on a slow register.
 const CORE_READINESS_TIMEOUT_MS = 30_000;
 
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
-// Only honored in an unpackaged run (development and end-to-end tests), the same trust boundary
-// channel-settings.ts already draws for POS_CHANNEL_FILE: a packaged build always waits the real
-// interval, and nothing lets a compromised production install shorten it.
 function coreRetryIntervalMs(): number {
   const override = !app.isPackaged ? Number(process.env.POS_CORE_RETRY_INTERVAL_MS) : Number.NaN;
   return Number.isFinite(override) && override > 0 ? override : DEFAULT_CORE_RETRY_INTERVAL_MS;
@@ -153,13 +146,10 @@ function startRegister(settings: ChannelSettings): void {
       },
     );
 
-    // Tracks the live core process, if any: set inside `fork` itself (which always runs before the
-    // supervisor's `onProcessStarted` hook below) and cleared as soon as it exits, so a renderer
-    // reload while the core is down gets no port until the restarted core hands it one.
+    // Set inside `fork` itself (before `onProcessStarted` below runs) and cleared on exit, so a
+    // renderer reload while the core is down gets no port until the restarted core hands one.
     let currentCoreProcess: Electron.UtilityProcess | undefined;
     let rendererHasLoadedOnce = false;
-    // Mirrors what the renderer was last told, so a page that loads or reloads later still learns
-    // it.
     let coreStatus: CoreStatus = "starting";
 
     function reconnectRendererToCore(): void {
@@ -217,9 +207,8 @@ function startRegister(settings: ChannelSettings): void {
         }
       },
       onProcessStarted: () => {
-        // On the very first launch the renderer hasn't loaded (and registered its preload's port
-        // listener) yet: the `did-finish-load` handler below connects it once it's ready. A
-        // restart while the renderer is already showing needs to reconnect right away instead.
+        // Before the renderer's first load it has no port listener registered yet (`did-finish-load`
+        // below connects it); a restart afterward must reconnect right away instead.
         if (rendererHasLoadedOnce) {
           reconnectRendererToCore();
         }
@@ -231,13 +220,10 @@ function startRegister(settings: ChannelSettings): void {
       onStatusChange: setCoreStatus,
     });
     supervisor.start();
-    // Quitting kills the core like any other child process; stopping first keeps that exit from
-    // being taken for a crash and relaunched while the window is going away.
+    // Stopping first keeps the core's quit-triggered exit from being taken for a crash and
+    // relaunched while the window is going away.
     app.on("before-quit", () => supervisor.stop());
 
-    // Fires on the renderer's first load and every later reload (e.g. a crash or a manual
-    // refresh), so a fresh page always gets a live port to whichever core process is running and
-    // learns the core's current status even if it missed the event that last changed it.
     window.webContents.on("did-finish-load", () => {
       rendererHasLoadedOnce = true;
       reconnectRendererToCore();
@@ -263,8 +249,7 @@ if (channelSettings.ok) {
   initializeErrorReporting(channelSettings.settings);
   startRegister(channelSettings.settings);
 } else {
-  // Without its channel the register can't tell whose data folder it may write to, so it doesn't
-  // start rather than guess.
+  // Without its channel the register can't tell whose data folder to write to, so it refuses to guess.
   reportStartFailure(channelSettings.reason, {
     isPackaged: app.isPackaged,
     writeError: (line) => console.error(line),
