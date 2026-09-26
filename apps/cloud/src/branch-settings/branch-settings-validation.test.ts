@@ -1,7 +1,6 @@
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX as SHARED_BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  BRANCH_HOURS_RANGES_PER_DAY_MAX,
   type BranchSettingsFieldValidationFailure,
   readBranchSettingsEditBody,
 } from "./branch-settings-validation.js";
@@ -31,12 +30,6 @@ function isValidationFailure(
 ): value is BranchSettingsFieldValidationFailure {
   return "field" in value;
 }
-
-describe("the cloud's local branch hours ranges-per-day cap", () => {
-  it("matches the shared cap", () => {
-    expect(BRANCH_HOURS_RANGES_PER_DAY_MAX).toBe(SHARED_BRANCH_HOURS_RANGES_PER_DAY_MAX);
-  });
-});
 
 describe("readBranchSettingsEditBody, per-day hours", () => {
   it("accepts a day closed (an empty list)", () => {

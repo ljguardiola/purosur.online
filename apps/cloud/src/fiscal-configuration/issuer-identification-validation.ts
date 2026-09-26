@@ -1,20 +1,8 @@
-// Mirrors `@purosur/contracts`'s issuer identification limits and Argentina calendar day;
-// `issuer-identification-validation.test.ts` guards against drift.
-export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
-export const ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH = 100;
-export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
-
-// The en-CA locale formats a date as YYYY-MM-DD, the ISO calendar date shape.
-const ARGENTINA_ISO_DAY_FORMAT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: ARGENTINA_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-export function argentinaCalendarDay(instant: Date): string {
-  return ARGENTINA_ISO_DAY_FORMAT.format(instant);
-}
+import {
+  argentinaCalendarDay,
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+} from "@purosur/contracts";
 
 const ACTIVITY_START_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 

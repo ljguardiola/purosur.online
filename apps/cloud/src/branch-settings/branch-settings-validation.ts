@@ -1,3 +1,4 @@
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 // No field-specific length is documented anywhere in the codebase (the same gap
 // `user-creation-route.ts` notes for `first_name`), so every free-text field here shares one
 // generous bound: long enough for a ticket header line, short enough to guard against an
@@ -5,10 +6,6 @@
 export const BRANCH_SETTINGS_TEXT_MAX_LENGTH = 200;
 
 const HOURS_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-// Mirrors `@purosur/contracts`'s cap; `branch-settings-validation.test.ts` guards against drift.
-// This is a technical cap, not a business rule: it only prevents an unbounded list.
-export const BRANCH_HOURS_RANGES_PER_DAY_MAX = 6;
 
 // Monday through Sunday, in the order the backoffice's "Horario de atención" rows appear and the
 // order `day_of_week` numbers them in `branch_hours` (1 = Monday … 7 = Sunday).

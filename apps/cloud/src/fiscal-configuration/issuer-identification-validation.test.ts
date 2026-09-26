@@ -1,15 +1,9 @@
 import {
-  ARGENTINA_TIME_ZONE as SHARED_ARGENTINA_TIME_ZONE,
-  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH as SHARED_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
-  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH as SHARED_LEGAL_NAME_MAX_LENGTH,
-  argentinaCalendarDay as sharedArgentinaCalendarDay,
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
-  ARGENTINA_TIME_ZONE,
-  argentinaCalendarDay,
-  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
-  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   type IssuerIdentificationFieldValidationFailure,
   readIssuerIdentificationEditBody,
 } from "./issuer-identification-validation.js";
@@ -224,33 +218,6 @@ describe("readIssuerIdentificationEditBody", () => {
     expect(isValidationFailure(result)).toBe(false);
     if (!isValidationFailure(result)) {
       expect(result).not.toHaveProperty("taxStatus");
-    }
-  });
-});
-
-describe("the cloud's local issuer identification limits", () => {
-  it("match the shared limits", () => {
-    expect(ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH).toBe(SHARED_LEGAL_NAME_MAX_LENGTH);
-    expect(ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH).toBe(
-      SHARED_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
-    );
-  });
-});
-
-describe("the cloud's local Argentina calendar day", () => {
-  it("names the shared time zone", () => {
-    expect(ARGENTINA_TIME_ZONE).toBe(SHARED_ARGENTINA_TIME_ZONE);
-  });
-
-  it("reads the same calendar day the shared contract does", () => {
-    for (const instant of [
-      "2026-09-25T20:59:00-03:00",
-      "2026-09-25T23:30:00-03:00",
-      "2026-09-26T00:00:00-03:00",
-    ]) {
-      expect(argentinaCalendarDay(new Date(instant))).toBe(
-        sharedArgentinaCalendarDay(new Date(instant)),
-      );
     }
   });
 });

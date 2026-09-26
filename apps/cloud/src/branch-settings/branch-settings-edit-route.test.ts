@@ -1,3 +1,4 @@
+import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -19,7 +20,6 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerBranchSettingsEditRoute } from "./branch-settings-edit-route.js";
 import { registerBranchSettingsReadRoute } from "./branch-settings-read-route.js";
-import { BRANCH_HOURS_RANGES_PER_DAY_MAX } from "./branch-settings-validation.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");

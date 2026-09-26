@@ -1,5 +1,6 @@
 import {
   type AlertKind,
+  ARGENTINA_TIME_ZONE,
   BARCODE_MAX_LENGTH,
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -18,20 +19,19 @@ import {
 import { defineMessages, type MessageFormatters } from "@purosur/ui";
 import type { ProductStatusFilter } from "./productsApi";
 
-// Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
-// browser's own clock, instead of drifting with wherever a device happens to be set to.
-const PASSKEY_TIME_ZONE = "America/Argentina/Buenos_Aires";
+// A passkey's dates render in Argentina's time zone regardless of the browser's own clock, instead
+// of drifting with wherever a device happens to be set to.
 const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
-  timeZone: PASSKEY_TIME_ZONE,
+  timeZone: ARGENTINA_TIME_ZONE,
 };
 const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
-  timeZone: PASSKEY_TIME_ZONE,
+  timeZone: ARGENTINA_TIME_ZONE,
 };
 
 // Shared across the Users area's screens and modals, so the same copy is never typed twice.
