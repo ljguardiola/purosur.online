@@ -807,7 +807,36 @@ test("a save that succeeds after its modal was closed and the same product reope
     .toBeEnabled();
 });
 
-test("a save that finds the product gone after its modal was closed and the same product reopened leaves the reopened modal untouched", async () => {
+test("a save that succeeds after its modal was closed and the same product reopened shows the new price in the reopened modal and sends it on the next save", async () => {
+  const services = createServices();
+  const pending = deferred<Awaited<ReturnType<PricesListScreenServices["setPrice"]>>>();
+  vi.mocked(services.setPrice).mockReturnValue(pending.promise);
+  const screen = await startWalkAndCloseWhileSaving(services);
+  const dialog = await reopenFideosAndType(screen);
+
+  pending.resolve({
+    kind: "ok",
+    value: {
+      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
+      lastReviewedAt: "2026-09-25T12:00:00.000Z",
+    },
+  });
+
+  await expect.element(dialog.getByText("Fideos pasa a $ 1,00.")).toBeVisible();
+  await expect.element(dialog.getByText("REVISADO HOY")).toBeVisible();
+  await expect.element(dialog.getByText("Precio actual: $ 1,00")).toBeVisible();
+  expect(dialog.getByText("SIN PRECIO").query()).toBeNull();
+  await expect.element(dialog.getByLabelText("Precio de venta por unidad")).toHaveValue("5");
+
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "failed" });
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect
+    .poll(() => vi.mocked(services.setPrice).mock.lastCall)
+    .toEqual(["product-1", { unitPrice: 500, expectedCurrentPriceId: "price-3" }]);
+});
+
+test("a save that finds the product gone after its modal was closed and the same product reopened puts the reopened modal on its not-found notice", async () => {
   const services = createServices();
   const pending = deferred<Awaited<ReturnType<PricesListScreenServices["setPrice"]>>>();
   vi.mocked(services.setPrice).mockReturnValue(pending.promise);
@@ -817,13 +846,93 @@ test("a save that finds the product gone after its modal was closed and the same
 
   pending.resolve({ kind: "not_found" });
 
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Producto desactivado");
+  await expect
+    .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
+    .toBeDisabled();
   await expect
     .poll(() => vi.mocked(services.fetchPrices).mock.calls.length)
     .toBeGreaterThan(loadsBefore);
-  await settleLateResult();
-  expect(dialog.getByRole("alert").query()).toBeNull();
-  await expect.element(dialog.getByLabelText("Precio de venta por unidad")).toHaveValue("5");
-  await expect
-    .element(dialog.getByRole("button", { name: "Guardar el precio nuevo" }))
-    .toBeEnabled();
+});
+
+test.each([
+  {
+    outcome: { kind: "stale_price" as const },
+    title: "El precio cambió recién",
+    detail: "Volvimos a cargar la lista con el precio actual de Arroz.",
+  },
+  {
+    outcome: { kind: "not_found" as const },
+    title: "Producto desactivado",
+    detail: "Arroz ya no está en el catálogo.",
+  },
+  {
+    outcome: { kind: "rate_limited" as const, retryAfterSeconds: 60 },
+    title: "Demasiadas solicitudes",
+    detail: "Se puede volver a intentar en 1 minuto.",
+  },
+  {
+    outcome: { kind: "failed" as const },
+    title: "No se pudo confirmar el precio de Arroz",
+    detail: "Probá de nuevo.",
+  },
+])(
+  "a row confirm that ends in $outcome.kind while another product's modal is open shows its notice inside the modal",
+  async ({ outcome, title, detail }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices).mockResolvedValue({
+      kind: "ok",
+      value: {
+        products: [arroz, sinPrecio],
+        pendingCount: 2,
+        reviewWindowDays: 30,
+        categories: [],
+      },
+    });
+    const pending = deferred<Awaited<ReturnType<PricesListScreenServices["confirmPrice"]>>>();
+    vi.mocked(services.confirmPrice).mockReturnValue(pending.promise);
+
+    const screen = await renderScreen(services);
+    await expect.element(screen.getByText("Arroz")).toBeVisible();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Fideos" }));
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+
+    pending.resolve(outcome);
+
+    await expect.element(dialog.getByText(title)).toBeVisible();
+    await expect.element(dialog.getByText(detail)).toBeVisible();
+  },
+);
+
+test("a notice about a previous product leaves the modal once the modal shows its own", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockImplementation(async () => ({
+    kind: "ok",
+    value: { products: [sinPrecio, arroz], pendingCount: 2, reviewWindowDays: 30, categories: [] },
+  }));
+  vi.mocked(services.setPrice).mockResolvedValue({
+    kind: "ok",
+    value: {
+      price: { id: "price-3", unitPrice: 100, validFrom: "2026-09-25T12:00:00.000Z" },
+      lastReviewedAt: "2026-09-25T12:00:00.000Z",
+    },
+  });
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Revisar los 2" }));
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("heading", { name: "Fideos" })).toBeVisible();
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por unidad"), "1");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+  await expect.element(dialog.getByText("Fideos pasa a $ 1,00.")).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar sin cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo confirmar el precio")).toBeVisible();
+  expect(dialog.getByText("Fideos pasa a $ 1,00.").query()).toBeNull();
 });

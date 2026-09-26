@@ -837,8 +837,11 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      rowConfirmStaleTitle: "Este precio cambió recién",
-      rowConfirmStaleDetail: "Volvimos a cargar la lista para mostrar el precio actual.",
+      rowConfirmStaleTitle: "El precio cambió recién",
+      rowConfirmStaleDetail: (params: { name: string }) =>
+        `Volvimos a cargar la lista con el precio actual de ${params.name}.`,
+      rowConfirmFailedTitle: (params: { name: string }) =>
+        `No se pudo confirmar el precio de ${params.name}`,
       goneTitle: "Producto desactivado",
       goneDetail: (params: { name: string }) => `${params.name} ya no está en el catálogo.`,
       confirmedNoticeTitle: "Precio confirmado",

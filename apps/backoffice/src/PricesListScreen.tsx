@@ -168,6 +168,8 @@ type PriceChangeModalProps = {
   session: number;
   /** An outcome about another product (a saved one, or one the walk skipped) that lands while open. */
   otherProductNotice: ScreenNotice | null;
+  /** The modal starts a request or shows an outcome of its own, which replaces `otherProductNotice`. */
+  onOwnActivity: () => void;
   reviewWindowDays: number;
   now: () => Date;
   onClose: () => void;
@@ -188,6 +190,7 @@ function PriceChangeModal({
   target,
   session,
   otherProductNotice,
+  onOwnActivity,
   reviewWindowDays,
   now,
   onClose,
@@ -199,8 +202,10 @@ function PriceChangeModal({
   confirmPrice,
 }: PriceChangeModalProps) {
   const isOpen = target !== null;
+  const targetRef = useRef(target);
+  targetRef.current = target;
   // A result that arrives after the modal was closed, reopened or moved to another product must not
-  // touch what the modal now shows.
+  // touch what the modal now shows, except to bring a reopened same product up to date.
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
@@ -215,6 +220,31 @@ function PriceChangeModal({
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function showNotice(ownNotice: ModalNotice) {
+    setNotice(ownNotice);
+    onOwnActivity();
+  }
+
+  function showAmountError(error: string) {
+    setAmountError(error);
+    onOwnActivity();
+  }
+
+  /** Whether the open modal shows this product, whichever session it was opened in. */
+  function showsProduct(productId: string): boolean {
+    return targetRef.current !== null && currentRef.current?.id === productId;
+  }
+
+  /**
+   * A result from an earlier session of this same product lands after it was reopened: the
+   * snapshot the modal shows (and sends as the expected current price) must move to it.
+   */
+  function refreshShownProduct(productId: string, changes: Partial<PriceProduct>) {
+    if (showsProduct(productId)) {
+      setCurrent((shown) => (shown ? { ...shown, ...changes } : shown));
+    }
+  }
+
   useEffect(() => {
     if (target) {
       setCurrent(target);
@@ -228,26 +258,26 @@ function PriceChangeModal({
 
   function validatedAmount(): number | undefined {
     if (!amount.trim()) {
-      setAmountError(modalMessages.amountRequired);
+      showAmountError(modalMessages.amountRequired);
       return undefined;
     }
     const parsed = parseAmountInput(amount);
     if (parsed.kind === "malformed") {
-      setAmountError(modalMessages.amountFormat);
+      showAmountError(modalMessages.amountFormat);
       return undefined;
     }
     if (parsed.kind === "notPositive") {
-      setAmountError(modalMessages.amountInvalid);
+      showAmountError(modalMessages.amountInvalid);
       return undefined;
     }
     if (parsed.kind === "tooLarge") {
-      setAmountError(modalMessages.amountTooLarge);
+      showAmountError(modalMessages.amountTooLarge);
       return undefined;
     }
     const cents = parsed.cents;
     const product = currentRef.current;
     if (product?.currentPrice && cents === product.currentPrice.unitPrice) {
-      setAmountError(modalMessages.amountUnchanged);
+      showAmountError(modalMessages.amountUnchanged);
       return undefined;
     }
     return cents;
@@ -260,6 +290,12 @@ function PriceChangeModal({
     outcome: SetPriceOutcome,
   ) {
     if (outcome.kind === "ok") {
+      if (sessionRef.current !== requestSession) {
+        refreshShownProduct(product.id, {
+          currentPrice: outcome.value.price,
+          lastReviewedAt: outcome.value.lastReviewedAt,
+        });
+      }
       onSaved(requestSession, product, {
         kind: "saved",
         price: outcome.value.price,
@@ -277,23 +313,26 @@ function PriceChangeModal({
     }
     if (sessionRef.current !== requestSession) {
       if (outcome.kind === "not_found") {
+        if (showsProduct(product.id)) {
+          showNotice({ kind: "notFound" });
+        }
         onGone(origin, requestSession);
       }
       return;
     }
     if (outcome.kind === "not_found") {
-      setNotice({ kind: "notFound" });
+      showNotice({ kind: "notFound" });
       onGone(origin, requestSession);
     } else if (outcome.kind === "stale_price") {
-      setNotice({ kind: "stale" });
+      showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
-      setAmountError(modalMessages.amountUnchanged);
+      showAmountError(modalMessages.amountUnchanged);
     } else if (outcome.kind === "validation_failed") {
-      setAmountError(modalMessages.amountInvalid);
+      showAmountError(modalMessages.amountInvalid);
     } else if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
-      setNotice({ kind: "attemptFailed" });
+      showNotice({ kind: "attemptFailed" });
     }
     setSubmitting(false);
   }
@@ -311,6 +350,7 @@ function PriceChangeModal({
     }
     setAmountError(undefined);
     setNotice(null);
+    onOwnActivity();
     setSubmitting(true);
     const outcome = await setPrice(product.id, {
       unitPrice: cents,
@@ -326,6 +366,9 @@ function PriceChangeModal({
     outcome: ConfirmPriceOutcome,
   ) {
     if (outcome.kind === "ok") {
+      if (sessionRef.current !== requestSession) {
+        refreshShownProduct(product.id, { lastReviewedAt: outcome.value.lastReviewedAt });
+      }
       onSaved(requestSession, product, {
         kind: "confirmed",
         lastReviewedAt: outcome.value.lastReviewedAt,
@@ -342,19 +385,22 @@ function PriceChangeModal({
     }
     if (sessionRef.current !== requestSession) {
       if (outcome.kind === "not_found") {
+        if (showsProduct(product.id)) {
+          showNotice({ kind: "notFound" });
+        }
         onGone(origin, requestSession);
       }
       return;
     }
     if (outcome.kind === "not_found") {
-      setNotice({ kind: "notFound" });
+      showNotice({ kind: "notFound" });
       onGone(origin, requestSession);
     } else if (outcome.kind === "stale_price") {
-      setNotice({ kind: "stale" });
+      showNotice({ kind: "stale" });
     } else if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
-      setNotice({ kind: "confirmFailed" });
+      showNotice({ kind: "confirmFailed" });
     }
     setSubmitting(false);
   }
@@ -367,6 +413,7 @@ function PriceChangeModal({
       return;
     }
     setNotice(null);
+    onOwnActivity();
     setSubmitting(true);
     const outcome = await confirmPrice(product.id, {
       expectedCurrentPriceId: product.currentPrice.id,
@@ -381,6 +428,7 @@ function PriceChangeModal({
     if (!origin || !product) {
       return;
     }
+    onOwnActivity();
     setSubmitting(true);
     const outcome = await fetchPrices({ review: "all" });
     if (outcome.kind === "ok") {
@@ -392,7 +440,7 @@ function PriceChangeModal({
         return;
       }
       if (!fresh) {
-        setNotice({ kind: "notFound" });
+        showNotice({ kind: "notFound" });
         setSubmitting(false);
         onGone(origin, requestSession);
         return;
@@ -414,11 +462,11 @@ function PriceChangeModal({
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+      showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
       setSubmitting(false);
       return;
     }
-    setNotice({ kind: "reloadFailed" });
+    showNotice({ kind: "reloadFailed" });
     setSubmitting(false);
   }
 
@@ -812,11 +860,12 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       remaining.delete(item.id);
       return remaining;
     });
+    const modalOpen = modalTargetRef.current !== null;
     if (outcome.kind === "ok") {
       reloadWithCurrentFilters();
       notifyAboutAnotherProduct(
         reviewedNotice(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt }),
-        modalTargetRef.current !== null,
+        modalOpen,
       );
       return;
     }
@@ -829,38 +878,50 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "stale_price") {
-      setNotice({
-        tone: "error",
-        title: pricesMessages.rowConfirmStaleTitle,
-        detail: pricesMessages.rowConfirmStaleDetail,
-      });
+      notifyAboutAnotherProduct(
+        {
+          tone: "error",
+          title: pricesMessages.rowConfirmStaleTitle,
+          detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
+        },
+        modalOpen,
+      );
       reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "not_found") {
-      setNotice({
-        tone: "error",
-        title: pricesMessages.goneTitle,
-        detail: pricesMessages.goneDetail({ name: item.name }),
-      });
+      notifyAboutAnotherProduct(
+        {
+          tone: "error",
+          title: pricesMessages.goneTitle,
+          detail: pricesMessages.goneDetail({ name: item.name }),
+        },
+        modalOpen,
+      );
       reloadWithCurrentFilters();
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setNotice({
-        tone: "error",
-        title: pricesMessages.rateLimitedTitle,
-        detail: pricesMessages.rateLimitedDetail({
-          minutes: Math.ceil(outcome.retryAfterSeconds / 60),
-        }),
-      });
+      notifyAboutAnotherProduct(
+        {
+          tone: "error",
+          title: pricesMessages.rateLimitedTitle,
+          detail: pricesMessages.rateLimitedDetail({
+            minutes: Math.ceil(outcome.retryAfterSeconds / 60),
+          }),
+        },
+        modalOpen,
+      );
       return;
     }
-    setNotice({
-      tone: "error",
-      title: modalMessages.confirmFailedTitle,
-      detail: modalMessages.confirmFailedDetail,
-    });
+    notifyAboutAnotherProduct(
+      {
+        tone: "error",
+        title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
+        detail: modalMessages.confirmFailedDetail,
+      },
+      modalOpen,
+    );
   }
 
   const columns = [
@@ -1034,6 +1095,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         target={modalTarget}
         session={modalSession}
         otherProductNotice={otherProductNotice}
+        onOwnActivity={() => setOtherProductNotice(null)}
         reviewWindowDays={reviewWindowDays}
         now={clock}
         onClose={handleModalClose}
