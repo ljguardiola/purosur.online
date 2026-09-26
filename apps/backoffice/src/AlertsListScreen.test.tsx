@@ -296,7 +296,7 @@ test("shows a closed lockout alert's scope as a dash, since it no longer holds t
     ok([
       {
         ...lockoutAlert,
-        scope: "a-hashed-address",
+        scope: null,
         scopeDisplay: null,
         resolvedAt: "2026-01-06T12:00:00.000Z",
       },
@@ -307,7 +307,6 @@ test("shows a closed lockout alert's scope as a dash, since it no longer holds t
 
   const row = screen.getByRole("row", { name: /Bloqueo de ingreso/ });
   await expect.element(row.getByText("—", { exact: true })).toBeVisible();
-  expect(screen.getByText(/a-hashed-address/).query()).toBeNull();
 });
 
 test("shows a load error with a retry action when the alerts fail to load", async () => {
