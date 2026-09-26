@@ -406,9 +406,12 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    // A reload after an action keeps the rows it already has on screen while it fetches.
+    // A reload after an action keeps the rows it already has on screen while it fetches. An empty
+    // list has nothing worth keeping visible: "loading" shows the initial skeleton (and holds back
+    // the "0 cajas" footer) instead of an empty table under a spinning bar, matching how Table
+    // itself only ever shows the empty state when it isn't loading at all.
     setList((current) =>
-      current.kind === "loaded" || current.kind === "refreshing"
+      (current.kind === "loaded" || current.kind === "refreshing") && current.registers.length > 0
         ? { kind: "refreshing", registers: current.registers }
         : { kind: "loading" },
     );

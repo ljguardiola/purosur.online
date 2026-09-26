@@ -561,6 +561,37 @@ test("keeps the current rows visible while the list refreshes after creating a r
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
 });
 
+test("shows loading placeholders, not an empty table, while the list refreshes from an empty list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [] });
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+  vi.mocked(services.createRegister).mockResolvedValue({
+    kind: "ok",
+    value: { id: "register-3", name: "Caja 3" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("Todavía no hay cajas registradoras").query()).toBeNull();
+  expect(screen.getByText("0 cajas").query()).toBeNull();
+
+  pendingRefresh.resolve({
+    kind: "ok",
+    value: [{ id: "register-3", name: "Caja 3", pendingCode: null }],
+  });
+
+  await expect.element(screen.getByText("Caja 3")).toBeVisible();
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
 test("a refresh that fails shows the load error with its retry action, like a failed first load", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [caja1] });
