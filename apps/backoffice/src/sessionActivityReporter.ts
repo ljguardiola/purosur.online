@@ -2,38 +2,27 @@ import { useEffect, useRef } from "react";
 import { onNavigate } from "./router";
 import type { SessionOutcome } from "./sessionApi";
 
-/** Minimum time between touches, measured from the last one: an active person keeps a tab alive without flooding the cloud with a request per keystroke. */
+// Measured from the last touch, not from idle time.
 const DEFAULT_THROTTLE_MS = 60_000;
 
-/** DOM events real use of the page dispatches; deliberately excludes pointer/mouse move, since a cursor merely resting over the page is not use. */
+/** Deliberately excludes pointer/mouse move: a cursor merely resting over the page is not use. */
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "scroll", "touchstart"] as const;
 
 export type SessionActivityReporterOptions = {
-  /** The reporter runs only while this is true, and tears itself down as soon as it turns false. */
   active: boolean;
-  /** Touches the session the same way a signed-in screen's own reads do (`fetchSession`). */
   touchSession: () => Promise<SessionOutcome>;
-  /**
-   * Called with the session a successful touch reports: its deadline, so the watcher's own deadline
-   * can follow it, and its current Administrator flag and permissions, so what the tab shows
-   * follows a role change made while it stays open.
-   */
+  /** Carries the current Administrator flag and permissions so the tab follows a role change made while it stays open. */
   onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
-  /** Called once a touch finds the session no longer open. */
   onEnded: () => void;
-  /** Milliseconds a burst of activity is collapsed into at most one touch. */
   throttleMs?: number;
   /** Injected clock so the throttle window is deterministic in tests. */
   now?: () => Date;
 };
 
 /**
- * Reports real use of an already-open backoffice tab — pointer, keyboard, wheel/scroll and touch
- * activity, and in-app navigation, while the document is visible — by touching the session
- * (`GET /users/session`) at most once per `throttleMs`. The page load that got the tab this far
- * already touched the session, so the throttle window is counted from mount rather than letting
- * the very first activity touch again right away. Network trouble or a rate limit is ignored; the
- * next activity after the throttle window retries.
+ * The throttle window starts at mount, not at the first activity, since the page load that got
+ * the tab this far already touched the session. Network trouble or a rate limit is silently
+ * ignored; the next activity after the window retries.
  */
 export function useSessionActivityReporter({
   active,

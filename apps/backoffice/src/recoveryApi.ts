@@ -3,9 +3,7 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
-// The cloud's rate limiter counts a rolling one-hour window, so no wait is ever longer than an
-// hour: the fallback a missing `Retry-After` header gets.
-const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type RecoveryRequestOutcome =
   | { kind: "sent" }
@@ -33,7 +31,9 @@ export type RegistrationOptions = {
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_WINDOW_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function postJson(path: string, body: unknown): Promise<Response> {
@@ -61,9 +61,8 @@ export async function requestRecoveryLink(email: string): Promise<RecoveryReques
   return { kind: "failed" };
 }
 
-// The contract's `recovery_token_invalid` and `validation_failed` both answer 400, and
-// `recovery_token_burned` and `recovery_token_expired` both answer 410 (§9.7), so the status alone
-// no longer tells the two apart: the body's `code` is the actual discriminator.
+// `recovery_token_invalid`/`validation_failed` both answer 400, and `recovery_token_burned`/
+// `recovery_token_expired` both answer 410: the body's `code` is the actual discriminator.
 const TOKEN_ERROR_KIND_BY_CODE: Record<string, RecoveryTokenErrorKind> = {
   recovery_token_invalid: "invalid",
   recovery_token_burned: "burned",
@@ -81,7 +80,7 @@ async function tokenErrorOutcome<Value>(response: Response): Promise<RecoveryTok
   return kind ? { kind } : { kind: "failed" };
 }
 
-/** Hands back a still-live token's WebAuthn creation options and the account's display name, without touching the token (recovery-redemption-route.ts's `registration-options`). */
+/** Hands back a still-live token's WebAuthn creation options and the account's display name; doesn't touch the token itself. */
 export async function fetchRegistrationOptions(
   recoveryToken: string,
 ): Promise<RecoveryTokenOutcome<RegistrationOptions>> {

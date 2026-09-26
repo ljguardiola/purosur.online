@@ -9,11 +9,6 @@ import { messages } from "./messages";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
-/**
- * Why the app routed here: because the previous session ended (idle or absolute expiry), because
- * the check that would have told it never got an answer, or because the check itself was rate
- * limited.
- */
 export type SignInOpeningNotice =
   | { kind: "expired" }
   | { kind: "check_failed" }
@@ -36,7 +31,6 @@ export const defaultSignInScreenServices: SignInScreenServices = {
 export type SignInScreenProps = {
   openingNotice?: SignInOpeningNotice | undefined;
   onSignedIn: () => void;
-  /** Injected in tests so sign-in doesn't call the real session API or WebAuthn. */
   services?: SignInScreenServices;
 };
 
@@ -46,11 +40,8 @@ type Notice =
   | { kind: "blocked"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/**
- * The uniform-failure notice covers a rejected credential/signature, an origin mismatch, a
- * network error, and a cancelled or failed browser passkey prompt alike: nothing about it may
- * let someone infer which of those actually happened.
- */
+// The uniform-failure notice covers a rejected credential, an origin mismatch, a network error,
+// and a cancelled passkey prompt alike: nothing about it may reveal which one actually happened.
 export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScreenProps) {
   const { fetchAuthenticationOptions, authenticate, startAuthentication, signalUnknownCredential } =
     services ?? defaultSignInScreenServices;

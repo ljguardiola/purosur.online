@@ -3,8 +3,6 @@ import type {
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// sessionApi.ts's own backoffice-rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type Passkey = {
@@ -28,9 +26,8 @@ type ErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-// Every one of the account's own passkey actions is gated by the shared passkey-authorization
-// window (`passkey-authorization-guard.ts`) instead of its own step-up, so a 401 here means either
-// the session ended or that window has lapsed, never a rejected assertion.
+// Gated by the shared passkey-authorization window instead of a per-action step-up, so a 401
+// here means either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
@@ -68,7 +65,7 @@ function passkeyFromRow(row: {
   return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
 }
 
-/** Lists the signed-in account's own passkeys, oldest first (`GET /users/passkeys`). */
+/** Oldest first. */
 export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   let response: Response;
   try {
@@ -94,10 +91,6 @@ export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   return { kind: "ok", value: body.map(passkeyFromRow) };
 }
 
-/**
- * Hands back registration options for a new passkey, gated by the shared passkey-authorization
- * window (`POST /users/passkeys/registration-options`).
- */
 export async function fetchPasskeyRegistrationChallenge(): Promise<FetchPasskeyRegistrationChallengeOutcome> {
   let response: Response;
   try {
@@ -127,11 +120,6 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-/**
- * Registers the new passkey's registration under `passkeyName`, gated by the shared
- * passkey-authorization window instead of its own reauthentication step-up
- * (`POST /users/passkeys`).
- */
 export async function registerPasskey(
   passkeyRegistration: RegistrationResponseJSON,
   passkeyName: string,
@@ -156,9 +144,8 @@ export async function registerPasskey(
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    // A body that can't be read might have been passkey_already_registered (a known credential),
-    // which validation_failed is not: an unreadable body is ambiguous, exactly like recoveryApi's
-    // own tokenErrorOutcome treats it, so it falls back to failed instead.
+    // An unreadable body is ambiguous between validation_failed and already_registered, so it
+    // falls back to failed instead of guessing.
     if (!body) {
       return { kind: "failed" };
     }
@@ -169,10 +156,6 @@ export async function registerPasskey(
   return gatedActionErrorOutcome(response);
 }
 
-/**
- * Removes the named passkey, gated by the shared passkey-authorization window instead of its own
- * reauthentication step-up (`POST /users/passkeys/:id/remove`).
- */
 export async function removePasskey(id: string): Promise<RemovePasskeyOutcome> {
   let response: Response;
   try {

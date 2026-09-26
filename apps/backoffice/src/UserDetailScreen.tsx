@@ -78,9 +78,7 @@ export const defaultUserDetailScreenServices: UserDetailScreenServices = {
 
 export type UserDetailScreenProps = {
   userId: string;
-  /** From the session: hides this user's own remove buttons, which Mi cuenta manages instead. */
   signedInUserId: string;
-  /** From the session: gates every action this screen offers by what the viewer actually holds. */
   access: BackofficeAccess;
   onSessionEnded: () => void;
   /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
@@ -105,9 +103,8 @@ type PasskeysState =
 const usersMessages = messages.settings.users;
 const detailMessages = usersMessages.detail;
 const modalMessages = usersMessages.editUserModal;
-// The row detail formatting, the section title and the remove button's aria-label are grammar-
-// neutral ("Registrada el…", "Passkeys", "Dar de baja la passkey «X»"), so this screen reuses Mi
-// cuenta's own passkeys copy instead of duplicating it for a third person.
+// Reuses Mi cuenta's passkeys copy: its strings are grammar-neutral, so a third-person reader
+// still needs no dedicated translation.
 const passkeysMessages = messages.settings.myAccount.passkeys;
 const selfRemoveMessages = passkeysMessages.removeModal;
 const removePasskeyModalMessages = usersMessages.removePasskeyModal;
@@ -148,13 +145,6 @@ type EditUserModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/**
- * Changes one user's email and role together in a single save, confirming with the shared
- * passkey-authorization modal only when the cloud asks for it, and rejecting a save over a newer
- * version. The last active Administrator's Rol field is shown locked instead of offered, since
- * the server refuses that change regardless (see the `last_administrator` notice below, for the
- * race where the server still refuses after this screen loaded a stale, unlocked view).
- */
 function EditUserModal({
   isOpen,
   user,
@@ -181,8 +171,8 @@ function EditUserModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  // Read from refs, not reactive dependencies: the reset below must only run when the modal
-  // opens, never again just because the parent re-rendered with a new `user` reference.
+  // Ref, not a reactive dependency: the reset below must run only on open, not on every
+  // re-render with a new `user` reference.
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -463,7 +453,6 @@ type RemoveUserPasskeyModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Lets an Administrator remove another user's passkey, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function RemoveUserPasskeyModal({
   target,
   userId,
@@ -508,7 +497,7 @@ function RemoveUserPasskeyModal({
       setSubmitting(false);
       return;
     }
-    // A 404 means the passkey is already gone, which is exactly what removing it asked for.
+    // A 404 means the passkey is already gone, which is what removing it asked for.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onRemoved(target.id);
       return;
@@ -617,7 +606,6 @@ type DeactivateUserModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Confirms deactivating a user, confirming with the shared passkey-authorization modal only when the cloud asks for it. There is no reactivation, so this is a one-way action. */
 function DeactivateUserModal({
   isOpen,
   user,
@@ -661,8 +649,7 @@ function DeactivateUserModal({
       onDeactivated();
       return;
     }
-    // A 404 means the target is already gone, inactive, or otherwise unreachable — the same vanished
-    // target the rest of this screen shows its not-found state for.
+    // A 404 target is treated the same as this screen's own not-found state.
     if (outcome.kind === "not_found") {
       onVanished();
       return;
@@ -763,12 +750,7 @@ type ReactivateUserModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/**
- * Confirms reactivating a deactivated user, confirming with the shared passkey-authorization modal
- * only when the cloud asks for it. Unlike deactivation, this keeps the caller on the same screen:
- * on success (or a 404, which only ever means someone else already reactivated or removed the
- * target), the parent refetches the user instead of navigating away.
- */
+/** Unlike deactivation, this keeps the caller on the same screen: the parent refetches instead of navigating away. */
 function ReactivateUserModal({
   isOpen,
   user,
@@ -807,8 +789,8 @@ function ReactivateUserModal({
       setSubmitting(false);
       return;
     }
-    // A 404 only ever means the target is no longer inactive: either this reactivated it
-    // concurrently or the target is otherwise gone, and either way a refetch shows the right state.
+    // A 404 only means the target is no longer inactive (reactivated or removed concurrently);
+    // a refetch shows the right state either way.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onReactivated();
       return;
@@ -897,14 +879,6 @@ function ReactivateUserModal({
   );
 }
 
-/**
- * "Ver un usuario": one branch user's Datos and Passkeys sections, with the passkey-confirmed email
- * edit, passkey removal, deactivation, and reactivation. Every action here is gated by `access`: an
- * Administrator can do everything; a role delegated only `deactivate_users` or `reactivate_users`
- * can reach this screen but sees only the action it holds (never against another Administrator, nor
- * on their own account). A `forbidden` read (a role change mid-session) sends the browser to Mi
- * cuenta instead of showing a notice.
- */
 export function UserDetailScreen({
   userId,
   signedInUserId,
@@ -932,9 +906,8 @@ export function UserDetailScreen({
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the user and unmount
-  // an open edit modal along with what was typed in it.
+  // Ref, not a reactive dependency: the parent hands a new function on every render (each
+  // session-activity touch), which would otherwise reload the user and unmount an open edit modal.
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
   const endSession = useCallback(() => onSessionEndedRef.current(), []);
@@ -955,9 +928,7 @@ export function UserDetailScreen({
     }
   }, [userId, endSession, fetchUserPasskeys]);
 
-  // Passkey management and the Rol selector are both Administrator-only, and so is reading a
-  // user's passkeys or the role catalog on the cloud; a non-Administrator viewer (only reachable
-  // holding `deactivate_users`) never opens the edit modal, so it never needs the roles.
+  // A non-Administrator viewer never opens the edit modal, so it never needs the role catalog.
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
   const load = useCallback(async () => {
@@ -1001,11 +972,9 @@ export function UserDetailScreen({
   }, [load]);
 
   const heading = state.kind === "loaded" ? state.user.firstName : detailMessages.heading;
-  // The cloud accepts a user id in any letter case, so the id in the URL may differ in case
-  // from the session's own.
+  // The cloud accepts a user id in any letter case, so the URL's id may differ in case from the
+  // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
-  // `active` is only ever `false` for a caller who can see a deactivated user at all: everyone
-  // else's target is always active (or this screen would already be showing its not-found state).
   const isInactive = state.kind === "loaded" && state.user.active === false;
 
   return (

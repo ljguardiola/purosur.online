@@ -74,14 +74,14 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
       kind: "actions",
       srLabel: rolesMessages.rowActionsLabel,
       actions: [
-        // Every row gets this one, Administrator included: duplicating it is how an ordinary role
-        // starts from every permission in the catalog.
+        // Administrator included: duplicating it is how an ordinary role starts from every
+        // permission in the catalog.
         (item: RoleSummary) => ({
           icon: <Copy />,
           "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
           onPress: () => openEditor({ kind: "duplicate", source: item }),
         }),
-        // No edit action at all on the Administrator row: it can't be edited, whatever client asks.
+        // The server refuses to edit the Administrator role regardless, so no edit action is offered.
         (item: RoleSummary) =>
           item.isAdministrator
             ? undefined
@@ -95,18 +95,13 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   ] as const;
 }
 
-/**
- * "Roles": every role, shared by all branches, with its permission and user counts. Reserved to the
- * Administrator: App.tsx only ever routes here for one, and a `forbidden` read (a role change mid-
- * session) sends the browser to Mi cuenta instead of showing a notice.
- */
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the list.
+  // Ref, not a reactive dependency: the parent hands a new function on every render (each
+  // session-activity touch), which would otherwise reload the list.
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 

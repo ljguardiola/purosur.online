@@ -55,9 +55,8 @@ type DaysFieldName =
 
 type TextFieldName = "address" | "whatsappNumber" | "instagramHandle";
 
-// `id` never leaves this screen (see `hoursSettingsOf`): it exists only so each range's own row
-// keeps a stable React key across adds and removes, instead of the array index `noArrayIndexKey`
-// warns against, which would shift onto the wrong row once an earlier range is removed.
+// Gives each range a stable React key across adds/removes, instead of the array index
+// `noArrayIndexKey` warns against, which would shift onto the wrong row once one is removed.
 type RangeValues = { id: number; opensAt: string; closesAt: string };
 
 let nextRangeId = 0;
@@ -146,10 +145,8 @@ function normalizedTime(value: string): string | undefined {
   return `${String(hour).padStart(2, "0")}:${match[2]}`;
 }
 
-/** Validates every days field client-side, mirroring the server (`branch-settings-validation.ts`):
- * an integer from 0 to `BRANCH_SETTINGS_DAYS_MAX`. Returns one error per invalid field, keyed by our
- * own field name so it lines up directly with the corresponding TextField's `invalid`/`errorMessage`
- * props. */
+/** Mirrors the server's day-count validation (0..`BRANCH_SETTINGS_DAYS_MAX`), keyed by our own
+ * field names to match each TextField's error props. */
 function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, string>> {
   const errors: Partial<Record<DaysFieldName, string>> = {};
   const daysFields: readonly DaysFieldName[] = [
@@ -183,8 +180,7 @@ function normalizedDayRanges(ranges: RangeValues[]): BranchHoursRange[] | undefi
   return normalized;
 }
 
-/** True once any two ranges share a moment in time, mirroring `branch-settings-validation.ts`'s own
- * `rangesOverlap`: a range that only touches another isn't an overlap. */
+/** True once two ranges share a moment in time; ranges that only touch don't overlap. */
 function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   for (let i = 0; i < ranges.length; i++) {
     for (let j = i + 1; j < ranges.length; j++) {
@@ -198,8 +194,7 @@ function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   return false;
 }
 
-/** Validates every open day's ranges client-side, mirroring the server: format, then order, then
- * overlap, each day showing at most one of these as a single message under its own row. */
+/** Validates each open day's ranges: format, then order, then overlap — one message per day. */
 function validateHoursFields(values: FormValues): Partial<Record<BranchDay, string>> {
   const errors: Partial<Record<BranchDay, string>> = {};
   for (const day of BRANCH_DAYS) {
@@ -252,9 +247,8 @@ function settingsFrom(values: FormValues, version: number): BranchSettings {
   };
 }
 
-/** The field's own error for a save the server rejected on it; `version` never renders inline. The
- * server names a rejected day without saying whether its format, order, overlap or ranges count
- * failed, so the day gets a neutral message rather than guessing one of them. */
+/** The server names a rejected day without saying whether its format, order, or overlap failed,
+ * so the day gets a neutral message rather than guessing one of them. */
 function serverFieldErrors(field: FieldErrorKey): FieldErrors {
   if (isBranchDay(field)) {
     return { [field]: branchMessages.hoursInvalidError };
@@ -286,12 +280,7 @@ const EMPTY_VALUES: FormValues = {
   goodConditionReturnDays: "",
 };
 
-/**
- * "Sucursal": the branch's ticket header, hours of attention, and alert/return windows, reserved
- * to `configure_branch` (an Administrator always holds it implicitly) the same way
- * `RoleEditorModal` is reserved to the Administrator. Unlike a role edit, saving here carries no
- * passkey step-up: branch settings aren't a sensitive action.
- */
+/** Gated by `configure_branch`. Saving carries no passkey step-up. */
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const { fetchBranchSettings, saveBranchSettings } =
     services ?? defaultBranchSettingsScreenServices;
@@ -303,9 +292,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [submitting, setSubmitting] = useState(false);
   const hoursErrorIdPrefix = useId();
 
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the settings and
-  // discard whatever was typed and not yet saved.
+  // Ref, not a dependency: the parent recreates this callback every render, which would
+  // otherwise reload and discard unsaved edits.
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
@@ -331,9 +319,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     void load();
   }, [load]);
 
-  // Adding or removing a range unmounts the button that did it whenever the "+" reaches the cap or
-  // the trash buttons go away, which would drop keyboard focus to the page itself; focus lands on
-  // the added range, or on the range that takes the removed one's place, instead.
+  // Adding/removing a range can unmount the button that did it, dropping keyboard focus to the
+  // page; focus lands on the added range, or the range that takes the removed one's place, instead.
   const rangeElementsRef = useRef(new Map<number, HTMLElement>());
   const rangeToFocusRef = useRef<number | null>(null);
   useEffect(() => {

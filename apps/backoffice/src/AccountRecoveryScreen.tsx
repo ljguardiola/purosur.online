@@ -27,10 +27,6 @@ const EMAIL_ERRORS = {
   invalid: messages.access.accountRecovery.emailInvalid,
 };
 
-/**
- * The 429 and generic-failure states share the notice-above-the-action pattern used for other
- * blocked-by-attempts states in the product.
- */
 export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps = {}) {
   const { requestRecoveryLink } = services ?? defaultAccountRecoveryScreenServices;
   const [email, setEmail] = useState("");

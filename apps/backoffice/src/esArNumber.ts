@@ -1,10 +1,7 @@
 export type EsArNumberDigits = { whole: string; fraction: string };
 
-// Argentine format: the comma is the only decimal separator, and a dot only groups thousands, in
-// valid 3-digit groups ("1.000", "12.345,5", "1.000.000"). A dot anywhere else ("1.5", "1.00",
-// ".5") is rejected rather than read as a decimal point, which would turn "1.000" into 1. The
-// first group can't start with a zero either ("0.500", "00.500"): a real thousands group never
-// does, and a leading zero there is the same 1000x misreading.
+// Argentine format: comma is the only decimal separator; a dot only groups thousands, in valid
+// 3-digit groups with no leading zero — elsewhere it's rejected, not misread as a decimal point.
 function esArNumberPattern(maxDecimals: number): RegExp {
   const fraction = maxDecimals > 0 ? `(?:,(\\d{1,${maxDecimals}}))?` : "";
   return new RegExp(`^(\\d+|[1-9]\\d{0,2}(?:\\.\\d{3})+)${fraction}$`);

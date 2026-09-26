@@ -63,7 +63,7 @@ function minutesRemaining(expiresAt: string, now: Date): number {
   return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / 60_000));
 }
 
-/** "P4NX7KWE2QRT8MZD" -> "P4NX 7KWE 2QRT 8MZD", the same groups of four the design shows. */
+/** "P4NX7KWE2QRT8MZD" -> "P4NX 7KWE 2QRT 8MZD": groups of four. */
 function groupedCode(code: string): string {
   return (code.match(/.{1,4}/g) ?? [code]).join(" ");
 }
@@ -93,7 +93,7 @@ type NewRegisterModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Creates a register ("Nueva caja"), confirming with the shared passkey-authorization modal only when the cloud asks for it. */
+/** Creates a register, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function NewRegisterModal({
   isOpen,
   onClose,
@@ -267,12 +267,8 @@ type EnrollmentCodeModalProps = {
 };
 
 /**
- * Shows the outcome of emitting one register's enrollment code (in flight, issued, or a failure to
- * retry). Purely presentational: the emission itself is started by the row action's click handler
- * in `RegistersListScreen`, a real user action, never by this component opening or re-rendering —
- * an effect that fired the request instead would run again for reasons that have nothing to do with
- * the person actually asking for a new code (e.g. React Strict Mode's extra development render, or
- * any future change that remounts this component while a target is already set).
+ * Purely presentational: the click handler in RegistersListScreen starts the emission, never an
+ * effect here, so React Strict Mode's extra render (or a remount) can't refire the request.
  */
 function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentCodeModalProps) {
   const modalMessages = registersMessages.enrollmentCodeModal;
@@ -364,12 +360,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
   );
 }
 
-/**
- * "Cajas registradoras": the branch's registers, each still unenrolled, with "Nueva caja" and a
- * one-time enrollment code per register. Gated by `enroll_register_devices`: App.tsx only ever
- * routes here for someone who holds it, and a `forbidden` read (a role change mid-session) sends
- * the browser to Mi cuenta instead of showing a notice.
- */
+/** Gated by `enroll_register_devices`. */
 export function RegistersListScreen({ onSessionEnded, now, services }: RegistersListScreenProps) {
   const {
     fetchRegisters,
@@ -389,27 +380,19 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the list and pull
-  // the registers out from under an open modal.
+  // Ref, not a dependency: the parent recreates this callback every render, which would
+  // otherwise reload the list mid-modal.
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
-  // Only the latest load may settle the list: an earlier one still in flight would otherwise
-  // overwrite it with a stale result.
   const latestLoad = useRef(0);
-  // Only the latest emission attempt may settle `emission`: closing the modal (or a future click,
-  // once nothing is in flight) bumps this, so a response that arrives after the person moved on
-  // never resurrects a modal or shows a code paired with the wrong register's name.
   const latestEmission = useRef(0);
 
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    // A reload after an action keeps the rows it already has on screen while it fetches. An empty
-    // list has nothing worth keeping visible: "loading" shows the initial skeleton (and holds back
-    // the "0 cajas" footer) instead of an empty table under a spinning bar, matching how Table
-    // itself only ever shows the empty state when it isn't loading at all.
+    // Keeps existing rows visible while reloading; only an empty list falls back to the initial
+    // "loading" skeleton, matching how Table only shows its empty state when not loading.
     setList((current) =>
       (current.kind === "loaded" || current.kind === "refreshing") && current.registers.length > 0
         ? { kind: "refreshing", registers: current.registers }
@@ -445,11 +428,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Emits a fresh code for `register`, started by the row action's own click — never by an effect,
-  // so it runs exactly once per click and never re-fires for reasons that have nothing to do with
-  // the click itself. Ignored while another emission is already in flight: the open modal's own
-  // backdrop already blocks reaching a different row's action, but this also guards a second Enter/
-  // Space activation of the same button before its first request settles.
+  // Started by the click, never an effect, so it never re-fires on its own. Also guards a second
+  // Enter/Space activation before the first request settles (the modal backdrop blocks other rows).
   async function handleEmitClick(register: RegisterSummary) {
     if (emission.kind === "issuing") {
       return;
@@ -462,9 +442,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     if (thisEmission !== latestEmission.current) {
       return;
     }
-    // `runEmission`'s own attempt always reaches the server before this can resolve "cancelled"
-    // (only an `authorization_required` response opens the passkey modal that cancel dismisses),
-    // so the same ambiguity closeEmission guards against applies here too: reload every time.
+    // The attempt always reaches the server before "cancelled" can resolve (only
+    // `authorization_required` opens the modal that cancel dismisses), so reload every time.
     if (outcome.kind === "cancelled") {
       setEmission({ kind: "closed" });
       void load();

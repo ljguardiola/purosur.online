@@ -1,5 +1,4 @@
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// categoriesApi.ts's own rate-limited outcomes fall back to.
+// The backoffice API rate limiter counts a rolling one-hour window: this fallback matches it.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
@@ -72,10 +71,8 @@ function registerFromWire(row: {
   };
 }
 
-// Every register action is gated by the shared passkey-authorization window
-// (`passkey-authorization-guard.ts` on the cloud), the same combination `usersApi.ts`'s own
-// gated actions use, so a 401 here means either the session ended or that window has lapsed,
-// never a rejected assertion.
+// Every register action is gated by the shared passkey-authorization window: a 401 here means
+// either the session ended or that window has lapsed, never a rejected assertion.
 type GatedActionErrorOutcome =
   | { kind: "unauthenticated" }
   | { kind: "authorization_required" }
@@ -99,7 +96,7 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-/** Lists every register of the session's own branch, gated by `enroll_register_devices` (`GET /registers`). */
+/** Gated server-side by `enroll_register_devices`; scoped to the session's own branch. */
 export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   let response: Response;
   try {
@@ -128,10 +125,7 @@ export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   return { kind: "ok", value: body.map(registerFromWire) };
 }
 
-/**
- * Creates a register in the session's own branch ("Nueva caja"), gated by
- * `enroll_register_devices` and the shared passkey-authorization window (`POST /registers`).
- */
+/** Gated server-side by `enroll_register_devices` and the shared passkey-authorization window. */
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
   let response: Response;
   try {
@@ -161,10 +155,7 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
   return gatedActionErrorOutcome(response);
 }
 
-/**
- * Emits a fresh, single-use enrollment code for one register, gated by `enroll_register_devices`
- * and the shared passkey-authorization window (`POST /registers/:id/enrollment-code`).
- */
+/** Gated server-side by `enroll_register_devices` and the shared passkey-authorization window. */
 export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCodeOutcome> {
   let response: Response;
   try {

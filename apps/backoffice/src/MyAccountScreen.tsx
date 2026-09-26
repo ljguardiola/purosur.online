@@ -19,9 +19,8 @@ import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
-// An explicit allowlist instead of excluding "ok"/"already_registered"/"failed": a future outcome
-// kind the exclusion list doesn't know about would otherwise signal by default. The exhaustive
-// switch (no default case) makes the compiler refuse a kind this doesn't decide for.
+// An explicit allowlist, not a denylist: a future outcome kind would otherwise signal by default.
+// The exhaustive switch (no default case) makes the compiler refuse a kind this doesn't decide for.
 function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   switch (outcome.kind) {
     case "validation_failed":
@@ -63,9 +62,7 @@ export const defaultMyAccountScreenServices: MyAccountScreenServices = {
 export type MyAccountScreenProps = {
   displayName: string;
   onSessionEnded: () => void;
-  /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
   now?: () => Date;
-  /** Injected in tests so passkey management doesn't call the real API or WebAuthn. */
   services?: MyAccountScreenServices;
 };
 
@@ -102,10 +99,8 @@ type RegisterPasskeyModalProps = {
 };
 
 /**
- * Registers another passkey for the signed-in account, confirming with the shared
- * passkey-authorization modal only when the cloud asks for it. The cloud asks already on the
- * registration options, so the creation ceremony runs only once the session is authorized, and
- * exactly once per registration.
+ * The cloud already asks for authorization on the registration options, so the creation ceremony
+ * below only ever runs once the session is authorized.
  */
 function RegisterPasskeyModal({
   isOpen,
@@ -141,9 +136,8 @@ function RegisterPasskeyModal({
     }
   }, [isOpen]);
 
-  // The whole options → creation ceremony → POST /users/passkeys attempt, redone in full on a
-  // retry: the registration challenge shares its session-scoped row with the authorization
-  // ceremony's own challenge, so options fetched before authorizing are gone afterwards.
+  // Redone in full on a retry: the registration challenge shares its session-scoped row with the
+  // authorization ceremony's own challenge, so options fetched before authorizing are gone after.
   async function attemptRegistration(trimmedName: string): Promise<RegisterPasskeyOutcome> {
     const challenge = await fetchPasskeyRegistrationChallenge();
     if (challenge.kind !== "ok") {
@@ -156,10 +150,8 @@ function RegisterPasskeyModal({
       return { kind: "failed" };
     }
     const outcome = await registerPasskey(passkeyRegistration, trimmedName);
-    // The device just created this credential; every definitive rejection but "already
-    // registered" (the cloud already knows it) means the cloud never saved it, so the device
-    // should forget it. A network throw or an unrecognized status ("failed") is ambiguous — the
-    // save may have landed — and never signals.
+    // Every definitive rejection but "already registered" means the credential was never saved,
+    // so the device should forget it; an ambiguous outcome never signals, since it may have landed.
     if (isDefinitiveRejection(outcome)) {
       const rpId = challenge.value.registrationOptions.rp.id;
       if (rpId) {
@@ -302,7 +294,7 @@ type RemovePasskeyModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Removes one of the signed-in account's own passkeys, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
+/** Confirms with the shared passkey-authorization modal only when the cloud asks for it. */
 function RemovePasskeyModal({
   target,
   isOnlyPasskey,
@@ -435,7 +427,6 @@ function RemovePasskeyModal({
   );
 }
 
-/** "Mi cuenta": the signed-in account's own Passkeys section, for Shell's children slot. */
 export function MyAccountScreen({
   displayName,
   onSessionEnded,

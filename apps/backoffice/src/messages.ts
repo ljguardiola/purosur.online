@@ -20,8 +20,6 @@ import {
 import { defineMessages, type MessageFormatters } from "@purosur/ui";
 import type { ProductStatusFilter } from "./productsApi";
 
-// A passkey's dates render in Argentina's time zone regardless of the browser's own clock, instead
-// of drifting with wherever a device happens to be set to.
 const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "2-digit",
   month: "2-digit",
@@ -35,7 +33,6 @@ const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   timeZone: ARGENTINA_TIME_ZONE,
 };
 
-// Shared across the Users area's screens and modals, so the same copy is never typed twice.
 const USERS_EYEBROW = "Configuración · Usuarios";
 const EMAIL_LABEL = "Correo";
 const EMAIL_REQUIRED = "Ingresá el correo.";
@@ -47,20 +44,18 @@ const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
-// Shared by the create and edit category modals: the same "Categoría superior" select, hint and
-// empty option either way.
 const CATEGORY_PARENT_LABEL = "Categoría superior";
 const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
 const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
-// Defensive only: nothing in the backoffice deletes a category today, so the chosen parent
-// disappearing out from under a create/edit is not reachable through normal use.
+// Defensive only: the backoffice never deletes a category today, so this is unreachable through
+// normal use.
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
 const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
 const PRODUCT_CATEGORY_LABEL = "Categoría";
 const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
-// Only reachable by a race: someone else gives the chosen category a subcategory of its own
-// between loading this form and submitting it.
+// Only reachable by a race: the category gains a subcategory of its own between loading this
+// form and submitting it.
 const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_UNIT_LABEL = "Unidad de venta";
@@ -84,15 +79,10 @@ const productNetContentQuantityInvalid = (f: MessageFormatters) =>
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
-// Shared between the Roles screen's per-permission checkboxes (every key, so a missing one is a
-// type error) and the Alertas area's own radio/checkbox widget, which renders these same three
-// permissions as a bespoke control instead of a plain checkbox list.
 const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
 const VIEW_ALL_ALERTS_LABEL = "Ver todas las alertas";
 const DISMISS_ALERTS_LABEL = "Cerrar alertas a mano";
 
-// Every permission the catalog defines, in its own order, so a permission added to the catalog
-// without a label here fails to compile instead of rendering blank.
 const PERMISSION_LABELS = {
   sell_and_charge: "Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión",
   view_sales_history: "Consultar el historial de ventas",
@@ -145,9 +135,6 @@ const PERMISSION_LABELS = {
   configure_branch: "Configurar la sucursal",
 } satisfies Record<PermissionKey, string>;
 
-// The ALERTA column's own title and one-line subtitle per kind: `Record<AlertKind, string>` keeps
-// this in sync with the shared catalog (@purosur/contracts) at compile time, so a kind the catalog
-// adds or removes is caught here too, instead of silently falling back to the raw key.
 const ALERT_KIND_LABELS = {
   backoffice_passkey_changed: "Passkey",
   backoffice_recovery_requested: "Recuperación de acceso",
@@ -279,8 +266,6 @@ export const messages = defineMessages("es-AR", (f) => ({
     rolesSectionLabel: "Roles",
     registersSectionLabel: "Cajas registradoras",
     branchSectionLabel: "Sucursal",
-    // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
-    // always has at least one sidebar entry.
     myAccountSectionLabel: "Mi cuenta",
     myAccount: {
       documentTitle: "Mi cuenta · Puro Sur",
@@ -496,9 +481,8 @@ export const messages = defineMessages("es-AR", (f) => ({
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // The role editor modal (New, Edit and Duplicate all open the same one), its form and its
-      // save confirmation step. A save that's rate limited shows the Roles area's own
-      // rateLimitedTitle/rateLimitedDetail above instead of a key from this group.
+      // A save that's rate limited reuses the Roles area's own rateLimitedTitle/rateLimitedDetail
+      // above; this group has no key of its own for it.
       roleEditor: {
         eyebrow: "Configuración · Roles",
         closeLabel: CLOSE_LABEL,
@@ -537,7 +521,6 @@ export const messages = defineMessages("es-AR", (f) => ({
             other: `Se aplican a las ${params.count} personas`,
           })} con el rol ${params.roleName}:`,
         back: "Volver",
-        // The name field and the areas/permissions panes.
         form: {
           nameLabel: "Nombre del rol",
           nameRequired: "Ingresá el nombre del rol.",
@@ -1116,8 +1099,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       },
     },
   },
-  // The shared authorization modal every sensitive backoffice action opens on
-  // `authorization_required`, one instance of copy reused everywhere instead of per screen.
   passkeyAuthorization: {
     title: "Autorizá este cambio",
     body: (params: { action: string }) =>
@@ -1130,9 +1111,6 @@ export const messages = defineMessages("es-AR", (f) => ({
     rateLimitedTitle: "Demasiadas solicitudes",
     rateLimitedDetail: (params: { minutes: number }) =>
       `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-    // One action sentence per call site; role create/edit/duplicate all save through the same
-    // creation or edit request, so they share "roleSave", and both passkey-removal screens (an
-    // Administrator removing another user's, and Mi cuenta removing one's own) share "passkeyRemoval".
     actions: {
       roleSave: "Guardar un rol",
       userCreate: "Crear un usuario",
@@ -1216,10 +1194,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       rateLimitedTitle: "Demasiadas solicitudes",
       rateLimitedDetail: (params: { minutes: number }) =>
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
-      // The ALERTA column's own title and one-line subtitle per kind, generic (it never fetches
-      // each row's detail — the ALCANCE column already carries who/what it's about, from the
-      // summary alone); the detail modal's title (below) is specific about what happened, once the
-      // fact itself is on hand.
       listKindLabels: ALERT_KIND_LABELS,
       listKindDescriptions: ALERT_KIND_DESCRIPTIONS,
       kindTitles: {

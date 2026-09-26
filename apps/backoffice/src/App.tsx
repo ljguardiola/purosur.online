@@ -169,7 +169,6 @@ const defaultAppServices: AppServices = {
 
 export type AppProps = {
   help: BackofficeHelpCatalog;
-  /** Injected in tests so App and every screen it renders skip the real APIs and WebAuthn. */
   services?: AppServices;
 };
 
@@ -196,10 +195,6 @@ function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: H
   return page ? messages.help.pageDocumentTitle({ page }) : messages.help.documentTitle;
 }
 
-/**
- * Puro Sur's Config area item — the single shared definition of its label, icon and link, so
- * Help's rail and Config's own rail can't drift on it: each only sets which one is active.
- */
 function ConfigAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
@@ -211,10 +206,6 @@ function ConfigAreaItem({ active }: { active: boolean }) {
   );
 }
 
-/**
- * Puro Sur's Ayuda area item, pinned in the rail footer — the single shared definition of its
- * label, icon and link, so Config's rail and Help's own rail can't drift on it.
- */
 function HelpAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
@@ -226,12 +217,6 @@ function HelpAreaItem({ active }: { active: boolean }) {
   );
 }
 
-/**
- * Puro Sur's Inicio area item — the single shared definition of its label, icon and link. Like
- * Catálogo and Caja, it only shows for someone who unlocks it (`canSeeAlertsArea`): the caller
- * decides whether to render it at all. Its own section holds "Alertas" (this issue) and, once it
- * ships in its own issue, "Resumen" — Inicio's own landing is Alertas for now.
- */
 function InicioAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
@@ -243,13 +228,6 @@ function InicioAreaItem({ active }: { active: boolean }) {
   );
 }
 
-/**
- * Puro Sur's Catálogo area item — the single shared definition of its label and icon. Unlike
- * Config and Ayuda, it only shows for someone who unlocks it: the caller decides whether to
- * render it at all, and where it links to, since which of Catálogo's own sections someone can
- * open depends on which of its two permissions their role holds (`defaultPath`: Productos for
- * someone holding `manage_products_and_categories`, Precios otherwise).
- */
 function CatalogAreaItem({ active, defaultPath }: { active: boolean; defaultPath: string }) {
   return (
     <AreaNavItem
@@ -261,11 +239,6 @@ function CatalogAreaItem({ active, defaultPath }: { active: boolean; defaultPath
   );
 }
 
-/**
- * Puro Sur's Caja area item — the single shared definition of its label, icon and link. Like
- * Catálogo, it only shows for someone who unlocks it, and the design lists it right after Catálogo
- * (the areas between them, Stock and Pedidos, don't exist in the backoffice yet).
- */
 function CashAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
@@ -288,7 +261,6 @@ type HelpAppProps = {
   accountFooterServices: AccountFooterServices;
 };
 
-/** The Help-in-Shell part of the app, root for every path outside the access screens below. */
 function HelpApp({
   help,
   displayName,
@@ -350,8 +322,8 @@ function HelpApp({
       }
       sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
     >
-      {/* Keyed by path so every help page mounts its own scroll body, opening at the top instead of
-          at the offset the previous page was scrolled to. */}
+      {/* Keyed by path: React remounts on key change, so each page opens with a fresh scroll
+          position instead of the previous page's. */}
       <HelpContent
         key={helpRoute.path}
         help={help}
@@ -399,11 +371,6 @@ type SettingsAppProps = {
   branchSettingsScreenServices: BranchSettingsScreenServices;
 };
 
-/**
- * The Config-in-Shell part of the app: Usuarios (list, one user's detail, "Mi cuenta"), Roles
- * (list, with the new/edit/duplicate editor as a modal over it), and Sucursal (the branch's own
- * settings).
- */
 function SettingsApp({
   section,
   userDetailId,
@@ -483,8 +450,6 @@ function SettingsApp({
                 />
               </li>
             ) : (
-              // Usuarios isn't unlocked: Mi cuenta gets its own entry instead, so Configuración
-              // always has at least one.
               <li>
                 <SectionNavItem
                   label={messages.settings.myAccountSectionLabel}
@@ -585,14 +550,6 @@ type CatalogAppProps = {
   pricesListScreenServices: PricesListScreenServices;
 };
 
-/**
- * The Catálogo-in-Shell part of the app: Productos (its own landing for someone who can manage
- * them), Categorías, and Precios. App.tsx only ever routes here for someone who unlocks at least
- * one of Catálogo's two permissions, so `CatalogAreaItem` always renders active; which section
- * shows in the sidebar and the body depends on both the current route and which permission the
- * signed-in role holds — someone holding only `manage_prices_and_review` never sees Productos or
- * Categorías, and someone holding only `manage_products_and_categories` never sees Precios.
- */
 function CatalogApp({
   displayName,
   canSeeAlerts,
@@ -709,13 +666,6 @@ type CashAppProps = {
   fiscalConfigurationScreenServices: FiscalConfigurationScreenServices;
 };
 
-/**
- * The Caja-in-Shell part of the app: "Caja y fiscal", today holding only Configuración fiscal
- * (its own landing). App.tsx only ever routes here for someone who unlocks the area, so
- * `CashAreaItem` and "Configuración fiscal" always render active. The design also draws a CAJA
- * and a TAREAS group above FISCAL, but neither has a section built yet, so only FISCAL's own
- * group label and its one section show.
- */
 function CashApp({
   displayName,
   canSeeAlerts,
@@ -795,12 +745,6 @@ type InicioAppProps = {
   alertsListScreenServices: AlertsListScreenServices;
 };
 
-/**
- * The Inicio-in-Shell part of the app: "Alertas" (this issue) is its only section and its own
- * landing for now — "Resumen" (design.pen) has no screen yet and ships in its own issue. App.tsx
- * only ever routes here for someone `canSeeAlertsArea` admits, so `InicioAreaItem` and "Alertas"
- * always render active.
- */
 function InicioApp({
   access,
   displayName,
@@ -867,12 +811,6 @@ function InicioApp({
   );
 }
 
-/**
- * Every field this app draws — every screen's own TextField, DateField and Select — takes the
- * backoffice size from this one provider at the root, instead of each screen choosing it. There
- * is no other place in the tree that renders a field outside AppContent, so nothing here needs to
- * repeat it.
- */
 export function App(props: AppProps) {
   return (
     <FieldSizeProvider size="backoffice">
@@ -923,7 +861,6 @@ function AppContent({ help, services }: AppProps) {
         return;
       }
       if (outcome.kind === "rate_limited") {
-        // Same reasoning as "failed" below: nobody said the session ended, so the marker stays.
         setSession({
           kind: "signed-out",
           notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
@@ -931,9 +868,8 @@ function AppContent({ help, services }: AppProps) {
         return;
       }
       if (outcome.kind === "failed") {
-        // Nobody said the session ended — the question never got an answer. Clearing the marker
-        // here would turn the next attempt's honest "venció" into a lie, and the session itself
-        // may well still be live.
+        // Neither outcome confirms the session ended, so the marker stays: clearing it here would
+        // turn a later honest "expired" notice into a false one.
         setSession({ kind: "signed-out", notice: { kind: "check_failed" } });
         return;
       }
@@ -957,8 +893,6 @@ function AppContent({ help, services }: AppProps) {
     route === ROLES_LIST_PATH ||
     route === REGISTERS_LIST_PATH ||
     route === BRANCH_SETTINGS_PATH;
-  // "Usuarios", "Roles", "Cajas registradoras" and "Sucursal" are only reachable through their own
-  // URLs; Mi cuenta (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
   const wantsRoles = route === ROLES_LIST_PATH;
   const wantsRegisters = route === REGISTERS_LIST_PATH;
@@ -976,8 +910,6 @@ function AppContent({ help, services }: AppProps) {
   const canSeeRoles = canSeeRolesArea(access);
   const canSeeRegisters = canSeeRegistersArea(access);
   const canSeeBranch = canSeeBranchArea(access);
-  // Catálogo's own two sub-permissions: someone holding only one of them still unlocks the area
-  // (see canSeeCatalogArea/CatalogApp), but each section itself stays gated on its own permission.
   const canManageCatalogProducts = canManageProductsAndCategories(access);
   const canSeePrices = canSeePricesArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
@@ -1003,8 +935,6 @@ function AppContent({ help, services }: AppProps) {
     } else if (session.kind !== "signed-in" && !isAccessRoute) {
       navigate(SIGN_IN_PATH, { replace: true });
     } else if (session.kind === "signed-in" && wantsUnlockedSection) {
-      // A typed, stale, or now-forbidden settings URL (e.g. the role changed mid-session) never
-      // shows a forbidden notice: it lands on Mi cuenta instead, the one screen everyone keeps.
       sendToMyAccount();
     }
   }, [session.kind, route, isAccessRoute, wantsUnlockedSection]);
@@ -1044,17 +974,12 @@ function AppContent({ help, services }: AppProps) {
     navigate(SIGN_IN_PATH, { replace: true });
   }
 
-  // A signed-in screen's own API call can find the session already ended (idle/absolute expiry,
-  // or signed out from elsewhere) after the mount check above already found it open: same outcome
-  // as that check finding none, so it gets the same expired notice.
   function handleSessionEnded() {
     clearSignedInMarker();
     setSession({ kind: "signed-out", notice: { kind: "expired" } });
     navigate(SIGN_IN_PATH, { replace: true });
   }
 
-  // Notices the session ending without a reload — idle/absolute expiry, revocation, deactivation
-  // — while this tab stays open and nobody's own screen happens to make a call that would catch it.
   useSessionWatcher({
     active: session.kind === "signed-in",
     checkStatus: checkSessionStatus,
@@ -1064,9 +989,6 @@ function AppContent({ help, services }: AppProps) {
       : {}),
   });
 
-  // Keeps a continuously worked tab from going idle: real use (not merely an open tab) touches
-  // the session, the watcher above follows the fresher deadline that comes back, and the rail and
-  // route gating follow the role's current access.
   useSessionActivityReporter({
     active: session.kind === "signed-in",
     touchSession: fetchSession,
@@ -1094,8 +1016,7 @@ function AppContent({ help, services }: AppProps) {
       return null;
     }
     if (wantsUnlockedSection) {
-      // The effect above is already redirecting to Mi cuenta: never render the section itself,
-      // not even for one frame.
+      // The effect above already redirects to Mi cuenta: skip rendering the section, even briefly.
       return null;
     }
     return (
@@ -1143,8 +1064,6 @@ function AppContent({ help, services }: AppProps) {
       return null;
     }
     if (wantsUnlockedSection) {
-      // The effect above is already redirecting to Mi cuenta: never render the section itself,
-      // not even for one frame.
       return null;
     }
     return (
@@ -1170,8 +1089,6 @@ function AppContent({ help, services }: AppProps) {
       return null;
     }
     if (wantsUnlockedSection) {
-      // The effect above is already redirecting to Mi cuenta: never render the section itself,
-      // not even for one frame.
       return null;
     }
     return (
@@ -1193,8 +1110,6 @@ function AppContent({ help, services }: AppProps) {
       return null;
     }
     if (wantsUnlockedSection) {
-      // The effect above is already redirecting to Mi cuenta: never render the section itself,
-      // not even for one frame.
       return null;
     }
     return (

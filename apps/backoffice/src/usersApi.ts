@@ -1,5 +1,4 @@
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// passkeyApi.ts's own rate-limited outcomes fall back to.
+// Cloud rate limiter counts a rolling one-hour window.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type BranchUserRole = { id: string; isAdministrator: boolean; name: string | null };
@@ -9,12 +8,11 @@ export type BranchUser = {
   firstName: string;
   email: string;
   version: number;
-  /** Only present when the caller may see a deactivated user (`canReactivateUser`): everyone
-   * else's users are always active, and the wire never mentions it for them. */
+  /** Wire omits this field entirely unless the caller may see a deactivated user. */
   active?: boolean;
   role: BranchUserRole;
   passkeyCount: number;
-  /** From the wire: locks the Rol field in the edit modal, since the server refuses to change it regardless. */
+  /** The server refuses to change the role regardless, so callers lock that field on this. */
   isLastActiveAdministrator: boolean;
 };
 
@@ -102,8 +100,7 @@ export type CreateUserOutcome =
   | { kind: "validation_failed"; field: CreateUserFieldError }
   | { kind: "unknown_role" }
   | { kind: "email_taken" }
-  /** The conflicting email belongs to a deactivated user, and the caller can reactivate one: the
-   * form leads to reactivating that user instead of a plain "email taken" refusal. */
+  /** Distinct from `email_taken`: this account can be reactivated instead of created anew. */
   | { kind: "email_belongs_to_deactivated_user"; id: string; name: string }
   | { kind: "forbidden" }
   | { kind: "unauthenticated" }
@@ -160,7 +157,6 @@ function userPasskeyFromRow(row: {
   return { id: row.id, name: row.name, createdAt: row.created_at, lastUsedAt: row.last_used_at };
 }
 
-/** Lists the session branch's users with their role, Administrator only (`GET /users`). */
 export async function fetchUsers(): Promise<FetchUsersOutcome> {
   let response: Response;
   try {
@@ -209,9 +205,8 @@ type GatedActionErrorOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-// Every sensitive user action is gated by the shared passkey-authorization window
-// (`passkey-authorization-guard.ts`) instead of its own step-up, so a 401 here means either the
-// session ended or that window has lapsed, never a rejected assertion.
+// Gated by the shared passkey-authorization window instead of a per-action step-up, so a 401
+// here means either the session ended or that window has lapsed, never a rejected assertion.
 async function gatedActionErrorOutcome(response: Response): Promise<GatedActionErrorOutcome> {
   if (response.status === 401) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
@@ -228,10 +223,7 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-/**
- * Creates the user in the session's own branch with the chosen role, gated by the shared
- * passkey-authorization window instead of its own reauthentication step-up (`POST /users`).
- */
+/** Scoped to the session's own branch server-side; no branch id is sent. */
 export async function createUser(input: CreateUserInput): Promise<CreateUserOutcome> {
   let response: Response;
   try {
@@ -279,7 +271,6 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserOutc
   return gatedActionErrorOutcome(response);
 }
 
-/** Reads one branch user by id, Administrator only (`GET /users/:id`). */
 export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   let response: Response;
   try {
@@ -324,12 +315,6 @@ function editFieldFromWire(field: unknown): EditUserFieldError | undefined {
   return undefined;
 }
 
-/**
- * Changes the user's email and role together in one transaction, rejecting a save over a newer
- * version or one that would leave the last active Administrator without their role, gated by the
- * shared passkey-authorization window instead of its own reauthentication step-up
- * (`POST /users/:id/edit`).
- */
 export async function editUser(id: string, input: EditUserInput): Promise<EditUserOutcome> {
   let response: Response;
   try {
@@ -385,7 +370,7 @@ async function forbiddenOrOwnAccount(
   return body?.code === "own_account" ? { kind: "own_account" } : { kind: "forbidden" };
 }
 
-/** Lists one branch user's passkeys, oldest first, Administrator only (`GET /users/:id/passkeys`). */
+/** Oldest first. */
 export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
   let response: Response;
   try {
@@ -417,12 +402,7 @@ export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOu
   return { kind: "ok", value: body.map(userPasskeyFromRow) };
 }
 
-/**
- * Removes the target user's named passkey, ending every backoffice session they have open, gated
- * by the shared passkey-authorization window (against the Administrator's own passkeys, never the
- * target's) instead of its own reauthentication step-up
- * (`POST /users/:id/passkeys/:passkeyId/remove`).
- */
+/** Authorization runs against the Administrator's own passkeys, never the target's. */
 export async function removeUserPasskey(
   id: string,
   passkeyId: string,
@@ -445,12 +425,7 @@ export async function removeUserPasskey(
   return gatedActionErrorOutcome(response);
 }
 
-/**
- * Deactivates the target user, ending every backoffice session they have open, gated by the shared
- * passkey-authorization window instead of its own reauthentication step-up
- * (`POST /users/:id/deactivation`). The cloud answers the same `not_found` for a malformed,
- * missing, other-branch, already-inactive, or Administrator target.
- */
+/** The cloud answers the same `not_found` for a malformed, missing, other-branch, already-inactive, or Administrator target. */
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
@@ -467,11 +442,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
   return gatedActionErrorOutcome(response);
 }
 
-/**
- * Reactivates the target user, gated by the shared passkey-authorization window instead of its
- * own reauthentication step-up (`POST /users/:id/reactivation`). The cloud answers the same
- * `not_found` for a malformed, missing, other-branch, or already-active target.
- */
+/** The cloud answers the same `not_found` for a malformed, missing, other-branch, or already-active target. */
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {

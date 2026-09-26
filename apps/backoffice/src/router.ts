@@ -16,18 +16,15 @@ function getSnapshot(): string {
   return window.location.pathname;
 }
 
-// The app has no server-rendered markup to hydrate, so useSyncExternalStore's server snapshot is
-// never read; it is required by the hook's signature regardless.
+// No SSR here, so this is never read; useSyncExternalStore's signature still requires it.
 function getServerSnapshot(): string {
   return "/";
 }
 
-/** The current URL path, re-rendering its caller on every navigate() call and browser back/forward. */
 export function useRoute(): string {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-/** Calls `listener` on every navigate() call, even to the current path, and on browser back/forward. */
 export function onNavigate(listener: () => void): () => void {
   return subscribe(listener);
 }
@@ -36,7 +33,6 @@ export type NavigateOptions = {
   replace?: boolean;
 };
 
-/** Moves to `path` in a new history entry, or in the current one with `replace`, and notifies every useRoute() and onNavigate() listener. */
 export function navigate(path: string, options: NavigateOptions = {}): void {
   if (options.replace) {
     window.history.replaceState(null, "", path);

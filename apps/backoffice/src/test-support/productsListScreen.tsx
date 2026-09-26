@@ -60,9 +60,8 @@ export const almendras: ProductSummary = {
 export type Screen = Awaited<ReturnType<typeof renderScreen>>;
 export type ScreenLocator = ReturnType<Screen["getByRole"]>;
 
-// The "radio" accessibility role resolves to react-aria's own visually hidden native <input>; the
-// visible, clickable surface is the <label> that wraps it (see OptionCardGroup.test.tsx's own
-// radioCard helper for the same reasoning).
+// The "radio" role resolves to react-aria's own visually hidden native <input>; the visible,
+// clickable surface is the <label> that wraps it.
 export function radioLabel(dialog: ScreenLocator, title: string): HTMLElement {
   const input = dialog.getByRole("radio", { name: title }).element() as HTMLInputElement;
   const label = input.closest("label");
@@ -81,11 +80,8 @@ export function mockLoaded(
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: categories });
 }
 
-// The default viewport is narrower than the modal's own "standard" width, and a modal panel is
-// centered by a fixed-position overlay that never grows the document's own scroll area, so a
-// control past its clipped edge can't be scrolled into view (see Modal.test.tsx's own reasoning).
-// This screen targets the backoffice's desktop-only display, so every test renders it at a
-// desktop-sized viewport instead.
+// A modal panel is centered by a fixed-position overlay that never grows the document's scroll
+// area, so a control past its clipped edge can't be scrolled into view at the default viewport.
 export async function renderScreen(
   services: ProductsListScreenServices,
   onSessionEnded: () => void = () => {},
@@ -128,13 +124,7 @@ export function scanInputOf(dialog: ScreenLocator) {
   return dialog.getByRole("textbox", { name: "Escanear otro código" });
 }
 
-/**
- * Lets a late response's own guarded continuation run to completion, and React commit whatever it
- * would set, before asserting it didn't. Rerendering the same screen goes through React's async
- * `act()`, which yields at least one macrotask before returning and keeps flushing until no update
- * is left queued: the response the test already resolved runs in that yield however many `await`s
- * deep its continuation is, and any state it sets commits inside the same `act()`.
- */
+/** Rerendering drives React's async `act()`, which flushes the already-resolved response's continuation before returning. */
 export async function settleLateResponse(
   screen: Screen,
   services: ProductsListScreenServices,

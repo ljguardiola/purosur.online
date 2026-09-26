@@ -1,5 +1,3 @@
-// The backoffice API rate limiter counts a rolling one-hour window, the same fallback
-// usersApi.ts's own rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type RoleSummary = {
@@ -89,7 +87,6 @@ function roleSummaryFromWire(row: {
   };
 }
 
-/** Lists every role with its permissions and user count, Administrator only (`GET /roles`). */
 export async function fetchRoles(): Promise<FetchRolesOutcome> {
   let response: Response;
   try {
@@ -146,10 +143,6 @@ async function roleActionErrorOutcome(
   return { kind: "failed" };
 }
 
-/**
- * Creates the role with its hand-picked permissions, gated by the shared passkey-authorization
- * window instead of its own reauthentication step-up (`POST /roles`).
- */
 export async function createRole(input: CreateRoleInput): Promise<CreateRoleOutcome> {
   let response: Response;
   try {
@@ -199,7 +192,6 @@ function roleDetailFromWire(row: {
   return { ...roleSummaryFromWire(row), version: row.version, assignedUsers: row.assigned_users };
 }
 
-/** Reads one role's current name, permissions, user count and version, Administrator only (`GET /roles/:id`). */
 export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
   let response: Response;
   try {
@@ -235,11 +227,6 @@ function editRoleFieldFromWire(field: unknown): EditRoleFieldError | undefined {
   return field === "name" || field === "permissions" || field === "version" ? field : undefined;
 }
 
-/**
- * Applies the edit, rejecting a save over a newer version, gated by the shared
- * passkey-authorization window instead of its own reauthentication step-up
- * (`POST /roles/:id/edit`).
- */
 export async function editRole(id: string, input: EditRoleInput): Promise<EditRoleOutcome> {
   let response: Response;
   try {

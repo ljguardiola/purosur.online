@@ -1,7 +1,6 @@
 import type { ProductSaleUnit } from "./productsApi";
 
-// Same fallback productsApi.ts's and categoriesApi.ts's own rate-limited outcomes fall back to.
-const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
+const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
 export type PriceRow = { id: string; unitPrice: number; validFrom: string };
 
@@ -30,7 +29,7 @@ export type PriceCategory = { id: string; name: string };
 export type PricesList = {
   products: PriceProduct[];
   pendingCount: number;
-  /** The branch's own configured review window (`unreviewedPriceAlertDays`), for the empty state. */
+  /** The branch's configured review window (`unreviewedPriceAlertDays`). */
   reviewWindowDays: number;
   /** Every category to filter by, sorted by name. */
   categories: PriceCategory[];
@@ -78,7 +77,9 @@ export type ConfirmPriceOutcome =
 function retryAfterSeconds(response: Response): number {
   const header = response.headers.get("Retry-After");
   const seconds = header ? Number(header) : Number.NaN;
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : RATE_LIMIT_FALLBACK_SECONDS;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds
+    : ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS;
 }
 
 function postJson(path: string, body: unknown): Promise<Response> {
@@ -93,10 +94,7 @@ function setPriceFieldFromWire(field: unknown): SetPriceFieldError | undefined {
   return field === "unitPrice" || field === "expectedCurrentPriceId" ? field : undefined;
 }
 
-/**
- * Lists the catalog's prices, scoped to the branch's own price list, gated by
- * `manage_prices_and_review` (`GET /prices`).
- */
+/** Scoped to the branch's own price list. Gated by `manage_prices_and_review`. */
 export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesOutcome> {
   const query = new URLSearchParams({ review: input.review });
   if (input.categoryId) {
@@ -131,10 +129,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
   return { kind: "ok", value: body };
 }
 
-/**
- * Sets a product's price, rejecting a save over a price the caller didn't see, gated by
- * `manage_prices_and_review`; no passkey step-up (`POST /products/:id/price`).
- */
+/** Gated by `manage_prices_and_review`; no passkey step-up. */
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {
   let response: Response;
   try {
@@ -182,11 +177,7 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
   return { kind: "failed" };
 }
 
-/**
- * Confirms a product's current price without changing it, rejecting a confirmation over a price
- * the caller didn't see, gated by `manage_prices_and_review`; no passkey step-up
- * (`POST /products/:id/price-confirmation`).
- */
+/** Confirms a product's current price without changing it. Gated by `manage_prices_and_review`; no passkey step-up. */
 export async function confirmPrice(
   productId: string,
   input: ConfirmPriceInput,

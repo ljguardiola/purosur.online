@@ -32,7 +32,6 @@ const nameLinkClassName =
 
 type Notice = { kind: "failed" } | { kind: "rate_limited"; retryAfterSeconds: number };
 
-/** The rail footer's own identity (the signed-in user's name) and its Salir item, drawn below the area nav items. */
 export function AccountFooter({ displayName, onSignedOut, services }: AccountFooterProps) {
   const { signOut } = services ?? defaultAccountFooterServices;
   const [confirming, setConfirming] = useState(false);
@@ -49,8 +48,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
     setSigningOut(true);
     const outcome = await signOut();
     setSigningOut(false);
-    // Leaving for the sign-in screen after a sign-out the cloud never heard would only look like
-    // one: the session and its cookie are still live, so the person stays where they are.
+    // Stays put on anything but `ok`: the session and its cookie are still live otherwise.
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds });
       return;

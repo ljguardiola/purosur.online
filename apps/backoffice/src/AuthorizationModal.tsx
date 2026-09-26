@@ -24,8 +24,8 @@ export const defaultAuthorizationServices: AuthorizationServices = {
 
 type ModalNotice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number };
 
-// Every attempt this mechanism runs answers this shape at minimum: the same `authorization_required`
-// code every sensitive route now answers with instead of its own per-action challenge.
+// Every attempt answers this shape at minimum: the same `authorization_required` code every
+// sensitive route uses instead of its own per-action challenge.
 type Authorizable = { kind: string };
 
 type AuthorizationModalProps = {
@@ -112,15 +112,8 @@ function AuthorizationModal({
 }
 
 /**
- * Shared step-up mechanism every sensitive backoffice action uses: `run` attempts the action once,
- * and only when the cloud answers `authorization_required` opens this passkey-authorization modal.
- * "Usar mi passkey" confirms with `POST /users/session/authorization` and retries the given attempt
- * exactly once, resolving `run`'s promise with whatever that retry answers. Cancel resolves
- * `{ kind: "cancelled" }` and leaves the caller's own form untouched — nothing is retried; a session
- * found already ended while authorizing also resolves `{ kind: "cancelled" }` after calling
- * `onSessionEnded`. A failed
- * passkey ceremony or a rejected authorization shows an error inside the modal instead of closing
- * it, so the person can try again or cancel.
+ * Runs `attempt` once; on `authorization_required` it opens the passkey modal and, once confirmed,
+ * retries `attempt` exactly once. Cancel resolves `{ kind: "cancelled" }` without retrying.
  */
 export function useAuthorization<T extends Authorizable>({
   action,
@@ -161,8 +154,6 @@ export function useAuthorization<T extends Authorizable>({
     resolve?.({ kind: "cancelled" });
   }
 
-  // Settles `run` as cancelled so the caller stops waiting, and leaves ending the session to
-  // `onSessionEnded` alone, called exactly once here.
   function endSession() {
     cancel();
     onSessionEnded();

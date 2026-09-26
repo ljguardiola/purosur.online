@@ -60,13 +60,7 @@ type ListState =
 const catalogMessages = messages.catalog;
 const categoriesMessages = catalogMessages.categories;
 
-/**
- * Every category the "Categoría superior" select offers, in tree order and labelled by path, with
- * an empty "Ninguna" option first. `excludeIds` drops a category being edited together with its own
- * descendants: a category can't become its own parent or one of its descendants' (the cloud's
- * own `category_move_not_allowed` rule), so leaving those out of the options makes that case
- * impossible to pick instead of merely rejecting it after the fact.
- */
+/** Options for "Categoría superior": tree order, path labels, excludes invalid move targets. */
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
@@ -280,8 +274,8 @@ type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
   onSaved: (category: CategorySummary) => void;
-  // The parent options, the excluded self+descendants and the parent named in an error all come
-  // from `categories`, so a reload hands the fresh list back up instead of keeping it local.
+  // Everything here derives from `categories`, so a reload hands the fresh list back up instead
+  // of keeping it local.
   onCategoriesReloaded: (categories: CategorySummary[]) => void;
   onSessionEnded: () => void;
   fetchCategories: typeof fetchCategories;
@@ -296,7 +290,7 @@ type EditNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
-/** Renames a catalog category, rejecting a save over a newer version; no passkey step-up. */
+/** Renames a catalog category; no passkey step-up. */
 function EditCategoryModal({
   target,
   onClose,
@@ -312,9 +306,8 @@ function EditCategoryModal({
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
-  // The dialog's own title: the category's saved name (as opened, or as a reload brought it),
-  // held here (rather than read straight from `target`) so it stays a non-nullable string without ever
-  // falling back to a literal, which the message-catalog lint rule forbids in a title attribute.
+  // Held in state (not read from `target`) so the title stays a non-nullable string; the
+  // message-catalog lint bans a literal fallback in a title attribute.
   const [title, setTitle] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [parentError, setParentError] = useState<string | undefined>(undefined);
@@ -586,12 +579,7 @@ function EditCategoryModal({
   );
 }
 
-/**
- * "Categorías": the catalog's categories, listed by name, searchable, sortable and editable in
- * place. Gated by `manage_products_and_categories`: App.tsx only ever routes here for someone who
- * holds it, and a `forbidden` read (a role change mid-session) sends the browser to Mi cuenta
- * instead of showing a notice.
- */
+/** Gated by `manage_products_and_categories`. */
 export function CategoriesListScreen({ onSessionEnded, services }: CategoriesListScreenProps) {
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
@@ -605,14 +593,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
-  // Read from a ref, not a reactive dependency: the parent hands a new function on every render
-  // (each session-activity touch re-renders it), which would otherwise reload the list and pull
-  // the categories out from under an open modal.
+  // Ref, not a dependency: the parent recreates this callback every render, which would
+  // otherwise reload the list mid-edit.
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
 
-  // Only the latest load may settle the list: an earlier one still in flight would otherwise
-  // overwrite it with a stale result.
   const latestLoad = useRef(0);
 
   const load = useCallback(async () => {
@@ -641,7 +626,6 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   }, [load]);
 
   const categories = list.kind === "loaded" ? list.categories : [];
-  // Every category's full path label ("Almacén › Untables"), shared by the column and the search.
   const labels = useMemo(() => categoryPathLabels(categories), [categories]);
   const pathLabel = useCallback(
     (category: CategorySummary) => labels.get(category.id) ?? category.name,
@@ -770,8 +754,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         onClose={() => setNewModalOpen(false)}
         onCreated={(category) => {
           setNewModalOpen(false);
-          // Read through a ref: this runs after the create request's await, when `list` from
-          // the render that started it may be stale.
+          // listRef avoids a stale `list` closure from the render that started this request.
           const current = listRef.current;
           if (current.kind === "loaded") {
             setList({ kind: "loaded", categories: [...current.categories, category] });
@@ -800,8 +783,6 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
           );
         }}
         onCategoriesReloaded={(categories) => {
-          // Supersedes any list load still in flight, which would otherwise overwrite this
-          // fresher result when it settles.
           latestLoad.current += 1;
           setList({ kind: "loaded", categories });
         }}

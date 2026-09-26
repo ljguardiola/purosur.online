@@ -7,8 +7,6 @@ export type BranchDay =
   | "saturday"
   | "sunday";
 
-// Monday through Sunday, the order the "Horario de atención" rows appear in and the order the
-// wire's own `<day>_hours` fields are read in.
 export const BRANCH_DAYS: readonly BranchDay[] = [
   "monday",
   "tuesday",
@@ -142,7 +140,7 @@ function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | unde
   return fields.find((candidate) => candidate === field);
 }
 
-/** Reads the requesting user's own branch's settings, gated by `configure_branch` (`GET /branch-settings`). */
+/** Gated by `configure_branch`. */
 export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome> {
   let response: Response;
   try {
@@ -166,7 +164,6 @@ export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome>
   return { kind: "ok", value: branchSettingsFromWire(body) };
 }
 
-/** Saves the branch's settings, rejecting a save over a version someone else already changed (`PUT /branch-settings`). */
 export async function saveBranchSettings(
   settings: BranchSettings,
 ): Promise<SaveBranchSettingsOutcome> {

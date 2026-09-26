@@ -11,7 +11,6 @@ export type ShellProps = {
   children: ReactNode;
 };
 
-/** The backoffice's three-column frame: an area rail headed by the isotype, then every existing area under a thin separator, with its footer pinned to the foot, a section column, and the active screen's content. */
 export function Shell({
   brandName,
   areaRailLabel,
@@ -38,8 +37,8 @@ export function Shell({
       >
         {sectionColumn}
       </nav>
-      {/* Never a scroll container itself: each screen's own ScreenLayout owns the one scroll
-          region (its body), so a screen's top bar and action footer can't scroll away with it. */}
+      {/* Not a scroll container: ScreenLayout owns each screen's one scroll region, so a
+          screen's top bar and action footer can't scroll away with it. */}
       <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );
