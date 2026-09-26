@@ -11,6 +11,7 @@ import {
 } from "@purosur/contracts";
 import {
   Button,
+  FieldGroup,
   IconButton,
   InlineNotice,
   ListFilter,
@@ -160,9 +161,6 @@ function productNameError(
   return undefined;
 }
 
-// Same asterisk TextField and Select draw on a required field's own label.
-const requiredLabelClassName = "text-base font-bold text-ink after:ml-1 after:content-['*']";
-
 // Shared by the scan input and the "Generar código interno" button: the design's own outlined
 // control (2px inner stroke, centered 18px icon + 16px/700 label, both in brand blue).
 const barcodeActionClassName =
@@ -223,8 +221,7 @@ function BarcodeChips({
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className={requiredLabelClassName}>{labels.barcodesLabel}</span>
+    <FieldGroup label={labels.barcodesLabel} required>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -299,7 +296,7 @@ function BarcodeChips({
           {error}
         </span>
       )}
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -785,15 +782,13 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <div className="flex flex-col gap-1">
-            <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+          <FieldGroup label={modalMessages.categoryLabel} required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
-          </div>
+          </FieldGroup>
         )}
-        <div className="flex flex-col gap-1.5">
-          <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+        <FieldGroup label={modalMessages.unitLabel} required>
           <OptionCardGroup
             label={modalMessages.unitLabel}
             options={[
@@ -818,7 +813,7 @@ function NewProductModal({
             required
             {...(errors.unit ? { invalid: true, errorMessage: errors.unit } : {})}
           />
-        </div>
+        </FieldGroup>
         <BarcodeChips
           barcodes={chips.barcodes}
           onRemove={chips.remove}
@@ -1180,15 +1175,13 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <div className="flex flex-col gap-1">
-              <span className={requiredLabelClassName}>{modalMessages.categoryLabel}</span>
+            <FieldGroup label={modalMessages.categoryLabel} required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
-            </div>
+            </FieldGroup>
           )}
-          <div className="flex flex-col gap-1.5">
-            <span className={requiredLabelClassName}>{modalMessages.unitLabel}</span>
+          <FieldGroup label={modalMessages.unitLabel} required>
             <OptionCardGroup
               label={modalMessages.unitLabel}
               options={[
@@ -1209,7 +1202,7 @@ function EditProductModal({
               onChange={setSaleUnit}
               required
             />
-          </div>
+          </FieldGroup>
           <BarcodeChips
             barcodes={chips.barcodes}
             onRemove={chips.remove}
