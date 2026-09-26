@@ -163,46 +163,28 @@ describe("openAlert", () => {
     });
   });
 
-  it("writes one delivery row per active user who can see an All-audience alert: administrators and view_all_alerts holders", async () => {
-    const administratorRoleId = await seededAdministratorRoleId();
+  // The audience rule itself (who can see an All- or Local-audience alert) is owned and tested
+  // once in alert-visibility.test.ts's own visibleToUsersCondition suite, and the "active" filter
+  // plus forwarding of audience/locationId is owned and tested once by the recipientsFor suite
+  // below. This only proves openAlert wires that into its own delivery rows correctly: one row per
+  // recipient recipientsFor returns for the alert it just opened, on the right channel and status.
+  it("writes a delivery row for each recipient recipientsFor returns for the alert's audience", async () => {
     const viewAllRoleId = await insertRole({
       name: "Supervisor",
       permissionKeys: ["view_all_alerts"],
     });
-    const viewLocalRoleId = await insertRole({
-      name: "Cajera",
-      permissionKeys: ["view_branch_alerts"],
-    });
-    const noViewRoleId = await insertRole({ name: "Sin permiso", permissionKeys: [] });
-    const administratorId = await insertUser({
-      firstName: "Ada",
-      email: "ada@example.com",
-      roleId: administratorRoleId,
-    });
-    const supervisorId = await insertUser({
-      firstName: "Grace",
-      email: "grace@example.com",
-      roleId: viewAllRoleId,
-    });
-    await insertUser({ firstName: "Local", email: "local@example.com", roleId: viewLocalRoleId });
-    await insertUser({ firstName: "Nadie", email: "nadie@example.com", roleId: noViewRoleId });
-    await insertUser({
-      firstName: "Inactiva",
-      email: "inactiva@example.com",
-      roleId: viewAllRoleId,
-      active: false,
-    });
+    await insertUser({ firstName: "Grace", email: "grace@example.com", roleId: viewAllRoleId });
 
     const outcome = await db.transaction((tx) =>
       openAlert(
         tx,
         {
           kind: "backoffice_passkey_changed",
-          scope: administratorId,
+          scope: "a-user-id",
           detail: {
             action: "registered",
             passkeyName: "Teléfono",
-            actorId: administratorId,
+            actorId: "a-user-id",
             via: "self",
           },
         },
@@ -212,10 +194,10 @@ describe("openAlert", () => {
 
     expect(outcome.kind).toBe("opened");
     if (outcome.kind !== "opened") throw new Error("unreachable");
+    const expectedRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
+    expect(expectedRecipients).not.toHaveLength(0);
     const delivered = await deliveriesOf(outcome.alertId);
-    expect(delivered.map((row) => row.recipientUserId).sort()).toEqual(
-      [administratorId, supervisorId].sort(),
-    );
+    expect(delivered.map((row) => row.recipientUserId).sort()).toEqual(expectedRecipients.sort());
     for (const row of delivered) {
       expect(row.channel).toBe("backoffice");
       expect(row.status).toBe("sent");
