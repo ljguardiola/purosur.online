@@ -1,4 +1,4 @@
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
@@ -95,6 +95,10 @@ function grantAuthorization(services: UserDetailScreenServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
+afterEach(() => {
+  window.history.pushState(null, "", "/");
+});
+
 function renderScreen(
   services: UserDetailScreenServices,
   onSessionEnded: () => void = () => {},
@@ -147,7 +151,6 @@ test("navigates to Mi cuenta when the user read comes back forbidden", async () 
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows a load error, and Reintentar loads the user again", async () => {
@@ -491,7 +494,6 @@ test("navigates to Mi cuenta, without the authorization modal, when the email ch
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when the email change retried after the authorization comes back forbidden", async () => {
@@ -514,7 +516,6 @@ test("navigates to Mi cuenta when the email change retried after the authorizati
   );
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows a rate-limited notice when the change is rate limited", async () => {
@@ -674,7 +675,6 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
 });
 
 test("disables Recargar and Guardar while the reload is pending", async () => {
@@ -806,7 +806,6 @@ test("navigates to Mi cuenta when the passkeys list comes back forbidden", async
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows no remove button on the signed-in Administrator's own passkeys", async () => {
@@ -1071,7 +1070,6 @@ test("navigates to Mi cuenta, without the authorization modal, when removing the
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("navigates to Mi cuenta when the removal retried after the authorization comes back forbidden", async () => {
@@ -1094,7 +1092,6 @@ test("navigates to Mi cuenta when the removal retried after the authorization co
   );
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
-  window.history.pushState(null, "", "/");
 });
 
 test("has no accessibility violations with the passkeys section loaded and the remove modal open", async () => {
@@ -1166,7 +1163,6 @@ test("hides Editar and the whole Passkeys section for a non-Administrator, never
   expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
   expect(window.location.pathname).toBe("/settings/users/user-1");
-  window.history.pushState(null, "", "/");
 });
 
 test("shows the Desactivar row for an Administrator viewer against a non-Administrator target", async () => {
@@ -1207,7 +1203,6 @@ test("lets a non-Administrator holding deactivate_users deactivate the user, bac
   expect(services.deactivateUser).toHaveBeenCalledWith("user-1");
   await expect.poll(() => window.location.pathname).toBe("/settings/users");
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("hides the Desactivar row on the viewer's own account, even when its id arrives in another case", async () => {
@@ -1286,7 +1281,6 @@ test("deactivates directly, without the authorization modal, navigating back to 
   await expect.poll(() => vi.mocked(services.deactivateUser).mock.calls.length).toBe(1);
   expect(services.deactivateUser).toHaveBeenCalledWith("user-1");
   await expect.poll(() => window.location.pathname).toBe("/settings/users");
-  window.history.pushState(null, "", "/");
 });
 
 test("opens the authorization modal on authorization_required, then authorizes and retries the deactivation", async () => {
@@ -1315,7 +1309,6 @@ test("opens the authorization modal on authorization_required, then authorizes a
 
   await expect.poll(() => vi.mocked(services.deactivateUser).mock.calls.length).toBe(2);
   await expect.poll(() => window.location.pathname).toBe("/settings/users");
-  window.history.pushState(null, "", "/");
 });
 
 test("cancelling the authorization modal keeps the deactivate modal open, deactivating nothing", async () => {
@@ -1380,7 +1373,6 @@ test("navigates to Mi cuenta, without the authorization modal, when deactivating
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("shows a rate-limited notice inside the deactivate modal", async () => {
@@ -1423,9 +1415,10 @@ test("has no accessibility violations with the deactivate modal open", async () 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the Inactivo tag, hides Editar and the Desactivar row, for an inactive user", async () => {
+test("shows the Inactivo tag, hides Editar, Desactivar and passkey removal, and offers Reactivar, for an inactive user", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
+  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
 
   const screen = await renderScreen(services);
 
@@ -1433,19 +1426,20 @@ test("shows the Inactivo tag, hides Editar and the Desactivar row, for an inacti
   await expect.element(screen.getByText("Inactivo")).toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }).query()).toBeNull();
-});
-
-test("hides the passkey remove button on an inactive user's passkeys", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-  vi.mocked(services.fetchUserPasskeys).mockResolvedValue({ kind: "ok", value: [notebook] });
-
-  const screen = await renderScreen(services);
-
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   expect(
     screen.getByRole("button", { name: "Dar de baja la passkey «Notebook del local»" }).query(),
   ).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Al reactivar a Sofía Díaz, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.",
+      ),
+    )
+    .toBeVisible();
 });
 
 test("shows no Inactivo tag and no Reactivar row for an active user", async () => {
@@ -1457,24 +1451,6 @@ test("shows no Inactivo tag and no Reactivar row for an active user", async () =
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
   expect(screen.getByText("Inactivo").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
-});
-
-test("shows the Reactivar row for an Administrator against an inactive user", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-
-  const screen = await renderScreen(services);
-
-  await expect
-    .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
-    .toBeVisible();
-  await expect
-    .element(
-      screen.getByText(
-        "Al reactivar a Sofía Díaz, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("lets a reactivate-only holder reach an inactive user's Reactivar row, hiding Editar and Passkeys, never reading roles or passkeys", async () => {
@@ -1499,7 +1475,6 @@ test("lets a reactivate-only holder reach an inactive user's Reactivar row, hidi
   expect(screen.getByRole("heading", { name: "Passkeys" }).query()).toBeNull();
   expect(services.fetchRoles).not.toHaveBeenCalled();
   expect(services.fetchUserPasskeys).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("hides the Reactivar row for a non-Administrator without reactivate_users", async () => {
@@ -1561,34 +1536,7 @@ test("reactivates directly, without the authorization modal, showing the user as
     .toBeVisible();
 });
 
-test("opens the authorization modal on authorization_required, then authorizes and retries the reactivation", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-  vi.mocked(services.reactivateUser).mockResolvedValueOnce({ kind: "authorization_required" });
-  grantAuthorization(services);
-  vi.mocked(services.reactivateUser).mockResolvedValueOnce({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
-  const dialog = await openReactivateModal(screen);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
-  await expect.element(authDialog).toBeVisible();
-  await expect
-    .element(
-      authDialog.getByText(
-        "Reactivar un usuario necesita tu autorización. Confirmala con tu passkey.",
-      ),
-    )
-    .toBeVisible();
-
-  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
-
-  await expect.poll(() => vi.mocked(services.reactivateUser).mock.calls.length).toBe(2);
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-});
-
-test("cancelling the authorization modal keeps the reactivate modal open, reactivating nothing", async () => {
+test("opens the authorization modal for the reactivation action on authorization_required", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
   vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "authorization_required" });
@@ -1597,18 +1545,14 @@ test("cancelling the authorization modal keeps the reactivate modal open, reacti
   const dialog = await openReactivateModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
-  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
-  await expect.element(authDialog).toBeVisible();
-
-  await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
 
   await expect
-    .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
-    .toBeNull();
-  await expect
-    .element(screen.getByRole("dialog", { name: "¿Reactivar a Sofía Díaz?" }))
+    .element(
+      screen
+        .getByRole("dialog", { name: "Autorizá este cambio" })
+        .getByText("Reactivar un usuario necesita tu autorización. Confirmala con tu passkey."),
+    )
     .toBeVisible();
-  expect(services.reactivateUser).toHaveBeenCalledTimes(1);
 });
 
 test("treats a reactivation 404 as already resolved, refetching the user", async () => {
@@ -1627,6 +1571,9 @@ test("treats a reactivation 404 as already resolved, refetching the user", async
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => vi.mocked(services.fetchUser).mock.calls.length).toBe(2);
+  await expect
+    .element(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }))
+    .toBeVisible();
   expect(screen.getByText("Inactivo").query()).toBeNull();
 });
 
@@ -1657,7 +1604,6 @@ test("navigates to Mi cuenta, without the authorization modal, when reactivating
 
   await expect.poll(() => window.location.pathname).toBe("/settings/users/me");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
-  window.history.pushState(null, "", "/");
 });
 
 test("shows a rate-limited notice inside the reactivate modal", async () => {

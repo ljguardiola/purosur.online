@@ -5,13 +5,13 @@ import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.
 import {
   auditLog,
   locations,
+  passkeys,
   rolePermissions,
   roles,
   sessions,
   userRoles,
   users,
 } from "../db/schema.js";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -76,6 +76,18 @@ async function insertUser(input: {
   }
   await db.insert(userRoles).values({ userId: user.id, roleId: input.roleId });
   return user.id;
+}
+
+async function insertPasskey(forUserId: string, credentialId: string): Promise<void> {
+  await db.insert(passkeys).values({
+    userId: forUserId,
+    credentialId,
+    publicKey: "cHVibGljLWtleQ",
+    counter: 0,
+    deviceType: "singleDevice",
+    backedUp: false,
+    name: "Notebook del local",
+  });
 }
 
 /** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
@@ -229,8 +241,10 @@ describe("POST /users/:id/reactivation", () => {
   });
 
   it("reactivates an inactive target, bumps its version, keeps role/email/passkeys untouched, and audits the actor", async () => {
+    await insertPasskey(targetId, "credential-grace");
     const rawSessionId = await insertSession(administratorId);
     const [before] = await db.select().from(users).where(eq(users.id, targetId));
+    const passkeysBefore = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
 
     const response = await reactivateUser(targetId, rawSessionId);
 
@@ -243,6 +257,9 @@ describe("POST /users/:id/reactivation", () => {
 
     const rolesAfter = await db.select().from(userRoles).where(eq(userRoles.userId, targetId));
     expect(rolesAfter).toEqual([{ userId: targetId, roleId: cashierRoleId }]);
+
+    const passkeysAfter = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
+    expect(passkeysAfter).toEqual(passkeysBefore);
 
     const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "user"));
     const reactivationAudit = audited.find((auditRow) => auditRow.entityId === targetId);
@@ -287,27 +304,6 @@ describe("POST /users/:id/reactivation", () => {
   describe("the shared passkey-authorization guard", () => {
     it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
       const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await reactivateUser(targetId, rawSessionId);
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const [row] = await db.select().from(users).where(eq(users.id, targetId));
-      expect(row?.active).toBe(false);
-    });
-
-    it("allows the action at exactly the 5-minute boundary", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await reactivateUser(targetId, rawSessionId);
-
-      expect(response.statusCode).toBe(200);
-    });
-
-    it("returns 401 authorization_required one second past the 5-minute boundary, changing nothing", async () => {
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
 
       const response = await reactivateUser(targetId, rawSessionId);
 

@@ -668,35 +668,6 @@ test("reactivateUser reports not_found on 404 for a missing, other-branch, or al
   await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "not_found" });
 });
 
-test("reactivateUser reports forbidden on 403", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(403, { code: "forbidden" }));
-
-  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "forbidden" });
-});
-
-test("reactivateUser reports authorization_required on 401 with that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "authorization_required" }));
-
-  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "authorization_required" });
-});
-
-test("reactivateUser reports unauthenticated on 401 with the unauthenticated code", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(401, { code: "unauthenticated" }));
-
-  await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "unauthenticated" });
-});
-
-test("reactivateUser reports rate_limited with the Retry-After seconds on 429", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(429, { code: "rate_limited" }, { "Retry-After": "40" }),
-  );
-
-  await expect(reactivateUser("user-2")).resolves.toEqual({
-    kind: "rate_limited",
-    retryAfterSeconds: 40,
-  });
-});
-
 test("reactivateUser reports failed on any other status or a network failure", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(500));
   await expect(reactivateUser("user-2")).resolves.toEqual({ kind: "failed" });

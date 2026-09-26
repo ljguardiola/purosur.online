@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, roles, userRoles, users } from "../db/schema.js";
 import type { OpenSession } from "../session/open-session.js";
+import { isAccessGranted, permissionAccess } from "../session/route-access.js";
 
 /**
  * Whether `session` may see a deactivated branch user at all: an Administrator, or a holder of
@@ -12,7 +13,7 @@ import type { OpenSession } from "../session/open-session.js";
 export function canReactivateUsers(
   session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
 ): boolean {
-  return session.isAdministrator || session.permissionKeys.includes("reactivate_users");
+  return isAccessGranted(permissionAccess("reactivate_users"), session);
 }
 
 export interface BranchUserRow {

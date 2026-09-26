@@ -139,7 +139,10 @@ export function originGuard(
   };
 }
 
-function isAccessGranted(access: RouteAccess, session: OpenSession): boolean {
+export function isAccessGranted(
+  access: RouteAccess,
+  session: Pick<OpenSession, "isAdministrator" | "permissionKeys">,
+): boolean {
   switch (access.level) {
     case "public":
     case "open_session":
