@@ -1,11 +1,10 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { recordBackofficeRequest } from "./backoffice-request-rate-limiter.js";
-
-// These limits (600/h, 1800/h) are far larger than recovery-rate-limiter.test.ts's own (5/10 per
-// hour), so several tests here drive hundreds of sequential PGlite requests; the default 5s
-// timeout is too tight for that under load.
-vi.setConfig({ testTimeout: 20_000 });
+import {
+  BACKOFFICE_SESSION_LIMIT_PER_HOUR,
+  BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+  recordBackofficeRequest,
+} from "./backoffice-request-rate-limiter.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -39,6 +38,25 @@ async function storedRowCount(): Promise<number> {
   return Number(result.rows[0]?.count ?? 0);
 }
 
+/**
+ * Stores `count` already-admitted requests for one key in a single insert, the n-th of them
+ * (from 0) made at `attemptedAt(n)`, so a test reaches a limit without admitting each request
+ * in turn.
+ */
+async function seedAdmittedRequests(
+  keyKind: "session" | "source_address",
+  keyValue: string,
+  count: number,
+  attemptedAt: (n: number) => Date = () => NOON,
+): Promise<void> {
+  const times = Array.from({ length: count }, (_, n) => attemptedAt(n).toISOString());
+  await client.query(
+    `insert into backoffice_rate_limit_attempts (key_kind, key_value, attempted_at)
+     select $1, $2, attempted_at from unnest($3::timestamptz[]) as attempted_at`,
+    [keyKind, keyValue, times],
+  );
+}
+
 describe("recordBackofficeRequest", () => {
   it("allows the first request for a fresh session and source address", async () => {
     const result = await recordBackofficeRequest(db, {
@@ -61,36 +79,30 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("allows up to 600 requests per hour for the same session, then rejects the 601st", async () => {
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR - 1);
+    // A fresh source address each time isolates the session limit from the address one.
     const attempt = (sourceAddress: string) =>
       recordBackofficeRequest(db, { sessionKeyValue: "session-1", sourceAddress, now: NOON });
 
-    for (let i = 0; i < 600; i++) {
-      // A different source address each time isolates the session limit from the address one.
-      expect((await attempt(`203.0.113.${i % 250}`)).allowed).toBe(true);
-    }
-
-    expect((await attempt("203.0.113.99")).allowed).toBe(false);
+    expect((await attempt("203.0.113.10")).allowed).toBe(true);
+    expect((await attempt("203.0.113.11")).allowed).toBe(false);
   });
 
   it("allows up to 1800 requests per hour from the same source address, then rejects the 1801st", async () => {
+    await seedAdmittedRequests(
+      "source_address",
+      "203.0.113.10",
+      BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR - 1,
+    );
     const attempt = (sessionKeyValue: string) =>
       recordBackofficeRequest(db, { sessionKeyValue, sourceAddress: "203.0.113.10", now: NOON });
 
-    for (let i = 0; i < 1800; i++) {
-      expect((await attempt(`session-${i}`)).allowed).toBe(true);
-    }
-
+    expect((await attempt("session-1800")).allowed).toBe(true);
     expect((await attempt("session-one-too-many")).allowed).toBe(false);
-  }, 30_000);
+  });
 
   it("does not let one session's count affect another", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: NOON,
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR);
 
     const result = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-2",
@@ -102,13 +114,11 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("applies the source-address limit across sessions, rejecting a fresh session from the same address", async () => {
-    for (let i = 0; i < 1800; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: `session-${i}`,
-        sourceAddress: "203.0.113.10",
-        now: NOON,
-      });
-    }
+    await seedAdmittedRequests(
+      "source_address",
+      "203.0.113.10",
+      BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR,
+    );
 
     const result = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-fresh",
@@ -117,16 +127,10 @@ describe("recordBackofficeRequest", () => {
     });
 
     expect(result.allowed).toBe(false);
-  }, 30_000);
+  });
 
   it("records nothing for a rejected request", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: NOON,
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR);
     const beforeRejection = await storedRowCount();
 
     const rejected = await recordBackofficeRequest(db, {
@@ -140,13 +144,7 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("resets the session count once the hourly window rolls over", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: NOON,
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR);
     const withinTheSameHour = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.99",
@@ -165,13 +163,9 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("counts the last 60 minutes, not the current clock hour, so a limit never doubles across the hour", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: minutesAfterNoon(59),
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR, () =>
+      minutesAfterNoon(59),
+    );
 
     const twoMinutesLater = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-1",
@@ -183,13 +177,9 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("reports the seconds until the session's oldest counted request leaves the window", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: minutesAfterNoon(i % 50),
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR, (n) =>
+      minutesAfterNoon(n % 50),
+    );
 
     const rejected = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-1",
@@ -202,13 +192,9 @@ describe("recordBackofficeRequest", () => {
   });
 
   it("admits a request made exactly when the reported wait runs out", async () => {
-    for (let i = 0; i < 600; i++) {
-      await recordBackofficeRequest(db, {
-        sessionKeyValue: "session-1",
-        sourceAddress: `203.0.113.${i % 250}`,
-        now: minutesAfterNoon(i % 50),
-      });
-    }
+    await seedAdmittedRequests("session", "session-1", BACKOFFICE_SESSION_LIMIT_PER_HOUR, (n) =>
+      minutesAfterNoon(n % 50),
+    );
     const rejected = await recordBackofficeRequest(db, {
       sessionKeyValue: "session-1",
       sourceAddress: "203.0.113.200",
