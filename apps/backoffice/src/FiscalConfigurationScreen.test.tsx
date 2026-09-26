@@ -72,6 +72,7 @@ function renderScreen(
 }
 
 const lateEveningInArgentina = () => new Date("2020-09-25T23:30:00-03:00");
+const afternoonInArgentina = () => new Date("2020-09-25T15:00:00-03:00");
 
 /** Opens the modal on an incomplete identification and fills every field, typing `typedDate`. */
 async function fillIncompleteModal(
@@ -92,7 +93,7 @@ async function fillIncompleteModal(
   return dialog;
 }
 
-test("refuses Argentina's tomorrow late in the evening, when the UTC day has already reached it", async () => {
+test("refuses a future activity start date, counting today as Argentina's day", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
@@ -107,7 +108,7 @@ test("refuses Argentina's tomorrow late in the evening, when the UTC day has alr
   expect(services.saveIssuerIdentification).not.toHaveBeenCalled();
 });
 
-test("accepts Argentina's today late in the evening, when the UTC day has already moved on", async () => {
+test("accepts today as the activity start date", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
@@ -117,7 +118,7 @@ test("accepts Argentina's today late in the evening, when the UTC day has alread
     kind: "ok",
     value: { ...complete, activityStartDate: "2020-09-25", version: 2 },
   });
-  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
+  const screen = await renderScreen(services, () => {}, afternoonInArgentina);
   const dialog = await fillIncompleteModal(screen, "25092020");
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -351,14 +352,14 @@ test("marks the activity start date required, and invalid and described by its o
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("offers no day after Argentina's today in the activity start date's calendar", async () => {
+test("offers no day after today in the activity start date's calendar", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
     kind: "ok",
     value: incomplete,
   });
   await page.viewport(1440, 1000);
-  const screen = await renderScreen(services, () => {}, lateEveningInArgentina);
+  const screen = await renderScreen(services, () => {}, afternoonInArgentina);
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   await userEvent.click(
     screen
