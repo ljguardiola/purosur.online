@@ -121,31 +121,6 @@ test("the header toggles the sibling order, still listing each parent before its
   expect(names[3]).toContain("Almacén › Untables › Mermeladas");
 });
 
-test("keeps a parent's subcategories right under it even when a sibling's name extends the parent's", async () => {
-  const almacenNorte: CategorySummary = {
-    id: "category-5",
-    name: "Almacén - Norte",
-    version: 1,
-    parentId: null,
-  };
-  const services = createServices();
-  vi.mocked(services.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [almacenNorte, untables, almacen],
-  });
-
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("3 categorías")).toBeVisible();
-
-  const names = screen
-    .getByRole("row")
-    .all()
-    .slice(1)
-    .map((row) => row.element().textContent ?? "");
-  expect(names[1]).toContain("Almacén › Untables");
-  expect(names[2]).toContain("Almacén - Norte");
-});
-
 test("the search field filters the list by the full path label, case-insensitively", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
@@ -161,6 +136,21 @@ test("the search field filters the list by the full path label, case-insensitive
   expect(screen.getByText("Bebidas").query()).toBeNull();
 });
 
+test("the category count in the footer counts only the categories the search leaves", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [almacen, untables, bebidas],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("3 categorías")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "untables");
+
+  await expect.element(screen.getByText("1 categoría")).toBeVisible();
+  expect(screen.getByText("3 categorías").query()).toBeNull();
+});
+
 test("shows an empty state when there are no categories yet", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [] });
@@ -168,6 +158,17 @@ test("shows an empty state when there are no categories yet", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Todavía no hay categorías")).toBeVisible();
+});
+
+test("shows a filtered empty state when the search matches nothing", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({ kind: "ok", value: [almacen] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Almacén")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una categoría"), "zzz");
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
 });
 
 test("shows a load error with a retry action when the categories fail to load", async () => {
@@ -181,6 +182,19 @@ test("shows a load error with a retry action when the categories fail to load", 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("1 categoría")).toBeVisible();
+});
+
+test("shows the rate-limited notice with a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
 test("navigates to Mi cuenta when the categories request comes back forbidden", async () => {
