@@ -58,7 +58,7 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
-// Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
+// Shared between the Roles screen's per-permission checkboxes (every key, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
 // permissions as a bespoke control instead of a plain checkbox list.
 const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";

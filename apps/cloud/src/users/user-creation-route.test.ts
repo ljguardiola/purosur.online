@@ -291,6 +291,33 @@ describe("POST /users", () => {
     expect(matching).toHaveLength(1);
   });
 
+  it("answers plain email_taken, naming nobody, when the email belongs to a deactivated user of another branch", async () => {
+    const cashierRoleId = await insertCashierRole("Cajera");
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) throw new Error("test setup: seeding the other location returned no row");
+    const strangerId = await insertUser({
+      firstName: "Stranger",
+      email: "stranger@example.com",
+      roleId: cashierRoleId,
+      locationId: otherLocation.id,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, strangerId));
+    const rawSessionId = await insertSession(administratorId);
+
+    const response = await createUser(rawSessionId, {
+      first_name: "New Hire",
+      email: "stranger@example.com",
+      role_id: cashierRoleId,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "email_taken" });
+    expect(response.json()).not.toHaveProperty("id");
+    expect(response.json()).not.toHaveProperty("name");
+    const matching = await db.select().from(users).where(eq(users.email, "stranger@example.com"));
+    expect(matching).toHaveLength(1);
+  });
+
   it("ignores location/branch fields sent in the body, always using the session's own branch", async () => {
     const cashierRoleId = await insertCashierRole("Cajera");
     const rawSessionId = await insertSession(administratorId);

@@ -215,7 +215,7 @@ describe("GET /users/:id/passkeys", () => {
     expect(missingResponse.json()).toEqual(malformedResponse.json());
   });
 
-  it("answers the same 404 for a deactivated target as for a missing one", async () => {
+  it("lists a deactivated target's passkeys", async () => {
     const locationId = await seededLocationId(db);
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
@@ -230,17 +230,19 @@ describe("GET /users/:id/passkeys", () => {
       roleId: await insertCashierRole("Cajera"),
       locationId,
     });
-    await insertPasskey({ forUserId: targetId, name: "Notebook", createdAt: NOON });
+    const passkeyId = await insertPasskey({
+      forUserId: targetId,
+      name: "Notebook",
+      createdAt: NOON,
+    });
     await db.update(users).set({ active: false }).where(eq(users.id, targetId));
 
-    const deactivatedResponse = await getUserPasskeys(targetId, rawSessionId);
-    const missingResponse = await getUserPasskeys(
-      "00000000-0000-0000-0000-000000000000",
-      rawSessionId,
-    );
+    const response = await getUserPasskeys(targetId, rawSessionId);
 
-    expect(deactivatedResponse.statusCode).toBe(404);
-    expect(deactivatedResponse.json()).toEqual(missingResponse.json());
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual([
+      { id: passkeyId, name: "Notebook", created_at: NOON.toISOString(), last_used_at: null },
+    ]);
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {

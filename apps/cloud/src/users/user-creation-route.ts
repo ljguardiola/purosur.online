@@ -185,15 +185,26 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         });
 
       if (!created) {
-        // The conflict is never branch-scoped, the same way `users.email`'s own unique index
-        // isn't: a deactivated user in any branch with this email blocks creation the same way an
-        // active one does, just with a response that leads to reactivating them instead.
+        // The conflict itself isn't branch-scoped, the same way `users.email`'s unique index isn't,
+        // but naming the conflicting user is: only a deactivated user of the caller's own branch
+        // (the only one they could reactivate) is answered by id and name; any other conflict is a
+        // plain `email_taken`, so another branch's user is never revealed.
         const [conflicting] = await options.db
-          .select({ id: users.id, firstName: users.firstName, active: users.active })
+          .select({
+            id: users.id,
+            firstName: users.firstName,
+            active: users.active,
+            locationId: users.locationId,
+          })
           .from(users)
           .where(eq(users.email, parsedBody.email))
           .limit(1);
-        if (conflicting && !conflicting.active && canReactivateUsers(openSession)) {
+        if (
+          conflicting &&
+          !conflicting.active &&
+          conflicting.locationId === openSession.locationId &&
+          canReactivateUsers(openSession)
+        ) {
           await reply.code(409).send(emailBelongsToDeactivatedUserResponse(conflicting));
           return;
         }
