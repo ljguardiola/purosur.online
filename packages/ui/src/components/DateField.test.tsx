@@ -92,6 +92,11 @@ test("renders the backoffice variant at 48px with 12px padding and a trailing ic
   // The icon trails the value in the backoffice variant: it is the group's last element.
   expect(group.lastElementChild?.contains(icon)).toBe(true);
 
+  const input = (group.querySelector('[role="spinbutton"]') as HTMLElement)
+    .parentElement as HTMLElement;
+  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(16);
+  expect(getComputedStyle(input).fontWeight).toBe("600");
+
   const label = screen.getByText("Date").element() as HTMLElement;
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
