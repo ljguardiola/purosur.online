@@ -7,13 +7,23 @@ export const QUIET_ZONE_LEFT_MODULES = 11;
 export const QUIET_ZONE_RIGHT_MODULES = 7;
 export const HUMAN_READABLE_HEIGHT_MM = 3.1;
 
-// EAN-13's start (101), center (01010) and end (101) guard bar module indices.
-const GUARD_MODULE_INDEXES = new Set([0, 1, 2, 45, 46, 47, 48, 49, 92, 93, 94]);
-
 export const DIGITS_PER_GROUP = 6;
 export const MODULES_PER_DIGIT = 7;
 export const START_GUARD_END_MODULE = 3;
+export const CENTER_GUARD_START_MODULE = 45;
 export const CENTER_GUARD_END_MODULE = 50;
+export const END_GUARD_START_MODULE = 92;
+
+function moduleRange(start: number, end: number): number[] {
+  return Array.from({ length: end - start }, (_, offset) => start + offset);
+}
+
+// EAN-13's start (101), center (01010) and end (101) guard bar module indices.
+const GUARD_MODULE_INDEXES = new Set([
+  ...moduleRange(0, START_GUARD_END_MODULE),
+  ...moduleRange(CENTER_GUARD_START_MODULE, CENTER_GUARD_END_MODULE),
+  ...moduleRange(END_GUARD_START_MODULE, END_GUARD_START_MODULE + START_GUARD_END_MODULE),
+]);
 const HALF_GROUP_WIDTH_MODULES = (DIGITS_PER_GROUP * MODULES_PER_DIGIT) / 2;
 
 export interface BarcodeBar {
