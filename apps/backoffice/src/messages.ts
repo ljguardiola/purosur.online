@@ -839,6 +839,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowConfirmStaleTitle: "Este precio cambió recién",
       rowConfirmStaleDetail: "Volvimos a cargar la lista para mostrar el precio actual.",
+      goneTitle: "Producto dado de baja",
+      goneDetail: (params: { name: string }) => `${params.name} ya no está en el catálogo.`,
       confirmedNoticeTitle: "Precio confirmado",
       confirmedNoticeDetail: (params: { name: string; amount: string }) =>
         `${params.name} sigue a ${params.amount}.`,
@@ -875,7 +877,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         confirmFailedDetail: "Probá de nuevo.",
         staleTitle: "Este precio cambió mientras lo mirabas",
         staleDetail: "Recargá el precio actual y volvé a intentarlo.",
-        notFoundTitle: "Este producto ya no existe",
         reload: "Recargar el precio",
         reloadFailedTitle: "No se pudieron recargar los datos",
         rateLimitedTitle: "Demasiadas solicitudes",
