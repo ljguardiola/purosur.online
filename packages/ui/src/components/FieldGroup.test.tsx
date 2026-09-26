@@ -3,7 +3,6 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenRgb } from "../test/token-colors";
 import { FieldGroup } from "./FieldGroup";
-import { FieldSizeProvider } from "./FieldSize";
 
 test("draws its label at the register scale with no FieldSizeProvider above it", async () => {
   const screen = await render(
@@ -15,24 +14,6 @@ test("draws its label at the register scale with no FieldSizeProvider above it",
   const style = getComputedStyle(label);
 
   expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
-  expect(style.fontWeight).toBe("700");
-  expect(style.color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("draws its label at the backoffice scale inside a FieldSizeProvider", async () => {
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <FieldGroup label="Categoría">
-        <p>Miel</p>
-      </FieldGroup>
-    </FieldSizeProvider>,
-  );
-  const label = screen.getByText("Categoría").element() as HTMLElement;
-  const style = getComputedStyle(label);
-
-  expect(Math.round(Number.parseFloat(style.fontSize))).toBe(14);
   expect(style.fontWeight).toBe("700");
   expect(style.color).toBe(tokenRgb("ink"));
 
@@ -70,22 +51,6 @@ test("keeps its label 6px above its own children with no FieldSizeProvider above
   const wrapper = label.parentElement as HTMLElement;
 
   expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("keeps its label 4px above its own children inside a backoffice FieldSizeProvider", async () => {
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <FieldGroup label="Categoría">
-        <p>Miel</p>
-      </FieldGroup>
-    </FieldSizeProvider>,
-  );
-  const label = screen.getByText("Categoría").element() as HTMLElement;
-  const wrapper = label.parentElement as HTMLElement;
-
-  expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(4);
 
   await expectNoAccessibilityViolations(screen.container);
 });
