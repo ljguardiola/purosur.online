@@ -145,13 +145,6 @@ function validateIssueReference({ body, commitType, issue, problems }) {
   }
 }
 
-// The subset of validatePr's checks that need no network lookup: title
-// convention (only when a title is available), section presence/emptiness,
-// the Delivery impact rule, and the single-Closes-reference rule. Callers
-// without repository access (such as a local pre-command guard) use this
-// instead of validatePr, and must still tell the operator that CI performs
-// the remaining, non-local checks (issue existence, state, type match, and
-// sub-issues).
 export function validatePrBodyLocal({ title, body }) {
   const problems = [];
 

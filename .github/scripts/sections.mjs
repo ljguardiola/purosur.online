@@ -1,6 +1,4 @@
-// Parses GitHub-rendered Markdown headings ("### Label" for issue forms,
-// "## Label" for the PR template) into a Map of heading -> trimmed content.
-
+// GitHub renders an issue form's fields as "### Label" headings, and the PR template uses "## Label".
 export function parseSections(body, markerLevel) {
   const sections = new Map();
   if (!body) {

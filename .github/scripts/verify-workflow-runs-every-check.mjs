@@ -1,15 +1,3 @@
-// Proves that .github/workflows/verify.yml still runs the parts of `pnpm verify` and lets a
-// failure of any of them reach the required verify check: the static and tests jobs run under the
-// expected condition, neither they nor their verify step may continue on error or carry its own
-// if or shell, each runs its exact pnpm command, and the tests matrix is a complete shard range with no
-// include or exclude. The verify job needs both, runs under exactly `always()`, neither it nor its
-// aggregate step may continue on error, that step carries no if or shell of its own, runs exactly the
-// aggregate script and passes it every result and scope input from the job that produces it.
-// Neither the workflow nor any of those jobs sets defaults, which could replace the run shell.
-// package.json's scripts still compose tsc, the cloud's own build, biome, dependency-cruiser, the
-// automation tests and vitest without swallowing a failure. An edit that breaks any of these fails this guard instead
-// of quietly shipping a weaker merge gate.
-
 import { readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
@@ -55,8 +43,8 @@ function mapHas(doc, mapNode, key) {
 }
 
 function jobNode(doc, jobId) {
-  // doc.get proxies to the document's root node; the root is not itself a Map instance, so
-  // mapGet (which checks isMap) cannot be used for this one top-level lookup.
+  // The yaml package's Document root proxies .get() but is not itself a Map instance, so mapGet
+  // (which checks isMap) cannot be used for this one top-level lookup.
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
   return mapGet(doc, jobsNode, jobId);
 }
@@ -67,7 +55,6 @@ function steps(doc, job) {
   return stepsNode.items.map((stepItem) => resolveNode(doc, stepItem));
 }
 
-/** The first step whose `run` is exactly the given command, or undefined. */
 function stepRunningExactly(doc, job, command) {
   return steps(doc, job).find((step) => {
     const run = resolveScalar(doc, mapGet(doc, step, "run"));
@@ -75,7 +62,6 @@ function stepRunningExactly(doc, job, command) {
   });
 }
 
-/** Whether the node sets `continue-on-error` to anything other than false. */
 function mayContinueOnError(doc, node) {
   return (
     mapHas(doc, node, "continue-on-error") &&
@@ -88,21 +74,19 @@ function matrixNode(doc, job) {
   return resolveNode(doc, mapGet(doc, strategyNode, "matrix"));
 }
 
-/** The job's `strategy.matrix.shard` values, or null when that path is not a sequence. */
 function matrixShardValues(doc, job) {
   const shardNode = resolveNode(doc, mapGet(doc, matrixNode(doc, job), "shard"));
   if (!isSeq(shardNode)) return null;
   return shardNode.items.map((item) => Number(resolveScalar(doc, item)));
 }
 
-/** Whether values are exactly 1..n, each appearing exactly once, regardless of order. */
 function isContiguousShardRange(values) {
   if (values === null || values.length === 0) return false;
   const sorted = [...values].sort((a, b) => a - b);
   return sorted.every((value, index) => value === index + 1);
 }
 
-/** The job ids a job's `needs` names, whether written as one id or a list. */
+// GitHub Actions' `needs:` accepts either a single job id or a list of them.
 function neededJobs(doc, job) {
   const needsNode = resolveNode(doc, mapGet(doc, job, "needs"));
   if (isSeq(needsNode)) return needsNode.items.map((item) => resolveScalar(doc, item));
@@ -110,7 +94,6 @@ function neededJobs(doc, job) {
   return typeof single === "string" ? [single] : [];
 }
 
-/** Violations for a job that must run under the expected condition and a step running `command`. */
 function runnerJobViolations(doc, jobId, job, command) {
   const violations = [];
 
@@ -144,7 +127,6 @@ function runnerJobViolations(doc, jobId, job, command) {
   return violations;
 }
 
-/** Violations for the verify job, the one that reports the required check's result. */
 function verifyJobViolations(doc, job) {
   const violations = [];
 
@@ -196,7 +178,6 @@ function verifyJobViolations(doc, job) {
   return violations;
 }
 
-/** Whether the script is `&&`-joined plain commands that include every required one. */
 function composesEveryCommand(script, requiredCommands) {
   if (typeof script !== "string") return false;
   const commands = script.split("&&").map((command) => command.trim());
@@ -209,8 +190,6 @@ function composesEveryCommand(script, requiredCommands) {
   );
 }
 
-/** @returns {string[]} one violation per way the workflow or package.json no longer runs every
- * part of `pnpm verify`; an empty array means the composition is intact. */
 export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) {
   const doc = parseDocument(workflowSource);
   if (doc.errors.length > 0) {
@@ -283,7 +262,6 @@ export function findVerifyWorkflowViolations(workflowSource, packageJsonSource) 
   return violations;
 }
 
-/** @returns {string[]} findVerifyWorkflowViolations against the real repository files. */
 export function checkRepository({
   readFile = (path) => readFileSync(path, "utf8"),
   workflowPath = WORKFLOW_PATH,

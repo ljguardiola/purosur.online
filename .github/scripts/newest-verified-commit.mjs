@@ -1,24 +1,13 @@
-// Picks the commit a staging deploy ships: the newest commit on main's first-parent history whose
-// Verify push run passed. Deploying that instead of the triggering commit means a deploy run that
-// GitHub cancels while pending loses nothing, and staging never moves back to an older commit.
-
 import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const LOG_PREFIX = "newest-verified-commit";
 
-/**
- * @param {object} input
- * @param {string[]} input.history - main's first-parent commits, newest first.
- * @param {Set<string>} input.verifiedShas - commits whose Verify push run passed.
- * @returns {string | null}
- */
 export function newestVerifiedCommit({ history, verifiedShas }) {
   return history.find((sha) => verifiedShas.has(sha)) ?? null;
 }
 
-/** The head commits of the successful push runs in a GitHub "list workflow runs" response. */
 export function verifiedShasFromRuns(body) {
   const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
   return new Set(
@@ -28,20 +17,11 @@ export function verifiedShasFromRuns(body) {
   );
 }
 
-/**
- * @param {string} ref
- * @param {(args: string[]) => Promise<string>} runGit - runs `git` and resolves its stdout.
- * @returns {Promise<string[]>}
- */
 export async function readFirstParentHistory(ref, runGit) {
   const stdout = await runGit(["rev-list", "--first-parent", ref]);
   return stdout.split("\n").filter((line) => line !== "");
 }
 
-/**
- * @param {{ repository: string, token: string, fetchImpl?: typeof fetch }} options
- * @returns {Promise<Set<string>>}
- */
 export async function fetchVerifiedShas({ repository, token, fetchImpl = fetch }) {
   const url = new URL(
     `https://api.github.com/repos/${repository}/actions/workflows/verify.yml/runs`,
@@ -71,7 +51,6 @@ async function runGitViaChildProcess(args) {
   return stdout;
 }
 
-/** @returns {Promise<number>} the process exit code. */
 export async function runCli({
   env = process.env,
   runGit = runGitViaChildProcess,
@@ -92,9 +71,8 @@ export async function runCli({
     token: GITHUB_TOKEN,
     fetchImpl,
   });
-  // workflow_dispatch carries no triggering run, so nothing to add here; the runs listing alone
-  // decides. Otherwise, the triggering run's payload already proves this commit passed, and the
-  // runs listing may lag.
+  // workflow_dispatch has no triggering run to add here; for a push, the triggering run's payload
+  // already proves this commit passed even if the runs listing hasn't caught up yet.
   if (TRIGGERING_SHA) {
     verifiedShas.add(TRIGGERING_SHA);
   }

@@ -21,10 +21,6 @@ function persistsCredentialsFalse(doc, stepNode) {
   return value === false || value === "false";
 }
 
-/** Every `actions/checkout` step across every job in a workflow's YAML source, with its start
- * line (1-indexed) and whether it sets `persist-credentials: false` under `with:`. Resolves YAML
- * aliases wherever `jobs`, a job, `steps`, a step, `uses`, `with` or `persist-credentials` is
- * read, so an aliased checkout step is checked like any other. */
 export function findCheckoutSteps(source) {
   return checkoutStepsOf(parseWorkflow(source));
 }
@@ -59,9 +55,6 @@ function checkoutStepsOf({ doc, lineCounter }) {
   return steps;
 }
 
-/** Scans the given file paths and returns one violation per checkout step missing
- * `persist-credentials: false`. A workflow that fails to parse as YAML is reported as one
- * violation naming its first parse error, instead of being scanned (and silently passing). */
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) => {
     const workflow = parseWorkflow(readFile(path));

@@ -2,9 +2,8 @@ import { globSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 
-// Vitest browser mode intermittently does not apply a test file's `vi.mock` factories: the real
-// modules load instead, and every test in the file fails. Browser tests inject their dependencies
-// through a component's `services` prop instead of mocking modules.
+// Vitest browser mode intermittently skips a test file's vi.mock factories, loading the real
+// module instead; browser tests inject dependencies through a services prop rather than mocking.
 const MODULE_MOCK_METHODS = new Set(["mock", "doMock", "importMock"]);
 
 // The script kind follows the file extension: `.ts` sources such as `<T>(x: T) => x` do not parse as TSX.
@@ -22,7 +21,6 @@ function descendants(node) {
   return nodes;
 }
 
-/** The local names bound to Vitest's `vi` and to namespace imports of "vitest". */
 function vitestBindings(sourceFile) {
   const viNames = new Set(["vi"]);
   const namespaces = new Set();
@@ -41,7 +39,6 @@ function vitestBindings(sourceFile) {
   return { viNames, namespaces };
 }
 
-/** The member name of `object.name` or `object["name"]`. */
 function accessedName(node) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
@@ -67,7 +64,6 @@ function isModuleMockCall(node, bindings) {
   );
 }
 
-/** `vi.mock`, `vi.doMock` and `vi.importMock` calls in a module's source, at their 1-indexed start line. */
 export function findViMockCalls(source, fileName = "browser.test.tsx") {
   const sourceFile = parse(source, fileName);
   const bindings = vitestBindings(sourceFile);
@@ -81,7 +77,6 @@ export function findViMockCalls(source, fileName = "browser.test.tsx") {
     });
 }
 
-/** Scans the given file paths and returns one violation per module mock call found. */
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) =>
     findViMockCalls(readFile(path), path).map((match) => ({ path, ...match })),
@@ -137,7 +132,6 @@ function propertyNamed(objectLiteral, name) {
   )?.initializer;
 }
 
-/** The `include` globs of the project named "browser" in a Vitest config's source. */
 export function readBrowserTestGlobs(configSource) {
   const browserProject = descendants(parse(configSource, "vitest.config.ts")).find((node) => {
     if (!ts.isObjectLiteralExpression(node)) return false;

@@ -1,29 +1,17 @@
-// Decides whether a change is made only of Markdown documentation, so the verify workflow can
-// skip its slow steps for it while the required check still runs and reports on the pull
-// request in about a minute.
-
 import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const LOG_PREFIX = "change-scope";
 
-// Tailwind generates CSS from class names in any file under a source root, Markdown included:
-// under apps/ and packages/ that CSS ships and is asserted on; `.github/pull_request_template.md`
-// feeds the pull request contract. The browser tests' Tailwind also scans Markdown at the root,
-// but only a class that exists nowhere else in the code could come from there, and no component
-// renders a class the code does not name.
+// Tailwind generates CSS from class names in any file under a source root, Markdown included, so
+// a `.md` file there can still change what the app ships.
 const NON_DOCS_ROOTS = ["apps/", "packages/", ".github/"];
 
-/** @returns {boolean} whether path is a Markdown file outside every root the full verification still reads. */
 export function isDocumentationOnly(path) {
   return path.endsWith(".md") && !NON_DOCS_ROOTS.some((root) => path.startsWith(root));
 }
 
-/**
- * @param {string[] | null} changedPaths - null when git could not produce the diff.
- * @returns {{ docsOnly: boolean, reason: string }}
- */
 export function decideScope(changedPaths) {
   if (changedPaths === null) {
     return { docsOnly: false, reason: "could not determine the changed paths" };
@@ -39,10 +27,6 @@ export function decideScope(changedPaths) {
   return { docsOnly: true, reason: "every changed path is documentation-only" };
 }
 
-/**
- * @param {{ fromSha: string, toSha: string, runGit: (args: string[]) => Promise<string> }} options
- * @returns {Promise<string[] | null>} null when git could not produce the diff.
- */
 export async function diffChangedPaths({ fromSha, toSha, runGit }) {
   try {
     const stdout = await runGit(["diff", "--name-only", "--no-renames", fromSha, toSha]);
@@ -57,7 +41,6 @@ async function runGitViaChildProcess(args) {
   return stdout;
 }
 
-/** @returns {Promise<number>} the process exit code. */
 export async function runCli({
   env = process.env,
   runGit = runGitViaChildProcess,

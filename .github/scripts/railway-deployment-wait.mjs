@@ -1,4 +1,3 @@
-// Waits for the deployment `railway config apply` just triggered to reach a terminal state.
 // `railway deployment list --json` returns deployments newest first, each with `createdAt` and
 // `meta.image` (the exact image reference it applied).
 
@@ -12,14 +11,6 @@ export const CLOCK_SKEW_ALLOWANCE_MS = 30_000;
 export const DEFAULT_POLL_INTERVAL_SECONDS = 10;
 export const DEFAULT_MAX_CONSECUTIVE_CLI_FAILURES = 18;
 
-/**
- * Reads the deployment list out of a `railway deployment list --json` call. A failed call or
- * unusable output yields an empty list plus the error, so the caller can tolerate a transient
- * failure and still surface a persistent one.
- *
- * @param {{ exitOk: boolean, stdout: string, stderr?: string }} raw
- * @returns {{ deployments: Array<{ id: string, status: string, createdAt?: string, meta?: { image?: string } }>, error: string | null }}
- */
 export function parseDeploymentListOutput(raw) {
   if (!raw.exitOk) {
     return {
@@ -47,20 +38,6 @@ function createdSince(deployment, appliedAfter) {
   return Number.isFinite(createdAt) && createdAt >= appliedAfter - CLOCK_SKEW_ALLOWANCE_MS;
 }
 
-/**
- * @param {object} input
- * @param {string} input.targetImage - the exact image reference this pipeline run just deployed.
- * @param {number} input.appliedAfter - epoch ms recorded right before `railway config apply` ran.
- * @param {Array<{ id: string, status: string, createdAt?: string, meta?: { image?: string } }>} input.deployments
- * @param {number} input.elapsedMs - time spent waiting so far.
- * @param {number} input.timeoutMs - the wait budget.
- * @param {number} [input.graceMs] - how long to wait for a new deployment before falling back to
- *   the image's newest deployment, since `apply` may create none for an unchanged image.
- * @param {number} [input.consecutiveCliFailures] - failed list calls in a row, up to this poll.
- * @param {number} [input.maxConsecutiveCliFailures] - failed list calls in a row that end the wait.
- * @param {string | null} [input.lastCliError] - the most recent list call error, if any.
- * @returns {{ action: "wait" } | { action: "succeed", deploymentId: string, alreadyDeployed?: true } | { action: "fail", reason: string, deploymentId?: string }}
- */
 export function nextPollDecision({
   targetImage,
   appliedAfter,
@@ -85,6 +62,7 @@ export function nextPollDecision({
   );
   const match = imageDeployments.find((deployment) => createdSince(deployment, appliedAfter));
 
+  // `railway config apply` creates no new deployment when the image is unchanged.
   if (!match && elapsedMs >= graceMs && imageDeployments.length > 0) {
     const [previous] = imageDeployments;
     if (SUCCESS_STATUSES.has(previous.status)) {

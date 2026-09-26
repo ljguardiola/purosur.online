@@ -1,9 +1,3 @@
-// Decides whether a push to main changed anything the cloud image or the staging
-// infrastructure is built from. When it did not, the build and deploy jobs skip their work;
-// when in doubt (a re-run, a previous run that did not succeed, an unrecognized path, an
-// unreachable staging domain or GitHub API, an unusable diff), it deploys — a missed skip costs
-// one pipeline run, a wrongful skip leaves staging stale.
-
 import { execFile } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { promisify } from "node:util";
@@ -16,7 +10,6 @@ const SHA_RE = /^[0-9a-f]{40}$/i;
 // there can change the CSS the cloud image serves.
 const CLOUD_SOURCE_ROOTS = ["apps/cloud/", "apps/backoffice/", "packages/"];
 
-/** Denylist, conservative: a path this does not recognize is treated as relevant. */
 export function isIrrelevantToCloud(path) {
   if (path.startsWith("apps/pos/")) return true;
   if (path.endsWith(".md") && !CLOUD_SOURCE_ROOTS.some((root) => path.startsWith(root))) {
@@ -39,14 +32,6 @@ function latestAttemptStart(run) {
   return Date.parse(run.run_started_at ?? run.created_at);
 }
 
-/**
- * Whether the previous completed run of this workflow forces a deploy, whatever staging
- * reports: a run that failed after rolling out its image, or a pending run cancelled before it
- * applied, leaves staging's version unreliable as proof that everything since was applied.
- * Skipped runs (a failed Verify push) did nothing, so they can neither prove nor hide that.
- * @param {{ body: unknown, currentRunId: number }} input - body is a "list workflow runs" response.
- * @returns {{ deploy: boolean, reason: string }}
- */
 export function previousRunVerdict({ body, currentRunId }) {
   const runs = Array.isArray(body?.workflow_runs) ? body.workflow_runs : [];
   const previous = runs
@@ -68,10 +53,6 @@ export function previousRunVerdict({ body, currentRunId }) {
   };
 }
 
-/**
- * @param {{ repository: string, token: string, currentRunId: number, fetchImpl?: typeof fetch }} options
- * @returns {Promise<{ deploy: boolean, reason: string }>} a deploy verdict when the lookup fails.
- */
 export async function fetchPreviousRunVerdict({
   repository,
   token,
@@ -107,14 +88,6 @@ export async function fetchPreviousRunVerdict({
   }
 }
 
-/**
- * @param {object} input
- * @param {string} input.targetSha
- * @param {string | null} input.stagingVersion - what staging's /health reports, or null.
- * @param {boolean} input.stagingIsAncestor - whether stagingVersion is an ancestor of targetSha.
- * @param {string[] | null} input.changedPaths - null when git could not produce the diff.
- * @returns {{ deploy: boolean, reason: string }}
- */
 export function decideDeploy({ targetSha, stagingVersion, stagingIsAncestor, changedPaths }) {
   const stagingIsSha = typeof stagingVersion === "string" && SHA_RE.test(stagingVersion);
 
@@ -150,10 +123,6 @@ export function decideDeploy({ targetSha, stagingVersion, stagingIsAncestor, cha
   };
 }
 
-/**
- * @param {{ domain: string, fetchImpl?: typeof fetch, log?: (message: string) => void }} options
- * @returns {Promise<string | null>} the commit SHA staging reports, or null when unusable.
- */
 export async function fetchStagingVersion({ domain, fetchImpl, log }) {
   const result = await fetchHealth(buildHealthUrl(domain), {
     fetchImpl,
@@ -167,10 +136,6 @@ export async function fetchStagingVersion({ domain, fetchImpl, log }) {
   return typeof version === "string" ? version : null;
 }
 
-/**
- * @param {{ ancestorSha: string, targetSha: string, runGit: (args: string[]) => Promise<string> }} options
- * @returns {Promise<boolean>}
- */
 export async function isAncestor({ ancestorSha, targetSha, runGit }) {
   try {
     await runGit(["merge-base", "--is-ancestor", ancestorSha, targetSha]);
@@ -180,10 +145,6 @@ export async function isAncestor({ ancestorSha, targetSha, runGit }) {
   }
 }
 
-/**
- * @param {{ fromSha: string, toSha: string, runGit: (args: string[]) => Promise<string> }} options
- * @returns {Promise<string[] | null>} null when git could not produce the diff.
- */
 export async function diffChangedPaths({ fromSha, toSha, runGit }) {
   try {
     const stdout = await runGit(["diff", "--name-only", "--no-renames", fromSha, toSha]);
@@ -198,7 +159,6 @@ async function runGitViaChildProcess(args) {
   return stdout;
 }
 
-/** @returns {Promise<number>} the process exit code. */
 export async function runCli({
   env = process.env,
   runGit = runGitViaChildProcess,
@@ -236,7 +196,6 @@ export async function runCli({
     await appendOutput(GITHUB_OUTPUT, "deploy=true\n");
     return 0;
   }
-  // A re-run is how a failed deploy is retried, and staging may already report its commit.
   if (Number(RUN_ATTEMPT) > 1) {
     log(`${LOG_PREFIX}: re-run (attempt ${RUN_ATTEMPT}) deploys ${TARGET_SHA}`);
     await appendOutput(GITHUB_OUTPUT, "deploy=true\n");

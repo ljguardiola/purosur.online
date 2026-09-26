@@ -2,11 +2,6 @@ import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
-// A test whose result depends on how much real time actually passes while it runs is flaky by
-// construction: it waits a fixed real time to let something happen instead of waiting for the
-// thing itself, or it measures real elapsed time to decide pass/fail. Both are rejected in favor
-// of fake timers, an injected clock, or waiting on the condition the test actually cares about.
-
 const RELATIONAL_OPERATORS = new Set([
   ts.SyntaxKind.LessThanToken,
   ts.SyntaxKind.LessThanEqualsToken,
@@ -38,7 +33,6 @@ function descendants(node) {
   return nodes;
 }
 
-/** The member name of `object.name` or `object["name"]`. */
 function accessedName(node) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) {
@@ -47,7 +41,6 @@ function accessedName(node) {
   return undefined;
 }
 
-/** `a.b.c` as a dotted string, for an expression built only of identifiers and property access. */
 function dottedName(node) {
   if (ts.isIdentifier(node)) return node.text;
   if (ts.isPropertyAccessExpression(node)) {
@@ -57,13 +50,10 @@ function dottedName(node) {
   return undefined;
 }
 
-// --- Same-file functions -----------------------------------------------------------------------
-
 function isFunctionValue(node) {
   return !!node && (ts.isArrowFunction(node) || ts.isFunctionExpression(node));
 }
 
-/** Every function declared in the file, by the name a call reaches it through. */
 function namedFunctions(sourceFile) {
   const functions = new Map();
   const add = (name, fn) => functions.set(name, [...(functions.get(name) ?? []), fn]);
@@ -80,7 +70,6 @@ function namedFunctions(sourceFile) {
   return functions;
 }
 
-/** Nodes of `fn`'s own body, without descending into the functions nested in it. */
 function ownBodyNodes(fn) {
   const nodes = [];
   const visit = (n) => {
@@ -91,8 +80,6 @@ function ownBodyNodes(fn) {
   if (fn.body) visit(fn.body);
   return nodes;
 }
-
-// --- Rule 1: measures real elapsed time -------------------------------------------------------
 
 const DIRECT_CLOCK_READS = new Map([
   ["Date.now", "Date"],
@@ -105,7 +92,6 @@ const DIRECT_CLOCK_READS = new Map([
 // Fake timers never replace these clocks.
 const NEVER_FAKED_CLOCKS = new Set(["uptime", "realSystemTime"]);
 
-/** The clock a call reads directly (`Date`, `performance`, `hrtime`, `uptime` or `realSystemTime`), if any. */
 function directClockRead(node, viNames) {
   if (ts.isNewExpression(node)) {
     return dottedName(node.expression) === "Date" && (node.arguments?.length ?? 0) === 0
@@ -125,7 +111,6 @@ function isHrtimeWithArgument(node) {
   );
 }
 
-/** Whether identifier `node` names a property or member rather than referencing a value. */
 function isPropertyNamePosition(node) {
   const parent = node.parent;
   if (!parent) return false;
@@ -147,10 +132,6 @@ function isPropertyNamePosition(node) {
   );
 }
 
-/**
- * The clocks `node`, or anything inside it, reads: directly, through a clock-derived name, or by
- * calling a same-file function that returns a clock read.
- */
 function clockReadsIn(node, clock) {
   const clocks = new Set();
   const visit = (n) => {
@@ -169,7 +150,6 @@ function clockReadsIn(node, clock) {
   return clocks;
 }
 
-/** The expressions `fn` returns: an arrow's expression body or its own return statements. */
 function returnedExpressions(fn) {
   if (!ts.isBlock(fn.body)) return [fn.body];
   return ownBodyNodes(fn)
@@ -177,11 +157,6 @@ function returnedExpressions(fn) {
     .map((n) => n.expression);
 }
 
-/**
- * Every name assigned, anywhere in the file, from an expression that reads the clock, and every
- * same-file function whose returned expression does, each with the clocks it carries, computed
- * together to a fixpoint.
- */
 function computeClockSources(sourceFile, functions, viNames) {
   const assignments = [];
   for (const node of descendants(sourceFile)) {
@@ -225,7 +200,6 @@ function computeClockSources(sourceFile, functions, viNames) {
   return clock;
 }
 
-/** The operands of `expect(a).matcher(b)`, also through `.not` and `expect.soft(a)`. */
 function expectMatcherCallOperands(node) {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression))
     return undefined;
@@ -243,10 +217,6 @@ function expectMatcherCallOperands(node) {
   return { a: expectCall.arguments[0], b: node.arguments[0] };
 }
 
-/**
- * A difference of two clock reads is an elapsed time; a comparison with a clock read on either
- * side has a result that depends on the current real time.
- */
 function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
   const reported = [];
   const report = (node, clocks) => {
@@ -276,19 +246,16 @@ function elapsedTimeViolations(sourceFile, clock, fakeTimers) {
     const dependsOnClock = isSubtraction ? a.size > 0 && b.size > 0 : a.size > 0 || b.size > 0;
     if (dependsOnClock) report(node, new Set([...a, ...b]));
   }
-  // One violation per comparison: an elapsed difference inside a reported comparison is the same one.
-  const isInside = (node, outer) => {
+  const isDescendantOf = (node, outer) => {
     for (let current = node.parent; current; current = current.parent) {
       if (current === outer) return true;
     }
     return false;
   };
   return reported
-    .filter((node) => !reported.some((outer) => outer !== node && isInside(node, outer)))
+    .filter((node) => !reported.some((outer) => outer !== node && isDescendantOf(node, outer)))
     .map((node) => ({ node, reason: "measures real elapsed time" }));
 }
-
-// --- Rule 2: waits a fixed real time -----------------------------------------------------------
 
 function globalTimerTarget(expr) {
   let node = expr;
@@ -332,7 +299,6 @@ function isScopeNode(node) {
   );
 }
 
-/** The identifiers a binding name declares: the name itself or every name in its pattern. */
 function boundIdentifiers(name) {
   if (ts.isIdentifier(name)) return [name];
   if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
@@ -343,7 +309,6 @@ function boundIdentifiers(name) {
   return [];
 }
 
-/** The identifiers `scope` itself declares, without those of the scopes nested in it. */
 function scopeDeclarations(scope) {
   const declared = [];
   if (ts.isFunctionLike(scope)) {
@@ -367,7 +332,6 @@ function scopeDeclarations(scope) {
   return declared;
 }
 
-/** Resolves an identifier to the identifier that declares it in the nearest enclosing scope. */
 function declarationResolver() {
   const cache = new Map();
   return (identifier) => {
@@ -381,11 +345,6 @@ function declarationResolver() {
   };
 }
 
-/**
- * Declarations aliased from the global `setTimeout`/`setInterval`: assigned directly, through
- * `.bind(...)`, or destructured from the global object. Each declaring identifier maps to the
- * timer it reaches.
- */
 function globalTimerAliases(sourceFile) {
   const aliases = new Map();
   for (const node of descendants(sourceFile)) {
@@ -411,10 +370,6 @@ function globalTimerAliases(sourceFile) {
   return aliases;
 }
 
-/**
- * Local names bound to `setTimeout` and `scheduler` imported from `node:timers/promises`, and to
- * the module itself through a namespace or default import.
- */
 function timersPromisesBindings(sourceFile) {
   const setTimeoutNames = new Set();
   const schedulerNames = new Set();
@@ -441,11 +396,7 @@ function timersPromisesBindings(sourceFile) {
   return { setTimeoutNames, schedulerNames, moduleNames };
 }
 
-/**
- * Local names bound to `setTimeout`/`setInterval` imported from the callback `node:timers` module,
- * and to the module itself through a namespace or default import. Fake timers replace only the
- * global timers, never these.
- */
+// Fake timers replace only the global setTimeout/setInterval, never these imported from node:timers.
 function callbackTimersBindings(sourceFile) {
   const timerNames = new Map();
   const moduleNames = new Set();
@@ -471,21 +422,15 @@ function callbackTimersBindings(sourceFile) {
   return { timerNames, moduleNames };
 }
 
-/**
- * `{ delayIndex, timer, captured }` when `node` is a real timer call, given the file's aliases and
- * imports. `captured` marks a real timer that installing fake timers doesn't replace.
- */
 function classifyTimerCall(node, aliases, promisesBindings, callbackBindings, resolve) {
   if (!ts.isCallExpression(node)) return undefined;
   const callee = node.expression;
 
   if (ts.isIdentifier(callee)) {
-    // Checked first: `const { setTimeout } = globalThis` captures the timer under its own name.
     const alias = aliases.get(resolve(callee));
     if (alias) {
       return alias.capturesFake ? undefined : { delayIndex: 1, timer: alias.timer, captured: true };
     }
-    // Before the global name: `import { setTimeout } from "node:timers/promises"` shadows it.
     if (promisesBindings.setTimeoutNames.has(callee.text)) {
       return { delayIndex: 0, timer: "setTimeout", captured: true };
     }
@@ -532,6 +477,7 @@ function isZeroOrAbsentDelay(delayArg) {
   return ts.isNumericLiteral(delayArg) && Number(delayArg.text) === 0;
 }
 
+// A `new Promise` executor runs synchronously, not deferred.
 function isPromiseExecutor(fn) {
   const parent = fn.parent;
   return (
@@ -556,10 +502,6 @@ function isBreakableStatement(node) {
   return isLoopStatement(node) || ts.isSwitchStatement(node);
 }
 
-/**
- * Whether `loop`'s body, without descending into a nested function, can leave the loop: a return,
- * a throw, or a break that exits this loop rather than an inner loop, switch or labeled statement.
- */
 function bodyHasCheckedExit(loop) {
   let found = false;
   const visit = (n, insideInnerBreakable, innerLabels) => {
@@ -603,10 +545,6 @@ function loopCanExitOnCheckedCondition(loop) {
   );
 }
 
-/**
- * Whether `callNode` sits inside a loop that can end on a checked condition, crossing only
- * function expressions/arrows that are themselves the executor argument of `new Promise(...)`.
- */
 function isInsidePollingLoop(callNode) {
   let child = callNode;
   let node = callNode.parent;
@@ -629,7 +567,6 @@ function isInsidePollingLoop(callNode) {
 
 const ALL_FAKED = "*";
 
-/** The strings of a string-literal array, or undefined for anything else. */
 function stringLiterals(node) {
   if (!ts.isArrayLiteralExpression(node) || !node.elements.every(ts.isStringLiteralLike)) {
     return undefined;
@@ -637,17 +574,12 @@ function stringLiterals(node) {
   return node.elements.map((element) => element.text);
 }
 
-// Entries are strings so that sets of them compare by value, which the fixpoints rely on to settle.
 const ALL_EXCEPT_PREFIX = "allExcept:";
 
 function allExcept(names) {
   return `${ALL_EXCEPT_PREFIX}${[...new Set(names)].sort().join(",")}`;
 }
 
-/**
- * What a `vi.useFakeTimers(...)` call fakes, as names plus `allExcept` entries. Options it
- * cannot read, and fake timers that advance with real time, fake nothing for this guard.
- */
 function isReadableOptions(options) {
   return (
     ts.isObjectLiteralExpression(options) &&
@@ -676,7 +608,6 @@ function fakedByUseFakeTimers(call) {
 // What node:test's `mock.timers.enable()` fakes when its options list no `apis`.
 const NODE_TEST_MOCKED_APIS = ["setTimeout", "setInterval", "setImmediate", "Date"];
 
-/** What a node:test `mock.timers.enable(...)` call fakes: its `apis` list, or every API it mocks. */
 function fakedByMockTimersEnable(call) {
   const [options] = call.arguments;
   if (!options) return NODE_TEST_MOCKED_APIS;
@@ -720,7 +651,6 @@ function isFakeTimersHook(expr) {
   return name === "beforeEach" || name === "beforeAll" || name === "before";
 }
 
-/** The names Vitest's `vi` is reachable through: `vi`, a renamed import, or `ns.vi` of a namespace import. */
 function vitestViNames(sourceFile) {
   const names = new Set(["vi"]);
   for (const statement of sourceFile.statements) {
@@ -760,15 +690,10 @@ function isMockTimersCall(node, method) {
   return name === `mock.timers.${method}` || !!name?.endsWith(`.mock.timers.${method}`);
 }
 
-/**
- * How a file installs and restores fake timers: Vitest's `vi.useFakeTimers`/`vi.useRealTimers`
- * and node:test's `mock.timers.enable`/`mock.timers.reset`.
- */
 function timerControl(sourceFile) {
   const viNames = vitestViNames(sourceFile);
   return {
     viNames,
-    // What an install call fakes, or undefined when `node` is not one.
     installs(node) {
       if (isViCall(node, "useFakeTimers", viNames)) return fakedByUseFakeTimers(node);
       if (isMockTimersCall(node, "enable")) return fakedByMockTimersEnable(node);
@@ -780,7 +705,6 @@ function timerControl(sourceFile) {
   };
 }
 
-/** The nodes `scope` runs itself: its own body, without descending into the functions nested in it. */
 function ownScopeNodes(scope) {
   if (!ts.isSourceFile(scope)) return ownBodyNodes(scope);
   const nodes = [];
@@ -801,15 +725,6 @@ function callsByEnd(nodes) {
   return nodes.filter(ts.isCallExpression).sort((a, b) => a.getEnd() - b.getEnd());
 }
 
-/**
- * Which timers and clocks fake timers have replaced wherever a node runs, following the order the
- * code runs in. First what the file's top level and each enclosing `describe` body install and
- * restore before the node; then their `beforeEach`/`beforeAll` hooks, outermost first; then what
- * each enclosing function body installs and restores before the node. A call to a same-file
- * function counts as what it does: it restores when its body does, and leaves installed what its
- * body installs after its last restore. Inside the arguments of a call to a same-file function
- * that installs and then restores fake timers, what that function installs is faked too.
- */
 function fakeTimersScope(functions, control) {
   const namedFns = [...functions.values()].flat();
   const calledFunctions = (call) =>
@@ -817,7 +732,6 @@ function fakeTimersScope(functions, control) {
       ? (functions.get(call.expression.text) ?? [])
       : [];
 
-  // Same-file functions whose body restores the real timers, directly or through another one.
   const restoring = new Set();
   let changed = true;
   while (changed) {
@@ -837,8 +751,6 @@ function fakeTimersScope(functions, control) {
     control.restores(call) || calledFunctions(call).some((callee) => restoring.has(callee));
   const fnRestores = (fn) => restoring.has(fn) || ownBodyNodes(fn).some(restoresThrough);
 
-  // What `fn` leaves installed once it returns: what it installs, directly or through a same-file
-  // call, after its last restore.
   const leftBy = new Map(namedFns.map((fn) => [fn, new Set()]));
   const leaves = (fn) => {
     const faked = new Set();
@@ -866,8 +778,6 @@ function fakeTimersScope(functions, control) {
   }
   const leftInstalled = (fn) => leftBy.get(fn) ?? leaves(fn);
 
-  // What a same-file function whose own body installs fake timers and later restores the real
-  // ones fakes while it runs, and so while the callbacks passed to it run.
   const bracketedBy = new Map(
     namedFns.map((fn) => {
       const nodes = ownBodyNodes(fn);
@@ -888,8 +798,6 @@ function fakeTimersScope(functions, control) {
     }
   };
 
-  // Whether `node` runs later than `scope`'s own code reaches it: inside a function nested in
-  // `scope` other than a `new Promise` executor, which runs at once.
   const runsDeferredIn = (scope, node) => {
     for (let current = node.parent; current && current !== scope; current = current.parent) {
       if (ts.isFunctionLike(current) && !isPromiseExecutor(current)) return true;
@@ -897,8 +805,6 @@ function fakeTimersScope(functions, control) {
     return false;
   };
 
-  // What `scope`'s own code does before `node`. A callback that runs later also runs under what a
-  // same-file function called after it leaves installed.
   const applyOwnCode = (faked, scope, node) => {
     const position = node.getStart();
     const deferred = runsDeferredIn(scope, node);
@@ -940,7 +846,6 @@ function fakeTimersScope(functions, control) {
 
   return {
     fakes(node, name) {
-      // Outermost first: the source file, then each enclosing function and call.
       const chain = [];
       for (
         let child = node, current = node.parent;
@@ -973,8 +878,6 @@ function fakeTimersScope(functions, control) {
       return isFaked(faked, name);
     },
 
-    // Whether the nearest function body enclosing `node` installs fake timers faking `name` before
-    // `node` and has not restored them by then.
     installedDirectlyAt(node, name) {
       let fn = node.parent;
       while (fn && !ts.isFunctionLike(fn)) fn = fn.parent;
@@ -991,7 +894,6 @@ function fakeTimersScope(functions, control) {
 }
 
 function waitsRealTimeViolations(sourceFile, fakeTimers) {
-  // A capture written after its own function body installs fake timers takes the fake timer.
   const aliases = new Map(
     [...globalTimerAliases(sourceFile)].map(([declaration, timer]) => [
       declaration,
@@ -1024,9 +926,6 @@ function waitsRealTimeViolations(sourceFile, fakeTimers) {
   return violations;
 }
 
-// --- Public API ---------------------------------------------------------------------------------
-
-/** Violations in one source file's text, at their 1-indexed line and trimmed source text. */
 export function findRealTimeViolations(source, fileName) {
   const sourceFile = parse(source, fileName);
   const functions = namedFunctions(sourceFile);
@@ -1048,7 +947,6 @@ export function findRealTimeViolations(source, fileName) {
     .sort((a, b) => a.line - b.line);
 }
 
-/** Scans the given file paths and returns one violation per real-time dependency found. */
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
   return paths.flatMap((path) =>
     findRealTimeViolations(readFile(path), path).map((violation) => ({ path, ...violation })),
@@ -1068,7 +966,6 @@ function propertyNamed(objectLiteral, name) {
   )?.initializer;
 }
 
-/** The string literal passed to a call such as `r("./path")`, or a bare string literal element. */
 function pathStringOf(node) {
   if (ts.isStringLiteral(node)) return node.text;
   if (ts.isCallExpression(node) && ts.isStringLiteral(node.arguments[0]))
@@ -1076,7 +973,6 @@ function pathStringOf(node) {
   return undefined;
 }
 
-/** A `setupFiles`/`globalSetup` value's paths: one path or an array of them, each readable. */
 function pathArrayProperty(objectLiteral, name) {
   const property = propertyNamed(objectLiteral, name);
   if (!property) return [];
@@ -1090,7 +986,6 @@ function pathArrayProperty(objectLiteral, name) {
   });
 }
 
-/** Every Vitest project's `include` globs, `setupFiles` and `globalSetup` paths, from the config's source. */
 export function readVitestProjects(configSource) {
   const sourceFile = parse(configSource, "vitest.config.ts");
   const rootTest = descendants(sourceFile)
@@ -1133,7 +1028,6 @@ export function readVitestProjects(configSource) {
   });
 }
 
-/** The glob(s) passed to `node --test` in package.json's `verify:static` script. */
 export function readVerifyStaticTestGlobs(packageJsonSource) {
   const script = JSON.parse(packageJsonSource).scripts?.["verify:static"];
   if (!script) throw new Error("package.json has no verify:static script");
@@ -1166,7 +1060,6 @@ export function isTestOnlyHelperPath(relativePath) {
   return basename.split(/[-.]/).some((token) => token === "test");
 }
 
-// Tracked source files under an app's or package's `src` that exist only to support tests.
 export function findTestOnlyHelperFiles(cwd = process.cwd()) {
   const files = globSync(
     [
@@ -1183,7 +1076,6 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
   return files.filter(isTestOnlyHelperPath).sort();
 }
 
-/** Every test file `pnpm verify` runs, plus its test-only helpers: the guard's full scan set. */
 export function findScannedFiles(cwd = process.cwd()) {
   const projects = readVitestProjects(readFileSync(join(cwd, "vitest.config.ts"), "utf8"));
   const projectFiles = projects.flatMap((project) => [
