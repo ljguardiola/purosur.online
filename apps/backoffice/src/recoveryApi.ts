@@ -105,7 +105,7 @@ export async function fetchRegistrationOptions(
   };
 }
 
-/** Verifies the browser's registration response, burns the token and registers the new passkey. Never opens a session. */
+/** Burns the token; never opens a session. */
 export async function redeemRecovery(
   recoveryToken: string,
   passkeyRegistration: RegistrationResponseJSON,

@@ -19,8 +19,6 @@ import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
-// An explicit allowlist, not a denylist: a future outcome kind would otherwise signal by default.
-// The exhaustive switch (no default case) makes the compiler refuse a kind this doesn't decide for.
 function isDefinitiveRejection(outcome: RegisterPasskeyOutcome): boolean {
   switch (outcome.kind) {
     case "validation_failed":
@@ -98,10 +96,7 @@ type RegisterPasskeyModalProps = {
   signalUnknownCredential: typeof signalUnknownCredential;
 };
 
-/**
- * The cloud already asks for authorization on the registration options, so the creation ceremony
- * below only ever runs once the session is authorized.
- */
+/** The cloud gates the registration-options fetch behind authorization, so this ceremony only ever runs once authorized. */
 function RegisterPasskeyModal({
   isOpen,
   onClose,
@@ -294,7 +289,6 @@ type RemovePasskeyModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Confirms with the shared passkey-authorization modal only when the cloud asks for it. */
 function RemovePasskeyModal({
   target,
   isOnlyPasskey,
@@ -337,7 +331,6 @@ function RemovePasskeyModal({
       setSubmitting(false);
       return;
     }
-    // A 404 means the passkey is already gone, which is exactly what removing it asked for.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onRemoved();
       return;

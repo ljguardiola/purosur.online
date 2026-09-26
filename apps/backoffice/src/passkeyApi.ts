@@ -144,8 +144,6 @@ export async function registerPasskey(
   }
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-    // An unreadable body is ambiguous between validation_failed and already_registered, so it
-    // falls back to failed instead of guessing.
     if (!body) {
       return { kind: "failed" };
     }

@@ -1,6 +1,6 @@
 import { Button, InlineNotice, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { messages } from "./messages";
 import {
   RoleEditorModal,
@@ -10,6 +10,7 @@ import {
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -22,7 +23,6 @@ export const defaultRolesListScreenServices: RolesListScreenServices = {
 
 export type RolesListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: RolesListScreenServices;
 };
 
@@ -100,10 +100,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
-  // Ref, not a reactive dependency: the parent hands a new function on every render (each
-  // session-activity touch), which would otherwise reload the list.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const load = useCallback(async () => {
     setList({ kind: "loading" });
@@ -119,7 +116,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRoles]);
+  }, [fetchRoles, onSessionEndedRef]);
 
   useEffect(() => {
     void load();

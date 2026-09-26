@@ -140,7 +140,6 @@ function branchSettingsFieldFromWire(field: unknown): BranchSettingsField | unde
   return fields.find((candidate) => candidate === field);
 }
 
-/** Gated by `configure_branch`. */
 export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome> {
   let response: Response;
   try {

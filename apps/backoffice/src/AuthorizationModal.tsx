@@ -111,10 +111,6 @@ function AuthorizationModal({
   );
 }
 
-/**
- * Runs `attempt` once; on `authorization_required` it opens the passkey modal and, once confirmed,
- * retries `attempt` exactly once. Cancel resolves `{ kind: "cancelled" }` without retrying.
- */
 export function useAuthorization<T extends Authorizable>({
   action,
   onSessionEnded,

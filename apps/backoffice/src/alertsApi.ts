@@ -286,7 +286,6 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   return { kind: "ok", value: alertDetailFromWire(body) };
 }
 
-/** Gated server-side by `dismiss_alerts_manually`. */
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
   let response: Response;
   try {

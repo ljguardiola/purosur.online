@@ -148,7 +148,6 @@ type PriceChangeModalProps = {
   confirmPrice: typeof confirmPrice;
 };
 
-/** No passkey step-up here: setting or confirming a price is routine daily work, not a step-up-gated action. */
 function PriceChangeModal({
   target,
   previousProductNotice,
@@ -585,8 +584,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     setNotice((shown) => (shown?.tone === "error" ? null : shown));
   }
 
-  // Only the latest load may settle the list: an earlier one still in flight would otherwise
-  // overwrite it with a stale result.
   const latestLoad = useRef(0);
 
   const load = useCallback(async () => {
@@ -627,8 +624,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     void load();
   }, [load]);
 
-  // The filters stay editable while a request is in flight, so its result reloads with the filters
-  // shown when it settles, not the ones its request was sent under.
   const loadRef = useRef(load);
   loadRef.current = load;
   const reviewFilterRef = useRef(reviewFilter);
@@ -874,8 +869,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, clock()),
     },
     {
-      // A plain data column, not `kind: "actions"`: that kind's bare IconButton can't take the
-      // Tooltip the check action needs, at the cost of a visible "Acciones" header.
       key: "actions",
       title: pricesMessages.rowActionsLabel,
       align: "end" as const,

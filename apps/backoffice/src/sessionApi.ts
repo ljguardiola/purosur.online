@@ -106,7 +106,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
   };
 }
 
-/** Unlike `fetchSession`, this doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive. */
+/** Unlike `fetchSession`, doesn't touch `last_seen_at`, so a probing tab can't keep an idle session alive. */
 export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   let response: Response;
   try {
@@ -174,7 +174,6 @@ export async function authenticate(
   return { kind: "failed" };
 }
 
-/** A 401 means no session was left to end — the same outcome the caller asked for. */
 export async function signOut(): Promise<SignOutOutcome> {
   let response: Response;
   try {
@@ -194,7 +193,6 @@ export async function signOut(): Promise<SignOutOutcome> {
   return { kind: "failed" };
 }
 
-/** Scoped to the session's own account's passkeys. */
 export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthorizationOptionsOutcome> {
   let response: Response;
   try {
@@ -220,7 +218,6 @@ export async function fetchSessionAuthorizationOptions(): Promise<SessionAuthori
   return { kind: "ok", value: body.authorization_options };
 }
 
-/** Opens or refreshes the session's 5-minute passkey authorization window covering sensitive actions. */
 export async function authorizeSession(
   assertion: AuthenticationResponseJSON,
 ): Promise<AuthorizeSessionOutcome> {

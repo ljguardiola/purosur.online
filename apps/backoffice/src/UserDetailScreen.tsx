@@ -23,7 +23,7 @@ import {
   UserX,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
@@ -34,6 +34,7 @@ import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount, USERS_LIST_PATH } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -81,9 +82,7 @@ export type UserDetailScreenProps = {
   signedInUserId: string;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  /** Injected in tests so "today" in a passkey's last-use detail is deterministic. */
   now?: () => Date;
-  /** Injected in tests so this screen doesn't call the real API or WebAuthn. */
   services?: UserDetailScreenServices;
 };
 
@@ -103,8 +102,6 @@ type PasskeysState =
 const usersMessages = messages.settings.users;
 const detailMessages = usersMessages.detail;
 const modalMessages = usersMessages.editUserModal;
-// Reuses Mi cuenta's passkeys copy: its strings are grammar-neutral, so a third-person reader
-// still needs no dedicated translation.
 const passkeysMessages = messages.settings.myAccount.passkeys;
 const selfRemoveMessages = passkeysMessages.removeModal;
 const removePasskeyModalMessages = usersMessages.removePasskeyModal;
@@ -171,10 +168,7 @@ function EditUserModal({
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
-  // Ref, not a reactive dependency: the reset below must run only on open, not on every
-  // re-render with a new `user` reference.
-  const userRef = useRef(user);
-  userRef.current = user;
+  const userRef = useLatestRef(user);
 
   useEffect(() => {
     if (isOpen) {
@@ -185,7 +179,7 @@ function EditUserModal({
       setNotice(null);
       setSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, userRef]);
 
   const roleSelectOptions = roles.length > 0 ? roleOptions(roles) : undefined;
 
@@ -497,7 +491,6 @@ function RemoveUserPasskeyModal({
       setSubmitting(false);
       return;
     }
-    // A 404 means the passkey is already gone, which is what removing it asked for.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onRemoved(target.id);
       return;
@@ -649,7 +642,6 @@ function DeactivateUserModal({
       onDeactivated();
       return;
     }
-    // A 404 target is treated the same as this screen's own not-found state.
     if (outcome.kind === "not_found") {
       onVanished();
       return;
@@ -750,7 +742,6 @@ type ReactivateUserModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Unlike deactivation, this keeps the caller on the same screen: the parent refetches instead of navigating away. */
 function ReactivateUserModal({
   isOpen,
   user,
@@ -789,8 +780,6 @@ function ReactivateUserModal({
       setSubmitting(false);
       return;
     }
-    // A 404 only means the target is no longer inactive (reactivated or removed concurrently);
-    // a refetch shows the right state either way.
     if (outcome.kind === "ok" || outcome.kind === "not_found") {
       onReactivated();
       return;
@@ -906,11 +895,8 @@ export function UserDetailScreen({
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
-  // Ref, not a reactive dependency: the parent hands a new function on every render (each
-  // session-activity touch), which would otherwise reload the user and unmount an open edit modal.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const loadPasskeys = useCallback(async () => {
     setPasskeysState({ kind: "loading" });
@@ -928,7 +914,6 @@ export function UserDetailScreen({
     }
   }, [userId, endSession, fetchUserPasskeys]);
 
-  // A non-Administrator viewer never opens the edit modal, so it never needs the role catalog.
   const showsPasskeys = access.isAdministrator;
   const needsRoles = access.isAdministrator;
   const load = useCallback(async () => {

@@ -102,7 +102,6 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
 
 export type ProductsListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: ProductsListScreenServices;
 };
 
@@ -122,8 +121,6 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return productsMessages.unitOptionLabels[saleUnit];
 }
 
-// Written out rather than mapped over the contracts package's NET_CONTENT_UNITS so the tuple
-// type (at least one option) is inferred directly instead of asserted.
 const NET_CONTENT_UNIT_OPTIONS: [
   QuantityUnitFieldOption<NetContentUnit>,
   ...QuantityUnitFieldOption<NetContentUnit>[],
@@ -137,8 +134,6 @@ const NET_CONTENT_UNIT_OPTIONS: [
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
 
-/** The `netContent` to send: `null` for a blank quantity (never set, or cleared on edit) or one
- * that still fails validation (an invalid save is blocked before this runs). */
 function netContentToSend(quantity: string, unit: NetContentUnit): NetContent | null {
   const parsed = parseNetContentQuantity(quantity);
   return parsed !== undefined && isValidNetContentQuantity(parsed)
@@ -163,8 +158,7 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
   return direction === "ascending" ? sorted : sorted.reverse();
 }
 
-// Only leaf categories can hold a product; full paths disambiguate leaves that share a name
-// under different parents.
+// Full paths disambiguate leaves that share a name under different parents.
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
@@ -205,14 +199,13 @@ const barcodeActionClassName =
   "text-brand-blue-strong shadow-[inset_0_0_0_2px_var(--color-brand-blue-ui)] " +
   "outline-none transition-[background-color]";
 
-// `outline-none` also clears the outline style, so `outline-solid` is needed to show it again,
-// as packages/ui Button does.
+// `outline-none` also clears the outline style, so `outline-solid` is needed to show it again.
 const scanControlClassName =
   `${barcodeActionClassName} relative min-w-0 cursor-text hover:bg-surface-bone ` +
   "focus-within:outline-[3px] focus-within:outline-solid focus-within:outline-offset-3 " +
   "focus-within:outline-brand-blue-strong";
 
-// `enabled:` keeps the hover fill off a disabled button, as packages/ui Button does.
+// `enabled:` keeps the hover fill off a disabled button.
 const generateButtonClassName =
   `${barcodeActionClassName} enabled:hover:bg-surface-bone ` +
   "focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-3 " +
@@ -276,10 +269,6 @@ function BarcodeChips({
         </div>
       )}
       <div className="flex gap-3">
-        {/* The input fills the whole control for clicks and typing, with its text centered; while
-            it is empty, the icon and the placeholder text sit under it as one centered group, which
-            a native placeholder can't do without the input sizing itself to its content. Focus
-            hides the group too, leaving just the centered caret. */}
         <label className={scanControlClassName}>
           {!scanInput && !scanFocused && (
             <span
@@ -438,14 +427,11 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     setScanError(undefined);
   }, []);
 
-  // A scan error is stale once either the input or the list it was checked against changes.
   function changeScanInput(value: string) {
     setScanInput(value);
     setScanError(undefined);
   }
 
-  // Removing a chip can lift the limit or unlist a duplicate, but a code with spaces or too
-  // long is still wrong, so the shown error is re-checked, not just cleared.
   function remove(code: string) {
     const next = barcodes.filter((existing) => existing !== code);
     setBarcodes(next);
@@ -454,8 +440,6 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     );
   }
 
-  // Adds the code still sitting in the scan input, if any, and returns the list as it stands
-  // once added, since the state update isn't readable until the next render.
   function commitPending(): PendingCodeResult {
     const trimmed = scanInput.trim();
     if (!trimmed) {
@@ -484,7 +468,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     }
   }
 
-  // Shows the shared 20-code cap before a code is allocated, so a full list never burns one.
+  // Checked before allocating a code from the cloud, so a full list never wastes one.
   function refuseWhenFull(): boolean {
     if (barcodes.length < PRODUCT_BARCODES_MAX_COUNT) {
       return false;
@@ -518,7 +502,6 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   };
 }
 
-/** Drives "Generar código interno", shared by the create and edit modals: allocates a code and adds it like a scanned one. */
 function useGenerateInternalBarcode(
   chips: Pick<ReturnType<typeof useBarcodeChips>, "barcodes" | "refuseWhenFull" | "addGenerated">,
   generateInternalBarcodeService: typeof generateInternalBarcode,
@@ -588,7 +571,6 @@ type NewProductModalProps = {
   categories: CategorySummary[];
 };
 
-/** Creates a catalog product with its barcodes; no passkey step-up. */
 function NewProductModal({
   isOpen,
   onClose,
@@ -599,8 +581,6 @@ function NewProductModal({
   categories,
 }: NewProductModalProps) {
   const modalMessages = productsMessages.newProductModal;
-  // Neither category nor unit starts pre-chosen: defaulting either would let a save go through
-  // with a value nobody picked, silently miscategorizing or mis-pricing the product.
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
@@ -621,7 +601,6 @@ function NewProductModal({
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
-    // Clears only a rate-limited notice generate itself raised; one from saving or reloading holds.
     () =>
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
@@ -918,7 +897,6 @@ type EditNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
-/** Edits a catalog product; no passkey step-up. */
 function EditProductModal({
   target,
   onClose,
@@ -937,8 +915,6 @@ function EditProductModal({
   const [netContentQuantity, setNetContentQuantity] = useState("");
   const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
   const [version, setVersion] = useState(1);
-  // Held in state (not read from `target`) so the title stays non-nullable — same pattern as
-  // CategoriesListScreen's EditCategoryModal.
   const [title, setTitle] = useState("");
   const chips = useBarcodeChips([], modalMessages);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
@@ -953,7 +929,6 @@ function EditProductModal({
     () => setErrors((current) => withFieldError(current, "barcodes", undefined)),
     (retryAfterSeconds) =>
       setNotice({ kind: "rateLimited", retryAfterSeconds, raisedByGenerate: true }),
-    // Same "only the generate-raised notice" guard as NewProductModal.
     () =>
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
@@ -991,8 +966,6 @@ function EditProductModal({
     const barcodesError =
       pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
     const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
-    // Unlike NewProductModal, category and unit are already the product's own values, so `unit`
-    // is never invalid here.
     setErrors(
       productFieldErrors(nameError, categoryError, undefined, barcodesError, netContentError),
     );
@@ -1342,7 +1315,6 @@ type DeactivateNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "alreadyInactive" };
 
-/** Confirms deactivating a product; unlike deactivating a user, this needs no passkey step-up. */
 function DeactivateProductModal({
   target,
   onClose,
@@ -1353,8 +1325,6 @@ function DeactivateProductModal({
 }: DeactivateProductModalProps) {
   const modalMessages = productsMessages.deactivateModal;
   const isOpen = target !== null;
-  // Same non-nullable-title pattern as EditProductModal: kept across the closing animation
-  // instead of blanking once target is nulled.
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1492,8 +1462,6 @@ function DeactivateProductModal({
 
 type LabelableProduct = { product: ProductSummary; code: string };
 
-// Only a product's first internal barcode counts, even if it's been re-generated more than
-// once; sorted like the main table's default order.
 function labelableProducts(products: ProductSummary[]): LabelableProduct[] {
   return products
     .flatMap((product) => {
@@ -1511,8 +1479,6 @@ function groupedEan13Digits(code: string): string {
   return `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7, 13)}`;
 }
 
-// Merges adjacent "1" modules into a single wider bar, each keyed by its own start position
-// rather than a raw loop index.
 function barRuns(modules: string): { start: number; width: number }[] {
   const runs: { start: number; width: number }[] = [];
   let position = 0;
@@ -1530,8 +1496,6 @@ function barRuns(modules: string): { start: number; width: number }[] {
   return runs;
 }
 
-// A decorative preview of the printed label's bars: the digits beside it are the code's own
-// accessible text, so the bars carry aria-hidden instead of repeating it.
 function LabelPreviewBars({ code }: { code: string }) {
   const modules = ean13Modules(code);
   return (
@@ -1575,10 +1539,6 @@ type PrintLabelsModalProps = {
   printLabels: typeof printLabels;
 };
 
-/**
- * Downloads a printable A4 sheet of labels; no passkey step-up. Uses the screen's already-loaded
- * products (no separate fetch), so changes elsewhere only show after a reload.
- */
 function PrintLabelsModal({
   isOpen,
   onClose,
@@ -1648,8 +1608,6 @@ function PrintLabelsModal({
       // Revoking right after click() can cancel the download in Firefox and Safari, which read
       // the blob asynchronously.
       setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_LIFETIME_MS);
-      // Closes instead of staying open: the printed snapshot can now be stale, and reopening
-      // re-syncs with the screen's current list instead of carrying it (and the counts) forward.
       setPrinting(false);
       onClose();
       return;
@@ -1858,7 +1816,6 @@ function PrintLabelsModal({
   );
 }
 
-/** Gated by `manage_products_and_categories`. */
 export function ProductsListScreen({ onSessionEnded, services }: ProductsListScreenProps) {
   const {
     fetchProducts: fetchProductsService,
@@ -1890,8 +1847,6 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const latestLoad = useRef(0);
 
-  // Categories load in full (not derived from products), so a brand-new, empty one can be
-  // picked immediately. statusFilter goes to the server; other filters stay client-side.
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
@@ -1931,7 +1886,6 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
 
   const categoryLabels = useMemo(() => categoryPathLabels(categories), [categories]);
 
-  // Only leaf categories can hold a product; other filter options would always match nothing.
   const categoryFilterOptions = useMemo(() => {
     const leafIds = new Set(leafCategories(categories).map((category) => category.id));
     const leaves = categoriesInTreeOrder(categories, "ascending").filter((category) =>

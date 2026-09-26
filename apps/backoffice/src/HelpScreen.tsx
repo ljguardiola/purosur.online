@@ -41,7 +41,6 @@ function EmptyState({ title, body }: { title?: string; body: string }) {
 
 type ArticleEntry = [string, HelpArticle<string, string>];
 
-// React keys must be unique; number repeated content so identical items stay distinct.
 function keyed<Item>(items: readonly Item[], keyOf: (item: Item) => string): Array<[string, Item]> {
   const occurrences = new Map<string, number>();
   return items.map((item) => {

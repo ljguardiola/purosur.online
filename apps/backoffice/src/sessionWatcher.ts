@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { SessionStatusOutcome } from "./sessionApi";
+import { useLatestRef } from "./useLatestRef";
 
 /** How often the watcher re-checks regardless of any known deadline: revocation and deactivation carry no deadline of their own. */
 const DEFAULT_INTERVAL_MS = 60_000;
@@ -28,14 +29,9 @@ export function useSessionWatcher({
   deadlineMarginMs = DEFAULT_DEADLINE_MARGIN_MS,
   now = () => new Date(),
 }: SessionWatcherOptions): void {
-  // Refs, not effect dependencies: a re-render from an unrelated route change must not tear down
-  // and restart the running timers.
-  const checkStatusRef = useRef(checkStatus);
-  checkStatusRef.current = checkStatus;
-  const onEndedRef = useRef(onEnded);
-  onEndedRef.current = onEnded;
-  const nowRef = useRef(now);
-  nowRef.current = now;
+  const checkStatusRef = useLatestRef(checkStatus);
+  const onEndedRef = useLatestRef(onEnded);
+  const nowRef = useLatestRef(now);
 
   // Lets an activity touch move the deadline out by calling into the running effect's own
   // scheduling function, instead of tearing down and recreating the interval timer on every touch.
@@ -49,8 +45,7 @@ export function useSessionWatcher({
     let cancelled = false;
     let checking = false;
 
-    // Explicitly `number`, not `ReturnType<typeof window.setTimeout>`: with @types/node's globals
-    // in scope, that type resolves to Node's `Timeout`, not the plain number `window.setTimeout` returns.
+    // `number`, not `ReturnType<typeof window.setTimeout>`: @types/node's globals make that resolve to Node's `Timeout`.
     let deadlineTimeoutId: number | undefined;
 
     function scheduleDeadline(expiresAt: string) {
@@ -115,10 +110,8 @@ export function useSessionWatcher({
       }
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [active, intervalMs, deadlineMarginMs]);
+  }, [active, intervalMs, deadlineMarginMs, checkStatusRef, onEndedRef, nowRef]);
 
-  // Separate from the interval-owning effect above, so a later `initialExpiresAt` reschedules the
-  // deadline without tearing down and restarting the interval and its listeners.
   useEffect(() => {
     if (active && initialExpiresAt !== undefined) {
       scheduleDeadlineRef.current?.(initialExpiresAt);

@@ -7,7 +7,6 @@ export type ScreenLayoutProps = {
   footer?: ReactNode;
 };
 
-/** Shell's `<main>` itself never scrolls, so only this body region can. */
 export function ScreenLayout({ topBar, bodyClassName, children, footer }: ScreenLayoutProps) {
   return (
     <>

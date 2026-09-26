@@ -11,7 +11,6 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
   );
 }
 
-/** Mirrors the deactivation rule the cloud's own route enforces. */
 export function canDeactivateUser(
   access: BackofficeAccess,
   target: { isAdministrator: boolean },
@@ -30,7 +29,6 @@ export function canReactivateUser(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("reactivate_users");
 }
 
-/** Role management can never be granted through a permission — Administrator only. */
 export function canSeeRolesArea(access: BackofficeAccess): boolean {
   return access.isAdministrator;
 }
@@ -39,10 +37,7 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("configure_branch");
 }
 
-/**
- * `manage_prices_and_review` alone unlocks the Catálogo area too (see `canSeeCatalogArea`)
- * without unlocking this section.
- */
+/** `manage_prices_and_review` alone also unlocks the Catálogo area, without unlocking this section. */
 export function canManageProductsAndCategories(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("manage_products_and_categories");
 }
@@ -55,12 +50,10 @@ export function canSeeCatalogArea(access: BackofficeAccess): boolean {
   return canManageProductsAndCategories(access) || canSeePricesArea(access);
 }
 
-/** The same permission gates the cloud's own read and edit routes for this area. */
 export function canSeeCashArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("change_fiscal_configuration");
 }
 
-/** Mirrors the coarse gate the cloud's alert routes enforce before filtering by audience. */
 export function canSeeAlertsArea(access: BackofficeAccess): boolean {
   return (
     access.isAdministrator ||
@@ -69,12 +62,10 @@ export function canSeeAlertsArea(access: BackofficeAccess): boolean {
   );
 }
 
-/** Same permission the cloud's manual-close route gates on. */
 export function canCloseAlertsManually(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("dismiss_alerts_manually");
 }
 
-/** Same permission that gates the cloud's own register routes. */
 export function canSeeRegistersArea(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("enroll_register_devices");
 }

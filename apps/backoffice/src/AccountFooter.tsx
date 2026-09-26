@@ -15,7 +15,6 @@ export const defaultAccountFooterServices: AccountFooterServices = { signOut };
 export type AccountFooterProps = {
   displayName: string;
   onSignedOut: () => void;
-  /** Injected in tests so signing out doesn't call the real session API. */
   services?: AccountFooterServices;
 };
 

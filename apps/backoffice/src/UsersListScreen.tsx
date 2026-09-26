@@ -21,7 +21,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
@@ -32,6 +32,7 @@ import { navigate } from "./router";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount, userDetailPath } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 import {
   type BranchUser,
   type BranchUserRole,
@@ -62,7 +63,6 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 export type UsersListScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  /** Injected in tests so user management doesn't call the real API or WebAuthn. */
   services?: UsersListScreenServices;
 };
 
@@ -135,18 +135,13 @@ function NewUserModal({
   startAuthentication,
 }: NewUserModalProps) {
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
-  // Ref, not a reactive dependency: the reset below must run only on open, not every time the
-  // parent recomputes `roles` into a new array while the person is still filling the form.
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const optionsRef = useLatestRef(options);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState(options?.[0].value ?? "");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // Cleared as soon as the email is edited again, so a changed address isn't still blocked by a
-  // conflict that no longer applies to it.
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
     id: string;
     name: string;
@@ -167,7 +162,7 @@ function NewUserModal({
       setSubmitting(false);
       setDeactivatedConflict(null);
     }
-  }, [isOpen]);
+  }, [isOpen, optionsRef]);
 
   async function handleSubmit() {
     const nameError = validateName(firstName);
@@ -387,12 +382,8 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  // Ref, not a reactive dependency: the parent hands a new function on every render (each
-  // session-activity touch), which would otherwise reload the list under an open create modal.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
-  // Only the Administrator can create a user, so only that viewer needs the role catalog.
   const needsRoles = access.isAdministrator;
   const load = useCallback(async () => {
     setList({ kind: "loading" });
@@ -419,7 +410,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles, needsRoles]);
+  }, [fetchUsers, fetchRoles, needsRoles, onSessionEndedRef]);
 
   useEffect(() => {
     void load();
@@ -445,8 +436,8 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     );
   }, [users, showsState, stateFilter]);
 
-  // Separate `as const` groups, not a conditionally spread array: a plain spread would widen the
-  // result to a bare array, which Table's tuple-typed `columns` prop refuses.
+  // A conditional spread here would widen the result to a plain array; the columns prop needs a
+  // fixed tuple, so these use separate `as const` groups instead.
   const baseColumns = [
     {
       key: "user",

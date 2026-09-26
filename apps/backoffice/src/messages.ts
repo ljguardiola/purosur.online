@@ -47,8 +47,6 @@ const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_
 const CATEGORY_PARENT_LABEL = "Categoría superior";
 const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
 const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
-// Defensive only: the backoffice never deletes a category today, so this is unreachable through
-// normal use.
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
 const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
@@ -481,15 +479,12 @@ export const messages = defineMessages("es-AR", (f) => ({
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el rol ${params.name}`,
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
-      // A save that's rate limited reuses the Roles area's own rateLimitedTitle/rateLimitedDetail
-      // above; this group has no key of its own for it.
       roleEditor: {
         eyebrow: "Configuración · Roles",
         closeLabel: CLOSE_LABEL,
         newTitle: "Nuevo rol",
         editTitle: "Editar rol",
         duplicateTitle: "Duplicar rol",
-        // New and Duplicate both save by creating a role; only Edit saves by updating one.
         createSave: "Guardar el rol",
         editSave: "Guardar los cambios",
         cancel: CANCEL_LABEL,

@@ -16,7 +16,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import {
   fetchIssuerIdentification,
@@ -29,6 +29,7 @@ import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type FiscalConfigurationScreenServices = {
   fetchIssuerIdentification: typeof fetchIssuerIdentification;
@@ -136,7 +137,6 @@ type ModalValidation =
   | { kind: "valid"; values: CompleteModalValues }
   | { kind: "invalid"; errors: FieldErrors };
 
-/** Mirrors the server's own validation: all three are required, and the activity start date can never be in the future. */
 function validateModal(values: ModalValues, today: CalendarDate): ModalValidation {
   const errors: FieldErrors = {};
   const legalName = values.legalName.trim();
@@ -462,9 +462,8 @@ export function FiscalConfigurationScreen({
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });

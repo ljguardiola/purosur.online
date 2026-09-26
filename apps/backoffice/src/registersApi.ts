@@ -96,7 +96,6 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-/** Gated server-side by `enroll_register_devices`; scoped to the session's own branch. */
 export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   let response: Response;
   try {
@@ -125,7 +124,6 @@ export async function fetchRegisters(): Promise<FetchRegistersOutcome> {
   return { kind: "ok", value: body.map(registerFromWire) };
 }
 
-/** Gated server-side by `enroll_register_devices` and the shared passkey-authorization window. */
 export async function createRegister(input: CreateRegisterInput): Promise<CreateRegisterOutcome> {
   let response: Response;
   try {
@@ -155,7 +153,6 @@ export async function createRegister(input: CreateRegisterInput): Promise<Create
   return gatedActionErrorOutcome(response);
 }
 
-/** Gated server-side by `enroll_register_devices` and the shared passkey-authorization window. */
 export async function emitEnrollmentCode(id: string): Promise<EmitEnrollmentCodeOutcome> {
   let response: Response;
   try {

@@ -4,7 +4,6 @@ export type ProductSaleUnit = "UNIT" | "KG";
 
 export type NetContent = { quantity: number; unit: NetContentUnit };
 
-/** The `status` query param `GET /products` accepts, mirroring the cloud's own filter. */
 export type ProductStatusFilter = "active" | "inactive" | "all";
 
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
@@ -118,7 +117,6 @@ async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
     : [];
 }
 
-/** Gated by `manage_products_and_categories`; defaults to active, the cloud's own default. */
 export async function fetchProducts(
   status: ProductStatusFilter = "active",
 ): Promise<FetchProductsOutcome> {
@@ -147,7 +145,6 @@ export async function fetchProducts(
   return { kind: "ok", value: body };
 }
 
-/** Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function createProduct(input: CreateProductInput): Promise<CreateProductOutcome> {
   let response: Response;
   try {
@@ -194,7 +191,6 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
   return { kind: "failed" };
 }
 
-/** Allocates an internal EAN-13 barcode for a product with no manufacturer code. Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function generateInternalBarcode(): Promise<GenerateInternalBarcodeOutcome> {
   let response: Response;
   try {
@@ -232,7 +228,6 @@ export type PrintLabelsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/** Downloads a printable A4 sheet of internal-barcode labels. Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
   let response: Response;
   try {
@@ -269,7 +264,6 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
   return { kind: "failed" };
 }
 
-/** Edits a product and replaces its barcodes. Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function editProduct(
   id: string,
   input: EditProductInput,
@@ -337,10 +331,7 @@ export type DeactivateProductOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-/**
- * Gated by `manage_products_and_categories`; no passkey step-up. The cloud answers the same
- * `not_found` for a malformed, missing, or already-inactive target.
- */
+/** The cloud answers the same `not_found` for a malformed, missing, or already-inactive target. */
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {

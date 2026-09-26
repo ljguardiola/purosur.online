@@ -65,7 +65,6 @@ function categoryFieldFromWire(field: unknown): "name" | "parentId" | "version" 
   return field === "name" || field === "parentId" || field === "version" ? field : undefined;
 }
 
-/** Gated by `manage_products_and_categories`. */
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   let response: Response;
   try {
@@ -92,7 +91,6 @@ export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   return { kind: "ok", value: body };
 }
 
-/** Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function createCategory(input: CreateCategoryInput): Promise<CreateCategoryOutcome> {
   let response: Response;
   try {
@@ -137,7 +135,6 @@ export async function createCategory(input: CreateCategoryInput): Promise<Create
   return { kind: "failed" };
 }
 
-/** Gated by `manage_products_and_categories`; no passkey step-up. */
 export async function editCategory(
   id: string,
   input: EditCategoryInput,

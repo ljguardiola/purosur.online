@@ -16,6 +16,7 @@ import {
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type RegistersListScreenServices = {
   fetchRegisters: typeof fetchRegisters;
@@ -37,9 +38,7 @@ export const defaultRegistersListScreenServices: RegistersListScreenServices = {
 
 export type RegistersListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so a pending code's elapsed/remaining time is deterministic. */
   now?: () => Date;
-  /** Injected in tests so the screen doesn't call the real API or WebAuthn. */
   services?: RegistersListScreenServices;
 };
 
@@ -52,7 +51,6 @@ type ListState =
 
 const registersMessages = messages.settings.registers;
 
-/** How often the list re-reads the clock, so a pending code's minutes, and its expiry, stay current. */
 const PENDING_CODE_REFRESH_MS = 30_000;
 
 function minutesElapsed(issuedAt: string, now: Date): number {
@@ -63,7 +61,6 @@ function minutesRemaining(expiresAt: string, now: Date): number {
   return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now.getTime()) / 60_000));
 }
 
-/** "P4NX7KWE2QRT8MZD" -> "P4NX 7KWE 2QRT 8MZD": groups of four. */
 function groupedCode(code: string): string {
   return (code.match(/.{1,4}/g) ?? [code]).join(" ");
 }
@@ -93,7 +90,6 @@ type NewRegisterModalProps = {
   startAuthentication: typeof startAuthentication;
 };
 
-/** Creates a register, confirming with the shared passkey-authorization modal only when the cloud asks for it. */
 function NewRegisterModal({
   isOpen,
   onClose,
@@ -360,7 +356,6 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
   );
 }
 
-/** Gated by `enroll_register_devices`. */
 export function RegistersListScreen({ onSessionEnded, now, services }: RegistersListScreenProps) {
   const {
     fetchRegisters,
@@ -380,10 +375,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  // Ref, not a dependency: the parent recreates this callback every render, which would
-  // otherwise reload the list mid-modal.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const latestLoad = useRef(0);
   const latestEmission = useRef(0);
@@ -391,8 +383,6 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    // Keeps existing rows visible while reloading; only an empty list falls back to the initial
-    // "loading" skeleton, matching how Table only shows its empty state when not loading.
     setList((current) =>
       (current.kind === "loaded" || current.kind === "refreshing") && current.registers.length > 0
         ? { kind: "refreshing", registers: current.registers }
@@ -413,7 +403,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRegisters]);
+  }, [fetchRegisters, onSessionEndedRef]);
 
   useEffect(() => {
     void load();
@@ -428,8 +418,8 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Started by the click, never an effect, so it never re-fires on its own. Also guards a second
-  // Enter/Space activation before the first request settles (the modal backdrop blocks other rows).
+  // Guards a second Enter/Space activation before the first request settles (the modal backdrop
+  // blocks other rows).
   async function handleEmitClick(register: RegisterSummary) {
     if (emission.kind === "issuing") {
       return;

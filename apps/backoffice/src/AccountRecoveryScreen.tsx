@@ -18,7 +18,6 @@ export const defaultAccountRecoveryScreenServices: AccountRecoveryScreenServices
 };
 
 export type AccountRecoveryScreenProps = {
-  /** Injected in tests so submitting the form doesn't call the real recovery API. */
   services?: AccountRecoveryScreenServices;
 };
 

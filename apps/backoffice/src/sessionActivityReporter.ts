@@ -1,29 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { onNavigate } from "./router";
 import type { SessionOutcome } from "./sessionApi";
+import { useLatestRef } from "./useLatestRef";
 
-// Measured from the last touch, not from idle time.
 const DEFAULT_THROTTLE_MS = 60_000;
 
-/** Deliberately excludes pointer/mouse move: a cursor merely resting over the page is not use. */
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "scroll", "touchstart"] as const;
 
 export type SessionActivityReporterOptions = {
   active: boolean;
   touchSession: () => Promise<SessionOutcome>;
-  /** Carries the current Administrator flag and permissions so the tab follows a role change made while it stays open. */
   onTouched: (session: Extract<SessionOutcome, { kind: "ok" }>) => void;
   onEnded: () => void;
   throttleMs?: number;
-  /** Injected clock so the throttle window is deterministic in tests. */
   now?: () => Date;
 };
 
-/**
- * The throttle window starts at mount, not at the first activity, since the page load that got
- * the tab this far already touched the session. Network trouble or a rate limit is silently
- * ignored; the next activity after the window retries.
- */
+/** The throttle window starts at mount since the page load already touched the session; a failed
+ * touch is silently ignored and the next activity retries. */
 export function useSessionActivityReporter({
   active,
   touchSession,
@@ -32,14 +26,10 @@ export function useSessionActivityReporter({
   throttleMs = DEFAULT_THROTTLE_MS,
   now = () => new Date(),
 }: SessionActivityReporterOptions): void {
-  const touchSessionRef = useRef(touchSession);
-  touchSessionRef.current = touchSession;
-  const onTouchedRef = useRef(onTouched);
-  onTouchedRef.current = onTouched;
-  const onEndedRef = useRef(onEnded);
-  onEndedRef.current = onEnded;
-  const nowRef = useRef(now);
-  nowRef.current = now;
+  const touchSessionRef = useLatestRef(touchSession);
+  const onTouchedRef = useLatestRef(onTouched);
+  const onEndedRef = useLatestRef(onEnded);
+  const nowRef = useLatestRef(now);
 
   useEffect(() => {
     if (!active) {
@@ -92,5 +82,5 @@ export function useSessionActivityReporter({
       }
       stopWatchingNavigation();
     };
-  }, [active, throttleMs]);
+  }, [active, throttleMs, touchSessionRef, onTouchedRef, onEndedRef, nowRef]);
 }

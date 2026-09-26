@@ -68,7 +68,6 @@ function issuerIdentificationFieldFromWire(field: unknown): IssuerIdentification
   return fields.find((candidate) => candidate === field);
 }
 
-/** Gated server-side by `change_fiscal_configuration`. */
 export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentificationOutcome> {
   let response: Response;
   try {
@@ -94,8 +93,8 @@ export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentifica
   return { kind: "ok", value: issuerIdentificationFromWire(body) };
 }
 
-// Gated by the shared passkey-authorization window. The authorized CUIT and tax status are never
-// sent: they are deployment configuration and a fixed value, never client input.
+// The authorized CUIT and tax status are never sent: they are deployment configuration and a
+// fixed value, never client input.
 export async function saveIssuerIdentification(
   input: SaveIssuerIdentificationInput,
 ): Promise<SaveIssuerIdentificationOutcome> {

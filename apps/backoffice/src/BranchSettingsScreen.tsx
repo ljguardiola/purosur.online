@@ -25,6 +25,7 @@ import {
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type BranchSettingsScreenServices = {
   fetchBranchSettings: typeof fetchBranchSettings;
@@ -38,7 +39,6 @@ export const defaultBranchSettingsScreenServices: BranchSettingsScreenServices =
 
 export type BranchSettingsScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: BranchSettingsScreenServices;
 };
 
@@ -55,8 +55,6 @@ type DaysFieldName =
 
 type TextFieldName = "address" | "whatsappNumber" | "instagramHandle";
 
-// Gives each range a stable React key across adds/removes, instead of the array index
-// `noArrayIndexKey` warns against, which would shift onto the wrong row once one is removed.
 type RangeValues = { id: number; opensAt: string; closesAt: string };
 
 let nextRangeId = 0;
@@ -131,8 +129,6 @@ function parseDays(value: string): number | undefined {
   return /^\d+$/.test(trimmed) ? Number(trimmed) : undefined;
 }
 
-/** Accepts "9:00" or "09:00" (a single- or zero-padded hour, always two-digit minutes) and answers
- * the zero-padded "HH:MM" the server expects, or `undefined` for anything else. */
 function normalizedTime(value: string): string | undefined {
   const match = /^([0-9]{1,2}):([0-5][0-9])$/.exec(value.trim());
   if (!match) {
@@ -145,8 +141,6 @@ function normalizedTime(value: string): string | undefined {
   return `${String(hour).padStart(2, "0")}:${match[2]}`;
 }
 
-/** Mirrors the server's day-count validation (0..`BRANCH_SETTINGS_DAYS_MAX`), keyed by our own
- * field names to match each TextField's error props. */
 function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, string>> {
   const errors: Partial<Record<DaysFieldName, string>> = {};
   const daysFields: readonly DaysFieldName[] = [
@@ -165,8 +159,6 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
   return errors;
 }
 
-/** Every one of a day's ranges, normalized to zero-padded HH:MM, or `undefined` once any of them
- * isn't a valid time. */
 function normalizedDayRanges(ranges: RangeValues[]): BranchHoursRange[] | undefined {
   const normalized: BranchHoursRange[] = [];
   for (const range of ranges) {
@@ -180,7 +172,6 @@ function normalizedDayRanges(ranges: RangeValues[]): BranchHoursRange[] | undefi
   return normalized;
 }
 
-/** True once two ranges share a moment in time; ranges that only touch don't overlap. */
 function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   for (let i = 0; i < ranges.length; i++) {
     for (let j = i + 1; j < ranges.length; j++) {
@@ -194,7 +185,6 @@ function rangesOverlap(ranges: BranchHoursRange[]): boolean {
   return false;
 }
 
-/** Validates each open day's ranges: format, then order, then overlap — one message per day. */
 function validateHoursFields(values: FormValues): Partial<Record<BranchDay, string>> {
   const errors: Partial<Record<BranchDay, string>> = {};
   for (const day of BRANCH_DAYS) {
@@ -280,7 +270,6 @@ const EMPTY_VALUES: FormValues = {
   goodConditionReturnDays: "",
 };
 
-/** Gated by `configure_branch`. Saving carries no passkey step-up. */
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
   const { fetchBranchSettings, saveBranchSettings } =
     services ?? defaultBranchSettingsScreenServices;
@@ -292,10 +281,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const [submitting, setSubmitting] = useState(false);
   const hoursErrorIdPrefix = useId();
 
-  // Ref, not a dependency: the parent recreates this callback every render, which would
-  // otherwise reload and discard unsaved edits.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -313,7 +299,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     } else {
       setState({ kind: "loadError" });
     }
-  }, [fetchBranchSettings]);
+  }, [fetchBranchSettings, onSessionEndedRef]);
 
   useEffect(() => {
     void load();

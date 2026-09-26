@@ -15,8 +15,6 @@ function blockText(block: HelpBlock<string>): readonly string[] {
       return [block.text];
     case "steps":
       return block.items;
-    // Carries no text of its own to search: it only points at another article, whose own title
-    // and body are searched on their own entry.
     case "articleLink":
       return [];
   }

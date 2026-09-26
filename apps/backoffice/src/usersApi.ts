@@ -223,7 +223,6 @@ async function gatedActionErrorOutcome(response: Response): Promise<GatedActionE
   return { kind: "failed" };
 }
 
-/** Scoped to the session's own branch server-side; no branch id is sent. */
 export async function createUser(input: CreateUserInput): Promise<CreateUserOutcome> {
   let response: Response;
   try {

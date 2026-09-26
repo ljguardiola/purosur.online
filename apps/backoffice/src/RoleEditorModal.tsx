@@ -30,6 +30,7 @@ import {
 } from "./rolesApi";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 const rolesMessages = messages.settings.roles;
 const editorMessages = rolesMessages.roleEditor;
@@ -184,12 +185,10 @@ export function RoleEditorModal({
   const [submitting, setSubmitting] = useState(false);
   const [confirmingSave, setConfirmingSave] = useState(false);
 
-  // Bumped on every request change, so a late response from a superseded request is ignored.
   const sessionRef = useRef(0);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
-  const endSession = useCallback(() => onSessionEndedRef.current(), []);
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const { run, modal: authorizationModal } = useAuthorization<CreateRoleOutcome | EditRoleOutcome>({
     action: "roleSave",

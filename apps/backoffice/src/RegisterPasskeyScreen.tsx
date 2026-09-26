@@ -11,8 +11,6 @@ import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
-// An explicit allowlist, not a denylist: a future outcome kind would otherwise signal by default.
-// The exhaustive switch (no default case) makes the compiler refuse a kind this doesn't decide for.
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
   switch (outcome.kind) {
     case "invalid":

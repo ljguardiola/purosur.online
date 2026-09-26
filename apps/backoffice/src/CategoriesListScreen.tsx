@@ -32,6 +32,7 @@ import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from 
 import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
+import { useLatestRef } from "./useLatestRef";
 
 export type CategoriesListScreenServices = {
   fetchCategories: typeof fetchCategories;
@@ -47,7 +48,6 @@ export const defaultCategoriesListScreenServices: CategoriesListScreenServices =
 
 export type CategoriesListScreenProps = {
   onSessionEnded: () => void;
-  /** Injected in tests so the screen doesn't call the real API. */
   services?: CategoriesListScreenServices;
 };
 
@@ -60,7 +60,6 @@ type ListState =
 const catalogMessages = messages.catalog;
 const categoriesMessages = catalogMessages.categories;
 
-/** Options for "Categoría superior": tree order, path labels, excludes invalid move targets. */
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
@@ -91,7 +90,6 @@ type NewCategoryModalProps = {
 
 const NO_PARENT_VALUE = "";
 
-/** Creates a catalog category; no passkey step-up. */
 function NewCategoryModal({
   isOpen,
   onClose,
@@ -274,8 +272,6 @@ type EditCategoryModalProps = {
   target: CategorySummary | null;
   onClose: () => void;
   onSaved: (category: CategorySummary) => void;
-  // Everything here derives from `categories`, so a reload hands the fresh list back up instead
-  // of keeping it local.
   onCategoriesReloaded: (categories: CategorySummary[]) => void;
   onSessionEnded: () => void;
   fetchCategories: typeof fetchCategories;
@@ -290,7 +286,6 @@ type EditNotice =
   | { kind: "notFound" }
   | { kind: "reloadFailed" };
 
-/** Renames a catalog category; no passkey step-up. */
 function EditCategoryModal({
   target,
   onClose,
@@ -313,8 +308,7 @@ function EditCategoryModal({
   const [parentError, setParentError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  const targetRef = useLatestRef(target);
 
   useEffect(() => {
     if (isOpen && target) {
@@ -579,13 +573,11 @@ function EditCategoryModal({
   );
 }
 
-/** Gated by `manage_products_and_categories`. */
 export function CategoriesListScreen({ onSessionEnded, services }: CategoriesListScreenProps) {
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useRef(list);
-  listRef.current = list;
+  const listRef = useLatestRef(list);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<TableSort<"category">>({
     column: "category",
@@ -593,10 +585,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
-  // Ref, not a dependency: the parent recreates this callback every render, which would
-  // otherwise reload the list mid-edit.
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
 
   const latestLoad = useRef(0);
 
@@ -619,7 +608,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchCategories]);
+  }, [fetchCategories, onSessionEndedRef]);
 
   useEffect(() => {
     void load();
@@ -754,7 +743,6 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         onClose={() => setNewModalOpen(false)}
         onCreated={(category) => {
           setNewModalOpen(false);
-          // listRef avoids a stale `list` closure from the render that started this request.
           const current = listRef.current;
           if (current.kind === "loaded") {
             setList({ kind: "loaded", categories: [...current.categories, category] });

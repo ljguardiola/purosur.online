@@ -24,8 +24,6 @@ export type NetContentQuantityMessages = {
   netContentQuantityTooLarge: string;
 };
 
-// Mirrors the server's own validation: a blank quantity is never an error (it clears the field
-// instead), and one over the shared cap gets its own friendlier message instead of the format one.
 export function netContentQuantityError(
   quantity: string,
   messages: NetContentQuantityMessages,

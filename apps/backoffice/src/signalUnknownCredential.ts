@@ -9,7 +9,6 @@ type SignalingPublicKeyCredential = {
   signalUnknownCredential?: (options: UnknownCredentialSignal) => Promise<undefined>;
 };
 
-/** Fire-and-forget call to the WebAuthn Signal API; a browser/manager without it, or a rejected call, is silently ignored. */
 export function signalUnknownCredential(signal: UnknownCredentialSignal): void {
   const credential = (globalThis as { PublicKeyCredential?: SignalingPublicKeyCredential })
     .PublicKeyCredential;

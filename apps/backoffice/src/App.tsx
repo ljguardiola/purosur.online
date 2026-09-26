@@ -322,8 +322,6 @@ function HelpApp({
       }
       sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
     >
-      {/* Keyed by path: React remounts on key change, so each page opens with a fresh scroll
-          position instead of the previous page's. */}
       <HelpContent
         key={helpRoute.path}
         help={help}
@@ -868,8 +866,6 @@ function AppContent({ help, services }: AppProps) {
         return;
       }
       if (outcome.kind === "failed") {
-        // Neither outcome confirms the session ended, so the marker stays: clearing it here would
-        // turn a later honest "expired" notice into a false one.
         setSession({ kind: "signed-out", notice: { kind: "check_failed" } });
         return;
       }

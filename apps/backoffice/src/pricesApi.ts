@@ -12,7 +12,6 @@ export type PriceProduct = {
   saleUnit: ProductSaleUnit;
   currentPrice: PriceRow | null;
   lastReviewedAt: string | null;
-  /** Whether the cloud counts this product as due for review under the branch's own window. */
   pending: boolean;
 };
 
@@ -29,7 +28,6 @@ export type PriceCategory = { id: string; name: string };
 export type PricesList = {
   products: PriceProduct[];
   pendingCount: number;
-  /** The branch's configured review window (`unreviewedPriceAlertDays`). */
   reviewWindowDays: number;
   /** Every category to filter by, sorted by name. */
   categories: PriceCategory[];
@@ -94,7 +92,6 @@ function setPriceFieldFromWire(field: unknown): SetPriceFieldError | undefined {
   return field === "unitPrice" || field === "expectedCurrentPriceId" ? field : undefined;
 }
 
-/** Scoped to the branch's own price list. Gated by `manage_prices_and_review`. */
 export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesOutcome> {
   const query = new URLSearchParams({ review: input.review });
   if (input.categoryId) {
@@ -129,7 +126,6 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
   return { kind: "ok", value: body };
 }
 
-/** Gated by `manage_prices_and_review`; no passkey step-up. */
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {
   let response: Response;
   try {
@@ -177,7 +173,7 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
   return { kind: "failed" };
 }
 
-/** Confirms a product's current price without changing it. Gated by `manage_prices_and_review`; no passkey step-up. */
+/** Confirms a product's current price without changing it. */
 export async function confirmPrice(
   productId: string,
   input: ConfirmPriceInput,
