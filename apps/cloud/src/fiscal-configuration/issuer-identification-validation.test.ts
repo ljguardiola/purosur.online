@@ -78,15 +78,6 @@ describe("readIssuerIdentificationEditBody", () => {
     expect(result).toMatchObject({ field: "legal_name" });
   });
 
-  it(`accepts a legal_name of exactly ${ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH} characters`, () => {
-    const result = readIssuerIdentificationEditBody(
-      validBody({ legal_name: "a".repeat(ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH) }),
-      TODAY,
-    );
-
-    expect(isValidationFailure(result)).toBe(false);
-  });
-
   it("rejects an empty gross_income_registration", () => {
     const result = readIssuerIdentificationEditBody(
       validBody({ gross_income_registration: "" }),

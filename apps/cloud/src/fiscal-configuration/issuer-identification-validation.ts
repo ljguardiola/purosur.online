@@ -2,6 +2,8 @@ import {
   argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isIssuerIdentificationGrossIncomeRegistrationTooLong,
+  isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/contracts";
 
 const ACTIVITY_START_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -19,13 +21,17 @@ export interface IssuerIdentificationEditInput {
   version: number;
 }
 
-function readRequiredText(body: unknown, key: string, maxLength: number): string | undefined {
+function readRequiredText(
+  body: unknown,
+  key: string,
+  isTooLong: (value: string) => boolean,
+): string | undefined {
   const raw = (body as Record<string, unknown> | undefined)?.[key];
   if (typeof raw !== "string") {
     return undefined;
   }
   const trimmed = raw.trim();
-  return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : undefined;
+  return trimmed.length > 0 && !isTooLong(trimmed) ? trimmed : undefined;
 }
 
 /** True for a real calendar date: rejects e.g. "2020-02-30", which `Date` would otherwise roll over. */
@@ -72,11 +78,7 @@ export function readIssuerIdentificationEditBody(
   body: unknown,
   today: Date,
 ): IssuerIdentificationEditInput | IssuerIdentificationFieldValidationFailure {
-  const legalName = readRequiredText(
-    body,
-    "legal_name",
-    ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
-  );
+  const legalName = readRequiredText(body, "legal_name", isIssuerIdentificationLegalNameTooLong);
   if (legalName === undefined) {
     return {
       field: "legal_name",
@@ -86,7 +88,7 @@ export function readIssuerIdentificationEditBody(
   const grossIncomeRegistration = readRequiredText(
     body,
     "gross_income_registration",
-    ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+    isIssuerIdentificationGrossIncomeRegistrationTooLong,
   );
   if (grossIncomeRegistration === undefined) {
     return {
