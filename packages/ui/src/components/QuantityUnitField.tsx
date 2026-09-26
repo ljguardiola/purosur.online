@@ -91,22 +91,9 @@ const valueClassName =
   "caret-brand-blue-strong outline-none";
 
 const unitTriggerClassName = "flex shrink-0 items-center gap-1 outline-none";
-// The design draws this text at font-weight 600, but every other ink-secondary text in this
-// package (helper/error text, TextField.tsx's own money prefix and kg suffix, Select.tsx's own
-// placeholder) pairs ink-secondary with font-normal; snapped to that shared convention rather than
-// copying the drawn weight, which reads as a leftover from the same "Valor" text this unit text
-// was likely duplicated from rather than a deliberate second treatment for a unit label.
 const unitValueClassName = "text-base font-normal text-ink-secondary";
-// The design draws this glyph at 14px, but Select.tsx's own chevron and DateField.tsx's own
-// "backoffice" calendar icon both draw 18px (size-[1.125rem]) at this exact 48px box scale;
-// snapped up to that shared convention instead of introducing a one-off icon size.
 const chevronClassName = "size-[1.125rem] shrink-0 text-ink-secondary";
 
-// The design never draws this menu open, so its open state follows Select.tsx's own popover
-// precedent (bordered white surface, rounded-lg, same z-index fix) rather than a drawn one. Its
-// width is a fixed comfortable size instead of Select.tsx's own `var(--trigger-width)` technique:
-// this trigger is intentionally compact (a couple of characters and a chevron), and tying the
-// menu's width to it would make an unreadably narrow list.
 const popoverClassName =
   "min-w-24 rounded-lg border border-line bg-surface-white p-1.5 " +
   "shadow-[0_8px_24px_var(--color-ink-menu-shadow)] overflow-y-auto";
@@ -117,7 +104,6 @@ const popoverClassName =
 // over an auto one.
 const POPOVER_Z_INDEX = 100000;
 
-// Matches Select.tsx's own optionClassName exactly, including its own "chosen" pair.
 const optionClassName =
   "flex h-10 cursor-pointer items-center justify-between rounded-md px-3 text-sm font-semibold " +
   "text-ink outline-none data-[hovered]:bg-surface-bone data-[focus-visible]:bg-surface-bone " +

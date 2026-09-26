@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
-  isNetContentUnit,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
@@ -56,21 +55,6 @@ describe("barcodeLength", () => {
 describe("NET_CONTENT_UNITS", () => {
   it("lists grams, kilograms, millilitres, litres, and units", () => {
     expect(NET_CONTENT_UNITS).toEqual(["G", "KG", "ML", "L", "UNIT"]);
-  });
-});
-
-describe("isNetContentUnit", () => {
-  it("accepts every listed unit", () => {
-    for (const unit of NET_CONTENT_UNITS) {
-      expect(isNetContentUnit(unit)).toBe(true);
-    }
-  });
-
-  it("rejects a value that is not a listed unit", () => {
-    expect(isNetContentUnit("g")).toBe(false);
-    expect(isNetContentUnit("LITER")).toBe(false);
-    expect(isNetContentUnit(42)).toBe(false);
-    expect(isNetContentUnit(undefined)).toBe(false);
   });
 });
 

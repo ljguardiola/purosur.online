@@ -52,8 +52,8 @@ function readVersion(body: unknown): number | undefined {
 }
 
 /**
- * `netContent` absent from the body clears it the same way an explicit `null` does (#334): this
- * route already requires every other field to be resent on every edit, so there is no partial-patch
+ * `netContent` absent from the body clears it the same way an explicit `null` does: this route
+ * already requires every other field to be resent on every edit, so there is no partial-patch
  * convention to distinguish "not sent" from "sent as empty" for this one field either.
  */
 function readEditBody(body: unknown): EditRequestBody | ProductFieldValidationFailure {

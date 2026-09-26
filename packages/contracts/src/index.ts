@@ -37,7 +37,6 @@ export type { NetContentUnit } from "./product";
 export {
   BARCODE_MAX_LENGTH,
   barcodeLength,
-  isNetContentUnit,
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
