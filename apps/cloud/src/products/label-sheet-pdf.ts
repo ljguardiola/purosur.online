@@ -41,6 +41,7 @@ const FIRST_DIGIT_BOX_WIDTH_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
 // (Greek, Cyrillic, "ő", "≈"); Liberation Sans Bold is metric-compatible with it and covers them.
 const NAME_FONT = "LiberationSans-Bold";
 const NAME_FONT_FILE = readFileSync(
+  // `fonts/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
   new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url),
 );
 

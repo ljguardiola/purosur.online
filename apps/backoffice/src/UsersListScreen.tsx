@@ -384,13 +384,13 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const [modalOpen, setModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
 
-  const needsRoles = access.isAdministrator;
+  const canReadRoles = access.isAdministrator;
   const load = useCallback(async () => {
     setList({ kind: "loading" });
     const noRolesNeeded: Awaited<ReturnType<typeof fetchRoles>> = { kind: "ok", value: [] };
     const [usersOutcome, rolesOutcome] = await Promise.all([
       fetchUsers(),
-      needsRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
+      canReadRoles ? fetchRoles() : Promise.resolve(noRolesNeeded),
     ]);
     const outcomes = [usersOutcome, rolesOutcome];
     if (outcomes.some((outcome) => outcome.kind === "unauthenticated")) {
@@ -410,7 +410,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles, needsRoles, onSessionEndedRef]);
+  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef]);
 
   useEffect(() => {
     void load();
