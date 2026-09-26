@@ -5,17 +5,16 @@ import {
   findVerifyWorkflowViolations,
 } from "./verify-workflow-runs-every-check.mjs";
 
-const RUN_CONDITION =
-  "${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}";
+const RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
 
 const AGGREGATE_RUN = "node .github/scripts/aggregate-verify-result.mjs";
 
 const AGGREGATE_ENV = {
-  EVENT_NAME: "${{ github.event_name }}",
-  SCOPE_RESULT: "${{ needs.scope.result }}",
-  SCOPE_DOCS_ONLY: "${{ needs.scope.outputs.docs_only }}",
-  STATIC_RESULT: "${{ needs.static.result }}",
-  TESTS_RESULT: "${{ needs.tests.result }}",
+  EVENT_NAME: `\${{ github.event_name }}`,
+  SCOPE_RESULT: `\${{ needs.scope.result }}`,
+  SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  STATIC_RESULT: `\${{ needs.static.result }}`,
+  TESTS_RESULT: `\${{ needs.tests.result }}`,
 };
 
 function verifyJobLines({
@@ -344,7 +343,7 @@ test("flags a tests matrix that includes an extra shard combination", () => {
 
 for (const [label, condition] of [
   ["never runs", "false"],
-  ["skips a cancelled run", "${{ !cancelled() }}"],
+  ["skips a cancelled run", `\${{ !cancelled() }}`],
   ["runs only on success", "success()"],
 ]) {
   test(`flags a verify job whose if ${label}`, () => {
@@ -423,7 +422,7 @@ for (const name of Object.keys(AGGREGATE_ENV)) {
 test("flags a verify aggregate step whose tests result is wired to the static job", () => {
   const violations = findVerifyWorkflowViolations(
     workflow({
-      verifyEnv: { ...AGGREGATE_ENV, TESTS_RESULT: "${{ needs.static.result }}" },
+      verifyEnv: { ...AGGREGATE_ENV, TESTS_RESULT: `\${{ needs.static.result }}` },
     }),
     packageJson(),
   );

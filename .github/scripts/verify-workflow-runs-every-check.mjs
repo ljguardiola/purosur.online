@@ -23,16 +23,15 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "pnpm depcruise",
   "node --test .github/scripts/*.test.mjs",
 ];
-const EXPECTED_RUN_CONDITION =
-  "${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}";
+const EXPECTED_RUN_CONDITION = `\${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}`;
 const EXPECTED_VERIFY_CONDITION = "always()";
 const AGGREGATE_COMMAND = "node .github/scripts/aggregate-verify-result.mjs";
 const EXPECTED_AGGREGATE_ENV = {
-  EVENT_NAME: "${{ github.event_name }}",
-  SCOPE_RESULT: "${{ needs.scope.result }}",
-  SCOPE_DOCS_ONLY: "${{ needs.scope.outputs.docs_only }}",
-  STATIC_RESULT: "${{ needs.static.result }}",
-  TESTS_RESULT: "${{ needs.tests.result }}",
+  EVENT_NAME: `\${{ github.event_name }}`,
+  SCOPE_RESULT: `\${{ needs.scope.result }}`,
+  SCOPE_DOCS_ONLY: `\${{ needs.scope.outputs.docs_only }}`,
+  STATIC_RESULT: `\${{ needs.static.result }}`,
+  TESTS_RESULT: `\${{ needs.tests.result }}`,
 };
 
 function resolveNode(doc, node) {
