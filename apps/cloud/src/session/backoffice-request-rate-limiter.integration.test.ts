@@ -27,6 +27,40 @@ afterAll(async () => {
 });
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
+const POLL_INTERVAL_MS = 50;
+
+function connectAs(applicationName: string): ReturnType<typeof postgres> {
+  return postgres(integrationDb.databaseUrl, {
+    max: 1,
+    connection: { application_name: applicationName },
+  });
+}
+
+/**
+ * Resolves "held up" once the named backend is observed waiting on an advisory lock, or never
+ * resolves once `isDone` reports the race's other side already settled — so this side of the
+ * race stops polling instead of running for as long as the test does.
+ */
+async function waitUntilBlockedOnAnAdvisoryLock(
+  applicationName: string,
+  isDone: () => boolean,
+): Promise<"held up"> {
+  while (!isDone()) {
+    const [row] = await sql<{ blocked: boolean }[]>`
+      select exists (
+        select 1 from pg_stat_activity
+        where application_name = ${applicationName}
+          and wait_event_type = 'Lock'
+          and wait_event = 'advisory'
+      ) as blocked
+    `;
+    if (row?.blocked) {
+      return "held up";
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  return await new Promise<"held up">(() => {});
+}
 
 /** Seeds `count` already-admitted rows for one key, directly, so a race only needs to contend for the few slots left under its limit. */
 async function seedAttempts(
@@ -84,7 +118,8 @@ describe("the backoffice rate limiter on concurrent connections", () => {
   });
 
   it("is not held up while the recovery limiter holds its own lock for the same source address", async () => {
-    const db = drizzle(sql);
+    const requestConnection = connectAs("backoffice-request");
+    const requestDb = drizzle(requestConnection);
     let recoveryLockTaken!: () => void;
     const recoveryLockHeld = new Promise<void>((resolve) => {
       recoveryLockTaken = resolve;
@@ -101,17 +136,27 @@ describe("the backoffice rate limiter on concurrent connections", () => {
     });
     await recoveryLockHeld;
 
-    const outcome = await Promise.race([
-      recordBackofficeRequest(db, {
+    try {
+      let requestSettled = false;
+      const request = recordBackofficeRequest(requestDb, {
         sessionKeyValue: "unrelated-session",
         sourceAddress: "198.51.100.77",
         now: NOON,
-      }).then(() => "completed" as const),
-      new Promise<"held up">((resolve) => setTimeout(() => resolve("held up"), 2_000)),
-    ]);
-    releaseRecoveryLock();
-    await recoveryTransaction;
+      }).finally(() => {
+        requestSettled = true;
+      });
 
-    expect(outcome).toBe("completed");
+      const outcome = await Promise.race([
+        request.then(() => "completed" as const),
+        waitUntilBlockedOnAnAdvisoryLock("backoffice-request", () => requestSettled),
+      ]);
+      releaseRecoveryLock();
+      await recoveryTransaction;
+      await request;
+
+      expect(outcome).toBe("completed");
+    } finally {
+      await requestConnection.end({ timeout: 1 });
+    }
   });
 });
