@@ -6,7 +6,6 @@ import {
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
-  NET_CONTENT_QUANTITY_MAX,
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
@@ -60,6 +59,7 @@ import {
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { messages } from "./messages";
+import { netContentQuantityError, parseNetContentQuantity } from "./netContentQuantity";
 import {
   type CreateProductInput,
   createProduct,
@@ -133,40 +133,6 @@ const NET_CONTENT_UNIT_OPTIONS: [
 ];
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
-
-// Accepts a decimal comma or dot, up to the 3 decimals `isValidNetContentQuantity` allows; the
-// sign and integer-only cases it also rejects (negative, more decimals) never reach that check
-// because they fail this format first.
-const NET_CONTENT_QUANTITY_PATTERN = /^\d+([.,]\d{1,3})?$/;
-
-function parseNetContentQuantity(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!NET_CONTENT_QUANTITY_PATTERN.test(trimmed)) {
-    return undefined;
-  }
-  return Number(trimmed.replace(",", "."));
-}
-
-/** Mirrors the server's own validateProductFields: a blank quantity is never an error (it clears
- * the field instead), an unparsable or non-positive one gets the format message, and one over the
- * shared cap gets its own friendlier message instead of the format one. */
-function netContentQuantityError(
-  quantity: string,
-  modalMessages: { netContentQuantityInvalid: string; netContentQuantityTooLarge: string },
-): string | undefined {
-  const trimmed = quantity.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  const parsed = parseNetContentQuantity(trimmed);
-  if (parsed === undefined) {
-    return modalMessages.netContentQuantityInvalid;
-  }
-  if (parsed > NET_CONTENT_QUANTITY_MAX) {
-    return modalMessages.netContentQuantityTooLarge;
-  }
-  return isValidNetContentQuantity(parsed) ? undefined : modalMessages.netContentQuantityInvalid;
-}
 
 /** The `netContent` to send: `null` for a blank quantity (never set, or cleared on edit) or one
  * that still fails validation (an invalid save is blocked before this runs). */
