@@ -94,6 +94,8 @@ CI is the only thing that allows a merge: the `pr-contract` and `verify` checks 
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
 
+Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
+
 ## Releases
 
 The cloud service and the register app are two independently versioned deliverables: `cloud-vX.Y.Z` and `pos-vX.Y.Z`. A merge to `main` deploys staging automatically for both. Production release is a separate, manually triggered workflow per deliverable that promotes the exact artifact already validated in staging; those release workflows are not in this repository yet.

@@ -19,7 +19,8 @@
     "dev:migrate": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/migrate.js",
     "dev:create-first-administrator": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/create-first-administrator.js",
     "dev:cloud": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/server.js",
-    "dev:backoffice": "pnpm --filter @purosur/backoffice dev"
+    "dev:backoffice": "pnpm --filter @purosur/backoffice dev",
+    "ci:verify-durations": "node .github/scripts/verify-durations.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
