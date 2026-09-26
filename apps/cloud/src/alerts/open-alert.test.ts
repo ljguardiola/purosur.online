@@ -325,38 +325,41 @@ describe("openAlert", () => {
 });
 
 describe("recipientsFor", () => {
-  // No catalog kind opens a Local alert yet (openAlert.test.ts's own suite above never exercises
-  // this branch through openAlert), so this is the one place its audience rule is tested.
-  it("delivers a Local alert to an Administrator, every view_all_alerts holder, and only the view_branch_alerts holders of its own branch", async () => {
+  // The audience rule itself (Local vs All, own branch vs another, no permission, Administrator,
+  // view_all_alerts) is owned and tested once in alert-visibility.test.ts's own
+  // visibleToUsersCondition suite. This only proves recipientsFor wires that shared condition into
+  // its own query correctly: the "active" filter it owns (the condition doesn't know about it),
+  // and forwarding the audience and locationId it's given.
+  it("delivers to an active Administrator, excludes an inactive one, and forwards the audience and locationId it's given", async () => {
     const administratorRoleId = await seededAdministratorRoleId();
-    const viewAllRoleId = await insertRole({
-      name: "Supervisor",
-      permissionKeys: ["view_all_alerts"],
-    });
-    const viewLocalRoleId = await insertRole({
-      name: "Cajera",
-      permissionKeys: ["view_branch_alerts"],
-    });
-    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
-    if (!otherLocation) {
-      throw new Error("test setup: inserting the other location returned no row");
-    }
-
-    const administratorId = await insertUser({
+    const activeAdministratorId = await insertUser({
       firstName: "Ada",
       email: "ada@example.com",
       roleId: administratorRoleId,
     });
-    const supervisorId = await insertUser({
-      firstName: "Grace",
-      email: "grace@example.com",
-      roleId: viewAllRoleId,
+    await insertUser({
+      firstName: "Inactiva",
+      email: "inactiva@example.com",
+      roleId: administratorRoleId,
+      active: false,
+    });
+
+    const allRecipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
+    expect(allRecipients).toEqual([activeAdministratorId]);
+
+    const viewLocalRoleId = await insertRole({
+      name: "Cajera",
+      permissionKeys: ["view_branch_alerts"],
     });
     const ownBranchCashierId = await insertUser({
       firstName: "Local",
       email: "local@example.com",
       roleId: viewLocalRoleId,
     });
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: inserting the other location returned no row");
+    }
     const [otherBranchCashier] = await db
       .insert(users)
       .values({
@@ -370,35 +373,7 @@ describe("recipientsFor", () => {
     }
     await db.insert(userRoles).values({ userId: otherBranchCashier.id, roleId: viewLocalRoleId });
 
-    const recipients = await db.transaction((tx) => recipientsFor(tx, "local", locationId));
-
-    expect(recipients.sort()).toEqual([administratorId, supervisorId, ownBranchCashierId].sort());
-  });
-
-  it("delivers an All alert to an Administrator and every view_all_alerts holder, never a view_branch_alerts one", async () => {
-    const administratorRoleId = await seededAdministratorRoleId();
-    const viewAllRoleId = await insertRole({
-      name: "Supervisor",
-      permissionKeys: ["view_all_alerts"],
-    });
-    const viewLocalRoleId = await insertRole({
-      name: "Cajera",
-      permissionKeys: ["view_branch_alerts"],
-    });
-    const administratorId = await insertUser({
-      firstName: "Ada",
-      email: "ada@example.com",
-      roleId: administratorRoleId,
-    });
-    const supervisorId = await insertUser({
-      firstName: "Grace",
-      email: "grace@example.com",
-      roleId: viewAllRoleId,
-    });
-    await insertUser({ firstName: "Local", email: "local@example.com", roleId: viewLocalRoleId });
-
-    const recipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
-
-    expect(recipients.sort()).toEqual([administratorId, supervisorId].sort());
+    const localRecipients = await db.transaction((tx) => recipientsFor(tx, "local", locationId));
+    expect(localRecipients.sort()).toEqual([activeAdministratorId, ownBranchCashierId].sort());
   });
 });

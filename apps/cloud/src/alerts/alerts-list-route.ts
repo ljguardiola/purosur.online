@@ -32,7 +32,7 @@ import {
   isAlertKind,
 } from "./alert-kind-catalog.js";
 import { loadScopeDisplayNames, scopeDisplay, wireScope } from "./alert-scope-display.js";
-import { canSeeAllAlerts, canSeeAnyAlerts } from "./alert-visibility.js";
+import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";
 
 export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -138,12 +138,6 @@ function containsPattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
-function visibilityCondition(session: OpenSession): SQL | undefined {
-  return canSeeAllAlerts(session)
-    ? undefined
-    : and(eq(alerts.audience, "local"), eq(alerts.locationId, session.locationId));
-}
-
 function searchCondition<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   search: AlertListSearch,
@@ -176,7 +170,7 @@ export async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   filters: AlertListFilters,
   page: number,
 ): Promise<AlertListPage> {
-  const conditions = [visibilityCondition(session)];
+  const conditions = [visibleAlertsCondition(session)];
   if (filters.level) {
     conditions.push(eq(alerts.level, filters.level));
   }
@@ -223,7 +217,7 @@ export async function countOpenVisibleAlerts<TQueryResult extends PgQueryResultH
       openCriticalCount: count(sql`case when ${alerts.level} = 'critical' then 1 end`),
     })
     .from(alerts)
-    .where(and(visibilityCondition(session), isNull(alerts.resolvedAt)));
+    .where(and(visibleAlertsCondition(session), isNull(alerts.resolvedAt)));
   return { openCount: counts?.openCount ?? 0, openCriticalCount: counts?.openCriticalCount ?? 0 };
 }
 

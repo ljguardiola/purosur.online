@@ -1,4 +1,6 @@
-import type { OpenSession } from "../session/open-session.js";
+import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { alerts, rolePermissions, roles, users } from "../db/schema.js";
 import type { AlertAudience } from "./alert-kind-catalog.js";
 
 /** Sees every alert regardless of audience or branch. */
@@ -6,22 +8,9 @@ export const VIEW_ALL_ALERTS_PERMISSION = "view_all_alerts";
 /** Sees only a Local alert of the holder's own branch, never an All one or another branch's. */
 export const VIEW_BRANCH_ALERTS_PERMISSION = "view_branch_alerts";
 
-/**
- * The one place the audience rule is defined: an Administrator or a `view_all_alerts` holder can
- * see every alert; a `view_branch_alerts` holder can see only a Local one of their own branch,
- * never an All one and never a Local one of another branch. `recipientsFor` (`open-alert.ts`) and
- * the list route's own visibility filter (`alerts-list-route.ts`) both apply the same rule to a
- * batch of rows through SQL instead of this boolean form, but import these same permission keys
- * rather than keeping their own copies.
- */
 export interface AlertAudienceAccess {
   isAdministrator: boolean;
   permissionKeys: readonly string[];
-}
-
-export interface AlertVisibilityScope {
-  audience: AlertAudience;
-  locationId: string | null;
 }
 
 /**
@@ -46,18 +35,66 @@ export function canSeeAllAlerts(access: AlertAudienceAccess): boolean {
   return access.isAdministrator || access.permissionKeys.includes(VIEW_ALL_ALERTS_PERMISSION);
 }
 
+export interface AlertViewerAccess extends AlertAudienceAccess {
+  /** The signed-in viewer's own branch (every session has exactly one, see `OpenSession`). */
+  locationId: string;
+}
+
 /**
- * Audience is decided by permission, never by role name: `view_all_alerts` sees every alert;
- * `view_branch_alerts` sees only a Local one scoped to the viewer's own branch, never an All one
- * and never a Local one of another branch.
+ * The one place the audience rule is defined, expressed as SQL so both directions that need it
+ * share it instead of each keeping its own copy:
+ *
+ * - This function filters the `alerts` table down to what `access` can see: the list route's own
+ *   filter (`alerts-list-route.ts`) and `findAlertById`'s own visibility check (`alert-read-route.ts`,
+ *   shared by `alert-close-route.ts`) both call it, instead of fetching a row unconditionally and
+ *   checking it in memory.
+ * - `visibleToUsersCondition` below is the same rule's other direction: filtering the `users` table
+ *   down to who can see a newly opened alert (`recipientsFor`, `open-alert.ts`).
+ *
+ * An Administrator or a `view_all_alerts` holder sees every alert; a `view_branch_alerts` holder
+ * sees only a Local one of their own branch, never an All one and never another branch's Local one;
+ * a viewer holding neither sees nothing at all, whatever it asks for — the same case
+ * `canSeeAnyAlerts` gates at the route entry, but this stays correct standalone rather than relying
+ * on every caller to have checked that gate first (`alert-close-route.ts`'s own gate is a different
+ * permission, `dismiss_alerts_manually`, so it does not).
  */
-export function canSeeAlert(session: OpenSession, alert: AlertVisibilityScope): boolean {
-  if (canSeeAllAlerts(session)) {
-    return true;
+export function visibleAlertsCondition(access: AlertViewerAccess): SQL | undefined {
+  if (canSeeAllAlerts(access)) {
+    return undefined;
   }
-  return (
-    alert.audience === "local" &&
-    session.permissionKeys.includes(VIEW_BRANCH_ALERTS_PERMISSION) &&
-    alert.locationId === session.locationId
-  );
+  if (!access.permissionKeys.includes(VIEW_BRANCH_ALERTS_PERMISSION)) {
+    return sql`false`;
+  }
+  return and(eq(alerts.audience, "local"), eq(alerts.locationId, access.locationId));
+}
+
+/**
+ * The same audience rule's other direction: the SQL condition selecting every active user (already
+ * joined to `userRoles`/`roles` by the caller) who can see an alert of `scope.audience`/
+ * `scope.locationId` the moment it opens.
+ */
+export function visibleToUsersCondition<TQueryResult extends PgQueryResultHKT>(
+  tx: PgDatabase<TQueryResult>,
+  scope: { audience: AlertAudience; locationId: string | undefined },
+): SQL {
+  const viewAllRoleIds = tx
+    .select({ roleId: rolePermissions.roleId })
+    .from(rolePermissions)
+    .where(eq(rolePermissions.permissionKey, VIEW_ALL_ALERTS_PERMISSION));
+  const viewLocalRoleIds = tx
+    .select({ roleId: rolePermissions.roleId })
+    .from(rolePermissions)
+    .where(eq(rolePermissions.permissionKey, VIEW_BRANCH_ALERTS_PERMISSION));
+
+  const localVisibility =
+    scope.audience === "local" && scope.locationId !== undefined
+      ? and(eq(users.locationId, scope.locationId), inArray(roles.id, viewLocalRoleIds))
+      : undefined;
+
+  // `or` never returns undefined here: the first argument alone always yields a defined SQL node.
+  return or(
+    eq(roles.isAdministrator, true),
+    inArray(roles.id, viewAllRoleIds),
+    localVisibility,
+  ) as SQL;
 }

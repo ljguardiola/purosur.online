@@ -20,7 +20,6 @@ import {
   userIdsToResolve,
 } from "./alert-read-route.js";
 import { loadScopeDisplayNames } from "./alert-scope-display.js";
-import { canSeeAlert } from "./alert-visibility.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
 const ALREADY_CLOSED_RESPONSE = {
@@ -146,8 +145,8 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
     async (request, reply) => {
       const openSession = openSessionOf(request);
 
-      const alert = await findAlertById(options.db, request.params.id);
-      if (!alert || !canSeeAlert(openSession, alert)) {
+      const alert = await findAlertById(options.db, request.params.id, openSession);
+      if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;
       }

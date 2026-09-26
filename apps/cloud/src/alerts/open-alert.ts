@@ -1,8 +1,8 @@
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alertDeliveries, alerts, rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
 import { type AlertKind, alertKindDefinition } from "./alert-kind-catalog.js";
-import { VIEW_ALL_ALERTS_PERMISSION, VIEW_BRANCH_ALERTS_PERMISSION } from "./alert-visibility.js";
+import { visibleToUsersCondition } from "./alert-visibility.js";
 
 const UNIQUE_VIOLATION = "23505";
 const ALERT_OPEN_DEDUP_UNIQUE_INDEX = "alerts_open_dedup_key";
@@ -79,31 +79,12 @@ export async function recipientsFor<TQueryResult extends PgQueryResultHKT>(
   audience: "local" | "all",
   locationId: string | undefined,
 ): Promise<string[]> {
-  const viewAllRoleIds = tx
-    .select({ roleId: rolePermissions.roleId })
-    .from(rolePermissions)
-    .where(eq(rolePermissions.permissionKey, VIEW_ALL_ALERTS_PERMISSION));
-  const viewLocalRoleIds = tx
-    .select({ roleId: rolePermissions.roleId })
-    .from(rolePermissions)
-    .where(eq(rolePermissions.permissionKey, VIEW_BRANCH_ALERTS_PERMISSION));
-
-  const localVisibility =
-    audience === "local" && locationId !== undefined
-      ? and(eq(users.locationId, locationId), inArray(roles.id, viewLocalRoleIds))
-      : undefined;
-
   const rows = await tx
     .select({ id: users.id })
     .from(users)
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(
-      and(
-        eq(users.active, true),
-        or(eq(roles.isAdministrator, true), inArray(roles.id, viewAllRoleIds), localVisibility),
-      ),
-    );
+    .where(and(eq(users.active, true), visibleToUsersCondition(tx, { audience, locationId })));
   return rows.map((row) => row.id);
 }
 

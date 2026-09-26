@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
@@ -18,7 +18,11 @@ import {
   scopeDisplay,
   wireScope,
 } from "./alert-scope-display.js";
-import { canSeeAlert, canSeeAnyAlerts } from "./alert-visibility.js";
+import {
+  type AlertViewerAccess,
+  canSeeAnyAlerts,
+  visibleAlertsCondition,
+} from "./alert-visibility.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -153,10 +157,15 @@ export function toAlertDetailWire(
   };
 }
 
-/** Looks up one alert by id, answering `undefined` for a malformed or missing one alike. */
+/**
+ * Looks up one alert by id, answering `undefined` alike for a malformed id, a missing one, and one
+ * outside `access`'s own audience visibility (`alert-visibility.ts`'s `visibleAlertsCondition`) —
+ * one query, rather than fetching the row unconditionally and checking it in memory.
+ */
 export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
+  access: AlertViewerAccess,
 ): Promise<AlertDetailRow | undefined> {
   if (!UUID_PATTERN.test(id)) {
     return undefined;
@@ -177,7 +186,7 @@ export async function findAlertById<TQueryResult extends PgQueryResultHKT>(
       resolvedBy: alerts.resolvedBy,
     })
     .from(alerts)
-    .where(eq(alerts.id, id));
+    .where(and(eq(alerts.id, id), visibleAlertsCondition(access)));
   return row;
 }
 
@@ -236,8 +245,8 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const alert = await findAlertById(options.db, request.params.id);
-      if (!alert || !canSeeAlert(openSession, alert)) {
+      const alert = await findAlertById(options.db, request.params.id, openSession);
+      if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
         return;
       }

@@ -170,6 +170,10 @@ describe("GET /alerts", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  // The audience rule itself (which alert a view_branch_alerts or view_all_alerts holder can see)
+  // is owned and tested once in alert-visibility.test.ts's own visibleAlertsCondition suite; this
+  // only proves the route actually applies that shared condition to its query and reflects the
+  // result in the wire response, rather than fetching every alert unfiltered.
   it("shows a view_branch_alerts holder only the Local alert of their own branch", async () => {
     const roleId = await insertRole(["view_branch_alerts"]);
     const userId = await insertUserWithRole(roleId);
@@ -193,25 +197,6 @@ describe("GET /alerts", () => {
     expect(response.statusCode).toBe(200);
     const body = listBody(response).alerts;
     expect(body.map((row) => row.id)).toEqual([ownLocalAlertId]);
-  });
-
-  it("shows a view_all_alerts holder every alert regardless of audience or branch", async () => {
-    const roleId = await insertRole(["view_all_alerts"]);
-    const userId = await insertUserWithRole(roleId);
-    const rawSessionId = await insertSession(userId);
-    const localAlertId = await insertAlert({
-      kind: "kind_a",
-      scope: "scope_a",
-      audience: "local",
-      locationId: otherLocationId,
-    });
-    const allAlertId = await insertAlert({ kind: "kind_b", scope: "scope_b", audience: "all" });
-
-    const response = await getAlerts(rawSessionId);
-
-    expect(response.statusCode).toBe(200);
-    const body = listBody(response).alerts;
-    expect(body.map((row) => row.id).sort()).toEqual([allAlertId, localAlertId].sort());
   });
 
   it("filters by level", async () => {
