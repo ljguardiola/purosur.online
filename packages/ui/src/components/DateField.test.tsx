@@ -84,16 +84,16 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("renders the backoffice variant at 48px with 12px padding and a trailing icon", async () => {
+// The backoffice frame's own height, padding, label and value are proven once, for TextField,
+// DateField and Select together, in FieldSize.test.tsx; this only proves what's specific to this
+// component in the backoffice variant: the icon keeps its 18px size but moves to trail the value
+// instead of leading it.
+test("renders the backoffice variant with an 8px-radius box and a trailing icon", async () => {
   const screen = await render(<DateFieldHarness variant="backoffice" label="Date" />);
   const group = fieldGroup(screen, "Date");
   const style = getComputedStyle(group);
-  const rect = group.getBoundingClientRect();
 
-  expect(rect.height).toBeCloseTo(48, 0);
   expect(style.borderRadius).toBe("8px");
-  expect(Math.round(Number.parseFloat(style.paddingLeft))).toBe(12);
-  expect(Math.round(Number.parseFloat(style.paddingRight))).toBe(12);
 
   const icon = group.querySelector("svg") as SVGSVGElement;
   const iconRect = icon.getBoundingClientRect();
@@ -101,16 +101,6 @@ test("renders the backoffice variant at 48px with 12px padding and a trailing ic
   expect(iconRect.height).toBeCloseTo(18, 0);
   // The icon trails the value in the backoffice variant: it is the group's last element.
   expect(group.lastElementChild?.contains(icon)).toBe(true);
-
-  const input = (group.querySelector('[role="spinbutton"]') as HTMLElement)
-    .parentElement as HTMLElement;
-  expect(Math.round(Number.parseFloat(getComputedStyle(input).fontSize))).toBe(16);
-  expect(getComputedStyle(input).fontWeight).toBe("600");
-
-  const label = screen.getByText("Date").element() as HTMLElement;
-  expect(getComputedStyle(label).fontWeight).toBe("700");
-  expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(14);
-  expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -141,14 +131,8 @@ test("keeps the label 6px above the register field's box", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the label 4px above the backoffice field's box", async () => {
-  const screen = await render(<DateFieldHarness variant="backoffice" label="Date" />);
-  const wrapper = fieldGroup(screen, "Date").parentElement as HTMLElement;
-
-  expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(4);
-
-  await expectNoAccessibilityViolations(screen.container);
-});
+// The backoffice label-to-box gap is proven once, for TextField, DateField and Select together,
+// in FieldSize.test.tsx.
 
 for (const variant of ["register", "backoffice"] as const) {
   test(`shows a white box with a 2px line border at rest in the ${variant} variant`, async () => {
