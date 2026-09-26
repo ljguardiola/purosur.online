@@ -107,8 +107,6 @@ function pageContents(objects: Map<number, PdfObject>): string[] {
   );
 }
 
-// Every `[<hex>...] TJ` show-text operator, decoded through the font the `Tf` before it selected:
-// an embedded font's codes through its ToUnicode CMap, a built-in font's WinAnsi bytes as Latin-1.
 function renderedTextRuns(pdf: Buffer): RenderedText[] {
   const objects = pdfObjectsWithInflatedStreams(pdf);
   const fontIds = new Map<string, string>();

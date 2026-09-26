@@ -9,9 +9,7 @@ export interface ReportRecoveryErrorDeps {
 function withoutThrowing(report: () => void): void {
   try {
     report();
-  } catch {
-    // ignored
-  }
+  } catch {}
 }
 
 export function reportRecoveryError(

@@ -35,7 +35,6 @@ async function nextSequenceValue<TQueryResult extends PgQueryResultHKT>(
   return BigInt(row.value);
 }
 
-// GS1's 20-29 restricted-circulation range holds around 10^11 codes, so exhaustion isn't handled.
 export async function allocateInternalBarcode<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<string> {

@@ -86,7 +86,6 @@ function pageBackgroundHex(): string {
   return rgbToHex(getComputedStyle(document.body).backgroundColor);
 }
 
-// Mirrors the component's own label width cap and right-edge reserve.
 const LABEL_MAX_WIDTH_PX = 172;
 const CHART_RIGHT_RESERVE_PX = 76;
 
@@ -249,7 +248,6 @@ test("scales each bar's height to its value against the top tick, sitting on the
   const rendered = chartBars(screen);
   const plotRect = plotArea(screen).getBoundingClientRect();
 
-  // topTick for a highest of 214300 rounds up to 250000.
   expect(at(rendered, 0).getBoundingClientRect().height).toBeCloseTo((214300 / 250000) * 150, 0);
   expect(at(rendered, 1).getBoundingClientRect().height).toBeCloseTo((107150 / 250000) * 150, 0);
   expect(at(rendered, 2).getBoundingClientRect().height).toBeCloseTo(0, 0);

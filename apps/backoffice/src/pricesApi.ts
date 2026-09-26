@@ -29,7 +29,6 @@ export type PricesList = {
   products: PriceProduct[];
   pendingCount: number;
   reviewWindowDays: number;
-  /** Every category to filter by, sorted by name. */
   categories: PriceCategory[];
 };
 
@@ -173,7 +172,6 @@ export async function setPrice(productId: string, input: SetPriceInput): Promise
   return { kind: "failed" };
 }
 
-/** Confirms a product's current price without changing it. */
 export async function confirmPrice(
   productId: string,
   input: ConfirmPriceInput,

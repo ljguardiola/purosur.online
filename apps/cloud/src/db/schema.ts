@@ -49,8 +49,6 @@ export const branchSettings = pgTable("branch_settings", {
 });
 
 // day_of_week: 1 = Monday … 7 = Sunday; a day with no rows here is closed.
-// Overlap between ranges of the same day is validated in the app: an exclusion constraint here
-// would need the `btree_gist` extension.
 export const branchHours = pgTable(
   "branch_hours",
   {
@@ -583,7 +581,6 @@ export const alertDeliveryChannel = pgEnum("alert_delivery_channel", ["backoffic
 
 export const alertDeliveryStatus = pgEnum("alert_delivery_status", ["sent", "failed"]);
 
-// status/error exist for a future channel that can fail; the only channel today (backoffice) always writes `sent`.
 export const alertDeliveries = pgTable(
   "alert_deliveries",
   {

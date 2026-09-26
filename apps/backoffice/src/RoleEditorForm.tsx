@@ -15,7 +15,6 @@ const rolesMessages = messages.settings.roles;
 const formMessages = rolesMessages.roleEditor.form;
 const editorMessages = rolesMessages.roleEditor;
 
-// The two view permissions are mutually exclusive, hence a radio instead of two checkboxes.
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
 const ALERTS_RADIO_OPTIONS: readonly [
   { value: AlertsViewOption; label: string },

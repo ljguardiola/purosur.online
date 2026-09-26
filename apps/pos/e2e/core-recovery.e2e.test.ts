@@ -87,7 +87,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
     app = await electron.launch({
       args: [APP_DIR, ...platformArgs()],
       // A short periodic retry interval so the recovery half of this test doesn't also wait the
-      // real 90s default; never honored in a packaged build (see coreRetryIntervalMs).
+      // real 90s default; never honored in a packaged build.
       env: { ...appEnv(channelFile), POS_CORE_RETRY_INTERVAL_MS: "1000" },
     });
     app.process().stdout?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));

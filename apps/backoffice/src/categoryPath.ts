@@ -2,7 +2,6 @@ export type CategoryNode = { id: string; name: string; parentId: string | null }
 
 const PATH_SEPARATOR = " › ";
 
-/** Every category's full path label ("Almacén › Untables"), keyed by id. */
 export function categoryPathLabels<T extends CategoryNode>(
   categories: readonly T[],
 ): Map<string, string> {
@@ -38,10 +37,6 @@ function collator(a: string, b: string): number {
   return a.localeCompare(b, "es");
 }
 
-/**
- * Every category in parent-before-descendants order, siblings sorted by name (descending reverses
- * only the sibling order). An orphaned parent is treated as top-level; a cycle is still emitted.
- */
 export function categoriesInTreeOrder<T extends CategoryNode>(
   categories: readonly T[],
   direction: "ascending" | "descending" = "ascending",
@@ -84,7 +79,6 @@ export function categoriesInTreeOrder<T extends CategoryNode>(
   return ordered;
 }
 
-/** A category with no subcategories of its own — the only kind a product can be assigned to. */
 export function leafCategories<T extends CategoryNode>(categories: readonly T[]): T[] {
   const parentIds = new Set(
     categories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
@@ -92,7 +86,6 @@ export function leafCategories<T extends CategoryNode>(categories: readonly T[])
   return categories.filter((category) => !parentIds.has(category.id));
 }
 
-/** A category's own id plus every descendant's, since neither is a valid move target for it. */
 export function selfAndDescendantIds<T extends CategoryNode>(
   categories: readonly T[],
   categoryId: string,

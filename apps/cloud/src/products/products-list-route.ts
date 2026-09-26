@@ -70,7 +70,6 @@ export function netContentRow(row: {
   return { quantity: row.netContentQuantity, unit: row.netContentUnit as NetContentUnit };
 }
 
-// Grouped in code, not SQL, to avoid a driver-specific `json_agg` shape.
 async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   productIds: string[],

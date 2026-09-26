@@ -58,10 +58,8 @@ export type AlertListQuery = {
 
 export type AlertListPage = {
   alerts: AlertSummary[];
-  /** How many alerts matched the query, across every page. */
   total: number;
   pageSize: number;
-  /** Every open alert the session can see, regardless of the query. */
   openCount: number;
   openCriticalCount: number;
 };

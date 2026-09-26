@@ -34,11 +34,9 @@ export const defaultAlertDetailModalServices: AlertDetailModalServices = {
 };
 
 export type AlertDetailModalProps = {
-  /** `null` keeps the modal closed; opening one fetches its detail fresh. */
   alertId: string | null;
   access: BackofficeAccess;
   onClose: () => void;
-  /** Fired after a successful close, so the list can refresh; the modal is left to the caller to close too. */
   onClosed: () => void;
   onSessionEnded: () => void;
   services?: AlertDetailModalServices;

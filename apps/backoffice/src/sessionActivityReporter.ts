@@ -16,8 +16,6 @@ export type SessionActivityReporterOptions = {
   now?: () => Date;
 };
 
-/** The throttle window starts at mount since the page load already touched the session; a failed
- * touch is silently ignored and the next activity retries. */
 export function useSessionActivityReporter({
   active,
   touchSession,

@@ -41,8 +41,6 @@ async function writeEmptyClusterDump(clusterDumpPath: string): Promise<void> {
   }
 }
 
-// Compression is skipped: the dump only ever moves across the local filesystem, and every test
-// file would pay to decompress its own copy.
 async function writeSnapshot(
   snapshotPath: string,
   migrationsFolder: string,

@@ -345,7 +345,6 @@ type SettingsAppSection =
 
 type SettingsAppProps = {
   section: SettingsAppSection;
-  /** Only set for `section: "userDetail"`. */
   userDetailId?: string;
   signedInUserId: string;
   displayName: string;

@@ -1,5 +1,3 @@
-// Wraps a plain element (e.g. Tag) to make it a proper focusable target, most often a tooltip's
-// trigger, without that element knowing anything about focus or tooltips itself.
 export { Focusable } from "react-aria-components";
 export type { AreaNavItemIcon, AreaNavItemProps } from "./components/AreaNavItem";
 export { AreaNavItem } from "./components/AreaNavItem";

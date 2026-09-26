@@ -1,6 +1,5 @@
 import { hexToRgb } from "../styles/contrast";
 
-// Converts a "#rrggbb" token value to the "rgb(r, g, b)" form a browser reports from getComputedStyle.
 function hexTokenToRgb(hex: string): string {
   const { r, g, b } = hexToRgb(hex);
   return `rgb(${r}, ${g}, ${b})`;
@@ -71,7 +70,6 @@ export function tokenBackgroundColor(name: string): string {
   return value;
 }
 
-// Converts a "rgb(r, g, b)" computed style value back to "#rrggbb" for contrastRatio().
 export function rgbToHex(rgb: string): string {
   const channels = rgb.match(/\d+/g);
   if (channels?.length !== 3) {

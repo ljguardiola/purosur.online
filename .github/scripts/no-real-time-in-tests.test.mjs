@@ -14,8 +14,6 @@ import {
   readVitestProjects,
 } from "./no-real-time-in-tests.mjs";
 
-// findRealTimeViolations: measures real elapsed time -----------------------------------------
-
 test("flags a Date.now() difference compared with a fixed value", () => {
   const source = [
     "const started = Date.now();",
@@ -296,8 +294,6 @@ test("does not flag an elapsed comparison whose clock the installed fake timers 
 
   assert.deepEqual(findRealTimeViolations(source, "a.test.ts"), []);
 });
-
-// findRealTimeViolations: waits a fixed real time ---------------------------------------------
 
 test("flags a bare setTimeout wait with a fixed delay", () => {
   const source = "await new Promise((r) => setTimeout(r, 200));";
@@ -1102,8 +1098,6 @@ test("flags a process.uptime() elapsed comparison even under fake timers", () =>
   assert.equal(findRealTimeViolations(source, "a.test.ts").length, 1);
 });
 
-// checkFiles / describeViolation ---------------------------------------------------------------
-
 test("checkFiles reports violations across several files with reason", () => {
   const files = {
     "a.test.ts": "setTimeout(() => {}, 500);\n",
@@ -1129,8 +1123,6 @@ test("describeViolation includes the path, line, source text and reason", () => 
   assert.match(description, /setTimeout/);
   assert.match(description, /waits a fixed real time/);
 });
-
-// readVitestProjects -----------------------------------------------------------------------
 
 test("reads every project's include globs, setupFiles and globalSetup", () => {
   const config = [
@@ -1185,8 +1177,6 @@ test("readVitestProjects fails when the config has no test.projects array", () =
   assert.throws(() => readVitestProjects('export default { test: { name: "node" } };'));
 });
 
-// readVerifyStaticTestGlobs ------------------------------------------------------------------
-
 test("reads the node --test glob from the verify:static script", () => {
   const packageJson = JSON.stringify({
     scripts: {
@@ -1221,8 +1211,6 @@ test("readVerifyStaticTestGlobs fails when node --test is given no glob", () => 
 test("readVerifyStaticTestGlobs fails when there is no verify:static script", () => {
   assert.throws(() => readVerifyStaticTestGlobs(JSON.stringify({ scripts: {} })));
 });
-
-// isTestOnlyHelperPath -----------------------------------------------------------------------
 
 test("treats files under a test-only directory, or with a test basename token, as test helpers", () => {
   for (const path of [
@@ -1268,9 +1256,6 @@ test("finds test-only helpers under src, leaving out node_modules and dist", () 
   }
 });
 
-// The guard itself: every scanned file in the repository. This is what fails `pnpm verify` (via
-// `node --test .github/scripts/*.test.mjs`) when a test waits a fixed real time, or measures real
-// elapsed time, to decide its result.
 test("no scanned test file in the repository depends on real elapsed time", () => {
   const files = findScannedFiles();
   for (const sentinel of [

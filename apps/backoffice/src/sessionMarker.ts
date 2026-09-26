@@ -15,9 +15,7 @@ export function markSignedIn(): void {
 export function clearSignedInMarker(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // See markSignedIn.
-  }
+  } catch {}
 }
 
 export function wasSignedIn(): boolean {

@@ -136,7 +136,6 @@ type ScreenNotice = {
 
 type PriceChangeModalProps = {
   target: PriceProduct | null;
-  /** An outcome about the product the walk just left (saved, or skipped as deactivated). */
   previousProductNotice: ScreenNotice | null;
   now: () => Date;
   onClose: () => void;

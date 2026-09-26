@@ -290,8 +290,6 @@ function TableEmptyState({ icon, title, detail, tone, actions }: TableEmptyState
   );
 }
 
-// No timer or effect: it renders as soon as loading starts and stays invisible for the CSS reveal
-// delay on its own, so nothing here needs to wait or clean anything up.
 function SkeletonRow<T>({
   columns,
   isLastRow,
@@ -453,10 +451,6 @@ export function Table<T>({
 
   return (
     <>
-      {/* overflow-clip-margin parses to nothing in WebKit, same as its 0px default elsewhere, so
-          nothing here depends on it. isolate gives this container its own stacking context, so the
-          focused header's z-20 and the updating bar's z-10 resolve against each other, not the
-          page's root stack. */}
       <div className="relative isolate overflow-clip rounded-lg border border-line bg-surface-white">
         {loading === "updating" && (
           <div
@@ -484,8 +478,6 @@ export function Table<T>({
               <tr className="h-11 bg-surface-bone">
                 {columns.map((column, index) => {
                   const isActions = column.kind === "actions";
-                  // Narrows the implementation's optional onSortChange to the non-optional prop
-                  // SortableColumnHeader takes.
                   const isSortable =
                     !isActions && column.sortable === true && onSortChange !== undefined;
                   const isSorted = isSortable && sort?.column === column.key;

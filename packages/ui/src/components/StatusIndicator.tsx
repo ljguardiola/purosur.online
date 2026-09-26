@@ -36,7 +36,6 @@ const spinnerColorClassName: Record<StatusIndicatorTone, string> = {
   neutral: "text-ink-secondary",
 };
 
-// Respects prefers-reduced-motion: motion-reduce:animate-none overrides animate-spin.
 const spinnerBaseClassName = "size-[0.875rem] shrink-0 animate-spin motion-reduce:animate-none";
 const dotBaseClassName = "size-2 shrink-0 rounded-full";
 

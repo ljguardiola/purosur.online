@@ -44,7 +44,6 @@ export interface ServerEnv {
 const DEFAULT_PORT = 3000;
 const DEFAULT_VERSION = "unknown";
 
-// apps/cloud/Dockerfile copies the backoffice build to public/, a sibling of this file's dist/.
 const DEFAULT_STATIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 
 export function resolveVersion(env: ServerEnv): string {

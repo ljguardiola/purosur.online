@@ -830,7 +830,6 @@ test("does not accept a close label on a non-closable modal", () => {
   expectTypeOf<{ closable: false; closeLabel: string }>().not.toExtend<ModalCloseFields>();
 });
 
-// Same distribution as ModalCloseFields, narrowed to the layout-specific fields.
 type ModalLayoutFields = ModalProps extends infer P
   ? P extends unknown
     ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable" | "closeLabel">

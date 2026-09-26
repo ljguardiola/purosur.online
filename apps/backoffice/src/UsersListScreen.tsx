@@ -436,8 +436,6 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     );
   }, [users, showsState, stateFilter]);
 
-  // A conditional spread here would widen the result to a plain array; the columns prop needs a
-  // fixed tuple, so these use separate `as const` groups instead.
   const baseColumns = [
     {
       key: "user",

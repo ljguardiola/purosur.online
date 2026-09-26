@@ -11,7 +11,6 @@ const DEFAULT_DEADLINE_MARGIN_MS = 5_000;
 export type SessionWatcherOptions = {
   active: boolean;
   initialExpiresAt?: string;
-  /** Looks the session up without extending it (`checkSessionStatus`). */
   checkStatus: () => Promise<SessionStatusOutcome>;
   onEnded: () => void;
   intervalMs?: number;
@@ -19,7 +18,6 @@ export type SessionWatcherOptions = {
   now?: () => Date;
 };
 
-/** Fails open: network trouble or a rate limit leaves the tab signed in, and the next scheduled check retries. */
 export function useSessionWatcher({
   active,
   initialExpiresAt,

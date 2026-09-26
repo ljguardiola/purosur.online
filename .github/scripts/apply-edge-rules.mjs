@@ -8,7 +8,7 @@ const LOG_PREFIX = "apply-edge-rules";
 const HTTP_REQUEST_LATE_TRANSFORM_PHASE = "http_request_late_transform";
 const HTTP_RATELIMIT_PHASE = "http_ratelimit";
 
-// Must match apps/cloud/src/edge-origin-guard.ts's EDGE_ORIGIN_SECRET_HEADER.
+// Must match the header name the cloud's edge origin guard checks.
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
 export function cloudHostnames(domainsByEnvironment) {
