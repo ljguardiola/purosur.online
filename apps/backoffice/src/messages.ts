@@ -8,9 +8,11 @@ import {
   type PermissionKey,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
+  REGISTER_NAME_MAX_LENGTH,
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
+import type { ProductStatusFilter } from "./productsApi";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
 // browser's own clock, instead of drifting with wherever a device happens to be set to.
@@ -57,8 +59,9 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
+const REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
-// Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
+// Shared between the Roles screen's per-permission checkboxes (every key, so a missing one is a
 // type error) and the Alertas area's own radio/checkbox widget, which renders these same three
 // permissions as a bespoke control instead of a plain checkbox list.
 const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
@@ -102,6 +105,7 @@ const PERMISSION_LABELS = {
   manage_batches: "Tandas",
   reset_user_pin: "Reiniciar el PIN",
   deactivate_users: "Desactivar usuarios",
+  reactivate_users: "Reactivar usuarios",
   correct_register_clock: "Corregir el reloj de la caja",
   view_fiscal_documents: "Ver comprobantes, contingencias y puntos de venta",
   close_fiscal_tasks: "Cerrar tareas fiscales",
@@ -233,6 +237,7 @@ export const messages = defineMessages("es-AR", (f) => ({
     sectionsNavLabel: "Configuración",
     usersSectionLabel: "Usuarios",
     rolesSectionLabel: "Roles",
+    registersSectionLabel: "Cajas registradoras",
     branchSectionLabel: "Sucursal",
     // Shown instead of usersSectionLabel when Usuarios itself isn't unlocked, so Configuración
     // always has at least one sidebar entry.
@@ -305,13 +310,18 @@ export const messages = defineMessages("es-AR", (f) => ({
       heading: "Usuarios",
       newUserButton: "Nuevo usuario",
       administratorRoleName: ADMINISTRATOR_ROLE_NAME,
-      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys" },
+      columns: { user: "Usuario", role: "Rol", passkeys: "Passkeys", state: "Estado" },
       count: (params: { count: number }) =>
         f.plural(params.count, { one: "1 usuario", other: `${params.count} usuarios` }),
       passkeysCount: (params: { count: number }) =>
         params.count === 0
           ? "—"
           : f.plural(params.count, { one: "1 registrada", other: `${params.count} registradas` }),
+      inactiveTag: "Inactivo",
+      stateFilterLabel: "Estado:",
+      stateFilterAllOption: "Activos e inactivos",
+      stateFilterActiveOption: "Activos",
+      stateFilterInactiveOption: "Inactivos",
       loadErrorTitle: "No pudimos abrir los usuarios",
       loadErrorDetail: "Probá de nuevo en unos minutos.",
       retry: "Reintentar",
@@ -332,6 +342,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailInvalid: EMAIL_INVALID,
         roleRequired: "Elegí un rol.",
         emailTaken: EMAIL_TAKEN,
+        emailBelongsToDeactivatedUser: (params: { name: string }) =>
+          `Ese correo pertenece a la cuenta desactivada de ${params.name}.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
         closeLabel: CLOSE_LABEL,
@@ -362,6 +375,9 @@ export const messages = defineMessages("es-AR", (f) => ({
         deactivateHelp: (params: { name: string }) =>
           `Al desactivar a ${params.name}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`,
         deactivateButton: (params: { name: string }) => `Desactivar a ${params.name}`,
+        reactivateHelp: (params: { name: string }) =>
+          `Al reactivar a ${params.name}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`,
+        reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
       },
       deactivateModal: {
         title: (params: { name: string }) => `¿Desactivar a ${params.name}?`,
@@ -370,6 +386,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         confirm: "Desactivar",
         closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo desactivar el usuario",
+        attemptFailedDetail: "Probá de nuevo.",
+      },
+      reactivateModal: {
+        title: (params: { name: string }) => `¿Reactivar a ${params.name}?`,
+        body: "Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.",
+        cancel: CANCEL_LABEL,
+        confirm: "Reactivar",
+        attemptFailedTitle: "No se pudo reactivar el usuario",
         attemptFailedDetail: "Probá de nuevo.",
       },
       removePasskeyModal: {
@@ -491,6 +515,71 @@ export const messages = defineMessages("es-AR", (f) => ({
         },
       },
     },
+    registers: {
+      documentTitle: "Cajas registradoras · Puro Sur",
+      breadcrumb: "Configuración",
+      heading: "Cajas registradoras",
+      newRegisterButton: "Nueva caja",
+      columns: {
+        register: "CAJA",
+        installation: "INSTALACIÓN",
+        pointsOfSale: "PUNTOS DE VENTA",
+        status: "ESTADO",
+      },
+      noInstallation: "Sin instalación",
+      codeNotIssued: "—",
+      pointsOfSaleNotConfigured: "Sin configurar",
+      statusPendingEnrollment: "Esperando alta",
+      codeIssued: (params: { minutes: number }) =>
+        params.minutes < 1
+          ? "Código emitido recién"
+          : `Código emitido hace ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      codeExpiresIn: (params: { minutes: number }) =>
+        `Vence en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}`,
+      count: (params: { count: number }) =>
+        f.plural(params.count, { one: "1 caja", other: `${params.count} cajas` }),
+      emptyTitle: "Todavía no hay cajas registradoras",
+      emptyDetail: "Creá la primera para verla en la lista.",
+      loadErrorTitle: "No pudimos abrir las cajas registradoras",
+      loadErrorDetail: "Probá de nuevo en unos minutos.",
+      retry: "Reintentar",
+      rateLimitedTitle: "Demasiadas solicitudes",
+      rateLimitedDetail: (params: { minutes: number }) =>
+        `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      rowActionsLabel: "Acciones",
+      issueCodeAria: (params: { name: string }) => `Emitir código de alta para ${params.name}`,
+      newRegisterModal: {
+        eyebrow: "Configuración",
+        heading: "Nueva caja",
+        nameLabel: "Nombre de la caja",
+        nameRequired: "Ingresá el nombre de la caja.",
+        nameTooLong: REGISTER_NAME_TOO_LONG,
+        nameTaken: "Ya existe una caja con este nombre.",
+        cancel: CANCEL_LABEL,
+        submit: "Crear la caja",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo crear la caja",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+      enrollmentCodeModal: {
+        heading: "Código de alta",
+        issuing: "Emitiendo el código…",
+        codeExpiresNote: "Vence en 15 minutos · se usa una sola vez",
+        description:
+          "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
+        doneButton: "Listo",
+        closeLabel: CLOSE_LABEL,
+        retry: "Reintentar",
+        attemptFailedTitle: "No se pudo emitir el código",
+        attemptFailedDetail: "Probá de nuevo.",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
+    },
     branch: {
       documentTitle: "Sucursal · Puro Sur",
       breadcrumb: "Configuración",
@@ -560,11 +649,36 @@ export const messages = defineMessages("es-AR", (f) => ({
       unitFilterLabel: "Unidad:",
       unitFilterAllOption: "Todas",
       unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
-      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD" },
-      count: (params: { count: number }) =>
-        f.plural(params.count, { one: "1 producto", other: `${params.count} productos` }),
-      emptyTitle: "Todavía no hay productos",
-      emptyDetail: "Creá el primero para verlo en la lista.",
+      statusFilterLabel: "Estado:",
+      statusFilterActiveOption: "Activos",
+      statusFilterInactiveOption: "Inactivos",
+      statusFilterAllOption: "Todos",
+      statusActive: "Activo",
+      statusInactive: "Inactivo",
+      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD", status: "ESTADO" },
+      count: (params: { count: number; status: ProductStatusFilter }) => {
+        if (params.status === "active") {
+          return f.plural(params.count, {
+            one: "1 producto activo",
+            other: `${params.count} productos activos`,
+          });
+        }
+        if (params.status === "inactive") {
+          return f.plural(params.count, {
+            one: "1 producto inactivo",
+            other: `${params.count} productos inactivos`,
+          });
+        }
+        return f.plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+      },
+      empty: {
+        active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+        inactive: { title: "No hay productos inactivos" },
+        all: {
+          title: "Todavía no hay productos",
+          detail: "Creá el primero para verlo en la lista.",
+        },
+      } satisfies Record<ProductStatusFilter, { title: string; detail?: string }>,
       noResultsTitle: "Sin resultados",
       noResultsDetail: "Probá con otro nombre o código de barras.",
       loadErrorTitle: "No pudimos abrir los productos",
@@ -575,6 +689,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el producto ${params.name}`,
+      deactivateAria: (params: { name: string }) => `Desactivar el producto ${params.name}`,
       newProductModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Nuevo producto",
@@ -664,6 +779,20 @@ export const messages = defineMessages("es-AR", (f) => ({
         rateLimitedDetail: (params: { minutes: number }) =>
           `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
+      deactivateModal: {
+        title: (params: { name: string }) => `¿Desactivar ${params.name}?`,
+        body: "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
+        cancel: CANCEL_LABEL,
+        confirm: "Desactivar",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo desactivar el producto",
+        attemptFailedDetail: "Probá de nuevo.",
+        alreadyInactiveTitle: "Ya estaba desactivado",
+        reload: "Actualizar la lista",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
       printLabelsModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Imprimir etiquetas",
@@ -672,8 +801,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         decreaseAria: (params: { name: string }) => `Restar una etiqueta de ${params.name}`,
         increaseAria: (params: { name: string }) => `Sumar una etiqueta a ${params.name}`,
         previewAria: "Vista previa de la etiqueta",
-        emptyTitle: "No hay productos con código interno",
-        emptyDetail: "Generá uno desde el formulario del producto.",
+        emptyTitle: "No hay productos activos con código interno",
+        emptyDetail: "Generá uno desde el formulario de un producto activo.",
         summary: (params: { count: number }) =>
           f.plural(params.count, { one: "1 etiqueta", other: `${params.count} etiquetas` }),
         summaryDetail: "Hoja autoadhesiva para cualquier impresora común.",
@@ -831,7 +960,10 @@ export const messages = defineMessages("es-AR", (f) => ({
       passkeyRemoval: "Dar de baja una passkey",
       passkeyRegistration: "Agregar una passkey",
       userDeactivation: "Desactivar un usuario",
+      userReactivation: "Reactivar un usuario",
       issuerIdentificationSave: "Guardar la identificación del emisor",
+      registerCreate: "Crear una caja",
+      registerEnrollmentCodeIssue: "Emitir un código de alta",
     },
   },
   help: {

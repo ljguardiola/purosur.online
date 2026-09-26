@@ -1,9 +1,29 @@
-import { Button, InlineNotice, Modal, Select, Table, TableCellText, TextField } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  ListFilter,
+  Modal,
+  Select,
+  Table,
+  TableCellText,
+  Tag,
+  TextField,
+} from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { Eye, KeyRound, Pencil, Plus, ShieldX, TriangleAlert, UserPlus, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Eye,
+  KeyRound,
+  Pencil,
+  Plus,
+  ShieldX,
+  TriangleAlert,
+  UserCheck,
+  UserPlus,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import type { BackofficeAccess } from "./access";
+import { type BackofficeAccess, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
 import { messages } from "./messages";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
@@ -95,6 +115,8 @@ type NewUserModalProps = {
   roles: BranchUserRole[];
   onClose: () => void;
   onCreated: () => void;
+  /** The email typed belongs to a deactivated user the caller can reactivate: leads there instead of creating a second account. */
+  onReactivate: (target: { id: string }) => void;
   onSessionEnded: () => void;
   createUser: typeof createUser;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -108,6 +130,7 @@ function NewUserModal({
   roles,
   onClose,
   onCreated,
+  onReactivate,
   onSessionEnded,
   createUser,
   fetchSessionAuthorizationOptions,
@@ -126,6 +149,13 @@ function NewUserModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // The typed email belongs to a deactivated user this caller can reactivate: holds their id and
+  // name for the notice and the Reactivar button, cleared as soon as the email is edited again so
+  // a changed address isn't still blocked by a conflict that no longer applies to it.
+  const [deactivatedConflict, setDeactivatedConflict] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const { run, modal } = useAuthorization<CreateUserOutcome>({
     action: "userCreate",
     onSessionEnded,
@@ -140,6 +170,7 @@ function NewUserModal({
       setFieldErrors({});
       setNotice(null);
       setSubmitting(false);
+      setDeactivatedConflict(null);
     }
   }, [isOpen]);
 
@@ -156,6 +187,7 @@ function NewUserModal({
       return;
     }
     setNotice(null);
+    setDeactivatedConflict(null);
     setSubmitting(true);
 
     const outcome = await run(() =>
@@ -185,6 +217,11 @@ function NewUserModal({
     }
     if (outcome.kind === "email_taken") {
       setFieldErrors((current) => ({ ...current, email: modalMessages.emailTaken }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "email_belongs_to_deactivated_user") {
+      setDeactivatedConflict({ id: outcome.id, name: outcome.name });
       setSubmitting(false);
       return;
     }
@@ -234,7 +271,7 @@ function NewUserModal({
               size="large"
               icon={<KeyRound />}
               fullWidth
-              isDisabled={submitting}
+              isDisabled={submitting || deactivatedConflict !== null}
               onPress={() => void handleSubmit()}
             >
               {modalMessages.submit}
@@ -310,10 +347,32 @@ function NewUserModal({
                   withFieldError(current, "email", validateEmail(value, EMAIL_ERRORS)),
                 );
               }
+              if (deactivatedConflict) {
+                setDeactivatedConflict(null);
+              }
             }}
             required
-            {...(fieldErrors.email ? { invalid: true, errorMessage: fieldErrors.email } : {})}
+            {...(fieldErrors.email
+              ? { invalid: true, errorMessage: fieldErrors.email }
+              : deactivatedConflict
+                ? {
+                    invalid: true,
+                    errorMessage: modalMessages.emailBelongsToDeactivatedUser({
+                      name: deactivatedConflict.name,
+                    }),
+                  }
+                : {})}
           />
+          {deactivatedConflict && (
+            <Button
+              variant="secondary"
+              size="small"
+              icon={<UserCheck />}
+              onPress={() => onReactivate({ id: deactivatedConflict.id })}
+            >
+              {modalMessages.reactivateButton({ name: deactivatedConflict.name })}
+            </Button>
+          )}
         </div>
       </Modal>
       {modal}
@@ -383,7 +442,31 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
 
   const users = list.kind === "loaded" ? list.users : [];
 
-  const columns = [
+  // Only a caller who can reactivate ever receives a deactivated user at all (the cloud's own
+  // `GET /users` scoping): showing the Estado column and filter to anyone else would be a column
+  // and a control with nothing to ever show or do.
+  const showsState = canReactivateUser(access);
+  const stateFilterOptions = [
+    { value: "all" as const, label: usersMessages.stateFilterAllOption },
+    { value: "active" as const, label: usersMessages.stateFilterActiveOption },
+    { value: "inactive" as const, label: usersMessages.stateFilterInactiveOption },
+  ] as const;
+  type StateFilter = (typeof stateFilterOptions)[number]["value"];
+  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const filteredUsers = useMemo(() => {
+    if (!showsState || stateFilter === "all") {
+      return users;
+    }
+    return users.filter((user) =>
+      stateFilter === "active" ? user.active !== false : user.active === false,
+    );
+  }, [users, showsState, stateFilter]);
+
+  // Kept as separate `as const` groups, instead of one array with a conditionally spread middle
+  // element, so the branch Table actually receives always keeps its tuple type (at least one
+  // column) - a plain conditional spread widens the whole thing to a bare array, which Table's own
+  // columns prop refuses.
+  const baseColumns = [
     {
       key: "user",
       title: usersMessages.columns.user,
@@ -401,21 +484,30 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
       title: usersMessages.columns.passkeys,
       render: (item: BranchUser) => usersMessages.passkeysCount({ count: item.passkeyCount }),
     },
-    {
-      key: "actions",
-      kind: "actions",
-      srLabel: usersMessages.rowActionsLabel,
-      actions: [
-        (item: BranchUser) => ({
-          icon: access.isAdministrator ? <Pencil /> : <Eye />,
-          "aria-label": access.isAdministrator
-            ? usersMessages.editAria({ name: item.firstName })
-            : usersMessages.viewAria({ name: item.firstName }),
-          onPress: () => navigate(userDetailPath(item.id)),
-        }),
-      ],
-    },
   ] as const;
+  const stateColumn = {
+    key: "state",
+    title: usersMessages.columns.state,
+    render: (item: BranchUser) =>
+      item.active === false ? <Tag tone="neutral">{usersMessages.inactiveTag}</Tag> : null,
+  } as const;
+  const actionsColumn = {
+    key: "actions",
+    kind: "actions",
+    srLabel: usersMessages.rowActionsLabel,
+    actions: [
+      (item: BranchUser) => ({
+        icon: access.isAdministrator ? <Pencil /> : <Eye />,
+        "aria-label": access.isAdministrator
+          ? usersMessages.editAria({ name: item.firstName })
+          : usersMessages.viewAria({ name: item.firstName }),
+        onPress: () => navigate(userDetailPath(item.id)),
+      }),
+    ],
+  } as const;
+  const columns = showsState
+    ? ([...baseColumns, stateColumn, actionsColumn] as const)
+    : ([...baseColumns, actionsColumn] as const);
 
   return (
     <>
@@ -469,17 +561,29 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
           </>
         )}
         {(list.kind === "loading" || list.kind === "loaded") && (
-          <Table
-            aria-label={usersMessages.heading}
-            columns={columns}
-            loading={list.kind === "loading" ? "initial" : false}
-            rows={users.map((user) => ({ id: user.id, item: user }))}
-            footer={
-              <p className="text-ink-secondary text-sm">
-                {usersMessages.count({ count: users.length })}
-              </p>
-            }
-          />
+          <>
+            {showsState && (
+              <div className="flex items-center gap-3">
+                <ListFilter
+                  label={usersMessages.stateFilterLabel}
+                  options={stateFilterOptions}
+                  value={stateFilter}
+                  onChange={setStateFilter}
+                />
+              </div>
+            )}
+            <Table
+              aria-label={usersMessages.heading}
+              columns={columns}
+              loading={list.kind === "loading" ? "initial" : false}
+              rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
+              footer={
+                <p className="text-ink-secondary text-sm">
+                  {usersMessages.count({ count: filteredUsers.length })}
+                </p>
+              }
+            />
+          </>
         )}
       </ScreenLayout>
       <NewUserModal
@@ -489,6 +593,10 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         onCreated={() => {
           setModalOpen(false);
           void load();
+        }}
+        onReactivate={({ id }) => {
+          setModalOpen(false);
+          navigate(userDetailPath(id));
         }}
         onSessionEnded={onSessionEnded}
         createUser={createUser}

@@ -2,6 +2,7 @@ import { AreaNavItem, SectionNavItem } from "@purosur/ui";
 import {
   Bell,
   Home,
+  Laptop,
   LifeBuoy,
   Package,
   Settings,
@@ -34,6 +35,7 @@ import {
   canSeeBranchArea,
   canSeeCashArea,
   canSeeCatalogArea,
+  canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
 } from "./access";
@@ -76,6 +78,11 @@ import {
   type RegisterPasskeyScreenServices,
 } from "./RegisterPasskeyScreen";
 import {
+  defaultRegistersListScreenServices,
+  RegistersListScreen,
+  type RegistersListScreenServices,
+} from "./RegistersListScreen";
+import {
   defaultRolesListScreenServices,
   RolesListScreen,
   type RolesListScreenServices,
@@ -96,6 +103,7 @@ import {
   BRANCH_SETTINGS_PATH,
   MY_ACCOUNT_PATH,
   matchUserDetailPath,
+  REGISTERS_LIST_PATH,
   ROLES_LIST_PATH,
   sendToMyAccount,
   USERS_LIST_PATH,
@@ -121,6 +129,7 @@ export type AppServices = {
   usersListScreen: UsersListScreenServices;
   userDetailScreen: UserDetailScreenServices;
   rolesListScreen: RolesListScreenServices;
+  registersListScreen: RegistersListScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   productsListScreen: ProductsListScreenServices;
@@ -139,6 +148,7 @@ const defaultAppServices: AppServices = {
   usersListScreen: defaultUsersListScreenServices,
   userDetailScreen: defaultUserDetailScreenServices,
   rolesListScreen: defaultRolesListScreenServices,
+  registersListScreen: defaultRegistersListScreenServices,
   branchSettingsScreen: defaultBranchSettingsScreenServices,
   categoriesListScreen: defaultCategoriesListScreenServices,
   productsListScreen: defaultProductsListScreenServices,
@@ -341,7 +351,13 @@ function HelpApp({
   );
 }
 
-type SettingsAppSection = "myAccount" | "usersList" | "userDetail" | "rolesList" | "branchSettings";
+type SettingsAppSection =
+  | "myAccount"
+  | "usersList"
+  | "userDetail"
+  | "rolesList"
+  | "registersList"
+  | "branchSettings";
 
 type SettingsAppProps = {
   section: SettingsAppSection;
@@ -352,6 +368,7 @@ type SettingsAppProps = {
   access: BackofficeAccess;
   canSeeUsers: boolean;
   canSeeRoles: boolean;
+  canSeeRegisters: boolean;
   canSeeBranch: boolean;
   canSeeAlerts: boolean;
   canSeeCatalog: boolean;
@@ -363,6 +380,7 @@ type SettingsAppProps = {
   usersListScreenServices: UsersListScreenServices;
   userDetailScreenServices: UserDetailScreenServices;
   rolesListScreenServices: RolesListScreenServices;
+  registersListScreenServices: RegistersListScreenServices;
   branchSettingsScreenServices: BranchSettingsScreenServices;
 };
 
@@ -379,6 +397,7 @@ function SettingsApp({
   access,
   canSeeUsers,
   canSeeRoles,
+  canSeeRegisters,
   canSeeBranch,
   canSeeAlerts,
   canSeeCatalog,
@@ -390,6 +409,7 @@ function SettingsApp({
   usersListScreenServices,
   userDetailScreenServices,
   rolesListScreenServices,
+  registersListScreenServices,
   branchSettingsScreenServices,
 }: SettingsAppProps) {
   useEffect(() => {
@@ -398,9 +418,11 @@ function SettingsApp({
         ? messages.settings.users.documentTitle
         : section === "rolesList"
           ? messages.settings.roles.documentTitle
-          : section === "branchSettings"
-            ? messages.settings.branch.documentTitle
-            : messages.settings.myAccount.documentTitle;
+          : section === "registersList"
+            ? messages.settings.registers.documentTitle
+            : section === "branchSettings"
+              ? messages.settings.branch.documentTitle
+              : messages.settings.myAccount.documentTitle;
   }, [section]);
 
   return (
@@ -466,6 +488,16 @@ function SettingsApp({
                 />
               </li>
             )}
+            {canSeeRegisters && (
+              <li>
+                <SectionNavItem
+                  label={messages.settings.registersSectionLabel}
+                  icon={<Laptop />}
+                  active={section === "registersList"}
+                  {...linkProps(REGISTERS_LIST_PATH)}
+                />
+              </li>
+            )}
             {canSeeBranch && (
               <li>
                 <SectionNavItem
@@ -505,6 +537,12 @@ function SettingsApp({
       )}
       {section === "rolesList" && (
         <RolesListScreen onSessionEnded={onSessionEnded} services={rolesListScreenServices} />
+      )}
+      {section === "registersList" && (
+        <RegistersListScreen
+          onSessionEnded={onSessionEnded}
+          services={registersListScreenServices}
+        />
       )}
       {section === "branchSettings" && (
         <BranchSettingsScreen
@@ -789,6 +827,7 @@ export function App({ help, services }: AppProps) {
     usersListScreen,
     userDetailScreen,
     rolesListScreen,
+    registersListScreen,
     branchSettingsScreen,
     categoriesListScreen,
     productsListScreen,
@@ -850,11 +889,13 @@ export function App({ help, services }: AppProps) {
     route === USERS_LIST_PATH ||
     userDetailId !== undefined ||
     route === ROLES_LIST_PATH ||
+    route === REGISTERS_LIST_PATH ||
     route === BRANCH_SETTINGS_PATH;
-  // "Usuarios", "Roles" and "Sucursal" are only reachable through their own URLs; Mi cuenta
-  // (self-service) never depends on any of them.
+  // "Usuarios", "Roles", "Cajas registradoras" and "Sucursal" are only reachable through their own
+  // URLs; Mi cuenta (self-service) never depends on any of them.
   const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
   const wantsRoles = route === ROLES_LIST_PATH;
+  const wantsRegisters = route === REGISTERS_LIST_PATH;
   const wantsBranch = route === BRANCH_SETTINGS_PATH;
   const isCatalogRoute = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
   const wantsCatalog = isCatalogRoute;
@@ -866,6 +907,7 @@ export function App({ help, services }: AppProps) {
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
   const canSeeRoles = canSeeRolesArea(access);
+  const canSeeRegisters = canSeeRegistersArea(access);
   const canSeeBranch = canSeeBranchArea(access);
   const canSeeCatalog = canSeeCatalogArea(access);
   const canSeeCash = canSeeCashArea(access);
@@ -873,6 +915,7 @@ export function App({ help, services }: AppProps) {
   const wantsUnlockedSection =
     (wantsUsers && !canSeeUsers) ||
     (wantsRoles && !canSeeRoles) ||
+    (wantsRegisters && !canSeeRegisters) ||
     (wantsBranch && !canSeeBranch) ||
     (wantsCatalog && !canSeeCatalog) ||
     (wantsCash && !canSeeCash) ||
@@ -991,9 +1034,11 @@ export function App({ help, services }: AppProps) {
               ? "userDetail"
               : route === ROLES_LIST_PATH
                 ? "rolesList"
-                : route === BRANCH_SETTINGS_PATH
-                  ? "branchSettings"
-                  : "myAccount"
+                : route === REGISTERS_LIST_PATH
+                  ? "registersList"
+                  : route === BRANCH_SETTINGS_PATH
+                    ? "branchSettings"
+                    : "myAccount"
         }
         {...(userDetailId !== undefined ? { userDetailId } : {})}
         signedInUserId={session.userId}
@@ -1001,6 +1046,7 @@ export function App({ help, services }: AppProps) {
         access={access}
         canSeeUsers={canSeeUsers}
         canSeeRoles={canSeeRoles}
+        canSeeRegisters={canSeeRegisters}
         canSeeBranch={canSeeBranch}
         canSeeAlerts={canSeeAlerts}
         canSeeCatalog={canSeeCatalog}
@@ -1012,6 +1058,7 @@ export function App({ help, services }: AppProps) {
         usersListScreenServices={usersListScreen}
         userDetailScreenServices={userDetailScreen}
         rolesListScreenServices={rolesListScreen}
+        registersListScreenServices={registersListScreen}
         branchSettingsScreenServices={branchSettingsScreen}
       />
     );

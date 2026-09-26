@@ -6,12 +6,17 @@ export type BackofficeAccess = {
 
 /**
  * Whether "Usuarios" and its screens show at all: the Administrator, or a role delegated
- * `deactivate_users` — the only Users action a non-Administrator can perform today. Every other
- * action inside those screens (creating a user, editing an email, removing a passkey) stays
- * Administrator-only and is gated on its own inside the screen that offers it.
+ * `deactivate_users` or `reactivate_users` — the only Users actions a non-Administrator can
+ * perform today. Every other action inside those screens (creating a user, editing an email,
+ * removing a passkey) stays Administrator-only and is gated on its own inside the screen that
+ * offers it.
  */
 export function canSeeUsersArea(access: BackofficeAccess): boolean {
-  return access.isAdministrator || access.permissions.includes("deactivate_users");
+  return (
+    access.isAdministrator ||
+    access.permissions.includes("deactivate_users") ||
+    access.permissions.includes("reactivate_users")
+  );
 }
 
 /**
@@ -27,6 +32,16 @@ export function canDeactivateUser(
     return false;
   }
   return access.isAdministrator || access.permissions.includes("deactivate_users");
+}
+
+/**
+ * Whether the signed-in session can reactivate a deactivated user at all: the Administrator, or a
+ * role delegated `reactivate_users`. Unlike `canDeactivateUser`, this takes no target — the
+ * cloud's own reactivation route only ever admits an inactive target, and an inactive user can't
+ * itself be the last active Administrator, so there is no target-shaped exclusion to mirror here.
+ */
+export function canReactivateUser(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("reactivate_users");
 }
 
 /**
@@ -82,4 +97,12 @@ export function canSeeAlertsArea(access: BackofficeAccess): boolean {
  */
 export function canCloseAlertsManually(access: BackofficeAccess): boolean {
   return access.isAdministrator || access.permissions.includes("dismiss_alerts_manually");
+}
+
+/**
+ * Whether "Cajas registradoras" shows at all: the Administrator or a role that was delegated
+ * `enroll_register_devices`, the same permission that gates the cloud's own register routes.
+ */
+export function canSeeRegistersArea(access: BackofficeAccess): boolean {
+  return access.isAdministrator || access.permissions.includes("enroll_register_devices");
 }

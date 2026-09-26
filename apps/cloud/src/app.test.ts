@@ -764,6 +764,53 @@ describe("wiring the products routes", () => {
   });
 });
 
+describe("wiring the registers routes", () => {
+  it("does not register the registers routes when no registers option is given", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const list = await app.inject({ method: "GET", url: "/registers" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/registers",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const emitCode = await app.inject({
+      method: "POST",
+      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(list.statusCode).toBe(404);
+    expect(create.statusCode).toBe(404);
+    expect(emitCode.statusCode).toBe(404);
+  });
+
+  it("registers the registers routes when a registers option is given", async () => {
+    const app = buildApp({
+      version: "abc1234",
+      registers: { db: testDatabase.db, backofficeOrigin: "https://staging.purosur.online" },
+    });
+
+    const list = await app.inject({ method: "GET", url: "/registers" });
+    const create = await app.inject({
+      method: "POST",
+      url: "/registers",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const emitCode = await app.inject({
+      method: "POST",
+      url: "/registers/00000000-0000-0000-0000-000000000000/enrollment-code",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    // No session cookie was sent in any case, so each reaches its own route handler's 401 instead
+    // of Fastify's generic not-found response for an unregistered route.
+    expect(list.statusCode).toBe(401);
+    expect(create.statusCode).toBe(401);
+    expect(emitCode.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the branch settings routes", () => {
   it("does not register GET /branch-settings when no branchSettings option is given", async () => {
     const app = buildApp({ version: "abc1234" });
@@ -989,6 +1036,7 @@ function fullyWiredApp() {
     categories: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     products: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
     alerts: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
+    registers: { db: testDatabase.db, backofficeOrigin: BACKOFFICE_ORIGIN },
   });
 }
 
@@ -1013,8 +1061,16 @@ describe("the route access inventory", () => {
       { method: "POST", url: "/users/passkeys/registration-options", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys", access: OPEN_SESSION_ACCESS },
       { method: "POST", url: "/users/passkeys/:id/remove", access: OPEN_SESSION_ACCESS },
-      { method: "GET", url: "/users", access: permissionAccess("deactivate_users") },
-      { method: "GET", url: "/users/:id", access: permissionAccess("deactivate_users") },
+      {
+        method: "GET",
+        url: "/users",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
+      {
+        method: "GET",
+        url: "/users/:id",
+        access: permissionAccess(["deactivate_users", "reactivate_users"]),
+      },
       { method: "POST", url: "/users", access: ADMINISTRATOR_ACCESS },
       { method: "POST", url: "/users/:id/edit", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/users/:id/passkeys", access: ADMINISTRATOR_ACCESS },
@@ -1027,6 +1083,11 @@ describe("the route access inventory", () => {
         method: "POST",
         url: "/users/:id/deactivation",
         access: permissionAccess("deactivate_users"),
+      },
+      {
+        method: "POST",
+        url: "/users/:id/reactivation",
+        access: permissionAccess("reactivate_users"),
       },
       { method: "GET", url: "/roles", access: ADMINISTRATOR_ACCESS },
       { method: "GET", url: "/roles/:id", access: ADMINISTRATOR_ACCESS },
@@ -1084,6 +1145,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/products/:id/deactivation",
+        access: permissionAccess("manage_products_and_categories"),
+      },
+      {
+        method: "POST",
         url: "/products/internal-barcode",
         access: permissionAccess("manage_products_and_categories"),
       },
@@ -1099,6 +1165,21 @@ describe("the route access inventory", () => {
         url: "/alerts/:id/close",
         access: permissionAccess("dismiss_alerts_manually"),
       },
+      {
+        method: "GET",
+        url: "/registers",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "POST",
+        url: "/registers",
+        access: permissionAccess("enroll_register_devices"),
+      },
+      {
+        method: "POST",
+        url: "/registers/:id/enrollment-code",
+        access: permissionAccess("enroll_register_devices"),
+      },
       { method: "HEAD", url: "/*", access: PUBLIC_ACCESS },
       { method: "GET", url: "/*", access: PUBLIC_ACCESS },
     ]);
@@ -1111,6 +1192,22 @@ describe("the route access inventory", () => {
     for (const route of app.routeAccessInventory()) {
       expect(route.access, `${route.method} ${route.url} has no declared access`).toBeDefined();
     }
+  });
+});
+
+describe("deleting a product", () => {
+  it("has no route in the fully wired app", async () => {
+    const app = fullyWiredApp();
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/products/00000000-0000-0000-0000-000000000000",
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    // No session cookie is sent: any registered DELETE route would answer its own access check's
+    // 401 instead of Fastify's not-found response.
+    expect(response.statusCode).toBe(404);
   });
 });
 
@@ -1297,8 +1394,13 @@ describe("every route enforces the access it declares", () => {
 
     for (const route of routesDeclaring(app, ["permission"])) {
       const access = route.access as Extract<RouteAccess, { level: "permission" }>;
+      // An any-of declaration (more than one permission) needs every one of them withheld, not
+      // just one, before a route declaring it is expected to forbid the request.
+      const declaredPermissions = Array.isArray(access.permission)
+        ? access.permission
+        : [access.permission];
       const rawSessionId = await signedInWithRole(
-        PERMISSION_KEYS.filter((key) => key !== access.permission),
+        PERMISSION_KEYS.filter((key) => !declaredPermissions.includes(key)),
       );
 
       const response = await send(app, route, rawSessionId);
