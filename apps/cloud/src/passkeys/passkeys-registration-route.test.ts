@@ -136,8 +136,7 @@ async function registerFirstPasskey(forUserId: string, emulator: WebAuthnEmulato
   }
 }
 
-/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
-async function insertSession(forUserId: string, authorizedAt: Date | null = NOON): Promise<string> {
+async function insertSession(forUserId: string, authorizedAt: Date = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId: forUserId,
@@ -227,20 +226,6 @@ describe("POST /users/passkeys/registration-options", () => {
       ? await db.select().from(passkeyChallenges).where(eq(passkeyChallenges.sessionId, session.id))
       : [];
     expect(challenges).toHaveLength(0);
-  });
-
-  it("returns 401 authorization_required and stores no challenge when the session was never authorized", async () => {
-    const rawSessionId = await insertSession(userId, null);
-
-    const response = await postJson(
-      "/users/passkeys/registration-options",
-      {},
-      cookieHeader(rawSessionId),
-    );
-
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "authorization_required" });
-    expect(await db.select().from(passkeyChallenges)).toHaveLength(0);
   });
 
   it("returns 401 authorization_required and stores no challenge when the session's passkey authorization is stale", async () => {

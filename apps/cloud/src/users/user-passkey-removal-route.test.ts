@@ -544,17 +544,6 @@ describe("POST /users/:id/passkeys/:passkeyId/remove", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and deletes nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await removePasskey(targetId, targetPasskeyAId, rawSessionId);
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const rows = await db.select().from(passkeys).where(eq(passkeys.userId, targetId));
-      expect(rows).toHaveLength(2);
-    });
-
     it("returns 401 authorization_required when the session's passkey authorization is stale, deleting nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);

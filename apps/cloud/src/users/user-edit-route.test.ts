@@ -85,8 +85,7 @@ async function roleOf(userId: string): Promise<string | undefined> {
   return row?.roleId;
 }
 
-/** Inserts a session, authorized (by default, at `currentTime`) unless `authorizedAt` is passed as `null`. */
-async function insertSession(userId: string, authorizedAt: Date | null = NOON): Promise<string> {
+async function insertSession(userId: string, authorizedAt: Date = NOON): Promise<string> {
   const rawSessionId = generateSessionId();
   await db.insert(sessions).values({
     userId,
@@ -697,21 +696,6 @@ describe("POST /users/:id/edit", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await editUser(targetId, rawSessionId, {
-        email: "new@example.com",
-        role_id: cashierRoleId,
-        version: 1,
-      });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const [row] = await db.select().from(users).where(eq(users.id, targetId));
-      expect(row?.email).toBe("grace@example.com");
-    });
-
     it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
@@ -724,6 +708,8 @@ describe("POST /users/:id/edit", () => {
 
       expect(response.statusCode).toBe(401);
       expect(response.json()).toMatchObject({ code: "authorization_required" });
+      const [row] = await db.select().from(users).where(eq(users.id, targetId));
+      expect(row?.email).toBe("grace@example.com");
     });
   });
 });

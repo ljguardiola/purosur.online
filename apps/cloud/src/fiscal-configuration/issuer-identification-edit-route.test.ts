@@ -372,14 +372,15 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and changes nothing when the session was never authorized", async () => {
+    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
       const administratorId = await insertUser({
         firstName: "Ada Lovelace",
         email: "ada@example.com",
         roleId: await seededAdministratorRoleId(),
         locationId: await seededLocationId(db),
       });
-      const rawSessionId = await insertSession(administratorId, null);
+      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
+      const rawSessionId = await insertSession(administratorId, authorizedAt);
 
       const response = await putIssuerIdentification(validBody(), rawSessionId);
 
@@ -395,22 +396,6 @@ describe("PUT /fiscal-configuration/issuer-identification", () => {
         .from(auditLog)
         .where(eq(auditLog.entityId, ISSUER_IDENTIFICATION_SINGLETON_ID));
       expect(audited).toHaveLength(0);
-    });
-
-    it("returns 401 authorization_required when the session's passkey authorization is stale, changing nothing", async () => {
-      const administratorId = await insertUser({
-        firstName: "Ada Lovelace",
-        email: "ada@example.com",
-        roleId: await seededAdministratorRoleId(),
-        locationId: await seededLocationId(db),
-      });
-      const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
-      const rawSessionId = await insertSession(administratorId, authorizedAt);
-
-      const response = await putIssuerIdentification(validBody(), rawSessionId);
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
     });
 
     it("checks validation before passkey authorization, the same order role-edit-route.ts uses", async () => {

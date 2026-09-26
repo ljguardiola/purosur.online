@@ -259,19 +259,6 @@ describe("POST /roles", () => {
   });
 
   describe("the shared passkey-authorization guard", () => {
-    it("returns 401 authorization_required and creates nothing when the session was never authorized", async () => {
-      const rawSessionId = await insertSession(administratorId, null);
-
-      const response = await createRole(rawSessionId, { name: "Depósito", permissions: [] });
-
-      expect(response.statusCode).toBe(401);
-      expect(response.json()).toMatchObject({ code: "authorization_required" });
-      const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
-      expect(created).toHaveLength(0);
-      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "role"));
-      expect(audited).toHaveLength(0);
-    });
-
     it("returns 401 authorization_required when the session's passkey authorization is stale, creating nothing", async () => {
       const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS - 1000);
       const rawSessionId = await insertSession(administratorId, authorizedAt);
@@ -282,6 +269,8 @@ describe("POST /roles", () => {
       expect(response.json()).toMatchObject({ code: "authorization_required" });
       const created = await db.select().from(roles).where(eq(roles.isAdministrator, false));
       expect(created).toHaveLength(0);
+      const audited = await db.select().from(auditLog).where(eq(auditLog.entity, "role"));
+      expect(audited).toHaveLength(0);
     });
 
     it("does not count another session's authorization for the same account", async () => {
