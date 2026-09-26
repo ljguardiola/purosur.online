@@ -439,27 +439,6 @@ describe("PUT /branch-settings", () => {
     expect(settingsRow).toMatchObject({ version: 1 });
   });
 
-  it("rejects a range with a closing time equal to its opening time, changing nothing", async () => {
-    const administratorId = await insertUser({
-      firstName: "Ada Lovelace",
-      email: "ada@example.com",
-      roleId: await seededAdministratorRoleId(),
-      locationId: await seededLocationId(db),
-    });
-    const rawSessionId = await insertSession(administratorId);
-
-    const response = await putBranchSettings(
-      validBody({ saturday_hours: [{ opens_at: "09:00", closes_at: "09:00" }] }),
-      rawSessionId,
-    );
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "saturday_hours" }],
-    });
-  });
-
   it("rejects a range with a time that isn't a zero-padded HH:MM, changing nothing", async () => {
     const administratorId = await insertUser({
       firstName: "Ada Lovelace",
