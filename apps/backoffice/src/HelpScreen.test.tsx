@@ -145,9 +145,6 @@ test("renders a selected article's breadcrumb, title and every block kind", asyn
   await expect.element(screen.getByText("Abrí la caja")).toBeVisible();
   await expect.element(screen.getByText("Podés cambiar esto más adelante.")).toBeVisible();
 
-  // The billing-basics article's title appears twice: once as this article's own articleLink
-  // block, once again in the related panel (both point at the same article on purpose, per the
-  // fixture above).
   const articleLinks = screen.getByRole("link", { name: "Facturación básica" }).elements();
   expect(articleLinks).toHaveLength(2);
   for (const link of articleLinks) {
@@ -256,9 +253,8 @@ test("titles every state with an on-screen level-1 heading", async () => {
   expect(isRenderedOnScreen(sectionHeading.element())).toBe(true);
 });
 
-// React logs a duplicate-key warning synchronously while reconciling the children array, inside
-// the `act()` call that `render()` itself awaits, so the spy already holds it by the time
-// `render()` resolves; nothing here waits on the page's own clock.
+// React logs a duplicate-key warning synchronously inside the act() that render() awaits, so the
+// spy already holds it by the time render() resolves.
 async function collectKeyWarnings(renderContent: () => Promise<unknown>): Promise<string[]> {
   const spy = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
@@ -394,9 +390,6 @@ test("typing in the search field calls onSearchChange", async () => {
   );
 
   await userEvent.click(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }));
-  // The field is controlled and this harness never feeds a new `search` prop back in, so each
-  // keystroke's event carries only that one character rather than an accumulating value — this
-  // still proves the field is wired to onSearchChange without depending on that plumbing.
   await userEvent.keyboard("f");
 
   expect(onSearchChange).toHaveBeenCalledWith("f");

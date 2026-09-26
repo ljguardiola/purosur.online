@@ -189,8 +189,8 @@ test("keeps a page chosen right after opening once the untouched search settles"
       .toContainEqual([{ open: true, page: 2 }]);
     await vi.advanceTimersByTimeAsync(300);
 
-    // setTimeout is faked here, so React's re-render (and any fetch it would start) settles over
-    // real frames: waiting for the page-2 render directly, rather than a fixed number of frames.
+    // Only setTimeout/clearTimeout are faked, so React's own re-render still settles over real
+    // frames: poll for it instead of advancing a fixed number of frames.
     await expect
       .element(screen.getByRole("button", { name: "Página 2" }))
       .toHaveAttribute("aria-current", "page");
@@ -203,7 +203,7 @@ test("keeps a page chosen right after opening once the untouched search settles"
   }
 });
 
-test("drops a late response once the filters have changed since it was sent", async () => {
+test("drops a late response once the filters have changed since it was sent, still refreshing on a later filter change", async () => {
   const services = createServices();
   let resolveFirst: (outcome: FetchAlertsOutcome) => void = () => {};
   let resolveFirstSettled: () => void = () => {};
@@ -225,11 +225,8 @@ test("drops a late response once the filters have changed since it was sent", as
   await screen.getByRole("button", { name: /Nivel/ }).click();
   await screen.getByRole("option", { name: "Crítica" }).click();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
-  // Resolves the stale promise and, rather than guessing how long its render would take, uses
-  // React's own act() to flush every render it triggers (recursively, until none is left pending)
-  // before this continues: no arbitrary wait, just "whatever that resolution caused has happened".
   // vitest-browser-react only marks the environment act-aware around its own render/userEvent
-  // calls, so this call needs the flag set too.
+  // calls, so a manual resolution outside of those needs the flag set to use act() here too.
   const globalWithActEnvironment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
   const previousActEnvironment = globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT;
   globalWithActEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
@@ -248,10 +245,6 @@ test("drops a late response once the filters have changed since it was sent", as
   expect(screen.getByText("Lucía Pérez").query()).toBeNull();
   await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
 
-  // A control case, checked only now: a further, later filter change must still reach a fresh
-  // render, proving the screen above wasn't just frozen (which would have passed the absence
-  // check above for the wrong reason). The response for this call is distinct from every other
-  // mocked response so that the assertion can't pass on a stale render.
   vi.mocked(services.fetchAlerts).mockResolvedValueOnce(ok([closedAlert]));
   await screen.getByRole("button", { name: /Estado/ }).click();
   await screen.getByRole("option", { name: "Cerradas" }).click();

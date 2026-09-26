@@ -263,8 +263,8 @@ test("shows a category created while the list is still loading, even once the ea
   await expect.element(screen.getByText("Limpieza")).toBeVisible();
 
   finishFirstLoad({ kind: "ok", value: [almacen] });
-  // The screen awaited this same promise first, so once it settles here the screen has already
-  // handled the earlier result; re-rendering then commits any update that handling scheduled.
+  // Awaiting the same promise the screen awaited lets its handling run first; re-rendering then
+  // commits whatever state that handling scheduled.
   await firstLoad;
   await screen.rerender(
     <main>

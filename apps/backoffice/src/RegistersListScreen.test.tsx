@@ -32,7 +32,6 @@ const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: RegistersListScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -563,8 +562,8 @@ test.each<CloseCodeModalCase>([
     },
     close: async (_screen, dialog) => {
       await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
-      // The modal is wider than the default phone-sized browser-mode viewport, which would leave
-      // its close button outside it and unclickable.
+      // The modal is wider than the default phone-sized viewport, leaving its close button
+      // outside it and unclickable.
       await page.viewport(1280, 900);
       try {
         await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));

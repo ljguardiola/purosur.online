@@ -25,7 +25,6 @@ function createServices(
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: FiscalConfigurationScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -74,7 +73,6 @@ function renderScreen(
 const lateEveningInArgentina = () => new Date("2020-09-25T23:30:00-03:00");
 const afternoonInArgentina = () => new Date("2020-09-25T15:00:00-03:00");
 
-/** Opens the modal on an incomplete identification and fills every field, typing `typedDate`. */
 async function fillIncompleteModal(
   screen: Awaited<ReturnType<typeof renderScreen>>,
   typedDate: string,
@@ -255,9 +253,6 @@ test("lines up the Ingresos Brutos and Inicio de actividades labels and boxes, s
     .getByRole("group", { name: /^Inicio de actividades/ })
     .element() as HTMLElement;
 
-  // The label's own font size, weight and color are TextField's and DateField's own backoffice
-  // size, already proven once for both in FieldSize.test.tsx; this only proves what that test
-  // can't: the two labels actually share a baseline in this row.
   expect(grossIncomeLabel.getBoundingClientRect().top).toBeCloseTo(
     activityStartLabel.getBoundingClientRect().top,
     0,

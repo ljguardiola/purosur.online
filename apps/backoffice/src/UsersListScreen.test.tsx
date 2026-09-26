@@ -19,8 +19,6 @@ function createServices(overrides: Partial<UsersListScreenServices> = {}): Users
     ...overrides,
   };
   if (!overrides.fetchRoles) {
-    // Every existing test exercises a single Administrator; only a test about the role selector
-    // itself needs to override this with a different roster.
     vi.mocked(services.fetchRoles).mockResolvedValue({
       kind: "ok",
       value: [
@@ -80,7 +78,6 @@ const REACTIVATE_USERS_ACCESS: BackofficeAccess = {
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: UsersListScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -611,8 +608,7 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
   window.history.pushState(null, "", "/settings/users");
-  // The roles read is Administrator-only on the cloud: were the screen to ask for it, this
-  // viewer would be sent to Mi cuenta instead of seeing the list.
+  // The cloud restricts the roles read to Administrators; this viewer must not trigger it.
   const services = createServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

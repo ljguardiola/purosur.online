@@ -292,7 +292,7 @@ function scanPlaceholderOf(dialog: ScreenLocator) {
 }
 
 // The modal keeps focus inside itself, so a plain blur() is pulled back into the scan input;
-// moving focus to another field is what actually leaves it.
+// only moving focus to another field actually leaves it.
 async function moveFocusOutOfScanInput(dialog: ScreenLocator) {
   await userEvent.click(dialog.getByRole("textbox", { name: /^Nombre/ }));
 }

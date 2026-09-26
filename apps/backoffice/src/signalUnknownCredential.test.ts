@@ -5,6 +5,10 @@ afterEach(() => {
   Reflect.deleteProperty(globalThis, "PublicKeyCredential");
 });
 
+function flushSwallowedRejection() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 test("does nothing when the environment has no PublicKeyCredential at all", () => {
   expect(() =>
     signalUnknownCredential({ rpId: "purosur.online", credentialId: "cred-1" }),
@@ -39,8 +43,7 @@ test("swallows a rejection from signalUnknownCredential instead of throwing", as
   expect(() =>
     signalUnknownCredential({ rpId: "purosur.online", credentialId: "cred-1" }),
   ).not.toThrow();
-  // Lets the swallowed rejection's microtask settle before the test ends.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushSwallowedRejection();
 });
 
 test("swallows signalUnknownCredential throwing synchronously instead of returning a promise", () => {

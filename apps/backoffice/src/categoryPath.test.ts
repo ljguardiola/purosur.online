@@ -26,14 +26,12 @@ test("categoryPathLabels joins a subcategory's ancestors down to itself with the
   expect(labels.get("mermeladas")).toBe("Almacén › Untables › Mermeladas");
 });
 
-test("categoryPathLabels tolerates a cycle instead of recursing forever", () => {
+test("categoryPathLabels breaks a cycle at the first ancestor it has already visited", () => {
   const cycleA: CategoryNode = { id: "a", name: "A", parentId: "b" };
   const cycleB: CategoryNode = { id: "b", name: "B", parentId: "a" };
 
   const labels = categoryPathLabels([cycleA, cycleB]);
 
-  // "a" is walked first (array order) and reaches "b" as its parent; "b" then finds "a" already
-  // among its own ancestors and stops there instead of looping back into it forever.
   expect(labels.get("a")).toBe("B › A");
   expect(labels.get("b")).toBe("B");
 });

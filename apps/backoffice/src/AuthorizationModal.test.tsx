@@ -158,7 +158,6 @@ test("shows an error inside the modal, without closing it, when the browser canc
   expect(services.authorizeSession).not.toHaveBeenCalled();
   expect(attempt).toHaveBeenCalledTimes(1);
 
-  // The modal is still open, so the person can try again.
   vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
   attempt.mockResolvedValueOnce({ kind: "ok", value: "retried" });

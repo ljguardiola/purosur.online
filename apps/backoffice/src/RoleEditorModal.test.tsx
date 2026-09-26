@@ -16,9 +16,8 @@ import type {
   RoleSummary,
 } from "./rolesApi";
 
-// The editor modal is 1040px wide, wider than the browser mode's own phone-sized default
-// viewport (see Tooltip.test.tsx's own comment on that default), which leaves its footer's save
-// button outside the viewport and unclickable.
+// The editor modal is 1040px wide, wider than the browser mode's phone-sized default viewport,
+// which would leave its footer's save button outside the viewport and unclickable.
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
@@ -38,7 +37,6 @@ function createServices(overrides: Partial<RoleEditorModalServices> = {}): RoleE
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: RoleEditorModalServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -131,7 +129,6 @@ test("draws the name row and both panes flush to the panel's own edges, not inse
   expect(nameRowRect.left).toBeCloseTo(panelRect.left, 0);
   expect(nameRowRect.right).toBeCloseTo(panelRect.right, 0);
   expect(areasPaneRect.left).toBeCloseTo(panelRect.left, 0);
-  // The areas pane runs flush from the name row's own bottom border to the footer's top border.
   expect(areasPaneRect.top).toBeCloseTo(nameRowRect.bottom, 0);
 
   await expectNoAccessibilityViolations(document.body);
@@ -493,13 +490,7 @@ function modalFor(request: RoleEditorRequest | null, services: RoleEditorModalSe
   );
 }
 
-/**
- * Runs whatever the test already set in motion to completion, and commits what it set, before
- * asserting it didn't happen. Rerendering the same, unchanged `ui` goes through React's async
- * `act()`, which yields at least one macrotask before returning and keeps flushing until no update
- * is left queued: a promise chain the test already resolved runs in that yield however many
- * `await`s deep it is, and any state it sets commits inside the same `act()`.
- */
+/** Rerendering `ui` unchanged flushes React's act(), committing state a resolved promise chain already set. */
 async function flushPendingWork(screen: Screen, ui: ReactElement): Promise<void> {
   await screen.rerender(ui);
 }

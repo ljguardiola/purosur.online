@@ -41,7 +41,6 @@ const newRegistration = { id: "new-cred" } as never;
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-/** Sets up an already-granted passkey authorization, for a test that isn't about that ceremony itself. */
 function grantAuthorization(services: MyAccountScreenServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -391,8 +390,8 @@ test("shows a rate-limited notice, instead of a generic attempt-failed one, when
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  // The device already created this credential and the cloud never saved it (rate limited): the
-  // device should forget it, naming the exact rp.id and credential id from that ceremony.
+  // The device already created the credential but the rate-limited cloud never saved it, so it
+  // must be told to forget it.
   expect(services.signalUnknownCredential).toHaveBeenCalledWith({
     rpId: "purosur.online",
     credentialId: "new-cred",
@@ -506,8 +505,7 @@ test("shows an attempt-failed notice when the browser cancels the registration c
 
   await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
   expect(services.registerPasskey).not.toHaveBeenCalled();
-  // The device never created a credential (the ceremony itself was cancelled), so there is
-  // nothing to ask it to forget.
+  // A cancelled ceremony never creates a credential, so there is nothing to ask the device to forget.
   expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
 
