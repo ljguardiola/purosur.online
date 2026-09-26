@@ -749,12 +749,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "price_reviews_price_id_prices_id_fk": {
-          "name": "price_reviews_price_id_prices_id_fk",
+        "price_reviews_price_product_price_list_fk": {
+          "name": "price_reviews_price_product_price_list_fk",
           "tableFrom": "price_reviews",
           "tableTo": "prices",
-          "columnsFrom": ["price_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": ["price_id", "product_id", "price_list_id"],
+          "columnsTo": ["id", "product_id", "price_list_id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -852,7 +852,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "prices_id_product_id_price_list_id_key": {
+          "name": "prices_id_product_id_price_list_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["id", "product_id", "price_list_id"]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "prices_unit_price_positive": {

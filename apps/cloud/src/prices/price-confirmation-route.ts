@@ -1,4 +1,4 @@
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, priceReviews, prices, products } from "../db/schema.js";
@@ -33,7 +33,11 @@ export interface ConfirmPriceInput {
   priceListId: string;
   expectedCurrentPriceId: string;
   actorId: string;
-  now: Date;
+  /**
+   * Read only once the product row is locked, so the moment recorded is never earlier than a
+   * change another caller committed before this one got the lock.
+   */
+  now: () => Date;
 }
 
 export type ConfirmPriceOutcome =
@@ -64,17 +68,12 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
     if (!product) {
       return { kind: "not_found" };
     }
+    const now = input.now();
 
     const [current] = await tx
       .select({ id: prices.id })
       .from(prices)
-      .where(
-        and(
-          eq(prices.productId, input.productId),
-          eq(prices.priceListId, input.priceListId),
-          lte(prices.validFrom, input.now),
-        ),
-      )
+      .where(and(eq(prices.productId, input.productId), eq(prices.priceListId, input.priceListId)))
       .orderBy(desc(prices.validFrom))
       .limit(1);
 
@@ -88,7 +87,7 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
     await tx.insert(priceReviews).values({
       productId: input.productId,
       priceListId: input.priceListId,
-      reviewedAt: input.now,
+      reviewedAt: now,
       actorId: input.actorId,
       priceId: current.id,
     });
@@ -101,7 +100,7 @@ export async function confirmPrice<TQueryResult extends PgQueryResultHKT>(
       newValue: { priceId: current.id },
     });
 
-    return { kind: "confirmed", lastReviewedAt: input.now };
+    return { kind: "confirmed", lastReviewedAt: now };
   });
 }
 
@@ -144,7 +143,6 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
       }
 
       const openSession = openSessionOf(request);
-      const attemptedAt = now();
       const priceListId = await branchPriceListId(options.db, openSession.locationId);
 
       const outcome = await confirmPrice(options.db, {
@@ -153,7 +151,7 @@ export function registerPriceConfirmationRoute<TQueryResult extends PgQueryResul
         // `validateConfirmationFields` above already guarantees this is defined.
         expectedCurrentPriceId: expectedCurrentPriceId as string,
         actorId: openSession.userId,
-        now: attemptedAt,
+        now,
       });
 
       if (outcome.kind === "not_found") {

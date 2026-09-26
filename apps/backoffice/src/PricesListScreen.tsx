@@ -23,12 +23,12 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { messages } from "./messages";
 import {
   type ConfirmPriceOutcome,
   confirmPrice,
   fetchPrices,
+  type PriceCategory,
   type PriceProduct,
   type PriceRow,
   type PricesReviewFilter,
@@ -43,14 +43,12 @@ export type PricesListScreenServices = {
   fetchPrices: typeof fetchPrices;
   setPrice: typeof setPrice;
   confirmPrice: typeof confirmPrice;
-  fetchCategories: typeof fetchCategories;
 };
 
 export const defaultPricesListScreenServices: PricesListScreenServices = {
   fetchPrices,
   setPrice,
   confirmPrice,
-  fetchCategories,
 };
 
 export type PricesListScreenProps = {
@@ -65,7 +63,13 @@ type ListState =
   | { kind: "loading" }
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "loaded"; products: PriceProduct[]; pendingCount: number; reviewWindowDays: number };
+  | {
+      kind: "loaded";
+      products: PriceProduct[];
+      pendingCount: number;
+      reviewWindowDays: number;
+      refreshing: boolean;
+    };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOTICE_LIFETIME_MS = 5000;
@@ -90,22 +94,35 @@ function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
 }
 
-/**
- * Parses what a person typed as a peso amount with an optional comma decimal (e.g. "7.500,50",
- * "7500,5", "7500") into a positive integer number of cents. `undefined` for anything that isn't
- * a positive amount, including empty input, zero, and a malformed string.
- */
-function parseAmountInput(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
+// The cloud stores a unit price as a Postgres `integer` number of cents.
+const MAX_UNIT_PRICE_CENTS = 2_147_483_647;
+
+// A comma is the only decimal separator (up to two decimals); a dot is only ever a thousands
+// separator, and then every group after the first has exactly three digits.
+const AMOUNT_PATTERN = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/;
+
+type ParsedAmount =
+  | { kind: "ok"; cents: number }
+  | { kind: "malformed" }
+  | { kind: "notPositive" }
+  | { kind: "tooLarge" };
+
+/** Parses what a person typed as a peso amount (e.g. "7.500,50", "7500,5", "7500") into cents. */
+function parseAmountInput(value: string): ParsedAmount {
+  const match = AMOUNT_PATTERN.exec(value.trim());
+  if (!match) {
+    return { kind: "malformed" };
   }
-  const normalized = trimmed.replace(/\./g, "").replace(",", ".");
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
-    return undefined;
+  const whole = (match[1] ?? "").replace(/\./g, "");
+  const fraction = (match[2] ?? "").padEnd(2, "0");
+  const cents = Number(whole) * 100 + Number(fraction);
+  if (cents <= 0) {
+    return { kind: "notPositive" };
   }
-  const cents = Math.round(Number(normalized) * 100);
-  return cents > 0 ? cents : undefined;
+  if (cents > MAX_UNIT_PRICE_CENTS) {
+    return { kind: "tooLarge" };
+  }
+  return { kind: "ok", cents };
 }
 
 function daysSince(at: string, now: Date): number {
@@ -199,11 +216,20 @@ function PriceChangeModal({
       setAmountError(modalMessages.amountRequired);
       return undefined;
     }
-    const cents = parseAmountInput(amount);
-    if (cents === undefined) {
+    const parsed = parseAmountInput(amount);
+    if (parsed.kind === "malformed") {
+      setAmountError(modalMessages.amountFormat);
+      return undefined;
+    }
+    if (parsed.kind === "notPositive") {
       setAmountError(modalMessages.amountInvalid);
       return undefined;
     }
+    if (parsed.kind === "tooLarge") {
+      setAmountError(modalMessages.amountTooLarge);
+      return undefined;
+    }
+    const cents = parsed.cents;
     const product = currentRef.current;
     if (product?.currentPrice && cents === product.currentPrice.unitPrice) {
       setAmountError(modalMessages.amountUnchanged);
@@ -484,12 +510,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     fetchPrices: fetchPricesService,
     setPrice: setPriceService,
     confirmPrice: confirmPriceService,
-    fetchCategories: fetchCategoriesService,
   } = services ?? defaultPricesListScreenServices;
   const clock = now ?? (() => new Date());
 
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const [categories, setCategories] = useState<CategorySummary[]>([]);
+  const [categories, setCategories] = useState<PriceCategory[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>("ALL");
@@ -497,6 +522,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const [modalTarget, setModalTarget] = useState<PriceProduct | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
+  const [confirmingIds, setConfirmingIds] = useState<ReadonlySet<string>>(new Set());
 
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
@@ -514,14 +540,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return () => clearTimeout(handle);
   }, [notice]);
 
-  useEffect(() => {
-    void fetchCategoriesService().then((outcome) => {
-      if (outcome.kind === "ok") {
-        setCategories(outcome.value);
-      }
-    });
-  }, [fetchCategoriesService]);
-
   // Only the latest load may settle the list: an earlier one still in flight would otherwise
   // overwrite it with a stale result.
   const latestLoad = useRef(0);
@@ -529,7 +547,9 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    setList({ kind: "loading" });
+    setList((previous) =>
+      previous.kind === "loaded" ? { ...previous, refreshing: true } : { kind: "loading" },
+    );
     const outcome = await fetchPricesService({
       review: reviewFilter,
       ...(categoryFilter !== "ALL" ? { categoryId: categoryFilter } : {}),
@@ -544,7 +564,9 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         products: outcome.value.products,
         pendingCount: outcome.value.pendingCount,
         reviewWindowDays: outcome.value.reviewWindowDays,
+        refreshing: false,
       });
+      setCategories(outcome.value.categories);
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
     } else if (outcome.kind === "rate_limited") {
@@ -647,8 +669,14 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     if (!item.currentPrice) {
       return;
     }
+    setConfirmingIds((ids) => new Set(ids).add(item.id));
     const outcome = await confirmPriceService(item.id, {
       expectedCurrentPriceId: item.currentPrice.id,
+    });
+    setConfirmingIds((ids) => {
+      const remaining = new Set(ids);
+      remaining.delete(item.id);
+      return remaining;
     });
     if (outcome.kind === "ok") {
       handleModalSaved(item, { kind: "confirmed", lastReviewedAt: outcome.value.lastReviewedAt });
@@ -737,6 +765,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               <IconButton
                 icon={<Check />}
                 aria-label={pricesMessages.confirmAria({ name: item.name })}
+                isDisabled={confirmingIds.has(item.id)}
                 onPress={() => void handleRowConfirm(item)}
               />
             </Tooltip>
@@ -831,7 +860,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
             <Table
               aria-label={pricesMessages.heading}
               columns={columns}
-              loading={list.kind === "loading" ? "initial" : false}
+              loading={list.kind === "loading" ? "initial" : list.refreshing ? "updating" : false}
               rows={products.map((product) => ({ id: product.id, item: product }))}
               empty={
                 reviewFilter === "pending" && pendingCount === 0

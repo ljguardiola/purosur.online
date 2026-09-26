@@ -1,4 +1,4 @@
-import { and, eq, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { branchSettings, categories, priceReviews, prices, products } from "../db/schema.js";
@@ -47,8 +47,18 @@ export interface ListPricesInput {
   search?: string;
 }
 
+export interface PriceCategoryOption {
+  id: string;
+  name: string;
+}
+
 export interface ListPricesResult {
   products: PriceProductRow[];
+  /**
+   * Every category, by name, to filter the list by: `GET /categories` is gated by
+   * `manage_products_and_categories`, which a role holding only `manage_prices_and_review` lacks.
+   */
+  categories: PriceCategoryOption[];
   pendingCount: number;
   reviewWindowDays: number;
 }
@@ -68,34 +78,6 @@ function isPending(
   }
   const cutoff = now.getTime() - unreviewedPriceAlertDays * 24 * 60 * 60 * 1000;
   return lastReviewedAt.getTime() < cutoff;
-}
-
-/** The most recent (by `validFrom`) row per product id, from rows already scoped to one price list. */
-function latestPriceByProductId(
-  rows: { productId: string; id: string; unitPrice: number; validFrom: Date }[],
-): Map<string, CurrentPriceRow> {
-  const latest = new Map<string, CurrentPriceRow>();
-  for (const row of rows) {
-    const existing = latest.get(row.productId);
-    if (!existing || row.validFrom.getTime() > existing.validFrom.getTime()) {
-      latest.set(row.productId, { id: row.id, unitPrice: row.unitPrice, validFrom: row.validFrom });
-    }
-  }
-  return latest;
-}
-
-/** The most recent (by `reviewedAt`) review per product id, from rows already scoped to one price list. */
-function latestReviewByProductId(
-  rows: { productId: string; reviewedAt: Date }[],
-): Map<string, Date> {
-  const latest = new Map<string, Date>();
-  for (const row of rows) {
-    const existing = latest.get(row.productId);
-    if (!existing || row.reviewedAt.getTime() > existing.getTime()) {
-      latest.set(row.productId, row.reviewedAt);
-    }
-  }
-  return latest;
 }
 
 /**
@@ -119,42 +101,35 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     .from(products)
     .innerJoin(categories, eq(products.categoryId, categories.id));
 
-  const productIds = productRows.map((row) => row.id);
+  const latestPriceRows = await db
+    .selectDistinctOn([prices.productId], {
+      productId: prices.productId,
+      id: prices.id,
+      unitPrice: prices.unitPrice,
+      validFrom: prices.validFrom,
+    })
+    .from(prices)
+    .where(and(eq(prices.priceListId, input.priceListId), lte(prices.validFrom, input.now)))
+    .orderBy(prices.productId, desc(prices.validFrom), desc(prices.id));
 
-  const priceRows =
-    productIds.length === 0
-      ? []
-      : await db
-          .select({
-            productId: prices.productId,
-            id: prices.id,
-            unitPrice: prices.unitPrice,
-            validFrom: prices.validFrom,
-          })
-          .from(prices)
-          .where(
-            and(
-              eq(prices.priceListId, input.priceListId),
-              inArray(prices.productId, productIds),
-              lte(prices.validFrom, input.now),
-            ),
-          );
+  const latestReviewRows = await db
+    .selectDistinctOn([priceReviews.productId], {
+      productId: priceReviews.productId,
+      reviewedAt: priceReviews.reviewedAt,
+    })
+    .from(priceReviews)
+    .where(eq(priceReviews.priceListId, input.priceListId))
+    .orderBy(priceReviews.productId, desc(priceReviews.reviewedAt));
 
-  const reviewRows =
-    productIds.length === 0
-      ? []
-      : await db
-          .select({ productId: priceReviews.productId, reviewedAt: priceReviews.reviewedAt })
-          .from(priceReviews)
-          .where(
-            and(
-              eq(priceReviews.priceListId, input.priceListId),
-              inArray(priceReviews.productId, productIds),
-            ),
-          );
-
-  const currentPriceByProductId = latestPriceByProductId(priceRows);
-  const lastReviewedAtByProductId = latestReviewByProductId(reviewRows);
+  const currentPriceByProductId = new Map<string, CurrentPriceRow>(
+    latestPriceRows.map((row) => [
+      row.productId,
+      { id: row.id, unitPrice: row.unitPrice, validFrom: row.validFrom },
+    ]),
+  );
+  const lastReviewedAtByProductId = new Map<string, Date>(
+    latestReviewRows.map((row) => [row.productId, row.reviewedAt]),
+  );
 
   const withDerived = productRows.map((row) => {
     const lastReviewedAt = lastReviewedAtByProductId.get(row.id) ?? null;
@@ -196,8 +171,14 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     return nameCompare !== 0 ? nameCompare : a.id.localeCompare(b.id);
   });
 
+  const categoryOptions = await db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .orderBy(asc(categories.name));
+
   return {
     products: sorted.map(({ pending: _pending, ...row }) => row),
+    categories: categoryOptions,
     pendingCount,
     reviewWindowDays: input.unreviewedPriceAlertDays,
   };

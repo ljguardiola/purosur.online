@@ -1,4 +1,4 @@
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { auditLog, priceReviews, prices, products } from "../db/schema.js";
@@ -43,7 +43,11 @@ export interface SetPriceInput {
   /** `null` means the caller saw no current price; the product's most recent price otherwise. */
   expectedCurrentPriceId: string | null;
   actorId: string;
-  now: Date;
+  /**
+   * Read only once the product row is locked, so the moment recorded is never earlier than a
+   * change another caller committed before this one got the lock.
+   */
+  now: () => Date;
 }
 
 export type SetPriceOutcome =
@@ -77,17 +81,12 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
     if (!product) {
       return { kind: "not_found" };
     }
+    const now = input.now();
 
     const [current] = await tx
       .select({ id: prices.id, unitPrice: prices.unitPrice })
       .from(prices)
-      .where(
-        and(
-          eq(prices.productId, input.productId),
-          eq(prices.priceListId, input.priceListId),
-          lte(prices.validFrom, input.now),
-        ),
-      )
+      .where(and(eq(prices.productId, input.productId), eq(prices.priceListId, input.priceListId)))
       .orderBy(desc(prices.validFrom))
       .limit(1);
 
@@ -105,7 +104,7 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
         productId: input.productId,
         priceListId: input.priceListId,
         unitPrice: input.unitPrice,
-        validFrom: input.now,
+        validFrom: now,
       })
       .returning({ id: prices.id, unitPrice: prices.unitPrice, validFrom: prices.validFrom });
     if (!newPrice) {
@@ -115,7 +114,7 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
     await tx.insert(priceReviews).values({
       productId: input.productId,
       priceListId: input.priceListId,
-      reviewedAt: input.now,
+      reviewedAt: now,
       actorId: input.actorId,
       priceId: newPrice.id,
     });
@@ -128,7 +127,7 @@ export async function setPrice<TQueryResult extends PgQueryResultHKT>(
       newValue: { priceId: newPrice.id, unitPrice: newPrice.unitPrice },
     });
 
-    return { kind: "applied", price: newPrice, lastReviewedAt: input.now };
+    return { kind: "applied", price: newPrice, lastReviewedAt: now };
   });
 }
 
@@ -174,7 +173,6 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const openSession = openSessionOf(request);
-      const attemptedAt = now();
       const priceListId = await branchPriceListId(options.db, openSession.locationId);
 
       const outcome = await setPrice(options.db, {
@@ -184,7 +182,7 @@ export function registerPriceSetRoute<TQueryResult extends PgQueryResultHKT>(
         unitPrice: unitPrice as number,
         expectedCurrentPriceId: expectedCurrentPriceId as string | null,
         actorId: openSession.userId,
-        now: attemptedAt,
+        now,
       });
 
       if (outcome.kind === "not_found") {

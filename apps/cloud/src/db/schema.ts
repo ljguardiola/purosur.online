@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -14,6 +15,7 @@ import {
   text,
   time,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -274,6 +276,13 @@ export const prices = pgTable(
       table.priceListId,
       table.validFrom,
     ),
+    // The target `price_reviews`' composite foreign key needs, so a review can only point at a
+    // price of its own product and price list.
+    unique("prices_id_product_id_price_list_id_key").on(
+      table.id,
+      table.productId,
+      table.priceListId,
+    ),
   ],
 );
 
@@ -296,11 +305,14 @@ export const priceReviews = pgTable(
     actorId: uuid("actor_id")
       .notNull()
       .references(() => users.id),
-    priceId: uuid("price_id")
-      .notNull()
-      .references(() => prices.id),
+    priceId: uuid("price_id").notNull(),
   },
   (table) => [
+    foreignKey({
+      name: "price_reviews_price_product_price_list_fk",
+      columns: [table.priceId, table.productId, table.priceListId],
+      foreignColumns: [prices.id, prices.productId, prices.priceListId],
+    }),
     index("price_reviews_product_id_price_list_id_reviewed_at_idx").on(
       table.productId,
       table.priceListId,

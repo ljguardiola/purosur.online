@@ -16,7 +16,19 @@ import {
 } from "vitest";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
-import { locations, passkeyChallenges, roles, sessions, userRoles, users } from "./schema.js";
+import {
+  categories,
+  locations,
+  passkeyChallenges,
+  priceLists,
+  priceReviews,
+  prices,
+  products,
+  roles,
+  sessions,
+  userRoles,
+  users,
+} from "./schema.js";
 import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
 
 let testDatabase: TestDatabase;
@@ -87,6 +99,48 @@ describe("user_roles", () => {
     await expect(
       db.insert(userRoles).values({ userId: user.id, roleId: managerRole.id }),
     ).rejects.toMatchObject({ cause: { constraint: "user_roles_user_id_key" } });
+  });
+});
+
+describe("price_reviews.price_id", () => {
+  it("rejects a review of one product pointing at another product's price", async () => {
+    const actor = await insertUser("ada@example.com");
+    const [priceList] = await db.select({ id: priceLists.id }).from(priceLists);
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    if (!priceList || !category) {
+      throw new Error(
+        "test setup: no price list seeded, or inserting the category returned no row",
+      );
+    }
+    const [rice, noodles] = await db
+      .insert(products)
+      .values([
+        { name: "Arroz", categoryId: category.id, saleUnit: "UNIT" },
+        { name: "Fideos", categoryId: category.id, saleUnit: "UNIT" },
+      ])
+      .returning({ id: products.id });
+    if (!rice || !noodles) {
+      throw new Error("test setup: inserting the products returned no row");
+    }
+    const [ricePrice] = await db
+      .insert(prices)
+      .values({ productId: rice.id, priceListId: priceList.id, unitPrice: 1000 })
+      .returning({ id: prices.id });
+    if (!ricePrice) {
+      throw new Error("test setup: inserting the price returned no row");
+    }
+
+    await expect(
+      db.insert(priceReviews).values({
+        productId: noodles.id,
+        priceListId: priceList.id,
+        actorId: actor.id,
+        priceId: ricePrice.id,
+      }),
+    ).rejects.toMatchObject({ cause: { constraint: "price_reviews_price_product_price_list_fk" } });
   });
 });
 

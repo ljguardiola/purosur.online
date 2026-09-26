@@ -76,7 +76,6 @@ function createServices(overrides: Partial<AppServices> = {}): AppServices {
       fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
-      fetchCategories: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     userDetailScreen: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -1332,7 +1331,7 @@ test("shows the Precios section, and only it, for a user holding only manage_pri
   });
   vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [], pendingCount: 0, reviewWindowDays: 30 },
+    value: { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] },
   });
   window.history.pushState(null, "", "/help");
 

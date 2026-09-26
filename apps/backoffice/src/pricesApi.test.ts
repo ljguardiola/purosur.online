@@ -26,23 +26,24 @@ const arroz: PriceProduct = {
   lastReviewedAt: "2026-01-01T12:00:00.000Z",
 };
 
-test("fetchPrices lists the products and the pending count and review window on 200", async () => {
+test("fetchPrices lists the products, the pending count, the review window and the categories on 200", async () => {
+  const categories = [{ id: "category-1", name: "Almacén" }];
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { products: [arroz], pendingCount: 1, reviewWindowDays: 30 }),
+    jsonResponse(200, { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories }),
   );
 
   const outcome = await fetchPrices({ review: "pending" });
 
   expect(outcome).toEqual({
     kind: "ok",
-    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30 },
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories },
   });
   expect(fetch).toHaveBeenCalledWith("/prices?review=pending");
 });
 
 test("fetchPrices sends categoryId and search alongside review", async () => {
   vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { products: [], pendingCount: 0, reviewWindowDays: 30 }),
+    jsonResponse(200, { products: [], pendingCount: 0, reviewWindowDays: 30, categories: [] }),
   );
 
   await fetchPrices({ review: "all", categoryId: "category-1", search: "arroz" });
@@ -73,6 +74,14 @@ test("fetchPrices returns rate_limited with the Retry-After header on 429", asyn
 
 test("fetchPrices returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
+});
+
+test("fetchPrices returns failed on a body without its categories", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { products: [arroz], pendingCount: 1, reviewWindowDays: 30 }),
+  );
 
   expect(await fetchPrices({ review: "pending" })).toEqual({ kind: "failed" });
 });

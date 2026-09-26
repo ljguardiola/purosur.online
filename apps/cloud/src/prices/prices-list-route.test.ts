@@ -198,6 +198,21 @@ describe("GET /prices", () => {
     expect(response.json().reviewWindowDays).toBe(45);
   });
 
+  it("hands a role holding only manage_prices_and_review every category to filter by, by name", async () => {
+    const userId = await insertUserWithPermission(["manage_prices_and_review"]);
+    const rawSessionId = await insertSession(userId);
+    const cleaning = await insertCategory("Limpieza");
+    const groceries = await insertCategory("Almacén");
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories).toEqual([
+      { id: groceries, name: "Almacén" },
+      { id: cleaning, name: "Limpieza" },
+    ]);
+  });
+
   it("lists a never-priced product ahead of every reviewed one, as having no price", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
@@ -354,6 +369,43 @@ describe("GET /prices", () => {
       categoryId: "00000000-0000-0000-0000-000000000000",
     });
     expect(response.json().pendingCount).toBe(1);
+  });
+
+  it("shows each product's newest price and newest review, whatever older history it has", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+
+    const riceId = await insertProduct("Arroz", categoryId);
+    const oldest = new Date(NOON.getTime() - 90 * DAY_MS);
+    const older = new Date(NOON.getTime() - 60 * DAY_MS);
+    const newest = new Date(NOON.getTime() - 10 * DAY_MS);
+    const oldestPriceId = await insertPrice(riceId, priceListId, 300, oldest);
+    await insertReview(riceId, priceListId, oldestPriceId, userId, oldest);
+    const newestPriceId = await insertPrice(riceId, priceListId, 800, newest);
+    const olderPriceId = await insertPrice(riceId, priceListId, 500, older);
+    await insertReview(riceId, priceListId, newestPriceId, userId, newest);
+    await insertReview(riceId, priceListId, olderPriceId, userId, older);
+
+    const noodlesId = await insertProduct("Fideos", categoryId);
+    const noodlesPriceId = await insertPrice(noodlesId, priceListId, 200, oldest);
+    await insertReview(noodlesId, priceListId, noodlesPriceId, userId, oldest);
+
+    const response = await listPricesRequest(rawSessionId, { review: "all" });
+
+    expect(response.json().products).toMatchObject([
+      {
+        id: riceId,
+        currentPrice: { id: newestPriceId, unitPrice: 800, validFrom: newest.toISOString() },
+        lastReviewedAt: newest.toISOString(),
+      },
+      {
+        id: noodlesId,
+        currentPrice: { id: noodlesPriceId, unitPrice: 200, validFrom: oldest.toISOString() },
+        lastReviewedAt: oldest.toISOString(),
+      },
+    ]);
   });
 
   it("only counts prices and reviews on the branch's own price list", async () => {

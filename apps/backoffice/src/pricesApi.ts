@@ -23,11 +23,15 @@ export type FetchPricesInput = {
   search?: string;
 };
 
+export type PriceCategory = { id: string; name: string };
+
 export type PricesList = {
   products: PriceProduct[];
   pendingCount: number;
   /** The branch's own configured review window (`unreviewedPriceAlertDays`), for the empty state. */
   reviewWindowDays: number;
+  /** Every category to filter by, sorted by name. */
+  categories: PriceCategory[];
 };
 
 export type FetchPricesOutcome =
@@ -119,7 +123,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
     return { kind: "failed" };
   }
   const body = (await response.json().catch(() => undefined)) as PricesList | undefined;
-  if (!body || !Array.isArray(body.products)) {
+  if (!body || !Array.isArray(body.products) || !Array.isArray(body.categories)) {
     return { kind: "failed" };
   }
   return { kind: "ok", value: body };

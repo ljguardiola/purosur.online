@@ -204,6 +204,22 @@ describe("POST /products/:id/price", () => {
     });
   });
 
+  it("rejects a unit price above what the catalog can store with a validation failure", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const productId = await insertProduct("Arroz");
+
+    const response = await setPriceRequest(rawSessionId, productId, {
+      unitPrice: 2_147_483_648,
+      expectedCurrentPriceId: null,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "unitPrice" }],
+    });
+  });
+
   it("rejects a malformed expectedCurrentPriceId", async () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);

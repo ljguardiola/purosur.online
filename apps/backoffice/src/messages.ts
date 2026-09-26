@@ -823,6 +823,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         currentPriceHelper: (params: { amount: string }) => `Precio actual: ${params.amount}`,
         amountRequired: "Ingresá el precio nuevo.",
         amountInvalid: "Ingresá un precio válido, mayor a cero.",
+        amountFormat: "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.",
+        amountTooLarge: "Ingresá un precio de hasta $ 21.474.836,47.",
         amountUnchanged: "Es el precio actual: confirmalo sin cambios en vez de guardarlo.",
         confirm: "Confirmar sin cambios",
         submit: "Guardar el precio nuevo",

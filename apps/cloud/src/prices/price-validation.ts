@@ -7,10 +7,15 @@ export interface PriceFieldValidationFailure {
   message: string;
 }
 
+// `prices.unit_price` is a Postgres `integer`.
+const MAX_UNIT_PRICE = 2_147_483_647;
+
 /** A positive integer number of cents per unit or per kilogram; anything else is rejected. */
 export function readUnitPrice(body: unknown): number | undefined {
   const raw = (body as { unitPrice?: unknown } | undefined)?.unitPrice;
-  return typeof raw === "number" && Number.isInteger(raw) && raw > 0 ? raw : undefined;
+  return typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_UNIT_PRICE
+    ? raw
+    : undefined;
 }
 
 /**

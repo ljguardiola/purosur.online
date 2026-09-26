@@ -18,6 +18,7 @@ CREATE TABLE "prices" (
 	"price_list_id" uuid NOT NULL,
 	"unit_price" integer NOT NULL,
 	"valid_from" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "prices_id_product_id_price_list_id_key" UNIQUE("id","product_id","price_list_id"),
 	CONSTRAINT "prices_unit_price_positive" CHECK ("prices"."unit_price" > 0)
 );
 --> statement-breakpoint
@@ -32,7 +33,7 @@ ALTER TABLE "branch_settings" ALTER COLUMN "price_list_id" SET NOT NULL;
 ALTER TABLE "price_reviews" ADD CONSTRAINT "price_reviews_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "price_reviews" ADD CONSTRAINT "price_reviews_price_list_id_price_lists_id_fk" FOREIGN KEY ("price_list_id") REFERENCES "public"."price_lists"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "price_reviews" ADD CONSTRAINT "price_reviews_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "price_reviews" ADD CONSTRAINT "price_reviews_price_id_prices_id_fk" FOREIGN KEY ("price_id") REFERENCES "public"."prices"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "price_reviews" ADD CONSTRAINT "price_reviews_price_product_price_list_fk" FOREIGN KEY ("price_id","product_id","price_list_id") REFERENCES "public"."prices"("id","product_id","price_list_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "prices" ADD CONSTRAINT "prices_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "prices" ADD CONSTRAINT "prices_price_list_id_price_lists_id_fk" FOREIGN KEY ("price_list_id") REFERENCES "public"."price_lists"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "price_reviews_product_id_price_list_id_reviewed_at_idx" ON "price_reviews" USING btree ("product_id","price_list_id","reviewed_at");--> statement-breakpoint

@@ -14,6 +14,14 @@ describe("readUnitPrice", () => {
     expect(readUnitPrice({ unitPrice: 1250 })).toBe(1250);
   });
 
+  it("reads the largest amount a Postgres integer holds", () => {
+    expect(readUnitPrice({ unitPrice: 2_147_483_647 })).toBe(2_147_483_647);
+  });
+
+  it("rejects an amount above what a Postgres integer holds", () => {
+    expect(readUnitPrice({ unitPrice: 2_147_483_648 })).toBeUndefined();
+  });
+
   it("rejects zero", () => {
     expect(readUnitPrice({ unitPrice: 0 })).toBeUndefined();
   });
