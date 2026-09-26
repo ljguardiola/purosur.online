@@ -1,5 +1,4 @@
-// Mirrors `@purosur/contracts`'s EAN-13 module encoder because this app's `tsc` build (explicit
-// `rootDir`) cannot import that package's untranspiled source; the drift test guards against it.
+// Mirrors `@purosur/contracts`'s EAN-13 module encoder; the drift test guards against drift.
 const LEFT_ODD_PATTERNS = [
   "0001101",
   "0011001",

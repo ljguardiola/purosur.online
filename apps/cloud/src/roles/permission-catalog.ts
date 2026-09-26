@@ -1,5 +1,4 @@
-// Mirrors `@purosur/contracts`'s catalog because this app's `tsc` build (explicit `rootDir`) cannot
-// import that package's untranspiled source; `permission-catalog.test.ts` guards against drift.
+// Mirrors `@purosur/contracts`'s catalog; `permission-catalog.test.ts` guards against drift.
 const PERMISSION_KEY_LIST = [
   "sell_and_charge",
   "view_sales_history",

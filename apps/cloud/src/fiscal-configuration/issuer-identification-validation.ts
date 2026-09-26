@@ -1,6 +1,5 @@
-// Mirrors `@purosur/contracts`'s issuer identification limits and Argentina calendar day
-// because this app's `tsc` build (explicit `rootDir`) cannot import that package's
-// untranspiled source; `issuer-identification-validation.test.ts` guards against drift.
+// Mirrors `@purosur/contracts`'s issuer identification limits and Argentina calendar day;
+// `issuer-identification-validation.test.ts` guards against drift.
 export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
 export const ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH = 100;
 export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";

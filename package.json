@@ -12,7 +12,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.mjs",
-    "verify:static": "tsc --noEmit && biome ci . && pnpm depcruise && node --test .github/scripts/*.test.mjs",
+    "verify:static": "tsc --noEmit && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && node --test .github/scripts/*.test.mjs",
     "verify:tests": "vitest run",
     "verify": "pnpm verify:static && pnpm verify:tests",
     "dev:db": "docker compose up -d",

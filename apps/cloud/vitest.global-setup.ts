@@ -32,8 +32,9 @@ const CONTRACTS_DIR = fileURLToPath(new URL("../../packages/contracts/", import.
 const TSC_BIN = createRequire(import.meta.url).resolve("typescript/bin/tsc");
 
 // The command entrypoints import sibling modules, which Node's type stripping cannot resolve from
-// a raw .ts file, so tests that spawn a command run the compiled JavaScript instead. It is built
-// outside apps/cloud/dist so a test run never overwrites or depends on a developer's own build.
+// a raw .ts file, so tests that spawn a command run the compiled JavaScript instead. The cloud is
+// built outside apps/cloud/dist so a test run never overwrites or depends on a developer's own
+// cloud build; contracts is built in place, which writes the same output a normal build does.
 export default async function setup(project: TestProject): Promise<() => void> {
   // Resolved because each entrypoint compares process.argv[1] with its own realpath'd module URL,
   // which differ when the temp dir sits behind a symlink (macOS /var -> /private/var).

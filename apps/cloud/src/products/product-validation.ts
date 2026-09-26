@@ -19,9 +19,7 @@ export interface ProductFieldValidationFailure {
   message: string;
 }
 
-// Mirrors `@purosur/contracts`'s product limits because this app's `tsc` build (explicit
-// `rootDir`) cannot import that package's untranspiled source; the drift test below guards
-// against it.
+// Mirrors `@purosur/contracts`'s product limits; the drift test guards against drift.
 export const PRODUCT_NAME_MAX_LENGTH = 100;
 export const BARCODE_MAX_LENGTH = 64;
 export const PRODUCT_BARCODES_MAX_COUNT = 20;
