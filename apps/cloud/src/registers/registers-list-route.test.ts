@@ -219,6 +219,23 @@ describe("GET /registers", () => {
     expect(response.json()).toMatchObject([{ pending_code: null }]);
   });
 
+  it("hides a pending code that expires exactly now, reporting null", async () => {
+    const locationId = await seededLocationId(db);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    await db.insert(registerEnrollmentCodes).values({
+      registerId,
+      codeHash: "irrelevant-hash",
+      issuedAt: new Date(NOON.getTime() - 15 * 60_000),
+      expiresAt: NOON,
+    });
+    const userId = await insertUserWithPermission(locationId);
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getRegisters(rawSessionId);
+
+    expect(response.json()).toMatchObject([{ pending_code: null }]);
+  });
+
   it("hides a redeemed pending code, reporting null", async () => {
     const locationId = await seededLocationId(db);
     const registerId = await insertRegister(locationId, "Caja 1");
