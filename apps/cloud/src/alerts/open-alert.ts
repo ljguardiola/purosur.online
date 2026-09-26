@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alertDeliveries, alerts, rolePermissions, roles, userRoles, users } from "../db/schema.js";
 import { type AlertKind, alertKindDefinition } from "./alert-kind-catalog.js";
+import { VIEW_ALL_ALERTS_PERMISSION, VIEW_BRANCH_ALERTS_PERMISSION } from "./alert-visibility.js";
 
 const UNIQUE_VIOLATION = "23505";
 const ALERT_OPEN_DEDUP_UNIQUE_INDEX = "alerts_open_dedup_key";
@@ -73,7 +74,7 @@ export type OpenAlertOutcome =
  * one), matching the business rule the same way `isAccessGranted` (`route-access.ts`) treats an
  * Administrator as implicitly holding every permission.
  */
-async function recipientsFor<TQueryResult extends PgQueryResultHKT>(
+export async function recipientsFor<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
   audience: "local" | "all",
   locationId: string | undefined,
@@ -81,11 +82,11 @@ async function recipientsFor<TQueryResult extends PgQueryResultHKT>(
   const viewAllRoleIds = tx
     .select({ roleId: rolePermissions.roleId })
     .from(rolePermissions)
-    .where(eq(rolePermissions.permissionKey, "view_all_alerts"));
+    .where(eq(rolePermissions.permissionKey, VIEW_ALL_ALERTS_PERMISSION));
   const viewLocalRoleIds = tx
     .select({ roleId: rolePermissions.roleId })
     .from(rolePermissions)
-    .where(eq(rolePermissions.permissionKey, "view_branch_alerts"));
+    .where(eq(rolePermissions.permissionKey, VIEW_BRANCH_ALERTS_PERMISSION));
 
   const localVisibility =
     audience === "local" && locationId !== undefined

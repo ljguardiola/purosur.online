@@ -1,9 +1,17 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { alertDeliveries, alerts, rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import {
+  alertDeliveries,
+  alerts,
+  locations,
+  rolePermissions,
+  roles,
+  userRoles,
+  users,
+} from "../db/schema.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { type OpenAlertInput, openAlert } from "./open-alert.js";
+import { type OpenAlertInput, openAlert, recipientsFor } from "./open-alert.js";
 
 describe("a passkey-change alert's detail", () => {
   it("accepts a self-service registration or removal", () => {
@@ -313,5 +321,84 @@ describe("openAlert", () => {
 
     expect(second.kind).toBe("opened");
     expect((second as { alertId: string }).alertId).not.toBe(first.alertId);
+  });
+});
+
+describe("recipientsFor", () => {
+  // No catalog kind opens a Local alert yet (openAlert.test.ts's own suite above never exercises
+  // this branch through openAlert), so this is the one place its audience rule is tested.
+  it("delivers a Local alert to an Administrator, every view_all_alerts holder, and only the view_branch_alerts holders of its own branch", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    const viewAllRoleId = await insertRole({
+      name: "Supervisor",
+      permissionKeys: ["view_all_alerts"],
+    });
+    const viewLocalRoleId = await insertRole({
+      name: "Cajera",
+      permissionKeys: ["view_branch_alerts"],
+    });
+    const [otherLocation] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!otherLocation) {
+      throw new Error("test setup: inserting the other location returned no row");
+    }
+
+    const administratorId = await insertUser({
+      firstName: "Ada",
+      email: "ada@example.com",
+      roleId: administratorRoleId,
+    });
+    const supervisorId = await insertUser({
+      firstName: "Grace",
+      email: "grace@example.com",
+      roleId: viewAllRoleId,
+    });
+    const ownBranchCashierId = await insertUser({
+      firstName: "Local",
+      email: "local@example.com",
+      roleId: viewLocalRoleId,
+    });
+    const [otherBranchCashier] = await db
+      .insert(users)
+      .values({
+        firstName: "Other Branch",
+        email: "other-branch@example.com",
+        locationId: otherLocation.id,
+      })
+      .returning({ id: users.id });
+    if (!otherBranchCashier) {
+      throw new Error("test setup: inserting the other-branch user returned no row");
+    }
+    await db.insert(userRoles).values({ userId: otherBranchCashier.id, roleId: viewLocalRoleId });
+
+    const recipients = await db.transaction((tx) => recipientsFor(tx, "local", locationId));
+
+    expect(recipients.sort()).toEqual([administratorId, supervisorId, ownBranchCashierId].sort());
+  });
+
+  it("delivers an All alert to an Administrator and every view_all_alerts holder, never a view_branch_alerts one", async () => {
+    const administratorRoleId = await seededAdministratorRoleId();
+    const viewAllRoleId = await insertRole({
+      name: "Supervisor",
+      permissionKeys: ["view_all_alerts"],
+    });
+    const viewLocalRoleId = await insertRole({
+      name: "Cajera",
+      permissionKeys: ["view_branch_alerts"],
+    });
+    const administratorId = await insertUser({
+      firstName: "Ada",
+      email: "ada@example.com",
+      roleId: administratorRoleId,
+    });
+    const supervisorId = await insertUser({
+      firstName: "Grace",
+      email: "grace@example.com",
+      roleId: viewAllRoleId,
+    });
+    await insertUser({ firstName: "Local", email: "local@example.com", roleId: viewLocalRoleId });
+
+    const recipients = await db.transaction((tx) => recipientsFor(tx, "all", undefined));
+
+    expect(recipients.sort()).toEqual([administratorId, supervisorId].sort());
   });
 });
