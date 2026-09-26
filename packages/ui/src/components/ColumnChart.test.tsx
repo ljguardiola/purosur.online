@@ -1105,16 +1105,15 @@ test("announces a bar's formatted value alone when it has no label", async () =>
   await expectNoAccessibilityViolations(screen.container);
 });
 
-// React only logs a duplicate-key warning after the synchronous render commits, so a spy that is
-// installed and restored around the render call alone observes nothing: it has to still be
-// installed when that later warning fires, which is why this awaits a tick before reading it.
+// React logs a duplicate-key warning synchronously while reconciling the children array, inside
+// the `act()` call that `render()` itself awaits, so the spy already holds it by the time
+// `render()` resolves; nothing here waits on the page's own clock.
 async function collectKeyWarnings(renderChart: () => Promise<Screen>): Promise<{
   screen: Screen;
   warnings: string[];
 }> {
   const spy = vi.spyOn(console, "error").mockImplementation(() => {});
   const screen = await renderChart();
-  await new Promise((resolve) => setTimeout(resolve, 50));
   const warnings = spy.mock.calls
     .map((call) => call.map(String).join(" "))
     .filter((message) => message.includes("same key"));
