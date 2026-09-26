@@ -66,11 +66,10 @@ type TextFieldValidityProps =
 // Only the three money kinds take a prefix; plain text never takes one either. The two kg kinds
 // require a suffix, and plain text may optionally take one too (e.g. a day count read as "30
 // días"). Asking for the wrong affix on a kind, or leaving out the one a kg kind requires, does
-// not compile. The design draws no backoffice money or kg field, but that is no longer a
-// compile-time rule now that size comes from context instead of a caller-supplied prop (see
-// FieldSizeProvider): those five kinds simply keep their own whole register-sized field below,
-// regardless of the ambient size, the same way SearchField.tsx's own icon size never varies with
-// them either.
+// not compile. The design draws no backoffice money or kg field: those five kinds always keep
+// their own whole register-sized field below, regardless of the ambient FieldSizeProvider, the
+// same way SearchField.tsx's own icon size never varies with them either; only plain text's size
+// follows the context.
 type TextFieldKindProps =
   | { kind: "amount" | "counted-cash" | "price"; prefix: TextFieldAffix; suffix?: undefined }
   | { kind: "weight" | "quantity"; suffix: TextFieldAffix; prefix?: undefined }

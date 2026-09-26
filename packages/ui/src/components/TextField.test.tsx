@@ -1064,8 +1064,3 @@ test("does not accept a field without a label, a value or onChange", () => {
     value: string;
   }>().not.toExtend<TextFieldProps>();
 });
-
-// TextFieldProps no longer carries a variant at all (the size comes from FieldSizeProvider
-// instead, see FieldSize.tsx), so the two former type tests that pinned "backoffice" to
-// plain-text only, and the one requiring a variant at all, no longer have a rule to express:
-// removed rather than kept as dead assertions.
