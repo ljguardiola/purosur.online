@@ -322,6 +322,36 @@ test("shows a load error with a retry action when the alerts fail to load", asyn
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
 });
 
+test("moves to the last page left when closing the only alert on the last page empties it", async () => {
+  const services = createServices();
+  let closed = false;
+  vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
+    if (query?.page === 2) {
+      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+    }
+    return ok([lockoutAlert], { total: closed ? 25 : 26, openCount: closed ? 25 : 26 });
+  });
+  services.alertDetailModal = {
+    fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
+    closeAlert: vi.fn().mockImplementation(async () => {
+      closed = true;
+      return { kind: "ok", value: { ...passkeyDetail, resolvedAt: "2026-01-05T13:00:00.000Z" } };
+    }),
+  };
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.element(screen.getByText("203.0.113.5")).toBeVisible();
+  expect(services.alertDetailModal.fetchAlert).toHaveBeenCalledWith("alert-1");
+  expect(vi.mocked(services.fetchAlerts).mock.calls.at(-1)).toEqual([{ open: true, page: 1 }]);
+  expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
+});
+
 test("shows a rate-limited notice with a retry action", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValueOnce({

@@ -146,6 +146,13 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
       return;
     }
     if (outcome.kind === "ok") {
+      // Closing the last alerts of the last page (here or elsewhere) can leave this page past the
+      // end: move to the last page that still has alerts, which reloads, instead of showing it.
+      const lastPage = Math.max(1, Math.ceil(outcome.value.total / outcome.value.pageSize));
+      if (page > lastPage) {
+        setPage(lastPage);
+        return;
+      }
       setList({ kind: "loaded", page: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
