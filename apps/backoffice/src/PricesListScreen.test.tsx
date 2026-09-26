@@ -1483,7 +1483,7 @@ test("a refresh that throws ends in the load error and offers to retry", async (
 async function showRowConfirmFailure(services: PricesListScreenServices) {
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
-    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [almacen] },
   });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
@@ -1516,12 +1516,103 @@ test("an error notice leaves when a price is opened", async () => {
   expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).toBeNull();
 });
 
-test("an error notice shown before a list load starts leaves when that load succeeds", async () => {
+test("an error notice leaves with a keystroke in the search field", async () => {
   const services = createServices();
-  vi.mocked(services.fetchPrices).mockResolvedValue({
-    kind: "ok",
-    value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
-  });
+  const screen = await showRowConfirmFailure(services);
+  vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
+
+  await userEvent.type(screen.getByPlaceholder("Buscar un producto"), "a");
+
+  await expect
+    .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
+    .toBeNull();
+});
+
+test("an error notice leaves when the category filter changes", async () => {
+  const services = createServices();
+  const screen = await showRowConfirmFailure(services);
+  vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
+
+  await userEvent.click(screen.getByRole("button", { name: "Categoría: Todas" }));
+  await userEvent.click(screen.getByRole("option", { name: "Almacén" }));
+
+  await expect
+    .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
+    .toBeNull();
+});
+
+test("an error notice leaves when Revisar starts, before its read settles", async () => {
+  const services = createServices();
+  const screen = await showRowConfirmFailure(services);
+  vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
+
+  await expect
+    .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
+    .toBeNull();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("an error notice leaves when a row confirm starts, before its result settles", async () => {
+  const services = createServices();
+  const screen = await showRowConfirmFailure(services);
+  const pending = deferred<Awaited<ReturnType<PricesListScreenServices["confirmPrice"]>>>();
+  vi.mocked(services.confirmPrice).mockReturnValue(pending.promise);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect
+    .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
+    .toBeNull();
+  expect(vi.mocked(services.confirmPrice)).toHaveBeenCalledTimes(2);
+});
+
+test("an error notice leaves when Reintentar is pressed", async () => {
+  const services = createServices();
+  type FetchOutcome = Awaited<ReturnType<PricesListScreenServices["fetchPrices"]>>;
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    })
+    .mockReturnValueOnce(refresh.promise)
+    .mockReturnValue(new Promise(() => {}));
+  vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+  await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
+  refresh.resolve({ kind: "failed" });
+  const retry = screen.getByRole("button", { name: "Reintentar" });
+  await expect.element(retry).toBeVisible();
+  expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).not.toBeNull();
+
+  await userEvent.click(retry);
+
+  await expect
+    .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
+    .toBeNull();
+});
+
+test("an error notice stays when a list load succeeds after it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices)
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 1, reviewWindowDays: 30, categories: [] },
+    })
+    .mockResolvedValue({
+      kind: "ok",
+      value: { products: [arroz], pendingCount: 3, reviewWindowDays: 30, categories: [] },
+    });
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
   const confirm = screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" });
@@ -1535,12 +1626,13 @@ test("an error notice shown before a list load starts leaves when that load succ
 
     vi.advanceTimersByTime(300);
 
-    await expect
-      .poll(() => vi.mocked(services.fetchPrices).mock.lastCall?.[0])
-      .toEqual({ review: "pending", search: "arr" });
-    await expect
-      .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
-      .toBeNull();
+    await expect.element(screen.getByRole("button", { name: "Revisar los 3" })).toBeVisible();
+    expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0]).toEqual({
+      review: "pending",
+      search: "arr",
+    });
+    await nextPaint();
+    expect(screen.getByText("No se pudo confirmar el precio de Arroz").query()).not.toBeNull();
   } finally {
     vi.useRealTimers();
   }
@@ -1574,6 +1666,29 @@ test("a rate-limited notice leaves once its retry window has passed", async () =
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("a price reviewed earlier today is announced as reviewed today even with a zero-day review window", async () => {
+  const viewedAt = new Date(2026, 8, 25, 12, 0);
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [{ ...arroz, lastReviewedAt: new Date(2026, 8, 25, 8, 0).toISOString() }],
+      pendingCount: 1,
+      reviewWindowDays: 0,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(
+    services,
+    () => {},
+    () => viewedAt,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }));
+
+  await expect.element(screen.getByRole("dialog").getByText("REVISADO HOY")).toBeVisible();
 });
 
 test.each([

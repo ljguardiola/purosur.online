@@ -148,12 +148,15 @@ function modalEyebrow(product: PriceProduct, reviewWindowDays: number, now: Date
     return modalMessages.eyebrowNoPrice;
   }
   const days = daysSince(product.lastReviewedAt, now);
+  if (days <= 0) {
+    return modalMessages.eyebrowRecentToday;
+  }
   const elapsedMs = now.getTime() - new Date(product.lastReviewedAt).getTime();
   // Overdue by elapsed time, the same comparison the cloud uses to count a price as pending.
   if (elapsedMs > reviewWindowDays * DAY_MS) {
     return modalMessages.eyebrowOverdue({ days });
   }
-  return days <= 0 ? modalMessages.eyebrowRecentToday : modalMessages.eyebrowRecent({ days });
+  return modalMessages.eyebrowRecent({ days });
 }
 
 type PriceModalOutcome =
@@ -652,8 +655,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const load = useCallback(async () => {
     latestLoad.current += 1;
     const thisLoad = latestLoad.current;
-    // A notice shown alongside this load's own request is about its outcome and outlives it.
-    const lastNoticeBeforeLoad = lastNoticeId.current;
     setList((previous) =>
       previous.kind === "loaded" ? { ...previous, refreshing: true } : { kind: "loading" },
     );
@@ -666,9 +667,6 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       return;
     }
     if (outcome.kind === "ok") {
-      setNotice((shown) =>
-        shown?.tone === "error" && shown.id <= lastNoticeBeforeLoad ? null : shown,
-      );
       setList({
         kind: "loaded",
         products: outcome.value.products,
