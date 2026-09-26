@@ -3,6 +3,7 @@ import {
   CATEGORY_NAME_MAX_LENGTH,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  type NetContentUnit,
   PERMISSION_KEYS,
   type PermissionArea,
   type PermissionKey,
@@ -57,6 +58,12 @@ const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro prod
 const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
+const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
+const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
+const PRODUCT_NET_CONTENT_QUANTITY_INVALID =
+  "Ingresá una cantidad mayor que cero, con hasta 3 decimales.";
+const PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE = "Ingresá una cantidad más chica.";
+const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
 const ROLE_NAME_TOO_LONG = `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
 
 // Shared between the Roles screen's per-permission checkboxes (all 48 keys, so a missing one is a
@@ -561,6 +568,13 @@ export const messages = defineMessages("es-AR", (f) => ({
       unitFilterLabel: "Unidad:",
       unitFilterAllOption: "Todas",
       unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
+      netContentUnitOptionLabels: {
+        G: "g",
+        KG: "kg",
+        ML: "ml",
+        L: "l",
+        UNIT: "u",
+      } satisfies Record<NetContentUnit, string>,
       statusFilterLabel: "Estado:",
       statusFilterActiveOption: "Activos",
       statusFilterInactiveOption: "Inactivos",
@@ -611,6 +625,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryPlaceholder: "Elegí una categoría",
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+        netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+        netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
+        netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+        netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitRequired: "Elegí la unidad de venta.",
         unitOptionUnitTitle: "Por unidad",
@@ -652,6 +671,11 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameTooLong: PRODUCT_NAME_TOO_LONG,
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+        netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+        netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
+        netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+        netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitOptionUnitTitle: "Por unidad",
         unitOptionUnitHelp: "Se vende de a uno",

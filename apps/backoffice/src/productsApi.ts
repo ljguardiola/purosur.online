@@ -1,4 +1,8 @@
+import type { NetContentUnit } from "@purosur/contracts";
+
 export type ProductSaleUnit = "UNIT" | "KG";
+
+export type NetContent = { quantity: number; unit: NetContentUnit };
 
 /** The `status` query param `GET /products` accepts, mirroring the cloud's own filter. */
 export type ProductStatusFilter = "active" | "inactive" | "all";
@@ -14,6 +18,7 @@ export type ProductSummary = {
   categoryName: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
   active: boolean;
   version: number;
 };
@@ -25,13 +30,21 @@ export type FetchProductsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ProductFieldError = "name" | "categoryId" | "saleUnit" | "barcodes" | "version";
+export type ProductFieldError =
+  | "name"
+  | "categoryId"
+  | "saleUnit"
+  | "barcodes"
+  | "version"
+  | "netContent"
+  | "netContentQuantity";
 
 export type CreateProductInput = {
   name: string;
   categoryId: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
 };
 
 export type CreateProductOutcome =
@@ -48,6 +61,7 @@ export type EditProductInput = {
   categoryId: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  netContent: NetContent | null;
   version: number;
 };
 
@@ -88,7 +102,9 @@ function productFieldFromWire(field: unknown): ProductFieldError | undefined {
     field === "categoryId" ||
     field === "saleUnit" ||
     field === "barcodes" ||
-    field === "version"
+    field === "version" ||
+    field === "netContent" ||
+    field === "netContentQuantity"
     ? field
     : undefined;
 }
