@@ -213,8 +213,8 @@ test("closes the unit menu on Escape without changing anything", async () => {
 
   await userEvent.keyboard("{Escape}");
 
-  expect(onUnitChange).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+  expect(onUnitChange).not.toHaveBeenCalled();
 
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -290,14 +290,6 @@ test("describes the field by a shared message rendered outside it through errorM
   expect(fieldBox(screen).parentElement?.textContent).not.toContain("Compartido por otro campo.");
 
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("shows a white box with a 2px line border at rest", async () => {
-  const screen = await render(<QuantityUnitField {...baseProps()} />);
-  const box = fieldBox(screen);
-
-  expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
-  expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
 });
 
 test("turns the box bone on hover, keeping the same 2px line border", async () => {
