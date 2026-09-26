@@ -7,11 +7,8 @@ export type FieldLabelProps = {
 };
 
 /**
- * A field's own visible caption, drawn at the current FieldSizeProvider's scale, for a control
- * that draws its own label separately from TextField/DateField/Select's internal one — a
- * "pseudo-label" ahead of a control with no visible label of its own (e.g. OptionCardGroup, or a
- * barcode list). Reuses the exact classes those fields already draw their own label with, so a
- * screen can't quietly redefine the look and drift from theirs.
+ * FieldGroup's caption, drawn at the current FieldSizeProvider's scale with the same classes
+ * TextField, DateField and Select draw their own label with.
  */
 export function FieldLabel({ children, required = false }: FieldLabelProps) {
   const size = useFieldSize();

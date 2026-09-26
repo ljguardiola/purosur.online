@@ -41,7 +41,7 @@ export const fieldLabelClassName: Record<FieldSize, string> = {
 export const requiredFieldLabelSuffixClassName = "after:ml-1 after:content-['*']";
 
 // The gap between the label and the box, drawn identically by TextField, DateField and
-// FieldGroup in both sizes.
+// FieldGroup in both sizes, and by Select at the backoffice size.
 export const fieldWrapperGapClassName: Record<FieldSize, string> = {
   register: "gap-1.5",
   backoffice: "gap-1",
