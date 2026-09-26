@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { branchSettings, categories, priceReviews, prices, products } from "../db/schema.js";
@@ -56,12 +56,47 @@ export interface PriceCategoryOption {
 export interface ListPricesResult {
   products: PriceProductRow[];
   /**
-   * Every category, by name, to filter the list by: `GET /categories` is gated by
-   * `manage_products_and_categories`, which a role holding only `manage_prices_and_review` lacks.
+   * Every leaf category (the only kind a product can be assigned to, #382) to filter the list by,
+   * labeled with its full path ("Almacén › Fiambres") since nesting can put two leaves under the
+   * same name. `GET /categories` is gated by `manage_products_and_categories`, which a role
+   * holding only `manage_prices_and_review` lacks, so this route reads the category tree itself
+   * instead of asking the backoffice to fetch it separately.
    */
   categories: PriceCategoryOption[];
   pendingCount: number;
   reviewWindowDays: number;
+}
+
+interface CategoryTreeRow {
+  id: string;
+  name: string;
+  parentId: string | null;
+}
+
+// A parent category can never hold a product directly (enforced on write by
+// `lockLeafCategory`'s "category_not_leaf" rejection), so offering it as a filter option would
+// only ever narrow the list to nothing; only a leaf's own path is worth offering.
+function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceCategoryOption[] {
+  const parentIds = new Set(
+    allCategories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
+  );
+  const byId = new Map(allCategories.map((category) => [category.id, category]));
+
+  function pathLabel(categoryId: string, ancestors: ReadonlySet<string>): string {
+    const category = byId.get(categoryId);
+    if (!category) {
+      return "";
+    }
+    if (!category.parentId || ancestors.has(category.parentId)) {
+      return category.name;
+    }
+    return `${pathLabel(category.parentId, new Set(ancestors).add(categoryId))} › ${category.name}`;
+  }
+
+  return allCategories
+    .filter((category) => !parentIds.has(category.id))
+    .map((category) => ({ id: category.id, name: pathLabel(category.id, new Set()) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 /**
@@ -173,14 +208,13 @@ export async function listPrices<TQueryResult extends PgQueryResultHKT>(
     return nameCompare !== 0 ? nameCompare : a.id.localeCompare(b.id);
   });
 
-  const categoryOptions = await db
-    .select({ id: categories.id, name: categories.name })
-    .from(categories)
-    .orderBy(asc(categories.name));
+  const allCategories = await db
+    .select({ id: categories.id, name: categories.name, parentId: categories.parentId })
+    .from(categories);
 
   return {
     products: sorted.map(({ pending: _pending, ...row }) => row),
-    categories: categoryOptions,
+    categories: leafCategoryOptions(allCategories),
     pendingCount,
     reviewWindowDays: input.unreviewedPriceAlertDays,
   };

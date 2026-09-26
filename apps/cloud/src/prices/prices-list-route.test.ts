@@ -90,8 +90,11 @@ async function insertSession(userId: string): Promise<string> {
   return rawSessionId;
 }
 
-async function insertCategory(name: string): Promise<string> {
-  const [category] = await db.insert(categories).values({ name }).returning({ id: categories.id });
+async function insertCategory(name: string, parentId: string | null = null): Promise<string> {
+  const [category] = await db
+    .insert(categories)
+    .values({ name, parentId })
+    .returning({ id: categories.id });
   if (!category) {
     throw new Error("test setup: seeding the category returned no row");
   }
@@ -211,6 +214,18 @@ describe("GET /prices", () => {
       { id: groceries, name: "Almacén" },
       { id: cleaning, name: "Limpieza" },
     ]);
+  });
+
+  it("excludes a parent category from the filter, since a product can never be assigned to it", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const parent = await insertCategory("Almacén");
+    const leaf = await insertCategory("Fiambres", parent);
+
+    const response = await listPricesRequest(rawSessionId, { review: "pending" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().categories).toEqual([{ id: leaf, name: "Almacén › Fiambres" }]);
   });
 
   it("lists a never-priced product ahead of every reviewed one, as having no price", async () => {
