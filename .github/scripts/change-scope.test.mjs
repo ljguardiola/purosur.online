@@ -5,8 +5,6 @@ import { decideScope, diffChangedPaths, isDocumentationOnly, runCli } from "./ch
 const FROM_SHA = "c".repeat(40);
 const TO_SHA = "d".repeat(40);
 
-// isDocumentationOnly ----------------------------------------------------------------
-
 test("treats a root Markdown file as documentation-only", () => {
   assert.equal(isDocumentationOnly("README.md"), true);
 });
@@ -35,8 +33,6 @@ test("treats a non-Markdown file as needing the full verification", () => {
   assert.equal(isDocumentationOnly("apps/cloud/src/server.ts"), false);
 });
 
-// decideScope --------------------------------------------------------------------------
-
 test("keeps the full verification when a changed path is not documentation-only, naming it", () => {
   const decision = decideScope(["README.md", "apps/cloud/src/server.ts", "drafts/notes.md"]);
 
@@ -61,8 +57,6 @@ test("keeps the full verification when git could not produce the diff", () => {
 
   assert.equal(decision.docsOnly, false);
 });
-
-// diffChangedPaths -----------------------------------------------------------------------
 
 test("diffChangedPaths lists every path changed from the first commit to the second, renames split", async () => {
   const requested = [];
@@ -99,8 +93,6 @@ test("diffChangedPaths returns null when git fails", async () => {
 
   assert.equal(paths, null);
 });
-
-// runCli ---------------------------------------------------------------------------------
 
 function fakeCli({ env = {} } = {}) {
   const calls = { git: [], outputs: [], logs: [], errors: [] };

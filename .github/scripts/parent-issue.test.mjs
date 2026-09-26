@@ -40,9 +40,6 @@ test("allSubIssuesClosed is true only when every sub-issue's state is closed", (
 });
 
 test("allSubIssuesClosed counts a sub-issue closed as not_planned as closed, by state alone", () => {
-  // The decision logic reads each sub-issue's actual open/closed state
-  // instead of a summary, so it never depends on how any summary field
-  // buckets a not_planned close.
   assert.equal(
     allSubIssuesClosed([
       { number: 1, state: "closed", state_reason: "completed" },

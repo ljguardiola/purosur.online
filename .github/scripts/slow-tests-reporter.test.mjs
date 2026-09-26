@@ -19,8 +19,6 @@ function result(overrides = {}) {
   };
 }
 
-// slowTestsForTheirKind ------------------------------------------------------------
-
 test("keeps a result whose duration is over its own project's threshold", () => {
   const slow = slowTestsForTheirKind([result({ duration: 1500 })], { node: 1000 });
 
@@ -69,8 +67,6 @@ test("returns an empty array for an empty result list", () => {
   assert.deepEqual(slowTestsForTheirKind([], { node: 1000 }), []);
 });
 
-// formatSlowTestsBlock ---------------------------------------------------------------
-
 test("prints nothing for an empty list", () => {
   assert.equal(formatSlowTestsBlock([]), "");
 });
@@ -117,8 +113,6 @@ test("prints each duration in whole milliseconds", () => {
   assert.match(block, /9505ms > 1000ms/);
   assert.doesNotMatch(block, /9504\.7/);
 });
-
-// SlowTestsReporter -------------------------------------------------------------------
 
 function fakeTestCase({ project, module, name, duration }) {
   return {
@@ -214,8 +208,6 @@ test("accepts a run whose projects each have a threshold and nothing more", () =
   assert.doesNotThrow(() => reporter.onInit(vitest));
 });
 
-// vitest names a browser instance "<project> (<browser>)" unless it is given a name, and hides
-// the project that declares it: a threshold keyed by the declared name would never apply.
 test("fails the run for a project vitest runs with no threshold", () => {
   const { vitest } = fakeVitest({ projectNames: ["node", "browser (chromium)"] });
   const reporter = new SlowTestsReporter({ node: 1000, browser: 2000 });
@@ -258,8 +250,6 @@ test("accepts thresholds for projects a --project filter left out of the run", (
   assert.doesNotThrow(() => reporter.onInit(vitest));
 });
 
-// findSlowTestsReporterViolations ----------------------------------------------------
-
 function config({ rootThreshold = ROOT_SLOW_TEST_THRESHOLD, reporter } = {}) {
   const reporters = reporter === null ? [] : [reporter ?? new SlowTestsReporter({ node: 1000 })];
   return { test: { slowTestThreshold: rootThreshold, reporters } };
@@ -269,8 +259,6 @@ test("passes a config whose root threshold is off and whose reporters include Sl
   assert.deepEqual(findSlowTestsReporterViolations(config()), []);
 });
 
-// vitest's summary reporter passes slowTestThreshold to setTimeout unless it is not finite, and
-// Node clamps a timeout over 2^31 - 1 to 1ms with a TimeoutOverflowWarning.
 test("turns the built-in mark off with a value vitest treats as off", () => {
   assert.equal(Number.isFinite(ROOT_SLOW_TEST_THRESHOLD), false);
 });
@@ -289,8 +277,6 @@ test("flags a config with no SlowTestsReporter in test.reporters", () => {
   assert.match(violations[0], /SlowTestsReporter/);
 });
 
-// checkRepository ----------------------------------------------------------------------------
-
 test("checkRepository reads a given vitest config module", async () => {
   const violations = await checkRepository({
     importConfig: async () => ({ default: config() }),
@@ -299,10 +285,6 @@ test("checkRepository reads a given vitest config module", async () => {
   assert.deepEqual(violations, []);
 });
 
-// The guard itself: the real vitest.config.ts in this repository. This is what fails
-// `pnpm verify` (via `node --test .github/scripts/*.test.mjs`, part of verify:static) if a future
-// edit drops the reporter or lets the built-in slow mark fire again. A project/threshold mismatch
-// is checked by the reporter itself, against the projects vitest actually runs.
 test("the real vitest.config.ts marks tests slow only against the reporter", async () => {
   const violations = await checkRepository();
 

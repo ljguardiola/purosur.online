@@ -4,8 +4,6 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { decideVerifyResult, runCli } from "./aggregate-verify-result.mjs";
 
-// decideVerifyResult ----------------------------------------------------------------------
-
 test("passes on a push when static and tests both succeed", () => {
   const decision = decideVerifyResult({
     eventName: "push",
@@ -178,8 +176,6 @@ test("fails a cancelled test shard even when static succeeded", () => {
   assert.match(decision.reason, /tests/);
 });
 
-// runCli ------------------------------------------------------------------------------------
-
 function fakeCli(env) {
   const calls = { logs: [], errors: [] };
   const deps = {
@@ -222,8 +218,6 @@ test("runCli exits 1 and logs the reason to stderr when a required job failed", 
   assert.equal(calls.errors.length, 1);
   assert.match(calls.errors[0], /tests/);
 });
-
-// The script as a process -----------------------------------------------------------------
 
 const scriptPath = fileURLToPath(new URL("./aggregate-verify-result.mjs", import.meta.url));
 

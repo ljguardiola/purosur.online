@@ -14,8 +14,6 @@ import {
 const STAGING_SHA = "a".repeat(40);
 const TARGET_SHA = "b".repeat(40);
 
-// isIrrelevantToCloud --------------------------------------------------------------
-
 test("treats a register-app file as irrelevant", () => {
   assert.equal(isIrrelevantToCloud("apps/pos/src/register.ts"), true);
 });
@@ -73,8 +71,6 @@ test("treats a root config file as relevant", () => {
 test("treats a shared package file as relevant", () => {
   assert.equal(isIrrelevantToCloud("packages/ui/src/button.tsx"), false);
 });
-
-// decideDeploy ----------------------------------------------------------------------
 
 test("deploys when staging's version is not a commit SHA", () => {
   const decision = decideDeploy({
@@ -146,8 +142,6 @@ test("skips when staging already serves the target commit, with nothing changed"
 
   assert.equal(decision.deploy, false);
 });
-
-// previousRunVerdict ------------------------------------------------------------------
 
 const CURRENT_RUN_ID = 900;
 
@@ -255,8 +249,6 @@ test("deploys when there is no previous completed run", () => {
   assert.equal(verdict.deploy, true);
 });
 
-// fetchPreviousRunVerdict --------------------------------------------------------------
-
 test("fetchPreviousRunVerdict lists this workflow's completed runs with the token", async () => {
   const requests = [];
   const fetchImpl = async (url, init) => {
@@ -307,8 +299,6 @@ test("fetchPreviousRunVerdict deploys when the runs listing cannot be reached", 
   assert.equal(verdict.deploy, true);
   assert.match(verdict.reason, /fetch failed/);
 });
-
-// fetchStagingVersion ----------------------------------------------------------------
 
 test("fetchStagingVersion reads the commit SHA out of a successful /health response", async () => {
   const fetchImpl = async () =>
@@ -362,8 +352,6 @@ test("fetchStagingVersion returns null when the reported version is not a string
   assert.equal(version, null);
 });
 
-// isAncestor --------------------------------------------------------------------------
-
 test("isAncestor is true when git confirms the ancestry", async () => {
   const result = await isAncestor({
     ancestorSha: STAGING_SHA,
@@ -385,8 +373,6 @@ test("isAncestor is false when git reports the commit is not an ancestor", async
 
   assert.equal(result, false);
 });
-
-// diffChangedPaths ----------------------------------------------------------------------
 
 test("diffChangedPaths lists the paths git reports as changed", async () => {
   const paths = await diffChangedPaths({
@@ -433,8 +419,6 @@ test("diffChangedPaths returns null when git could not produce the diff", async 
 
   assert.equal(paths, null);
 });
-
-// runCli ----------------------------------------------------------------------------
 
 const SUCCESSFUL_PREVIOUS_RUN = { workflow_runs: [run(800, "success", "2026-09-01T10:00:00Z")] };
 

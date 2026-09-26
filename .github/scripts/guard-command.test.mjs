@@ -61,8 +61,6 @@ function ctx({ branch = "feature/x", files = {}, branchFor } = {}) {
   return context;
 }
 
-// --- git commit on main ---------------------------------------------------
-
 test("denies git commit on main", () => {
   const problems = checkCommand('git commit -m "wip"', ctx({ branch: "main" }));
   assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
@@ -88,8 +86,6 @@ test("does not deny git commit when the current branch is unknown", () => {
   assert.deepEqual(problems, []);
 });
 
-// --- --no-verify -----------------------------------------------------------
-
 test("denies git commit --no-verify on a feature branch", () => {
   const problems = checkCommand('git commit --no-verify -m "wip"', ctx({ branch: "feature/x" }));
   assert.ok(problems.some((p) => p.includes("--no-verify")));
@@ -102,8 +98,6 @@ test("denies git push --no-verify", () => {
   );
   assert.ok(problems.some((p) => p.includes("--no-verify")));
 });
-
-// --- git push targeting main -------------------------------------------
 
 test("denies git push origin main", () => {
   const problems = checkCommand("git push origin main", ctx());
@@ -134,8 +128,6 @@ test("allows a clean git push with quoted arguments", () => {
   const problems = checkCommand("git push 'origin' \"feature/x\"", ctx());
   assert.deepEqual(problems, []);
 });
-
-// --- git push --force / -f / --force-with-lease -----------------------
 
 test("denies git push --force", () => {
   const problems = checkCommand("git push --force origin feature/x", ctx());
@@ -171,8 +163,6 @@ test("reports both force and main problems when both apply", () => {
   assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
 });
 
-// --- git tag -------------------------------------------------------------
-
 test("denies creating a cloud-v tag locally", () => {
   const problems = checkCommand("git tag cloud-v1.2.3", ctx());
   assert.ok(problems.some((p) => p.toLowerCase().includes("release")));
@@ -202,8 +192,6 @@ test("allows creating a tag that does not match the release pattern", () => {
   const problems = checkCommand("git tag my-internal-checkpoint", ctx());
   assert.deepEqual(problems, []);
 });
-
-// --- gh pr create / edit --------------------------------------------------
 
 test("denies gh pr create with no body flag at all", () => {
   const problems = checkCommand('gh pr create --title "feat: x"', ctx());
@@ -277,8 +265,6 @@ test("allows gh pr edit with a well-formed --body-file and no --title", () => {
   assert.deepEqual(problems, []);
 });
 
-// --- gh issue create / edit -----------------------------------------------
-
 test("denies gh issue create with no body flag at all", () => {
   const problems = checkCommand('gh issue create --title "x"', ctx());
   assert.ok(problems.some((p) => p.toLowerCase().includes("template")));
@@ -333,8 +319,6 @@ test("allows gh issue edit with no label change and any body (cannot be decided 
   const problems = checkCommand('gh issue edit 5 --body "some update"', ctx());
   assert.deepEqual(problems, []);
 });
-
-// --- git global options before the subcommand ---------------------------
 
 test("denies git -C . commit --no-verify regardless of branch", () => {
   const problems = checkCommand(
@@ -480,8 +464,6 @@ test("still reports --no-verify when branchFor throws", () => {
   assert.ok(problems.some((p) => p.includes("--no-verify")));
 });
 
-// --- chaining ---------------------------------------------------------
-
 test("catches a denied command chained after another with &&", () => {
   const problems = checkCommand('pnpm test && git commit -m "wip"', ctx({ branch: "main" }));
   assert.ok(problems.some((p) => p.toLowerCase().includes("main")));
@@ -508,8 +490,6 @@ test("allows an unrelated chained command", () => {
   const problems = checkCommand("pnpm install && pnpm test", ctx({ branch: "main" }));
   assert.deepEqual(problems, []);
 });
-
-// --- unrelated / fail-open behavior -------------------------------------
 
 test("allows unrelated commands", () => {
   assert.deepEqual(checkCommand("ls -la", ctx()), []);

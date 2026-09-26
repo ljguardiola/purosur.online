@@ -118,8 +118,6 @@ function assertSingleViolation(violations, pattern) {
   assert.match(violations[0], pattern);
 }
 
-// findVerifyWorkflowViolations --------------------------------------------------------------
-
 test("passes when the static job runs verify:static, the shards cover 1..n, and verify composes both", () => {
   const violations = findVerifyWorkflowViolations(workflow(), packageJson());
 
@@ -573,8 +571,6 @@ test("reports a workflow that does not parse as YAML", () => {
   assert.match(violations[0], /does not parse as YAML/);
 });
 
-// checkRepository ----------------------------------------------------------------------------
-
 test("checkRepository reads the real workflow file and package.json path", () => {
   const files = {
     ".github/workflows/verify.yml": workflow(),
@@ -586,9 +582,6 @@ test("checkRepository reads the real workflow file and package.json path", () =>
   assert.deepEqual(violations, []);
 });
 
-// The guard itself: the real workflow and package.json in this repository. This is what fails
-// `pnpm verify` (via `node --test .github/scripts/*.test.mjs`, part of verify:static) if a future
-// edit drops a check `pnpm verify` used to run.
 test("the real Verify workflow runs every part of pnpm verify", () => {
   const violations = checkRepository();
 

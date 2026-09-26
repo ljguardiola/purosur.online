@@ -11,8 +11,6 @@ import {
   runCli,
 } from "./apply-edge-rules.mjs";
 
-// buildRequestHeaderTransformRules -------------------------------------------------
-
 test("builds one rewrite rule that sets the edge origin secret header only for the given hostnames", () => {
   const body = buildRequestHeaderTransformRules("a-secret-value", ["staging.purosur.online"]);
 
@@ -80,8 +78,6 @@ test("uses a lowercase header name outside Cloudflare's cf-/x-cf- namespace", ()
   assert.ok(!EDGE_ORIGIN_SECRET_HEADER.startsWith("x-cf-"));
 });
 
-// buildRateLimitRules ---------------------------------------------------------------
-
 test("builds one block rule rate-limited by source address and colo", () => {
   const body = buildRateLimitRules();
 
@@ -97,8 +93,6 @@ test("builds one block rule rate-limited by source address and colo", () => {
     mitigation_timeout: 10,
   });
 });
-
-// putRulesetPhase ---------------------------------------------------------------------
 
 function jsonResponse(body, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
@@ -165,8 +159,6 @@ test("throws on a non-ok HTTP response", async () => {
     /forbidden/,
   );
 });
-
-// runCli ------------------------------------------------------------------------------
 
 function fakeCli({ env = {}, responses } = {}) {
   const calls = { fetch: [], logs: [], errors: [] };

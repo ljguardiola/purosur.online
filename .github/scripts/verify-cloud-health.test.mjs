@@ -101,8 +101,6 @@ test("fails once the timeout passes on a malformed body", () => {
   assert.match(decision.reason, /status.*ok/i);
 });
 
-// fetchHealth / requestTimeoutMs -------------------------------------------------
-
 function hangingFetch(_url, { signal }) {
   return new Promise((_resolve, reject) => {
     signal.addEventListener("abort", () => reject(signal.reason));
@@ -151,8 +149,6 @@ test("requestTimeoutMs caps a single request well inside a fresh budget", () => 
 test("requestTimeoutMs stays positive once the budget is spent", () => {
   assert.ok(requestTimeoutMs({ elapsedMs: 130_000, timeoutMs: 120_000 }) > 0);
 });
-
-// buildHealthUrl ---------------------------------------------------------------
 
 test("builds the health URL from a bare hostname", () => {
   assert.equal(buildHealthUrl("staging.purosur.online"), "https://staging.purosur.online/health");

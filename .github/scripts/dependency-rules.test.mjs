@@ -14,14 +14,8 @@ async function writeFixtureFile(root, relativePath, content) {
   await writeFile(filePath, content);
 }
 
-// Installs a package the way pnpm actually lays it out on disk: the real
-// files live under node_modules/.pnpm/<name>@<version>/node_modules/<name>/,
-// and node_modules/<name> is a symlink into that store entry. dependency-cruiser
-// follows symlinks (enhanced-resolve's default), so the *resolved* path a rule
-// sees for an installed package looks like
-// "node_modules/.pnpm/electron@1.0.0/node_modules/electron/index.js", not the
-// bare specifier "electron" - a real regression surface for any pattern that
-// assumes the resolved path itself starts with the package name.
+// pnpm installs under node_modules/.pnpm/<name>@<version>/node_modules/<name>, with a symlink at
+// node_modules/<name>; dependency-cruiser follows the symlink, so a rule sees the store path.
 async function installPnpmPackage(root, packageName) {
   const storeDirName = `${packageName.replace("/", "+")}@1.0.0`;
   const realDir = join(root, "node_modules/.pnpm", storeDirName, "node_modules", packageName);
@@ -37,10 +31,6 @@ async function installPnpmPackage(root, packageName) {
   await symlink(realDir, linkPath, "dir");
 }
 
-// Every fixture gets the tsconfig.json the repository's options name; a fixture
-// that needs TypeScript path-alias resolution (an `@purosur/*` import) provides
-// its own with an explicit baseUrl, so resolution doesn't depend on the
-// process's current working directory.
 async function makeFixture(t, files) {
   const root = await mkdtemp(join(tmpdir(), "depcruise-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -51,8 +41,6 @@ async function makeFixture(t, files) {
   return root;
 }
 
-// Cruises a fixture with the repository's real rules and options, overriding
-// only what has to point into the fixture: baseDir and the tsconfig.json path.
 async function cruiseFixture(root, dirs) {
   const tsConfigFileName = join(root, config.options.tsConfig.fileName);
   const result = await cruise(
@@ -436,9 +424,6 @@ test("no-use-case-to-use-case flags reaching another concept's use case through 
   assert.equal(violations.length, 1);
   assert.equal(violations[0].to, "packages/domain/src/returns/use-cases/refund.ts");
 
-  // Closest allowed import: still crosses into returns/ through its entry
-  // point, but that entry point only re-exports a model helper, so no
-  // use-cases file is ever reached.
   await writeFixtureFile(
     root,
     "packages/domain/src/returns/index.ts",
@@ -675,7 +660,6 @@ test("renderer-no-node-builtins flags a Node builtin and allows importing packag
 });
 
 test("register-no-cloud-use-cases flags reaching each cloud-only concept's use case and allows reaching a register use case", async (t) => {
-  // Pinned here too, so dropping a concept from the config shows up in this file's diff.
   assert.deepEqual(CLOUD_ONLY_CONCEPTS, ["purchasing", "alerts", "catalog", "pricing"]);
   const cloudOnlyConcepts = CLOUD_ONLY_CONCEPTS;
   const files = {

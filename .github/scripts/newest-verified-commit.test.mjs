@@ -48,8 +48,6 @@ function fakeCli({ history = HISTORY, runs = [], env = {} } = {}) {
   return { deps, calls };
 }
 
-// newestVerifiedCommit ------------------------------------------------------------
-
 test("picks the newest commit in history that passed verification", () => {
   const sha = newestVerifiedCommit({
     history: HISTORY,
@@ -74,8 +72,6 @@ test("ignores verified commits that are not in history", () => {
 test("returns null when no commit in history passed verification", () => {
   assert.equal(newestVerifiedCommit({ history: HISTORY, verifiedShas: new Set() }), null);
 });
-
-// verifiedShasFromRuns --------------------------------------------------------------
 
 test("collects the head commit of every successful push run", () => {
   const shas = verifiedShasFromRuns({
@@ -105,8 +101,6 @@ test("returns an empty set when the response has no run list", () => {
   assert.deepEqual(verifiedShasFromRuns({ message: "Not Found" }), new Set());
 });
 
-// readFirstParentHistory ------------------------------------------------------------
-
 test("reads the first-parent history of the ref, newest first", async () => {
   const seen = [];
   const history = await readFirstParentHistory("HEAD", async (args) => {
@@ -117,8 +111,6 @@ test("reads the first-parent history of the ref, newest first", async () => {
   assert.deepEqual(seen, [["rev-list", "--first-parent", "HEAD"]]);
   assert.deepEqual(history, [NEWEST, MIDDLE]);
 });
-
-// fetchVerifiedShas -----------------------------------------------------------------
 
 test("asks GitHub for successful push runs of Verify on main, authenticated", async () => {
   const requests = [];
@@ -153,8 +145,6 @@ test("fails when GitHub answers the runs request with an error status", async ()
     /401/,
   );
 });
-
-// runCli ----------------------------------------------------------------------------
 
 test("writes the newest verified commit to the step output", async () => {
   const { deps, calls } = fakeCli({ runs: [run({ sha: MIDDLE })] });

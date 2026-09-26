@@ -19,8 +19,6 @@ function sha256Of(content) {
   return createHash("sha256").update(content).digest("hex");
 }
 
-// validatePathCount -------------------------------------------------------------
-
 test("validatePathCount rejects zero paths", () => {
   assert.deepEqual(validatePathCount([]), {
     ok: false,
@@ -39,8 +37,6 @@ test("validatePathCount accepts two or more paths", () => {
   assert.deepEqual(validatePathCount(["a.asar", "b.asar"]), { ok: true });
   assert.deepEqual(validatePathCount(["a.asar", "b.asar", "c.asar"]), { ok: true });
 });
-
-// hashAsarFile -------------------------------------------------------------
 
 test("hashAsarFile hashes a file's content with sha256", async () => {
   await withTempDir(async (dir) => {
@@ -74,8 +70,6 @@ test("hashAsarFile reports an empty file", async () => {
     assert.deepEqual(result, { ok: false, reason: `${filePath} is empty` });
   });
 });
-
-// compareHashes -------------------------------------------------------------
 
 test("compareHashes accepts when every entry shares the same hash", () => {
   const entries = [

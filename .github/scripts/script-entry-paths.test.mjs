@@ -21,7 +21,6 @@ async function scriptsRunByWorkflows() {
   return [...scripts].sort();
 }
 
-// Run by hand against Cloudflare rather than from a workflow.
 const scriptsRunByOperators = ["apply-edge-rules.mjs"];
 
 const entryScripts = [...(await scriptsRunByWorkflows()), ...scriptsRunByOperators];

@@ -10,8 +10,6 @@ import {
   findWorkflowFiles,
 } from "./checkout-drops-credentials.mjs";
 
-// findCheckoutSteps -----------------------------------------------------------------------
-
 test("flags a checkout step with no persist-credentials setting", () => {
   const source = ["jobs:", "  build:", "    steps:", "      - uses: actions/checkout@SHA1"].join(
     "\n",
@@ -183,8 +181,6 @@ test("does not let one job's steps leak into the next job's step block", () => {
   assert.equal(steps[1].persistsCredentialsFalse, true);
 });
 
-// Non-standard but valid YAML step shapes -------------------------------------------------
-
 test("finds a checkout step whose steps: sequence is at the same indentation as the steps: key", () => {
   const source = ["jobs:", "  build:", "    steps:", "    - uses: actions/checkout@SHA1"].join(
     "\n",
@@ -258,8 +254,6 @@ test('accepts persist-credentials: "false" as a quoted string', () => {
 
   assert.equal(steps[0].persistsCredentialsFalse, true);
 });
-
-// YAML alias resolution --------------------------------------------------------------------
 
 test("resolves a jobs: value that is itself an alias", () => {
   const source = [
@@ -384,8 +378,6 @@ test("resolves a persist-credentials: value that is itself an alias", () => {
   assert.ok(steps.every((step) => step.persistsCredentialsFalse));
 });
 
-// findWorkflowFiles ---------------------------------------------------------------------------
-
 test("findWorkflowFiles also finds a .yaml workflow file", () => {
   const root = mkdtempSync(join(tmpdir(), "checkout-drops-credentials-"));
   try {
@@ -403,8 +395,6 @@ test("findWorkflowFiles also finds a .yaml workflow file", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
-
-// checkFiles --------------------------------------------------------------------------------
 
 test("reports the file and line of every checkout step missing persist-credentials: false", () => {
   const files = {
@@ -441,8 +431,6 @@ test("reports a workflow that does not parse as YAML instead of scanning it sile
   assert.match(violations[0].message, /does not parse as YAML/);
 });
 
-// describeViolation ---------------------------------------------------------------------------
-
 test("describes a violation with its file, line and message", () => {
   const description = describeViolation({
     path: "a.yml",
@@ -453,9 +441,6 @@ test("describes a violation with its file, line and message", () => {
   assert.equal(description, "a.yml:2: actions/checkout step has no persist-credentials: false");
 });
 
-// The guard itself: every actions/checkout step in every workflow in the repository, scanned for
-// real. This is what fails `pnpm verify` (via `node --test .github/scripts/*.test.mjs`) when a job
-// that runs pull request code would otherwise keep the workflow token in its git config.
 test("every actions/checkout step in every workflow sets persist-credentials: false", () => {
   const files = findWorkflowFiles();
   assert.ok(files.length > 0, "expected to find at least one workflow file to scan");
