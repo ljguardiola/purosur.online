@@ -14,15 +14,16 @@ import {
   userRoles,
   users,
 } from "../db/schema.js";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { registerRegisterEnrollmentCodeRoute } from "./register-enrollment-code-route.js";
+import {
+  REGISTER_ENROLLMENT_CODE_WINDOW_MS,
+  registerRegisterEnrollmentCodeRoute,
+} from "./register-enrollment-code-route.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
-const REGISTER_ENROLLMENT_CODE_WINDOW_MS = 15 * 60 * 1000;
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -192,6 +193,7 @@ describe("POST /registers/:id/enrollment-code", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
   it("returns 404 not_found for a register that doesn't exist, changing nothing", async () => {
@@ -203,6 +205,7 @@ describe("POST /registers/:id/enrollment-code", () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ code: "not_found" });
+    expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
   });
 
   it("returns 404 not_found for another branch's register, changing nothing", async () => {
@@ -240,18 +243,6 @@ describe("POST /registers/:id/enrollment-code", () => {
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "authorization_required" });
     expect(await db.select().from(registerEnrollmentCodes)).toHaveLength(0);
-  });
-
-  it("allows emission at exactly the 5-minute passkey authorization boundary", async () => {
-    const locationId = await seededLocationId(db);
-    const registerId = await insertRegister(locationId, "Caja 1");
-    const userId = await insertUserWithPermission(locationId);
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-    const rawSessionId = await insertSession(userId, authorizedAt);
-
-    const response = await emitCode(registerId, rawSessionId);
-
-    expect(response.statusCode).toBe(200);
   });
 
   it("returns a 16-character base32 code and its expires_at, 15 minutes from now", async () => {

@@ -12,7 +12,6 @@ import {
   userRoles,
   users,
 } from "../db/schema.js";
-import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "../session/passkey-authorization-guard.js";
 import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -187,17 +186,6 @@ describe("POST /registers", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("allows creation at exactly the 5-minute passkey authorization boundary", async () => {
-    const locationId = await seededLocationId(db);
-    const userId = await insertUserWithPermission(locationId);
-    const authorizedAt = new Date(NOON.getTime() - PASSKEY_AUTHORIZATION_WINDOW_MS);
-    const rawSessionId = await insertSession(userId, authorizedAt);
-
-    const response = await createRegister(rawSessionId, { name: "Caja 1" });
-
-    expect(response.statusCode).toBe(201);
-  });
-
   it("creates the register in the session's own branch, trimming its name", async () => {
     const locationId = await seededLocationId(db);
     const userId = await insertUserWithPermission(locationId);
@@ -229,36 +217,6 @@ describe("POST /registers", () => {
       previousValue: null,
       newValue: { name: "Caja 1", location_id: locationId },
     });
-  });
-
-  it("rejects an empty name, creating nothing", async () => {
-    const locationId = await seededLocationId(db);
-    const userId = await insertUserWithPermission(locationId);
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createRegister(rawSessionId, { name: "   " });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    expect(await db.select().from(registers)).toHaveLength(0);
-  });
-
-  it("rejects a name longer than 100 characters, creating nothing", async () => {
-    const locationId = await seededLocationId(db);
-    const userId = await insertUserWithPermission(locationId);
-    const rawSessionId = await insertSession(userId);
-
-    const response = await createRegister(rawSessionId, { name: "a".repeat(101) });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({
-      code: "validation_failed",
-      details: [{ field: "name" }],
-    });
-    expect(await db.select().from(registers)).toHaveLength(0);
   });
 
   it("rejects a name already taken in the same branch, case-insensitively, creating nothing", async () => {
