@@ -11,7 +11,8 @@ function isJSDocNode(node) {
 function collectTokens(node, sourceFile, tokens) {
   if (isJSDocNode(node)) return;
   const children = node.getChildren(sourceFile);
-  if (children.length === 0 && node.kind !== ts.SyntaxKind.SyntaxList) {
+  const isLeaf = children.length === 0 && node.kind !== ts.SyntaxKind.SyntaxList;
+  if (isLeaf || node.kind === ts.SyntaxKind.EndOfFileToken) {
     tokens.push(node);
     return;
   }

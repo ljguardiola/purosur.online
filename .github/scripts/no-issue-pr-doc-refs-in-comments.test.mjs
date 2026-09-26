@@ -43,6 +43,21 @@ test("finds a trailing comment at the end of the file, after the last statement"
   assert.deepEqual(comments, [{ line: 2, text: "// trailing" }]);
 });
 
+test("finds a comment before a JSDoc block that ends the file", () => {
+  const comments = findComments("const a = 1;\n// closes #123\n/** x */\n");
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "// closes #123" },
+    { line: 3, text: "/** x */" },
+  ]);
+});
+
+test("finds the JSDoc block of a file that holds only that comment", () => {
+  const comments = findComments("/** see #5 */\n");
+
+  assert.deepEqual(comments, [{ line: 1, text: "/** see #5 */" }]);
+});
+
 test("does not mistake a string literal's contents for a comment", () => {
   const comments = findComments('const s = "// closes #123";');
 
