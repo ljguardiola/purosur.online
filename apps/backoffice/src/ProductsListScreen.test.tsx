@@ -1741,6 +1741,24 @@ function pendingGenerate(services: ProductsListScreenServices) {
   return (outcome: GenerateInternalBarcodeOutcome) => resolveGenerate(outcome);
 }
 
+/**
+ * Lets a late response's own guarded continuation run to completion, and React commit whatever it
+ * would set, before asserting it didn't. Rerendering the same screen goes through React's async
+ * `act()`, which yields at least one macrotask before returning and keeps flushing until no update
+ * is left queued: the response the test already resolved runs in that yield however many `await`s
+ * deep its continuation is, and any state it sets commits inside the same `act()`.
+ */
+async function settleLateResponse(
+  screen: Screen,
+  services: ProductsListScreenServices,
+): Promise<void> {
+  await screen.rerender(
+    <main>
+      <ProductsListScreen services={services} onSessionEnded={() => {}} />
+    </main>,
+  );
+}
+
 test("keeps a code scanned while the internal code is being generated", async () => {
   const services = createServices();
   mockLoaded(services, []);
@@ -1792,8 +1810,7 @@ test("drops an internal code that arrives after the create modal was closed and 
   await expect.element(generateButtonOf(dialog)).not.toBeDisabled();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   expect(dialog.getByText("2000000000015").query()).toBeNull();
 });
@@ -1812,8 +1829,7 @@ test("drops an internal code that arrives after the edit modal moved to another 
   await expect.element(dialog.getByText("7790000000001")).toBeVisible();
 
   resolveGenerate({ kind: "ok", code: "2000000000015" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   expect(dialog.getByText("2000000000015").query()).toBeNull();
   expect(dialog.getByText("7790987000015").query()).toBeNull();
@@ -1951,8 +1967,13 @@ test("fills the generate button on hover only while it is enabled", async () => 
   await userEvent.click(generateButton);
   await expect.element(generateButton).toBeDisabled();
   await userEvent.hover(generateButton);
-  // Outlasts the background transition, so a hover fill would already show.
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Forces a style recalc so any transition the hover would have started has already been
+  // computed, then finishes it outright: a transition starts at its from-value, so reading the
+  // color mid-transition (or too soon after it) can't be told apart from one that never started.
+  getComputedStyle(generateButton.element()).backgroundColor;
+  for (const animation of generateButton.element().getAnimations()) {
+    animation.finish();
+  }
 
   expect(getComputedStyle(generateButton.element()).backgroundColor).toBe(unfilled);
   resolveGenerate({ kind: "failed" });
@@ -2615,8 +2636,7 @@ test("ignores a print success that arrives after the modal was closed and opened
   await startPrintThenCloseAndReopen(screen);
 
   resolvePrint({ kind: "ok", blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }) });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   expect(createObjectURL).not.toHaveBeenCalled();
   expect(anchorClick).not.toHaveBeenCalled();
@@ -2664,8 +2684,7 @@ test("ignores a reload success that arrives after the modal was closed and opene
   const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
 
   resolveReload({ kind: "ok", value: [mielConCodigoInterno] });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   await expect.element(dialog.getByText("1 etiqueta")).toBeVisible();
 });
@@ -2678,8 +2697,7 @@ test("ignores a reload failure that arrives after the modal was closed and opene
   const { dialog, resolveReload } = await startReloadThenCloseAndReopen(screen, services);
 
   resolveReload({ kind: "failed" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   expect(dialog.getByText("No se pudo recargar la lista").query()).toBeNull();
 });
@@ -2692,8 +2710,7 @@ test("ignores a print failure that arrives after the modal was closed and opened
   const dialog = await startPrintThenCloseAndReopen(screen);
 
   resolvePrint({ kind: "failed" });
-  // Lets the late response settle before checking it left no trace.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  await settleLateResponse(screen, services);
 
   expect(dialog.getByText("No se pudo generar la hoja").query()).toBeNull();
 });

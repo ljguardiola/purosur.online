@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -468,6 +469,8 @@ test("the confirmation step has no accessibility violations", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
+type Screen = Awaited<ReturnType<typeof render>>;
+
 function deferredFetch() {
   let resolve: (outcome: FetchRoleOutcome) => void = () => {};
   const promise = new Promise<FetchRoleOutcome>((settle) => {
@@ -490,9 +493,15 @@ function modalFor(request: RoleEditorRequest | null, services: RoleEditorModalSe
   );
 }
 
-/** Lets a late response settle and React commit whatever it would set, before asserting it didn't. */
-async function settleLateResponse() {
-  await new Promise((done) => setTimeout(done, 50));
+/**
+ * Runs whatever the test already set in motion to completion, and commits what it set, before
+ * asserting it didn't happen. Rerendering the same, unchanged `ui` goes through React's async
+ * `act()`, which yields at least one macrotask before returning and keeps flushing until no update
+ * is left queued: a promise chain the test already resolved runs in that yield however many
+ * `await`s deep it is, and any state it sets commits inside the same `act()`.
+ */
+async function flushPendingWork(screen: Screen, ui: ReactElement): Promise<void> {
+  await screen.rerender(ui);
 }
 
 const cashDetail: RoleDetail = {
@@ -514,14 +523,15 @@ test("ignores a role that arrives late for an edit already replaced by editing a
     .mockReturnValueOnce(second.promise);
   vi.mocked(services.editRole).mockResolvedValue({ kind: "ok", value: cashDetail });
   const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
-  await screen.rerender(modalFor({ kind: "edit", roleId: "role-cash" }, services));
+  const ui = modalFor({ kind: "edit", roleId: "role-cash" }, services);
+  await screen.rerender(ui);
 
   second.resolve({ kind: "ok", value: cashDetail });
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
     .toHaveValue("Caja");
   first.resolve({ kind: "ok", value: stockDetail });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   await expect
     .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
@@ -542,10 +552,11 @@ test("ignores a role that arrives late for an edit already closed and replaced b
   vi.mocked(services.fetchRole).mockReturnValueOnce(first.promise);
   const screen = await render(modalFor({ kind: "edit", roleId: "role-stock" }, services));
   await screen.rerender(modalFor(null, services));
-  await screen.rerender(modalFor({ kind: "new" }, services));
+  const ui = modalFor({ kind: "new" }, services);
+  await screen.rerender(ui);
 
   first.resolve({ kind: "ok", value: stockDetail });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   await expect.element(screen.getByRole("dialog").getByText("Nuevo rol")).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
@@ -565,10 +576,11 @@ test("ignores a reload that arrives late for an edit already replaced by a new r
     .toHaveValue("Depósito");
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
   await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
-  await screen.rerender(modalFor({ kind: "new" }, services));
+  const ui = modalFor({ kind: "new" }, services);
+  await screen.rerender(ui);
 
   reload.resolve({ kind: "ok", value: { ...stockDetail, name: "Depósito recargado" } });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
   await expect.element(screen.getByText("0 permisos elegidos")).toBeVisible();
@@ -687,7 +699,18 @@ test("while a save is in flight, neither the close button nor Escape dismisses t
   const pendingSave = deferred<CreateRoleOutcome>();
   const services = createServices({ createRole: vi.fn().mockReturnValue(pendingSave.promise) });
   const onClose = vi.fn();
-  const screen = await renderModal({ kind: "new" }, services, { onClose });
+  const ui = (
+    <main>
+      <RoleEditorModal
+        request={{ kind: "new" }}
+        onClose={onClose}
+        onSaved={() => {}}
+        onSessionEnded={() => {}}
+        services={services}
+      />
+    </main>
+  );
+  const screen = await render(ui);
   await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
@@ -695,7 +718,7 @@ test("while a save is in flight, neither the close button nor Escape dismisses t
   expect(screen.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   await userEvent.keyboard("{Escape}");
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   expect(onClose).not.toHaveBeenCalled();
 });
@@ -708,9 +731,8 @@ test("a save that succeeds after the editor moved on to another request never re
   await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(1);
-  await screen.rerender(
-    modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved),
-  );
+  const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
+  await screen.rerender(ui);
 
   pendingSave.resolve({
     kind: "ok",
@@ -722,7 +744,7 @@ test("a save that succeeds after the editor moved on to another request never re
       userCount: 0,
     },
   });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("button", { name: "Guardar el rol" })).toBeEnabled();
@@ -746,10 +768,11 @@ test("a confirmed save that fails after the editor moved on to another request l
       .getByRole("button", { name: "Guardar los cambios" }),
   );
   await expect.poll(() => vi.mocked(services.editRole).mock.calls.length).toBe(1);
-  await screen.rerender(modalSavingTo({ kind: "new" }, services, onSaved));
+  const ui = modalSavingTo({ kind: "new" }, services, onSaved);
+  await screen.rerender(ui);
 
   pendingSave.resolve({ kind: "name_taken" });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   expect(screen.getByText("Ya existe un rol con este nombre.").query()).toBeNull();
   await expect.element(screen.getByRole("textbox", { name: /^Nombre del rol/ })).toHaveValue("");
@@ -772,9 +795,8 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
 
   await userEvent.click(screen.getByRole("button", { name: "Usar mi passkey" }));
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(2);
-  await screen.rerender(
-    modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved),
-  );
+  const ui = modalSavingTo({ kind: "duplicate", source: stockSummary }, services, onSaved);
+  await screen.rerender(ui);
 
   retry.resolve({
     kind: "ok",
@@ -786,7 +808,7 @@ test("ignores a passkey-authorized retry that resolves late after the editor mov
       userCount: 0,
     },
   });
-  await settleLateResponse();
+  await flushPendingWork(screen, ui);
 
   expect(onSaved).not.toHaveBeenCalled();
   await expect
