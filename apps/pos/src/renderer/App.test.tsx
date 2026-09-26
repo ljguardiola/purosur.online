@@ -46,9 +46,7 @@ describe("App", () => {
   });
 
   it("shows the notice when the core went down before the page started listening", async () => {
-    // Stands in for the preload: the down status reached it before App mounted, so it can only
-    // be delivered as the reply to App's own request.
-    const answerRequest = (event: MessageEvent) => {
+    const replyToStatusRequestWithDown = (event: MessageEvent) => {
       if (
         typeof event.data === "object" &&
         event.data !== null &&
@@ -57,14 +55,14 @@ describe("App", () => {
         postCoreStatus("down");
       }
     };
-    window.addEventListener("message", answerRequest);
+    window.addEventListener("message", replyToStatusRequestWithDown);
 
     try {
       const screen = await render(<App />);
 
       await expect.element(screen.getByText(messages.coreDown.title)).toBeVisible();
     } finally {
-      window.removeEventListener("message", answerRequest);
+      window.removeEventListener("message", replyToStatusRequestWithDown);
     }
   });
 

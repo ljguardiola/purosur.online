@@ -4,9 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { messages } from "../src/messages";
 import { APP_DIR, appEnv, E2E_CHANNEL_FILE, platformArgs, writeChannelFile } from "./launch-app";
 
-// Electron's own name for a Node.js utility process (see apps/pos/src/main/index.ts's
-// `utilityProcess.fork`), robust against other utility processes (network, audio, storage...)
-// that Electron itself may also spawn.
+// Electron's own service name for a Node.js utility process, robust against other utility
+// processes (network, audio, storage...) Electron itself may also spawn.
 const CORE_SERVICE_NAME = "node.mojom.NodeService";
 
 interface UtilityProcessInfo {
@@ -55,9 +54,8 @@ function portsReceived(page: Page): Promise<number> {
   return page.evaluate(() => (window as unknown as NoticeProbe).__ports.length);
 }
 
-// Waits for the restart policy's next core instead of a fixed time: how long a core takes to come
-// up after its backoff depends on the machine. Every core hands the window a port of its own, which
-// marks a new core even when Windows gives it the killed core's freed process id.
+// Polls for a new port instead of a fixed time or PID: Windows can reuse the killed core's freed
+// process id, but every core hands the window a port of its own.
 async function killAndWaitForTheNextCore(app: ElectronApplication, page: Page): Promise<void> {
   const portsBefore = await portsReceived(page);
   await killTheRunningCore(app);
@@ -75,11 +73,8 @@ function isAlive(pid: number): boolean {
   }
 }
 
-// The register's own bounded restart policy (apps/pos/src/main/index.ts's RESTART_POLICY):
-// maxAttempts 5, with a backoff of 0.5 s doubling to 8 s. It is not test-injectable (only the
-// periodic retry interval after exhaustion is, via POS_CORE_RETRY_INTERVAL_MS below), so reaching
-// exhaustion in this test takes as long as it would for real: six crashes, one per bounded attempt
-// plus the one that finds none left.
+// Mirrors the register's own bounded restart policy (maxAttempts 5); it isn't test-injectable, so
+// reaching exhaustion takes six real crashes, one per bounded attempt plus the one that finds none left.
 const BOUNDED_RESTART_ATTEMPTS = 5;
 
 describe("the register's own recovery once the core's bounded restarts run out", () => {
@@ -139,7 +134,6 @@ describe("the register's own recovery once the core's bounded restarts run out",
       },
       { title: messages.coreDown.title, body: messages.coreDown.body },
     );
-    // The sixth crash finds no bounded attempts left and exhausts the policy.
     await killTheRunningCore(app);
 
     expect(await page.evaluate(() => (window as unknown as NoticeProbe).__noticeShown)).toEqual({
@@ -147,7 +141,6 @@ describe("the register's own recovery once the core's bounded restarts run out",
       body: true,
     });
 
-    // No kill this time: the periodic retry's own core is left running and reports itself ready.
     await expect
       .poll(() => page.getByText(messages.shell.ready).isVisible(), { timeout: 10_000 })
       .toBe(true);
@@ -157,8 +150,6 @@ describe("the register's own recovery once the core's bounded restarts run out",
     expect(cores.length).toBeGreaterThan(0);
     expect(cores.every((core) => isAlive(core.pid))).toBe(true);
 
-    // The renderer's latest port reaches that live core: an invalid message comes back as the
-    // core's own rejection log.
     logs.length = 0;
     await page.evaluate(() => {
       const port = (window as unknown as NoticeProbe).__ports.at(-1);

@@ -94,30 +94,18 @@ describe("the register's compiled app code", () => {
 
 const UI_COMPONENTS_DIR = join(APP_DIR, "../../packages/ui/src/components");
 const UI_TOKENS_CSS = join(APP_DIR, "../../packages/ui/src/styles/tokens.css");
-// The directory every css string passed to __unstable__loadDesignSystem below resolves its
-// `@import`s from — packages/ui's own styles directory, whether that's the real tokens.css (the
-// natural choice, being its own directory) or a minimal "@import tailwindcss;" theme for a test
-// fixture (packages/ui's package.json already depends on tailwindcss, so it resolves from here
-// too, without apps/pos needing its own dependency on it).
+// Base for every css string's `@import`s below: packages/ui's styles directory, so a fixture
+// theme resolves tailwindcss from its dependency instead of apps/pos needing its own.
 const TAILWIND_RESOLUTION_BASE = dirname(UI_TOKENS_CSS);
 
 interface ScanResult {
   candidates: string[];
-  // The compiled CSS for exactly those candidates (candidatesToCss run once, here, while
-  // computing which scanned tokens are valid utilities) — callers that also need it (the fixture
-  // test) reuse it instead of loading the design system and recompiling a second time.
+  // The compiled CSS for exactly the returned candidates.
   compiledCss: string;
 }
 
-// The same scanner and compiler @tailwindcss/vite itself builds the app's CSS with (see its own
-// source): the given theme decides what a candidate compiles to, so this finds and validates
-// classes exactly as a real build would — a plain literal className, a *ClassName constant, a
-// variant-map value, a function body, a template literal, an arbitrary-value or arbitrary-variant
-// selector, anything Tailwind's own scanner recognizes, wherever it appears in a source file —
-// with no hand-rolled shape rules to keep in sync with new patterns. candidatesToCss returns null
-// for a scanned token that isn't actually a valid utility (an import specifier, a TS union
-// member, a *ClassName record's own variant key, plain prose), so those are never even candidates
-// this test has to account for.
+// The same scanner and compiler @tailwindcss/vite builds the app's CSS with; candidatesToCss
+// returns null for a scanned token that isn't actually a utility, so it's never a candidate here.
 async function scanCandidates(
   sourceDir: string,
   css: string,
@@ -154,11 +142,8 @@ async function designSystemCandidates(): Promise<string[]> {
   return result.candidates;
 }
 
-// Pseudo-classes like :is(), :where(), :not() and :has() (and an explicit nth-child(...of ...))
-// carry their own nested selector list — this is where the *:/**: variants and space-*/divide-*
-// (a :where(.space-x-4 > :not(:last-child)) shape, two levels deep) actually put their class. A
-// class there is exactly as real as one at the top level of a selector, so it has to be collected
-// too, not just ignored as "context".
+// :is(), :where(), :not(), :has() and nth-child(...of ...) carry their own nested selector list,
+// which is where variants like *:/**: and space-*/divide-* actually put their class.
 function nestedSelectorsOf(component: SelectorComponent): Selector[] {
   if (component.type !== "pseudo-class") {
     return [];
@@ -192,11 +177,8 @@ function collectClassNames(selector: Selector, names: Set<string>): void {
   }
 }
 
-// The unescaped class names any selector in the given CSS uses, collected from Lightning CSS's
-// selector AST rather than by matching selector text. The visitor walks into every at-rule on its
-// own; within a selector, classes inside the pseudo-classes nestedSelectorsOf lists are collected
-// too. `minify` flattens the nested rules Tailwind compiles, the way the packaged build's
-// optimizer does, so a class can be checked in the shape the packaged stylesheet holds it.
+// Collected from Lightning CSS's selector AST rather than by matching selector text; `minify`
+// flattens nested rules the way the packaged build's own optimizer does.
 function classNamesIn(css: string, minify = false): Set<string> {
   const names = new Set<string>();
   transform({
@@ -257,7 +239,6 @@ describe("classNamesIn", () => {
       // browser-compatibility transform.
       String.raw`.after\:content-\[\'\*\'\]::after{content:"*"}`,
       String.raw`.after\:content-\[\'\*\'\]:after{content:"*"}`,
-      // An arbitrary-variant combinator suffix.
       String.raw`.\[\&\>svg\]\:h-full > svg{height:100%}`,
       // A trailing :is(...)/attribute-selector suffix, as a group-data-[...] variant compiles to.
       String.raw`.group-data-\[selected\]\:bg-red-500:is(:where(.group)[data-selected] *){color:red}`,
@@ -270,9 +251,6 @@ describe("classNamesIn", () => {
         "2xl:p-4",
         "after:content-['*']",
         "[&>svg]:h-full",
-        // Nested inside the group-data variant's own :where(.group)[data-selected] — see the
-        // "descends into..." test below for why a class inside a pseudo-class's own selector list
-        // is collected too, not just this one's top-level class.
         "group",
         "group-data-[selected]:bg-red-500",
       ]),
@@ -280,11 +258,6 @@ describe("classNamesIn", () => {
   });
 
   it("descends into a pseudo-class's own nested selector list, not just top-level classes", () => {
-    // *:p-4 and **:p-4 (the `*:`/`**:` variants) compile inside :is(...); space-x-4/divide-*
-    // compile inside :where(...) with a further nested :not(...) — two levels deep. A class here
-    // is exactly as real as one at the top level of a selector: it's still what the compiled CSS
-    // actually uses, so missing it would be a false failure for the guard's one job (an @source
-    // regression drops every packages/ui class at once, not just top-level ones).
     const css = [
       ":is(.\\*\\:p-4 > *){padding:1rem}",
       ":where(.space-x-4 > :not(:last-child)){margin:1rem}",
@@ -356,31 +329,19 @@ describe("scanCandidates and classNamesIn end to end", () => {
       "after:content-['*']",
       "[&>svg]:h-full",
       "[&_>_svg]:h-full",
-      // A digit-leading variant: Tailwind's own escape for it (`.\32 xl\:p-4`) is exactly what a
-      // hand-escaping scheme (backslash before every non [A-Za-z0-9_-] character) gets wrong.
       "2xl:p-4",
-      // Its own compiled rule's @container prelude contains a decimal point ("1.5rem") before the
-      // rule's actual selector — exactly what previously broke a "first '.' before '{'" selector
-      // search.
       "min-[1.5rem]:p-4",
-      // Its own class is nested inside :is(:where(.group)[data-selected] *), not top-level.
       "group-data-[selected]:bg-red-500",
-      // Compiles inside :is(...) (the `*:` variant) — a class nested one level deep.
       "*:p-4",
-      // Compiles inside :where(.space-x-4 > :not(:last-child)) — nested two levels deep.
       "space-x-4",
     ];
     expect(candidates).toEqual(expect.arrayContaining(expectedCandidates));
 
-    // Minified, like the packaged build's own CSS, to prove minification doesn't change which
-    // classes are found.
     const classNames = classNamesIn(compiledCss, true);
 
     for (const candidate of expectedCandidates) {
       expect(classNames.has(candidate)).toBe(true);
     }
-    // A class genuinely absent from the compiled CSS has to be reported missing, not silently
-    // accepted.
     expect(classNames.has("this-class-does-not-exist")).toBe(false);
   }, 30_000);
 });

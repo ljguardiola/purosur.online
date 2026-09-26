@@ -88,6 +88,12 @@ function setUp(overrides: Partial<CoreSupervisorDeps> = {}) {
   };
 }
 
+function exhaustBoundedRestarts(processes: readonly FakeProcess[], startIndex = 0): void {
+  for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
+    processes[startIndex + index]?.exit(1);
+  }
+}
+
 describe("createCoreSupervisor", () => {
   it("forks the core process once on start", () => {
     const { supervisor, fork } = setUp();
@@ -176,13 +182,7 @@ describe("createCoreSupervisor", () => {
     });
 
     supervisor.start();
-    // Each exit forks a fresh process synchronously (scheduleRestart runs `run` right away
-    // here): maxAttempts + 1 exits is exactly the chain of restarts that first reaches the
-    // policy's limit. That last exit also kicks off the periodic retry's own first attempt
-    // (see "once bounded restarts are exhausted" below) instead of another bounded restart.
-    for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-      processes[index]?.exit(1);
-    }
+    exhaustBoundedRestarts(processes);
 
     expect(onRestartsExhausted).toHaveBeenCalledOnce();
     expect(fork).toHaveBeenCalledTimes(policy.maxAttempts + 2);
@@ -294,9 +294,7 @@ describe("createCoreSupervisor", () => {
     });
 
     supervisor.start();
-    for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-      processes[index]?.exit(1);
-    }
+    exhaustBoundedRestarts(processes);
 
     expect(onProcessExited).toHaveBeenLastCalledWith(processes[policy.maxAttempts]);
   });
@@ -359,13 +357,10 @@ describe("createCoreSupervisor", () => {
       const { supervisor, processes, fork } = setUp({ scheduleRestart });
 
       supervisor.start();
-      // maxAttempts + 1 exits is exactly the chain of bounded restarts that first reaches the
-      // policy's limit; that last exit also kicks off the periodic retry's own first attempt.
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
       scheduleRestart.mockClear();
-      processes.at(-1)?.exit(1);
+      const periodicRetryProcess = processes.at(-1);
+      periodicRetryProcess?.exit(1);
 
       expect(scheduleRestart).toHaveBeenLastCalledWith(expect.any(Function), retryIntervalMs);
       expect(fork).toHaveBeenCalledTimes(policy.maxAttempts + 3);
@@ -382,11 +377,9 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
-      // The periodic retry's own core fails again, immediately, without ever being stable.
-      processes.at(-1)?.exit(1);
+      exhaustBoundedRestarts(processes);
+      const periodicRetryProcess = processes.at(-1);
+      periodicRetryProcess?.exit(1);
 
       expect(onRestartsExhausted).toHaveBeenCalledOnce();
     });
@@ -402,9 +395,7 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
 
       expect(processes).toHaveLength(policy.maxAttempts + 2);
       expect(onStatusChange).toHaveBeenLastCalledWith("down");
@@ -422,9 +413,7 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
       processes.at(-1)?.becomeReady();
 
       expect(onStatusChange).toHaveBeenLastCalledWith("up");
@@ -443,9 +432,7 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
       processes.at(-1)?.becomeReady();
       advanceClock(policy.stableRunMs - 1);
       processes.at(-1)?.exit(1);
@@ -465,9 +452,7 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
       processes[policy.maxAttempts]?.becomeReady();
 
       expect(onStatusChange).not.toHaveBeenCalledWith("up");
@@ -484,9 +469,7 @@ describe("createCoreSupervisor", () => {
       });
 
       supervisor.start();
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes);
       expect(onRestartsExhausted).toHaveBeenCalledOnce();
 
       const recoveredProcessIndex = processes.length - 1;
@@ -494,11 +477,7 @@ describe("createCoreSupervisor", () => {
       advanceClock(policy.stableRunMs);
       processes[recoveredProcessIndex]?.exit(1);
 
-      // A stable recovery resets the attempt count, so this new outage needs its own fresh,
-      // full run of bounded restarts before it can exhaust again.
-      for (let index = 0; index < policy.maxAttempts + 1; index += 1) {
-        processes[recoveredProcessIndex + 1 + index]?.exit(1);
-      }
+      exhaustBoundedRestarts(processes, recoveredProcessIndex + 1);
 
       expect(onRestartsExhausted).toHaveBeenCalledTimes(2);
     });
@@ -530,8 +509,6 @@ describe("createCoreSupervisor", () => {
 
       expect(processes[0]?.killed).toBe(true);
       vi.advanceTimersByTime(policy.maxDelayMs);
-      // A hung process may ignore SIGTERM for a while: forking its replacement before the exit is
-      // observed could leave two cores alive, fighting over the database or hardware.
       expect(fork).toHaveBeenCalledOnce();
     });
 
@@ -544,8 +521,6 @@ describe("createCoreSupervisor", () => {
 
       supervisor.start();
       vi.advanceTimersByTime(readinessTimeoutMs);
-      // The deadline alone must never schedule a restart: only the process's own observed exit
-      // may (this is what the old, unfixed code got wrong — it scheduled one synchronously here).
       expect(scheduleRestart).not.toHaveBeenCalled();
 
       processes[0]?.exit(null);
@@ -638,7 +613,6 @@ describe("createCoreSupervisor", () => {
       processes[0]?.exit(1);
       vi.advanceTimersByTime(policy.baseDelayMs);
 
-      // Only the restarted process's own deadline is left.
       expect(vi.getTimerCount()).toBe(1);
       expect(processes[0]?.killed).toBe(false);
     });
