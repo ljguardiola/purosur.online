@@ -20,15 +20,8 @@ export type { DateFieldProps } from "./components/DateField";
 export { DateField } from "./components/DateField";
 export type { FieldGroupProps } from "./components/FieldGroup";
 export { FieldGroup } from "./components/FieldGroup";
-export type { FieldLabelProps } from "./components/FieldLabel";
-export { FieldLabel } from "./components/FieldLabel";
 export type { FieldSize, FieldSizeProviderProps } from "./components/FieldSize";
-export {
-  backofficeFieldHeightClassName,
-  FieldSizeProvider,
-  fieldWrapperGapClassName,
-  useFieldSize,
-} from "./components/FieldSize";
+export { backofficeFieldHeightClassName, FieldSizeProvider } from "./components/FieldSize";
 export type { HighlightedNoticeProps } from "./components/HighlightedNotice";
 export { HighlightedNotice } from "./components/HighlightedNotice";
 export type { IconButtonProps } from "./components/IconButton";
