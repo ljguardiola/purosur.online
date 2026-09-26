@@ -1,6 +1,6 @@
 {
-  "id": "4db914f5-691b-458f-859c-924949763498",
-  "prevId": "c57a9c67-9a7a-456a-b857-36a3cf823cb0",
+  "id": "51f02dd2-9416-4d90-89f5-66095c81f784",
+  "prevId": "4db914f5-691b-458f-859c-924949763498",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -59,8 +59,12 @@
           "name": "audit_log_actor_id_users_id_fk",
           "tableFrom": "audit_log",
           "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -194,8 +198,12 @@
           "name": "branch_hours_location_id_locations_id_fk",
           "tableFrom": "branch_hours",
           "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -203,7 +211,11 @@
       "compositePrimaryKeys": {
         "branch_hours_location_id_day_of_week_position_pk": {
           "name": "branch_hours_location_id_day_of_week_position_pk",
-          "columns": ["location_id", "day_of_week", "position"]
+          "columns": [
+            "location_id",
+            "day_of_week",
+            "position"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -272,6 +284,12 @@
           "notNull": true,
           "default": 15
         },
+        "price_list_id": {
+          "name": "price_list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -286,8 +304,25 @@
           "name": "branch_settings_location_id_locations_id_fk",
           "tableFrom": "branch_settings",
           "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "branch_settings_price_list_id_price_lists_id_fk": {
+          "name": "branch_settings_price_list_id_price_lists_id_fk",
+          "tableFrom": "branch_settings",
+          "tableTo": "price_lists",
+          "columnsFrom": [
+            "price_list_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -489,8 +524,12 @@
           "name": "passkey_challenges_session_id_sessions_id_fk",
           "tableFrom": "passkey_challenges",
           "tableTo": "sessions",
-          "columnsFrom": ["session_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -596,8 +635,12 @@
           "name": "passkeys_user_id_users_id_fk",
           "tableFrom": "passkeys",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -606,6 +649,283 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.price_lists": {
+      "name": "price_lists",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.price_reviews": {
+      "name": "price_reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_list_id": {
+          "name": "price_list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_id": {
+          "name": "price_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "price_reviews_product_id_price_list_id_reviewed_at_idx": {
+          "name": "price_reviews_product_id_price_list_id_reviewed_at_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "price_list_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reviewed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "price_reviews_product_id_products_id_fk": {
+          "name": "price_reviews_product_id_products_id_fk",
+          "tableFrom": "price_reviews",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_reviews_price_list_id_price_lists_id_fk": {
+          "name": "price_reviews_price_list_id_price_lists_id_fk",
+          "tableFrom": "price_reviews",
+          "tableTo": "price_lists",
+          "columnsFrom": [
+            "price_list_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_reviews_actor_id_users_id_fk": {
+          "name": "price_reviews_actor_id_users_id_fk",
+          "tableFrom": "price_reviews",
+          "tableTo": "users",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "price_reviews_price_product_price_list_fk": {
+          "name": "price_reviews_price_product_price_list_fk",
+          "tableFrom": "price_reviews",
+          "tableTo": "prices",
+          "columnsFrom": [
+            "price_id",
+            "product_id",
+            "price_list_id"
+          ],
+          "columnsTo": [
+            "id",
+            "product_id",
+            "price_list_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prices": {
+      "name": "prices",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_list_id": {
+          "name": "price_list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valid_from": {
+          "name": "valid_from",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "prices_product_id_price_list_id_valid_from_idx": {
+          "name": "prices_product_id_price_list_id_valid_from_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "price_list_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "valid_from",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "prices_product_id_products_id_fk": {
+          "name": "prices_product_id_products_id_fk",
+          "tableFrom": "prices",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "prices_price_list_id_price_lists_id_fk": {
+          "name": "prices_price_list_id_price_lists_id_fk",
+          "tableFrom": "prices",
+          "tableTo": "price_lists",
+          "columnsFrom": [
+            "price_list_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "prices_id_product_id_price_list_id_key": {
+          "name": "prices_id_product_id_price_list_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "product_id",
+            "price_list_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "prices_unit_price_positive": {
+          "name": "prices_unit_price_positive",
+          "value": "\"prices\".\"unit_price\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.product_barcodes": {
@@ -661,8 +981,12 @@
           "name": "product_barcodes_product_id_products_id_fk",
           "tableFrom": "product_barcodes",
           "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -670,7 +994,10 @@
       "compositePrimaryKeys": {
         "product_barcodes_product_id_position_pk": {
           "name": "product_barcodes_product_id_position_pk",
-          "columns": ["product_id", "position"]
+          "columns": [
+            "product_id",
+            "position"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -728,8 +1055,12 @@
           "name": "products_category_id_categories_id_fk",
           "tableFrom": "products",
           "tableTo": "categories",
-          "columnsFrom": ["category_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1041,8 +1372,12 @@
           "name": "recovery_tokens_user_id_users_id_fk",
           "tableFrom": "recovery_tokens",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1076,8 +1411,12 @@
           "name": "role_permissions_role_id_roles_id_fk",
           "tableFrom": "role_permissions",
           "tableTo": "roles",
-          "columnsFrom": ["role_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1085,7 +1424,10 @@
       "compositePrimaryKeys": {
         "role_permissions_role_id_permission_key_pk": {
           "name": "role_permissions_role_id_permission_key_pk",
-          "columns": ["role_id", "permission_key"]
+          "columns": [
+            "role_id",
+            "permission_key"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1242,8 +1584,12 @@
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1459,8 +1805,12 @@
           "name": "user_roles_user_id_users_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1468,8 +1818,12 @@
           "name": "user_roles_role_id_roles_id_fk",
           "tableFrom": "user_roles",
           "tableTo": "roles",
-          "columnsFrom": ["role_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "role_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1477,7 +1831,10 @@
       "compositePrimaryKeys": {
         "user_roles_user_id_role_id_pk": {
           "name": "user_roles_user_id_role_id_pk",
-          "columns": ["user_id", "role_id"]
+          "columns": [
+            "user_id",
+            "role_id"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1551,8 +1908,12 @@
           "name": "users_location_id_locations_id_fk",
           "tableFrom": "users",
           "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "location_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1568,22 +1929,36 @@
     "public.backoffice_rate_limit_key_kind": {
       "name": "backoffice_rate_limit_key_kind",
       "schema": "public",
-      "values": ["session", "source_address"]
+      "values": [
+        "session",
+        "source_address"
+      ]
     },
     "public.passkey_management_challenge_kind": {
       "name": "passkey_management_challenge_kind",
       "schema": "public",
-      "values": ["registration", "session_authorization"]
+      "values": [
+        "registration",
+        "session_authorization"
+      ]
     },
     "public.recovery_rate_limit_key_kind": {
       "name": "recovery_rate_limit_key_kind",
       "schema": "public",
-      "values": ["destination_address", "source_address", "redemption_source_address"]
+      "values": [
+        "destination_address",
+        "source_address",
+        "redemption_source_address"
+      ]
     },
     "public.recovery_rejected_attempt_kind": {
       "name": "recovery_rejected_attempt_kind",
       "schema": "public",
-      "values": ["request", "registration_options", "redeem"]
+      "values": [
+        "request",
+        "registration_options",
+        "redeem"
+      ]
     }
   },
   "schemas": {},

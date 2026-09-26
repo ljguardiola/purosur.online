@@ -187,8 +187,15 @@
     {
       "idx": 26,
       "version": "7",
-      "when": 1790374404746,
-      "tag": "0026_prices_and_price_reviews",
+      "when": 1790376085604,
+      "tag": "0026_deactivate_products",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790386732906,
+      "tag": "0027_prices_and_price_reviews",
       "breakpoints": true
     }
   ]

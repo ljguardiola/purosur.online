@@ -1,5 +1,8 @@
 export type ProductSaleUnit = "UNIT" | "KG";
 
+/** The `status` query param `GET /products` accepts, mirroring the cloud's own filter. */
+export type ProductStatusFilter = "active" | "inactive" | "all";
+
 // The backoffice API rate limiter counts a rolling one-hour window, the same fallback
 // categoriesApi.ts's own rate-limited outcomes fall back to.
 const RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
@@ -11,6 +14,7 @@ export type ProductSummary = {
   categoryName: string;
   saleUnit: ProductSaleUnit;
   barcodes: string[];
+  active: boolean;
   version: number;
 };
 
@@ -96,11 +100,16 @@ async function readBarcodeTakenCodes(response: Response): Promise<string[]> {
     : [];
 }
 
-/** Lists every catalog product, gated by `manage_products_and_categories` (`GET /products`). */
-export async function fetchProducts(): Promise<FetchProductsOutcome> {
+/**
+ * Lists catalog products filtered by status, gated by `manage_products_and_categories`
+ * (`GET /products`); defaults to active products, the same default the cloud itself applies.
+ */
+export async function fetchProducts(
+  status: ProductStatusFilter = "active",
+): Promise<FetchProductsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/products");
+    response = await fetch(`/products?status=${status}`);
   } catch {
     return { kind: "failed" };
   }
@@ -290,6 +299,44 @@ export async function editProduct(
       ? body.codes.filter((code): code is string => typeof code === "string")
       : [];
     return { kind: "barcode_taken", codes };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return { kind: "rate_limited", retryAfterSeconds: retryAfterSeconds(response) };
+  }
+  return { kind: "failed" };
+}
+
+export type DeactivateProductOutcome =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "unauthenticated" }
+  | { kind: "rate_limited"; retryAfterSeconds: number }
+  | { kind: "failed" };
+
+/**
+ * Deactivates a catalog product, gated by `manage_products_and_categories`; no passkey step-up
+ * (`POST /products/:id/deactivation`). The cloud answers the same `not_found` for a malformed,
+ * missing, or already-inactive target.
+ */
+export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
+  let response: Response;
+  try {
+    response = await postJson(`/products/${id}/deactivation`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };

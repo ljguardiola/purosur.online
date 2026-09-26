@@ -11,6 +11,7 @@ import {
   ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { defineMessages } from "@purosur/ui";
+import type { ProductStatusFilter } from "./productsApi";
 
 // Every store is in Argentina, so a passkey's dates render in that timezone regardless of the
 // browser's own clock, instead of drifting with wherever a device happens to be set to.
@@ -561,11 +562,36 @@ export const messages = defineMessages("es-AR", (f) => ({
       unitFilterLabel: "Unidad:",
       unitFilterAllOption: "Todas",
       unitOptionLabels: { UNIT: "Por unidad", KG: "Por peso" },
-      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD" },
-      count: (params: { count: number }) =>
-        f.plural(params.count, { one: "1 producto", other: `${params.count} productos` }),
-      emptyTitle: "Todavía no hay productos",
-      emptyDetail: "Creá el primero para verlo en la lista.",
+      statusFilterLabel: "Estado:",
+      statusFilterActiveOption: "Activos",
+      statusFilterInactiveOption: "Inactivos",
+      statusFilterAllOption: "Todos",
+      statusActive: "Activo",
+      statusInactive: "Inactivo",
+      columns: { product: "PRODUCTO", category: "CATEGORÍA", unit: "UNIDAD", status: "ESTADO" },
+      count: (params: { count: number; status: ProductStatusFilter }) => {
+        if (params.status === "active") {
+          return f.plural(params.count, {
+            one: "1 producto activo",
+            other: `${params.count} productos activos`,
+          });
+        }
+        if (params.status === "inactive") {
+          return f.plural(params.count, {
+            one: "1 producto inactivo",
+            other: `${params.count} productos inactivos`,
+          });
+        }
+        return f.plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+      },
+      empty: {
+        active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+        inactive: { title: "No hay productos inactivos" },
+        all: {
+          title: "Todavía no hay productos",
+          detail: "Creá el primero para verlo en la lista.",
+        },
+      } satisfies Record<ProductStatusFilter, { title: string; detail?: string }>,
       noResultsTitle: "Sin resultados",
       noResultsDetail: "Probá con otro nombre o código de barras.",
       loadErrorTitle: "No pudimos abrir los productos",
@@ -576,6 +602,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       rowActionsLabel: "Acciones",
       editAria: (params: { name: string }) => `Editar el producto ${params.name}`,
+      deactivateAria: (params: { name: string }) => `Desactivar el producto ${params.name}`,
       newProductModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Nuevo producto",
@@ -665,6 +692,20 @@ export const messages = defineMessages("es-AR", (f) => ({
         rateLimitedDetail: (params: { minutes: number }) =>
           `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
       },
+      deactivateModal: {
+        title: (params: { name: string }) => `¿Desactivar ${params.name}?`,
+        body: "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
+        cancel: CANCEL_LABEL,
+        confirm: "Desactivar",
+        closeLabel: CLOSE_LABEL,
+        attemptFailedTitle: "No se pudo desactivar el producto",
+        attemptFailedDetail: "Probá de nuevo.",
+        alreadyInactiveTitle: "Ya estaba desactivado",
+        reload: "Actualizar la lista",
+        rateLimitedTitle: "Demasiadas solicitudes",
+        rateLimitedDetail: (params: { minutes: number }) =>
+          `Se puede volver a intentar en ${f.plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`,
+      },
       printLabelsModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Imprimir etiquetas",
@@ -673,8 +714,8 @@ export const messages = defineMessages("es-AR", (f) => ({
         decreaseAria: (params: { name: string }) => `Restar una etiqueta de ${params.name}`,
         increaseAria: (params: { name: string }) => `Sumar una etiqueta a ${params.name}`,
         previewAria: "Vista previa de la etiqueta",
-        emptyTitle: "No hay productos con código interno",
-        emptyDetail: "Generá uno desde el formulario del producto.",
+        emptyTitle: "No hay productos activos con código interno",
+        emptyDetail: "Generá uno desde el formulario de un producto activo.",
         summary: (params: { count: number }) =>
           f.plural(params.count, { one: "1 etiqueta", other: `${params.count} etiquetas` }),
         summaryDetail: "Hoja autoadhesiva para cualquier impresora común.",
