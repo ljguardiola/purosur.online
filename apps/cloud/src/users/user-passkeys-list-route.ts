@@ -10,7 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { findBranchUser } from "./branch-users.js";
+import { canReactivateUsers, findBranchUser } from "./branch-users.js";
 import type { UsersRouteOptions } from "./users-list-route.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,7 +26,8 @@ const NOT_FOUND_RESPONSE = {
  * Registers `GET /users/:id/passkeys`: same session, origin, and Administrator-only guard as
  * `GET /users/:id`, then lists the target user's passkeys in the same row shape
  * `passkeys-list-route.ts` returns for the session's own account. A malformed id, a missing id,
- * and an id from another branch all get the identical 404 `not_found`.
+ * and an id from another branch all get the identical 404 `not_found`; an inactive id is listed
+ * like an active one when the caller can reactivate (`canReactivateUsers`), same as `GET /users/:id`.
  */
 export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -53,7 +54,9 @@ export function registerUserPasskeysListRoute<TQueryResult extends PgQueryResult
         return;
       }
 
-      const target = await findBranchUser(options.db, openSession.locationId, targetId);
+      const target = await findBranchUser(options.db, openSession.locationId, targetId, {
+        activeScope: canReactivateUsers(openSession) ? "any" : "active",
+      });
       if (!target) {
         await reply.code(404).send(NOT_FOUND_RESPONSE);
         return;

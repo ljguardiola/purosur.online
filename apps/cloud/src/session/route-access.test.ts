@@ -58,6 +58,19 @@ beforeEach(async () => {
     { config: { access: permissionAccess("void_sale"), sessionSource } },
     answerWithSession,
   );
+  // Stands in for a route reachable by holding either of two permissions (an any-of declaration),
+  // the same way the Users area is reachable by holding either `deactivate_users` or
+  // `reactivate_users`.
+  app.get(
+    "/test-only/void-sale-or-process-return",
+    {
+      config: {
+        access: permissionAccess(["void_sale", "process_return"]),
+        sessionSource,
+      },
+    },
+    answerWithSession,
+  );
   app.get(
     "/test-only/administrator-only",
     { config: { access: ADMINISTRATOR_ACCESS, sessionSource } },
@@ -192,6 +205,38 @@ describe("the declared access, enforced before every handler", () => {
     const rawSessionId = await insertSession(userId);
 
     const response = await callRoute("/test-only/void-sale", rawSessionId);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("grants access to a user holding either permission of an any-of declaration", async () => {
+    const voidSaleRoleId = await insertRole("Cajera", ["void_sale"]);
+    const voidSaleUserId = await insertUser(voidSaleRoleId, "void-sale@example.com");
+    const voidSaleSessionId = await insertSession(voidSaleUserId);
+    const processReturnRoleId = await insertRole("Devoluciones", ["process_return"]);
+    const processReturnUserId = await insertUser(processReturnRoleId, "process-return@example.com");
+    const processReturnSessionId = await insertSession(processReturnUserId);
+
+    const voidSaleResponse = await callRoute(
+      "/test-only/void-sale-or-process-return",
+      voidSaleSessionId,
+    );
+    const processReturnResponse = await callRoute(
+      "/test-only/void-sale-or-process-return",
+      processReturnSessionId,
+    );
+
+    expect(voidSaleResponse.statusCode).toBe(200);
+    expect(processReturnResponse.statusCode).toBe(200);
+  });
+
+  it("rejects a user holding neither permission of an any-of declaration with 403 forbidden", async () => {
+    const roleId = await insertRole("Cajera", []);
+    const userId = await insertUser(roleId, "cashier@example.com");
+    const rawSessionId = await insertSession(userId);
+
+    const response = await callRoute("/test-only/void-sale-or-process-return", rawSessionId);
 
     expect(response.statusCode).toBe(403);
     expect(response.json()).toMatchObject({ code: "forbidden" });

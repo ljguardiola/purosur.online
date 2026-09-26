@@ -1,8 +1,10 @@
 import { expect, test } from "vitest";
 import {
   canDeactivateUser,
+  canReactivateUser,
   canSeeBranchArea,
   canSeeCatalogArea,
+  canSeeRegistersArea,
   canSeeRolesArea,
   canSeeUsersArea,
 } from "./access";
@@ -15,10 +17,30 @@ test("canSeeUsersArea is true for a non-Administrator holding deactivate_users",
   expect(canSeeUsersArea({ isAdministrator: false, permissions: ["deactivate_users"] })).toBe(true);
 });
 
-test("canSeeUsersArea is false for a non-Administrator without deactivate_users", () => {
+test("canSeeUsersArea is true for a non-Administrator holding only reactivate_users", () => {
+  expect(canSeeUsersArea({ isAdministrator: false, permissions: ["reactivate_users"] })).toBe(true);
+});
+
+test("canSeeUsersArea is false for a non-Administrator without deactivate_users or reactivate_users", () => {
   expect(
     canSeeUsersArea({ isAdministrator: false, permissions: ["view_reports", "void_sale"] }),
   ).toBe(false);
+});
+
+test("canReactivateUser is true for an Administrator", () => {
+  expect(canReactivateUser({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canReactivateUser is true for a non-Administrator holding reactivate_users", () => {
+  expect(canReactivateUser({ isAdministrator: false, permissions: ["reactivate_users"] })).toBe(
+    true,
+  );
+});
+
+test("canReactivateUser is false for a non-Administrator without reactivate_users", () => {
+  expect(canReactivateUser({ isAdministrator: false, permissions: ["deactivate_users"] })).toBe(
+    false,
+  );
 });
 
 test("canDeactivateUser is true for an Administrator, against a non-Administrator target", () => {
@@ -85,4 +107,20 @@ test("canSeeCatalogArea is true for a non-Administrator holding manage_products_
 
 test("canSeeCatalogArea is false for a non-Administrator without manage_products_and_categories", () => {
   expect(canSeeCatalogArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(false);
+});
+
+test("canSeeRegistersArea is true for an Administrator", () => {
+  expect(canSeeRegistersArea({ isAdministrator: true, permissions: [] })).toBe(true);
+});
+
+test("canSeeRegistersArea is true for a non-Administrator holding enroll_register_devices", () => {
+  expect(
+    canSeeRegistersArea({ isAdministrator: false, permissions: ["enroll_register_devices"] }),
+  ).toBe(true);
+});
+
+test("canSeeRegistersArea is false for a non-Administrator without enroll_register_devices", () => {
+  expect(canSeeRegistersArea({ isAdministrator: false, permissions: ["view_reports"] })).toBe(
+    false,
+  );
 });

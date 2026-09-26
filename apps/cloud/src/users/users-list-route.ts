@@ -8,7 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../session/route-access.js";
-import { listBranchUsers, toBranchUserWire } from "./branch-users.js";
+import { canReactivateUsers, listBranchUsers, toBranchUserWire } from "./branch-users.js";
 
 export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -18,9 +18,11 @@ export interface UsersRouteOptions<TQueryResult extends PgQueryResultHKT> {
 }
 
 /**
- * Registers `GET /users`: gated by the `deactivate_users` permission (an Administrator always
- * holds it too), so a user who can deactivate a colleague can also list who to deactivate; then
- * lists the active users of the session's own branch with their role.
+ * Registers `GET /users`: gated by `deactivate_users` or `reactivate_users` (an Administrator
+ * always holds both), so a user who can deactivate or reactivate a colleague can also list who to.
+ * Lists the session's own branch's users with their role; a caller who can reactivate
+ * (`canReactivateUsers`) also gets every deactivated user, each with its `active` field, while
+ * everyone else's response is unchanged: active users only, with no `active` field.
  */
 export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -36,13 +38,18 @@ export function registerUsersListRoute<TQueryResult extends PgQueryResultHKT>(
       preHandler: originGuard((request, reply) =>
         checkRequestIsSameOrigin(request, reply, options.backofficeOrigin),
       ),
-      config: { access: permissionAccess("deactivate_users"), sessionSource },
+      config: { access: permissionAccess(["deactivate_users", "reactivate_users"]), sessionSource },
     },
     async (request, reply) => {
       const openSession = openSessionOf(request);
+      const includesInactive = canReactivateUsers(openSession);
 
-      const rows = await listBranchUsers(options.db, openSession.locationId);
-      await reply.code(200).send(rows.map(toBranchUserWire));
+      const rows = await listBranchUsers(options.db, openSession.locationId, {
+        activeScope: includesInactive ? "any" : "active",
+      });
+      await reply
+        .code(200)
+        .send(rows.map((row) => toBranchUserWire(row, { includeActive: includesInactive })));
     },
   );
 }

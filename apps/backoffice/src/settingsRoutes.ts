@@ -18,6 +18,9 @@ export const USERS_LIST_PATH = "/settings/users";
 export const ROLES_LIST_PATH = "/settings/roles";
 /** The Sucursal screen, gated by `configure_branch`: the sidebar's "Sucursal" item opens this. */
 export const BRANCH_SETTINGS_PATH = "/settings/branch";
+/** The Cajas registradoras list, gated by `enroll_register_devices`: the sidebar's "Cajas
+ * registradoras" item opens this. */
+export const REGISTERS_LIST_PATH = "/settings/registers";
 
 /** The Users list row action's own target: one user's detail screen. */
 export function userDetailPath(id: string): string {
