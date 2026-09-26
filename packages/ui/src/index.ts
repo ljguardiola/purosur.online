@@ -51,6 +51,11 @@ export type { PuroSurIsotypeProps } from "./components/PuroSurIsotype";
 export { PuroSurIsotype } from "./components/PuroSurIsotype";
 export type { PuroSurLogoProps } from "./components/PuroSurLogo";
 export { PuroSurLogo } from "./components/PuroSurLogo";
+export type {
+  QuantityUnitFieldOption,
+  QuantityUnitFieldProps,
+} from "./components/QuantityUnitField";
+export { QuantityUnitField } from "./components/QuantityUnitField";
 export type { RadioGroupProps, RadioOption } from "./components/RadioGroup";
 export { RadioGroup } from "./components/RadioGroup";
 export type {
