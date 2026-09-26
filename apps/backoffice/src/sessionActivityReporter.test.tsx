@@ -131,9 +131,17 @@ test("collapses a burst of activity within the throttle window into a single tou
 
   clock.advance(40);
   window.dispatchEvent(new Event("pointerdown"));
+  expect(touchSession).toHaveBeenCalledTimes(1);
+  // Settled first, so its own "sending" guard no longer holds the rest of the burst back: only
+  // the throttle window does.
+  await awaitLastTouch(touchSession);
+
+  clock.advance(10);
   window.dispatchEvent(new KeyboardEvent("keydown"));
+  clock.advance(10);
   window.dispatchEvent(new Event("wheel"));
   window.dispatchEvent(new Event("scroll"));
+  clock.advance(9);
   window.dispatchEvent(new Event("touchstart"));
 
   expect(touchSession).toHaveBeenCalledTimes(1);
@@ -172,21 +180,29 @@ test("touches nothing when there is no activity at all", async () => {
     .fn<() => Promise<SessionOutcome>>()
     .mockResolvedValue(okOutcome("2099-01-01T00:00:00.000Z"));
   const clock = createClock();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
-  const hook = await renderReporter({
-    active: true,
-    touchSession,
-    onTouched: vi.fn(),
-    onEnded: vi.fn(),
-    throttleMs: 10,
-    now: clock.now,
-  });
-  hooks.push(hook);
+  try {
+    const hook = await renderReporter({
+      active: true,
+      touchSession,
+      onTouched: vi.fn(),
+      onEnded: vi.fn(),
+      throttleMs: 10,
+      now: clock.now,
+    });
+    hooks.push(hook);
 
-  // Past the throttle window, so this really shows the absence of activity, not an untested one.
-  clock.advance(40);
+    // Both clocks well past several throttle windows: the injected one the throttle reads, and
+    // the timers a touch scheduled on its own, without any activity, would run on.
+    clock.advance(100);
+    await vi.advanceTimersByTimeAsync(100);
 
-  expect(touchSession).not.toHaveBeenCalled();
+    expect(touchSession).not.toHaveBeenCalled();
+  } finally {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  }
 });
 
 test("never treats a resting or moving cursor alone as activity", async () => {
