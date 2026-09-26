@@ -40,10 +40,22 @@ const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+// Shared by the create and edit category modals: the same "Categoría superior" select, hint and
+// empty option either way.
+const CATEGORY_PARENT_LABEL = "Categoría superior";
+const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
+const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
+// Defensive only: nothing in the backoffice deletes a category today, so the chosen parent
+// disappearing out from under a create/edit is not reachable through normal use.
+const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
 const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
 const PRODUCT_CATEGORY_LABEL = "Categoría";
 const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
+// Only reachable by a race: someone else gives the chosen category a subcategory of its own
+// between loading this form and submitting it.
+const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
+  `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_UNIT_LABEL = "Unidad de venta";
 const PRODUCT_BARCODES_LABEL = "Códigos de barras";
 const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
@@ -611,6 +623,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryPlaceholder: "Elegí una categoría",
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitRequired: "Elegí la unidad de venta.",
         unitOptionUnitTitle: "Por unidad",
@@ -652,6 +665,7 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameTooLong: PRODUCT_NAME_TOO_LONG,
         categoryLabel: PRODUCT_CATEGORY_LABEL,
         categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+        categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
         unitLabel: PRODUCT_UNIT_LABEL,
         unitOptionUnitTitle: "Por unidad",
         unitOptionUnitHelp: "Se vende de a uno",
@@ -761,6 +775,14 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameRequired: "Ingresá el nombre de la categoría.",
         nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
+        nameTakenUnderParent: (params: { name: string; parent: string }) =>
+          `Ya existe una categoría "${params.name}" en ${params.parent}.`,
+        parentLabel: CATEGORY_PARENT_LABEL,
+        parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+        parentHint: CATEGORY_PARENT_HINT,
+        parentHasProductsError: (params: { parent: string }) =>
+          `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+        parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Crear la categoría",
         closeLabel: CLOSE_LABEL,
@@ -776,6 +798,16 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameRequired: "Ingresá el nombre de la categoría.",
         nameTooLong: CATEGORY_NAME_TOO_LONG,
         nameTaken: "Ya existe una categoría con este nombre.",
+        nameTakenUnderParent: (params: { name: string; parent: string }) =>
+          `Ya existe una categoría "${params.name}" en ${params.parent}.`,
+        parentLabel: CATEGORY_PARENT_LABEL,
+        parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+        parentHint: CATEGORY_PARENT_HINT,
+        parentHasProductsError: (params: { parent: string }) =>
+          `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+        moveNotAllowedError: (params: { category: string; destination: string }) =>
+          `No se puede mover "${params.category}" bajo "${params.destination}": es una de sus subcategorías.`,
+        parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
         closeLabel: CLOSE_LABEL,

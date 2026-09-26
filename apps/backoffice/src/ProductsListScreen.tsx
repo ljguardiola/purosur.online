@@ -54,6 +54,7 @@ import {
   useState,
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
+import { categoryPathLabels, leafCategories, sortedByPathLabel } from "./categoryPath";
 import { messages } from "./messages";
 import {
   type CreateProductInput,
@@ -121,17 +122,23 @@ function sortedByName(products: ProductSummary[], direction: "ascending" | "desc
   return direction === "ascending" ? sorted : sorted.reverse();
 }
 
+// Only a leaf category (no subcategories of its own) can hold a product, labeled by its full
+// path ("Almacén › Untables") the same way the Categorías screen draws it, since a bare name no
+// longer tells the two apart once categories nest.
 function categorySelectOptions(
   categories: CategorySummary[],
 ): [SelectOption<string>, ...SelectOption<string>[]] | undefined {
-  if (categories.length === 0) {
+  const leaves = leafCategories(categories);
+  if (leaves.length === 0) {
     return undefined;
   }
-  const [first, ...rest] = [...categories]
-    .sort((a, b) => a.name.localeCompare(b.name, "es"))
-    .map((category) => ({ value: category.id, label: category.name }));
+  const labels = categoryPathLabels(categories);
+  const [first, ...rest] = sortedByPathLabel(leaves, labels, "ascending").map((category) => ({
+    value: category.id,
+    label: labels.get(category.id) ?? category.name,
+  }));
   if (!first) {
-    throw new Error("no category to offer: categories.length > 0 was already checked");
+    throw new Error("no category to offer: leaves.length > 0 was already checked");
   }
   return [first, ...rest];
 }
@@ -666,6 +673,19 @@ function NewProductModal({
       setSubmitting(false);
       return;
     }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === input.categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
+      setSubmitting(false);
+      return;
+    }
     if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
       setSubmitting(false);
@@ -964,6 +984,19 @@ function EditProductModal({
         ...current,
         barcodes: barcodeTakenError(outcome.codes, modalMessages),
       }));
+      setSubmitting(false);
+      return;
+    }
+    if (outcome.kind === "category_not_leaf") {
+      const chosenCategoryName =
+        categories.find((category) => category.id === categoryId)?.name ?? "";
+      setErrors((current) =>
+        withFieldError(
+          current,
+          "category",
+          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+        ),
+      );
       setSubmitting(false);
       return;
     }
