@@ -1,4 +1,4 @@
-import { ALERT_KINDS } from "@purosur/contracts";
+import { ALERT_KINDS } from "@purosur/domain";
 import {
   Button,
   InlineNotice,

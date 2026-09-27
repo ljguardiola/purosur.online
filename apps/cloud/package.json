@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@fastify/static": "^10.1.4",
-    "@purosur/contracts": "workspace:*",
     "@purosur/domain": "workspace:*",
     "@sentry/node": "^10.75.0",
     "@simplewebauthn/server": "^14.0.2",

@@ -1,4 +1,4 @@
-import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
+import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
 
 export type AlertScopeKind = "user" | "sourceAddress";
 

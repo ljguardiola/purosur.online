@@ -1,4 +1,4 @@
-import { ALERT_KINDS, type AlertKind } from "@purosur/contracts";
+import { ALERT_KINDS, type AlertKind } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { alertKindDefinition } from "./alert-kind-catalog.js";
 

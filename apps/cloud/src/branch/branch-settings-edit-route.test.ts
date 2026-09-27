@@ -1,4 +1,4 @@
-import { BRANCH_SETTINGS_DAYS_MAX } from "@purosur/contracts";
+import { BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";

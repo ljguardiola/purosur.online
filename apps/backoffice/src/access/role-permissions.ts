@@ -1,4 +1,4 @@
-import { ALERT_VIEW_PERMISSION_KEYS, type PermissionKey } from "@purosur/contracts";
+import { ALERT_VIEW_PERMISSION_KEYS, type PermissionKey } from "@purosur/domain";
 
 const [BRANCH_ALERTS_VIEW, ALL_ALERTS_VIEW] = ALERT_VIEW_PERMISSION_KEYS;
 

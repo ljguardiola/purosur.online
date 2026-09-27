@@ -1,4 +1,4 @@
-import { codePointLength } from "@purosur/domain";
+import { codePointLength } from "../../shared/index.js";
 
 export const ROLE_NAME_MAX_LENGTH = 100;
 

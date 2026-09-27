@@ -1,10 +1,10 @@
 import {
+  argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/contracts";
-import { argentinaCalendarDay } from "@purosur/domain";
+} from "@purosur/domain";
 
 const ACTIVITY_START_DATE_PATTERN = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/;
 

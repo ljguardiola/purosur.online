@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {

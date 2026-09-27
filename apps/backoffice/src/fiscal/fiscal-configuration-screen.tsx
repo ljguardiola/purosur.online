@@ -1,11 +1,11 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import {
+  argentinaCalendarDay,
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/contracts";
-import { argentinaCalendarDay } from "@purosur/domain";
+} from "@purosur/domain";
 import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {

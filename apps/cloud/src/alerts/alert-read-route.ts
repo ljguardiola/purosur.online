@@ -1,4 +1,4 @@
-import type { AlertAudience, AlertLevel } from "@purosur/contracts";
+import type { AlertAudience, AlertLevel } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";

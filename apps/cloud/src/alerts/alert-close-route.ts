@@ -1,4 +1,4 @@
-import { isAlertKind } from "@purosur/contracts";
+import { isAlertKind } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";

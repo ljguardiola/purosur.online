@@ -1,3 +1,28 @@
+export type {
+  PermissionArea,
+  PermissionDefinition,
+  PermissionKey,
+  PermissionRegisterMarker,
+} from "./access/index.js";
+export {
+  ALERT_VIEW_PERMISSION_KEYS,
+  isPasskeyNameTooLong,
+  isPermissionKey,
+  isRoleNameTooLong,
+  PASSKEY_NAME_MAX_LENGTH,
+  PERMISSION_AREAS,
+  PERMISSION_CATALOG,
+  PERMISSION_KEYS,
+  passkeyNameLength,
+  ROLE_NAME_MAX_LENGTH,
+  roleNameLength,
+} from "./access/index.js";
+export type { AlertAudience, AlertKind, AlertLevel } from "./alerts/index.js";
+export { ALERT_KINDS, isAlertKind } from "./alerts/index.js";
+export {
+  BRANCH_HOURS_RANGES_PER_DAY_MAX,
+  BRANCH_SETTINGS_DAYS_MAX,
+} from "./branch/index.js";
 export type { NetContentUnit } from "./catalog/index.js";
 export {
   appendEan13CheckDigit,
@@ -21,5 +46,16 @@ export {
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./catalog/index.js";
+export {
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+  isIssuerIdentificationGrossIncomeRegistrationTooLong,
+  isIssuerIdentificationLegalNameTooLong,
+} from "./fiscal/index.js";
 export { MAX_UNIT_PRICE_CENTS } from "./pricing/index.js";
-export { ARGENTINA_TIME_ZONE, argentinaCalendarDay, codePointLength } from "./shared/index.js";
+export {
+  isRegisterNameTooLong,
+  REGISTER_NAME_MAX_LENGTH,
+  registerNameLength,
+} from "./register/index.js";
+export { ARGENTINA_TIME_ZONE, argentinaCalendarDay } from "./shared/index.js";

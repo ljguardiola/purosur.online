@@ -1,4 +1,4 @@
-import type { AlertAudience } from "@purosur/contracts";
+import type { AlertAudience } from "@purosur/domain";
 import { and, eq, inArray, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alerts, rolePermissions, roles, users } from "../platform/db/schema.js";

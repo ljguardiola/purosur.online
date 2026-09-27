@@ -1,4 +1,4 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
