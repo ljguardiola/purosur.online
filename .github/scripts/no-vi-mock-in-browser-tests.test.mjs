@@ -300,10 +300,10 @@ test("resolves a relative import to the repository file it names", () => {
 
   assert.equal(
     resolveImport(
-      "../ProductsListScreen",
-      "apps/backoffice/src/test-support/productsListScreen.tsx",
+      "../products-list-screen",
+      "apps/backoffice/src/catalog/test-support/products-list-screen.tsx",
     ),
-    "apps/backoffice/src/ProductsListScreen.tsx",
+    "apps/backoffice/src/catalog/products-list-screen.tsx",
   );
 });
 
@@ -311,7 +311,7 @@ test("resolves a workspace package import to its source in the repository", () =
   const resolveImport = createImportResolver();
 
   assert.equal(
-    resolveImport("@purosur/ui", "apps/backoffice/src/ProductsListScreen.tsx"),
+    resolveImport("@purosur/ui", "apps/backoffice/src/catalog/products-list-screen.tsx"),
     "packages/ui/src/index.ts",
   );
 });
@@ -319,14 +319,17 @@ test("resolves a workspace package import to its source in the repository", () =
 test("does not resolve an import of an installed dependency", () => {
   const resolveImport = createImportResolver();
 
-  assert.equal(resolveImport("vitest", "apps/backoffice/src/ProductsListScreen.tsx"), undefined);
+  assert.equal(
+    resolveImport("vitest", "apps/backoffice/src/catalog/products-list-screen.tsx"),
+    undefined,
+  );
 });
 
 test("does not resolve an import that names no file", () => {
   const resolveImport = createImportResolver();
 
   assert.equal(
-    resolveImport("./does-not-exist", "apps/backoffice/src/ProductsListScreen.tsx"),
+    resolveImport("./does-not-exist", "apps/backoffice/src/catalog/products-list-screen.tsx"),
     undefined,
   );
 });
@@ -336,7 +339,7 @@ test("no browser test file, nor any module it imports, registers a module mock",
   assert.ok(files.length > 0, "expected to find at least one browser test file to scan");
   const modules = collectImportedModules(files, { resolveImport: createImportResolver() });
   assert.ok(
-    modules.includes("apps/backoffice/src/test-support/productsListScreen.tsx"),
+    modules.includes("apps/backoffice/src/catalog/test-support/products-list-screen.tsx"),
     "expected the scan to reach the modules browser tests import",
   );
 
