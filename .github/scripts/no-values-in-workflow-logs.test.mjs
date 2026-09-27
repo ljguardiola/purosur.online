@@ -493,6 +493,31 @@ for (const [script, expected] of [
   });
 }
 
+for (const [script, expected] of [
+  ["env | sort", DUMPS],
+  ["printenv | grep -v PATH", DUMPS],
+  ["set | head", DUMPS],
+  ['echo "$TOKEN" | tee out.txt', PRINTS],
+  ['echo "$TOKEN" | base64', PRINTS],
+  ['echo "$TOKEN" | tr a-z A-Z | rev', PRINTS],
+  ['cat <<< "$TOKEN" | xxd', PRINTS],
+]) {
+  test(`flags a pipeline whose later stages pass the value through to the log: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), expected);
+  });
+}
+
+for (const script of [
+  'echo "$TOKEN" | docker login ghcr.io -u me --password-stdin',
+  'echo "$CERT" | base64 -d > cert.pem',
+  'echo "$TOKEN" | base64 | tee out.txt > /dev/null',
+  "env | sort > env.txt",
+]) {
+  test(`does not flag a pipeline that consumes the value or sends it away from the log: ${script}`, () => {
+    assert.deepEqual(messagesOf(script, { ...SECRET_ENV, CERT: `\${{ secrets.CERT }}` }), []);
+  });
+}
+
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
     "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(

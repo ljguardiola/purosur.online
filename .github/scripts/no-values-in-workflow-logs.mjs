@@ -240,6 +240,35 @@ function commandOf(words) {
   return { name: first.text.split("/").pop(), args };
 }
 
+const PASS_THROUGH_FILTERS = new Set([
+  "cat",
+  "sort",
+  "uniq",
+  "grep",
+  "head",
+  "tail",
+  "tee",
+  "base64",
+  "sed",
+  "awk",
+  "cut",
+  "tr",
+  "jq",
+  "xxd",
+  "od",
+  "rev",
+  "fold",
+]);
+
+function reachesLog(stages, index) {
+  return (
+    stages.slice(index).every((stage) => !stdoutRedirectedAway(stage)) &&
+    stages
+      .slice(index + 1)
+      .every(({ command }) => command && PASS_THROUGH_FILTERS.has(command.name))
+  );
+}
+
 function stdoutRedirectedAway(stage) {
   const stdoutRedirects = stage.redirects.filter(({ fd }) => fd !== "2");
   if (stdoutRedirects.length === 0) return false;
@@ -253,8 +282,9 @@ function referencesName(text, name) {
 function stagePrintsName({ command, hereStrings }, name) {
   if (!command) return false;
   if (command.name === "printenv") return command.args.some((arg) => arg.text === name);
-  if (command.name === "cat")
+  if (PASS_THROUGH_FILTERS.has(command.name)) {
     return hereStrings.some((hereString) => referencesName(hereString, name));
+  }
   if (!PRINT_COMMANDS.has(command.name)) return false;
 
   const rest = command.args.map((arg) => arg.raw).join(" ");
@@ -315,16 +345,15 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   let traces = shellTraces(effectiveShell);
 
   for (const line of joinLineContinuations(script)) {
-    for (const stages of splitCommandGroups(line)) {
-      const stage = parseStage(stages[stages.length - 1]);
+    for (const stageTexts of splitCommandGroups(line)) {
+      const stages = stageTexts.map(parseStage);
+      if (!traces && stageTracesCommands(stages[stages.length - 1])) traces = true;
 
-      if (!traces && stageTracesCommands(stage)) traces = true;
-      if (stdoutRedirectedAway(stage)) continue;
-
-      if (!printsTainted && taintedNames.some((name) => stagePrintsName(stage, name))) {
-        printsTainted = true;
-      }
-      if (!dumpsEnvironment && stageDumpsEnvironment(stage)) dumpsEnvironment = true;
+      stages.forEach((stage, index) => {
+        if (!reachesLog(stages, index)) return;
+        if (taintedNames.some((name) => stagePrintsName(stage, name))) printsTainted = true;
+        if (stageDumpsEnvironment(stage)) dumpsEnvironment = true;
+      });
     }
   }
 
