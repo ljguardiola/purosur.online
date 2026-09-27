@@ -477,6 +477,22 @@ for (const script of [
   });
 }
 
+for (const [script, expected] of [
+  ['if [ -n "$D" ]; then set -x; fi', TRACES],
+  ['if true; then echo "$TOKEN"; fi', PRINTS],
+  ["for i in 1; do echo $TOKEN; done", PRINTS],
+  ["while true; do printenv; done", DUMPS],
+  ["if false; then :; else echo $TOKEN; fi", PRINTS],
+  ["{ set -x; }", TRACES],
+  ["(set -x)", TRACES],
+  ["! echo $TOKEN", PRINTS],
+  ["time echo $TOKEN", PRINTS],
+]) {
+  test(`sees a command inside a compound statement: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), expected);
+  });
+}
+
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
     "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(

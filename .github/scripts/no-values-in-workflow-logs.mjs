@@ -211,7 +211,20 @@ function parseStage(text) {
   return { command: commandOf(words), redirects, hereStrings };
 }
 
-const COMMAND_PREFIXES = new Set(["command", "builtin"]);
+const COMMAND_PREFIXES = new Set([
+  "if",
+  "then",
+  "elif",
+  "else",
+  "while",
+  "until",
+  "do",
+  "!",
+  "{",
+  "time",
+  "command",
+  "builtin",
+]);
 const ASSIGNMENT_RE = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 function commandOf(words) {
