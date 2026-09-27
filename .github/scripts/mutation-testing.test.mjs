@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -69,27 +69,20 @@ async function runMutationOnFixture() {
   const dir = await mkdtemp(join(tmpdir(), "mutation testing "));
   try {
     await symlink(join(repoRoot, "node_modules"), join(dir, "node_modules"), "junction");
-    await writeFixtureFile(dir, "src/limits.ts", FIXTURE_SOURCE);
-    await writeFixtureFile(dir, "src/limits.test.ts", FIXTURE_TEST);
+    await writeFixtureFile(dir, "packages/contracts/src/limits.ts", FIXTURE_SOURCE);
+    await writeFixtureFile(dir, "packages/contracts/src/limits.test.ts", FIXTURE_TEST);
+    await writeFixtureFile(dir, ".env", "DATABASE_URL=postgres://local\n");
+    await writeFixtureFile(dir, "apps/cloud/dist/server.js", "export {};\n");
+    await cp(join(repoRoot, "vitest.mutation.config.ts"), join(dir, "vitest.mutation.config.ts"));
     await writeFixtureFile(
       dir,
-      "vitest.config.mjs",
-      `export default { test: { include: ["src/**/*.test.ts"] } };\n`,
-    );
-    await writeFixtureFile(
-      dir,
-      "stryker.config.mjs",
+      "stryker.fixture.config.mjs",
       [
         `import config from ${JSON.stringify(pathToFileURL(join(repoRoot, "stryker.config.mjs")).href)};`,
-        "export default {",
-        "  ...config,",
-        `  mutate: ["src/**/*.ts", "!src/**/*.test.ts"],`,
-        `  vitest: { ...config.vitest, configFile: "vitest.config.mjs" },`,
-        "  concurrency: 2,",
-        "};",
+        "export default { ...config, concurrency: 2 };",
       ].join("\n"),
     );
-    return spawnSync(process.execPath, [strykerBin, "run", "stryker.config.mjs"], {
+    return spawnSync(process.execPath, [strykerBin, "run", "stryker.fixture.config.mjs"], {
       cwd: dir,
       encoding: "utf8",
       env: { PATH: process.env.PATH, NO_COLOR: "1" },
@@ -113,9 +106,19 @@ const fixtureRun = await runMutationOnFixture();
 test("reports every change no test catches with its file and line, and nothing a test catches", () => {
   assert.deepEqual(
     reportedLines(fixtureRun.stdout),
-    ["src/limits.ts:15", "src/limits.ts:16", "src/limits.ts:8"],
+    [
+      "packages/contracts/src/limits.ts:15",
+      "packages/contracts/src/limits.ts:16",
+      "packages/contracts/src/limits.ts:8",
+    ],
     fixtureRun.stdout + fixtureRun.stderr,
   );
+});
+
+test("runs on a copy of the rule packages alone, leaving out local files such as secrets and builds", () => {
+  const plain = stripVTControlCharacters(fixtureRun.stdout + fixtureRun.stderr);
+
+  assert.match(plain, /Found 1 of 3 file\(s\) to be mutated/, plain);
 });
 
 test("fails the run when a change goes uncaught", () => {
