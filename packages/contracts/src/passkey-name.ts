@@ -1,4 +1,4 @@
-import { codePointLength } from "./code-point-length.js";
+import { codePointLength } from "@purosur/domain";
 
 export const PASSKEY_NAME_MAX_LENGTH = 40;
 
