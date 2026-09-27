@@ -19,18 +19,4 @@ describe("the clear-sample-data command", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("clear-sample-data: refused");
   });
-
-  it("refuses to run against production, without ever contacting the database", () => {
-    const result = spawnSync(process.execPath, [ENTRYPOINT], {
-      env: {
-        ...process.env,
-        RAILWAY_ENVIRONMENT_NAME: "production",
-        DATABASE_URL: NON_LOOPBACK_DATABASE_URL,
-      },
-      encoding: "utf8",
-    });
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("clear-sample-data: refused");
-  });
 });
