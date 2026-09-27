@@ -1,8 +1,8 @@
 import { BRANCH_HOURS_RANGES_PER_DAY_MAX, BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import { render } from "../shell/test-support/render-with-router";
 import type { BranchSettings } from "./branch-settings-api";
 import { BranchSettingsScreen, type BranchSettingsScreenServices } from "./branch-settings-screen";

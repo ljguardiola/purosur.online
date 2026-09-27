@@ -2,10 +2,12 @@ import type { HelpArticle, HelpBlock } from "@purosur/ui";
 import { SearchField } from "@purosur/ui";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
-import { type Ref, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { focusRingClassName } from "../platform/focus-ring";
 import { SectionLink } from "../shell/area-layout";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import type { BackofficeHelpCatalog } from "./help-page";
 import { searchArticles } from "./search-help";
 import { sectionIcon } from "./section-icons";
@@ -13,10 +15,6 @@ import { sectionIcon } from "./section-icons";
 function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
   return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
 }
-
-const focusRingClassName =
-  "outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-brand-blue-strong";
 
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +
@@ -213,7 +211,6 @@ export type HelpContentProps = {
   articleId: string | null;
   search: string;
   onSearchChange: (value: string) => void;
-  headingRef?: Ref<HTMLHeadingElement>;
 };
 
 export function HelpContent({
@@ -222,7 +219,6 @@ export function HelpContent({
   articleId,
   search,
   onSearchChange,
-  headingRef,
 }: HelpContentProps) {
   const activeCategory = ownEntry(help.categories, categoryId);
   const activeArticle = ownEntry(help.articles, articleId);
@@ -238,13 +234,7 @@ export function HelpContent({
           {activeArticle && activeCategory && (
             <p className="text-ink-secondary text-sm">{`Ayuda · ${activeCategory.label}`}</p>
           )}
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className={`font-bold text-2xl text-brand-blue-strong ${focusRingClassName}`}
-          >
-            {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
-          </h1>
+          <ScreenTitle>{activeArticle?.title ?? activeCategory?.label ?? idleTitle}</ScreenTitle>
         </div>
       }
       bodyClassName="gap-4 p-6"
@@ -304,20 +294,11 @@ export type HelpScreenProps = {
 export function HelpScreen({ help, categoryId, articleId }: HelpScreenProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const page = `${categoryId}/${articleId}`;
-  const shownPage = useRef(page);
 
   useDocumentTitle(documentTitle(help, categoryId, articleId));
 
   useEffect(() => router.subscribe("onBeforeNavigate", () => setSearch("")), [router]);
-
-  useEffect(() => {
-    if (shownPage.current !== page) {
-      shownPage.current = page;
-      headingRef.current?.focus();
-    }
-  }, [page]);
 
   return (
     <HelpContent
@@ -327,7 +308,6 @@ export function HelpScreen({ help, categoryId, articleId }: HelpScreenProps) {
       articleId={articleId}
       search={search}
       onSearchChange={setSearch}
-      headingRef={headingRef}
     />
   );
 }

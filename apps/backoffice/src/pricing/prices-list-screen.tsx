@@ -30,6 +30,7 @@ import type { ProductSaleUnit } from "../catalog/products-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import {
   type ConfirmPriceOutcome,
@@ -939,7 +940,7 @@ export function PricesListScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Precios</h1>
+              <ScreenTitle>Precios</ScreenTitle>
             </div>
             {pendingCount > 0 && (
               <Button

@@ -18,6 +18,7 @@ import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/se
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   type CreateRegisterOutcome,
   createRegister,
@@ -543,7 +544,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Cajas registradoras</h1>
+              <ScreenTitle>Cajas registradoras</ScreenTitle>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
               Nueva caja

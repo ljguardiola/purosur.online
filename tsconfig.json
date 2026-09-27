@@ -25,7 +25,7 @@
       "@purosur/domain": ["./packages/domain/src/index.ts"],
       "@purosur/contracts": ["./packages/contracts/src/index.ts"],
       "@purosur/ui": ["./packages/ui/src/index.ts"],
-      "@purosur/ui/*": ["./packages/ui/src/*"]
+      "@purosur/ui/test": ["./packages/ui/src/test/index.ts"]
     }
   },
   "include": [

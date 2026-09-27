@@ -1,3 +1,4 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
@@ -37,6 +38,8 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByText(SHELL_READY_TEXT)).toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
