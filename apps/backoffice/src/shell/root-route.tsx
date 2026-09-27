@@ -13,7 +13,7 @@ export type SignedInSession = {
   expiresAt?: string;
 };
 
-export type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | undefined };
+type SignedOutSession = { kind: "signed-out"; notice: SignInOpeningNotice | undefined };
 
 export type SettledSession = SignedInSession | SignedOutSession;
 
