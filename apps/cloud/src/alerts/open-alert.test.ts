@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
-import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
 import {
   alertDeliveries,
   alerts,
@@ -9,7 +8,8 @@ import {
   roles,
   userRoles,
   users,
-} from "../db/schema.js";
+} from "../platform/db/schema.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, openAlert, recipientsFor } from "./open-alert.js";
 

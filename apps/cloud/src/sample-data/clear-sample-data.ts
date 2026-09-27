@@ -1,6 +1,7 @@
 import { and, asc, eq, gte, inArray, like, ne, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { postgresErrorChain } from "../db/postgres-error-chain.js";
+import { hashSourceAddress } from "../access/sign-in-lockout.js";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   alertDeliveries,
   alerts,
@@ -23,8 +24,7 @@ import {
   sessions,
   userRoles,
   users,
-} from "../db/schema.js";
-import { hashSourceAddress } from "../session/sign-in-lockout.js";
+} from "../platform/db/schema.js";
 import {
   BRANCH_SETTINGS_DEFAULTS,
   branchSettingsEqualSampleValues,

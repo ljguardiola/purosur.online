@@ -5,11 +5,11 @@ import { drizzle as drizzlePostgresJs, type PostgresJsDatabase } from "drizzle-o
 import pg from "pg";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
+import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../recovery/recovery-integration-database.js";
+} from "../test-support/recovery-integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, type OpenAlertOutcome, openAlert } from "./open-alert.js";
 

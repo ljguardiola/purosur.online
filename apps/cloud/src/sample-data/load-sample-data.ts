@@ -1,22 +1,22 @@
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { createRole } from "../access/role-creation-route.js";
+import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../access/sign-in-lockout.js";
+import { createUser } from "../access/user-creation-route.js";
+import { deactivateUser } from "../access/user-deactivation-route.js";
 import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
 import { openAlert } from "../alerts/open-alert.js";
-import { editBranchSettings } from "../branch-settings/branch-settings-edit-route.js";
-import { createCategory } from "../categories/category-creation-route.js";
-import { branchSettings, locations, roles, userRoles, users } from "../db/schema.js";
-import { branchPriceListId } from "../prices/branch-price-list.js";
-import { confirmPrice } from "../prices/price-confirmation-route.js";
-import { setPrice } from "../prices/price-set-route.js";
-import { allocateInternalBarcode } from "../products/internal-barcode-route.js";
-import { createProduct } from "../products/product-creation-route.js";
-import { deactivateProduct } from "../products/product-deactivation-route.js";
-import { createRegister } from "../registers/register-creation-route.js";
-import { createRole } from "../roles/role-creation-route.js";
-import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../session/sign-in-lockout.js";
-import { createUser } from "../users/user-creation-route.js";
-import { deactivateUser } from "../users/user-deactivation-route.js";
+import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { createCategory } from "../catalog/category-creation-route.js";
+import { allocateInternalBarcode } from "../catalog/internal-barcode-route.js";
+import { createProduct } from "../catalog/product-creation-route.js";
+import { deactivateProduct } from "../catalog/product-deactivation-route.js";
+import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
+import { branchPriceListId } from "../pricing/branch-price-list.js";
+import { confirmPrice } from "../pricing/price-confirmation-route.js";
+import { setPrice } from "../pricing/price-set-route.js";
+import { createRegister } from "../register/register-creation-route.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
   SAMPLE_ADMINISTRATOR,

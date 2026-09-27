@@ -2,11 +2,11 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { alerts, auditLog, roles, users } from "../db/schema.js";
+import { alerts, auditLog, roles, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../recovery/recovery-integration-database.js";
+} from "../test-support/recovery-integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type CloseAlertOutcome, closeAlert } from "./alert-close-route.js";
 

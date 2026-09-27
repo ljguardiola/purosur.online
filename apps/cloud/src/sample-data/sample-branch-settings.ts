@@ -3,9 +3,9 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   type BranchSettingsWire,
   toBranchSettingsWire,
-} from "../branch-settings/branch-settings-read-route.js";
-import type { BranchHoursRange } from "../branch-settings/branch-settings-validation.js";
-import { branchHours, branchSettings } from "../db/schema.js";
+} from "../branch/branch-settings-read-route.js";
+import type { BranchHoursRange } from "../branch/branch-settings-validation.js";
+import { branchHours, branchSettings } from "../platform/db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
 
 export const BRANCH_SETTINGS_DEFAULTS = {

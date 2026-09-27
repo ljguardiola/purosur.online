@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { describeDatabaseFailure } from "./db/describe-database-failure.js";
+import { describeDatabaseFailure } from "./platform/db/describe-database-failure.js";
 import { type ClearSampleDataOutcome, clearSampleData } from "./sample-data/clear-sample-data.js";
 import { resolveSampleDataTarget } from "./sample-data/target-guard.js";
 

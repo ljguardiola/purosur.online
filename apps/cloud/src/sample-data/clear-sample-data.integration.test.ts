@@ -3,9 +3,12 @@ import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import { createRole } from "../access/role-creation-route.js";
+import { createUser } from "../access/user-creation-route.js";
 import { openAlert } from "../alerts/open-alert.js";
-import { editBranchSettings } from "../branch-settings/branch-settings-edit-route.js";
-import { createCategory } from "../categories/category-creation-route.js";
+import { editBranchSettings } from "../branch/branch-settings-edit-route.js";
+import { createCategory } from "../catalog/category-creation-route.js";
+import { createProduct } from "../catalog/product-creation-route.js";
 import {
   alerts,
   auditLog,
@@ -18,18 +21,15 @@ import {
   sessions,
   userRoles,
   users,
-} from "../db/schema.js";
-import { confirmPrice } from "../prices/price-confirmation-route.js";
-import { setPrice } from "../prices/price-set-route.js";
-import { createProduct } from "../products/product-creation-route.js";
+} from "../platform/db/schema.js";
+import { confirmPrice } from "../pricing/price-confirmation-route.js";
+import { setPrice } from "../pricing/price-set-route.js";
+import { createRegister } from "../register/register-creation-route.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../recovery/recovery-integration-database.js";
-import { createRegister } from "../registers/register-creation-route.js";
-import { createRole } from "../roles/role-creation-route.js";
+} from "../test-support/recovery-integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { createUser } from "../users/user-creation-route.js";
 import { clearSampleData } from "./clear-sample-data.js";
 import { loadSampleData } from "./load-sample-data.js";
 import { SAMPLE_ADMINISTRATOR, SAMPLE_BRANCH_SETTINGS, sampleEmail } from "./sample-catalog.js";

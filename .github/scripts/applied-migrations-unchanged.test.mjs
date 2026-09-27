@@ -39,7 +39,10 @@ test("treats a migration under a nested app source path as protected", () => {
 });
 
 test("does not treat a test file that merely mentions migration in its name as protected", () => {
-  assert.equal(isProtectedMigrationFile("apps/cloud/src/db/alerts-migration.test.ts"), false);
+  assert.equal(
+    isProtectedMigrationFile("apps/cloud/src/platform/db/alerts-migration.test.ts"),
+    false,
+  );
 });
 
 test("does not treat a migrations directory outside apps/<app>/ as protected", () => {

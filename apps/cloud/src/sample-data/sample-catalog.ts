@@ -3,7 +3,7 @@ import {
   type NetContentUnit,
   PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
-import type { BranchHoursRange } from "../branch-settings/branch-settings-validation.js";
+import type { BranchHoursRange } from "../branch/branch-settings-validation.js";
 
 // RFC 2606 reserves the "example" top-level domain for documentation and sample data, so no real
 // mailbox can ever collide with it.
