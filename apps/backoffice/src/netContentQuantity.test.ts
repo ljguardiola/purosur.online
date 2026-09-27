@@ -1,4 +1,5 @@
-import { NET_CONTENT_QUANTITY_MAX } from "@purosur/contracts";
+import { NET_CONTENT_QUANTITY_MAX, NET_CONTENT_QUANTITY_MAX_DECIMALS } from "@purosur/contracts";
+import { formatNumber } from "@purosur/ui";
 import { describe, expect, it } from "vitest";
 import {
   formatNetContentQuantity,
@@ -57,34 +58,28 @@ describe("parseNetContentQuantity", () => {
 });
 
 describe("netContentQuantityError", () => {
-  const errorMessages = {
-    netContentQuantityInvalid: "invalid",
-    netContentQuantityTooLarge: "too large",
-  };
+  const invalid = `Ingresá una cantidad mayor que cero, con hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
+  const tooLarge = `Ingresá una cantidad de hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX)}.`;
 
   it("is undefined for a blank quantity", () => {
-    expect(netContentQuantityError("", errorMessages)).toBeUndefined();
-    expect(netContentQuantityError("   ", errorMessages)).toBeUndefined();
+    expect(netContentQuantityError("")).toBeUndefined();
+    expect(netContentQuantityError("   ")).toBeUndefined();
   });
 
   it("is undefined for a valid quantity, up to and including the maximum", () => {
-    expect(netContentQuantityError("1,5", errorMessages)).toBeUndefined();
-    expect(
-      netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX), errorMessages),
-    ).toBeUndefined();
+    expect(netContentQuantityError("1,5")).toBeUndefined();
+    expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX))).toBeUndefined();
   });
 
   it("reports the format message for an unparsable or non-positive quantity", () => {
-    expect(netContentQuantityError("abc", errorMessages)).toBe("invalid");
-    expect(netContentQuantityError("0", errorMessages)).toBe("invalid");
-    expect(netContentQuantityError("1.5", errorMessages)).toBe("invalid");
+    expect(netContentQuantityError("abc")).toBe(invalid);
+    expect(netContentQuantityError("0")).toBe(invalid);
+    expect(netContentQuantityError("1.5")).toBe(invalid);
   });
 
   it("reports the too-large message once the quantity parses over the maximum", () => {
-    expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX + 1), errorMessages)).toBe(
-      "too large",
-    );
-    expect(netContentQuantityError("1.000.000", errorMessages)).toBe("too large");
+    expect(netContentQuantityError(String(NET_CONTENT_QUANTITY_MAX + 1))).toBe(tooLarge);
+    expect(netContentQuantityError("1.000.000")).toBe(tooLarge);
   });
 });
 

@@ -1,4 +1,4 @@
-import { ARGENTINA_TIME_ZONE, PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
 import {
   Button,
   formatDate,
@@ -82,8 +82,6 @@ const CANCEL_LABEL = "Cancelar";
 const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const RETRY_LABEL = "Reintentar";
-const PASSKEY_NAME_REQUIRED = "Ingresá un nombre para la passkey.";
-const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
 
 const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "2-digit",
@@ -190,10 +188,7 @@ function RegisterPasskeyModal({
   }
 
   async function handleSubmit() {
-    const validationError = validatePasskeyName(name, {
-      required: PASSKEY_NAME_REQUIRED,
-      tooLong: PASSKEY_NAME_TOO_LONG,
-    });
+    const validationError = validatePasskeyName(name);
     setNameError(validationError);
     if (validationError) {
       return;
@@ -288,12 +283,7 @@ function RegisterPasskeyModal({
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(
-                  validatePasskeyName(value, {
-                    required: PASSKEY_NAME_REQUIRED,
-                    tooLong: PASSKEY_NAME_TOO_LONG,
-                  }),
-                );
+                setNameError(validatePasskeyName(value));
               }
             }}
             helperText="Por ejemplo, Teléfono de Lucía."

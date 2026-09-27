@@ -1,4 +1,3 @@
-import { CATEGORY_NAME_MAX_LENGTH } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
@@ -62,7 +61,8 @@ const HEADING = "Categorías";
 const RETRY_LABEL = "Reintentar";
 const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
 const CANCEL_LABEL = "Cancelar";
-const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
+const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
 const CATEGORY_PARENT_LABEL = "Categoría superior";
 const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
 const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
@@ -114,27 +114,6 @@ function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
-  const modalMessages = {
-    eyebrow: "Catálogo",
-    heading: "Nueva categoría",
-    nameLabel: "Nombre de la categoría",
-    nameRequired: "Ingresá el nombre de la categoría.",
-    nameTooLong: CATEGORY_NAME_TOO_LONG,
-    nameTaken: "Ya existe una categoría con este nombre.",
-    nameTakenUnderParent: nameTakenUnderParentError,
-    parentLabel: CATEGORY_PARENT_LABEL,
-    parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
-    parentHint: CATEGORY_PARENT_HINT,
-    parentHasProductsError: (params: { parent: string }) =>
-      `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
-    parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
-    cancel: CANCEL_LABEL,
-    submit: "Crear la categoría",
-    attemptFailedTitle: "No se pudo crear la categoría",
-    attemptFailedDetail: "Probá de nuevo.",
-    rateLimitedTitle: RATE_LIMITED_TITLE,
-    rateLimitedDetail,
-  };
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -155,13 +134,13 @@ function NewCategoryModal({
     }
   }, [isOpen]);
 
-  const parentOptions = parentSelectOptions(categories, new Set(), modalMessages.parentNoneOption);
+  const parentOptions = parentSelectOptions(categories, new Set(), CATEGORY_PARENT_NONE_OPTION);
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
   async function handleSubmit() {
     const trimmed = name.trim();
-    const invalidName = categoryNameError(name, modalMessages);
+    const invalidName = categoryNameError(name);
     if (invalidName) {
       setNameError(invalidName);
       return;
@@ -187,22 +166,24 @@ function NewCategoryModal({
     if (outcome.kind === "name_taken") {
       setNameError(
         parentId === null
-          ? modalMessages.nameTaken
-          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+          ? CATEGORY_NAME_TAKEN
+          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
       );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "parent_has_products") {
-      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
+      setParentError(
+        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+      );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "parentId") {
-        setParentError(modalMessages.parentNotFoundError);
+        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
       } else {
-        setNameError(modalMessages.nameRequired);
+        setNameError(CATEGORY_NAME_REQUIRED);
       }
       setSubmitting(false);
       return;
@@ -227,8 +208,8 @@ function NewCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context={modalMessages.eyebrow}
-      title={modalMessages.heading}
+      context="Catálogo"
+      title="Nueva categoría"
       closable
       footer={
         <>
@@ -239,7 +220,7 @@ function NewCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            {CANCEL_LABEL}
           </Button>
           <Button
             variant="primary"
@@ -249,7 +230,7 @@ function NewCategoryModal({
             isDisabled={submitting}
             onPress={() => void handleSubmit()}
           >
-            {modalMessages.submit}
+            Crear la categoría
           </Button>
         </>
       }
@@ -259,35 +240,35 @@ function NewCategoryModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+            title="No se pudo crear la categoría"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
+            title={RATE_LIMITED_TITLE}
+            detail={rateLimitedDetail({
               minutes: Math.ceil(notice.retryAfterSeconds / 60),
             })}
           />
         )}
         <TextField
           kind="plain-text"
-          label={modalMessages.nameLabel}
+          label="Nombre de la categoría"
           value={name}
           onChange={(value) => {
             setName(value);
             if (nameError) {
-              setNameError(categoryNameError(value, modalMessages));
+              setNameError(categoryNameError(value));
             }
           }}
           required
           {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
         />
         <Select
-          label={modalMessages.parentLabel}
+          label={CATEGORY_PARENT_LABEL}
           options={parentOptions}
           value={parentValue}
           onChange={(value) => {
@@ -296,7 +277,7 @@ function NewCategoryModal({
           }}
           {...(parentError
             ? { invalid: true, errorMessage: parentError }
-            : { helperText: modalMessages.parentHint })}
+            : { helperText: CATEGORY_PARENT_HINT })}
         />
       </div>
     </Modal>
@@ -331,33 +312,6 @@ function EditCategoryModal({
   editCategory,
   categories,
 }: EditCategoryModalProps) {
-  const modalMessages = {
-    eyebrow: "Catálogo · Categorías",
-    nameLabel: "Nombre de la categoría",
-    nameRequired: "Ingresá el nombre de la categoría.",
-    nameTooLong: CATEGORY_NAME_TOO_LONG,
-    nameTaken: "Ya existe una categoría con este nombre.",
-    nameTakenUnderParent: nameTakenUnderParentError,
-    parentLabel: CATEGORY_PARENT_LABEL,
-    parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
-    parentHint: CATEGORY_PARENT_HINT,
-    parentHasProductsError: (params: { parent: string }) =>
-      `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
-    moveNotAllowedError: (params: { category: string; destination: string }) =>
-      `No se puede mover "${params.category}" bajo "${params.destination}": es una de sus subcategorías.`,
-    parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
-    cancel: CANCEL_LABEL,
-    submit: "Guardar los cambios",
-    attemptFailedTitle: "No se pudo guardar el cambio",
-    attemptFailedDetail: "Probá de nuevo.",
-    staleVersionTitle: "Esta categoría cambió mientras la editabas",
-    staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
-    notFoundTitle: "Esta categoría ya no existe",
-    reload: "Recargar",
-    reloadFailedTitle: "No se pudieron recargar los datos",
-    rateLimitedTitle: RATE_LIMITED_TITLE,
-    rateLimitedDetail,
-  };
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
@@ -383,7 +337,7 @@ function EditCategoryModal({
   }, [isOpen, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
-  const parentOptions = parentSelectOptions(categories, excludeIds, modalMessages.parentNoneOption);
+  const parentOptions = parentSelectOptions(categories, excludeIds, CATEGORY_PARENT_NONE_OPTION);
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -393,7 +347,7 @@ function EditCategoryModal({
       return;
     }
     const trimmed = name.trim();
-    const invalidName = categoryNameError(name, modalMessages);
+    const invalidName = categoryNameError(name);
     if (invalidName) {
       setNameError(invalidName);
       return;
@@ -424,20 +378,22 @@ function EditCategoryModal({
     if (outcome.kind === "name_taken") {
       setNameError(
         parentId === null
-          ? modalMessages.nameTaken
-          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+          ? CATEGORY_NAME_TAKEN
+          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
       );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "parent_has_products") {
-      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
+      setParentError(
+        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+      );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "move_not_allowed") {
       setParentError(
-        modalMessages.moveNotAllowedError({ category: current.name, destination: parentName }),
+        `No se puede mover "${current.name}" bajo "${parentName}": es una de sus subcategorías.`,
       );
       setSubmitting(false);
       return;
@@ -449,9 +405,9 @@ function EditCategoryModal({
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "parentId") {
-        setParentError(modalMessages.parentNotFoundError);
+        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
       } else {
-        setNameError(modalMessages.nameRequired);
+        setNameError(CATEGORY_NAME_REQUIRED);
       }
       setSubmitting(false);
       return;
@@ -520,7 +476,7 @@ function EditCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context={modalMessages.eyebrow}
+      context="Catálogo · Categorías"
       title={title}
       closable
       footer={
@@ -532,7 +488,7 @@ function EditCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            {CANCEL_LABEL}
           </Button>
           <Button
             variant="primary"
@@ -542,7 +498,7 @@ function EditCategoryModal({
             isDisabled={submitting}
             onPress={() => void handleSubmit()}
           >
-            {modalMessages.submit}
+            Guardar los cambios
           </Button>
         </>
       }
@@ -553,16 +509,16 @@ function EditCategoryModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el cambio"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
+              title={RATE_LIMITED_TITLE}
+              detail={rateLimitedDetail({
                 minutes: Math.ceil(notice.retryAfterSeconds / 60),
               })}
             />
@@ -571,23 +527,23 @@ function EditCategoryModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.staleVersionTitle}
-              detail={modalMessages.staleVersionDetail}
+              title="Esta categoría cambió mientras la editabas"
+              detail="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "notFound" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.notFoundTitle}
+              title="Esta categoría ya no existe"
             />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail="Probá de nuevo."
             />
           )}
           {offersReload && (
@@ -597,24 +553,24 @@ function EditCategoryModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar
             </Button>
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.nameLabel}
+            label="Nombre de la categoría"
             value={name}
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(categoryNameError(value, modalMessages));
+                setNameError(categoryNameError(value));
               }
             }}
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
           <Select
-            label={modalMessages.parentLabel}
+            label={CATEGORY_PARENT_LABEL}
             options={parentOptions}
             value={parentValue}
             onChange={(value) => {
@@ -623,7 +579,7 @@ function EditCategoryModal({
             }}
             {...(parentError
               ? { invalid: true, errorMessage: parentError }
-              : { helperText: modalMessages.parentHint })}
+              : { helperText: CATEGORY_PARENT_HINT })}
           />
         </div>
       )}

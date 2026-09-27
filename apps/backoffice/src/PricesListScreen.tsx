@@ -84,50 +84,19 @@ const TRY_AGAIN_DETAIL = "Probá de nuevo.";
 const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
 const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
 
-const modalMessages = {
-  eyebrowNoPrice: "SIN PRECIO",
-  eyebrowOverdue: (params: { days: number }) =>
-    plural(params.days, {
-      one: "SIN REVISAR HACE 1 DÍA",
-      other: `SIN REVISAR HACE ${params.days} DÍAS`,
-    }),
-  eyebrowRecentToday: "REVISADO HOY",
-  eyebrowRecent: (params: { days: number }) =>
-    plural(params.days, {
-      one: "REVISADO HACE 1 DÍA",
-      other: `REVISADO HACE ${params.days} DÍAS`,
-    }),
-  priceLabel: {
-    UNIT: "Precio de venta por unidad",
-    KG: "Precio de venta por kilo",
-  } satisfies Record<ProductSaleUnit, string>,
-  unitSuffix: { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, string>,
-  currentPriceHelper: (params: { amount: string }) => `Precio actual: ${params.amount}`,
-  amountRequired: "Ingresá el precio nuevo.",
-  amountInvalid: AMOUNT_INVALID,
-  amountFormat: "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.",
-  amountTooLarge: (params: { amount: string }) => `Ingresá un precio de hasta ${params.amount}.`,
-  amountUnchanged: AMOUNT_UNCHANGED,
-  confirm: "Confirmar sin cambios",
-  submit: "Guardar el precio nuevo",
-  attemptFailedTitle: "No se pudo guardar el precio",
-  attemptFailedDetail: TRY_AGAIN_DETAIL,
-  confirmFailedTitle: "No se pudo confirmar el precio",
-  confirmFailedDetail: TRY_AGAIN_DETAIL,
-  staleTitle: "Este precio cambió mientras lo mirabas",
-  staleDetail: "Recargá el precio actual y volvé a intentarlo.",
-  reload: "Recargar el precio",
-  reloadFailedTitle: "No se pudieron recargar los datos",
-  rateLimitedTitle: RATE_LIMITED_TITLE,
-  rateLimitedDetail,
-};
+const PRICE_LABEL = {
+  UNIT: "Precio de venta por unidad",
+  KG: "Precio de venta por kilo",
+} satisfies Record<ProductSaleUnit, string>;
+
+const UNIT_SUFFIX = { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, string>;
 
 function rateLimitedDetail(params: { minutes: number }): string {
   return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
 }
 
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
-  const suffix = modalMessages.unitSuffix[saleUnit];
+  const suffix = UNIT_SUFFIX[saleUnit];
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
 }
 
@@ -148,17 +117,23 @@ function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
   return days <= 0 ? "Hoy" : plural(days, { one: "Hace 1 día", other: `Hace ${days} días` });
 }
 
+function eyebrowOverdue(days: number): string {
+  return plural(days, { one: "SIN REVISAR HACE 1 DÍA", other: `SIN REVISAR HACE ${days} DÍAS` });
+}
+
+function eyebrowRecent(days: number): string {
+  return plural(days, { one: "REVISADO HACE 1 DÍA", other: `REVISADO HACE ${days} DÍAS` });
+}
+
 function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
-    return modalMessages.eyebrowNoPrice;
+    return "SIN PRECIO";
   }
   const days = daysSince(product.lastReviewedAt, now);
   if (days <= 0) {
-    return modalMessages.eyebrowRecentToday;
+    return "REVISADO HOY";
   }
-  return product.pending
-    ? modalMessages.eyebrowOverdue({ days })
-    : modalMessages.eyebrowRecent({ days });
+  return product.pending ? eyebrowOverdue(days) : eyebrowRecent(days);
 }
 
 function emptyPendingDetail(params: { days: number }): string {
@@ -252,25 +227,25 @@ function PriceChangeModal({
 
   function validatedAmount(product: PriceProduct): number | undefined {
     if (!amount.trim()) {
-      showAmountError(modalMessages.amountRequired);
+      showAmountError("Ingresá el precio nuevo.");
       return undefined;
     }
     const parsed = parseAmountInput(amount);
     if (parsed.kind === "malformed") {
-      showAmountError(modalMessages.amountFormat);
+      showAmountError("Escribí el precio con coma para los decimales, por ejemplo 7.500,50.");
       return undefined;
     }
     if (parsed.kind === "notPositive") {
-      showAmountError(modalMessages.amountInvalid);
+      showAmountError(AMOUNT_INVALID);
       return undefined;
     }
     if (parsed.kind === "tooLarge") {
-      showAmountError(modalMessages.amountTooLarge({ amount: formatCents(MAX_UNIT_PRICE_CENTS) }));
+      showAmountError(`Ingresá un precio de hasta ${formatCents(MAX_UNIT_PRICE_CENTS)}.`);
       return undefined;
     }
     const cents = parsed.cents;
     if (product.currentPrice && cents === product.currentPrice.unitPrice) {
-      showAmountError(modalMessages.amountUnchanged);
+      showAmountError(AMOUNT_UNCHANGED);
       return undefined;
     }
     return cents;
@@ -299,11 +274,11 @@ function PriceChangeModal({
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
-      showAmountError(modalMessages.amountUnchanged);
+      showAmountError(AMOUNT_UNCHANGED);
     } else if (outcome.kind === "validation_failed" && outcome.field === "expectedCurrentPriceId") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "validation_failed") {
-      showAmountError(modalMessages.amountInvalid);
+      showAmountError(AMOUNT_INVALID);
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
@@ -455,7 +430,7 @@ function PriceChangeModal({
                 isDisabled={actionsDisabled}
                 onPress={() => void handleConfirm()}
               >
-                {modalMessages.confirm}
+                Confirmar sin cambios
               </Button>
             )}
             <Button
@@ -466,7 +441,7 @@ function PriceChangeModal({
               isDisabled={actionsDisabled}
               onPress={() => void handleSave()}
             >
-              {modalMessages.submit}
+              Guardar el precio nuevo
             </Button>
           </>
         )
@@ -494,24 +469,24 @@ function PriceChangeModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el precio"
+              detail={TRY_AGAIN_DETAIL}
             />
           )}
           {notice?.kind === "confirmFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.confirmFailedTitle}
-              detail={modalMessages.confirmFailedDetail}
+              title="No se pudo confirmar el precio"
+              detail={TRY_AGAIN_DETAIL}
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
+              title={RATE_LIMITED_TITLE}
+              detail={rateLimitedDetail({
                 minutes: Math.ceil(notice.retryAfterSeconds / 60),
               })}
             />
@@ -520,8 +495,8 @@ function PriceChangeModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.staleTitle}
-              detail={modalMessages.staleDetail}
+              title="Este precio cambió mientras lo mirabas"
+              detail="Recargá el precio actual y volvé a intentarlo."
             />
           )}
           {notice?.kind === "noPriceToConfirm" && (
@@ -534,8 +509,8 @@ function PriceChangeModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail={TRY_AGAIN_DETAIL}
             />
           )}
           {offersReload && (
@@ -545,12 +520,12 @@ function PriceChangeModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar el precio
             </Button>
           )}
           <TextField
             kind="price"
-            label={modalMessages.priceLabel[current.saleUnit]}
+            label={PRICE_LABEL[current.saleUnit]}
             prefix="$"
             value={amount}
             onChange={(value) => {
@@ -562,9 +537,7 @@ function PriceChangeModal({
             required
             {...(current.currentPrice
               ? {
-                  helperText: modalMessages.currentPriceHelper({
-                    amount: formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit),
-                  }),
+                  helperText: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
                 }
               : {})}
             {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
@@ -837,7 +810,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return {
       tone: "error",
       title: `No se pudo confirmar el precio de ${item.name}`,
-      detail: modalMessages.confirmFailedDetail,
+      detail: TRY_AGAIN_DETAIL,
     };
   }
 

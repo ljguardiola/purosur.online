@@ -82,16 +82,13 @@ function groupedCode(code: string): string {
   return (code.match(/.{1,4}/g) ?? [code]).join(" ");
 }
 
-function registerNameError(
-  name: string,
-  modalMessages: { nameRequired: string; nameTooLong: string },
-): string | undefined {
+function registerNameError(name: string): string | undefined {
   const trimmed = name.trim();
   if (!trimmed) {
-    return modalMessages.nameRequired;
+    return NEW_REGISTER_NAME_REQUIRED;
   }
   if (isRegisterNameTooLong(trimmed)) {
-    return modalMessages.nameTooLong;
+    return NEW_REGISTER_NAME_TOO_LONG;
   }
   return undefined;
 }
@@ -117,10 +114,6 @@ function NewRegisterModal({
   authorizeSession,
   startAuthentication,
 }: NewRegisterModalProps) {
-  const modalMessages = {
-    nameRequired: NEW_REGISTER_NAME_REQUIRED,
-    nameTooLong: NEW_REGISTER_NAME_TOO_LONG,
-  };
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
@@ -144,7 +137,7 @@ function NewRegisterModal({
 
   async function handleSubmit() {
     const trimmed = name.trim();
-    const invalidName = registerNameError(name, modalMessages);
+    const invalidName = registerNameError(name);
     if (invalidName) {
       setNameError(invalidName);
       return;
@@ -252,7 +245,7 @@ function NewRegisterModal({
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(registerNameError(value, modalMessages));
+                setNameError(registerNameError(value));
               }
             }}
             required

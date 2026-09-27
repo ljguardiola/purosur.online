@@ -1,4 +1,3 @@
-import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
 import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
@@ -10,11 +9,6 @@ import { validatePasskeyName } from "./passkeyName";
 import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
-
-const PASSKEY_NAME_ERRORS = {
-  required: "Ingresá un nombre para la passkey.",
-  tooLong: `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`,
-};
 
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
   switch (outcome.kind) {
@@ -178,7 +172,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
       setPhase({ kind: "invalid" });
       return;
     }
-    const validationError = validatePasskeyName(name, PASSKEY_NAME_ERRORS);
+    const validationError = validatePasskeyName(name);
     setNameError(validationError);
     if (validationError) {
       return;
@@ -228,25 +222,41 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
     );
   }
 
-  if (phase.kind === "invalid" || phase.kind === "burned" || phase.kind === "expired") {
-    const copy = {
-      invalid: {
-        title: "Este enlace no es válido",
-        detail: "Revisá que el enlace esté completo.",
-      },
-      burned: {
-        title: "Este enlace ya no se puede usar",
-        detail: "Ya se usó o se pidió uno más nuevo.",
-      },
-      expired: {
-        title: "Este enlace venció",
-        detail: "Los enlaces valen 15 minutos.",
-      },
-    }[phase.kind];
+  if (phase.kind === "invalid") {
     return (
       <AccessLayout>
         <AccessHeader heading="Registrá una passkey nueva" />
-        <TokenErrorNotice title={copy.title} detail={copy.detail} offerNewLink />
+        <TokenErrorNotice
+          title="Este enlace no es válido"
+          detail="Revisá que el enlace esté completo."
+          offerNewLink
+        />
+      </AccessLayout>
+    );
+  }
+
+  if (phase.kind === "burned") {
+    return (
+      <AccessLayout>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <TokenErrorNotice
+          title="Este enlace ya no se puede usar"
+          detail="Ya se usó o se pidió uno más nuevo."
+          offerNewLink
+        />
+      </AccessLayout>
+    );
+  }
+
+  if (phase.kind === "expired") {
+    return (
+      <AccessLayout>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <TokenErrorNotice
+          title="Este enlace venció"
+          detail="Los enlaces valen 15 minutos."
+          offerNewLink
+        />
       </AccessLayout>
     );
   }
@@ -319,7 +329,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
         onChange={(value) => {
           setName(value);
           if (nameError) {
-            setNameError(validatePasskeyName(value, PASSKEY_NAME_ERRORS));
+            setNameError(validatePasskeyName(value));
           }
         }}
         helperText="Por ejemplo, Notebook del local."
