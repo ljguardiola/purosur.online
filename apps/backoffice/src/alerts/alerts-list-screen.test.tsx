@@ -6,6 +6,7 @@ import type { BackofficeAccess } from "../access/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { AlertDetail, AlertListPage, AlertSummary, FetchAlertsOutcome } from "./alerts-api";
 import { AlertsListScreen, type AlertsListScreenServices } from "./alerts-list-screen";
+import { type AlertsListFilters, alertsListFilters } from "./routes";
 
 const ADMINISTRATOR_ACCESS: BackofficeAccess = { isAdministrator: true, permissions: [] };
 
@@ -81,10 +82,23 @@ function renderScreen(
   services: AlertsListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+  {
+    filters = alertsListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: AlertsListFilters;
+    onFiltersChange?: (filters: AlertsListFilters) => void;
+  } = {},
 ) {
   return render(
     <main>
-      <AlertsListScreen services={services} onSessionEnded={onSessionEnded} access={access} />
+      <AlertsListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        access={access}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>,
   );
 }
@@ -403,4 +417,46 @@ test("shows a rate-limited notice with a retry action", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+});
+
+test("opens with the filters and page it is given, asking for them in its first request", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 60 }));
+
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { level: "critical", status: "closed", search: " passkey ", page: 2 },
+  });
+
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  expect(services.fetchAlerts).toHaveBeenNthCalledWith(1, {
+    level: "critical",
+    open: false,
+    page: 2,
+    search: { text: "passkey", kinds: ["backoffice_passkey_changed"] },
+  });
+  await expect.element(screen.getByPlaceholder("Buscar una alerta")).toHaveValue(" passkey ");
+  await expect
+    .element(screen.getByRole("button", { name: "Página 2" }))
+    .toHaveAttribute("aria-current", "page");
+});
+
+test("reports every change to its filters and page, so they can be kept for a reload", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 30 }));
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall)
+    .toEqual([{ ...alertsListFilters.parse({}), page: 2 }]);
+
+  await screen.getByRole("button", { name: /Nivel/ }).click();
+  await screen.getByRole("option", { name: "Crítica" }).click();
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall)
+    .toEqual([{ ...alertsListFilters.parse({}), level: "critical" }]);
 });

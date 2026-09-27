@@ -11,6 +11,7 @@ import {
   Table,
   TableCellText,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BackofficeAccess } from "../access/backoffice-access";
@@ -31,6 +32,7 @@ import {
   type AlertSummary,
   fetchAlerts as fetchAlertsDefault,
 } from "./alerts-api";
+import type { AlertsListFilters } from "./routes";
 
 const LIST_KIND_LABELS = {
   backoffice_passkey_changed: "Passkey",
@@ -56,6 +58,8 @@ export const defaultAlertsListScreenServices: AlertsListScreenServices = {
 };
 
 export type AlertsListScreenProps = {
+  filters: AlertsListFilters;
+  onFiltersChange: (filters: AlertsListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services?: AlertsListScreenServices;
@@ -115,19 +119,33 @@ const STATUS_FILTER_OPTIONS = [
   { value: "closed", label: "Cerradas" },
 ] as const;
 
-export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
+export function AlertsListScreen({
+  filters,
+  onFiltersChange,
+  access,
+  onSessionEnded,
+  services,
+}: AlertsListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const { fetchAlerts, alertDetailModal } = services ?? defaultAlertsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
-  const [search, setSearch] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [page, setPage] = useState(1);
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>(filters.level);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(filters.status);
+  const [search, setSearch] = useState(filters.search);
+  const [searchQuery, setSearchQuery] = useState(filters.search.trim());
+  const [page, setPage] = useState(filters.page);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
   const requestRef = useRef(0);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: AlertsListFilters = { level: levelFilter, status: statusFilter, search, page };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [levelFilter, statusFilter, search, page, filters, onFiltersChangeRef]);
 
   useEffect(() => {
     const trimmed = search.trim();

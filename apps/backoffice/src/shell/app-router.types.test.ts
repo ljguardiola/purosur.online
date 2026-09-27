@@ -26,3 +26,15 @@ test("refuses navigation with a mistyped parameter", () => {
     Navigable<{ to: "/settings/users/$userId"; params: { id: string } }>
   >();
 });
+
+test("accepts a list filter value the list offers", () => {
+  expectTypeOf<{ to: "/catalog/products"; search: { status: "inactive" } }>().toExtend<
+    Navigable<{ to: "/catalog/products"; search: { status: "inactive" } }>
+  >();
+});
+
+test("refuses a list filter value the list does not offer", () => {
+  expectTypeOf<{ to: "/catalog/products"; search: { status: "archived" } }>().not.toExtend<
+    Navigable<{ to: "/catalog/products"; search: { status: "archived" } }>
+  >();
+});

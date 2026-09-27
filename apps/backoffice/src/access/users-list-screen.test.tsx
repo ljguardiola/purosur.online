@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import { render } from "../shell/test-support/render-with-router";
 import type { BackofficeAccess } from "./backoffice-access";
+import { type UsersListFilters, usersListFilters } from "./routes";
 import type { BranchUser } from "./users-api";
 import { UsersListScreen, type UsersListScreenServices } from "./users-list-screen";
 
@@ -95,10 +96,23 @@ function renderScreen(
   services: UsersListScreenServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+  {
+    filters = usersListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: UsersListFilters;
+    onFiltersChange?: (filters: UsersListFilters) => void;
+  } = {},
 ) {
   return render(
     <main>
-      <UsersListScreen services={services} onSessionEnded={onSessionEnded} access={access} />
+      <UsersListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        access={access}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>,
   );
 }
@@ -462,6 +476,8 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
         services={services}
         onSessionEnded={() => {}}
         access={ADMINISTRATOR_ACCESS}
+        filters={usersListFilters.parse({})}
+        onFiltersChange={() => {}}
       />
     </main>,
   );
@@ -780,4 +796,30 @@ test("Reactivar a X in the create modal closes it and navigates to that user's d
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.poll(() => window.location.pathname).toBe("/settings/users/user-4");
+});
+
+test("opens on the state it is given", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
+
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { state: "inactive" },
+  });
+
+  await expect.element(screen.getByText("Sofía Díaz")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /^Estado: Inactivos/ })).toBeVisible();
+  expect(screen.getByText("Lucas Guardiola").query()).toBeNull();
+});
+
+test("reports every change to its state filter, so it can be kept for a reload", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, sofia] });
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Activos", exact: true }));
+
+  expect(onFiltersChange).toHaveBeenLastCalledWith({ state: "active" });
 });

@@ -11,7 +11,7 @@ import {
   TextField,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { useNavigate } from "@tanstack/react-router";
+import { deepEqual, useNavigate } from "@tanstack/react-router";
 import {
   Eye,
   KeyRound,
@@ -32,6 +32,7 @@ import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { roleDisplayName, roleOptions } from "./role-display";
 import { fetchRoles } from "./roles-api";
+import type { UsersListFilters } from "./routes";
 import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import {
@@ -62,6 +63,8 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
+  filters: UsersListFilters;
+  onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services?: UsersListScreenServices;
@@ -368,7 +371,13 @@ function NewUserModal({
   );
 }
 
-export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
+export function UsersListScreen({
+  filters,
+  onFiltersChange,
+  access,
+  onSessionEnded,
+  services,
+}: UsersListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const {
@@ -383,6 +392,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   const canReadRoles = access.isAdministrator;
   const load = useCallback(async () => {
@@ -425,8 +435,15 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     { value: "active" as const, label: "Activos" },
     { value: "inactive" as const, label: "Inactivos" },
   ] as const;
-  type StateFilter = (typeof stateFilterOptions)[number]["value"];
-  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [stateFilter, setStateFilter] = useState(filters.state);
+
+  useEffect(() => {
+    const shown: UsersListFilters = { state: stateFilter };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [stateFilter, filters, onFiltersChangeRef]);
+
   const filteredUsers = useMemo(() => {
     if (!showsState || stateFilter === "all") {
       return users;

@@ -1,4 +1,5 @@
-import { createRoute, redirect } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
+import { z } from "zod";
 import { useDocumentTitle } from "../shell/document-title";
 import { publicRoute } from "../shell/public-route";
 import { settingsAreaRoute } from "../shell/settings-area";
@@ -74,18 +75,30 @@ function MyAccountPage() {
   );
 }
 
+export const usersListFilters = z.object({
+  state: z.enum(["all", "active", "inactive"]).default("all").catch("all"),
+});
+
+export type UsersListFilters = z.output<typeof usersListFilters>;
+
 export const usersListRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
   path: "users",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
+  validateSearch: usersListFilters,
+  search: { middlewares: [stripSearchParams(usersListFilters.parse({}))] },
   component: UsersListPage,
 });
 
 function UsersListPage() {
   const { session, services, sessionActions } = usersListRoute.useRouteContext();
+  const filters = usersListRoute.useSearch();
+  const navigate = usersListRoute.useNavigate();
   useDocumentTitle("Usuarios · Puro Sur");
   return (
     <UsersListScreen
+      filters={filters}
+      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.usersListScreen}

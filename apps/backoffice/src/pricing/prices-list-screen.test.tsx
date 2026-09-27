@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/tes
 import { render } from "../shell/test-support/render-with-router";
 import type { PriceCategory, PriceProduct } from "./prices-api";
 import { PricesListScreen, type PricesListScreenServices } from "./prices-list-screen";
+import { type PricesListFilters, pricesListFilters } from "./routes";
 
 const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -51,10 +52,23 @@ async function renderScreen(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
   now: () => Date = NOW,
+  {
+    filters = pricesListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: PricesListFilters;
+    onFiltersChange?: (filters: PricesListFilters) => void;
+  } = {},
 ) {
   const screen = (
     <main>
-      <PricesListScreen services={services} onSessionEnded={onSessionEnded} now={now} />
+      <PricesListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        now={now}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>
   );
   const rendered = await render(screen);
@@ -1738,3 +1752,46 @@ test.each([
     await expect.element(screen.getByRole("dialog").getByText(eyebrow)).toBeVisible();
   },
 );
+
+test("opens with the filters it is given, asking for them in its first request", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [rice], pendingCount: 0, reviewWindowDays: 30, categories: [groceries] },
+  });
+
+  const screen = await renderScreen(services, () => {}, NOW, {
+    filters: { search: " arroz ", category: groceries.id, review: "all" },
+  });
+
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+  expect(services.fetchPrices).toHaveBeenNthCalledWith(1, {
+    review: "all",
+    categoryId: groceries.id,
+    search: "arroz",
+  });
+  await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue(" arroz ");
+  await expect.element(screen.getByRole("button", { name: "Categoría: Almacén" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Revisión: Todos" })).toBeVisible();
+});
+
+test("reports every change to its filters, so they can be kept for a reload", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+  });
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, NOW, { onFiltersChange });
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto"), "arr");
+
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    search: "arr",
+    category: "ALL",
+    review: "all",
+  });
+});

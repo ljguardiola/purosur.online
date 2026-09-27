@@ -10,6 +10,7 @@ import {
   type TableSort,
   TextField,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import {
   Check,
   Pencil,
@@ -34,6 +35,7 @@ import {
 } from "./categories-api";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
+import type { CategoriesListFilters } from "./routes";
 
 export type CategoriesListScreenServices = {
   fetchCategories: typeof fetchCategories;
@@ -48,6 +50,8 @@ export const defaultCategoriesListScreenServices: CategoriesListScreenServices =
 };
 
 export type CategoriesListScreenProps = {
+  filters: CategoriesListFilters;
+  onFiltersChange: (filters: CategoriesListFilters) => void;
   onSessionEnded: () => void;
   services?: CategoriesListScreenServices;
 };
@@ -578,20 +582,33 @@ function EditCategoryModal({
   );
 }
 
-export function CategoriesListScreen({ onSessionEnded, services }: CategoriesListScreenProps) {
+export function CategoriesListScreen({
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+}: CategoriesListScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useLatestRef(list);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"category">>({
     column: "category",
-    direction: "ascending",
+    direction: filters.sort,
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: CategoriesListFilters = { search, sort: sort.direction };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [search, sort.direction, filters, onFiltersChangeRef]);
 
   const latestLoad = useRef(0);
 
