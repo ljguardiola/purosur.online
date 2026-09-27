@@ -61,6 +61,7 @@ type ListState =
 const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
 const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
+const CATEGORY_PARENT_HELPER_TEXT = "Opcional. Vacío para una categoría de primer nivel.";
 
 function nameTakenUnderParentError(params: { name: string; parent: string }): string {
   return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
@@ -69,13 +70,15 @@ function nameTakenUnderParentError(params: { name: string; parent: string }): st
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
-  noneLabel: string,
 ): [SelectOption<string>, ...SelectOption<string>[]] {
   const labels = categoryPathLabels(categories);
   const sorted = categoriesInTreeOrder(categories, "ascending").filter(
     (category) => !excludeIds.has(category.id),
   );
-  const noneOption: SelectOption<string> = { value: "", label: noneLabel };
+  const noneOption: SelectOption<string> = {
+    value: "",
+    label: "Ninguna (categoría de primer nivel)",
+  };
   return [
     noneOption,
     ...sorted.map((category) => ({
@@ -124,11 +127,7 @@ function NewCategoryModal({
     }
   }, [isOpen]);
 
-  const parentOptions = parentSelectOptions(
-    categories,
-    new Set(),
-    "Ninguna (categoría de primer nivel)",
-  );
+  const parentOptions = parentSelectOptions(categories, new Set());
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -269,7 +268,7 @@ function NewCategoryModal({
           }}
           {...(parentError
             ? { invalid: true, errorMessage: parentError }
-            : { helperText: "Opcional. Vacío para una categoría de primer nivel." })}
+            : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
         />
       </div>
     </Modal>
@@ -329,11 +328,7 @@ function EditCategoryModal({
   }, [isOpen, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
-  const parentOptions = parentSelectOptions(
-    categories,
-    excludeIds,
-    "Ninguna (categoría de primer nivel)",
-  );
+  const parentOptions = parentSelectOptions(categories, excludeIds);
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -573,7 +568,7 @@ function EditCategoryModal({
             }}
             {...(parentError
               ? { invalid: true, errorMessage: parentError }
-              : { helperText: "Opcional. Vacío para una categoría de primer nivel." })}
+              : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
           />
         </div>
       )}
