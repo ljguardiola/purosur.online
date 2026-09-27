@@ -61,10 +61,19 @@ function findMatchedComments(source, tokenPattern, commentStart) {
 
 const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
 
-const SHELL_COMMENT_OR_SKIPPED_TOKEN = /'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*/g;
+const SHELL_COMMENT_OR_SKIPPED_TOKEN =
+  /\\[\s\S]|'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*/g;
+const HERE_DOCUMENT = /(?<!<)<<-?[ \t]*(['"]?)(\w+)\1[^\n]*\n([\s\S]*?)^([ \t]*\2[ \t]*)$/gm;
+
+function blankHereDocumentBodies(source) {
+  return source.replace(HERE_DOCUMENT, (hereDocument, _quote, _word, body, terminator) => {
+    const opening = hereDocument.slice(0, hereDocument.length - body.length - terminator.length);
+    return opening + body.replace(/[^\n]/g, " ") + terminator;
+  });
+}
 
 const findShellComments = (source) =>
-  findMatchedComments(source, SHELL_COMMENT_OR_SKIPPED_TOKEN, "#");
+  findMatchedComments(blankHereDocumentBodies(source), SHELL_COMMENT_OR_SKIPPED_TOKEN, "#");
 
 function lineOf(source, offset) {
   return source.slice(0, offset).split("\n").length;
@@ -81,6 +90,7 @@ function findRunStepComments(source) {
         if (!isRunStep || !isBlockScalar) return;
         const [start, end] = pair.value.range;
         const bodyStart = source.indexOf("\n", start) + 1;
+        if (bodyStart === 0 || bodyStart > end) return;
         const bodyLine = lineOf(source, bodyStart);
         for (const { line, text } of findShellComments(source.slice(bodyStart, end))) {
           comments.push({ line: bodyLine + line - 1, text });

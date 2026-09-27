@@ -101,8 +101,8 @@ jobs:
         run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
       # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
-      # main saves the cache, which every `pull_request` run can read; a copy saved on `pull_request`
-      # would serve only that branch's later runs.
+      # main saves the cache, which every `pull_request` run can read; a copy saved on
+      # `pull_request` would serve only that branch's later runs.
       - name: Restore Playwright browsers
         id: playwright-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

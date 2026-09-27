@@ -279,6 +279,46 @@ test("finds a YAML comment inside a flow collection", () => {
   assert.deepEqual(comments, [{ line: 2, text: "# see #5" }]);
 });
 
+test("finds a run step's shell comment that follows an escaped quote", () => {
+  const source = `run: |\n  echo \\"x # see #5\n  echo it\\'s # see #6`;
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "# see #5" },
+    { line: 3, text: "# see #6" },
+  ]);
+});
+
+test("does not mistake a # line inside a here-document of a run step for a comment", () => {
+  const source = [
+    "run: |",
+    "  cat <<'EOF' # see #5",
+    "  ## Build closes #12",
+    "  It's done",
+    "  EOF",
+    "  cat <<-EOF",
+    "  # see #7",
+    "  EOF",
+    "  echo done # see #6",
+  ].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "# see #5" },
+    { line: 9, text: "# see #6" },
+  ]);
+});
+
+test("finds each YAML comment once when an empty run step ends the file", () => {
+  const source = "# see #5\nsteps:\n  - run: |";
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 1, text: "# see #5" }]);
+});
+
 test("finds Dockerfile comments, including indented ones and the shell comments of a RUN instruction", () => {
   const source = [
     "# syntax=docker/dockerfile:1",
