@@ -1,4 +1,4 @@
-import { and, eq, inArray, like, notInArray, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, like, ne, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../db/postgres-error-chain.js";
 import {
@@ -322,6 +322,31 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           sql`${auditLog.newValue} - 'version' = ${JSON.stringify(sampleBranchSettingsAuditValue())}::jsonb`,
         )
       : undefined;
+    const [loadBranchSettingsAuditRow] = loadBranchSettingsAudit
+      ? await tx
+          .select({ id: auditLog.id, at: auditLog.at })
+          .from(auditLog)
+          .where(loadBranchSettingsAudit)
+      : [];
+    const [laterBranchSettingsAudit] = loadBranchSettingsAuditRow
+      ? await tx
+          .select({ id: auditLog.id })
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.entity, "branch_settings"),
+              eq(auditLog.entityId, location.id),
+              gte(auditLog.at, loadBranchSettingsAuditRow.at),
+              ne(auditLog.id, loadBranchSettingsAuditRow.id),
+            ),
+          )
+          .limit(1)
+      : [];
+    const settingsAreStillTheLoads =
+      loadBranchSettingsAuditRow !== undefined &&
+      laterBranchSettingsAudit === undefined &&
+      (await branchSettingsEqualSampleValues(tx, location.id));
+
     await tx
       .delete(auditLog)
       .where(or(inArray(auditLog.entityId, sampleEntityIds), loadBranchSettingsAudit));
@@ -352,7 +377,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(registers.id, sampleRegisterIds))
       .returning({ id: registers.id });
 
-    if (await branchSettingsEqualSampleValues(tx, location.id)) {
+    if (settingsAreStillTheLoads) {
       await tx
         .update(branchSettings)
         .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })

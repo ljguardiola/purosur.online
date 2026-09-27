@@ -460,6 +460,72 @@ describe("clearSampleData", () => {
     expect(settingsRow).toEqual(editedSettings);
     expect(await tableCount(db, "branch_hours")).toBe(editedHoursCount);
   }, 120_000);
+  it("keeps branch settings a real administrator had already set to the sample values before loading", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    const [initialSettings] = await db
+      .select({ version: branchSettings.version })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+    if (!initialSettings) throw new Error("test setup: no branch settings seeded");
+    const edit = await editBranchSettings(db, {
+      ...SAMPLE_BRANCH_SETTINGS,
+      locationId: bootstrapAdmin.locationId,
+      actorId: bootstrapAdmin.id,
+      version: initialSettings.version,
+    });
+    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const [realSettings] = await db.select().from(branchSettings);
+    const realHoursCount = await tableCount(db, "branch_hours");
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toEqual(realSettings);
+    expect(await tableCount(db, "branch_hours")).toBe(realHoursCount);
+  }, 120_000);
+
+  it("keeps branch settings a real administrator set back to the sample values after loading, with their audit rows", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const editAsRealAdministrator = async (address: string) => {
+      const [current] = await db
+        .select({ version: branchSettings.version })
+        .from(branchSettings)
+        .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+      if (!current) throw new Error("test setup: no branch settings seeded");
+      const edit = await editBranchSettings(db, {
+        ...SAMPLE_BRANCH_SETTINGS,
+        address,
+        locationId: bootstrapAdmin.locationId,
+        actorId: bootstrapAdmin.id,
+        version: current.version,
+      });
+      if (edit.kind !== "applied")
+        throw new Error("test setup: editing the branch settings failed");
+    };
+    await editAsRealAdministrator("Calle Real 1");
+    await editAsRealAdministrator(SAMPLE_BRANCH_SETTINGS.address);
+    const [realSettings] = await db.select().from(branchSettings);
+    const realHoursCount = await tableCount(db, "branch_hours");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toEqual(realSettings);
+    expect(await tableCount(db, "branch_hours")).toBe(realHoursCount);
+    const survivingSettingsAudit = await db
+      .select({ actorId: auditLog.actorId })
+      .from(auditLog)
+      .where(eq(auditLog.entity, "branch_settings"));
+    expect(survivingSettingsAudit).toEqual([
+      { actorId: bootstrapAdmin.id },
+      { actorId: bootstrapAdmin.id },
+    ]);
+  }, 120_000);
+
   it("refuses and deletes nothing when a sample user changed the branch settings after loading", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
