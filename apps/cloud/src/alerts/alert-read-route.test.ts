@@ -210,6 +210,39 @@ describe("GET /alerts/:id", () => {
     ]);
   });
 
+  it("lists the deliveries by when they were written, ties in a stable order", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const alertId = await insertAlert({ audience: "all" });
+    const writtenLast = await insertUserWithRole("Tercera", viewerRoleId);
+    const tiedWithHigherId = await insertUserWithRole("Segunda", viewerRoleId);
+    const tiedWithLowerId = await insertUserWithRole("Primera", viewerRoleId);
+    const oneMinuteLater = new Date(NOON.getTime() + 60_000);
+    await db.insert(alertDeliveries).values([
+      { alertId, recipientUserId: writtenLast, createdAt: oneMinuteLater },
+      {
+        id: "ffffffff-ffff-4fff-bfff-ffffffffffff",
+        alertId,
+        recipientUserId: tiedWithHigherId,
+        createdAt: NOON,
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000000",
+        alertId,
+        recipientUserId: tiedWithLowerId,
+        createdAt: NOON,
+      },
+    ]);
+
+    const response = await getAlert(rawSessionId, alertId);
+
+    const recipientNames = (
+      response.json() as { deliveries: { recipient: { first_name: string } }[] }
+    ).deliveries.map((delivery) => delivery.recipient.first_name);
+    expect(recipientNames).toEqual(["Primera", "Segunda", "Tercera"]);
+  });
+
   it("never sends a closed lockout alert's stored address hash", async () => {
     const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
     const viewerId = await insertUserWithRole("Grace", viewerRoleId);
