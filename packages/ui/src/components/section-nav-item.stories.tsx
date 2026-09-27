@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Flag } from "lucide-react";
-import { expect, userEvent, within } from "storybook/test";
-import { playPseudoHoverPaintsBoneFill } from "../test-support/story-interactions";
+import { within } from "storybook/test";
+import {
+  playPseudoHoverPaintsBoneFill,
+  playTabMatchesCssFocusVisible,
+} from "../test-support/story-interactions";
 import { SectionNavItem } from "./SectionNavItem";
 
 function link(canvasElement: HTMLElement): HTMLElement {
@@ -38,8 +41,5 @@ export const Hovered: Story = {
 
 export const FocusVisible: Story = {
   args: { active: false },
-  play: async ({ canvasElement }) => {
-    await userEvent.tab();
-    await expect(link(canvasElement)).toHaveFocus();
-  },
+  play: playTabMatchesCssFocusVisible(link),
 };

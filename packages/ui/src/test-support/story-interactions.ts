@@ -64,3 +64,14 @@ export function playTabMatchesCssFocusWithin(
     expect(within(canvasElement).matches(":focus-within")).toBe(true);
   };
 }
+
+export function playTabMatchesCssFocusVisible(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+): StoryPlayFunction {
+  return async ({ canvasElement }) => {
+    await userEvent.tab();
+    const target = locate(canvasElement);
+    await expect(target).toHaveFocus();
+    expect(target.matches(":focus-visible")).toBe(true);
+  };
+}

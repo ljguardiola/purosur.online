@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { LifeBuoy } from "lucide-react";
-import { expect, userEvent, within } from "storybook/test";
+import { within } from "storybook/test";
+import { playTabMatchesCssFocusVisible } from "../test-support/story-interactions";
 import { AreaNavItem } from "./AreaNavItem";
 
 const meta: Meta<typeof AreaNavItem> = {
@@ -34,9 +35,7 @@ export const Active: Story = {
 
 export const FocusVisible: Story = {
   args: { active: false },
-  play: async ({ canvasElement }) => {
-    await userEvent.tab();
-    const link = within(canvasElement).getByRole("link", { name: "Ayuda" });
-    await expect(link).toHaveFocus();
-  },
+  play: playTabMatchesCssFocusVisible((canvasElement) =>
+    within(canvasElement).getByRole("link", { name: "Ayuda" }),
+  ),
 };
