@@ -1257,7 +1257,7 @@ test("opens the deactivate modal, and Cancelar closes it without calling the API
   await expect
     .element(
       dialog.getByText(
-        "Deja de poder entrar a la caja y al backoffice. Se puede reactivar desde esta pantalla.",
+        "Deja de poder entrar a la caja y al backoffice. Un Administrador puede reactivar su cuenta más adelante.",
       ),
     )
     .toBeVisible();
