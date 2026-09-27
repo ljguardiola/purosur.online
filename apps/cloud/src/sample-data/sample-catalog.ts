@@ -272,7 +272,7 @@ const PRODUCT_DESCRIPTORS: readonly string[] = [
   "Formato Ahorro",
 ];
 
-// Deliberately overlong: every leaf's first product uses it, then gets clamped to the contract's
+// Deliberately overlong: every leaf's first product uses it, then gets clamped to the domain's
 // maximum, so at least one sample product always needs a screen to cut its name short.
 const LONG_PRODUCT_DESCRIPTOR =
   "Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados y con Controles de Calidad en Cada Etapa del Proceso Productivo";

@@ -29,8 +29,8 @@ function contentSecurityPolicyMeta(): Plugin {
 export default defineConfig({
   main: {
     resolve: {
-      // Contracts' package.json points `main` at its compiled dist/, built only by the cloud's own
-      // `tsc -b`; the register's build never runs that, so it reads the source directly.
+      // Contracts' package.json points `main` at its compiled dist/, and nothing in the repository
+      // builds it automatically any more; the register reads the source directly regardless.
       alias: {
         "@purosur/contracts": r("../../packages/contracts/src/index.ts"),
       },

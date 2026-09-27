@@ -17,7 +17,7 @@ describe("readPasskeyName", () => {
     expect(readPasskeyName({ passkey_name: "  My phone  " })).toBe("My phone");
   });
 
-  it("rejects a name longer than the contracts' maximum length", () => {
+  it("rejects a name longer than the domain's maximum length", () => {
     const name = "a".repeat(PASSKEY_NAME_MAX_LENGTH + 1);
 
     expect(readPasskeyName({ passkey_name: name })).toBeUndefined();
