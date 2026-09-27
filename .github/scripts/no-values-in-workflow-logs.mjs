@@ -283,9 +283,34 @@ const COMMAND_PREFIXES = new Set([
 ]);
 const ASSIGNMENT_RE = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
+const COMMAND_WRAPPERS = new Map([
+  ["sudo", { optionsWithValue: ["-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-T", "-U"] }],
+  ["exec", { optionsWithValue: ["-a"] }],
+  ["nohup", {}],
+  ["timeout", { optionsWithValue: ["-s", "-k"], operands: 1 }],
+  ["env", { optionsWithValue: ["-u", "-C"], skipsAssignments: true }],
+]);
+
+function wrapperLengthAt(words, index) {
+  const wrapper = COMMAND_WRAPPERS.get(words[index].text);
+  if (!wrapper) return 0;
+  const { optionsWithValue = [], operands = 0, skipsAssignments = false } = wrapper;
+  let next = index + 1;
+  while (next < words.length && /^-./.test(words[next].text)) {
+    const option = words[next].text;
+    next += optionsWithValue.includes(option) ? 2 : 1;
+    if (option === "--") break;
+  }
+  next += operands;
+  while (skipsAssignments && next < words.length && ASSIGNMENT_RE.test(words[next].raw)) next++;
+  return next < words.length ? next - index : 0;
+}
+
 function prefixLengthAt(words, index) {
   const word = words[index];
   if (COMMAND_PREFIXES.has(word.raw) || ASSIGNMENT_RE.test(word.raw)) return 1;
+  const wrapperLength = wrapperLengthAt(words, index);
+  if (wrapperLength > 0) return wrapperLength;
   if (word.raw === "case" && words[index + 2]?.raw === "in") return 3;
   if (word.raw === "function") return 2;
   if (/^\(\s*\)/.test(word.followedBy)) return 1;
@@ -364,9 +389,15 @@ function referencesName(text, name) {
   return new RegExp(`\\$\\{?${escapeRegExp(name)}\\b`).test(text);
 }
 
+const VARIABLE_DECLARERS = new Set(["declare", "typeset"]);
+
 function stagePrintsName({ command, hereStrings }, name) {
   if (!command) return false;
   if (command.name === "printenv") return command.args.some((arg) => arg.text === name);
+  if (VARIABLE_DECLARERS.has(command.name)) {
+    const args = command.args.map((arg) => arg.text);
+    return args.some((arg) => /^-\w*p/.test(arg)) && args.includes(name);
+  }
   if (PASS_THROUGH_FILTERS.has(command.name)) {
     return (
       passesInputThrough(command) &&

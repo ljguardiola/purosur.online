@@ -567,6 +567,40 @@ for (const script of [
   });
 }
 
+for (const [script, expected] of [
+  ["declare -p TOKEN", PRINTS],
+  ["typeset -p TOKEN", PRINTS],
+  ["declare -px TOKEN", PRINTS],
+  ["sudo echo $TOKEN", PRINTS],
+  ["sudo -u runner echo $TOKEN", PRINTS],
+  ["nohup echo $TOKEN", PRINTS],
+  ["timeout 5 printf '%s' \"$TOKEN\"", PRINTS],
+  ["env FOO=1 bash -c 'echo $TOKEN'", PRINTS],
+  ["sudo bash -x install.sh", TRACES],
+  ["timeout 60 bash -x deploy.sh", TRACES],
+  ["timeout -s KILL 60 bash -x deploy.sh", TRACES],
+  ["exec bash -o xtrace deploy.sh", TRACES],
+  ["env -i PATH=/bin bash -x deploy.sh", TRACES],
+  ["sudo command bash -x install.sh", TRACES],
+]) {
+  test(`sees the command a wrapper runs, or a variable declare -p prints: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), expected);
+  });
+}
+
+for (const script of [
+  "declare -p TOKEN > vars.txt",
+  "declare -p MODE",
+  "declare TOKEN",
+  "sudo apt-get install -y jq",
+  "timeout 60 ./deploy.sh -x",
+  "nohup ./server.sh > server.log",
+]) {
+  test(`does not flag a wrapped command or declare that prints no tainted value: ${script}`, () => {
+    assert.deepEqual(messagesOf(script), []);
+  });
+}
+
 test("reads a shell's -c command string as a script of its own", () => {
   assertFlagsOnly(messagesOf("bash -c 'echo $TOKEN'"), PRINTS);
 });
