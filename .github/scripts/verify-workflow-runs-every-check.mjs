@@ -3,8 +3,8 @@ import { isAlias, isMap, isScalar, isSeq, parseDocument } from "yaml";
 
 const WORKFLOW_PATH = ".github/workflows/verify.yml";
 const PACKAGE_JSON_PATH = "package.json";
-const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests";
-const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run";
+const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual";
+const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run --project='!catalog-visual'";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
   "pnpm --filter @purosur/cloud build",

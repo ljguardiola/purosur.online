@@ -104,9 +104,9 @@ const VERIFY_STATIC_SCRIPT =
   "tsc --noEmit && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && node --test .github/scripts/*.test.mjs";
 
 function packageJson({
-  verify = "pnpm verify:static && pnpm verify:tests",
+  verify = "pnpm verify:static && pnpm verify:tests && pnpm verify:visual",
   verifyStatic = VERIFY_STATIC_SCRIPT,
-  verifyTests = "vitest run",
+  verifyTests = "vitest run --project='!catalog-visual'",
 } = {}) {
   return JSON.stringify({
     scripts: { verify, "verify:static": verifyStatic, "verify:tests": verifyTests },
@@ -553,7 +553,7 @@ test("accepts a verify:static script that adds another check", () => {
   assert.deepEqual(violations, []);
 });
 
-test("flags a verify:tests script that is not exactly vitest run", () => {
+test("flags a verify:tests script that is not exactly the expected composition", () => {
   const violations = findVerifyWorkflowViolations(
     workflow(),
     packageJson({ verifyTests: "vitest run --passWithNoTests || true" }),

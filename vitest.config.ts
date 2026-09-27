@@ -1,3 +1,4 @@
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -7,6 +8,11 @@ import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
 } from "./.github/scripts/slow-tests-reporter.mjs";
+
+// Kept as a literal, matching the constant of the same name in
+// packages/ui/vitest.global-setup.catalog-visual.ts: importing that module here would need an
+// explicit ".ts" import specifier, which tsc rejects without allowImportingTsExtensions.
+const CATALOG_VISUAL_WS_ENDPOINT_ENV = "CATALOG_VISUAL_BROWSER_WS_ENDPOINT";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -31,6 +37,7 @@ export default defineConfig({
         "railway-iac": 1000,
         "cloud-integration": 5000,
         browser: 2000,
+        "catalog-visual": 4000,
       }),
     ],
     projects: [
@@ -73,6 +80,63 @@ export default defineConfig({
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
+          },
+        },
+      },
+      {
+        plugins: [react(), tailwindcss()],
+        test: {
+          name: "catalog-visual",
+          include: ["packages/ui/src/**/*.visual.tsx"],
+          setupFiles: [
+            r("./packages/ui/src/test/setup-browser.ts"),
+            r("./packages/ui/src/test/setup-catalog-visual.ts"),
+          ],
+          globalSetup: [r("./packages/ui/vitest.global-setup.catalog-visual.ts")],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({
+              connectOptions: {
+                // A getter, not a plain value: Vite's own config resolution reads this once
+                // before globalSetup runs (and must see no thrown error), but the provider
+                // itself destructures connectOptions only when it actually opens the browser,
+                // which happens after globalSetup has started the container and set the
+                // variable below.
+                get wsEndpoint() {
+                  return process.env[CATALOG_VISUAL_WS_ENDPOINT_ENV] ?? "";
+                },
+                exposeNetwork: "<loopback>",
+              },
+              contextOptions: {
+                reducedMotion: "reduce",
+                deviceScaleFactor: 1,
+              },
+            }),
+            viewport: { width: 1280, height: 800 },
+            instances: [{ browser: "chromium", name: "catalog-visual" }],
+            expect: {
+              toMatchScreenshot: {
+                // The rendering environment is this project's container regardless of the host
+                // OS, so a platform suffix in the reference file's name would only ever be noise.
+                resolveScreenshotPath: ({
+                  root,
+                  testFileDirectory,
+                  screenshotDirectory,
+                  testFileName,
+                  arg,
+                  browserName,
+                  ext,
+                }) =>
+                  path.resolve(
+                    root,
+                    testFileDirectory,
+                    screenshotDirectory,
+                    testFileName,
+                    `${arg}-${browserName}${ext}`,
+                  ),
+              },
+            },
           },
         },
       },

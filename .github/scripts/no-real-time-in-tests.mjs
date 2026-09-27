@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from "node:fs";
+import { globSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 
@@ -1073,7 +1073,12 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
       exclude: ["**/node_modules/**", "**/dist/**"],
     },
   );
-  return files.filter(isTestOnlyHelperPath).sort();
+  // A generated directory can end in the same extension the glob looks for, such as a screenshot
+  // folder named after the test file it belongs to; only a real file's own content is relevant.
+  return files
+    .filter((path) => statSync(join(cwd, path)).isFile())
+    .filter(isTestOnlyHelperPath)
+    .sort();
 }
 
 export function findScannedFiles(cwd = process.cwd()) {
@@ -1089,7 +1094,8 @@ export function findScannedFiles(cwd = process.cwd()) {
   );
   const verifyStaticFiles = globSync(verifyStaticGlobs, { cwd });
 
-  return [
-    ...new Set([...projectFiles, ...verifyStaticFiles, ...findTestOnlyHelperFiles(cwd)]),
-  ].sort();
+  const scanned = new Set([...projectFiles, ...verifyStaticFiles, ...findTestOnlyHelperFiles(cwd)]);
+  // A generated directory, such as a screenshot folder named after the test file it belongs to,
+  // can match the same glob as the file it sits next to; only a real file has content to check.
+  return [...scanned].filter((path) => statSync(join(cwd, path)).isFile()).sort();
 }
