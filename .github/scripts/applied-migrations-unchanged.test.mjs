@@ -176,6 +176,7 @@ test("tells how to fix a new journal entry placed before an entry already on mai
   const result = compareJournalContents(base, current);
 
   assert.equal(result.ok, false);
+  assert.match(result.reason, /reordered/);
   assert.match(result.reason, /regenerate the migration on top of the current main/);
 });
 
