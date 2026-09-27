@@ -56,13 +56,13 @@ export const Default: Story = {
   ),
 };
 
-export const Sorted: Story = {
+export const SortedDescending: Story = {
   render: () => (
     <Table
       aria-label="Productos"
       columns={baseColumns}
       rows={products}
-      sort={sort}
+      sort={{ column: "name", direction: "descending" }}
       onSortChange={onSortChange}
     />
   ),
