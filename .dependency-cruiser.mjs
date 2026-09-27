@@ -56,7 +56,8 @@ export default {
       from: { path: "^packages/domain/src/[^/]+/model/" },
       // Not narrowed to the same concept: dependency-cruiser's final check of a reachable
       // rule matches `to.path` without the `from` capture groups, so a positive `$1`
-      // would stay literal and never match.
+      // would stay literal and never match. A negative lookahead such as `(?!$1/)` still
+      // works, because the earlier derive step already narrowed by concept with the groups.
       to: { path: "^packages/domain/src/[^/]+/use-cases/", reachable: true },
     },
     {
