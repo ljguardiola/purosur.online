@@ -56,8 +56,11 @@ const coreDownRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([readyRoute, startingRoute, coreDownRoute]);
 
+export const appRouterOptions = { disableGlobalCatchBoundary: true };
+
 export function createAppRouter() {
   return createRouter({
+    ...appRouterOptions,
     routeTree,
     context: { coreStatus: "starting" },
     history: createMemoryHistory({ initialEntries: [ROUTE_FOR_STATUS.starting] }),
