@@ -17,3 +17,10 @@ overrides:
   # drizzle-kit still loads through the deprecated @esbuild-kit loader, which pins an esbuild
   # affected by GHSA-67mh-4wv8-2f99. Remove once drizzle-kit no longer depends on @esbuild-kit.
   "@esbuild-kit/core-utils>esbuild": ^0.25.0
+
+patchedDependencies:
+  # Two Vitest 5 changes make this runner report caught mutants as surviving: Vitest now matches a
+  # test-name filter against names joined with " > " (the runner joins them with a space, so every
+  # test inside a describe block is skipped), and a test file that fails to import now reports no
+  # tests at all (the runner takes that as a passing run). Remove once the runner handles both.
+  "@stryker-mutator/vitest-runner@10.0.0": patches/@stryker-mutator__vitest-runner@10.0.0.patch

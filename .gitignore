@@ -5,6 +5,7 @@ release/
 coverage/
 *.log
 .vitest/
+.stryker-tmp/
 
 # Secrets never live in the repository. They live under ~/.config/purosur/
 *.env
