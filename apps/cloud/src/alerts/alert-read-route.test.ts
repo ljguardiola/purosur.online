@@ -237,6 +237,7 @@ describe("GET /alerts/:id", () => {
 
     const response = await getAlert(rawSessionId, alertId);
 
+    expect(response.statusCode).toBe(200);
     const recipientNames = (
       response.json() as { deliveries: { recipient: { first_name: string } }[] }
     ).deliveries.map((delivery) => delivery.recipient.first_name);
