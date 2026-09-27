@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveSampleDataTarget } from "./target-guard.js";
 
 describe("resolveSampleDataTarget", () => {
-  it("resolves staging when RAILWAY_ENVIRONMENT_NAME is exactly \"staging\"", () => {
+  it('resolves staging when RAILWAY_ENVIRONMENT_NAME is exactly "staging"', () => {
     expect(
       resolveSampleDataTarget({
         databaseUrl: "postgres://user:pass@db.internal:5432/railway",
