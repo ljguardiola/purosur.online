@@ -1,4 +1,4 @@
-import { BrandPanelScreen } from "./BrandPanelScreen";
+import { BrandPanelScreen } from "./brand-panel-screen";
 
 export function CoreDownNotice() {
   return (

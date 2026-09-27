@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, roles, userRoles, users } from "../db/schema.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
@@ -36,6 +36,78 @@ function emailBelongsToDeactivatedUserResponse(target: { id: string; firstName: 
 }
 
 class EmailAlreadyTaken extends Error {}
+
+export interface CreateUserInput {
+  firstName: string;
+  email: string;
+  roleId: string;
+  locationId: string;
+  actorId: string;
+}
+
+export interface CreatedUserRole {
+  id: string;
+  name: string | null;
+  isAdministrator: boolean;
+}
+
+export type CreateUserOutcome =
+  | { kind: "unknown_role" }
+  | { kind: "email_taken" }
+  | { kind: "created"; id: string; role: CreatedUserRole };
+
+export async function createUser<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: CreateUserInput,
+): Promise<CreateUserOutcome> {
+  const [role] = await db
+    .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
+    .from(roles)
+    .where(eq(roles.id, input.roleId))
+    .limit(1);
+  if (!role) {
+    return { kind: "unknown_role" };
+  }
+
+  const created = await db
+    .transaction(async (tx) => {
+      const [newUser] = await tx
+        .insert(users)
+        .values({
+          firstName: input.firstName,
+          email: input.email,
+          locationId: input.locationId,
+        })
+        .onConflictDoNothing({ target: users.email })
+        .returning({ id: users.id });
+      if (!newUser) {
+        throw new EmailAlreadyTaken();
+      }
+
+      await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
+
+      await tx.insert(auditLog).values({
+        entity: "user",
+        entityId: newUser.id,
+        actorId: input.actorId,
+        previousValue: null,
+        newValue: { firstName: input.firstName, email: input.email, roleId: role.id },
+      });
+
+      return newUser;
+    })
+    .catch((error: unknown) => {
+      if (error instanceof EmailAlreadyTaken) {
+        return undefined;
+      }
+      throw error;
+    });
+
+  if (!created) {
+    return { kind: "email_taken" };
+  }
+  return { kind: "created", id: created.id, role };
+}
 
 interface CreationRequestBody {
   firstName: string;
@@ -127,51 +199,20 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
         return;
       }
 
-      const [role] = await options.db
-        .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-        .from(roles)
-        .where(eq(roles.id, parsedBody.roleId))
-        .limit(1);
-      if (!role) {
+      const outcome = await createUser(options.db, {
+        firstName: parsedBody.firstName,
+        email: parsedBody.email,
+        roleId: parsedBody.roleId,
+        locationId: openSession.locationId,
+        actorId: openSession.userId,
+      });
+
+      if (outcome.kind === "unknown_role") {
         await reply.code(400).send(UNKNOWN_ROLE_RESPONSE);
         return;
       }
 
-      const created = await options.db
-        .transaction(async (tx) => {
-          const [newUser] = await tx
-            .insert(users)
-            .values({
-              firstName: parsedBody.firstName,
-              email: parsedBody.email,
-              locationId: openSession.locationId,
-            })
-            .onConflictDoNothing({ target: users.email })
-            .returning({ id: users.id });
-          if (!newUser) {
-            throw new EmailAlreadyTaken();
-          }
-
-          await tx.insert(userRoles).values({ userId: newUser.id, roleId: role.id });
-
-          await tx.insert(auditLog).values({
-            entity: "user",
-            entityId: newUser.id,
-            actorId: openSession.userId,
-            previousValue: null,
-            newValue: { firstName: parsedBody.firstName, email: parsedBody.email, roleId: role.id },
-          });
-
-          return newUser;
-        })
-        .catch((error: unknown) => {
-          if (error instanceof EmailAlreadyTaken) {
-            return undefined;
-          }
-          throw error;
-        });
-
-      if (!created) {
+      if (outcome.kind === "email_taken") {
         // Naming the conflicting user is branch-scoped even though the email conflict is not, so
         // another branch's user is never revealed.
         const [conflicting] = await options.db
@@ -199,14 +240,14 @@ export function registerUserCreationRoutes<TQueryResult extends PgQueryResultHKT
 
       await reply.code(201).send(
         toBranchUserWire({
-          id: created.id,
+          id: outcome.id,
           firstName: parsedBody.firstName,
           email: parsedBody.email,
           version: 1,
           active: true,
-          roleId: role.id,
-          roleName: role.name,
-          roleIsAdministrator: role.isAdministrator,
+          roleId: outcome.role.id,
+          roleName: outcome.role.name,
+          roleIsAdministrator: outcome.role.isAdministrator,
           passkeyCount: 0,
           isLastActiveAdministrator: false,
         }),

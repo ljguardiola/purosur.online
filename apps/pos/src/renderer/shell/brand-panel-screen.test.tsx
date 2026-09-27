@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
-import { BrandPanelScreen } from "./BrandPanelScreen";
+import { BrandPanelScreen } from "./brand-panel-screen";
 
 describe("BrandPanelScreen", () => {
   it("shows the brand panel's logo with its accessible name", async () => {

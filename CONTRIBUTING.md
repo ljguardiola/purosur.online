@@ -15,10 +15,13 @@ Runs the cloud, its database, and the backoffice on one origin, with no real mai
 2. `pnpm dev:db` — starts Postgres (`docker-compose.yml`) in the background.
 3. `pnpm dev:migrate` — builds the cloud and applies its migrations against `DATABASE_URL`.
 4. `pnpm dev:create-first-administrator --name "Your Name" --email you@example.com` — creates the first Administrator.
-5. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
-6. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
+5. `pnpm dev:load-sample-data` — fills the database with realistic, fictional sample data (products, prices, users, alerts, and more). Running it again is a no-op; `pnpm dev:clear-sample-data` removes only what it added, leaving the Administrator from step 4 untouched, and changes nothing while other data still depends on sample data. Neither runs against anything but a local database or, for loading only, staging.
+6. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
+7. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
 
-To register the first Administrator's passkey: open the backoffice, request an account-recovery link for that Administrator's email, and read the link from the cloud process's log (step 5's terminal) instead of an inbox. A real fingerprint reader or phone is not required: Chrome DevTools' WebAuthn panel (More tools → WebAuthn) can add a virtual authenticator that stands in for one.
+Sample data can also be loaded on staging on demand, once it already has its own Administrator: `railway ssh --service "Cloud Server" --environment staging -- node dist/load-sample-data.js`. Clearing it back out is local only, since staging's cloud connects as the limited `cloud_app` role, which cannot delete prices, price reviews, audit rows, or products.
+
+To register the first Administrator's passkey: open the backoffice, request an account-recovery link for that Administrator's email, and read the link from the cloud process's log (step 6's terminal) instead of an inbox. A real fingerprint reader or phone is not required: Chrome DevTools' WebAuthn panel (More tools → WebAuthn) can add a virtual authenticator that stands in for one.
 
 ## Pinned versions
 
@@ -69,6 +72,12 @@ This is the structure the repository is organized into. A part that does not fol
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says.
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
+
+## Register screens
+
+- The register has no URL: it moves between screens through declared, typed routes kept in memory. Navigating to a route that does not exist, or with a parameter that is missing or mistyped, fails to type-check.
+- Every screen is reached through its own route, declared in the renderer's router under the root route and added to its route tree, with the screen as the route's component.
+- A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
 
 ## Testing
 
