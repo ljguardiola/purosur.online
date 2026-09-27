@@ -196,9 +196,11 @@ const MIXED_32_CHAR_VALUE = ["re_Q7wX2kLp", "9Vt4ZbN8", "sR3mYc6H", "dJ1fGa"].jo
 
 function workflowSecretNames() {
   const names = globSync(".github/workflows/*.{yml,yaml}", { cwd: repoRoot }).flatMap((path) =>
-    [...readFileSync(join(repoRoot, path), "utf8").matchAll(/\bsecrets\.([A-Za-z0-9_]+)/g)].map(
-      (match) => match[1],
-    ),
+    [
+      ...readFileSync(join(repoRoot, path), "utf8").matchAll(
+        /\bsecrets(?:\.([A-Za-z0-9_]+)|\[\s*['"]([A-Za-z0-9_]+)['"]\s*\])/g,
+      ),
+    ].map((match) => match[1] ?? match[2]),
   );
   return [...new Set(names)].filter((name) => name !== "GITHUB_TOKEN").sort();
 }
