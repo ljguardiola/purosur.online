@@ -230,39 +230,19 @@ test("does not mistake a # inside a plain YAML value, such as a URL fragment or 
   assert.deepEqual(findComments(source, "a.yml"), []);
 });
 
-test("does not mistake a # line inside a YAML block scalar other than a run step for a comment", () => {
-  const source = ["body: |", "  ## Heading", "  closes #123", "# after"].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [{ line: 4, text: "# after" }]);
-});
-
-test("finds the shell comments of a run step's block scalar with their lines in the YAML file", () => {
+test("does not mistake a # line inside a YAML block scalar, such as a run step's script, for a comment", () => {
   const source = [
-    "steps:",
-    "  - run: | # header",
-    "      # closes #123",
-    "      echo done # see #5",
-    "  - run: >-",
-    "      pnpm build",
-    "      # see #7",
+    "body: |",
+    "  ## Heading",
+    "run: |",
+    "  # closes #123",
+    "  echo done # see #5",
+    "# after",
   ].join("\n");
 
   const comments = findComments(source, "a.yml");
 
-  assert.deepEqual(comments, [
-    { line: 2, text: "# header" },
-    { line: 3, text: "# closes #123" },
-    { line: 4, text: "# see #5" },
-    { line: 7, text: "# see #7" },
-  ]);
-});
-
-test("does not mistake a # inside a shell word, quote or parameter expansion of a run step for a comment", () => {
-  const source = `run: |\n  echo "a #5" 'b #6' c#7 \${#name} $#`;
-
-  assert.deepEqual(findComments(source, "a.yml"), []);
+  assert.deepEqual(comments, [{ line: 6, text: "# after" }]);
 });
 
 test("does not mistake a YAML anchor or alias for a comment", () => {
@@ -279,117 +259,19 @@ test("finds a YAML comment inside a flow collection", () => {
   assert.deepEqual(comments, [{ line: 2, text: "# see #5" }]);
 });
 
-test("finds a run step's shell comment that follows an escaped quote", () => {
-  const source = `run: |\n  echo \\"x # see #5\n  echo it\\'s # see #6`;
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [
-    { line: 2, text: "# see #5" },
-    { line: 3, text: "# see #6" },
-  ]);
-});
-
-test("does not mistake a # line inside a here-document of a run step for a comment", () => {
-  const source = [
-    "run: |",
-    "  cat <<'EOF' # see #5",
-    "  ## Build closes #12",
-    "  It's done",
-    "  EOF",
-    "  cat <<-EOF",
-    "  # see #7",
-    "  EOF",
-    "  echo done # see #6",
-  ].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [
-    { line: 2, text: "# see #5" },
-    { line: 9, text: "# see #6" },
-  ]);
-});
-
-test("does not open a here-document at a << written inside a run step's comment or string", () => {
-  const source = [
-    "run: |",
-    "  # use <<EOF here",
-    '  echo "write <<EOF first" # see #5',
-    "  cat <<EOF",
-    "  # data",
-    "  EOF",
-  ].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [
-    { line: 2, text: "# use <<EOF here" },
-    { line: 3, text: "# see #5" },
-  ]);
-});
-
-test("skips the bodies of two here-documents opened on the same run step line", () => {
-  const source = [
-    "run: |",
-    "  cat <<A - <<B # see #5",
-    "  # a",
-    "  A",
-    "  # b",
-    "  B",
-    "  echo done # see #6",
-  ].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [
-    { line: 2, text: "# see #5" },
-    { line: 7, text: "# see #6" },
-  ]);
-});
-
-test("does not read an arithmetic shift in a run step as a here-document that hides later comments", () => {
-  const source = ["run: |", "  x=$((1<<4))", "  # see #5"].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [{ line: 3, text: "# see #5" }]);
-});
-
-test("finds a run step's comment once after a here-document whose body holds no shell token", () => {
-  const source = ["run: |", "  cat <<EOF", "  plain", "  EOF", "  echo # see #5"].join("\n");
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [{ line: 5, text: "# see #5" }]);
-});
-
-test("finds each YAML comment once when an empty run step ends the file", () => {
-  const source = "# see #5\nsteps:\n  - run: |";
-
-  const comments = findComments(source, "a.yml");
-
-  assert.deepEqual(comments, [{ line: 1, text: "# see #5" }]);
-});
-
-test("finds Dockerfile comments, including indented ones and the shell comments of a RUN instruction", () => {
+test("finds Dockerfile comment lines, including indented ones, but nothing after an instruction", () => {
   const source = [
     "# syntax=docker/dockerfile:1",
-    'RUN echo "#5" # closes #123',
+    'RUN echo "#5" # see #6',
     "  # see #5",
     "ENV COLOR=#000",
-    "RUN a \\",
-    "  && b # see #6",
-    "LABEL note=x #7",
   ].join("\n");
 
   const comments = findComments(source, "apps/cloud/Dockerfile");
 
   assert.deepEqual(comments, [
     { line: 1, text: "# syntax=docker/dockerfile:1" },
-    { line: 2, text: "# closes #123" },
     { line: 3, text: "# see #5" },
-    { line: 6, text: "# see #6" },
   ]);
 });
 

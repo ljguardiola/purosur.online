@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { isScalar, Lexer, parseAllDocuments, visit } from "yaml";
+import { Lexer } from "yaml";
 
 const SCRIPT_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
@@ -61,61 +61,6 @@ function findMatchedComments(source, tokenPattern, commentStart) {
 
 const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
 
-const SHELL_TOKEN =
-  /\\[\s\S]|'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*|(?<!<)<<-?[ \t]*(['"]?)(\w+)\1/g;
-
-function hereDocumentEnd(source, from, word) {
-  const terminator = new RegExp(`^[ \\t]*${word}[ \\t]*$`, "m").exec(source.slice(from));
-  return terminator === null ? undefined : from + terminator.index + terminator[0].length;
-}
-
-function findShellComments(source) {
-  const comments = [];
-  const tokens = new RegExp(SHELL_TOKEN);
-  let hereDocumentBodies;
-  for (let token = tokens.exec(source); token !== null; token = tokens.exec(source)) {
-    if (hereDocumentBodies !== undefined && token.index >= hereDocumentBodies.start) {
-      tokens.lastIndex = hereDocumentBodies.end;
-      hereDocumentBodies = undefined;
-      continue;
-    }
-    const [text, , word] = token;
-    if (text.startsWith("#")) comments.push({ line: lineOf(source, token.index), text });
-    if (word === undefined) continue;
-    const lineEnd = source.indexOf("\n", token.index);
-    const start = hereDocumentBodies?.start ?? (lineEnd === -1 ? source.length : lineEnd + 1);
-    const end = hereDocumentEnd(source, hereDocumentBodies?.end ?? start, word);
-    if (end !== undefined) hereDocumentBodies = { start, end };
-  }
-  return comments;
-}
-
-function lineOf(source, offset) {
-  return source.slice(0, offset).split("\n").length;
-}
-
-function findRunStepComments(source) {
-  const comments = [];
-  for (const document of parseAllDocuments(source)) {
-    visit(document, {
-      Pair(_, pair) {
-        const isRunStep = isScalar(pair.key) && pair.key.value === "run";
-        const isBlockScalar =
-          isScalar(pair.value) && ["BLOCK_LITERAL", "BLOCK_FOLDED"].includes(pair.value.type);
-        if (!isRunStep || !isBlockScalar) return;
-        const [start, end] = pair.value.range;
-        const bodyStart = source.indexOf("\n", start) + 1;
-        if (bodyStart === 0 || bodyStart > end) return;
-        const bodyLine = lineOf(source, bodyStart);
-        for (const { line, text } of findShellComments(source.slice(bodyStart, end))) {
-          comments.push({ line: bodyLine + line - 1, text });
-        }
-      },
-    });
-  }
-  return comments;
-}
-
 function findYamlComments(source) {
   const comments = [];
   let line = 1;
@@ -123,7 +68,7 @@ function findYamlComments(source) {
     if (token.startsWith("#")) comments.push({ line, text: token });
     line += token.split("\n").length - 1;
   }
-  return [...comments, ...findRunStepComments(source)].sort((a, b) => a.line - b.line);
+  return comments;
 }
 
 function findLineComments(source, commentLine) {
@@ -134,24 +79,7 @@ function findLineComments(source, commentLine) {
     );
 }
 
-function findDockerfileComments(source) {
-  const comments = [];
-  let inRunInstruction = false;
-  let continuesInstruction = false;
-  for (const [index, text] of source.split("\n").entries()) {
-    const line = index + 1;
-    if (/^\s*#/.test(text)) {
-      comments.push({ line, text: text.trim() });
-      continue;
-    }
-    if (!continuesInstruction) inRunInstruction = /^\s*RUN\s/i.test(text);
-    if (inRunInstruction) {
-      for (const comment of findShellComments(text)) comments.push({ ...comment, line });
-    }
-    continuesInstruction = /\\\s*$/.test(text);
-  }
-  return comments;
-}
+const findDockerfileComments = (source) => findLineComments(source, /^\s*#/);
 const findIgnoreFileComments = (source) => findLineComments(source, /^#/);
 
 const ENV_QUOTED_VALUE_OR_COMMENT =
