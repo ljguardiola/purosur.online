@@ -17,6 +17,7 @@
     "noImplicitReturns": true,
     "noUncheckedSideEffectImports": true,
     "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {

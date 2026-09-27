@@ -93,6 +93,20 @@ const rejectedCode = [
     ].join("\n"),
     code: 7027,
   },
+  {
+    description: "an unused label",
+    source: [
+      "export function total(values: readonly number[]): number {",
+      "  let sum = 0;",
+      "  unused: for (const value of values) {",
+      "    sum += value;",
+      "  }",
+      "  return sum;",
+      "}",
+      "",
+    ].join("\n"),
+    code: 7028,
+  },
 ];
 
 for (const configPath of configPaths) {
