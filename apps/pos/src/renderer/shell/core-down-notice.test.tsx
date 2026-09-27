@@ -1,3 +1,4 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
 import { CoreDownNotice } from "./core-down-notice";
@@ -10,6 +11,8 @@ describe("CoreDownNotice", () => {
     await expect
       .element(screen.getByText("La caja vuelve a funcionar sola en unos minutos."))
       .toBeVisible();
+
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("announces itself to assistive technology as an urgent, page-level message", async () => {
