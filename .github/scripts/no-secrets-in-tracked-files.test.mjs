@@ -72,6 +72,54 @@ test("flags a secret in a tracked file that .gitignore ignores, once force-added
   });
 });
 
+test("flags a force-added binary key file that the content scan cannot read", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(dir, ".gitignore", "*.p12\n");
+    trackFile(dir, "cert.p12", Buffer.from([0x30, 0x82, 0x00, 0x00, 0xff, 0x00, 0x01, 0x02]), ["-f"]);
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.equal(violations.length, 1);
+    assert.equal(violations[0].path, "cert.p12");
+    assert.match(violations[0].message, /holds secrets and never lives in the repository/);
+  });
+});
+
+test("flags every tracked file whose name marks it as a secret carrier", async () => {
+  await withTempRepo(async (dir) => {
+    const carriers = [
+      ".env",
+      ".env.production",
+      "config/staging.env",
+      "server.key",
+      "tls/server.pem",
+      "server.crt",
+      "server.csr",
+      "cert.p12",
+      "cert.pfx",
+    ];
+    for (const carrier of carriers) trackFile(dir, carrier, "placeholder\n");
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(violations.map((violation) => violation.path).sort(), [...carriers].sort());
+  });
+});
+
+test("accepts the example environment files that document the variables", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(dir, ".env.example", "MODE=local\n");
+    trackFile(dir, "apps/cloud/cloud.env.example", "MODE=local\n");
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(violations, []);
+  });
+});
+
 test("ignores an untracked file that contains a secret", async () => {
   await withTempRepo(async (dir) => {
     writeFileSync(join(dir, "untracked.txt"), PRIVATE_KEY);
