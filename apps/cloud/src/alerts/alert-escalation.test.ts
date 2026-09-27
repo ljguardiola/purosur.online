@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
-import { alerts } from "../db/schema.js";
+import { alerts } from "../platform/db/schema.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { escalateOverdueAlerts } from "./alert-escalation.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");

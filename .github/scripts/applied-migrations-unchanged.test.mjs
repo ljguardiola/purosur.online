@@ -13,10 +13,9 @@ import {
   protectedMigrationPaths,
   readBaseBlob,
   readWorkingTreeFile,
-  resolveBaseRef,
-  resolveBaseSha,
   runGitSync,
 } from "./applied-migrations-unchanged.mjs";
+import { resolveBaseRef, resolveBaseSha } from "./change-base.mjs";
 
 function buffer(text) {
   return Buffer.from(text, "utf8");
@@ -39,7 +38,10 @@ test("treats a migration under a nested app source path as protected", () => {
 });
 
 test("does not treat a test file that merely mentions migration in its name as protected", () => {
-  assert.equal(isProtectedMigrationFile("apps/cloud/src/db/alerts-migration.test.ts"), false);
+  assert.equal(
+    isProtectedMigrationFile("apps/cloud/src/platform/db/alerts-migration.test.ts"),
+    false,
+  );
 });
 
 test("does not treat a migrations directory outside apps/<app>/ as protected", () => {
@@ -379,39 +381,6 @@ test("describes a violation as its path and reason", () => {
     describeViolation({ path: "apps/cloud/migrations/0000_x.sql", reason: "deleted" }),
     "apps/cloud/migrations/0000_x.sql: deleted",
   );
-});
-
-test("resolves the base ref from the environment when set", () => {
-  assert.equal(resolveBaseRef({ MIGRATIONS_BASE_REF: "abc123" }), "abc123");
-});
-
-test("falls back to origin/main when the base ref environment variable is unset", () => {
-  assert.equal(resolveBaseRef({}), "origin/main");
-});
-
-test("falls back to origin/main when the base ref environment variable is empty", () => {
-  assert.equal(resolveBaseRef({ MIGRATIONS_BASE_REF: "" }), "origin/main");
-});
-
-test("resolves the base sha by asking git for the merge-base with the ref", () => {
-  const calls = [];
-  const runGit = (args) => {
-    calls.push(args);
-    return buffer("deadbeef\n");
-  };
-
-  const base = resolveBaseSha({ ref: "origin/main", runGit });
-
-  assert.equal(base, "deadbeef");
-  assert.deepEqual(calls, [["merge-base", "HEAD", "origin/main"]]);
-});
-
-test("resolves to null when git cannot find the merge-base", () => {
-  const runGit = () => {
-    throw new Error("fatal: not a valid object name origin/main");
-  };
-
-  assert.equal(resolveBaseSha({ ref: "origin/main", runGit }), null);
 });
 
 test("lists the paths tracked at the base by asking git for its tree", () => {

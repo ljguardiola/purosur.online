@@ -8,19 +8,19 @@ import type { FastifyInstance } from "fastify";
 import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
-import { type BuildAppOptions, buildApp } from "./app.js";
-import { parseCuit } from "./fiscal-configuration/cuit.js";
-import { createGraphileRecoveryJobQueue } from "./recovery/graphile-recovery-job-queue.js";
-import { reportPoolErrors } from "./recovery/pool-connection-error-handler.js";
-import type { RecoveryEmailSender } from "./recovery/recovery-email-sender.js";
-import type { RecoveryJobQueue } from "./recovery/recovery-job-queue.js";
-import { type RecoveryWorkerHandle, startRecoveryWorker } from "./recovery/recovery-worker.js";
-import { runShutdownSteps } from "./recovery/run-shutdown-steps.js";
+import { createGraphileRecoveryJobQueue } from "./access/graphile-recovery-job-queue.js";
+import { reportPoolErrors } from "./access/pool-connection-error-handler.js";
+import type { RecoveryEmailSender } from "./access/recovery-email-sender.js";
+import type { RecoveryJobQueue } from "./access/recovery-job-queue.js";
+import { type RecoveryWorkerHandle, startRecoveryWorker } from "./access/recovery-worker.js";
 import {
   type RecoveryEmailSenderEnv,
   selectRecoveryEmailSender,
-} from "./recovery/select-recovery-email-sender.js";
-import { initSentry } from "./sentry.js";
+} from "./access/select-recovery-email-sender.js";
+import { type BuildAppOptions, buildApp } from "./app.js";
+import { parseCuit } from "./fiscal/cuit.js";
+import { runShutdownSteps } from "./platform/run-shutdown-steps.js";
+import { initSentry } from "./platform/sentry.js";
 
 export type { RecoveryEmailSenderEnv };
 

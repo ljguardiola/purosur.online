@@ -5,8 +5,8 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { makeWorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
-import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
-import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
+import { describeDatabaseFailure, errorCode } from "./platform/db/describe-database-failure.js";
+import { MIGRATIONS_FOLDER } from "./platform/db/migrations-folder.js";
 
 export interface RunMigrationsOptions {
   migrationsFolder?: string;

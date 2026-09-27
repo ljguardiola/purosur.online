@@ -3,13 +3,13 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import postgres from "postgres";
-import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
-import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
 import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
   waitForDatabase,
 } from "./migrate.js";
+import { describeDatabaseFailure, errorCode } from "./platform/db/describe-database-failure.js";
+import { MIGRATIONS_FOLDER } from "./platform/db/migrations-folder.js";
 
 export interface WaitForReadyOptions {
   migrationsFolder?: string;

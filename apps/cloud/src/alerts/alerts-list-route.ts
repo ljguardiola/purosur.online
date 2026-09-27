@@ -19,16 +19,16 @@ import {
 } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { alerts, users } from "../db/schema.js";
-import { checkRequestIsSameOrigin, type OpenSession } from "../session/open-session.js";
+import { FORBIDDEN_RESPONSE } from "../access/forbidden-response.js";
+import { checkRequestIsSameOrigin, type OpenSession } from "../access/open-session.js";
 import {
   OPEN_SESSION_ACCESS,
   openSessionOf,
   originGuard,
   registerRouteAccess,
   routeSessionSource,
-} from "../session/route-access.js";
-import { FORBIDDEN_RESPONSE } from "../users/forbidden-response.js";
+} from "../access/route-access.js";
+import { alerts, users } from "../platform/db/schema.js";
 import { ALERT_KIND_CATALOG, type AlertScopeKind } from "./alert-kind-catalog.js";
 import { loadScopeDisplayNames, scopeDisplay, wireScope } from "./alert-scope-display.js";
 import { canSeeAnyAlerts, visibleAlertsCondition } from "./alert-visibility.js";

@@ -1,0 +1,54 @@
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { categories } from "../platform/db/schema.js";
+import {
+  createIntegrationDatabase,
+  type IntegrationDatabase,
+} from "../test-support/integration-database.js";
+import { createCategory } from "./category-creation-route.js";
+
+// PGlite can't race two creations for the same name, so this runs on a real postgres-js pool,
+// whose driver reports the violated index as `constraint_name` rather than PGlite's `constraint`.
+let integrationDb: IntegrationDatabase;
+let sql: ReturnType<typeof postgres>;
+let db: PostgresJsDatabase<Record<string, never>>;
+
+beforeAll(async () => {
+  integrationDb = await createIntegrationDatabase("category_name_uniqueness");
+  sql = postgres(integrationDb.databaseUrl, { max: 2 });
+  db = drizzle(sql);
+}, 60_000);
+
+afterAll(async () => {
+  await sql.end({ timeout: 1 });
+  await integrationDb.close();
+});
+
+describe("creating two categories with the same name concurrently on a real Postgres through postgres-js", () => {
+  it("creates exactly one of them and reports the other as name_taken", async () => {
+    const suffix = randomUUID();
+    const name = `Semillas ${suffix}`;
+
+    const [first, second] = await Promise.all([
+      createCategory(db, { name, parentId: null }),
+      createCategory(db, { name: name.toUpperCase(), parentId: null }),
+    ]);
+
+    const outcomes = [first, second];
+    expect(outcomes.filter((outcome) => outcome.kind === "created")).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.kind === "name_taken")).toHaveLength(1);
+
+    const winner = outcomes.find((outcome) => outcome.kind === "created");
+    if (winner?.kind !== "created") {
+      throw new Error("test setup: expected one creation to have won the race");
+    }
+    const matchingCategories = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.name, winner.category.name));
+    expect(matchingCategories).toHaveLength(1);
+  });
+});

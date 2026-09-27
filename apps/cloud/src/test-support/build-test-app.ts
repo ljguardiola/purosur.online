@@ -2,7 +2,7 @@ import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { type BuildAppOptions, buildApp } from "../app.js";
-import { EDGE_ORIGIN_SECRET_HEADER } from "../edge-origin-guard.js";
+import { EDGE_ORIGIN_SECRET_HEADER } from "../platform/edge-origin-guard.js";
 
 /** Not a real secret: only ever compared against itself, inside this test helper. */
 export const TEST_EDGE_ORIGIN_SECRET = "test-edge-origin-secret";
