@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 const MIGRATIONS_DIR_SEGMENT = "migrations";
 const META_DIR_SEGMENT = "meta";
 const JOURNAL_FILE_NAME = "_journal.json";
+const REGENERATE_ON_MAIN = "regenerate the migration on top of the current main";
 
 export function isProtectedMigrationFile(path) {
   const segments = path.split("/");
@@ -43,8 +44,11 @@ function misdatedNewEntryTags(baseEntries, currentEntries) {
   const latestBaseWhen = Math.max(...baseEntries.map((entry) => entry.when));
   return currentEntries
     .slice(baseEntries.length)
-    .filter((entry) => !(typeof entry.when === "number" && entry.when > latestBaseWhen))
-    .map((entry) => entry.tag);
+    .filter(
+      (entry) =>
+        !(isPlainObject(entry) && typeof entry.when === "number" && entry.when > latestBaseWhen),
+    )
+    .map((entry) => (isPlainObject(entry) ? entry.tag : JSON.stringify(entry)));
 }
 
 function isPlainObject(value) {
@@ -71,14 +75,14 @@ export function compareJournalContents(baseBuffer, currentBuffer) {
   if (!isPrefixExtension(baseEntries, currentEntries)) {
     return {
       ok: false,
-      reason: "modified: an existing entry changed, was removed, or was reordered",
+      reason: `modified: an existing entry changed, was removed, or was reordered — keep main's entries as they are and ${REGENERATE_ON_MAIN}`,
     };
   }
   const misdatedTags = misdatedNewEntryTags(baseEntries, currentEntries);
   if (misdatedTags.length > 0) {
     return {
       ok: false,
-      reason: `new entry ${misdatedTags.join(", ")} is not dated after every entry already on main: regenerate the migration on top of the current main`,
+      reason: `new entries not dated after every entry already on main: ${misdatedTags.join(", ")} — ${REGENERATE_ON_MAIN}`,
     };
   }
   return { ok: true };

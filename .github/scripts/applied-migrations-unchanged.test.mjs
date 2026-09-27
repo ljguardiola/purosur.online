@@ -162,6 +162,44 @@ test("rejects a new journal entry without a numeric date", () => {
   assert.equal(compareJournalContents(base, current).ok, false);
 });
 
+test("tells how to fix a new journal entry placed before an entry already on main", () => {
+  const base = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 200 },
+  ]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_z", when: 150 },
+    { idx: 2, tag: "0001_y", when: 200 },
+  ]);
+
+  const result = compareJournalContents(base, current);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /regenerate the migration on top of the current main/);
+});
+
+test("rejects a new journal entry that is not an object without throwing", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 100 }]);
+  const current = journal([{ idx: 0, tag: "0000_x", when: 100 }, null]);
+
+  assert.equal(compareJournalContents(base, current).ok, false);
+});
+
+test("lists every misdated new journal entry in one reason", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 100 }]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 50 },
+    { idx: 2, tag: "0002_z", when: 60 },
+  ]);
+
+  assert.equal(
+    compareJournalContents(base, current).reason,
+    "new entries not dated after every entry already on main: 0001_y, 0002_z — regenerate the migration on top of the current main",
+  );
+});
+
 test("accepts new journal entries dated after every entry already on main", () => {
   const base = journal([
     { idx: 0, tag: "0000_x", when: 100 },
