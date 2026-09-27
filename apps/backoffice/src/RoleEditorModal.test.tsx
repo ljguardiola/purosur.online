@@ -255,6 +255,11 @@ test("opens the nested authorization modal on authorization_required, then autho
   await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
 
   await expect.element(screen.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Guardar un rol necesita tu autorización. Confirmala con tu passkey."),
+    )
+    .toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => vi.mocked(services.createRole).mock.calls.length).toBe(2);
