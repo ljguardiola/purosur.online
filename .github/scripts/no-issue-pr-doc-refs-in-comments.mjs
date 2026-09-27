@@ -61,19 +61,36 @@ function findMatchedComments(source, tokenPattern, commentStart) {
 
 const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
 
-const SHELL_COMMENT_OR_SKIPPED_TOKEN =
-  /\\[\s\S]|'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*/g;
-const HERE_DOCUMENT = /(?<!<)<<-?[ \t]*(['"]?)(\w+)\1[^\n]*\n([\s\S]*?)^([ \t]*\2[ \t]*)$/gm;
+const SHELL_TOKEN =
+  /\\[\s\S]|'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*|(?<!<)<<-?[ \t]*(['"]?)(\w+)\1/g;
 
-function blankHereDocumentBodies(source) {
-  return source.replace(HERE_DOCUMENT, (hereDocument, _quote, _word, body, terminator) => {
-    const opening = hereDocument.slice(0, hereDocument.length - body.length - terminator.length);
-    return opening + body.replace(/[^\n]/g, " ") + terminator;
-  });
+function hereDocumentEnd(source, from, word) {
+  const terminator = new RegExp(`^[ \\t]*${word}[ \\t]*$`, "m").exec(source.slice(from));
+  return terminator === null ? source.length : from + terminator.index + terminator[0].length;
 }
 
-const findShellComments = (source) =>
-  findMatchedComments(blankHereDocumentBodies(source), SHELL_COMMENT_OR_SKIPPED_TOKEN, "#");
+function findShellComments(source) {
+  const comments = [];
+  const tokens = new RegExp(SHELL_TOKEN);
+  let hereDocumentBodies;
+  for (let token = tokens.exec(source); token !== null; token = tokens.exec(source)) {
+    if (hereDocumentBodies !== undefined && token.index >= hereDocumentBodies.start) {
+      tokens.lastIndex = hereDocumentBodies.end;
+      hereDocumentBodies = undefined;
+      continue;
+    }
+    const [text, , word] = token;
+    if (text.startsWith("#")) comments.push({ line: lineOf(source, token.index), text });
+    if (word === undefined) continue;
+    const lineEnd = source.indexOf("\n", token.index);
+    const start = hereDocumentBodies?.start ?? (lineEnd === -1 ? source.length : lineEnd + 1);
+    hereDocumentBodies = {
+      start,
+      end: hereDocumentEnd(source, hereDocumentBodies?.end ?? start, word),
+    };
+  }
+  return comments;
+}
 
 function lineOf(source, offset) {
   return source.slice(0, offset).split("\n").length;

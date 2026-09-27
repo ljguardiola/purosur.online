@@ -311,6 +311,43 @@ test("does not mistake a # line inside a here-document of a run step for a comme
   ]);
 });
 
+test("does not open a here-document at a << written inside a run step's comment or string", () => {
+  const source = [
+    "run: |",
+    "  # use <<EOF here",
+    '  echo "write <<EOF first" # see #5',
+    "  cat <<EOF",
+    "  # data",
+    "  EOF",
+  ].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "# use <<EOF here" },
+    { line: 3, text: "# see #5" },
+  ]);
+});
+
+test("skips the bodies of two here-documents opened on the same run step line", () => {
+  const source = [
+    "run: |",
+    "  cat <<A - <<B # see #5",
+    "  # a",
+    "  A",
+    "  # b",
+    "  B",
+    "  echo done # see #6",
+  ].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 2, text: "# see #5" },
+    { line: 7, text: "# see #6" },
+  ]);
+});
+
 test("finds each YAML comment once when an empty run step ends the file", () => {
   const source = "# see #5\nsteps:\n  - run: |";
 
