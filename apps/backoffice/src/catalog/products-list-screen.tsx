@@ -1914,7 +1914,9 @@ export function ProductsListScreen({
     } else if (outcomes.some((outcome) => outcome.kind === "forbidden")) {
       sendToMyAccount();
     } else if (productsOutcome.kind === "ok" && categoriesOutcome.kind === "ok") {
+      const offeredIds = new Set(leafCategories(categoriesOutcome.value).map(({ id }) => id));
       setCategories(categoriesOutcome.value);
+      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
       setList({ kind: "loaded", products: productsOutcome.value });
     } else {
       setList({ kind: "loadError" });

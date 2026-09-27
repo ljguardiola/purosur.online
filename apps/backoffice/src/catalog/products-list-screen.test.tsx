@@ -362,6 +362,23 @@ test("opens with the filters and ordering it is given", async () => {
   expect(names[1]).toContain("Almendras peladas");
 });
 
+test("falls back to every category when the category it is given is not one the list offers", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey, almonds]);
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: { ...productsListFilters.parse({}), category: "deleted-category" },
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
+  expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
+});
+
 test("reports every change to its filters, so they can be kept for a reload", async () => {
   const services = createServices();
   mockLoaded(services, [honey, almonds]);

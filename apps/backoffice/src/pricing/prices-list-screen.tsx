@@ -642,7 +642,9 @@ export function PricesListScreen({
         reviewWindowDays: outcome.value.reviewWindowDays,
         refreshing: false,
       });
+      const offeredIds = new Set(outcome.value.categories.map(({ id }) => id));
       setCategories(outcome.value.categories);
+      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
     } else if (outcome.kind === "rate_limited") {

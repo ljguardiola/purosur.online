@@ -1775,6 +1775,28 @@ test("opens with the filters it is given, asking for them in its first request",
   await expect.element(screen.getByRole("button", { name: "Revisión: Todos" })).toBeVisible();
 });
 
+test("falls back to every category when the category it is given is not one the list offers", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: { products: [rice], pendingCount: 1, reviewWindowDays: 30, categories: [groceries] },
+  });
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, () => {}, NOW, {
+    filters: { ...pricesListFilters.parse({}), category: "deleted-category" },
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
+  await expect
+    .poll(() => vi.mocked(services.fetchPrices).mock.lastCall?.[0])
+    .toEqual({
+      review: "pending",
+    });
+  expect(onFiltersChange).toHaveBeenLastCalledWith(pricesListFilters.parse({}));
+});
+
 test("reports every change to its filters, so they can be kept for a reload", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
