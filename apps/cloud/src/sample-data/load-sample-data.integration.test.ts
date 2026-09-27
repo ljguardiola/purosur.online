@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
+import { ALERT_KIND_CATALOG, alertKindDefinition } from "../alerts/alert-kind-catalog.js";
 import {
   alerts,
   branchHours,
@@ -29,6 +30,12 @@ import {
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
 } from "./sample-catalog.js";
+
+const PRODUCIBLE_ALERT_LEVELS = new Set(
+  ALERT_KIND_CATALOG.flatMap((definition) =>
+    definition.escalatesAfterMs === null ? [definition.level] : [definition.level, "critical"],
+  ),
+);
 
 const NOW = new Date("2026-03-15T12:00:00.000Z");
 
@@ -110,7 +117,7 @@ describe("loadSampleData", () => {
     expect(await tableCount(db, "products")).toBe(0);
   });
 
-  it("loads users, roles, a category tree, products, prices, registers, branch settings and alerts of every level, and a second run changes nothing", async () => {
+  it("loads users, roles, a category tree, products, prices, registers, branch settings and open and closed alerts of every level the alert catalog produces, and a second run changes nothing", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
@@ -179,7 +186,7 @@ describe("loadSampleData", () => {
     expect(sundayHours.length).toBe(0);
 
     const alertRows = await db.select().from(alerts);
-    for (const level of ["informational", "warning", "critical"] as const) {
+    for (const level of PRODUCIBLE_ALERT_LEVELS) {
       const ofLevel = alertRows.filter((alert) => alert.level === level);
       expect(ofLevel.some((alert) => alert.resolvedAt === null)).toBe(true);
       expect(ofLevel.some((alert) => alert.resolvedAt !== null)).toBe(true);
@@ -249,7 +256,7 @@ describe("loadSampleData", () => {
       .from(branchHours);
     expect(hoursRows).toEqual([{ dayOfWeek: 3, opensAt: "10:00:00" }]);
   }, 120_000);
-  it("writes every sample alert with a catalog kind and the detail shape its real producer writes", async () => {
+  it("writes every sample alert with a catalog kind, the level that kind reaches, and the detail shape its real producer writes", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
@@ -261,7 +268,12 @@ describe("loadSampleData", () => {
     const alertRows = await db.select().from(alerts);
 
     for (const alert of alertRows) {
-      expect(isAlertKind(alert.kind)).toBe(true);
+      if (!isAlertKind(alert.kind)) {
+        throw new Error(`alert kind ${alert.kind} is not in the alert catalog`);
+      }
+      const definition = alertKindDefinition(alert.kind);
+      const escalated = alert.escalatedAt !== null && definition.escalatesAfterMs !== null;
+      expect(alert.level).toBe(escalated ? "critical" : definition.level);
     }
     const lockoutAlerts = alertRows.filter((alert) => alert.kind === "backoffice_sign_in_lockout");
     expect(lockoutAlerts.length).toBeGreaterThan(0);

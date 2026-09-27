@@ -2,18 +2,10 @@ import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
-import { openAlert, type PasskeyChangedDetail, recipientsFor } from "../alerts/open-alert.js";
+import { openAlert } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch-settings/branch-settings-edit-route.js";
 import { createCategory } from "../categories/category-creation-route.js";
-import {
-  alertDeliveries,
-  alerts,
-  branchSettings,
-  locations,
-  roles,
-  userRoles,
-  users,
-} from "../db/schema.js";
+import { branchSettings, locations, roles, userRoles, users } from "../db/schema.js";
 import { branchPriceListId } from "../prices/branch-price-list.js";
 import { confirmPrice } from "../prices/price-confirmation-route.js";
 import { setPrice } from "../prices/price-set-route.js";
@@ -32,7 +24,6 @@ import {
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
-  SAMPLE_PASSKEY_NAMES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   sampleEmail,
@@ -360,60 +351,6 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         { now: deps.now },
       );
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
-
-      const informationalRecipients = await recipientsFor(tx, "all", undefined);
-      async function openInformationalAlert(
-        scope: string,
-        detail: PasskeyChangedDetail,
-      ): Promise<string> {
-        const [row] = await tx
-          .insert(alerts)
-          .values({
-            kind: "backoffice_passkey_changed",
-            scope,
-            level: "informational",
-            audience: "all",
-            locationId: null,
-            detail,
-            openedAt: deps.now(),
-          })
-          .returning({ id: alerts.id });
-        if (!row) {
-          throw new Error("sample-data: inserting the informational alert returned no row");
-        }
-        if (informationalRecipients.length > 0) {
-          await tx.insert(alertDeliveries).values(
-            informationalRecipients.map((recipientUserId) => ({
-              alertId: row.id,
-              recipientUserId,
-              channel: "backoffice" as const,
-              status: "sent" as const,
-            })),
-          );
-        }
-        return row.id;
-      }
-
-      const informationalOpenTargetId = sampleUserIdsInOrder[4] ?? emailChangedTargetId;
-      const informationalClosedTargetId = sampleUserIdsInOrder[6] ?? recoveryRequestedTargetId;
-      await openInformationalAlert(informationalOpenTargetId, {
-        action: "registered",
-        passkeyName: SAMPLE_PASSKEY_NAMES.registered,
-        actorId: informationalOpenTargetId,
-        via: "self",
-      });
-      const informationalToCloseId = await openInformationalAlert(informationalClosedTargetId, {
-        action: "removed",
-        passkeyName: SAMPLE_PASSKEY_NAMES.removed,
-        actorId,
-        via: "administrator",
-      });
-      const closedInformationalOutcome = await closeAlert(
-        tx,
-        { id: informationalToCloseId, actorId },
-        { now: deps.now },
-      );
-      expectOutcome(closedInformationalOutcome, "closed", "closing the informational alert");
 
       return {
         kind: "loaded",

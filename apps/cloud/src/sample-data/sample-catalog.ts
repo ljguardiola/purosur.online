@@ -475,8 +475,3 @@ export const SAMPLE_LOCKOUT_SOURCE_ADDRESSES = {
   keptOpen: "203.0.113.10",
   closed: "203.0.113.20",
 } as const;
-
-export const SAMPLE_PASSKEY_NAMES = {
-  registered: "Teléfono de muestra",
-  removed: "Llave de seguridad de muestra",
-} as const;
