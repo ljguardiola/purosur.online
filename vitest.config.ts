@@ -15,12 +15,11 @@ process.env["TZ"] = "UTC";
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
-    alias: {
-      "@purosur/domain": r("./packages/domain/src/index.ts"),
-      "@purosur/contracts": r("./packages/contracts/src/index.ts"),
-      "@purosur/ui/test": r("./packages/ui/src/test/index.ts"),
-      "@purosur/ui": r("./packages/ui/src/index.ts"),
-    },
+    alias: [
+      { find: /^@purosur\/domain$/, replacement: r("./packages/domain/src/index.ts") },
+      { find: /^@purosur\/contracts$/, replacement: r("./packages/contracts/src/index.ts") },
+      { find: /^@purosur\/ui$/, replacement: r("./packages/ui/src/index.ts") },
+    ],
   },
   test: {
     passWithNoTests: true,
