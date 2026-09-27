@@ -746,6 +746,23 @@ for (const [script, expected] of [
   ["ls env: | Sort-Object Name", DUMPS],
   ["Set-PSDebug -Trace 1", TRACES],
   ["set-psdebug -trace 2", TRACES],
+  ["Write-Warning $env:TOKEN", PRINTS],
+  ["Write-Error $env:TOKEN", PRINTS],
+  ["Write-Warning $env:TOKEN > out.txt", PRINTS],
+  ["Write-Error $env:TOKEN | Out-Null", PRINTS],
+  ["$env:TOKEN | Write-Host", PRINTS],
+  ['"$env:TOKEN" | Write-Output', PRINTS],
+  ["$env:TOKEN | Sort-Object | Write-Host > out.txt", PRINTS],
+  ["Get-ChildItem env:TOKEN", PRINTS],
+  ["Get-Item env:TOKEN", PRINTS],
+  ["Get-Content env:TOKEN", PRINTS],
+  ["(Get-Item env:TOKEN).Value", PRINTS],
+  ["Write-Host (Get-Item env:TOKEN).Value", PRINTS],
+  ["gci Env:TOKEN", PRINTS],
+  ["gi env:token", PRINTS],
+  ["gc ENV:TOKEN", PRINTS],
+  ["dir env:\\TOKEN", PRINTS],
+  ["ls env:TOKEN | Format-List", PRINTS],
 ]) {
   test(`flags a PowerShell step on a Windows runner: ${script}`, () => {
     assertFlagsOnly(messagesOfJobStep(script), expected);
@@ -767,6 +784,16 @@ for (const script of [
   "$env:TOKEN = 'rotated'",
   "echo $TOKEN",
   "set -x",
+  "Write-Warning $env:TOKEN 3> $null",
+  "Write-Error $env:TOKEN 2> err.txt",
+  "Write-Warning $env:TOKEN *> $null",
+  "$env:TOKEN | Write-Host 6> $null",
+  "$env:TOKEN | Write-Output > out.txt",
+  "Get-Content env:TOKEN > out.txt",
+  "Get-Item env:TOKEN | Out-Null",
+  "$value = (Get-Item env:TOKEN).Value",
+  "Remove-Item env:TOKEN",
+  "Get-Item env:TOKENS",
 ]) {
   test(`does not flag a PowerShell step on a Windows runner: ${script}`, () => {
     assert.deepEqual(messagesOfJobStep(script), []);

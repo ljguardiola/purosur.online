@@ -459,8 +459,15 @@ const PWSH_PRINT_COMMANDS = new Set([
   "write-host",
   "write-output",
   "write-information",
+  "write-warning",
+  "write-error",
 ]);
-const PWSH_HOST_STREAM_COMMANDS = new Set(["write-host", "write-information"]);
+const PWSH_SIDE_STREAM_COMMANDS = new Map([
+  ["write-host", "6"],
+  ["write-information", "6"],
+  ["write-warning", "3"],
+  ["write-error", "2"],
+]);
 const PWSH_PASS_THROUGH_COMMANDS = new Set([
   "sort-object",
   "sort",
@@ -478,6 +485,15 @@ const PWSH_PASS_THROUGH_COMMANDS = new Set([
   "tee",
 ]);
 const PWSH_ENV_LISTING_COMMANDS = new Set(["get-childitem", "gci", "dir", "ls"]);
+const PWSH_ENV_ITEM_COMMANDS = new Set([
+  ...PWSH_ENV_LISTING_COMMANDS,
+  "get-item",
+  "gi",
+  "get-content",
+  "gc",
+  "cat",
+  "type",
+]);
 const PWSH_ASSIGNMENT_RE = /^\$[^\s"'=]*\s*[-+*/%?]?=(?!=)/;
 
 function pwshNameOf(command) {
@@ -485,25 +501,31 @@ function pwshNameOf(command) {
 }
 
 function pwshReachesLog(stages, index) {
-  const { command, redirects } = stages[index];
-  // Write-Host and Write-Information write to PowerShell's information stream (6), which neither
-  // a pipe nor a > redirect of the output stream captures.
-  if (command && PWSH_HOST_STREAM_COMMANDS.has(pwshNameOf(command))) {
-    return !redirects.some(({ fd }) => fd === "*" || fd === "6");
+  for (const [offset, stage] of stages.slice(index).entries()) {
+    const name = stage.command && pwshNameOf(stage.command);
+    // Write-Host and Write-Information write to PowerShell's information stream (6), Write-Warning
+    // to its warning stream (3) and Write-Error to its error stream (2); neither a pipe nor a >
+    // redirect of the output stream captures those.
+    const sideStream = PWSH_SIDE_STREAM_COMMANDS.get(name);
+    if (sideStream) return !stage.redirects.some(({ fd }) => fd === "*" || fd === sideStream);
+    if (stdoutRedirectedAway(stage)) return false;
+    const passesOn = PWSH_PASS_THROUGH_COMMANDS.has(name) || PWSH_PRINT_COMMANDS.has(name);
+    if (offset > 0 && !passesOn) return false;
   }
-  return (
-    stages.slice(index).every((stage) => !stdoutRedirectedAway(stage)) &&
-    stages
-      .slice(index + 1)
-      .every(({ command }) => command && PWSH_PASS_THROUGH_COMMANDS.has(pwshNameOf(command)))
-  );
+  return true;
 }
 
 function pwshStagePrintsName({ command }, name) {
   if (!command) return false;
   const text = [command.raw, ...command.args.map((arg) => arg.raw)].join(" ");
-  if (!new RegExp(`\\$\\{?env:${escapeRegExp(name)}\\b`, "i").test(text)) return false;
-  if (PWSH_PRINT_COMMANDS.has(pwshNameOf(command))) return !/::add-mask::/.test(text);
+  const providerPath = new RegExp(`^env:[\\\\/]?${escapeRegExp(name)}$`, "i");
+  const readsName =
+    new RegExp(`\\$\\{?env:${escapeRegExp(name)}\\b`, "i").test(text) ||
+    command.args.some((arg) => providerPath.test(arg.text));
+  if (!readsName) return false;
+  const commandName = pwshNameOf(command);
+  if (PWSH_PRINT_COMMANDS.has(commandName)) return !/::add-mask::/.test(text);
+  if (PWSH_ENV_ITEM_COMMANDS.has(commandName)) return true;
   return /^["$]/.test(command.raw) && !PWSH_ASSIGNMENT_RE.test(text);
 }
 
