@@ -27,7 +27,7 @@ on:
       - .github/scripts/same-app-code.mjs
       - .github/scripts/app-code-hash.mjs
 
-# A new push to a pull request supersedes the run still going for its previous push. Runs on main
+# On `pull_request`, a new push supersedes the run still going for its previous push. Runs on main
 # get a group of their own per commit, so they are never cancelled or replaced.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
