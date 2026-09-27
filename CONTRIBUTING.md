@@ -101,6 +101,10 @@ CI is the only thing that allows a merge: the `pr-contract` and `verify` checks 
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
 
+A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
+
+`pnpm verify` scans every tracked file for secrets. When it finds one in CI, the secret has already reached GitHub: revoke and rotate it, don't only remove it.
+
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
 ## Releases
@@ -114,14 +118,3 @@ These settings live in GitHub's UI and are not expressed by `.github/rulesets/ma
 - Default squash commit message: use the pull request title.
 - Automatically delete head branches after merge.
 - First run: apply the repository's labels once with `gh workflow run sync-labels.yml`, so the labels declared in `.github/labels.json` (the four `type:` labels and `invalid-format`) exist before the first issue is filed.
-
-## Repository visibility
-
-The repository may be public or private, and every check above holds either way. The owner's account is on GitHub Pro. Switching visibility changes this:
-
-- **Secret detection.** GitHub's secret scanning and push protection run only while the repository is public. `pnpm verify` scans every file git tracks for secrets in both cases, but in CI it runs after the push: while private, a secret it finds there has already reached GitHub and must be revoked, not only removed.
-- **Actions logs.** Anyone can read them while public; only collaborators while private. GitHub masks secrets in them but prints configuration variables in clear, including in the `env:` and `with:` values it lists for every step. A configuration variable therefore holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
-- **Actions minutes and storage.** Free while public. While private, runs draw on the plan's monthly minutes, Windows runners (the register's packaging) count double, and workflow artifacts and a private container image count against the plan's storage; runs and uploads are blocked once either runs out unless a payment method is set.
-- **Branch protection and environments.** The `main` ruleset and the `staging`/`production` environments with their secrets and branch policies keep working while private only because of GitHub Pro. Required reviewers and wait timers on an environment would not: they are public-only on this plan.
-- **Container image.** The cloud's image in GitHub Container Registry has its own visibility, which does not follow the repository's; change it separately. Railway pulls it with its own token, so deploys work either way.
-- **Outside contributions.** Interaction limits and the collaborators-only pull request setting only matter while public; the interaction limit expires and has to be renewed.
