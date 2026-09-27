@@ -118,26 +118,17 @@ type ListState =
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
 
-const HEADING = "Productos";
-const RETRY_LABEL = "Reintentar";
-const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
-const TRY_AGAIN_DETAIL = "Probá de nuevo.";
-const CANCEL_LABEL = "Cancelar";
-const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
 const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
-const PRODUCT_CATEGORY_LABEL = "Categoría";
 const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
 // Only reachable by a race: the category gains a subcategory of its own between loading this
 // form and submitting it.
 const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
   `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
 const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
-const PRODUCT_UNIT_LABEL = "Unidad de venta";
 const SALE_UNIT_OPTION_CONTENT = {
   UNIT: { title: "Por unidad", helpText: "Se vende de a uno" },
   KG: { title: "Por peso", helpText: "Se pesa en la balanza" },
 } satisfies Record<ProductSaleUnit, { title: string; helpText: string }>;
-const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
 const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
 const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
 const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
@@ -147,8 +138,6 @@ const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.
 const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
 const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
   "No se pudo generar el código interno. Probá de nuevo.";
-const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
-const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
 const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
 
 function barcodeTakenText(params: { codes: string[] }): string {
@@ -346,7 +335,7 @@ function BarcodeChips({
               className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
             >
               <ScanBarcode className="size-[1.125rem] shrink-0" />
-              <span className="truncate">{PRODUCT_SCAN_INPUT_LABEL}</span>
+              <span className="truncate">Escanear otro código</span>
             </span>
           )}
           <input
@@ -356,7 +345,7 @@ function BarcodeChips({
             onKeyDown={onScanKeyDown}
             onFocus={() => setScanFocused(true)}
             onBlur={() => setScanFocused(false)}
-            aria-label={PRODUCT_SCAN_INPUT_LABEL}
+            aria-label="Escanear otro código"
             aria-invalid={describedBy ? true : undefined}
             aria-describedby={describedBy || undefined}
           />
@@ -771,7 +760,7 @@ function NewProductModal({
       width="standard"
       tone="info"
       icon={<PackagePlus />}
-      context={PRODUCT_MODAL_EYEBROW}
+      context="Catálogo · Productos"
       title="Nuevo producto"
       closable
       footer={
@@ -783,7 +772,7 @@ function NewProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -804,14 +793,14 @@ function NewProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo crear el producto"
-            detail={TRY_AGAIN_DETAIL}
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={RATE_LIMITED_TITLE}
+            title="Demasiadas solicitudes"
             detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
@@ -830,7 +819,7 @@ function NewProductModal({
         />
         {categoryOptions ? (
           <Select
-            label={PRODUCT_CATEGORY_LABEL}
+            label="Categoría"
             placeholder="Elegí una categoría"
             options={categoryOptions}
             value={categoryId}
@@ -842,14 +831,14 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <FieldGroup label={PRODUCT_CATEGORY_LABEL} required>
+          <FieldGroup label="Categoría" required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
           </FieldGroup>
         )}
         <QuantityUnitField
-          label={PRODUCT_NET_CONTENT_LABEL}
+          label="Contenido neto"
           quantity={netContentQuantity}
           onQuantityChange={(value) => {
             setNetContentQuantity(value);
@@ -862,12 +851,12 @@ function NewProductModal({
           unit={netContentUnit}
           onUnitChange={setNetContentUnit}
           options={NET_CONTENT_UNIT_OPTIONS}
-          unitLabel={PRODUCT_NET_CONTENT_UNIT_LABEL}
+          unitLabel="Unidad"
           {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
         />
-        <FieldGroup label={PRODUCT_UNIT_LABEL} required>
+        <FieldGroup label="Unidad de venta" required>
           <OptionCardGroup
-            label={PRODUCT_UNIT_LABEL}
+            label="Unidad de venta"
             options={[
               {
                 value: "UNIT",
@@ -1145,7 +1134,7 @@ function EditProductModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={PRODUCT_MODAL_EYEBROW}
+      context="Catálogo · Productos"
       title={title}
       closable
       footer={
@@ -1157,7 +1146,7 @@ function EditProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           {offersReload ? (
             <Button
@@ -1192,14 +1181,14 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail={TRY_AGAIN_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
@@ -1223,7 +1212,7 @@ function EditProductModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail={TRY_AGAIN_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           <TextField
@@ -1241,7 +1230,7 @@ function EditProductModal({
           />
           {categoryOptions ? (
             <Select
-              label={PRODUCT_CATEGORY_LABEL}
+              label="Categoría"
               options={categoryOptions}
               value={categoryId}
               onChange={(value) => {
@@ -1252,14 +1241,14 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <FieldGroup label={PRODUCT_CATEGORY_LABEL} required>
+            <FieldGroup label="Categoría" required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
             </FieldGroup>
           )}
           <QuantityUnitField
-            label={PRODUCT_NET_CONTENT_LABEL}
+            label="Contenido neto"
             quantity={netContentQuantity}
             onQuantityChange={(value) => {
               setNetContentQuantity(value);
@@ -1272,12 +1261,12 @@ function EditProductModal({
             unit={netContentUnit}
             onUnitChange={setNetContentUnit}
             options={NET_CONTENT_UNIT_OPTIONS}
-            unitLabel={PRODUCT_NET_CONTENT_UNIT_LABEL}
+            unitLabel="Unidad"
             {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
           />
-          <FieldGroup label={PRODUCT_UNIT_LABEL} required>
+          <FieldGroup label="Unidad de venta" required>
             <OptionCardGroup
-              label={PRODUCT_UNIT_LABEL}
+              label="Unidad de venta"
               options={[
                 {
                   value: "UNIT",
@@ -1415,7 +1404,7 @@ function DeactivateProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           {alreadyGone ? (
             <Button
@@ -1453,7 +1442,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo desactivar el producto"
-            detail={TRY_AGAIN_DETAIL}
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyInactive" && (
@@ -1463,7 +1452,7 @@ function DeactivateProductModal({
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={RATE_LIMITED_TITLE}
+            title="Demasiadas solicitudes"
             detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
@@ -1692,13 +1681,13 @@ function PrintLabelsModal({
       width="standard"
       tone="info"
       icon={<Printer />}
-      context={PRODUCT_MODAL_EYEBROW}
+      context="Catálogo · Productos"
       title="Imprimir etiquetas"
       closable
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -1719,14 +1708,14 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo generar la hoja"
-            detail={TRY_AGAIN_DETAIL}
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={RATE_LIMITED_TITLE}
+            title="Demasiadas solicitudes"
             detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
@@ -1743,7 +1732,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo recargar la lista"
-            detail={TRY_AGAIN_DETAIL}
+            detail="Probá de nuevo."
           />
         )}
         {offersReload && (
@@ -2004,7 +1993,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{HEADING}</h1>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Productos</h1>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -2032,7 +2021,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -2041,11 +2030,11 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -2081,7 +2070,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
               />
             </div>
             <Table
-              aria-label={HEADING}
+              aria-label="Productos"
               columns={columns}
               sort={sort}
               onSortChange={setSort}

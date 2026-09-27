@@ -32,10 +32,6 @@ import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
 
-const ADMINISTRATOR_ROLE_NAME = "Administrador";
-const RETRY_LABEL = "Reintentar";
-const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
-
 export type RoleEditorRequest =
   | { kind: "new" }
   | { kind: "edit"; roleId: string }
@@ -82,7 +78,7 @@ type FormNotice =
   | { kind: "reloadFailed" };
 
 function sourceDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
+  return role.isAdministrator ? "Administrador" : (role.name ?? "");
 }
 
 type RoleSaveConfirmationModalProps = {
@@ -462,7 +458,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudo guardar el rol"
-                  detail={ATTEMPT_FAILED_DETAIL}
+                  detail="Probá de nuevo."
                 />
               )}
               {notice?.kind === "rateLimited" && (
@@ -486,7 +482,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<TriangleAlert />}
                   title="No se pudieron recargar los datos"
-                  detail={ATTEMPT_FAILED_DETAIL}
+                  detail="Probá de nuevo."
                 />
               )}
               {offersReload && (
@@ -515,7 +511,7 @@ export function RoleEditorModal({
                     variant="secondary"
                     onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
                   >
-                    {RETRY_LABEL}
+                    Reintentar
                   </Button>
                 </>
               )}
@@ -531,7 +527,7 @@ export function RoleEditorModal({
                     variant="secondary"
                     onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
                   >
-                    {RETRY_LABEL}
+                    Reintentar
                   </Button>
                 </>
               )}

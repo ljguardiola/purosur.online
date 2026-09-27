@@ -71,11 +71,6 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: Passkey[] };
 
-const CANCEL_LABEL = "Cancelar";
-const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
-const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
-const RETRY_LABEL = "Reintentar";
-
 type RegisterPasskeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -207,7 +202,7 @@ function RegisterPasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -228,14 +223,14 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo registrar la passkey"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
@@ -354,7 +349,7 @@ function RemovePasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -383,14 +378,14 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail={ATTEMPT_FAILED_DETAIL}
+                detail="Probá de nuevo."
               />
             )}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={RATE_LIMITED_TITLE}
+                title="Demasiadas solicitudes"
                 detail={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
@@ -492,7 +487,7 @@ export function MyAccountScreen({
                 detail="Probá de nuevo en unos minutos."
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {RETRY_LABEL}
+                Reintentar
               </Button>
             </>
           )}
@@ -501,11 +496,11 @@ export function MyAccountScreen({
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={RATE_LIMITED_TITLE}
+                title="Demasiadas solicitudes"
                 detail={retryAfterDetail(list.retryAfterSeconds)}
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {RETRY_LABEL}
+                Reintentar
               </Button>
             </>
           )}

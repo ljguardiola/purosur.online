@@ -183,8 +183,6 @@ type SessionState =
       expiresAt?: string;
     };
 
-const AREA_RAIL_LABEL = "Áreas";
-
 function accessOf(session: Extract<SessionState, { kind: "signed-in" }>): BackofficeAccess {
   return { isAdministrator: session.isAdministrator, permissions: session.permissions };
 }
@@ -283,7 +281,7 @@ function HelpApp({
 
   return (
     <Shell
-      areaRailLabel={AREA_RAIL_LABEL}
+      areaRailLabel="Áreas"
       sectionColumnLabel="Secciones de ayuda"
       railAreas={
         <>
@@ -390,7 +388,7 @@ function SettingsApp({
 
   return (
     <Shell
-      areaRailLabel={AREA_RAIL_LABEL}
+      areaRailLabel="Áreas"
       sectionColumnLabel="Configuración"
       railAreas={
         <>
@@ -556,7 +554,7 @@ function CatalogApp({
 
   return (
     <Shell
-      areaRailLabel={AREA_RAIL_LABEL}
+      areaRailLabel="Áreas"
       sectionColumnLabel="Catálogo"
       railAreas={
         <>
@@ -656,7 +654,7 @@ function CashApp({
 
   return (
     <Shell
-      areaRailLabel={AREA_RAIL_LABEL}
+      areaRailLabel="Áreas"
       sectionColumnLabel="Caja y fiscal"
       railAreas={
         <>
@@ -733,7 +731,7 @@ function InicioApp({
 
   return (
     <Shell
-      areaRailLabel={AREA_RAIL_LABEL}
+      areaRailLabel="Áreas"
       sectionColumnLabel="Inicio"
       railAreas={
         <>

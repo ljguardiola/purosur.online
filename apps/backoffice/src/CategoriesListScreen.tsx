@@ -58,15 +58,8 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; categories: CategorySummary[] };
 
-const HEADING = "Categorías";
-const RETRY_LABEL = "Reintentar";
-const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
-const CANCEL_LABEL = "Cancelar";
 const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
 const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
-const CATEGORY_PARENT_LABEL = "Categoría superior";
-const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
-const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
 
 function nameTakenUnderParentError(params: { name: string; parent: string }): string {
@@ -131,7 +124,11 @@ function NewCategoryModal({
     }
   }, [isOpen]);
 
-  const parentOptions = parentSelectOptions(categories, new Set(), CATEGORY_PARENT_NONE_OPTION);
+  const parentOptions = parentSelectOptions(
+    categories,
+    new Set(),
+    "Ninguna (categoría de primer nivel)",
+  );
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -217,7 +214,7 @@ function NewCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -245,7 +242,7 @@ function NewCategoryModal({
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={RATE_LIMITED_TITLE}
+            title="Demasiadas solicitudes"
             detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
@@ -263,7 +260,7 @@ function NewCategoryModal({
           {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
         />
         <Select
-          label={CATEGORY_PARENT_LABEL}
+          label="Categoría superior"
           options={parentOptions}
           value={parentValue}
           onChange={(value) => {
@@ -272,7 +269,7 @@ function NewCategoryModal({
           }}
           {...(parentError
             ? { invalid: true, errorMessage: parentError }
-            : { helperText: CATEGORY_PARENT_HINT })}
+            : { helperText: "Opcional. Vacío para una categoría de primer nivel." })}
         />
       </div>
     </Modal>
@@ -332,7 +329,11 @@ function EditCategoryModal({
   }, [isOpen, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
-  const parentOptions = parentSelectOptions(categories, excludeIds, CATEGORY_PARENT_NONE_OPTION);
+  const parentOptions = parentSelectOptions(
+    categories,
+    excludeIds,
+    "Ninguna (categoría de primer nivel)",
+  );
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -483,7 +484,7 @@ function EditCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {CANCEL_LABEL}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -512,7 +513,7 @@ function EditCategoryModal({
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
@@ -563,7 +564,7 @@ function EditCategoryModal({
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
           <Select
-            label={CATEGORY_PARENT_LABEL}
+            label="Categoría superior"
             options={parentOptions}
             value={parentValue}
             onChange={(value) => {
@@ -572,7 +573,7 @@ function EditCategoryModal({
             }}
             {...(parentError
               ? { invalid: true, errorMessage: parentError }
-              : { helperText: CATEGORY_PARENT_HINT })}
+              : { helperText: "Opcional. Vacío para una categoría de primer nivel." })}
           />
         </div>
       )}
@@ -664,7 +665,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{HEADING}</h1>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Categorías</h1>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
               Nueva categoría
@@ -682,7 +683,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -691,11 +692,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -711,7 +712,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
               />
             </div>
             <Table
-              aria-label={HEADING}
+              aria-label="Categorías"
               columns={columns}
               sort={sort}
               onSortChange={setSort}

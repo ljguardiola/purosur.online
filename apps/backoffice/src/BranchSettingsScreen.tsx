@@ -73,7 +73,6 @@ type FormValues = Record<TextFieldName, string> &
   Record<BranchDay, DayValues>;
 
 const DAYS_FIELD_ERROR = "Ingresá un número entero de 0 días o más.";
-const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 
 const DAY_LABELS = {
   monday: "Lunes",
@@ -649,7 +648,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo guardar la sucursal"
-          detail={ATTEMPT_FAILED_DETAIL}
+          detail="Probá de nuevo."
         />
       )}
       {notice?.kind === "staleVersion" && (
@@ -665,7 +664,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudieron recargar los datos"
-          detail={ATTEMPT_FAILED_DETAIL}
+          detail="Probá de nuevo."
         />
       )}
       {offersReload && (

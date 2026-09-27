@@ -58,10 +58,6 @@ type ListState =
   | { kind: "loaded"; registers: RegisterSummary[] }
   | { kind: "refreshing"; registers: RegisterSummary[] };
 
-const REGISTERS_HEADING = "Cajas registradoras";
-const RETRY_LABEL = "Reintentar";
-const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
-const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
 const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
 
@@ -224,14 +220,14 @@ function NewRegisterModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo crear la caja"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
@@ -314,14 +310,14 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo emitir el código"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
             <Button
               variant="secondary"
               icon={<RotateCcw />}
               onPress={() => onRetry(emission.register)}
             >
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -330,7 +326,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(emission.retryAfterSeconds)}
             />
             <Button
@@ -338,7 +334,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               icon={<RotateCcw />}
               onPress={() => onRetry(emission.register)}
             >
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -545,7 +541,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{REGISTERS_HEADING}</h1>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Cajas registradoras</h1>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
               Nueva caja
@@ -563,7 +559,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -572,17 +568,17 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
         {(list.kind === "loading" || list.kind === "loaded" || list.kind === "refreshing") && (
           <Table
-            aria-label={REGISTERS_HEADING}
+            aria-label="Cajas registradoras"
             columns={columns}
             loading={
               list.kind === "loading" ? "initial" : list.kind === "refreshing" ? "updating" : false

@@ -12,9 +12,6 @@ import { KeyRound } from "lucide-react";
 import type { CreateRoleFieldError, EditRoleFieldError } from "./rolesApi";
 
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
-const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
-const VIEW_ALL_ALERTS_LABEL = "Ver todas las alertas";
-const DISMISS_ALERTS_LABEL = "Cerrar alertas a mano";
 
 const AREA_LABELS = {
   cashRegister: "Caja",
@@ -75,9 +72,9 @@ const PERMISSION_LABELS = {
   close_fiscal_tasks: "Cerrar tareas fiscales",
   change_fiscal_configuration: "Cambiar la configuración fiscal",
   view_reports: "Ver reportes",
-  view_branch_alerts: VIEW_BRANCH_ALERTS_LABEL,
-  view_all_alerts: VIEW_ALL_ALERTS_LABEL,
-  dismiss_alerts_manually: DISMISS_ALERTS_LABEL,
+  view_branch_alerts: "Ver alertas del local",
+  view_all_alerts: "Ver todas las alertas",
+  dismiss_alerts_manually: "Cerrar alertas a mano",
   enroll_register_devices: "Dar de alta cajas",
   revoke_register_devices: "Revocar cajas",
   view_bitlocker_key: "Consultar la clave de BitLocker",
@@ -93,8 +90,8 @@ const ALERTS_RADIO_OPTIONS: readonly [
   { value: AlertsViewOption; label: string },
 ] = [
   { value: "none", label: "No ve alertas" },
-  { value: "view_branch_alerts", label: VIEW_BRANCH_ALERTS_LABEL },
-  { value: "view_all_alerts", label: VIEW_ALL_ALERTS_LABEL },
+  { value: "view_branch_alerts", label: "Ver alertas del local" },
+  { value: "view_all_alerts", label: "Ver todas las alertas" },
 ];
 
 function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
@@ -223,7 +220,7 @@ function AlertsAreaList({
         onChange={changeAlertsView}
       />
       <Checkbox isSelected={dismissChecked} onChange={toggleDismiss}>
-        {DISMISS_ALERTS_LABEL}
+        Cerrar alertas a mano
       </Checkbox>
     </div>
   );

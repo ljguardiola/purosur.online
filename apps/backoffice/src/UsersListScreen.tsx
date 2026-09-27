@@ -73,12 +73,9 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; users: BranchUser[] };
 
-const USERS_EYEBROW = "Configuración · Usuarios";
-const USERS_HEADING = "Usuarios";
 const NAME_REQUIRED = "Ingresá el nombre.";
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
-const RETRY_LABEL = "Reintentar";
 
 function validateName(value: string): string | undefined {
   return value.trim() ? undefined : NAME_REQUIRED;
@@ -246,7 +243,7 @@ function NewUserModal({
         width="standard"
         tone="info"
         icon={<UserPlus />}
-        context={USERS_EYEBROW}
+        context="Configuración · Usuarios"
         title="Nuevo usuario"
         closable
         footer={
@@ -492,7 +489,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{USERS_HEADING}</h1>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Usuarios</h1>
             </div>
             {access.isAdministrator && (
               <Button
@@ -517,7 +514,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -530,7 +527,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
               detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -547,7 +544,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
               </div>
             )}
             <Table
-              aria-label={USERS_HEADING}
+              aria-label="Usuarios"
               columns={columns}
               loading={list.kind === "loading" ? "initial" : false}
               rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}

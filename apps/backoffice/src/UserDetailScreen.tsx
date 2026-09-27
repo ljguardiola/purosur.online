@@ -100,13 +100,8 @@ type PasskeysState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: UserPasskey[] };
 
-const USERS_EYEBROW = "Configuración · Usuarios";
-const EMAIL_LABEL = "Correo";
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
-const CANCEL_LABEL = "Cancelar";
-const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
-const RETRY_LABEL = "Reintentar";
 
 const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
 
@@ -290,7 +285,7 @@ function EditUserModal({
         width="standard"
         tone="info"
         icon={<UserPen />}
-        context={USERS_EYEBROW}
+        context="Configuración · Usuarios"
         title={user.firstName}
         closable
         footer={
@@ -302,7 +297,7 @@ function EditUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -323,7 +318,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el cambio"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
@@ -363,7 +358,7 @@ function EditUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {(notice?.kind === "staleVersion" ||
@@ -404,7 +399,7 @@ function EditUserModal({
           )}
           <TextField
             kind="plain-text"
-            label={EMAIL_LABEL}
+            label="Correo"
             value={email}
             onChange={(value) => {
               setEmail(value);
@@ -524,7 +519,7 @@ function RemoveUserPasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -553,7 +548,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
-                detail={ATTEMPT_FAILED_DETAIL}
+                detail="Probá de nuevo."
               />
             )}
             {rateLimitedSeconds !== null && (
@@ -672,7 +667,7 @@ function DeactivateUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -695,7 +690,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo desactivar el usuario"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {rateLimitedSeconds !== null && (
@@ -809,7 +804,7 @@ function ReactivateUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {CANCEL_LABEL}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -833,7 +828,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo reactivar el usuario"
-              detail={ATTEMPT_FAILED_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {rateLimitedSeconds !== null && (
@@ -951,7 +946,7 @@ export function UserDetailScreen({
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{USERS_EYEBROW}</p>
+              <p className="text-ink-secondary text-sm">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
                 <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
                 {isInactive && <Tag tone="neutral">Inactivo</Tag>}
@@ -979,7 +974,7 @@ export function UserDetailScreen({
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -992,7 +987,7 @@ export function UserDetailScreen({
               detail={retryAfterDetail(state.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -1019,7 +1014,7 @@ export function UserDetailScreen({
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="font-bold text-ink-secondary text-sm">{EMAIL_LABEL}</p>
+                <p className="font-bold text-ink-secondary text-sm">Correo</p>
                 <p className="font-semibold text-base text-ink">{state.user.email}</p>
               </div>
             </div>
@@ -1040,7 +1035,7 @@ export function UserDetailScreen({
                   detail="Probá de nuevo en unos minutos."
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  {RETRY_LABEL}
+                  Reintentar
                 </Button>
               </>
             )}
@@ -1053,7 +1048,7 @@ export function UserDetailScreen({
                   detail={retryAfterDetail(passkeysState.retryAfterSeconds)}
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  {RETRY_LABEL}
+                  Reintentar
                 </Button>
               </>
             )}

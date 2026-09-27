@@ -33,10 +33,8 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; roles: RoleSummary[] };
 
-const ADMINISTRATOR_ROLE_NAME = "Administrador";
-
 function roleDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
+  return role.isAdministrator ? "Administrador" : (role.name ?? "");
 }
 
 function permissionsCellContent(role: RoleSummary) {
@@ -99,8 +97,6 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   ] as const;
 }
 
-const ROLES_HEADING = "Roles";
-
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
@@ -137,7 +133,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
             <p className="text-ink-secondary text-sm">Configuración</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">{ROLES_HEADING}</h1>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">Roles</h1>
           </div>
           <Button
             variant="primary"
@@ -178,7 +174,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
       )}
       {(list.kind === "loading" || list.kind === "loaded") && (
         <Table
-          aria-label={ROLES_HEADING}
+          aria-label="Roles"
           columns={columns}
           loading={list.kind === "loading" ? "initial" : false}
           rows={roles.map((role) => ({ id: role.id, item: role }))}

@@ -76,12 +76,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const NOTICE_LIFETIME_MS = 5000;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const HEADING = "Precios";
-const RETRY_LABEL = "Reintentar";
-const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
-const NO_PRICE_TO_CONFIRM_TITLE = "No hay un precio para confirmar";
-const GONE_TITLE = "Producto desactivado";
-const TRY_AGAIN_DETAIL = "Probá de nuevo.";
 const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
 const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
 
@@ -467,7 +461,7 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo guardar el precio"
-              detail={TRY_AGAIN_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "confirmFailed" && (
@@ -475,14 +469,14 @@ function PriceChangeModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo confirmar el precio"
-              detail={TRY_AGAIN_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
@@ -495,17 +489,21 @@ function PriceChangeModal({
             />
           )}
           {notice?.kind === "noPriceToConfirm" && (
-            <InlineNotice tone="error" icon={<TriangleAlert />} title={NO_PRICE_TO_CONFIRM_TITLE} />
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="No hay un precio para confirmar"
+            />
           )}
           {notice?.kind === "notFound" && (
-            <InlineNotice tone="error" icon={<TriangleAlert />} title={GONE_TITLE} />
+            <InlineNotice tone="error" icon={<TriangleAlert />} title="Producto desactivado" />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudieron recargar los datos"
-              detail={TRY_AGAIN_DETAIL}
+              detail="Probá de nuevo."
             />
           )}
           {offersReload && (
@@ -672,13 +670,13 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const reviewStartFailedNotice: ScreenNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión",
-    detail: TRY_AGAIN_DETAIL,
+    detail: "Probá de nuevo.",
   };
 
   function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
     return {
       tone: "error",
-      title: RATE_LIMITED_TITLE,
+      title: "Demasiadas solicitudes",
       detail: retryAfterDetail(retryAfterSeconds),
       retryAfterSeconds,
     };
@@ -749,7 +747,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   function goneNotice(product: PriceProduct): ScreenNotice {
     return {
       tone: "error",
-      title: GONE_TITLE,
+      title: "Producto desactivado",
       detail: `${product.name} ya no está en el catálogo.`,
     };
   }
@@ -805,7 +803,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return {
       tone: "error",
       title: `No se pudo confirmar el precio de ${item.name}`,
-      detail: TRY_AGAIN_DETAIL,
+      detail: "Probá de nuevo.",
     };
   }
 
@@ -843,7 +841,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       reloadWithCurrentFilters();
       showScreenNotice({
         tone: "error",
-        title: NO_PRICE_TO_CONFIRM_TITLE,
+        title: "No hay un precio para confirmar",
         detail: `${item.name} todavía no tiene precio.`,
       });
       return;
@@ -918,7 +916,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Catálogo</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{HEADING}</h1>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Precios</h1>
             </div>
             {pendingCount > 0 && (
               <Button
@@ -943,7 +941,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={handleRetry}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -952,11 +950,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={RATE_LIMITED_TITLE}
+              title="Demasiadas solicitudes"
               detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={handleRetry}>
-              {RETRY_LABEL}
+              Reintentar
             </Button>
           </>
         )}
@@ -995,7 +993,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               />
             </div>
             <Table
-              aria-label={HEADING}
+              aria-label="Precios"
               columns={columns}
               loading={list.kind === "loading" ? "initial" : list.refreshing ? "updating" : false}
               rows={products.map((product) => ({ id: product.id, item: product }))}
