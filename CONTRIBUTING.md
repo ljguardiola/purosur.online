@@ -122,7 +122,7 @@ No tool checks that `packages/ui` carries no screens — composed screens live i
 
 A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
 
-`pnpm verify` scans every tracked file for secrets. When it finds one in CI, the secret has already reached GitHub: revoke and rotate it, don't only remove it.
+`pnpm verify` scans every tracked file for secrets, and every line each commit of the change adds since `main`, even one a later commit removes. When it finds one in CI, the secret has already reached GitHub and stays readable in that commit: revoke and rotate it first, then rewrite the pull request's history without it or close the pull request and open a new one from a clean branch.
 
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
