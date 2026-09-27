@@ -1,3 +1,4 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -69,6 +70,8 @@ describe("RenderFailureRecovery", () => {
     await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeVisible();
     expect(reportFailure).toHaveBeenCalledTimes(3);
+
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("shows the screen again after Reintentar when it stops throwing", async () => {
