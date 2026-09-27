@@ -26,7 +26,6 @@ const componentsWithoutStoriesYet = [
   "Table",
   "TableCellText",
   "Tag",
-  "Toggle",
   "Tooltip",
 ];
 
