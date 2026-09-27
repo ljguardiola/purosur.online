@@ -1,5 +1,6 @@
 import { and, eq, inArray, like, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { postgresErrorChain } from "../db/postgres-error-chain.js";
 import {
   alertDeliveries,
   alerts,
@@ -54,22 +55,10 @@ class SampleDataClearRefusal extends Error {}
 
 const FOREIGN_KEY_VIOLATION = "23503";
 
-// postgres-js names the field `constraint_name`; PGlite names it `constraint`.
 function foreignKeyViolationConstraint(error: unknown): string | undefined {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    const { code, constraint, constraint_name } = current as {
-      code?: unknown;
-      constraint?: unknown;
-      constraint_name?: unknown;
-    };
-    if (code === FOREIGN_KEY_VIOLATION) {
-      const name = constraint_name ?? constraint;
-      return typeof name === "string" ? name : "unknown constraint";
-    }
-    current = current.cause;
-  }
-  return undefined;
+  const violation = postgresErrorChain(error).find(({ code }) => code === FOREIGN_KEY_VIOLATION);
+  if (!violation) return undefined;
+  return typeof violation.constraint === "string" ? violation.constraint : "unknown constraint";
 }
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
