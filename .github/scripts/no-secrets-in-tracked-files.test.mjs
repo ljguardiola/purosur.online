@@ -92,16 +92,17 @@ test("flags a force-added binary key file that the content scan cannot read", as
 
     assert.equal(violations.length, 1);
     assert.equal(violations[0].path, "cert.p12");
-    assert.match(violations[0].message, /holds secrets and never lives in the repository/);
+    assert.match(
+      violations[0].message,
+      /cert\.p12 file holds key or certificate material and never lives in the repository/,
+    );
   });
 });
 
-test("flags every tracked file whose name marks it as a secret carrier", async () => {
+test("flags every tracked file whose name marks it as holding secrets, keys or certificates", async () => {
   await withTempRepo(async (dir) => {
-    const carriers = [
-      ".env",
-      ".env.production",
-      "config/staging.env",
+    const environmentFiles = [".env", ".env.production", "config/staging.env"];
+    const keyOrCertificateFiles = [
       "server.key",
       "tls/server.pem",
       "server.crt",
@@ -109,12 +110,22 @@ test("flags every tracked file whose name marks it as a secret carrier", async (
       "cert.p12",
       "cert.pfx",
     ];
+    const carriers = [...environmentFiles, ...keyOrCertificateFiles];
     for (const carrier of carriers) trackFile(dir, carrier, "placeholder\n");
 
     const files = findTrackedFiles(dir);
     const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
 
     assert.deepEqual(violations.map((violation) => violation.path).sort(), [...carriers].sort());
+    for (const { path, message } of violations) {
+      assert.match(
+        message,
+        environmentFiles.includes(path)
+          ? /holds environment secrets and never lives in the repository/
+          : /holds key or certificate material and never lives in the repository/,
+        path,
+      );
+    }
   });
 });
 

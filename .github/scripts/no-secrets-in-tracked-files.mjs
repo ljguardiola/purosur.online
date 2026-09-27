@@ -4,12 +4,16 @@ import { basename, join, relative } from "node:path";
 import { createEngine } from "@secretlint/node";
 
 const CONFIG_FILE_NAME = ".secretlintrc.json";
-const SECRET_CARRIER_NAME_RE = /^(\.env(\..*)?|.*\.(env|key|pem|crt|csr|p12|pfx))$/;
-const EXAMPLE_ENV_NAME_RE = /^(\.env|.*\.env)\.example$/;
+const ENVIRONMENT_FILE_NAME_RE = /^\.env(\..*)?$|\.env$/;
+const EXAMPLE_ENVIRONMENT_FILE_NAME_RE = /\.env\.example$/;
+const KEY_OR_CERTIFICATE_FILE_NAME_RE = /\.(key|pem|crt|csr|p12|pfx)$/;
 
-function isSecretCarrier(path) {
-  const name = basename(path);
-  return SECRET_CARRIER_NAME_RE.test(name) && !EXAMPLE_ENV_NAME_RE.test(name);
+function carrierKindMessageOf(name) {
+  if (ENVIRONMENT_FILE_NAME_RE.test(name) && !EXAMPLE_ENVIRONMENT_FILE_NAME_RE.test(name)) {
+    return "holds environment secrets";
+  }
+  if (KEY_OR_CERTIFICATE_FILE_NAME_RE.test(name)) return "holds key or certificate material";
+  return null;
 }
 
 const SUPPRESSION_COMMENT_RE = /secretlint-(disable|enable)/;
@@ -30,11 +34,12 @@ function suppressionCommentViolationsOf(paths, cwd) {
 }
 
 function secretCarrierViolationsOf(paths) {
-  return paths.filter(isSecretCarrier).map((path) => ({
-    path,
-    line: 1,
-    message: `a ${basename(path)} file holds secrets and never lives in the repository`,
-  }));
+  return paths.flatMap((path) => {
+    const name = basename(path);
+    const kind = carrierKindMessageOf(name);
+    if (!kind) return [];
+    return [{ path, line: 1, message: `a ${name} file ${kind} and never lives in the repository` }];
+  });
 }
 
 export function findTrackedFiles(cwd = process.cwd()) {
