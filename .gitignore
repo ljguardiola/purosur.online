@@ -6,7 +6,6 @@ coverage/
 *.log
 .vitest/
 
-# Secrets never live in the repository. They live under ~/.config/purosur/
 *.env
 .env
 .env.*
