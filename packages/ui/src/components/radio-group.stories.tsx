@@ -8,12 +8,15 @@ import { RadioGroup, type RadioOption } from "./RadioGroup";
 
 type PaymentMethod = "cash" | "card" | "transfer";
 
-const options: [RadioOption<PaymentMethod>, RadioOption<PaymentMethod>, RadioOption<PaymentMethod>] =
-  [
-    { value: "cash", label: "Efectivo" },
-    { value: "card", label: "Tarjeta" },
-    { value: "transfer", label: "Transferencia" },
-  ];
+const options: [
+  RadioOption<PaymentMethod>,
+  RadioOption<PaymentMethod>,
+  RadioOption<PaymentMethod>,
+] = [
+  { value: "cash", label: "Efectivo" },
+  { value: "card", label: "Tarjeta" },
+  { value: "transfer", label: "Transferencia" },
+];
 
 const meta: Meta<typeof RadioGroup<PaymentMethod>> = {
   title: "Components/RadioGroup",
