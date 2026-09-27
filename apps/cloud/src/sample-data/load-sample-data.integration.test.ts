@@ -110,7 +110,7 @@ describe("loadSampleData", () => {
     expect(await tableCount(db, "products")).toBe(0);
   });
 
-  it("loads every kind of sample data the Definition of Done describes, and a second run is a no-op", async () => {
+  it("loads users, roles, a category tree, products, prices, registers, branch settings and alerts of every level, and a second run changes nothing", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
 
