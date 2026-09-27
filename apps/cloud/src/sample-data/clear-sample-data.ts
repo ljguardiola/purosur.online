@@ -25,6 +25,10 @@ import {
 } from "../db/schema.js";
 import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import {
+  BRANCH_SETTINGS_DEFAULTS,
+  branchSettingsEqualSampleValues,
+} from "./sample-branch-settings.js";
+import {
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_INFORMATIONAL_ALERT_KIND,
@@ -32,17 +36,6 @@ import {
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
 } from "./sample-catalog.js";
-
-// The schema's own column defaults (branch-settings.ts), reapplied directly since there is no
-// domain function that resets a branch's settings back to an unconfigured state.
-const BRANCH_SETTINGS_DEFAULTS = {
-  address: "",
-  whatsappNumber: "",
-  instagramHandle: "",
-  expiringLotAlertDays: 30,
-  unreviewedPriceAlertDays: 30,
-  goodConditionReturnDays: 15,
-};
 
 export interface ClearSampleDataSummary {
   users: number;
@@ -346,11 +339,13 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(registerEnrollmentCodes.registerId, sampleRegisterIds));
     await tx.delete(registers).where(inArray(registers.id, sampleRegisterIds));
 
-    await tx
-      .update(branchSettings)
-      .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })
-      .where(eq(branchSettings.locationId, location.id));
-    await tx.delete(branchHours).where(eq(branchHours.locationId, location.id));
+    if (await branchSettingsEqualSampleValues(tx, location.id)) {
+      await tx
+        .update(branchSettings)
+        .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })
+        .where(eq(branchSettings.locationId, location.id));
+      await tx.delete(branchHours).where(eq(branchHours.locationId, location.id));
+    }
 
     return {
       kind: "cleared",

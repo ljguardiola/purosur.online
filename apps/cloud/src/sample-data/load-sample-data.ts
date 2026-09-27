@@ -24,6 +24,7 @@ import { createRegister } from "../registers/register-creation-route.js";
 import { createRole } from "../roles/role-creation-route.js";
 import { createUser } from "../users/user-creation-route.js";
 import { deactivateUser } from "../users/user-deactivation-route.js";
+import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
 import {
   SAMPLE_ADMINISTRATOR,
   SAMPLE_BRANCH_SETTINGS,
@@ -259,20 +260,22 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         expectOutcome(outcome, "created", `register "${registerName}"`);
       }
 
-      const [currentBranchSettings] = await tx
-        .select({ version: branchSettings.version })
-        .from(branchSettings)
-        .where(eq(branchSettings.locationId, location.id));
-      if (!currentBranchSettings) {
-        throw new Error("sample-data: no branch settings are seeded for the location");
+      if (await branchSettingsAreAtDefaults(tx, location.id)) {
+        const [currentBranchSettings] = await tx
+          .select({ version: branchSettings.version })
+          .from(branchSettings)
+          .where(eq(branchSettings.locationId, location.id));
+        if (!currentBranchSettings) {
+          throw new Error("sample-data: no branch settings are seeded for the location");
+        }
+        const settingsOutcome = await editBranchSettings(tx, {
+          ...SAMPLE_BRANCH_SETTINGS,
+          locationId: location.id,
+          actorId,
+          version: currentBranchSettings.version,
+        });
+        expectOutcome(settingsOutcome, "applied", "the branch settings");
       }
-      const settingsOutcome = await editBranchSettings(tx, {
-        ...SAMPLE_BRANCH_SETTINGS,
-        locationId: location.id,
-        actorId,
-        version: currentBranchSettings.version,
-      });
-      expectOutcome(settingsOutcome, "applied", "the branch settings");
 
       const emailChangedTargetId = sampleUserIdsInOrder[0];
       const recoveryRequestedTargetId = sampleUserIdsInOrder[2] ?? sampleUserIdsInOrder[0];

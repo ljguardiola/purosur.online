@@ -211,4 +211,37 @@ describe("loadSampleData", () => {
       alertDeliveries: await tableCount(db, "alert_deliveries"),
     }).toEqual(beforeSecondRun);
   }, 120_000);
+  it("leaves branch settings that were already configured untouched", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    await db.update(branchSettings).set({ address: "Calle Real 1" });
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toMatchObject({
+      address: "Calle Real 1",
+      whatsappNumber: "",
+      instagramHandle: "",
+    });
+    expect(await tableCount(db, "branch_hours")).toBe(0);
+  }, 120_000);
+
+  it("leaves branch hours that were already configured untouched", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    const locationId = await seededLocationId(db);
+    await db
+      .insert(branchHours)
+      .values({ locationId, dayOfWeek: 3, position: 0, opensAt: "10:00", closesAt: "18:00" });
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
+    const hoursRows = await db
+      .select({ dayOfWeek: branchHours.dayOfWeek, opensAt: branchHours.opensAt })
+      .from(branchHours);
+    expect(hoursRows).toEqual([{ dayOfWeek: 3, opensAt: "10:00:00" }]);
+  }, 120_000);
 });

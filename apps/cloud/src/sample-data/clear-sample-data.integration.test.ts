@@ -415,4 +415,18 @@ describe("clearSampleData", () => {
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
+  it("leaves branch settings that were changed after loading untouched", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    await db.update(branchSettings).set({ address: "Calle Real 1" });
+    const [loadedSettings] = await db.select().from(branchSettings);
+    const loadedHoursCount = await tableCount(db, "branch_hours");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toEqual(loadedSettings);
+    expect(await tableCount(db, "branch_hours")).toBe(loadedHoursCount);
+  }, 120_000);
 });
