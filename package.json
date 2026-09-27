@@ -25,6 +25,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@secretlint/node": "^13.0.6",
+    "@secretlint/secretlint-rule-pattern": "^13.0.6",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/typescript-checker": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
