@@ -308,13 +308,16 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       ...samplePasskeyIds,
       ...sampleRecoveryTokenIds,
     ];
+    const resetsBranchSettings = await branchSettingsEqualSampleValues(tx, location.id);
     await tx
       .delete(auditLog)
       .where(
-        or(
-          inArray(auditLog.entityId, sampleEntityIds),
-          and(eq(auditLog.entity, "branch_settings"), inArray(auditLog.actorId, sampleUserIds)),
-        ),
+        resetsBranchSettings
+          ? or(
+              inArray(auditLog.entityId, sampleEntityIds),
+              and(eq(auditLog.entity, "branch_settings"), inArray(auditLog.actorId, sampleUserIds)),
+            )
+          : inArray(auditLog.entityId, sampleEntityIds),
       );
 
     await tx
@@ -343,7 +346,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(registers.id, sampleRegisterIds))
       .returning({ id: registers.id });
 
-    if (await branchSettingsEqualSampleValues(tx, location.id)) {
+    if (resetsBranchSettings) {
       await tx
         .update(branchSettings)
         .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })

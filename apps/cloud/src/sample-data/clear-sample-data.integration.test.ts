@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
+import { editBranchSettings } from "../branch-settings/branch-settings-edit-route.js";
 import { createCategory } from "../categories/category-creation-route.js";
 import {
   alerts,
@@ -30,7 +31,7 @@ import { seededLocationId } from "../test-support/seeded-location.js";
 import { createUser } from "../users/user-creation-route.js";
 import { clearSampleData } from "./clear-sample-data.js";
 import { loadSampleData } from "./load-sample-data.js";
-import { SAMPLE_ADMINISTRATOR, sampleEmail } from "./sample-catalog.js";
+import { SAMPLE_ADMINISTRATOR, SAMPLE_BRANCH_SETTINGS, sampleEmail } from "./sample-catalog.js";
 
 const NOW = new Date("2026-04-01T09:00:00.000Z");
 
@@ -420,19 +421,29 @@ describe("clearSampleData", () => {
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
-  it("leaves branch settings that were changed after loading untouched", async () => {
+  it("refuses and deletes nothing when a sample user changed the branch settings after loading", async () => {
     const db = await freshOwnerDatabase();
-    await seedActiveAdministrator(db);
+    const bootstrapAdmin = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
-    await db.update(branchSettings).set({ address: "Calle Real 1" });
-    const [loadedSettings] = await db.select().from(branchSettings);
-    const loadedHoursCount = await tableCount(db, "branch_hours");
+    const [loadedSettings] = await db
+      .select({ version: branchSettings.version })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+    if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
+    const edit = await editBranchSettings(db, {
+      ...SAMPLE_BRANCH_SETTINGS,
+      address: "Calle Real 1",
+      locationId: bootstrapAdmin.locationId,
+      actorId: await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
+      version: loadedSettings.version,
+    });
+    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const beforeClear = await sampleDataSnapshot(db);
 
-    expect((await clearSampleData(db)).kind).toBe("cleared");
+    const outcome = await clearSampleData(db);
 
-    const [settingsRow] = await db.select().from(branchSettings);
-    expect(settingsRow).toEqual(loadedSettings);
-    expect(await tableCount(db, "branch_hours")).toBe(loadedHoursCount);
+    expect(outcome.kind).toBe("refused");
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
   it("reports the number of sample categories it actually deleted", async () => {
     const db = await freshOwnerDatabase();
