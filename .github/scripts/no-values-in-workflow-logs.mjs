@@ -364,8 +364,7 @@ function printsNoInputLines(command) {
   return (
     command.name === "grep" &&
     command.args.some(
-      ({ text }) =>
-        GREP_OPTIONS_PRINTING_NO_INPUT_LINES.has(text) || /^-[^-]*[qclL]/.test(text),
+      ({ text }) => GREP_OPTIONS_PRINTING_NO_INPUT_LINES.has(text) || /^-[^-]*[qclL]/.test(text),
     )
   );
 }

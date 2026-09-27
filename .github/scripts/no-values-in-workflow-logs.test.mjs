@@ -534,7 +534,7 @@ for (const script of [
   'echo "$TOKEN" | grep --silent x',
   'echo "$TOKEN" | grep --count x',
   "env | grep --files-with-matches x",
-  "grep -q x <<< \"$TOKEN\"",
+  'grep -q x <<< "$TOKEN"',
 ]) {
   test(`does not flag a pipeline that consumes the value or sends it away from the log: ${script}`, () => {
     assert.deepEqual(messagesOf(script, { ...SECRET_ENV, CERT: `\${{ secrets.CERT }}` }), []);
