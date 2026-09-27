@@ -330,7 +330,10 @@ function sampleProductPlansForLeaf(
         saleUnit === "KG" ? null : (NET_CONTENT_OPTIONS[seed % NET_CONTENT_OPTIONS.length] ?? null),
       barcode,
       active: seed % 10 !== 9,
-      unitPriceCents: 500 + ((seed * 137) % 9500),
+      unitPriceCents:
+        saleUnit === "KG"
+          ? 300_000 + ((seed * 137) % 271) * 10_000
+          : 80_000 + ((seed * 137) % 2421) * 1_000,
       pricePlan: seed % 2 === 0 ? "current" : "due_for_review",
     });
   }

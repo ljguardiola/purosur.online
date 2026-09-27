@@ -123,10 +123,23 @@ describe("SAMPLE_CATEGORY_TREE", () => {
     expect(plans).toEqual(new Set(["current", "due_for_review"]));
   });
 
-  it("plans only positive integer prices", () => {
+  it("plans only whole-cent prices", () => {
     for (const product of flattenProducts()) {
       expect(Number.isInteger(product.unitPriceCents)).toBe(true);
-      expect(product.unitPriceCents).toBeGreaterThan(0);
+    }
+  });
+
+  it("prices every product sold by the unit between ARS 800 and ARS 25,000", () => {
+    for (const product of flattenProducts().filter((entry) => entry.saleUnit === "UNIT")) {
+      expect(product.unitPriceCents).toBeGreaterThanOrEqual(80_000);
+      expect(product.unitPriceCents).toBeLessThanOrEqual(2_500_000);
+    }
+  });
+
+  it("prices every product sold by weight between ARS 3,000 and ARS 30,000 per kilogram", () => {
+    for (const product of flattenProducts().filter((entry) => entry.saleUnit === "KG")) {
+      expect(product.unitPriceCents).toBeGreaterThanOrEqual(300_000);
+      expect(product.unitPriceCents).toBeLessThanOrEqual(3_000_000);
     }
   });
 });
