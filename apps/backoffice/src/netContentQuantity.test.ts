@@ -1,5 +1,4 @@
-import { NET_CONTENT_QUANTITY_MAX, NET_CONTENT_QUANTITY_MAX_DECIMALS } from "@purosur/contracts";
-import { formatNumber } from "@purosur/ui";
+import { NET_CONTENT_QUANTITY_MAX } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import {
   formatNetContentQuantity,
@@ -58,8 +57,8 @@ describe("parseNetContentQuantity", () => {
 });
 
 describe("netContentQuantityError", () => {
-  const invalid = `Ingresá una cantidad mayor que cero, con hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
-  const tooLarge = `Ingresá una cantidad de hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX)}.`;
+  const invalid = "Ingresá una cantidad mayor que cero, con hasta 3 decimales.";
+  const tooLarge = "Ingresá una cantidad de hasta 100.000.";
 
   it("is undefined for a blank quantity", () => {
     expect(netContentQuantityError("")).toBeUndefined();
