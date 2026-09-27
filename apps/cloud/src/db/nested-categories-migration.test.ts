@@ -1,71 +1,34 @@
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, inject, it, onTestFinished } from "vitest";
+import {
+  addMigrationEntry,
+  findMigrationEntry,
+  type JournalEntry,
+  migrationsFolderBefore,
+} from "./migration-journal-test-helpers.js";
 import { categories, products } from "./schema.js";
-import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
 const NESTED_CATEGORIES_MIGRATION_TAG_SUFFIX = "_nested_categories";
 
-interface JournalEntry {
-  idx: number;
-  version: string;
-  when: number;
-  tag: string;
-  breakpoints: boolean;
-}
-
-interface Journal {
-  version: string;
-  dialect: string;
-  entries: JournalEntry[];
-}
-
-async function readRealJournal(): Promise<Journal> {
-  const raw = await readFile(join(MIGRATIONS_FOLDER, "meta", "_journal.json"), "utf8");
-  return JSON.parse(raw) as Journal;
-}
-
 async function nestedCategoriesEntry(): Promise<JournalEntry> {
-  const journal = await readRealJournal();
-  const entry = journal.entries.find((candidate) =>
-    candidate.tag.endsWith(NESTED_CATEGORIES_MIGRATION_TAG_SUFFIX),
+  return findMigrationEntry(
+    NESTED_CATEGORIES_MIGRATION_TAG_SUFFIX,
+    "test setup: no nested_categories migration in the journal",
   );
-  if (!entry) {
-    throw new Error("test setup: no nested_categories migration in the journal");
-  }
-  return entry;
 }
 
-// Only `_journal.json` and the migration `.sql` files matter to drizzle's runtime migrator —
-// unlike `drizzle-kit generate`, it never reads the per-migration snapshot files.
 async function migrationsFolderBeforeNestedCategories(destFolder: string): Promise<void> {
-  await mkdir(join(destFolder, "meta"), { recursive: true });
-  const journal = await readRealJournal();
-  const { idx } = await nestedCategoriesEntry();
-  const entriesBefore = journal.entries.filter((entry) => entry.idx < idx);
-  await writeFile(
-    join(destFolder, "meta", "_journal.json"),
-    JSON.stringify({ ...journal, entries: entriesBefore }),
-  );
-  for (const entry of entriesBefore) {
-    await copyFile(
-      join(MIGRATIONS_FOLDER, `${entry.tag}.sql`),
-      join(destFolder, `${entry.tag}.sql`),
-    );
-  }
+  await migrationsFolderBefore(destFolder, await nestedCategoriesEntry());
 }
 
 async function addNestedCategoriesMigration(destFolder: string): Promise<void> {
-  const journalPath = join(destFolder, "meta", "_journal.json");
-  const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
-  const entry = await nestedCategoriesEntry();
-  journal.entries.push(entry);
-  await writeFile(journalPath, JSON.stringify(journal));
-  await copyFile(join(MIGRATIONS_FOLDER, `${entry.tag}.sql`), join(destFolder, `${entry.tag}.sql`));
+  await addMigrationEntry(destFolder, await nestedCategoriesEntry());
 }
 
 interface SeededCategory {
