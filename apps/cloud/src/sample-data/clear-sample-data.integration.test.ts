@@ -304,6 +304,33 @@ describe("clearSampleData", () => {
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
+  it("refuses and deletes nothing when a real category sits inside a sample category", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const sampleMidRows = await db.execute<{ id: string }>(
+      sql`select mid.id from categories mid
+          join categories top on top.id = mid.parent_id
+          where top.parent_id is null and top.name = 'Almacén' and mid.name = 'Aceites y Aderezos'`,
+    );
+    const sampleMidId = (sampleMidRows as unknown as { id: string }[])[0]?.id;
+    if (!sampleMidId)
+      throw new Error("test setup: no sample category Almacén > Aceites y Aderezos");
+    const realCategory = await createCategory(db, {
+      name: "Categoría Real",
+      parentId: sampleMidId,
+    });
+    if (realCategory.kind !== "created") throw new Error("test setup: real category collided");
+    const beforeClear = await sampleDataSnapshot(db);
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome).toEqual({
+      kind: "refused",
+      detail: expect.stringContaining('category "Categoría Real"'),
+    });
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
+  }, 120_000);
   it("clears a sample user who left a recovery token, a session with a pending passkey challenge and deliveries of a real alert", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
