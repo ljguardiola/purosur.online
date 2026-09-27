@@ -1,7 +1,5 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
 import {
   Button,
-  formatDate,
   IconButton,
   InlineNotice,
   Modal,
@@ -30,6 +28,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
+import { passkeyRowDetail } from "./passkeyRowDetail";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
@@ -109,34 +108,8 @@ const CANCEL_LABEL = "Cancelar";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const RETRY_LABEL = "Reintentar";
 
-const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  timeZone: ARGENTINA_TIME_ZONE,
-};
-const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: ARGENTINA_TIME_ZONE,
-};
-
 function retryInMinutesDetail(minutes: number) {
   return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
-
-function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
-  const registered = `Registrada el ${formatDate(new Date(passkey.createdAt), PASSKEY_DATE_OPTIONS)}`;
-  if (!passkey.lastUsedAt) {
-    return registered;
-  }
-  const lastUsedAt = new Date(passkey.lastUsedAt);
-  const time = formatDate(lastUsedAt, PASSKEY_TIME_OPTIONS);
-  const lastUsedDate = formatDate(lastUsedAt, PASSKEY_DATE_OPTIONS);
-  const sameDay = lastUsedDate === formatDate(now, PASSKEY_DATE_OPTIONS);
-  const lastUsed = sameDay ? `último uso hoy ${time}` : `último uso el ${lastUsedDate} ${time}`;
-  return `${registered} · ${lastUsed}`;
 }
 
 const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };

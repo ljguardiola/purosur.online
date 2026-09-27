@@ -1,13 +1,4 @@
-import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
-import {
-  Button,
-  formatDate,
-  IconButton,
-  InlineNotice,
-  Modal,
-  plural,
-  TextField,
-} from "@purosur/ui";
+import { Button, IconButton, InlineNotice, Modal, plural, TextField } from "@purosur/ui";
 import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
@@ -23,6 +14,7 @@ import {
   removePasskey,
 } from "./passkeyApi";
 import { validatePasskeyName } from "./passkeyName";
+import { passkeyRowDetail } from "./passkeyRowDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
@@ -83,34 +75,8 @@ const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const RETRY_LABEL = "Reintentar";
 
-const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  timeZone: ARGENTINA_TIME_ZONE,
-};
-const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: ARGENTINA_TIME_ZONE,
-};
-
 function retryInMinutesDetail(minutes: number) {
   return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
-
-function passkeyRowDetail(passkey: Passkey, now: Date): string {
-  const registered = `Registrada el ${formatDate(new Date(passkey.createdAt), PASSKEY_DATE_OPTIONS)}`;
-  if (!passkey.lastUsedAt) {
-    return registered;
-  }
-  const lastUsedAt = new Date(passkey.lastUsedAt);
-  const time = formatDate(lastUsedAt, PASSKEY_TIME_OPTIONS);
-  const lastUsedDate = formatDate(lastUsedAt, PASSKEY_DATE_OPTIONS);
-  const sameDay = lastUsedDate === formatDate(now, PASSKEY_DATE_OPTIONS);
-  const lastUsed = sameDay ? `último uso hoy ${time}` : `último uso el ${lastUsedDate} ${time}`;
-  return `${registered} · ${lastUsed}`;
 }
 
 type RegisterPasskeyModalProps = {
