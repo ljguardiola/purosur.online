@@ -333,7 +333,6 @@ function EditIssuerIdentificationModal({
         context={modalMessages.eyebrow}
         title={modalMessages.title}
         closable
-        closeLabel={modalMessages.closeLabel}
         footer={
           <>
             <Button

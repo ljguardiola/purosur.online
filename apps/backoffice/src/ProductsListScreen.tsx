@@ -731,7 +731,6 @@ function NewProductModal({
       context={modalMessages.eyebrow}
       title={modalMessages.heading}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -1120,7 +1119,6 @@ function EditProductModal({
       context={modalMessages.eyebrow}
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -1389,7 +1387,6 @@ function DeactivateProductModal({
       icon={<Ban />}
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -1684,7 +1681,6 @@ function PrintLabelsModal({
       context={modalMessages.eyebrow}
       title={modalMessages.heading}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>

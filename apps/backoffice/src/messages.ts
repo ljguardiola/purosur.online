@@ -39,7 +39,6 @@ const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
 const EMAIL_TAKEN = "Ya existe un usuario con este correo.";
 const CANCEL_LABEL = "Cancelar";
-const CLOSE_LABEL = "Cerrar";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
@@ -172,7 +171,6 @@ export const messages = defineMessages("es-AR", (f) => ({
     signOut: {
       itemLabel: "Salir",
       title: "¿Salir del backoffice?",
-      closeLabel: "Cerrar",
       cancel: "Cancelar",
       confirm: "Salir",
       failedTitle: "No se pudo salir",
@@ -304,7 +302,6 @@ export const messages = defineMessages("es-AR", (f) => ({
           nameTooLong: PASSKEY_NAME_TOO_LONG,
           cancel: "Cancelar",
           submit: "Registrar la passkey",
-          closeLabel: "Cerrar",
           attemptFailedTitle: "No se pudo registrar la passkey",
           attemptFailedDetail: "Probá de nuevo.",
           rateLimitedTitle: "Demasiadas solicitudes",
@@ -318,7 +315,6 @@ export const messages = defineMessages("es-AR", (f) => ({
             "Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo.",
           cancel: "Cancelar",
           confirm: "Dar de baja",
-          closeLabel: "Cerrar",
           attemptFailedTitle: "No se pudo dar de baja la passkey",
           attemptFailedDetail: "Probá de nuevo.",
           rateLimitedTitle: "Demasiadas solicitudes",
@@ -370,7 +366,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         reactivateButton: (params: { name: string }) => `Reactivar a ${params.name}`,
         cancel: CANCEL_LABEL,
         submit: "Crear el usuario",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo crear el usuario",
         attemptFailedDetail: "Probá de nuevo.",
         unknownRoleTitle: "Ese rol ya no está disponible",
@@ -407,7 +402,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         body: "No se puede deshacer.",
         cancel: CANCEL_LABEL,
         confirm: "Desactivar",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo desactivar el usuario",
         attemptFailedDetail: "Probá de nuevo.",
       },
@@ -438,7 +432,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         emailTaken: EMAIL_TAKEN,
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo guardar el cambio",
         attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Este usuario cambió mientras lo editabas",
@@ -481,7 +474,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       duplicateAria: (params: { name: string }) => `Duplicar el rol ${params.name}`,
       roleEditor: {
         eyebrow: "Configuración · Roles",
-        closeLabel: CLOSE_LABEL,
         newTitle: "Nuevo rol",
         editTitle: "Editar rol",
         duplicateTitle: "Duplicar rol",
@@ -575,7 +567,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         nameTaken: "Ya existe una caja con este nombre.",
         cancel: CANCEL_LABEL,
         submit: "Crear la caja",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo crear la caja",
         attemptFailedDetail: "Probá de nuevo.",
         rateLimitedTitle: "Demasiadas solicitudes",
@@ -589,7 +580,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         description:
           "En la notebook nueva, al abrir la caja por primera vez, se escribe este código. Después de 5 intentos equivocados deja de servir y hay que emitir otro.",
         doneButton: "Listo",
-        closeLabel: CLOSE_LABEL,
         retry: "Reintentar",
         attemptFailedTitle: "No se pudo emitir el código",
         attemptFailedDetail: "Probá de nuevo.",
@@ -758,7 +748,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         },
         cancel: CANCEL_LABEL,
         submit: "Crear el producto",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo crear el producto",
         attemptFailedDetail: "Probá de nuevo.",
         rateLimitedTitle: "Demasiadas solicitudes",
@@ -804,7 +793,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         },
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo guardar el cambio",
         attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Otra persona cambió este producto",
@@ -822,7 +810,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         body: "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
         cancel: CANCEL_LABEL,
         confirm: "Desactivar",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo desactivar el producto",
         attemptFailedDetail: "Probá de nuevo.",
         alreadyInactiveTitle: "Ya estaba desactivado",
@@ -834,7 +821,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       printLabelsModal: {
         eyebrow: PRODUCT_MODAL_EYEBROW,
         heading: "Imprimir etiquetas",
-        closeLabel: CLOSE_LABEL,
         intro: "Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.",
         decreaseAria: (params: { name: string }) => `Restar una etiqueta de ${params.name}`,
         increaseAria: (params: { name: string }) => `Sumar una etiqueta a ${params.name}`,
@@ -897,7 +883,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Crear la categoría",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo crear la categoría",
         attemptFailedDetail: "Probá de nuevo.",
         rateLimitedTitle: "Demasiadas solicitudes",
@@ -922,7 +907,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
-        closeLabel: CLOSE_LABEL,
         attemptFailedTitle: "No se pudo guardar el cambio",
         attemptFailedDetail: "Probá de nuevo.",
         staleVersionTitle: "Esta categoría cambió mientras la editabas",
@@ -1012,7 +996,6 @@ export const messages = defineMessages("es-AR", (f) => ({
             one: "REVISADO HACE 1 DÍA",
             other: `REVISADO HACE ${params.days} DÍAS`,
           }),
-        closeLabel: CLOSE_LABEL,
         priceLabel: { UNIT: "Precio de venta por unidad", KG: "Precio de venta por kilo" },
         unitSuffix: { UNIT: "", KG: "/ kg" },
         currentPriceHelper: (params: { amount: string }) => `Precio actual: ${params.amount}`,
@@ -1069,7 +1052,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       editIssuerIdentificationModal: {
         eyebrow: "CONFIGURACIÓN FISCAL",
         title: "Identificación del emisor",
-        closeLabel: CLOSE_LABEL,
         cancel: CANCEL_LABEL,
         submit: "Guardar los cambios",
         cuitLabel: "CUIT",
@@ -1100,7 +1082,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       `${params.action} necesita tu autorización. Confirmala con tu passkey.`,
     cancel: CANCEL_LABEL,
     confirm: "Usar mi passkey",
-    closeLabel: CLOSE_LABEL,
     attemptFailedTitle: "No se pudo confirmar con tu passkey",
     attemptFailedDetail: "Probá de nuevo.",
     rateLimitedTitle: "Demasiadas solicitudes",
@@ -1175,9 +1156,6 @@ export const messages = defineMessages("es-AR", (f) => ({
         `${f.plural(params.count, { one: "1 alerta abierta", other: `${params.count} alertas abiertas` })} · ${f.plural(params.criticalCount, { one: "1 crítica", other: `${params.criticalCount} críticas` })}`,
       pagination: {
         label: "Páginas de alertas",
-        previous: "Anterior",
-        next: "Siguiente",
-        page: (params: { page: number }) => `Página ${params.page}`,
       },
       emptyTitle: "Sin alertas abiertas",
       emptyDetail: "Cuando algo necesite atención, aparece acá.",
@@ -1200,7 +1178,6 @@ export const messages = defineMessages("es-AR", (f) => ({
       },
       detail: {
         eyebrow: "ALERTA DE SEGURIDAD",
-        closeLabel: "Cerrar",
         openedLabel: "Abierta",
         escalatedLabel: "Escaló",
         notEscalatedYet: "Todavía no",

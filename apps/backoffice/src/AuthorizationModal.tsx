@@ -58,7 +58,6 @@ function AuthorizationModal({
       icon={<Fingerprint />}
       title={authMessages.title}
       closable
-      closeLabel={authMessages.closeLabel}
       footer={
         <>
           <Button

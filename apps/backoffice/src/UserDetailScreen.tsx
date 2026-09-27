@@ -301,7 +301,6 @@ function EditUserModal({
         context={modalMessages.eyebrow}
         title={user.firstName}
         closable
-        closeLabel={modalMessages.closeLabel}
         footer={
           <>
             <Button
@@ -526,7 +525,6 @@ function RemoveUserPasskeyModal({
         icon={<Trash2 />}
         title={removePasskeyModalMessages.title({ name: userName })}
         closable
-        closeLabel={selfRemoveMessages.closeLabel}
         footer={
           <>
             <Button
@@ -677,7 +675,6 @@ function DeactivateUserModal({
         icon={<UserX />}
         title={deactivateModalMessages.title({ name: user.firstName })}
         closable
-        closeLabel={deactivateModalMessages.closeLabel}
         footer={
           <>
             <Button

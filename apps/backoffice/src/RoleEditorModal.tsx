@@ -428,9 +428,7 @@ export function RoleEditorModal({
         context={editorMessages.eyebrow}
         title={heading}
         // closable: false also disables Escape, not just the close button.
-        {...(submitting
-          ? { closable: false }
-          : { closable: true, closeLabel: editorMessages.closeLabel })}
+        closable={!submitting}
         bodyPadding="none"
         footer={
           <div className="flex w-full items-center justify-between gap-3">

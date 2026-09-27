@@ -184,7 +184,6 @@ function NewRegisterModal({
         context={modalMessages.eyebrow}
         title={modalMessages.heading}
         closable
-        closeLabel={modalMessages.closeLabel}
         footer={
           <>
             <Button
@@ -286,9 +285,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
       title={modalMessages.heading}
       // An emission in flight can't be dismissed: the cloud may already have replaced the
       // register's pending code, and only this response carries the new one.
-      {...(emission.kind === "issuing"
-        ? { closable: false }
-        : { closable: true, closeLabel: modalMessages.closeLabel })}
+      closable={emission.kind !== "issuing"}
       footer={
         <Button
           variant="primary"

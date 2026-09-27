@@ -316,10 +316,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                     page={page}
                     pageCount={pageCount}
                     onPageChange={setPage}
-                    previousLabel={alertsMessages.pagination.previous}
-                    nextLabel={alertsMessages.pagination.next}
                     label={alertsMessages.pagination.label}
-                    pageLabel={(pageNumber) => alertsMessages.pagination.page({ page: pageNumber })}
                   />
                 </div>
               }

@@ -244,7 +244,6 @@ function NewUserModal({
         context={modalMessages.eyebrow}
         title={modalMessages.heading}
         closable
-        closeLabel={modalMessages.closeLabel}
         footer={
           <>
             <Button

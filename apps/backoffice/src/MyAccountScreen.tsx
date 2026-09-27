@@ -207,7 +207,6 @@ function RegisterPasskeyModal({
         context={registerMessages.eyebrow}
         title={registerMessages.heading}
         closable
-        closeLabel={registerMessages.closeLabel}
         footer={
           <>
             <Button
@@ -362,7 +361,6 @@ function RemovePasskeyModal({
         icon={<Trash2 />}
         title={removeMessages.title}
         closable
-        closeLabel={removeMessages.closeLabel}
         footer={
           <>
             <Button

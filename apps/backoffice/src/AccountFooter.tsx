@@ -83,7 +83,6 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         contextTone="brand-earth-ui"
         title={messages.shell.signOut.title}
         closable
-        closeLabel={messages.shell.signOut.closeLabel}
         footer={
           <>
             <Button

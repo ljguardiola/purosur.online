@@ -389,9 +389,7 @@ function PriceChangeModal({
       icon={<Pencil />}
       context={current ? modalEyebrow(current, now()) : ""}
       title={title}
-      {...(submitting
-        ? { closable: false }
-        : { closable: true, closeLabel: modalMessages.closeLabel })}
+      closable={!submitting}
       footer={
         current && (
           <>

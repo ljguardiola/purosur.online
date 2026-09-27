@@ -194,7 +194,6 @@ function NewCategoryModal({
       context={modalMessages.eyebrow}
       title={modalMessages.heading}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -464,7 +463,6 @@ function EditCategoryModal({
       context={modalMessages.eyebrow}
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button

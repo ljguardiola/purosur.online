@@ -318,9 +318,7 @@ export function AlertDetailModal({
       icon={alertIcon(alert?.kind ?? "")}
       context={detailMessages.eyebrow}
       title={alert ? alertTitle(alert) : alertsMessages.heading}
-      {...(submitting
-        ? { closable: false }
-        : { closable: true, closeLabel: detailMessages.closeLabel })}
+      closable={!submitting}
       footer={
         <>
           <Button
