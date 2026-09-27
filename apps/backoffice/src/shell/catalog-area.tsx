@@ -21,6 +21,9 @@ export const catalogAreaIndexRoute = createRoute({
 function CatalogArea() {
   const { session } = catalogAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
+  const productsShown = Boolean(matchRoute({ to: "/catalog/products" }));
+  const categoriesShown = Boolean(matchRoute({ to: "/catalog/categories" }));
+  const pricesShown = Boolean(matchRoute({ to: "/catalog/prices" }));
   return (
     <AreaLayout
       area="catalog"
@@ -37,7 +40,8 @@ function CatalogArea() {
                     to="/catalog/products"
                     label="Productos"
                     icon={<Package />}
-                    active={Boolean(matchRoute({ to: "/catalog/products" }))}
+                    search={productsShown ? true : {}}
+                    active={productsShown}
                   />
                 </li>
                 <li>
@@ -45,7 +49,8 @@ function CatalogArea() {
                     to="/catalog/categories"
                     label="Categorías"
                     icon={<Tags />}
-                    active={Boolean(matchRoute({ to: "/catalog/categories" }))}
+                    search={categoriesShown ? true : {}}
+                    active={categoriesShown}
                   />
                 </li>
               </>
@@ -56,7 +61,8 @@ function CatalogArea() {
                   to="/catalog/prices"
                   label="Precios"
                   icon={<ListChecks />}
-                  active={Boolean(matchRoute({ to: "/catalog/prices" }))}
+                  search={pricesShown ? true : {}}
+                  active={pricesShown}
                 />
               </li>
             )}

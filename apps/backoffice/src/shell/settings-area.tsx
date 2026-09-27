@@ -39,6 +39,7 @@ function SettingsArea() {
               <li>
                 <SectionLink
                   to="/settings/users"
+                  search={matchRoute({ to: "/settings/users" }) ? true : {}}
                   label="Usuarios"
                   icon={<Users />}
                   active={Boolean(matchRoute({ to: "/settings/users", fuzzy: true }))}

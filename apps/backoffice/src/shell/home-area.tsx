@@ -28,7 +28,7 @@ function HomeArea() {
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             <li>
-              <SectionLink to="/home/alerts" label="Alertas" icon={<Bell />} active />
+              <SectionLink to="/home/alerts" search label="Alertas" icon={<Bell />} active />
             </li>
           </ul>
         </>

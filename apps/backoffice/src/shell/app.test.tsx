@@ -1860,13 +1860,38 @@ test("keeps the products list filters in the URL after following its own section
     kind: "ok",
     value: [],
   });
+  window.history.pushState(null, "", "/help");
   window.history.pushState(null, "", "/catalog/products?search=miel");
   const screen = await render(<App help={emptyHelp} services={services} />);
   const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
   await expect.element(searchBox).toHaveValue("miel");
+  const productsLink = screen.getByRole("link", { name: "Productos" });
+  await expect.element(productsLink).toHaveAttribute("href", "/catalog/products?search=miel");
 
-  await userEvent.click(screen.getByRole("link", { name: "Productos" }));
+  await userEvent.click(productsLink);
 
   await expect.element(searchBox).toHaveValue("miel");
   await expect.poll(() => new URLSearchParams(window.location.search).get("search")).toBe("miel");
+  window.history.back();
+  await expect.poll(() => window.location.pathname).toBe("/help");
+});
+
+test.each([
+  { url: "/catalog/categories?search=alma", link: "Categorías" },
+  { url: "/catalog/prices?search=yerba", link: "Precios" },
+  { url: "/settings/users?state=inactive", link: "Usuarios" },
+  { url: "/home/alerts?status=closed", link: "Alertas" },
+])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
+  const services = createServices();
+  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", url);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("link", { name: link })).toHaveAttribute("href", url);
 });
