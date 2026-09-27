@@ -8,7 +8,6 @@ import { Shell } from "./Shell";
 function renderShell(content: ReactNode = <p>main content</p>) {
   return render(
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Secciones"
       railAreas={<p>rail areas</p>}
       railFooter={<p>rail footer</p>}

@@ -281,7 +281,6 @@ function HelpApp({
 
   return (
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Secciones de ayuda"
       railAreas={
         <>
@@ -388,7 +387,6 @@ function SettingsApp({
 
   return (
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Configuración"
       railAreas={
         <>
@@ -554,7 +552,6 @@ function CatalogApp({
 
   return (
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Catálogo"
       railAreas={
         <>
@@ -654,7 +651,6 @@ function CashApp({
 
   return (
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Caja y fiscal"
       railAreas={
         <>
@@ -731,7 +727,6 @@ function InicioApp({
 
   return (
     <Shell
-      areaRailLabel="Áreas"
       sectionColumnLabel="Inicio"
       railAreas={
         <>
