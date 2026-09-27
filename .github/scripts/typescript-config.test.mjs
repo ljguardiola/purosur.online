@@ -47,6 +47,24 @@ const rejectedCode = [
     source: "export enum Color {\n  Red,\n}\n",
     code: 1294,
   },
+  {
+    description: "a switch case that falls through to the next",
+    source: [
+      "export function level(value: number): number {",
+      "  let result = 0;",
+      "  switch (value) {",
+      "    case 1:",
+      "      result = 1;",
+      "    case 2:",
+      "      result = 2;",
+      "      break;",
+      "  }",
+      "  return result;",
+      "}",
+      "",
+    ].join("\n"),
+    code: 7029,
+  },
 ];
 
 for (const configPath of configPaths) {
