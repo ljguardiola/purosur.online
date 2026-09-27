@@ -60,6 +60,12 @@ A feature too large for one pull request stays as a parent feature issue holding
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
 
+## Register screens
+
+- The register has no URL: it moves between screens through declared, typed routes kept in memory. Navigating to a route that does not exist, or with a parameter that is missing or mistyped, fails to type-check.
+- A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
+- The renderer's files are organized by business concept, named like `packages/domain`'s, plus `shell/` for the app's own frame (the app root, the router, and any screen that belongs to no concept) and `platform/` for browser and IPC plumbing. Every file and folder under `apps/pos` is named in English kebab-case.
+
 ## Testing
 
 Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.
