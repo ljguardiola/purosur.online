@@ -59,7 +59,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
 import { type CategorySummary, fetchCategories } from "./categories-api";
@@ -548,6 +548,7 @@ function useGenerateInternalBarcode(
   clearRateLimited: () => void,
   generateFailedMessage: string,
 ) {
+  const sendToMyAccount = useSendToMyAccount();
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | undefined>(undefined);
   const requestIdRef = useRef(0);
@@ -617,6 +618,7 @@ function NewProductModal({
   generateInternalBarcode,
   categories,
 }: NewProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
@@ -929,6 +931,7 @@ function EditProductModal({
   generateInternalBarcode,
   categories,
 }: EditProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -1330,6 +1333,7 @@ function DeactivateProductModal({
   onSessionEnded,
   deactivateProduct,
 }: DeactivateProductModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
@@ -1550,6 +1554,7 @@ function PrintLabelsModal({
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -1822,6 +1827,7 @@ function PrintLabelsModal({
 }
 
 export function ProductsListScreen({ onSessionEnded, services }: ProductsListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchProducts: fetchProductsService,
     createProduct: createProductService,
@@ -1881,7 +1887,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchProductsService, fetchCategoriesService, statusFilter]);
+  }, [fetchProductsService, fetchCategoriesService, statusFilter, sendToMyAccount]);
 
   useEffect(() => {
     void load();

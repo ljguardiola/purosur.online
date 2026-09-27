@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -107,6 +107,7 @@ function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -303,6 +304,7 @@ function EditCategoryModal({
   editCategory,
   categories,
 }: EditCategoryModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
@@ -577,6 +579,7 @@ function EditCategoryModal({
 }
 
 export function CategoriesListScreen({ onSessionEnded, services }: CategoriesListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
@@ -611,7 +614,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchCategories, onSessionEndedRef]);
+  }, [fetchCategories, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();

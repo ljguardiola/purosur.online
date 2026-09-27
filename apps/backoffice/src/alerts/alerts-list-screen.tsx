@@ -14,7 +14,7 @@ import {
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BackofficeAccess } from "../access/backoffice-access";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -116,6 +116,7 @@ const STATUS_FILTER_OPTIONS = [
 ] as const;
 
 export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchAlerts, alertDetailModal } = services ?? defaultAlertsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
@@ -171,7 +172,15 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchAlerts, levelFilter, statusFilter, page, searchQuery, onSessionEndedRef]);
+  }, [
+    fetchAlerts,
+    levelFilter,
+    statusFilter,
+    page,
+    searchQuery,
+    onSessionEndedRef,
+    sendToMyAccount,
+  ]);
 
   useEffect(() => {
     void load();

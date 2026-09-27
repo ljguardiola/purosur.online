@@ -161,13 +161,16 @@ test("redirects the root path to /help without leaving the root in the history",
   expect(window.history.length).toBe(lengthBefore);
 });
 
-test("redirects a path outside Help to /help", async () => {
-  window.history.pushState(null, "", "/ventas");
+test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog", "/settings"])(
+  "redirects %s, which names no screen, to /help",
+  async (path) => {
+    window.history.pushState(null, "", path);
 
-  await render(<App help={help} services={createServices()} />);
+    await render(<App help={help} services={createServices()} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/help");
-});
+    await expect.poll(() => window.location.pathname).toBe("/help");
+  },
+);
 
 test("redirects an unknown category or article to the closest page that exists", async () => {
   window.history.pushState(null, "", "/help/x/constructor");
@@ -191,6 +194,43 @@ test("moves an article reached under another category to its own category's URL"
 
   await expect.poll(() => window.location.pathname).toBe("/help/getting_started/intro");
   await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
+});
+
+test("a rail item is a real link to its screen, and a plain click opens that screen in place", async () => {
+  const services = createServices();
+  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const configItem = screen.getByRole("link", { name: "Config" });
+  await expect.element(configItem).toBeVisible();
+
+  expect(configItem.element().getAttribute("href")).toBe("/settings/users/me");
+  await userEvent.click(configItem);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/settings/users/me");
+
+  window.history.back();
+
+  await expect.poll(() => window.location.pathname).toBe("/help");
+});
+
+test("a rail item leaves a modifier click to the browser", async () => {
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={createServices()} />);
+  const configItem = screen.getByRole("link", { name: "Config" });
+  await expect.element(configItem).toBeVisible();
+
+  const cancelRealNavigation = (event: Event) => event.preventDefault();
+  window.addEventListener("click", cancelRealNavigation);
+  try {
+    await userEvent.click(configItem, { modifiers: ["Meta"] });
+  } finally {
+    window.removeEventListener("click", cancelRealNavigation);
+  }
+
+  expect(window.location.pathname).toBe("/help");
+  expect(screen.getByRole("heading", { name: "Mi cuenta" }).query()).toBeNull();
 });
 
 test("renders the shell's area rail and section column landmarks", async () => {

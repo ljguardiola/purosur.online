@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import {
   type AlertDetail,
@@ -217,6 +217,7 @@ export function AlertDetailModal({
   onSessionEnded,
   services,
 }: AlertDetailModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchAlert, closeAlert } = services ?? defaultAlertDetailModalServices;
   const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
   const [notice, setNotice] = useState<FormNotice | null>(null);
@@ -256,7 +257,7 @@ export function AlertDetailModal({
       }
       setLoadState({ kind: "loadError" });
     },
-    [fetchAlert],
+    [fetchAlert, sendToMyAccount],
   );
 
   useEffect(() => {

@@ -1,9 +1,9 @@
 import { act } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import type { BackofficeAccess } from "../access/backoffice-access";
+import { render } from "../shell/test-support/render-with-router";
 import type { AlertDetail, AlertListPage, AlertSummary, FetchAlertsOutcome } from "./alerts-api";
 import { AlertsListScreen, type AlertsListScreenServices } from "./alerts-list-screen";
 

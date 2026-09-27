@@ -24,7 +24,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -179,6 +179,7 @@ function PriceChangeModal({
   setPrice,
   confirmPrice,
 }: PriceChangeModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const [title, setTitle] = useState("");
@@ -542,6 +543,7 @@ function PriceChangeModal({
 }
 
 export function PricesListScreen({ onSessionEnded, services, now }: PricesListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchPrices: fetchPricesService,
     setPrice: setPriceService,
@@ -631,7 +633,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch]);
+  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch, sendToMyAccount]);
 
   useEffect(() => {
     void load();

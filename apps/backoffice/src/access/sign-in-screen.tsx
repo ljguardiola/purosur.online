@@ -5,7 +5,6 @@ import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react"
 import { useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
-import { ACCOUNT_RECOVERY_PATH } from "./routes";
 import { authenticate, fetchAuthenticationOptions } from "./session-api";
 import { signalUnknownCredential } from "./signal-unknown-credential";
 
@@ -141,7 +140,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
       >
         Ingresar con passkey
       </Button>
-      <AccessFooterLink to={ACCOUNT_RECOVERY_PATH} icon={<LifeBuoy />} label="Perdí mis passkeys" />
+      <AccessFooterLink to="/account-recovery" icon={<LifeBuoy />} label="Perdí mis passkeys" />
     </AccessLayout>
   );
 }

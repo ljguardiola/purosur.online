@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen, type RegistersListScreenServices } from "./registers-list-screen";
 

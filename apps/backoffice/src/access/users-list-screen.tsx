@@ -11,6 +11,7 @@ import {
   TextField,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Eye,
   KeyRound,
@@ -25,14 +26,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
-import { navigate } from "../shell/router";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { roleDisplayName, roleOptions } from "./role-display";
 import { fetchRoles } from "./roles-api";
-import { sendToMyAccount, userDetailPath } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import {
   type BranchUser,
@@ -136,6 +136,7 @@ function NewUserModal({
   authorizeSession,
   startAuthentication,
 }: NewUserModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
   const optionsRef = useLatestRef(options);
   const [firstName, setFirstName] = useState("");
@@ -368,6 +369,8 @@ function NewUserModal({
 }
 
 export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
+  const navigate = useNavigate();
   const {
     fetchUsers,
     fetchRoles,
@@ -407,7 +410,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef]);
+  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -474,7 +477,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         "aria-label": access.isAdministrator
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
-        onPress: () => navigate(userDetailPath(item.id)),
+        onPress: () => navigate({ to: "/settings/users/$userId", params: { userId: item.id } }),
       }),
     ],
   } as const;
@@ -570,7 +573,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);
-          navigate(userDetailPath(id));
+          void navigate({ to: "/settings/users/$userId", params: { userId: id } });
         }}
         onSessionEnded={onSessionEnded}
         createUser={createUser}

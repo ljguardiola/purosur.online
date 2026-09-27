@@ -8,7 +8,6 @@ import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import { validatePasskeyName } from "./passkey-name";
 import type { RecoveryTokenOutcome } from "./recovery-api";
 import { fetchRegistrationOptions, redeemRecovery } from "./recovery-api";
-import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./routes";
 import { signalUnknownCredential } from "./signal-unknown-credential";
 
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
@@ -86,7 +85,7 @@ function TokenErrorNotice({
       />
       {offerNewLink && (
         <AccessFooterLink
-          to={ACCOUNT_RECOVERY_PATH}
+          to="/account-recovery"
           icon={<ArrowLeft />}
           label="Pedir un enlace nuevo"
         />
@@ -303,7 +302,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
           title="Se cerraron las sesiones abiertas de tu cuenta"
           detail="Si alguien más estaba adentro con tu cuenta, ya no lo está."
         />
-        <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Ir a ingresar" />
+        <AccessFooterLink to="/sign-in" icon={<ArrowLeft />} label="Ir a ingresar" />
       </AccessLayout>
     );
   }
