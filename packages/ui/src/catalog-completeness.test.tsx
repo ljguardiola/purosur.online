@@ -22,7 +22,6 @@ const componentsWithoutStoriesYet = [
   "PuroSurLogo",
   "QuantityUnitField",
   "RadioGroup",
-  "SearchField",
   "SectionNavItem",
   "SegmentedControl",
   "Select",

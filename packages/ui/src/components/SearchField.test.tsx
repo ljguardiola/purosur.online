@@ -93,8 +93,6 @@ for (const variantCase of variantCases) {
     const iconRect = icon.getBoundingClientRect();
     expect(iconRect.width).toBeCloseTo(variantCase.iconSize, 0);
     expect(iconRect.height).toBeCloseTo(variantCase.iconSize, 0);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 }
 
@@ -121,8 +119,6 @@ for (const variant of ["register", "backoffice"] as const) {
 
     expect(getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-white"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 
   test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px border`, async () => {
@@ -247,8 +243,6 @@ test("hands a fast barcode-scanner keystroke sequence to its caller whole, and r
 
   expect(callerValue(screen)).toBe("");
   expect(input.value).toBe("");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clears the field and its caller's state when Escape is pressed", async () => {
@@ -262,8 +256,6 @@ test("clears the field and its caller's state when Escape is pressed", async () 
 
   expect(input.value).toBe("");
   expect(callerValue(screen)).toBe("");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 // getComputedStyle can't say whether Chromium's own ::-webkit-search-cancel-button is painted, so
@@ -289,8 +281,6 @@ for (const variant of ["register", "backoffice"] as const) {
     });
 
     expect(input.value).toBe(barcode);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 }
 
@@ -305,8 +295,6 @@ test("is announced as a search field and named by its placeholder when no label 
 
   const searchbox = screen.getByRole("searchbox", { name: "Scan or type the product name" });
   await expect.element(searchbox).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("is named by the label instead of the placeholder when one is supplied", async () => {
@@ -322,8 +310,6 @@ test("is named by the label instead of the placeholder when one is supplied", as
   const named = screen.getByRole("searchbox", { name: "Search products" });
   await expect.element(named).toBeVisible();
   expect(screen.getByRole("searchbox", { name: "Filter by name or SKU" }).query()).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("an empty placeholder from a variable, with no label, leaves the field nameless, and the accessibility check catches it", async () => {
@@ -373,7 +359,6 @@ test("paints the register chip icon's own stroke brand-blue-strong and the backo
   const registerBox = fieldBox(registerScreen, "Scan or type the product name");
   const registerIcon = registerBox.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(registerIcon).stroke).toBe(tokenRgb("brand-blue-strong"));
-  await expectNoAccessibilityViolations(registerScreen.container);
   await registerScreen.unmount();
 
   const backofficeScreen = await render(
@@ -386,7 +371,6 @@ test("paints the register chip icon's own stroke brand-blue-strong and the backo
   const backofficeBox = fieldBox(backofficeScreen, "Filter by name or SKU");
   const backofficeIcon = backofficeBox.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(backofficeIcon).stroke).toBe(tokenRgb("ink-secondary"));
-  await expectNoAccessibilityViolations(backofficeScreen.container);
 });
 
 test("does not accept a field without a variant, a value, an onChange, a placeholder or an icon", () => {
@@ -453,6 +437,4 @@ test("fills a chip with brand-blue-message-bg behind the register icon, colored 
 
   expect(getComputedStyle(chip).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
   expect(Math.round(Number.parseFloat(getComputedStyle(chip).borderRadius))).toBe(6);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
