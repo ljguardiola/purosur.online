@@ -1,0 +1,122 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
+
+const MIGRATIONS_DIR_SEGMENT = "migrations";
+const META_DIR_SEGMENT = "meta";
+const JOURNAL_FILE_NAME = "_journal.json";
+
+export function isProtectedMigrationFile(path) {
+  const segments = path.split("/");
+  if (segments[0] !== "apps") return false;
+  const migrationsIndex = segments.indexOf(MIGRATIONS_DIR_SEGMENT, 2);
+  return migrationsIndex !== -1 && migrationsIndex < segments.length - 1;
+}
+
+export function protectedMigrationPaths(paths) {
+  return paths.filter(isProtectedMigrationFile);
+}
+
+export function isJournalFile(path) {
+  const segments = path.split("/");
+  return (
+    segments.at(-1) === JOURNAL_FILE_NAME &&
+    segments.at(-2) === META_DIR_SEGMENT &&
+    segments.at(-3) === MIGRATIONS_DIR_SEGMENT
+  );
+}
+
+// drizzle-kit only ever appends a new entry to a migrations journal, so a later entry can be added
+// but an existing one is never expected to change.
+function isPrefixExtension(baseEntries, currentEntries) {
+  return (
+    Array.isArray(baseEntries) &&
+    Array.isArray(currentEntries) &&
+    currentEntries.length >= baseEntries.length &&
+    baseEntries.every((entry, index) => isDeepStrictEqual(entry, currentEntries[index]))
+  );
+}
+
+export function compareJournalContents(baseBuffer, currentBuffer) {
+  let base;
+  let current;
+  try {
+    base = JSON.parse(baseBuffer.toString("utf8"));
+    current = JSON.parse(currentBuffer.toString("utf8"));
+  } catch {
+    return { ok: false, reason: "modified: could not be parsed as JSON" };
+  }
+  const { entries: baseEntries, ...baseRest } = base;
+  const { entries: currentEntries, ...currentRest } = current;
+  if (!isDeepStrictEqual(baseRest, currentRest)) {
+    return { ok: false, reason: "modified: a field other than entries changed" };
+  }
+  if (!isPrefixExtension(baseEntries, currentEntries)) {
+    return {
+      ok: false,
+      reason: "modified: an existing entry changed, was removed, or was reordered",
+    };
+  }
+  return { ok: true };
+}
+
+export function findMigrationViolations({ basePaths, readBase, readCurrent }) {
+  const violations = [];
+  for (const path of protectedMigrationPaths(basePaths)) {
+    const current = readCurrent(path);
+    if (current === undefined) {
+      violations.push({ path, reason: "deleted" });
+      continue;
+    }
+    const base = readBase(path);
+    if (isJournalFile(path)) {
+      const result = compareJournalContents(base, current);
+      if (!result.ok) violations.push({ path, reason: result.reason });
+      continue;
+    }
+    if (!base.equals(current)) {
+      violations.push({ path, reason: "modified" });
+    }
+  }
+  return violations;
+}
+
+export function describeViolation({ path, reason }) {
+  return `${path}: ${reason}`;
+}
+
+export function resolveBaseRef(env) {
+  return env.MIGRATIONS_BASE_REF || "origin/main";
+}
+
+export function resolveBaseSha({ ref, runGit }) {
+  try {
+    return runGit(["merge-base", "HEAD", ref]).toString("utf8").trim();
+  } catch {
+    return null;
+  }
+}
+
+export function listBasePaths({ base, runGit }) {
+  return runGit(["ls-tree", "-r", "--name-only", base])
+    .toString("utf8")
+    .split("\n")
+    .filter((line) => line !== "");
+}
+
+export function readBaseBlob({ base, path, runGit }) {
+  return runGit(["show", `${base}:${path}`]);
+}
+
+export function readWorkingTreeFile(path) {
+  try {
+    return readFileSync(path);
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+export function runGitSync(args) {
+  return execFileSync("git", args, { maxBuffer: 64 * 1024 * 1024 });
+}
