@@ -60,7 +60,7 @@ export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-brand-blue-strong"
+      className={`inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong ${focusRingClassName}`}
     >
       <span
         aria-hidden="true"
