@@ -518,6 +518,57 @@ for (const script of [
   });
 }
 
+function messagesUnderShell(shell) {
+  const source = [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    `      - shell: ${shell}`,
+    "        run: pnpm test",
+  ];
+  return findRunStepViolations(source.join("\n")).map((violation) => violation.message);
+}
+
+for (const script of [
+  "set -e -x",
+  "set -eu -x",
+  "set -o errexit -o xtrace",
+  "set -eo xtrace",
+  "bash -o xtrace deploy.sh",
+  "bash -c 'set -x; ./deploy.sh'",
+  "bash -x deploy.sh | tee out.log",
+  "bash -x deploy.sh > out.log",
+]) {
+  test(`flags a step that turns on command tracing: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), TRACES);
+  });
+}
+
+test("reads a shell's -c command string as a script of its own", () => {
+  assertFlagsOnly(messagesOf("bash -c 'echo $TOKEN'"), PRINTS);
+});
+
+for (const script of [
+  "bash scripts/build.sh -x",
+  "bash ./tool.sh --dry -x",
+  'sh -c "grep -x main f"',
+  "set +x",
+  "set -o errexit +o xtrace",
+  "bash --noprofile --norc -eo pipefail deploy.sh",
+]) {
+  test(`does not flag a step that leaves command tracing off: ${script}`, () => {
+    assert.deepEqual(messagesOf(script), []);
+  });
+}
+
+test("flags a shell: field that turns on tracing with -o xtrace", () => {
+  assertFlagsOnly(messagesUnderShell("bash -o xtrace {0}"), TRACES);
+});
+
+test("does not flag a shell: field whose script operand is followed by -x", () => {
+  assert.deepEqual(messagesUnderShell("bash {0} -x"), []);
+});
+
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
     "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(

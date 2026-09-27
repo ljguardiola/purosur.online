@@ -13,8 +13,7 @@ const EXPRESSION_RE = /\$\{\{([^}]*)\}\}/g;
 const VARS_OR_SECRETS_RE = /\b(vars|secrets)\.[A-Za-z0-9_]+/;
 const ALLOWED_STDOUT_TARGETS = new Set(["/dev/stdout", "/dev/stderr", "&1", "&2"]);
 const PRINT_COMMANDS = new Set(["echo", "printf"]);
-const XTRACE_FLAG_RE = /^-[a-z]*x[a-z]*$/i;
-const SHELL_COMMAND_RE = /(^|\/)(bash|sh)$/;
+const SHELL_COMMANDS = new Set(["bash", "sh"]);
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
@@ -301,27 +300,78 @@ function stageDumpsEnvironment({ command }) {
   return command.args.every((arg) => arg.text.startsWith("-"));
 }
 
+function readShellOptions(args, { stopAtOperand }) {
+  let xtrace = false;
+  let readsCommandString = false;
+  let index = 0;
+  for (; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === "--" || arg === "-") {
+      index++;
+      break;
+    }
+    if (arg.startsWith("--")) continue;
+    if (!/^[-+]./.test(arg)) {
+      if (stopAtOperand) break;
+      continue;
+    }
+    const enables = arg[0] === "-";
+    const letters = arg.slice(1);
+    if (enables && letters.includes("x")) xtrace = true;
+    if (letters.includes("c")) readsCommandString = true;
+    if (/[oO]/.test(letters)) {
+      index++;
+      if (enables && args[index] === "xtrace") xtrace = true;
+    }
+  }
+  return { xtrace, readsCommandString, operands: args.slice(index) };
+}
+
 function stageTracesCommands({ command }) {
   if (!command) return false;
   const args = command.args.map((arg) => arg.text);
-
-  if (command.name === "set") {
-    if (args[0] && XTRACE_FLAG_RE.test(args[0])) return true;
-    return args[0] === "-o" && args[1] === "xtrace";
-  }
-  if (SHELL_COMMAND_RE.test(command.name)) {
-    return args.some((arg) => XTRACE_FLAG_RE.test(arg));
+  if (command.name === "set") return readShellOptions(args, { stopAtOperand: false }).xtrace;
+  if (SHELL_COMMANDS.has(command.name)) {
+    return readShellOptions(args, { stopAtOperand: true }).xtrace;
   }
   return false;
 }
 
 function shellTraces(shellValue) {
   if (typeof shellValue !== "string") return false;
-  const words = shellValue.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return false;
-  const [command, ...args] = words;
-  if (!SHELL_COMMAND_RE.test(command.replace(/^["']|["']$/g, ""))) return false;
-  return args.some((arg) => XTRACE_FLAG_RE.test(arg));
+  const [command = "", ...args] = shellValue.trim().split(/\s+/);
+  if (!SHELL_COMMANDS.has(command.split("/").pop())) return false;
+  return readShellOptions(args, { stopAtOperand: true }).xtrace;
+}
+
+const NO_FINDINGS = { printsTainted: false, dumpsEnvironment: false, traces: false };
+
+function commandStringFindings({ command }, taintedNames) {
+  if (!command || !SHELL_COMMANDS.has(command.name)) return NO_FINDINGS;
+  const args = command.args.map((arg) => arg.text);
+  const { readsCommandString, operands } = readShellOptions(args, { stopAtOperand: true });
+  if (!readsCommandString || operands.length === 0) return NO_FINDINGS;
+  return bashScriptFindings(operands[0], taintedNames);
+}
+
+function bashScriptFindings(script, taintedNames) {
+  const findings = { ...NO_FINDINGS };
+  for (const line of joinLineContinuations(script)) {
+    for (const stageTexts of splitCommandGroups(line)) {
+      const stages = stageTexts.map(parseStage);
+      stages.forEach((stage, index) => {
+        const inner = commandStringFindings(stage, taintedNames);
+        if (inner.traces || stageTracesCommands(stage)) findings.traces = true;
+        if (!reachesLog(stages, index)) return;
+        if (inner.printsTainted || taintedNames.some((name) => stagePrintsName(stage, name))) {
+          findings.printsTainted = true;
+        }
+        if (inner.dumpsEnvironment || stageDumpsEnvironment(stage))
+          findings.dumpsEnvironment = true;
+      });
+    }
+  }
+  return findings;
 }
 
 function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
@@ -340,26 +390,10 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   const messages = [];
   if (expressionReferencesVarsOrSecrets(script)) messages.push(INLINE_EXPRESSION_MESSAGE);
 
-  let printsTainted = false;
-  let dumpsEnvironment = false;
-  let traces = shellTraces(effectiveShell);
-
-  for (const line of joinLineContinuations(script)) {
-    for (const stageTexts of splitCommandGroups(line)) {
-      const stages = stageTexts.map(parseStage);
-      if (!traces && stageTracesCommands(stages[stages.length - 1])) traces = true;
-
-      stages.forEach((stage, index) => {
-        if (!reachesLog(stages, index)) return;
-        if (taintedNames.some((name) => stagePrintsName(stage, name))) printsTainted = true;
-        if (stageDumpsEnvironment(stage)) dumpsEnvironment = true;
-      });
-    }
-  }
-
-  if (printsTainted) messages.push(PRINTS_TAINTED_ENV_MESSAGE);
-  if (dumpsEnvironment) messages.push(DUMPS_ENVIRONMENT_MESSAGE);
-  if (traces) messages.push(TRACES_COMMANDS_MESSAGE);
+  const findings = bashScriptFindings(script, taintedNames);
+  if (findings.printsTainted) messages.push(PRINTS_TAINTED_ENV_MESSAGE);
+  if (findings.dumpsEnvironment) messages.push(DUMPS_ENVIRONMENT_MESSAGE);
+  if (findings.traces || shellTraces(effectiveShell)) messages.push(TRACES_COMMANDS_MESSAGE);
 
   return messages;
 }
