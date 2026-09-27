@@ -40,7 +40,7 @@ export function parseConventionalCommitType(title) {
   return match ? match[1] : null;
 }
 
-function isDependabotAuthor(author) {
+export function isDependabotAuthor(author) {
   return author?.login === "dependabot[bot]" && author?.type === "Bot";
 }
 

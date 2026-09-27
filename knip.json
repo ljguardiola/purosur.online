@@ -9,6 +9,10 @@
       "entry": [
         ".claude/hooks/pretool.mjs",
         "vitest.mutation.config.ts",
+        ".github/scripts/validate-pr.mjs",
+        ".github/scripts/validate-issue.mjs",
+        ".github/scripts/parent-issue.mjs",
+        ".github/scripts/sync-labels.mjs",
         ".github/scripts/slow-tests-reporter.d.mts"
       ]
     },
