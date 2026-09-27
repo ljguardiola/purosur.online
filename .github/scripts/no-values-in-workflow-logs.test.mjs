@@ -487,6 +487,15 @@ for (const [script, expected] of [
   ["(set -x)", TRACES],
   ["! echo $TOKEN", PRINTS],
   ["time echo $TOKEN", PRINTS],
+  ['case "$MODE" in prod) echo "$TOKEN";; esac', PRINTS],
+  ['  prod) echo "$TOKEN" ;;', PRINTS],
+  ["prod | staging ) printenv ;;", DUMPS],
+  ["(prod) set -x;;", TRACES],
+  ["f() { set -x; }", TRACES],
+  ["f () { echo $TOKEN; }", PRINTS],
+  ["function f { printenv; }", DUMPS],
+  ["function f() { set -x; }", TRACES],
+  ["(env)", DUMPS],
 ]) {
   test(`sees a command inside a compound statement: ${script}`, () => {
     assertFlagsOnly(messagesOf(script), expected);

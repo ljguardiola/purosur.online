@@ -240,7 +240,7 @@ function parseStage(text, escapeCharacter) {
     } else {
       const word = readWord();
       if (word.raw === "") i++;
-      else words.push(word);
+      else words.push({ ...word, followedBy: text.slice(word.end).trimStart() });
     }
   }
 
@@ -263,13 +263,22 @@ const COMMAND_PREFIXES = new Set([
 ]);
 const ASSIGNMENT_RE = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
+function prefixLengthAt(words, index) {
+  const word = words[index];
+  if (COMMAND_PREFIXES.has(word.raw) || ASSIGNMENT_RE.test(word.raw)) return 1;
+  if (word.raw === "case" && words[index + 2]?.raw === "in") return 3;
+  if (word.raw === "function") return 2;
+  if (/^\(\s*\)/.test(word.followedBy)) return 1;
+  const isCasePattern = word.followedBy.startsWith(")") && index < words.length - 1;
+  return isCasePattern ? 1 : 0;
+}
+
 function commandOf(words) {
   let index = 0;
-  while (
-    index < words.length &&
-    (COMMAND_PREFIXES.has(words[index].raw) || ASSIGNMENT_RE.test(words[index].raw))
-  ) {
-    index++;
+  while (index < words.length) {
+    const prefixLength = prefixLengthAt(words, index);
+    if (prefixLength === 0) break;
+    index += prefixLength;
   }
   if (index >= words.length) return null;
   const [first, ...args] = words.slice(index);
