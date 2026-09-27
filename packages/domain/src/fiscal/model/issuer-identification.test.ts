@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
@@ -5,6 +6,11 @@ import {
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "./issuer-identification.js";
+
+const fullUnicodeCodePoint = fc
+  .integer({ min: 0, max: 0x10ffff })
+  .filter((codePoint) => codePoint < 0xd800 || codePoint > 0xdfff)
+  .map((codePoint) => String.fromCodePoint(codePoint));
 
 describe("ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH", () => {
   it("allows legal names of up to 200 characters", () => {
@@ -47,6 +53,17 @@ describe("isIssuerIdentificationLegalNameTooLong", () => {
       ),
     ).toBe(true);
   });
+
+  it("is true exactly when the value's code point count exceeds the limit, for any mix of code points including ones outside the Basic Multilingual Plane", () => {
+    fc.assert(
+      fc.property(fc.array(fullUnicodeCodePoint, { maxLength: 250 }), (codePoints) => {
+        const value = codePoints.join("");
+        expect(isIssuerIdentificationLegalNameTooLong(value)).toBe(
+          codePoints.length > ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
+        );
+      }),
+    );
+  });
 });
 
 describe("isIssuerIdentificationGrossIncomeRegistrationTooLong", () => {
@@ -77,5 +94,16 @@ describe("isIssuerIdentificationGrossIncomeRegistrationTooLong", () => {
         "🔑".repeat(ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH + 1),
       ),
     ).toBe(true);
+  });
+
+  it("is true exactly when the value's code point count exceeds the limit, for any mix of code points including ones outside the Basic Multilingual Plane", () => {
+    fc.assert(
+      fc.property(fc.array(fullUnicodeCodePoint, { maxLength: 150 }), (codePoints) => {
+        const value = codePoints.join("");
+        expect(isIssuerIdentificationGrossIncomeRegistrationTooLong(value)).toBe(
+          codePoints.length > ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+        );
+      }),
+    );
   });
 });

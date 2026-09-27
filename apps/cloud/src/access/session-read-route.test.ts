@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_KEYS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import Fastify, { type FastifyInstance } from "fastify";

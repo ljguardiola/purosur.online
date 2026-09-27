@@ -1,4 +1,4 @@
-import { codePointLength } from "./code-point-length.js";
+import { codePointLength } from "../../shared/index.js";
 
 export const REGISTER_NAME_MAX_LENGTH = 100;
 

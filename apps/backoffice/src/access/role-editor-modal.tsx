@@ -1,4 +1,4 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {

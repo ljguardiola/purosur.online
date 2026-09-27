@@ -1,4 +1,4 @@
-import { codePointLength } from "./code-point-length.js";
+import { codePointLength } from "../../shared/index.js";
 
 export const ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH = 200;
 

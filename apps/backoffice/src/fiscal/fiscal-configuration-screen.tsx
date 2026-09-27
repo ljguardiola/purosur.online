@@ -5,7 +5,7 @@ import {
   ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {

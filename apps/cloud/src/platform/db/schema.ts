@@ -124,7 +124,7 @@ export const roles = pgTable(
   ],
 );
 
-// The permission catalog lives in code (@purosur/contracts), not here, so a new key needs no
+// The permission catalog lives in code (@purosur/domain), not here, so a new key needs no
 // migration. Administrator holds every permission implicitly (roles.is_administrator) and gets no rows.
 export const rolePermissions = pgTable(
   "role_permissions",

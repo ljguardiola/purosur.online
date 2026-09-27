@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { describe, expect, inject, it } from "vitest";
 
 describe("the built cloud", () => {
-  it("runs a module that imports @purosur/contracts under plain Node", () => {
+  it("runs a module that imports @purosur/domain under plain Node", () => {
     const registerValidationUrl = pathToFileURL(
       join(inject("cloudBuildDir"), "register", "register-validation.js"),
     ).href;

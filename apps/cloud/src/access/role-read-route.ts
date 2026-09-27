@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS } from "@purosur/contracts";
+import { PERMISSION_KEYS } from "@purosur/domain";
 import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";

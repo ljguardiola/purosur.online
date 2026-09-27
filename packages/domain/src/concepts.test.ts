@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const CONCEPTS = [
+  "access",
   "sales",
   "returns",
   "payments",
@@ -14,7 +15,10 @@ const CONCEPTS = [
   "sync",
   "purchasing",
   "alerts",
+  "branch",
 ] as const;
+
+const OUTSIDE_ANY_CONCEPT = ["shared"];
 
 const domainSrc = fileURLToPath(new URL(".", import.meta.url));
 
@@ -26,9 +30,9 @@ function topLevelDirectories(path: string) {
 }
 
 describe("packages/domain/src shape", () => {
-  it("has exactly the declared concepts as top-level directories", () => {
+  it("has exactly the declared concepts and the folders that belong to no concept as top-level directories", () => {
     const actual = topLevelDirectories(domainSrc);
-    const expected = [...CONCEPTS].sort();
+    const expected = [...CONCEPTS, ...OUTSIDE_ANY_CONCEPT].sort();
 
     const missing = expected.filter((concept) => !actual.includes(concept));
     const unexpected = actual.filter(

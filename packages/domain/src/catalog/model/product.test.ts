@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   BARCODE_MAX_LENGTH,
@@ -8,11 +9,17 @@ import {
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
   NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
   NET_CONTENT_UNITS,
   PRODUCT_BARCODES_MAX_COUNT,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product.js";
+
+const fullUnicodeCodePoint = fc
+  .integer({ min: 0, max: 0x10ffff })
+  .filter((codePoint) => codePoint < 0xd800 || codePoint > 0xdfff)
+  .map((codePoint) => String.fromCodePoint(codePoint));
 
 describe("PRODUCT_NAME_MAX_LENGTH", () => {
   it("allows product names of up to 100 characters", () => {
@@ -43,6 +50,16 @@ describe("isProductNameTooLong", () => {
   it("counts each emoji as one character toward the 100-character limit", () => {
     expect(isProductNameTooLong("🌱".repeat(PRODUCT_NAME_MAX_LENGTH))).toBe(false);
     expect(isProductNameTooLong("🌱".repeat(PRODUCT_NAME_MAX_LENGTH + 1))).toBe(true);
+  });
+
+  it("is true exactly when the name's code point count exceeds the limit, for any mix of code points including ones outside the Basic Multilingual Plane", () => {
+    fc.assert(
+      fc.property(fc.array(fullUnicodeCodePoint, { maxLength: 150 }), (codePoints) => {
+        const name = codePoints.join("");
+        expect(productNameLength(name)).toBe(codePoints.length);
+        expect(isProductNameTooLong(name)).toBe(codePoints.length > PRODUCT_NAME_MAX_LENGTH);
+      }),
+    );
   });
 });
 
@@ -88,6 +105,16 @@ describe("isBarcodeTooLong", () => {
     expect(isBarcodeTooLong("🔖".repeat(BARCODE_MAX_LENGTH))).toBe(false);
     expect(isBarcodeTooLong("🔖".repeat(BARCODE_MAX_LENGTH + 1))).toBe(true);
   });
+
+  it("is true exactly when the barcode's code point count exceeds the limit, for any mix of code points including ones outside the Basic Multilingual Plane", () => {
+    fc.assert(
+      fc.property(fc.array(fullUnicodeCodePoint, { maxLength: 100 }), (codePoints) => {
+        const code = codePoints.join("");
+        expect(barcodeLength(code)).toBe(codePoints.length);
+        expect(isBarcodeTooLong(code)).toBe(codePoints.length > BARCODE_MAX_LENGTH);
+      }),
+    );
+  });
 });
 
 describe("PRODUCT_BARCODES_MAX_COUNT", () => {
@@ -131,5 +158,53 @@ describe("isValidNetContentQuantity", () => {
   it("rejects a non-finite quantity", () => {
     expect(isValidNetContentQuantity(Number.NaN)).toBe(false);
     expect(isValidNetContentQuantity(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+
+  const validScale = 10 ** NET_CONTENT_QUANTITY_MAX_DECIMALS;
+
+  it("accepts every quantity built from up to 3 decimal digits within (0, the maximum]", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: NET_CONTENT_QUANTITY_MAX * validScale }),
+        (scaledQuantity) => {
+          expect(isValidNetContentQuantity(scaledQuantity / validScale)).toBe(true);
+        },
+      ),
+    );
+  });
+
+  it("rejects every quantity carrying a nonzero digit beyond the third decimal, even within range", () => {
+    fc.assert(
+      fc.property(
+        fc
+          .integer({ min: 1, max: NET_CONTENT_QUANTITY_MAX * validScale * 10 })
+          .filter((scaledQuantity) => scaledQuantity % 10 !== 0),
+        (scaledQuantity) => {
+          expect(isValidNetContentQuantity(scaledQuantity / (validScale * 10))).toBe(false);
+        },
+      ),
+    );
+  });
+
+  it("rejects every quantity at or below zero", () => {
+    fc.assert(
+      fc.property(fc.double({ max: 0, noNaN: true }), (quantity) => {
+        expect(isValidNetContentQuantity(quantity)).toBe(false);
+      }),
+    );
+  });
+
+  it("rejects every otherwise validly-scaled quantity beyond the maximum", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({
+          min: NET_CONTENT_QUANTITY_MAX * validScale + 1,
+          max: NET_CONTENT_QUANTITY_MAX * validScale + 1_000_000,
+        }),
+        (scaledQuantity) => {
+          expect(isValidNetContentQuantity(scaledQuantity / validScale)).toBe(false);
+        },
+      ),
+    );
   });
 });

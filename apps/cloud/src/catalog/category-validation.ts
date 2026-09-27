@@ -1,4 +1,4 @@
-import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/contracts";
+import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/domain";
 
 export interface CategoryFieldValidationFailure {
   field: "name" | "version" | "parentId";

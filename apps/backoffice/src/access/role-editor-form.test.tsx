@@ -1,4 +1,4 @@
-import type { PermissionArea, PermissionKey } from "@purosur/contracts";
+import type { PermissionArea, PermissionKey } from "@purosur/domain";
 import type { DispatchableCdpSession } from "@purosur/ui/test";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";

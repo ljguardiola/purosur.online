@@ -1,4 +1,4 @@
-import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { readPasskeyName } from "./passkey-name-validation.js";
 
@@ -17,7 +17,7 @@ describe("readPasskeyName", () => {
     expect(readPasskeyName({ passkey_name: "  My phone  " })).toBe("My phone");
   });
 
-  it("rejects a name longer than the contracts' maximum length", () => {
+  it("rejects a name longer than the domain's maximum length", () => {
     const name = "a".repeat(PASSKEY_NAME_MAX_LENGTH + 1);
 
     expect(readPasskeyName({ passkey_name: name })).toBeUndefined();

@@ -1,4 +1,4 @@
-import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/domain";
 import {
   Button,
   InlineNotice,

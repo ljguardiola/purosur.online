@@ -1,4 +1,4 @@
-import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
+import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/domain";
 
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 

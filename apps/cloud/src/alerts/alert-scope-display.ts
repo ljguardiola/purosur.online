@@ -1,4 +1,4 @@
-import { isAlertKind } from "@purosur/contracts";
+import { isAlertKind } from "@purosur/domain";
 import { inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { users } from "../platform/db/schema.js";

@@ -1,4 +1,4 @@
-import type { AlertKind } from "@purosur/contracts";
+import type { AlertKind } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";

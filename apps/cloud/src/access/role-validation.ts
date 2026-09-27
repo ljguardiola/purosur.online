@@ -3,7 +3,7 @@ import {
   isPermissionKey,
   isRoleNameTooLong,
   ROLE_NAME_MAX_LENGTH,
-} from "@purosur/contracts";
+} from "@purosur/domain";
 
 const ADMINISTRATOR_NAME = "administrador";
 

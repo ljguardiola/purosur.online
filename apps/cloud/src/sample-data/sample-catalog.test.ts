@@ -1,4 +1,4 @@
-import { isInternalBarcode, isPermissionKey, PRODUCT_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { isInternalBarcode, isPermissionKey, PRODUCT_NAME_MAX_LENGTH } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   SAMPLE_ADMINISTRATOR,
@@ -71,7 +71,7 @@ describe("SAMPLE_CATEGORY_TREE", () => {
     expect(total).toBeLessThanOrEqual(350);
   });
 
-  it("never plans a product name longer than the contract's maximum", () => {
+  it("never plans a product name longer than the domain's maximum", () => {
     for (const product of flattenProducts()) {
       expect(product.name.length).toBeLessThanOrEqual(PRODUCT_NAME_MAX_LENGTH);
     }

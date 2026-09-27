@@ -1,9 +1,4 @@
-import {
-  type AlertAudience,
-  type AlertKind,
-  type AlertLevel,
-  isAlertKind,
-} from "@purosur/contracts";
+import { type AlertAudience, type AlertKind, type AlertLevel, isAlertKind } from "@purosur/domain";
 import {
   and,
   count,
