@@ -1,16 +1,10 @@
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRoute,
-  createRouter,
-  RouterProvider,
-} from "@tanstack/react-router";
+import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
-import type { CoreStatus } from "./router";
-import { appRouterOptions, routeTree } from "./router";
+import type { CoreStatus, RouterContext } from "./router";
+import { createRegisterRouter, routeTree } from "./router";
 
 type RoutePath = "/" | "/starting" | "/core-down";
 type RenderedScreen = Awaited<ReturnType<typeof render>>;
@@ -31,11 +25,7 @@ const screenFor: Record<
 };
 
 function routerAt(path: RoutePath, coreStatus: CoreStatus) {
-  return createRouter({
-    routeTree,
-    context: { coreStatus },
-    history: createMemoryHistory({ initialEntries: [path] }),
-  });
+  return createRegisterRouter(routeTree, { coreStatus }, path);
 }
 
 class OuterErrorBoundary extends Component<{ children: ReactNode }, { error: unknown }> {
@@ -80,17 +70,17 @@ describe("the register's router", () => {
   });
 
   it("lets an error thrown while rendering a screen propagate past the router", async () => {
-    const rootRoute = createRootRoute();
+    const rootRoute = createRootRouteWithContext<RouterContext>()();
     const failingRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: "/",
       component: FailingScreen,
     });
-    const router = createRouter({
-      ...appRouterOptions,
-      routeTree: rootRoute.addChildren([failingRoute]),
-      history: createMemoryHistory({ initialEntries: ["/"] }),
-    });
+    const router = createRegisterRouter(
+      rootRoute.addChildren([failingRoute]),
+      { coreStatus: "up" },
+      "/",
+    );
 
     const screen = await render(
       <OuterErrorBoundary>

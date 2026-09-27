@@ -1,4 +1,5 @@
 import type { CoreStatusMessage } from "@purosur/contracts";
+import type { AnyRoute } from "@tanstack/react-router";
 import {
   createMemoryHistory,
   createRootRouteWithContext,
@@ -56,15 +57,21 @@ const coreDownRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([readyRoute, startingRoute, coreDownRoute]);
 
-export const appRouterOptions = { disableGlobalCatchBoundary: true };
+export function createRegisterRouter<TRouteTree extends AnyRoute>(
+  tree: TRouteTree,
+  context: RouterContext,
+  initialPath: string,
+) {
+  return createRouter({
+    routeTree: tree,
+    context,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+    disableGlobalCatchBoundary: true,
+  });
+}
 
 export function createAppRouter() {
-  return createRouter({
-    ...appRouterOptions,
-    routeTree,
-    context: { coreStatus: "starting" },
-    history: createMemoryHistory({ initialEntries: [ROUTE_FOR_STATUS.starting] }),
-  });
+  return createRegisterRouter(routeTree, { coreStatus: "starting" }, ROUTE_FOR_STATUS.starting);
 }
 
 declare module "@tanstack/react-router" {
