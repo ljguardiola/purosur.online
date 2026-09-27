@@ -283,6 +283,7 @@ const COMMAND_PREFIXES = new Set([
   "command",
   "builtin",
 ]);
+const CONDITION_KEYWORDS = new Set(["if", "elif", "while", "until"]);
 const ASSIGNMENT_RE = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 const COMMAND_WRAPPERS = new Map([
@@ -329,7 +330,8 @@ function commandOf(words) {
   }
   if (index >= words.length) return null;
   const [first, ...args] = words.slice(index);
-  return { name: first.text.split("/").pop(), raw: first.raw, args };
+  const inCondition = words.slice(0, index).some(({ raw }) => CONDITION_KEYWORDS.has(raw));
+  return { name: first.text.split("/").pop(), raw: first.raw, args, inCondition };
 }
 
 const PASS_THROUGH_FILTERS = new Set([
@@ -360,13 +362,31 @@ const GREP_OPTIONS_PRINTING_NO_INPUT_LINES = new Set([
   "--files-without-match",
 ]);
 
+const GREP_SHORT_OPTIONS_PRINTING_NO_INPUT_LINES = "qclL";
+const GREP_SHORT_OPTIONS_WITH_VALUE = "efmABCdD";
+
+function grepShortOptionsPrintNoInputLines(cluster) {
+  for (const option of cluster) {
+    if (GREP_SHORT_OPTIONS_PRINTING_NO_INPUT_LINES.includes(option)) return { printsNone: true };
+    if (GREP_SHORT_OPTIONS_WITH_VALUE.includes(option))
+      return { printsNone: false, takesNext: option === cluster.at(-1) };
+  }
+  return { printsNone: false };
+}
+
 function printsNoInputLines(command) {
-  return (
-    command.name === "grep" &&
-    command.args.some(
-      ({ text }) => GREP_OPTIONS_PRINTING_NO_INPUT_LINES.has(text) || /^-[^-]*[qclL]/.test(text),
-    )
-  );
+  if (command.name !== "grep") return false;
+  const args = command.args.map(({ text }) => text);
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === "--") return false;
+    if (GREP_OPTIONS_PRINTING_NO_INPUT_LINES.has(arg)) return true;
+    if (!/^-[^-]/.test(arg)) continue;
+    const { printsNone, takesNext } = grepShortOptionsPrintNoInputLines(arg.slice(1));
+    if (printsNone) return true;
+    if (takesNext) index++;
+  }
+  return false;
 }
 
 function passesInputThrough(command) {
@@ -535,9 +555,7 @@ function pwshNameOf(command) {
 function pwshReachesLog(stages, index) {
   for (const [offset, stage] of stages.slice(index).entries()) {
     const name = stage.command && pwshNameOf(stage.command);
-    // Write-Host and Write-Information write to PowerShell's information stream (6), Write-Warning
-    // to its warning stream (3) and Write-Error to its error stream (2); neither a pipe nor a >
-    // redirect of the output stream captures those.
+    // Neither a pipe nor a > redirect of PowerShell's output stream captures these other streams.
     const sideStream = PWSH_SIDE_STREAM_COMMANDS.get(name);
     if (sideStream) return !stage.redirects.some(({ fd }) => fd === "*" || fd === sideStream);
     if (stdoutRedirectedAway(stage)) return false;
@@ -557,7 +575,7 @@ function pwshStagePrintsName({ command }, name) {
   if (!readsName) return false;
   const commandName = pwshNameOf(command);
   if (PWSH_PRINT_COMMANDS.has(commandName)) return !/::add-mask::/.test(text);
-  if (PWSH_ENV_ITEM_COMMANDS.has(commandName)) return true;
+  if (PWSH_ENV_ITEM_COMMANDS.has(commandName)) return !command.inCondition;
   return /^["$]/.test(command.raw) && !PWSH_ASSIGNMENT_RE.test(text);
 }
 

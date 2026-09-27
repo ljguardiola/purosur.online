@@ -513,6 +513,9 @@ for (const [script, expected] of [
   ["env | grep -E '^CI='", DUMPS],
   ['echo "$TOKEN" | grep -o x', PRINTS],
   ['grep -i x <<< "$TOKEN"', PRINTS],
+  ["env | grep -- -local", DUMPS],
+  ["env | grep -e -l", DUMPS],
+  ["env | grep -fpatterns.list", DUMPS],
 ]) {
   test(`flags a pipeline whose later stages pass the value through to the log: ${script}`, () => {
     assertFlagsOnly(messagesOf(script), expected);
@@ -535,6 +538,7 @@ for (const script of [
   'echo "$TOKEN" | grep --count x',
   "env | grep --files-with-matches x",
   'grep -q x <<< "$TOKEN"',
+  "env | grep -e x -c",
 ]) {
   test(`does not flag a pipeline that consumes the value or sends it away from the log: ${script}`, () => {
     assert.deepEqual(messagesOf(script, { ...SECRET_ENV, CERT: `\${{ secrets.CERT }}` }), []);
@@ -828,6 +832,8 @@ for (const script of [
   "$value = (Get-Item env:TOKEN).Value",
   "Remove-Item env:TOKEN",
   "Get-Item env:TOKENS",
+  "if ((Get-Item env:TOKEN).Value.Length -lt 10) { throw 'short token' }",
+  "while (-not (Get-Item env:TOKEN)) { Start-Sleep 1 }",
 ]) {
   test(`does not flag a PowerShell step on a Windows runner: ${script}`, () => {
     assert.deepEqual(messagesOfJobStep(script), []);
