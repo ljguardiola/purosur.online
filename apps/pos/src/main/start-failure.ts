@@ -1,5 +1,3 @@
-import { mainMessages } from "./messages";
-
 export interface StartFailureOutput {
   readonly isPackaged: boolean;
   readonly writeError: (line: string) => void;
@@ -11,6 +9,9 @@ export interface StartFailureOutput {
 export function reportStartFailure(reason: string, output: StartFailureOutput): void {
   output.writeError(`register not started: ${reason}`);
   if (output.isPackaged) {
-    output.showErrorBox(mainMessages.startFailure.title, mainMessages.startFailure.detail);
+    output.showErrorBox(
+      "La caja no puede iniciar",
+      "La instalación de la caja está dañada. Se soluciona instalándola de nuevo.",
+    );
   }
 }

@@ -2,6 +2,7 @@ import {
   Button,
   InlineNotice,
   Modal,
+  plural,
   SearchField,
   Select,
   type SelectOption,
@@ -29,7 +30,7 @@ import {
 } from "./categoriesApi";
 import { categoryNameError } from "./categoryName";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
-import { messages } from "./messages";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
@@ -57,19 +58,27 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; categories: CategorySummary[] };
 
-const catalogMessages = messages.catalog;
-const categoriesMessages = catalogMessages.categories;
+const CATEGORY_NAME_REQUIRED = "Ingresá el nombre de la categoría.";
+const CATEGORY_NAME_TAKEN = "Ya existe una categoría con este nombre.";
+const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
+const CATEGORY_PARENT_HELPER_TEXT = "Opcional. Vacío para una categoría de primer nivel.";
+
+function nameTakenUnderParentError(params: { name: string; parent: string }): string {
+  return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
+}
 
 function parentSelectOptions(
   categories: CategorySummary[],
   excludeIds: ReadonlySet<string>,
-  noneLabel: string,
 ): [SelectOption<string>, ...SelectOption<string>[]] {
   const labels = categoryPathLabels(categories);
   const sorted = categoriesInTreeOrder(categories, "ascending").filter(
     (category) => !excludeIds.has(category.id),
   );
-  const noneOption: SelectOption<string> = { value: "", label: noneLabel };
+  const noneOption: SelectOption<string> = {
+    value: "",
+    label: "Ninguna (categoría de primer nivel)",
+  };
   return [
     noneOption,
     ...sorted.map((category) => ({
@@ -98,7 +107,6 @@ function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
-  const modalMessages = categoriesMessages.newCategoryModal;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -119,13 +127,13 @@ function NewCategoryModal({
     }
   }, [isOpen]);
 
-  const parentOptions = parentSelectOptions(categories, new Set(), modalMessages.parentNoneOption);
+  const parentOptions = parentSelectOptions(categories, new Set());
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
   async function handleSubmit() {
     const trimmed = name.trim();
-    const invalidName = categoryNameError(name, modalMessages);
+    const invalidName = categoryNameError(name);
     if (invalidName) {
       setNameError(invalidName);
       return;
@@ -151,22 +159,24 @@ function NewCategoryModal({
     if (outcome.kind === "name_taken") {
       setNameError(
         parentId === null
-          ? modalMessages.nameTaken
-          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+          ? CATEGORY_NAME_TAKEN
+          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
       );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "parent_has_products") {
-      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
+      setParentError(
+        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+      );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "parentId") {
-        setParentError(modalMessages.parentNotFoundError);
+        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
       } else {
-        setNameError(modalMessages.nameRequired);
+        setNameError(CATEGORY_NAME_REQUIRED);
       }
       setSubmitting(false);
       return;
@@ -191,10 +201,9 @@ function NewCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context={modalMessages.eyebrow}
-      title={modalMessages.heading}
+      context="Catálogo"
+      title="Nueva categoría"
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -204,7 +213,7 @@ function NewCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -214,7 +223,7 @@ function NewCategoryModal({
             isDisabled={submitting}
             onPress={() => void handleSubmit()}
           >
-            {modalMessages.submit}
+            Crear la categoría
           </Button>
         </>
       }
@@ -224,35 +233,33 @@ function NewCategoryModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+            title="No se pudo crear la categoría"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
           kind="plain-text"
-          label={modalMessages.nameLabel}
+          label="Nombre de la categoría"
           value={name}
           onChange={(value) => {
             setName(value);
             if (nameError) {
-              setNameError(categoryNameError(value, modalMessages));
+              setNameError(categoryNameError(value));
             }
           }}
           required
           {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
         />
         <Select
-          label={modalMessages.parentLabel}
+          label="Categoría superior"
           options={parentOptions}
           value={parentValue}
           onChange={(value) => {
@@ -261,7 +268,7 @@ function NewCategoryModal({
           }}
           {...(parentError
             ? { invalid: true, errorMessage: parentError }
-            : { helperText: modalMessages.parentHint })}
+            : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
         />
       </div>
     </Modal>
@@ -296,13 +303,10 @@ function EditCategoryModal({
   editCategory,
   categories,
 }: EditCategoryModalProps) {
-  const modalMessages = categoriesMessages.editCategoryModal;
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
-  // Held in state (not read from `target`) so the title stays a non-nullable string; the
-  // message-catalog lint bans a literal fallback in a title attribute.
   const [title, setTitle] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [parentError, setParentError] = useState<string | undefined>(undefined);
@@ -324,7 +328,7 @@ function EditCategoryModal({
   }, [isOpen, target]);
 
   const excludeIds = target ? selfAndDescendantIds(categories, target.id) : new Set<string>();
-  const parentOptions = parentSelectOptions(categories, excludeIds, modalMessages.parentNoneOption);
+  const parentOptions = parentSelectOptions(categories, excludeIds);
   const parentId = parentValue === NO_PARENT_VALUE ? null : parentValue;
   const parentName = categories.find((category) => category.id === parentValue)?.name ?? "";
 
@@ -334,7 +338,7 @@ function EditCategoryModal({
       return;
     }
     const trimmed = name.trim();
-    const invalidName = categoryNameError(name, modalMessages);
+    const invalidName = categoryNameError(name);
     if (invalidName) {
       setNameError(invalidName);
       return;
@@ -365,20 +369,22 @@ function EditCategoryModal({
     if (outcome.kind === "name_taken") {
       setNameError(
         parentId === null
-          ? modalMessages.nameTaken
-          : modalMessages.nameTakenUnderParent({ name: trimmed, parent: parentName }),
+          ? CATEGORY_NAME_TAKEN
+          : nameTakenUnderParentError({ name: trimmed, parent: parentName }),
       );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "parent_has_products") {
-      setParentError(modalMessages.parentHasProductsError({ parent: parentName }));
+      setParentError(
+        `"${parentName}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+      );
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "move_not_allowed") {
       setParentError(
-        modalMessages.moveNotAllowedError({ category: current.name, destination: parentName }),
+        `No se puede mover "${current.name}" bajo "${parentName}": es una de sus subcategorías.`,
       );
       setSubmitting(false);
       return;
@@ -390,9 +396,9 @@ function EditCategoryModal({
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "parentId") {
-        setParentError(modalMessages.parentNotFoundError);
+        setParentError(CATEGORY_PARENT_NOT_FOUND_ERROR);
       } else {
-        setNameError(modalMessages.nameRequired);
+        setNameError(CATEGORY_NAME_REQUIRED);
       }
       setSubmitting(false);
       return;
@@ -461,10 +467,9 @@ function EditCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context={modalMessages.eyebrow}
+      context="Catálogo · Categorías"
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -474,7 +479,7 @@ function EditCategoryModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -484,7 +489,7 @@ function EditCategoryModal({
             isDisabled={submitting}
             onPress={() => void handleSubmit()}
           >
-            {modalMessages.submit}
+            Guardar los cambios
           </Button>
         </>
       }
@@ -495,41 +500,39 @@ function EditCategoryModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el cambio"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.staleVersionTitle}
-              detail={modalMessages.staleVersionDetail}
+              title="Esta categoría cambió mientras la editabas"
+              detail="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "notFound" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.notFoundTitle}
+              title="Esta categoría ya no existe"
             />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail="Probá de nuevo."
             />
           )}
           {offersReload && (
@@ -539,24 +542,24 @@ function EditCategoryModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar
             </Button>
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.nameLabel}
+            label="Nombre de la categoría"
             value={name}
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(categoryNameError(value, modalMessages));
+                setNameError(categoryNameError(value));
               }
             }}
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
           <Select
-            label={modalMessages.parentLabel}
+            label="Categoría superior"
             options={parentOptions}
             value={parentValue}
             onChange={(value) => {
@@ -565,7 +568,7 @@ function EditCategoryModal({
             }}
             {...(parentError
               ? { invalid: true, errorMessage: parentError }
-              : { helperText: modalMessages.parentHint })}
+              : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
           />
         </div>
       )}
@@ -631,7 +634,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   const columns = [
     {
       key: "category",
-      title: categoriesMessages.columns.category,
+      title: "Categoría",
       sortable: true,
       defaultDirection: "ascending",
       render: pathLabel,
@@ -639,11 +642,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
     {
       key: "actions",
       kind: "actions",
-      srLabel: categoriesMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         (item: CategorySummary) => ({
           icon: <Pencil />,
-          "aria-label": categoriesMessages.editAria({ name: item.name }),
+          "aria-label": `Editar la categoría ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
       ],
@@ -656,13 +659,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{categoriesMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {categoriesMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Categorías</h1>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              {categoriesMessages.newCategoryButton}
+              Nueva categoría
             </Button>
           </div>
         }
@@ -673,11 +674,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={categoriesMessages.loadErrorTitle}
-              detail={categoriesMessages.loadErrorDetail}
+              title="No pudimos abrir las categorías"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {categoriesMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -686,13 +687,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={categoriesMessages.rateLimitedTitle}
-              detail={categoriesMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {categoriesMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -703,12 +702,12 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
                 variant="backoffice"
                 value={search}
                 onChange={setSearch}
-                placeholder={categoriesMessages.searchPlaceholder}
+                placeholder="Buscar una categoría"
                 icon={<Search />}
               />
             </div>
             <Table
-              aria-label={categoriesMessages.heading}
+              aria-label="Categorías"
               columns={columns}
               sort={sort}
               onSortChange={setSort}
@@ -718,20 +717,23 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
                 categories.length === 0
                   ? {
                       icon: <Tags />,
-                      title: categoriesMessages.emptyTitle,
-                      detail: categoriesMessages.emptyDetail,
+                      title: "Todavía no hay categorías",
+                      detail: "Creá la primera para poder darle una a un producto.",
                       tone: "blank",
                     }
                   : {
                       icon: <Search />,
-                      title: categoriesMessages.noResultsTitle,
-                      detail: categoriesMessages.noResultsDetail,
+                      title: "Sin resultados",
+                      detail: "Probá con otro nombre.",
                       tone: "filtered",
                     }
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {categoriesMessages.count({ count: filtered.length })}
+                  {plural(filtered.length, {
+                    one: "1 categoría",
+                    other: `${filtered.length} categorías`,
+                  })}
                 </p>
               }
             />

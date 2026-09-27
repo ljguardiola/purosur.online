@@ -1,8 +1,11 @@
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { messages } from "../src/messages";
 import { APP_DIR, appEnv, E2E_CHANNEL_FILE, platformArgs, writeChannelFile } from "./launch-app";
+
+const SHELL_READY_TEXT = "Puro Sur está listo";
+const CORE_DOWN_TITLE = "Esperá un momento";
+const CORE_DOWN_BODY = "La caja vuelve a funcionar sola en unos minutos.";
 
 // Electron's own service name for a Node.js utility process, robust against other utility
 // processes (network, audio, storage...) Electron itself may also spawn.
@@ -94,7 +97,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
     app.process().stderr?.on("data", (chunk: Buffer) => logs.push(chunk.toString()));
     page = await app.firstWindow();
     await page.waitForLoadState("domcontentloaded");
-    await page.getByText(messages.shell.ready).waitFor({ state: "visible", timeout: 10_000 });
+    await page.getByText(SHELL_READY_TEXT).waitFor({ state: "visible", timeout: 10_000 });
 
     await page.evaluate(() => {
       const probe = window as unknown as NoticeProbe;
@@ -132,7 +135,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
           observer.observe(document.body, { childList: true, subtree: true });
         });
       },
-      { title: messages.coreDown.title, body: messages.coreDown.body },
+      { title: CORE_DOWN_TITLE, body: CORE_DOWN_BODY },
     );
     await killTheRunningCore(app);
 
@@ -142,9 +145,9 @@ describe("the register's own recovery once the core's bounded restarts run out",
     });
 
     await expect
-      .poll(() => page.getByText(messages.shell.ready).isVisible(), { timeout: 10_000 })
+      .poll(() => page.getByText(SHELL_READY_TEXT).isVisible(), { timeout: 10_000 })
       .toBe(true);
-    expect(await page.getByText(messages.coreDown.title).count()).toBe(0);
+    expect(await page.getByText(CORE_DOWN_TITLE).count()).toBe(0);
 
     const cores = await coreProcesses(app);
     expect(cores.length).toBeGreaterThan(0);

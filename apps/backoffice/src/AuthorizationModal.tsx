@@ -3,12 +3,8 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
-import { messages } from "./messages";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
-
-const authMessages = messages.passkeyAuthorization;
-
-export type AuthorizationActionKey = keyof typeof authMessages.actions;
 
 export type AuthorizationServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -30,7 +26,7 @@ type Authorizable = { kind: string };
 
 type AuthorizationModalProps = {
   isOpen: boolean;
-  action: AuthorizationActionKey;
+  actionName: string;
   notice: ModalNotice | null;
   submitting: boolean;
   onCancel: () => void;
@@ -39,7 +35,7 @@ type AuthorizationModalProps = {
 
 function AuthorizationModal({
   isOpen,
-  action,
+  actionName,
   notice,
   submitting,
   onCancel,
@@ -56,9 +52,8 @@ function AuthorizationModal({
       width="confirmation"
       tone="info"
       icon={<Fingerprint />}
-      title={authMessages.title}
+      title="Autorizá este cambio"
       closable
-      closeLabel={authMessages.closeLabel}
       footer={
         <>
           <Button
@@ -69,7 +64,7 @@ function AuthorizationModal({
             isDisabled={submitting}
             onPress={onCancel}
           >
-            {authMessages.cancel}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -79,31 +74,29 @@ function AuthorizationModal({
             isDisabled={submitting}
             onPress={onConfirm}
           >
-            {authMessages.confirm}
+            Usar mi passkey
           </Button>
         </>
       }
     >
       <div className="flex flex-col items-center gap-4 text-center">
         <p className="text-base text-ink-secondary">
-          {authMessages.body({ action: authMessages.actions[action] })}
+          {`${actionName} necesita tu autorización. Confirmala con tu passkey.`}
         </p>
         {notice?.kind === "attemptFailed" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={authMessages.attemptFailedTitle}
-            detail={authMessages.attemptFailedDetail}
+            title="No se pudo confirmar con tu passkey"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={authMessages.rateLimitedTitle}
-            detail={authMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -112,11 +105,11 @@ function AuthorizationModal({
 }
 
 export function useAuthorization<T extends Authorizable>({
-  action,
+  actionName,
   onSessionEnded,
   services,
 }: {
-  action: AuthorizationActionKey;
+  actionName: string;
   onSessionEnded: () => void;
   services?: AuthorizationServices;
 }): { run: (attempt: () => Promise<T>) => Promise<T | { kind: "cancelled" }>; modal: ReactNode } {
@@ -217,7 +210,7 @@ export function useAuthorization<T extends Authorizable>({
     modal: (
       <AuthorizationModal
         isOpen={isOpen}
-        action={action}
+        actionName={actionName}
         notice={notice}
         submitting={submitting}
         onCancel={cancel}

@@ -16,6 +16,9 @@ overrides:
   # drizzle-kit still loads through the deprecated @esbuild-kit loader, which pins an esbuild
   # affected by GHSA-67mh-4wv8-2f99. Remove once drizzle-kit no longer depends on @esbuild-kit.
   "@esbuild-kit/core-utils>esbuild": ^0.25.0
+  # @stryker-mutator/core depends on typed-rest-client 2.3.x, which pins a qs affected by
+  # GHSA-q8mj-m7cp-5q26. Remove once @stryker-mutator/core moves to typed-rest-client 3 or later.
+  "typed-rest-client>qs": ^6.16.0
 
 patchedDependencies:
   # Two Vitest 5 changes make this runner report caught mutants as surviving: Vitest now matches a

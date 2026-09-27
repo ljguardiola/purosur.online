@@ -6,6 +6,7 @@ import { makeWorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
+import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
 
 export interface RunMigrationsOptions {
   migrationsFolder?: string;
@@ -17,7 +18,6 @@ export interface RunMigrationsOptions {
   onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
-const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
 const DEFAULT_WAIT_FOR_DATABASE_SECONDS = 60;
 const DEFAULT_WAIT_INTERVAL_MS = 1000;
 
@@ -205,7 +205,7 @@ export async function runMigrations(
   cloudAppPassword: string,
   options: RunMigrationsOptions = {},
 ): Promise<void> {
-  const migrationsFolder = options.migrationsFolder ?? DEFAULT_MIGRATIONS_FOLDER;
+  const migrationsFolder = options.migrationsFolder ?? MIGRATIONS_FOLDER;
   const connectTimeoutSeconds = options.connectTimeoutSeconds ?? 10;
 
   await waitForDatabase(

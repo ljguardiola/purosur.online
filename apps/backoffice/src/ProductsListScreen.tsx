@@ -1,4 +1,5 @@
 import {
+  BARCODE_MAX_LENGTH,
   ean13Modules,
   isBarcodeTooLong,
   isInternalBarcode,
@@ -8,6 +9,7 @@ import {
   LABELS_MAX_TOTAL_COUNT,
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import {
   Button,
@@ -17,6 +19,7 @@ import {
   ListFilter,
   Modal,
   OptionCardGroup,
+  plural,
   QuantityUnitField,
   type QuantityUnitFieldOption,
   SearchField,
@@ -58,9 +61,9 @@ import {
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
-import { messages } from "./messages";
 import {
   formatNetContentQuantity,
+  NET_CONTENT_QUANTITY_INVALID,
   netContentQuantityError,
   parseNetContentQuantity,
 } from "./netContentQuantity";
@@ -77,6 +80,7 @@ import {
   type ProductSummary,
   printLabels,
 } from "./productsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 
@@ -114,22 +118,87 @@ type ListState =
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
 
-const catalogMessages = messages.catalog;
-const productsMessages = catalogMessages.products;
+const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
+const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
+// Only reachable by a race: the category gains a subcategory of its own between loading this
+// form and submitting it.
+const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
+  `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
+const PRODUCT_NAME_REQUIRED = "Ingresá el nombre del producto.";
+const SALE_UNIT_OPTION_CONTENT = {
+  UNIT: { title: "Por unidad", helpText: "Se vende de a uno" },
+  KG: { title: "Por peso", helpText: "Se pesa en la balanza" },
+} satisfies Record<ProductSaleUnit, { title: string; helpText: string }>;
+const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
+const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
+const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
+const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`;
+const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
+const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
+const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
+const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
+  "No se pudo generar el código interno. Probá de nuevo.";
+const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
+
+function barcodeTakenText(params: { codes: string[] }): string {
+  const list = params.codes.join(", ");
+  return plural(params.codes.length, {
+    one: `El código ${list} ya es de otro producto.`,
+    other: `Los códigos ${list} ya son de otro producto.`,
+  });
+}
+
+const UNIT_OPTION_LABELS = {
+  UNIT: "Por unidad",
+  KG: "Por peso",
+} satisfies Record<ProductSaleUnit, string>;
+
+const NET_CONTENT_UNIT_OPTION_LABELS = {
+  G: "g",
+  KG: "kg",
+  ML: "ml",
+  L: "l",
+  UNIT: "u",
+} satisfies Record<NetContentUnit, string>;
+
+const PRODUCTS_EMPTY_STATE = {
+  active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+  inactive: { title: "No hay productos inactivos" },
+  all: {
+    title: "Todavía no hay productos",
+    detail: "Creá el primero para verlo en la lista.",
+  },
+} satisfies Record<ProductStatusFilter, { title: string; detail?: string }>;
+
+function productsCountText(params: { count: number; status: ProductStatusFilter }): string {
+  if (params.status === "active") {
+    return plural(params.count, {
+      one: "1 producto activo",
+      other: `${params.count} productos activos`,
+    });
+  }
+  if (params.status === "inactive") {
+    return plural(params.count, {
+      one: "1 producto inactivo",
+      other: `${params.count} productos inactivos`,
+    });
+  }
+  return plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+}
 
 function unitLabel(saleUnit: ProductSaleUnit): string {
-  return productsMessages.unitOptionLabels[saleUnit];
+  return UNIT_OPTION_LABELS[saleUnit];
 }
 
 const NET_CONTENT_UNIT_OPTIONS: [
   QuantityUnitFieldOption<NetContentUnit>,
   ...QuantityUnitFieldOption<NetContentUnit>[],
 ] = [
-  { id: "G", label: productsMessages.netContentUnitOptionLabels.G },
-  { id: "KG", label: productsMessages.netContentUnitOptionLabels.KG },
-  { id: "ML", label: productsMessages.netContentUnitOptionLabels.ML },
-  { id: "L", label: productsMessages.netContentUnitOptionLabels.L },
-  { id: "UNIT", label: productsMessages.netContentUnitOptionLabels.UNIT },
+  { id: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
+  { id: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
+  { id: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
+  { id: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
+  { id: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
 ];
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
@@ -180,16 +249,13 @@ function categorySelectOptions(
   return [first, ...rest];
 }
 
-function productNameError(
-  name: string,
-  modalMessages: { nameRequired: string; nameTooLong: string },
-) {
+function productNameError(name: string): string | undefined {
   const trimmed = name.trim();
   if (!trimmed) {
-    return modalMessages.nameRequired;
+    return PRODUCT_NAME_REQUIRED;
   }
   if (isProductNameTooLong(trimmed)) {
-    return modalMessages.nameTooLong;
+    return PRODUCT_NAME_TOO_LONG;
   }
   return undefined;
 }
@@ -219,12 +285,6 @@ type BarcodeChipsProps = {
   onScanKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
   onGenerate: () => void;
   generateDisabled: boolean;
-  labels: {
-    barcodesLabel: string;
-    scanInputLabel: string;
-    generateButtonLabel: string;
-    barcodeRemoveAria: (params: { code: string }) => string;
-  };
   error: string | undefined;
   scanError: string | undefined;
   generateError: string | undefined;
@@ -238,7 +298,6 @@ function BarcodeChips({
   onScanKeyDown,
   onGenerate,
   generateDisabled,
-  labels,
   error,
   scanError,
   generateError,
@@ -250,7 +309,7 @@ function BarcodeChips({
   const describedBy = [scanError && scanErrorId, error && errorId].filter(Boolean).join(" ");
 
   return (
-    <FieldGroup label={labels.barcodesLabel} required>
+    <FieldGroup label="Códigos de barras" required>
       {barcodes.length > 0 && (
         <div className="flex flex-col gap-1">
           {barcodes.map((code) => (
@@ -261,7 +320,7 @@ function BarcodeChips({
               <span className="min-w-0 flex-1 truncate font-mono text-sm text-ink">{code}</span>
               <IconButton
                 icon={<X />}
-                aria-label={labels.barcodeRemoveAria({ code })}
+                aria-label={`Quitar el código ${code}`}
                 onPress={() => onRemove(code)}
               />
             </div>
@@ -276,7 +335,7 @@ function BarcodeChips({
               className="pointer-events-none flex min-w-0 items-center justify-center gap-2"
             >
               <ScanBarcode className="size-[1.125rem] shrink-0" />
-              <span className="truncate">{labels.scanInputLabel}</span>
+              <span className="truncate">Escanear otro código</span>
             </span>
           )}
           <input
@@ -286,7 +345,7 @@ function BarcodeChips({
             onKeyDown={onScanKeyDown}
             onFocus={() => setScanFocused(true)}
             onBlur={() => setScanFocused(false)}
-            aria-label={labels.scanInputLabel}
+            aria-label="Escanear otro código"
             aria-invalid={describedBy ? true : undefined}
             aria-describedby={describedBy || undefined}
           />
@@ -299,7 +358,7 @@ function BarcodeChips({
           aria-describedby={generateError ? generateErrorId : undefined}
         >
           <Barcode aria-hidden="true" className="size-[1.125rem] shrink-0" />
-          <span className="truncate">{labels.generateButtonLabel}</span>
+          <span className="truncate">Generar código interno</span>
         </button>
       </div>
       {generateError && (
@@ -364,57 +423,35 @@ function productFieldErrors(
 
 type PendingCodeResult = { ok: true; barcodes: string[]; added: boolean } | { ok: false };
 
-type ScanMessages = {
-  barcodeHasSpaces: string;
-  barcodeTooLong: string;
-  barcodeAlreadyListed: string;
-  barcodeLimitReached: string;
-};
-
-function scanErrorFor(
-  code: string,
-  listed: string[],
-  scanMessages: ScanMessages,
-): string | undefined {
+function scanErrorFor(code: string, listed: string[]): string | undefined {
   if (/\s/.test(code)) {
-    return scanMessages.barcodeHasSpaces;
+    return PRODUCT_BARCODE_HAS_SPACES;
   }
   if (isBarcodeTooLong(code)) {
-    return scanMessages.barcodeTooLong;
+    return PRODUCT_BARCODE_TOO_LONG;
   }
   if (listed.includes(code)) {
-    return scanMessages.barcodeAlreadyListed;
+    return PRODUCT_BARCODE_ALREADY_LISTED;
   }
   if (listed.length >= PRODUCT_BARCODES_MAX_COUNT) {
-    return scanMessages.barcodeLimitReached;
+    return PRODUCT_BARCODE_LIMIT_REACHED;
   }
   return undefined;
 }
 
-function barcodesRejectedError(
-  sent: string[],
-  modalMessages: { barcodeRequired: string; barcodeInvalid: string },
-): string {
-  return sent.length > 0 ? modalMessages.barcodeInvalid : modalMessages.barcodeRequired;
+function barcodesRejectedError(sent: string[]): string {
+  return sent.length > 0 ? PRODUCT_BARCODE_INVALID : PRODUCT_BARCODE_REQUIRED;
 }
 
-function barcodeTakenError(
-  codes: string[],
-  modalMessages: {
-    barcodeTaken: (params: { codes: string[] }) => string;
-    barcodeTakenUnnamed: string;
-  },
-): string {
-  return codes.length > 0
-    ? modalMessages.barcodeTaken({ codes })
-    : modalMessages.barcodeTakenUnnamed;
+function barcodeTakenError(codes: string[]): string {
+  return codes.length > 0 ? barcodeTakenText({ codes }) : PRODUCT_BARCODE_TAKEN_UNNAMED;
 }
 
 function hasInternalBarcode(barcodes: string[]): boolean {
   return barcodes.some(isInternalBarcode);
 }
 
-function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
+function useBarcodeChips(initial: string[]) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
   const barcodesRef = useRef(barcodes);
   barcodesRef.current = barcodes;
@@ -436,7 +473,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     const next = barcodes.filter((existing) => existing !== code);
     setBarcodes(next);
     setScanError((current) =>
-      current === undefined ? undefined : scanErrorFor(scanInput.trim(), next, scanMessages),
+      current === undefined ? undefined : scanErrorFor(scanInput.trim(), next),
     );
   }
 
@@ -445,7 +482,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     if (!trimmed) {
       return { ok: true, barcodes, added: false };
     }
-    const error = scanErrorFor(trimmed, barcodes, scanMessages);
+    const error = scanErrorFor(trimmed, barcodes);
     if (error) {
       setScanError(error);
       return { ok: false };
@@ -473,7 +510,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
     if (barcodes.length < PRODUCT_BARCODES_MAX_COUNT) {
       return false;
     }
-    setScanError(scanMessages.barcodeLimitReached);
+    setScanError(PRODUCT_BARCODE_LIMIT_REACHED);
     return true;
   }
 
@@ -481,7 +518,7 @@ function useBarcodeChips(initial: string[], scanMessages: ScanMessages) {
   // skips the spaces/length checks.
   function addGenerated(code: string): boolean {
     if (barcodesRef.current.length >= PRODUCT_BARCODES_MAX_COUNT) {
-      setScanError(scanMessages.barcodeLimitReached);
+      setScanError(PRODUCT_BARCODE_LIMIT_REACHED);
       return false;
     }
     setBarcodes((current) => (current.includes(code) ? current : [...current, code]));
@@ -580,13 +617,12 @@ function NewProductModal({
   generateInternalBarcode,
   categories,
 }: NewProductModalProps) {
-  const modalMessages = productsMessages.newProductModal;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
   const [netContentQuantity, setNetContentQuantity] = useState("");
   const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
-  const chips = useBarcodeChips([], modalMessages);
+  const chips = useBarcodeChips([]);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
@@ -605,7 +641,7 @@ function NewProductModal({
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
       ),
-    modalMessages.generateFailed,
+    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
   useEffect(() => {
@@ -626,13 +662,13 @@ function NewProductModal({
   const categoryOptions = categorySelectOptions(categories);
 
   async function handleSubmit() {
-    const nameError = productNameError(name, modalMessages);
-    const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
-    const unitError = saleUnit ? undefined : modalMessages.unitRequired;
+    const nameError = productNameError(name);
+    const categoryError = categoryId ? undefined : PRODUCT_CATEGORY_REQUIRED;
+    const unitError = saleUnit ? undefined : "Elegí la unidad de venta.";
     const pending = chips.commitPending();
     const barcodesError =
-      pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
-    const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
+      pending.ok && pending.barcodes.length === 0 ? PRODUCT_BARCODE_REQUIRED : undefined;
+    const netContentError = netContentQuantityError(netContentQuantity);
     setErrors(
       productFieldErrors(nameError, categoryError, unitError, barcodesError, netContentError),
     );
@@ -664,23 +700,19 @@ function NewProductModal({
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "name") {
-        setErrors((current) => withFieldError(current, "name", modalMessages.nameRequired));
+        setErrors((current) => withFieldError(current, "name", PRODUCT_NAME_REQUIRED));
       } else if (outcome.field === "categoryId") {
-        setErrors((current) => withFieldError(current, "category", modalMessages.categoryRequired));
+        setErrors((current) => withFieldError(current, "category", PRODUCT_CATEGORY_REQUIRED));
       } else if (outcome.field === "saleUnit") {
-        setErrors((current) => withFieldError(current, "unit", modalMessages.unitRequired));
+        setErrors((current) => withFieldError(current, "unit", "Elegí la unidad de venta."));
       } else if (outcome.field === "barcodes") {
         setErrors((current) =>
-          withFieldError(current, "barcodes", barcodesRejectedError(input.barcodes, modalMessages)),
+          withFieldError(current, "barcodes", barcodesRejectedError(input.barcodes)),
         );
       } else if (outcome.field === "netContentQuantity") {
-        setErrors((current) =>
-          withFieldError(current, "netContent", modalMessages.netContentQuantityInvalid),
-        );
+        setErrors((current) => withFieldError(current, "netContent", NET_CONTENT_QUANTITY_INVALID));
       } else if (outcome.field === "netContent") {
-        setErrors((current) =>
-          withFieldError(current, "netContent", modalMessages.netContentInvalid),
-        );
+        setErrors((current) => withFieldError(current, "netContent", PRODUCT_NET_CONTENT_INVALID));
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -690,7 +722,7 @@ function NewProductModal({
     if (outcome.kind === "barcode_taken") {
       setErrors((current) => ({
         ...current,
-        barcodes: barcodeTakenError(outcome.codes, modalMessages),
+        barcodes: barcodeTakenError(outcome.codes),
       }));
       setSubmitting(false);
       return;
@@ -702,7 +734,7 @@ function NewProductModal({
         withFieldError(
           current,
           "category",
-          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+          PRODUCT_CATEGORY_NOT_LEAF_ERROR({ category: chosenCategoryName }),
         ),
       );
       setSubmitting(false);
@@ -728,10 +760,9 @@ function NewProductModal({
       width="standard"
       tone="info"
       icon={<PackagePlus />}
-      context={modalMessages.eyebrow}
-      title={modalMessages.heading}
+      context="Catálogo · Productos"
+      title="Nuevo producto"
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -741,7 +772,7 @@ function NewProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -751,7 +782,7 @@ function NewProductModal({
             isDisabled={submitting}
             onPress={() => void handleSubmit()}
           >
-            {modalMessages.submit}
+            Crear el producto
           </Button>
         </>
       }
@@ -761,30 +792,26 @@ function NewProductModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+            title="No se pudo crear el producto"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
           kind="plain-text"
-          label={modalMessages.nameLabel}
+          label="Nombre"
           value={name}
           onChange={(value) => {
             setName(value);
             if (errors.name) {
-              setErrors((current) =>
-                withFieldError(current, "name", productNameError(value, modalMessages)),
-              );
+              setErrors((current) => withFieldError(current, "name", productNameError(value)));
             }
           }}
           required
@@ -792,8 +819,8 @@ function NewProductModal({
         />
         {categoryOptions ? (
           <Select
-            label={modalMessages.categoryLabel}
-            placeholder={modalMessages.categoryPlaceholder}
+            label="Categoría"
+            placeholder="Elegí una categoría"
             options={categoryOptions}
             value={categoryId}
             onChange={(value) => {
@@ -804,48 +831,44 @@ function NewProductModal({
             {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
           />
         ) : (
-          <FieldGroup label={modalMessages.categoryLabel} required>
+          <FieldGroup label="Categoría" required>
             {errors.category && (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
             )}
           </FieldGroup>
         )}
         <QuantityUnitField
-          label={modalMessages.netContentLabel}
+          label="Contenido neto"
           quantity={netContentQuantity}
           onQuantityChange={(value) => {
             setNetContentQuantity(value);
             if (errors.netContent) {
               setErrors((current) =>
-                withFieldError(
-                  current,
-                  "netContent",
-                  netContentQuantityError(value, modalMessages),
-                ),
+                withFieldError(current, "netContent", netContentQuantityError(value)),
               );
             }
           }}
           unit={netContentUnit}
           onUnitChange={setNetContentUnit}
           options={NET_CONTENT_UNIT_OPTIONS}
-          unitLabel={modalMessages.netContentUnitLabel}
+          unitLabel="Unidad"
           {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
         />
-        <FieldGroup label={modalMessages.unitLabel} required>
+        <FieldGroup label="Unidad de venta" required>
           <OptionCardGroup
-            label={modalMessages.unitLabel}
+            label="Unidad de venta"
             options={[
               {
                 value: "UNIT",
                 icon: <Package />,
-                title: modalMessages.unitOptionUnitTitle,
-                helpText: modalMessages.unitOptionUnitHelp,
+                title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
+                helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
               },
               {
                 value: "KG",
                 icon: <Scale />,
-                title: modalMessages.unitOptionWeightTitle,
-                helpText: modalMessages.unitOptionWeightHelp,
+                title: SALE_UNIT_OPTION_CONTENT.KG.title,
+                helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
               },
             ]}
             value={saleUnit}
@@ -869,7 +892,6 @@ function NewProductModal({
           }
           onGenerate={() => void generate.handleGenerate()}
           generateDisabled={generate.disabled}
-          labels={modalMessages}
           error={errors.barcodes}
           scanError={chips.scanError}
           generateError={generate.generateError}
@@ -907,7 +929,6 @@ function EditProductModal({
   generateInternalBarcode,
   categories,
 }: EditProductModalProps) {
-  const modalMessages = productsMessages.editProductModal;
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -916,7 +937,7 @@ function EditProductModal({
   const [netContentUnit, setNetContentUnit] = useState<NetContentUnit>(NET_CONTENT_DEFAULT_UNIT);
   const [version, setVersion] = useState(1);
   const [title, setTitle] = useState("");
-  const chips = useBarcodeChips([], modalMessages);
+  const chips = useBarcodeChips([]);
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -933,7 +954,7 @@ function EditProductModal({
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
       ),
-    modalMessages.generateFailed,
+    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
   useEffect(() => {
@@ -960,12 +981,12 @@ function EditProductModal({
     if (!current) {
       return;
     }
-    const nameError = productNameError(name, modalMessages);
-    const categoryError = categoryId ? undefined : modalMessages.categoryRequired;
+    const nameError = productNameError(name);
+    const categoryError = categoryId ? undefined : PRODUCT_CATEGORY_REQUIRED;
     const pending = chips.commitPending();
     const barcodesError =
-      pending.ok && pending.barcodes.length === 0 ? modalMessages.barcodeRequired : undefined;
-    const netContentError = netContentQuantityError(netContentQuantity, modalMessages);
+      pending.ok && pending.barcodes.length === 0 ? PRODUCT_BARCODE_REQUIRED : undefined;
+    const netContentError = netContentQuantityError(netContentQuantity);
     setErrors(
       productFieldErrors(nameError, categoryError, undefined, barcodesError, netContentError),
     );
@@ -1008,21 +1029,17 @@ function EditProductModal({
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "name") {
-        setErrors((current) => withFieldError(current, "name", modalMessages.nameRequired));
+        setErrors((current) => withFieldError(current, "name", PRODUCT_NAME_REQUIRED));
       } else if (outcome.field === "categoryId") {
-        setErrors((current) => withFieldError(current, "category", modalMessages.categoryRequired));
+        setErrors((current) => withFieldError(current, "category", PRODUCT_CATEGORY_REQUIRED));
       } else if (outcome.field === "barcodes") {
         setErrors((current) =>
-          withFieldError(current, "barcodes", barcodesRejectedError(sentBarcodes, modalMessages)),
+          withFieldError(current, "barcodes", barcodesRejectedError(sentBarcodes)),
         );
       } else if (outcome.field === "netContentQuantity") {
-        setErrors((current) =>
-          withFieldError(current, "netContent", modalMessages.netContentQuantityInvalid),
-        );
+        setErrors((current) => withFieldError(current, "netContent", NET_CONTENT_QUANTITY_INVALID));
       } else if (outcome.field === "netContent") {
-        setErrors((current) =>
-          withFieldError(current, "netContent", modalMessages.netContentInvalid),
-        );
+        setErrors((current) => withFieldError(current, "netContent", PRODUCT_NET_CONTENT_INVALID));
       } else {
         setNotice({ kind: "attemptFailed" });
       }
@@ -1032,7 +1049,7 @@ function EditProductModal({
     if (outcome.kind === "barcode_taken") {
       setErrors((current) => ({
         ...current,
-        barcodes: barcodeTakenError(outcome.codes, modalMessages),
+        barcodes: barcodeTakenError(outcome.codes),
       }));
       setSubmitting(false);
       return;
@@ -1044,7 +1061,7 @@ function EditProductModal({
         withFieldError(
           current,
           "category",
-          modalMessages.categoryNotLeafError({ category: chosenCategoryName }),
+          PRODUCT_CATEGORY_NOT_LEAF_ERROR({ category: chosenCategoryName }),
         ),
       );
       setSubmitting(false);
@@ -1117,10 +1134,9 @@ function EditProductModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context={modalMessages.eyebrow}
+      context="Catálogo · Productos"
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -1130,7 +1146,7 @@ function EditProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           {offersReload ? (
             <Button
@@ -1141,7 +1157,7 @@ function EditProductModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar el producto
             </Button>
           ) : (
             <Button
@@ -1152,7 +1168,7 @@ function EditProductModal({
               isDisabled={submitting}
               onPress={() => void handleSubmit()}
             >
-              {modalMessages.submit}
+              Guardar los cambios
             </Button>
           )}
         </>
@@ -1164,53 +1180,49 @@ function EditProductModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el cambio"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
             <InlineNotice
               tone="error"
               icon={<RotateCcw />}
-              title={modalMessages.staleVersionTitle}
-              detail={modalMessages.staleVersionDetail}
+              title="Otra persona cambió este producto"
+              detail="Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos."
             />
           )}
           {notice?.kind === "notFound" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.notFoundTitle}
+              title="Este producto ya no existe"
             />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail="Probá de nuevo."
             />
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.nameLabel}
+            label="Nombre"
             value={name}
             onChange={(value) => {
               setName(value);
               if (errors.name) {
-                setErrors((current) =>
-                  withFieldError(current, "name", productNameError(value, modalMessages)),
-                );
+                setErrors((current) => withFieldError(current, "name", productNameError(value)));
               }
             }}
             required
@@ -1218,7 +1230,7 @@ function EditProductModal({
           />
           {categoryOptions ? (
             <Select
-              label={modalMessages.categoryLabel}
+              label="Categoría"
               options={categoryOptions}
               value={categoryId}
               onChange={(value) => {
@@ -1229,48 +1241,44 @@ function EditProductModal({
               {...(errors.category ? { invalid: true, errorMessage: errors.category } : {})}
             />
           ) : (
-            <FieldGroup label={modalMessages.categoryLabel} required>
+            <FieldGroup label="Categoría" required>
               {errors.category && (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
               )}
             </FieldGroup>
           )}
           <QuantityUnitField
-            label={modalMessages.netContentLabel}
+            label="Contenido neto"
             quantity={netContentQuantity}
             onQuantityChange={(value) => {
               setNetContentQuantity(value);
               if (errors.netContent) {
                 setErrors((current) =>
-                  withFieldError(
-                    current,
-                    "netContent",
-                    netContentQuantityError(value, modalMessages),
-                  ),
+                  withFieldError(current, "netContent", netContentQuantityError(value)),
                 );
               }
             }}
             unit={netContentUnit}
             onUnitChange={setNetContentUnit}
             options={NET_CONTENT_UNIT_OPTIONS}
-            unitLabel={modalMessages.netContentUnitLabel}
+            unitLabel="Unidad"
             {...(errors.netContent ? { invalid: true, errorMessage: errors.netContent } : {})}
           />
-          <FieldGroup label={modalMessages.unitLabel} required>
+          <FieldGroup label="Unidad de venta" required>
             <OptionCardGroup
-              label={modalMessages.unitLabel}
+              label="Unidad de venta"
               options={[
                 {
                   value: "UNIT",
                   icon: <Package />,
-                  title: modalMessages.unitOptionUnitTitle,
-                  helpText: modalMessages.unitOptionUnitHelp,
+                  title: SALE_UNIT_OPTION_CONTENT.UNIT.title,
+                  helpText: SALE_UNIT_OPTION_CONTENT.UNIT.helpText,
                 },
                 {
                   value: "KG",
                   icon: <Scale />,
-                  title: modalMessages.unitOptionWeightTitle,
-                  helpText: modalMessages.unitOptionWeightHelp,
+                  title: SALE_UNIT_OPTION_CONTENT.KG.title,
+                  helpText: SALE_UNIT_OPTION_CONTENT.KG.helpText,
                 },
               ]}
               value={saleUnit}
@@ -1290,7 +1298,6 @@ function EditProductModal({
             }
             onGenerate={() => void generate.handleGenerate()}
             generateDisabled={generate.disabled}
-            labels={modalMessages}
             error={errors.barcodes}
             scanError={chips.scanError}
             generateError={generate.generateError}
@@ -1323,7 +1330,6 @@ function DeactivateProductModal({
   onSessionEnded,
   deactivateProduct,
 }: DeactivateProductModalProps) {
-  const modalMessages = productsMessages.deactivateModal;
   const isOpen = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
@@ -1333,7 +1339,7 @@ function DeactivateProductModal({
 
   useEffect(() => {
     if (isOpen && target) {
-      setTitle(modalMessages.title({ name: target.name }));
+      setTitle(`¿Desactivar ${target.name}?`);
       setNotice(null);
       setSubmitting(false);
     }
@@ -1389,7 +1395,6 @@ function DeactivateProductModal({
       icon={<Ban />}
       title={title}
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button
@@ -1399,7 +1404,7 @@ function DeactivateProductModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           {alreadyGone ? (
             <Button
@@ -1410,7 +1415,7 @@ function DeactivateProductModal({
               isDisabled={submitting}
               onPress={onVanished}
             >
-              {modalMessages.reload}
+              Actualizar la lista
             </Button>
           ) : (
             <Button
@@ -1422,37 +1427,33 @@ function DeactivateProductModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {modalMessages.confirm}
+              Desactivar
             </Button>
           )}
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-base text-ink">{modalMessages.body}</p>
+        <p className="text-base text-ink">
+          Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.
+        </p>
         {notice?.kind === "attemptFailed" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+            title="No se pudo desactivar el producto"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyInactive" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={modalMessages.alreadyInactiveTitle}
-          />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivado" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -1549,7 +1550,6 @@ function PrintLabelsModal({
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
-  const modalMessages = productsMessages.printLabelsModal;
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -1601,7 +1601,7 @@ function PrintLabelsModal({
       const url = URL.createObjectURL(outcome.blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = modalMessages.downloadFileName;
+      link.download = "etiquetas.pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1681,14 +1681,13 @@ function PrintLabelsModal({
       width="standard"
       tone="info"
       icon={<Printer />}
-      context={modalMessages.eyebrow}
-      title={modalMessages.heading}
+      context="Catálogo · Productos"
+      title="Imprimir etiquetas"
       closable
-      closeLabel={modalMessages.closeLabel}
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} isDisabled={busy} onPress={onClose}>
-            {modalMessages.cancel}
+            Cancelar
           </Button>
           <Button
             variant="primary"
@@ -1698,7 +1697,7 @@ function PrintLabelsModal({
             isDisabled={busy || total === 0}
             onPress={() => void handleDownload()}
           >
-            {modalMessages.download}
+            Descargar la hoja para imprimir
           </Button>
         </>
       }
@@ -1708,47 +1707,51 @@ function PrintLabelsModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.attemptFailedTitle}
-            detail={modalMessages.attemptFailedDetail}
+            title="No se pudo generar la hoja"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={modalMessages.rateLimitedTitle}
-            detail={modalMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {notice?.kind === "productsChanged" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.productsChangedTitle}
-            detail={modalMessages.productsChangedDetail}
+            title="La lista de productos cambió"
+            detail="Recargá para ver los productos actualizados antes de imprimir."
           />
         )}
         {notice?.kind === "reloadFailed" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={modalMessages.reloadFailedTitle}
-            detail={modalMessages.reloadFailedDetail}
+            title="No se pudo recargar la lista"
+            detail="Probá de nuevo."
           />
         )}
         {offersReload && (
           <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
-            {modalMessages.reload}
+            Recargar la lista
           </Button>
         )}
-        <p className="text-base text-ink">{modalMessages.intro}</p>
+        <p className="text-base text-ink">
+          Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
+        </p>
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg bg-surface-bone px-4 py-8 text-center">
             <Package aria-hidden="true" className="size-6 text-ink-secondary" />
-            <p className="text-base font-bold text-ink">{modalMessages.emptyTitle}</p>
-            <p className="text-sm text-ink-secondary">{modalMessages.emptyDetail}</p>
+            <p className="text-base font-bold text-ink">
+              No hay productos activos con código interno
+            </p>
+            <p className="text-sm text-ink-secondary">
+              Generá uno desde el formulario de un producto activo.
+            </p>
           </div>
         ) : (
           <>
@@ -1767,14 +1770,14 @@ function PrintLabelsModal({
                     <div className="flex shrink-0 items-center gap-2">
                       <IconButton
                         icon={<Minus />}
-                        aria-label={modalMessages.decreaseAria({ name: product.name })}
+                        aria-label={`Restar una etiqueta de ${product.name}`}
                         isDisabled={count === 0}
                         onPress={() => changeCount(product.id, -1)}
                       />
                       <span className="w-8 text-center font-mono text-base text-ink">{count}</span>
                       <IconButton
                         icon={<Plus />}
-                        aria-label={modalMessages.increaseAria({ name: product.name })}
+                        aria-label={`Sumar una etiqueta a ${product.name}`}
                         isDisabled={
                           count === LABELS_MAX_COUNT_PER_PRODUCT || total >= LABELS_MAX_TOTAL_COUNT
                         }
@@ -1789,7 +1792,7 @@ function PrintLabelsModal({
               // <fieldset> carries the implicit "group" role a div would need role="group" for;
               // Tailwind's preflight strips its native border/padding/margin.
               <fieldset
-                aria-label={modalMessages.previewAria}
+                aria-label="Vista previa de la etiqueta"
                 className="flex items-center gap-4 rounded-lg border border-line p-3"
               >
                 <div className="flex w-36 shrink-0 flex-col items-center gap-2 rounded border border-line p-3">
@@ -1803,9 +1806,11 @@ function PrintLabelsModal({
                 </div>
                 <div className="flex flex-col gap-1">
                   <p className="text-xl font-bold text-brand-blue-strong">
-                    {modalMessages.summary({ count: total })}
+                    {plural(total, { one: "1 etiqueta", other: `${total} etiquetas` })}
                   </p>
-                  <p className="text-sm text-ink-secondary">{modalMessages.summaryDetail}</p>
+                  <p className="text-sm text-ink-secondary">
+                    Hoja autoadhesiva para cualquier impresora común.
+                  </p>
                 </div>
               </fieldset>
             )}
@@ -1892,7 +1897,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
       leafIds.has(category.id),
     );
     return [
-      { value: "ALL" as const, label: productsMessages.categoryFilterAllOption },
+      { value: "ALL" as const, label: "Todas" },
       ...leaves.map((category) => ({
         value: category.id,
         label: categoryLabels.get(category.id) ?? category.name,
@@ -1901,15 +1906,15 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   }, [categories, categoryLabels]);
 
   const unitFilterOptions = [
-    { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
-    { value: "UNIT" as const, label: productsMessages.unitOptionLabels.UNIT },
-    { value: "KG" as const, label: productsMessages.unitOptionLabels.KG },
+    { value: "ALL" as const, label: "Todas" },
+    { value: "UNIT" as const, label: UNIT_OPTION_LABELS.UNIT },
+    { value: "KG" as const, label: UNIT_OPTION_LABELS.KG },
   ] as const;
 
   const statusFilterOptions = [
-    { value: "active" as const, label: productsMessages.statusFilterActiveOption },
-    { value: "inactive" as const, label: productsMessages.statusFilterInactiveOption },
-    { value: "all" as const, label: productsMessages.statusFilterAllOption },
+    { value: "active" as const, label: "Activos" },
+    { value: "inactive" as const, label: "Inactivos" },
+    { value: "all" as const, label: "Todos" },
   ] as const;
 
   const filtered = useMemo(() => {
@@ -1934,46 +1939,46 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const columns = [
     {
       key: "product",
-      title: productsMessages.columns.product,
+      title: "PRODUCTO",
       sortable: true,
       defaultDirection: "ascending",
       render: (item: ProductSummary) => item.name,
     },
     {
       key: "category",
-      title: productsMessages.columns.category,
+      title: "CATEGORÍA",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",
-      title: productsMessages.columns.unit,
+      title: "UNIDAD",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
       key: "status",
-      title: productsMessages.columns.status,
+      title: "ESTADO",
       render: (item: ProductSummary) =>
         item.active ? (
-          <StatusIndicator tone="success">{productsMessages.statusActive}</StatusIndicator>
+          <StatusIndicator tone="success">Activo</StatusIndicator>
         ) : (
-          <StatusIndicator tone="neutral">{productsMessages.statusInactive}</StatusIndicator>
+          <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
         ),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: productsMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         (item: ProductSummary) => ({
           icon: <Pencil />,
-          "aria-label": productsMessages.editAria({ name: item.name }),
+          "aria-label": `Editar el producto ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
         (item: ProductSummary) =>
           item.active
             ? {
                 icon: <Ban />,
-                "aria-label": productsMessages.deactivateAria({ name: item.name }),
+                "aria-label": `Desactivar el producto ${item.name}`,
                 onPress: () => setDeactivateTarget(item),
               }
             : undefined,
@@ -1987,10 +1992,8 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{productsMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {productsMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Productos</h1>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -1999,10 +2002,10 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 isDisabled={list.kind !== "loaded"}
                 onPress={() => setPrintModalOpen(true)}
               >
-                {productsMessages.printLabelsButton}
+                Imprimir etiquetas
               </Button>
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-                {productsMessages.newProductButton}
+                Nuevo producto
               </Button>
             </div>
           </div>
@@ -2014,11 +2017,11 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={productsMessages.loadErrorTitle}
-              detail={productsMessages.loadErrorDetail}
+              title="No pudimos abrir los productos"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {productsMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -2027,13 +2030,11 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={productsMessages.rateLimitedTitle}
-              detail={productsMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {productsMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -2045,31 +2046,31 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                   variant="backoffice"
                   value={search}
                   onChange={setSearch}
-                  placeholder={productsMessages.searchPlaceholder}
+                  placeholder="Buscar por nombre o código de barras"
                   icon={<Search />}
                 />
               </div>
               <ListFilter
-                label={productsMessages.categoryFilterLabel}
+                label="Categoría:"
                 options={categoryFilterOptions}
                 value={categoryFilter}
                 onChange={setCategoryFilter}
               />
               <ListFilter
-                label={productsMessages.unitFilterLabel}
+                label="Unidad:"
                 options={unitFilterOptions}
                 value={unitFilter}
                 onChange={setUnitFilter}
               />
               <ListFilter
-                label={productsMessages.statusFilterLabel}
+                label="Estado:"
                 options={statusFilterOptions}
                 value={statusFilter}
                 onChange={setStatusFilter}
               />
             </div>
             <Table
-              aria-label={productsMessages.heading}
+              aria-label="Productos"
               columns={columns}
               sort={sort}
               onSortChange={setSort}
@@ -2079,19 +2080,19 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 products.length === 0
                   ? {
                       icon: <Package />,
-                      ...productsMessages.empty[statusFilter],
+                      ...PRODUCTS_EMPTY_STATE[statusFilter],
                       tone: "blank",
                     }
                   : {
                       icon: <SearchX />,
-                      title: productsMessages.noResultsTitle,
-                      detail: productsMessages.noResultsDetail,
+                      title: "Sin resultados",
+                      detail: "Probá con otro nombre o código de barras.",
                       tone: "filtered",
                     }
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {productsMessages.count({ count: filtered.length, status: statusFilter })}
+                  {productsCountText({ count: filtered.length, status: statusFilter })}
                 </p>
               }
             />

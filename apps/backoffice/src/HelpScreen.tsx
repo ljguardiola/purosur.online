@@ -4,7 +4,6 @@ import { ChevronRight, Info, Search } from "lucide-react";
 import type { Ref } from "react";
 import { articleHref, type BackofficeHelpCatalog, sectionHref } from "./helpRoutes";
 import { linkProps } from "./linkProps";
-import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { searchArticles } from "./searchHelp";
 import { sectionIcon } from "./sectionIcons";
@@ -133,11 +132,11 @@ function RelatedPanel({
   });
   return (
     <nav
-      aria-label={messages.help.relatedHeading}
+      aria-label="También te puede servir"
       className="flex w-[18.75rem] shrink-0 flex-col gap-2 self-start"
     >
       <h2 className="font-bold text-brand-earth-ui text-xs uppercase tracking-widest">
-        {messages.help.relatedHeading}
+        También te puede servir
       </h2>
       <ul className="flex flex-col gap-2">
         {keyed(related, ([id]) => id).map(([key, [id, article]]) => (
@@ -179,7 +178,7 @@ export type HelpSectionColumnProps = {
 export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnProps) {
   return (
     <>
-      <h2 className="font-bold text-brand-blue-strong text-xl">{messages.help.sectionsHeading}</h2>
+      <h2 className="font-bold text-brand-blue-strong text-xl">Ayuda</h2>
       <div className="h-2.5" />
       <ul className="flex flex-col gap-1">
         {Object.entries(help.categories).map(([id, category]) => (
@@ -219,16 +218,14 @@ export function HelpContent({
   const isSearching = search.trim() !== "";
   const results = isSearching ? searchArticles(help.articles, search) : [];
   const hasArticles = Object.keys(help.articles).length > 0;
-  const idleTitle = hasArticles ? messages.help.pickSectionTitle : messages.help.emptyTitle;
+  const idleTitle = hasArticles ? "Elegí una sección" : "Todavía no hay contenido de ayuda";
 
   return (
     <ScreenLayout
       topBar={
         <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
           {activeArticle && activeCategory && (
-            <p className="text-ink-secondary text-sm">
-              {messages.help.breadcrumb({ section: activeCategory.label })}
-            </p>
+            <p className="text-ink-secondary text-sm">{`Ayuda · ${activeCategory.label}`}</p>
           )}
           <h1
             ref={headingRef}
@@ -246,7 +243,7 @@ export function HelpContent({
           variant="backoffice"
           value={search}
           onChange={onSearchChange}
-          placeholder={messages.help.searchPlaceholder}
+          placeholder="Buscar en la ayuda"
           icon={<Search />}
         />
       </div>
@@ -254,7 +251,7 @@ export function HelpContent({
         results.length > 0 ? (
           <ArticleList articles={results} />
         ) : (
-          <EmptyState title={messages.help.noResultsTitle} body={messages.help.noResultsBody} />
+          <EmptyState title="Sin resultados" body="Probá con otras palabras." />
         )
       ) : activeArticle ? (
         <ArticleView help={help} article={activeArticle} />
@@ -265,7 +262,13 @@ export function HelpContent({
           )}
         />
       ) : (
-        <EmptyState body={hasArticles ? messages.help.pickSectionBody : messages.help.emptyBody} />
+        <EmptyState
+          body={
+            hasArticles
+              ? "O buscá un tema."
+              : "Cuando se sumen funciones nuevas, sus artículos van a aparecer acá."
+          }
+        />
       )}
     </ScreenLayout>
   );

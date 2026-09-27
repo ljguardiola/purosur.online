@@ -52,7 +52,8 @@ A feature too large for one pull request stays as a parent feature issue holding
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
 - Code, comments, tests, commit messages, issues, and pull requests are written in English.
-- User-facing text is written in Spanish and lives only in message catalogs, structured for internationalization even though there is a single language. Code references catalog keys and never contains user-facing text as a literal.
+- User-facing text is written in Spanish where it is shown; there are no message catalogs. Text built from quantities, amounts or dates goes through `packages/ui`'s formatting functions, fixed to Argentine Spanish (`es-AR`), so a value reads the same on every screen.
+- A `packages/ui` component writes the text that reads the same wherever it is used (a modal's close button, a pagination's previous and next); text that depends on the screen comes from the app as a prop, with no default.
 - Help and manuals live inside the application they serve: the register's help ships with the register and works offline; the backoffice's help lives in the backoffice.
 - Code and tests explain themselves. Names, structure and test cases carry the meaning; a reader should not need a companion document to follow them.
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says.

@@ -51,11 +51,7 @@ type ModalCenteredProps = {
 
 // In the centered layout, `closable` only enables Escape to dismiss — it draws no close button.
 export type ModalProps = ModalCommonProps &
-  (
-    | (ModalLeadingProps & { closable: true; closeLabel: string })
-    | (ModalLeadingProps & { closable?: false; closeLabel?: undefined })
-    | (ModalCenteredProps & { closable?: boolean; closeLabel?: undefined })
-  );
+  ((ModalLeadingProps & { closable?: boolean }) | (ModalCenteredProps & { closable?: boolean }));
 
 const widthClassName: Record<ModalWidth, string> = {
   confirmation: "w-[35rem]",
@@ -195,7 +191,7 @@ export function Modal(props: ModalProps) {
                 </div>
                 {props.closable && (
                   <AriaButton
-                    aria-label={props.closeLabel}
+                    aria-label="Cerrar"
                     onPress={() => onOpenChange(false)}
                     className={closeButtonClassName}
                   >

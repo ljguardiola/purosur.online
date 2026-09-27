@@ -5,6 +5,7 @@ import {
   ListFilter,
   Modal,
   NotificationCard,
+  plural,
   SearchField,
   Table,
   Tag,
@@ -23,7 +24,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { messages } from "./messages";
 import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import {
   type ConfirmPriceOutcome,
@@ -38,6 +38,7 @@ import {
   setPrice,
 } from "./pricesApi";
 import type { ProductSaleUnit } from "./productsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 
@@ -75,12 +76,18 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const NOTICE_LIFETIME_MS = 5000;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const catalogMessages = messages.catalog;
-const pricesMessages = catalogMessages.prices;
-const modalMessages = pricesMessages.changePriceModal;
+const AMOUNT_INVALID = "Ingresá un precio válido, mayor a cero.";
+const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
+
+const PRICE_LABEL = {
+  UNIT: "Precio de venta por unidad",
+  KG: "Precio de venta por kilo",
+} satisfies Record<ProductSaleUnit, string>;
+
+const UNIT_SUFFIX = { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, string>;
 
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
-  const suffix = modalMessages.unitSuffix[saleUnit];
+  const suffix = UNIT_SUFFIX[saleUnit];
   return suffix ? `${formatCents(cents)} ${suffix}` : formatCents(cents);
 }
 
@@ -95,23 +102,36 @@ function daysSince(at: string, now: Date): number {
 
 function reviewedCellText(lastReviewedAt: string | null, now: Date): string {
   if (!lastReviewedAt) {
-    return pricesMessages.neverReviewed;
+    return "Nunca";
   }
   const days = daysSince(lastReviewedAt, now);
-  return days <= 0 ? pricesMessages.reviewedToday : pricesMessages.reviewedDaysAgo({ days });
+  return days <= 0 ? "Hoy" : plural(days, { one: "Hace 1 día", other: `Hace ${days} días` });
+}
+
+function eyebrowOverdue(days: number): string {
+  return plural(days, { one: "SIN REVISAR HACE 1 DÍA", other: `SIN REVISAR HACE ${days} DÍAS` });
+}
+
+function eyebrowRecent(days: number): string {
+  return plural(days, { one: "REVISADO HACE 1 DÍA", other: `REVISADO HACE ${days} DÍAS` });
 }
 
 function modalEyebrow(product: PriceProduct, now: Date): string {
   if (!product.currentPrice || !product.lastReviewedAt) {
-    return modalMessages.eyebrowNoPrice;
+    return "SIN PRECIO";
   }
   const days = daysSince(product.lastReviewedAt, now);
   if (days <= 0) {
-    return modalMessages.eyebrowRecentToday;
+    return "REVISADO HOY";
   }
-  return product.pending
-    ? modalMessages.eyebrowOverdue({ days })
-    : modalMessages.eyebrowRecent({ days });
+  return product.pending ? eyebrowOverdue(days) : eyebrowRecent(days);
+}
+
+function emptyPendingDetail(params: { days: number }): string {
+  return plural(params.days, {
+    one: "Todos los precios se revisaron en el último día.",
+    other: `Todos los precios se revisaron en los últimos ${params.days} días.`,
+  });
 }
 
 type PriceModalOutcome =
@@ -198,25 +218,25 @@ function PriceChangeModal({
 
   function validatedAmount(product: PriceProduct): number | undefined {
     if (!amount.trim()) {
-      showAmountError(modalMessages.amountRequired);
+      showAmountError("Ingresá el precio nuevo.");
       return undefined;
     }
     const parsed = parseAmountInput(amount);
     if (parsed.kind === "malformed") {
-      showAmountError(modalMessages.amountFormat);
+      showAmountError("Escribí el precio con coma para los decimales, por ejemplo 7.500,50.");
       return undefined;
     }
     if (parsed.kind === "notPositive") {
-      showAmountError(modalMessages.amountInvalid);
+      showAmountError(AMOUNT_INVALID);
       return undefined;
     }
     if (parsed.kind === "tooLarge") {
-      showAmountError(modalMessages.amountTooLarge({ amount: formatCents(MAX_UNIT_PRICE_CENTS) }));
+      showAmountError(`Ingresá un precio de hasta ${formatCents(MAX_UNIT_PRICE_CENTS)}.`);
       return undefined;
     }
     const cents = parsed.cents;
     if (product.currentPrice && cents === product.currentPrice.unitPrice) {
-      showAmountError(modalMessages.amountUnchanged);
+      showAmountError(AMOUNT_UNCHANGED);
       return undefined;
     }
     return cents;
@@ -245,11 +265,11 @@ function PriceChangeModal({
     } else if (outcome.kind === "stale_price") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "price_unchanged") {
-      showAmountError(modalMessages.amountUnchanged);
+      showAmountError(AMOUNT_UNCHANGED);
     } else if (outcome.kind === "validation_failed" && outcome.field === "expectedCurrentPriceId") {
       showNotice({ kind: "stale" });
     } else if (outcome.kind === "validation_failed") {
-      showAmountError(modalMessages.amountInvalid);
+      showAmountError(AMOUNT_INVALID);
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
@@ -389,9 +409,7 @@ function PriceChangeModal({
       icon={<Pencil />}
       context={current ? modalEyebrow(current, now()) : ""}
       title={title}
-      {...(submitting
-        ? { closable: false }
-        : { closable: true, closeLabel: modalMessages.closeLabel })}
+      closable={!submitting}
       footer={
         current && (
           <>
@@ -403,7 +421,7 @@ function PriceChangeModal({
                 isDisabled={actionsDisabled}
                 onPress={() => void handleConfirm()}
               >
-                {modalMessages.confirm}
+                Confirmar sin cambios
               </Button>
             )}
             <Button
@@ -414,7 +432,7 @@ function PriceChangeModal({
               isDisabled={actionsDisabled}
               onPress={() => void handleSave()}
             >
-              {modalMessages.submit}
+              Guardar el precio nuevo
             </Button>
           </>
         )
@@ -442,52 +460,50 @@ function PriceChangeModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el precio"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "confirmFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.confirmFailedTitle}
-              detail={modalMessages.confirmFailedDetail}
+              title="No se pudo confirmar el precio"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "stale" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.staleTitle}
-              detail={modalMessages.staleDetail}
+              title="Este precio cambió mientras lo mirabas"
+              detail="Recargá el precio actual y volvé a intentarlo."
             />
           )}
           {notice?.kind === "noPriceToConfirm" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={pricesMessages.noPriceToConfirmTitle}
+              title="No hay un precio para confirmar"
             />
           )}
           {notice?.kind === "notFound" && (
-            <InlineNotice tone="error" icon={<TriangleAlert />} title={pricesMessages.goneTitle} />
+            <InlineNotice tone="error" icon={<TriangleAlert />} title="Producto desactivado" />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail="Probá de nuevo."
             />
           )}
           {offersReload && (
@@ -497,12 +513,12 @@ function PriceChangeModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar el precio
             </Button>
           )}
           <TextField
             kind="price"
-            label={modalMessages.priceLabel[current.saleUnit]}
+            label={PRICE_LABEL[current.saleUnit]}
             prefix="$"
             value={amount}
             onChange={(value) => {
@@ -514,9 +530,7 @@ function PriceChangeModal({
             required
             {...(current.currentPrice
               ? {
-                  helperText: modalMessages.currentPriceHelper({
-                    amount: formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit),
-                  }),
+                  helperText: `Precio actual: ${formatCentsWithUnit(current.currentPrice.unitPrice, current.saleUnit)}`,
                 }
               : {})}
             {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
@@ -643,27 +657,27 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const categoryFilterOptions = (() => {
     const sorted = [...categories].sort((a, b) => a.name.localeCompare(b.name, "es"));
     return [
-      { value: "ALL" as const, label: pricesMessages.categoryFilterAllOption },
+      { value: "ALL" as const, label: "Todas" },
       ...sorted.map((category) => ({ value: category.id, label: category.name })),
     ] as [{ value: string; label: string }, ...{ value: string; label: string }[]];
   })();
 
   const reviewFilterOptions = [
-    { value: "pending" as const, label: pricesMessages.reviewFilterPendingOption },
-    { value: "all" as const, label: pricesMessages.reviewFilterAllOption },
+    { value: "pending" as const, label: "Por revisar" },
+    { value: "all" as const, label: "Todos" },
   ] as const;
 
   const reviewStartFailedNotice: ScreenNotice = {
     tone: "error",
-    title: pricesMessages.reviewStartFailedTitle,
-    detail: pricesMessages.reviewStartFailedDetail,
+    title: "No se pudo empezar la revisión",
+    detail: "Probá de nuevo.",
   };
 
   function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
     return {
       tone: "error",
-      title: pricesMessages.rateLimitedTitle,
-      detail: pricesMessages.rateLimitedDetail({ minutes: Math.ceil(retryAfterSeconds / 60) }),
+      title: "Demasiadas solicitudes",
+      detail: retryAfterDetail(retryAfterSeconds),
       retryAfterSeconds,
     };
   }
@@ -688,8 +702,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         if (reviewFilterRef.current !== "pending") {
           showScreenNotice({
             tone: "success",
-            title: pricesMessages.nothingPendingTitle,
-            detail: pricesMessages.emptyPendingDetail({ days: outcome.value.reviewWindowDays }),
+            title: "No quedan precios por revisar",
+            detail: emptyPendingDetail({ days: outcome.value.reviewWindowDays }),
           });
         }
         return;
@@ -720,21 +734,21 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return outcome.kind === "confirmed"
       ? {
           tone: "success",
-          title: pricesMessages.confirmedNoticeTitle,
-          detail: pricesMessages.confirmedNoticeDetail({ name: product.name, amount }),
+          title: "Precio confirmado",
+          detail: `${product.name} sigue a ${amount}.`,
         }
       : {
           tone: "success",
-          title: pricesMessages.savedNoticeTitle,
-          detail: pricesMessages.savedNoticeDetail({ name: product.name, amount }),
+          title: "Precio actualizado",
+          detail: `${product.name} pasa a ${amount}.`,
         };
   }
 
   function goneNotice(product: PriceProduct): ScreenNotice {
     return {
       tone: "error",
-      title: pricesMessages.goneTitle,
-      detail: pricesMessages.goneDetail({ name: product.name }),
+      title: "Producto desactivado",
+      detail: `${product.name} ya no está en el catálogo.`,
     };
   }
 
@@ -788,8 +802,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {
     return {
       tone: "error",
-      title: pricesMessages.rowConfirmFailedTitle({ name: item.name }),
-      detail: modalMessages.confirmFailedDetail,
+      title: `No se pudo confirmar el precio de ${item.name}`,
+      detail: "Probá de nuevo.",
     };
   }
 
@@ -813,8 +827,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       reloadWithCurrentFilters();
       showScreenNotice({
         tone: "error",
-        title: pricesMessages.rowConfirmStaleTitle,
-        detail: pricesMessages.rowConfirmStaleDetail({ name: item.name }),
+        title: "El precio cambió recién",
+        detail: `Revisá el precio actual de ${item.name}.`,
       });
       return;
     }
@@ -827,8 +841,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
       reloadWithCurrentFilters();
       showScreenNotice({
         tone: "error",
-        title: pricesMessages.noPriceToConfirmTitle,
-        detail: pricesMessages.noPriceToConfirmDetail({ name: item.name }),
+        title: "No hay un precio para confirmar",
+        detail: `${item.name} todavía no tiene precio.`,
       });
       return;
     }
@@ -842,13 +856,13 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
   const columns = [
     {
       key: "product",
-      title: pricesMessages.columns.product,
+      title: "PRODUCTO",
       render: (item: PriceProduct) => (
         <div className="flex items-center gap-2">
           <span>{item.name}</span>
           {!item.currentPrice && (
             <Tag tone="neutral" icon={<Ban aria-hidden="true" />}>
-              {pricesMessages.noPrice}
+              Sin precio
             </Tag>
           )}
         </div>
@@ -856,28 +870,26 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     },
     {
       key: "price",
-      title: pricesMessages.columns.price,
+      title: "PRECIO",
       render: (item: PriceProduct) =>
-        item.currentPrice
-          ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit)
-          : pricesMessages.noPriceValue,
+        item.currentPrice ? formatCentsWithUnit(item.currentPrice.unitPrice, item.saleUnit) : "—",
     },
     {
       key: "reviewed",
-      title: pricesMessages.columns.reviewed,
+      title: "REVISADO",
       render: (item: PriceProduct) => reviewedCellText(item.lastReviewedAt, clock()),
     },
     {
       key: "actions",
-      title: pricesMessages.rowActionsLabel,
+      title: "Acciones",
       align: "end" as const,
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
           {item.currentPrice && (
-            <Tooltip description={pricesMessages.confirmTooltip}>
+            <Tooltip description="Confirmar sin cambios: cuenta como revisar el precio.">
               <IconButton
                 icon={<Check />}
-                aria-label={pricesMessages.confirmAria({ name: item.name })}
+                aria-label={`Confirmar el precio de ${item.name} sin cambios`}
                 isDisabled={screenRequestInFlight}
                 onPress={() => void handleRowConfirm(item)}
               />
@@ -885,7 +897,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
           )}
           <IconButton
             icon={<Pencil />}
-            aria-label={pricesMessages.editAria({ name: item.name })}
+            aria-label={`Cambiar el precio de ${item.name}`}
             isDisabled={screenRequestInFlight}
             onPress={() => {
               clearErrorNotice();
@@ -903,10 +915,8 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{pricesMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {pricesMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Precios</h1>
             </div>
             {pendingCount > 0 && (
               <Button
@@ -915,7 +925,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 isDisabled={screenRequestInFlight}
                 onPress={() => void handleReviewButton()}
               >
-                {pricesMessages.reviewButton({ count: pendingCount })}
+                {plural(pendingCount, { one: "Revisar 1", other: `Revisar los ${pendingCount}` })}
               </Button>
             )}
           </div>
@@ -927,11 +937,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={pricesMessages.loadErrorTitle}
-              detail={pricesMessages.loadErrorDetail}
+              title="No pudimos abrir los precios"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={handleRetry}>
-              {pricesMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -940,13 +950,11 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={pricesMessages.rateLimitedTitle}
-              detail={pricesMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={handleRetry}>
-              {pricesMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -961,12 +969,12 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                     clearErrorNotice();
                     setSearch(value);
                   }}
-                  placeholder={pricesMessages.searchPlaceholder}
+                  placeholder="Buscar un producto"
                   icon={<Search />}
                 />
               </div>
               <ListFilter
-                label={pricesMessages.categoryFilterLabel}
+                label="Categoría:"
                 options={categoryFilterOptions}
                 value={categoryFilter}
                 onChange={(value) => {
@@ -975,7 +983,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 }}
               />
               <ListFilter
-                label={pricesMessages.reviewFilterLabel}
+                label="Revisión:"
                 options={reviewFilterOptions}
                 value={reviewFilter}
                 onChange={(value) => {
@@ -985,7 +993,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               />
             </div>
             <Table
-              aria-label={pricesMessages.heading}
+              aria-label="Precios"
               columns={columns}
               loading={list.kind === "loading" ? "initial" : list.refreshing ? "updating" : false}
               rows={products.map((product) => ({ id: product.id, item: product }))}
@@ -993,22 +1001,28 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
                 reviewFilter === "pending" && pendingCount === 0
                   ? {
                       icon: <BadgeCheck />,
-                      title: pricesMessages.emptyPendingTitle,
-                      detail: pricesMessages.emptyPendingDetail({ days: reviewWindowDays }),
+                      title: "Precios al día",
+                      detail: emptyPendingDetail({ days: reviewWindowDays }),
                       tone: "blank",
                     }
                   : {
                       icon: <Search />,
-                      title: pricesMessages.noResultsTitle,
-                      detail: pricesMessages.noResultsDetail,
+                      title: "Sin resultados",
+                      detail: "Probá con otro nombre o categoría.",
                       tone: "filtered",
                     }
               }
               footer={
                 <p className="text-ink-secondary text-sm">
                   {reviewFilter === "pending"
-                    ? pricesMessages.footerPending({ count: products.length })
-                    : pricesMessages.footerAll({ count: products.length })}
+                    ? plural(products.length, {
+                        one: "1 producto sin revisar, del más viejo al más nuevo",
+                        other: `${products.length} productos sin revisar, del más viejo al más nuevo`,
+                      })
+                    : plural(products.length, {
+                        one: "1 producto",
+                        other: `${products.length} productos`,
+                      })}
                 </p>
               }
             />

@@ -5,10 +5,7 @@ export type PaginationProps = {
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
-  previousLabel: string;
-  nextLabel: string;
   label: string;
-  pageLabel: (page: number) => string;
 };
 
 const ELLIPSIS = "…";
@@ -101,15 +98,7 @@ function resolvePage(page: number, pageCount: number): number {
   return Math.min(Math.max(Math.trunc(page), 1), pageCount);
 }
 
-export function Pagination({
-  page,
-  pageCount,
-  onPageChange,
-  previousLabel,
-  nextLabel,
-  label,
-  pageLabel,
-}: PaginationProps) {
+export function Pagination({ page, pageCount, onPageChange, label }: PaginationProps) {
   const resolvedPageCount = resolvePageCount(pageCount);
   const currentPage = resolvePage(page, resolvedPageCount);
 
@@ -131,7 +120,7 @@ export function Pagination({
         }}
         className={navButtonClassName(isFirstPage)}
       >
-        {previousLabel}
+        Anterior
       </AriaButton>
       <ul className="flex items-center gap-2">
         {pagePlaces(currentPage, resolvedPageCount).map((place) => (
@@ -140,7 +129,7 @@ export function Pagination({
               <span className="px-1 text-sm text-ink-secondary">{ELLIPSIS}</span>
             ) : (
               <AriaButton
-                aria-label={pageLabel(place.page)}
+                aria-label={`Página ${place.page}`}
                 {...(place.page === currentPage ? { "aria-current": "page" as const } : {})}
                 onPress={() => {
                   if (place.page !== currentPage) {
@@ -167,7 +156,7 @@ export function Pagination({
         }}
         className={navButtonClassName(isLastPage)}
       >
-        {nextLabel}
+        Siguiente
       </AriaButton>
     </nav>
   );

@@ -1,15 +1,11 @@
 import { MAX_UNIT_PRICE_CENTS } from "@purosur/contracts";
+import { formatNumber } from "@purosur/ui";
 import { parseEsArNumber } from "./esArNumber";
 
 export { MAX_UNIT_PRICE_CENTS };
 
-const AMOUNT_FORMAT = new Intl.NumberFormat("es-AR", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 export function formatCents(cents: number): string {
-  return `$ ${AMOUNT_FORMAT.format(cents / 100)}`;
+  return `$ ${formatNumber(cents / 100, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export type ParsedAmount =

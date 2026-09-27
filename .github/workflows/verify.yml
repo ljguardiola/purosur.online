@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
 
-# A new push to a pull request supersedes the run still going for its previous push. Runs on main
+# On `pull_request`, a new push supersedes the run still going for its previous push. Runs on main
 # get a group of their own per commit, so they are never cancelled or replaced.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
@@ -15,9 +15,9 @@ permissions:
   contents: read
 
 jobs:
-  # Decides whether a pull request is docs-only, the one case that may skip static/tests below. A
-  # push never runs this job, so static/tests always run in full on it: a push's success is what
-  # lets the deploy ship it, and the commit before it may not have passed.
+  # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
+  # below. A push never runs this job, so static/tests always run in full on it: a push's success
+  # is what lets the deploy ship it, and the commit before it may not have passed.
   scope:
     name: scope
     if: github.event_name == 'pull_request'
@@ -46,7 +46,7 @@ jobs:
   static:
     name: static
     needs: [scope]
-    # A push always runs this in full. On a pull request, it is skipped only when scope positively
+    # A push always runs this in full. On `pull_request`, it is skipped only when scope positively
     # decided the change is docs-only; a failed or missing scope decision falls through to running
     # it, the same fail-safe default change-scope.mjs itself applies.
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.scope.result != 'success' || needs.scope.outputs.docs_only != 'true') }}
@@ -76,10 +76,8 @@ jobs:
         env:
           MIGRATIONS_BASE_REF: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
 
-  # vitest run, sharded four ways. Sequentially this took ~208s of Verify's ~271s total, and its
-  # own file times summed to ~770s across the 4 cores one runner already parallelizes it over
-  # (#369); splitting into 4 CI-level shards divides that ~770s again, so a slow shard - not the
-  # ever-growing total test count - bounds this job's wall time.
+  # vitest run, sharded four ways so a slow shard - not the ever-growing total test count - bounds
+  # this job's wall time.
   tests:
     name: tests (${{ matrix.shard }}/4)
     needs: [scope]
@@ -108,8 +106,8 @@ jobs:
         run: echo "value=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
       # Keyed on the Playwright version, not the lockfile: the browser only changes with it. Only
-      # main saves the cache, which every pull request can read; a copy saved from a pull request
-      # would serve only that pull request.
+      # main saves the cache, which every `pull_request` run can read; a copy saved on
+      # `pull_request` would serve only that branch's later runs.
       - name: Restore Playwright browsers
         id: playwright-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
