@@ -53,7 +53,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       # Full history, so the migration guard below can diff the working tree against the commit
-      # this change is built on, not just the single commit checkout otherwise fetches.
+      # this change is built on, and the secret scan can read every commit since it, not just the
+      # single commit checkout otherwise fetches.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

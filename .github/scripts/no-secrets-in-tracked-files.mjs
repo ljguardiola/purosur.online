@@ -16,6 +16,10 @@ function carrierKindMessageOf(name) {
   return null;
 }
 
+export function isSecretCarrier(path) {
+  return carrierKindMessageOf(basename(path)) !== null;
+}
+
 const SUPPRESSION_COMMENT_RE = /secretlint-(disable|enable)/;
 
 function suppressionCommentViolationsOf(paths, cwd) {
