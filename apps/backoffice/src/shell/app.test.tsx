@@ -1295,9 +1295,9 @@ test("following the rail's Inicio item opens the Alertas list, with Inicio and A
   await userEvent.click(screen.getByRole("link", { name: "Inicio" }));
 
   await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/inicio/alertas");
-  const inicioItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
-  expect(inicioItem.getAttribute("aria-current")).toBe("page");
+  expect(window.location.pathname).toBe("/home/alerts");
+  const homeItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
+  expect(homeItem.getAttribute("aria-current")).toBe("page");
   const alertsItem = screen.getByRole("link", { name: "Alertas" }).element() as HTMLAnchorElement;
   expect(alertsItem.getAttribute("aria-current")).toBe("page");
 });

@@ -1,1 +1,1 @@
-export const ALERTS_LIST_PATH = "/inicio/alertas";
+export const ALERTS_LIST_PATH = "/home/alerts";

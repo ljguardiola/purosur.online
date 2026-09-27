@@ -212,7 +212,7 @@ function HelpAreaItem({ active }: { active: boolean }) {
   return <AreaNavItem label="Ayuda" icon={<LifeBuoy />} active={active} {...linkProps("/help")} />;
 }
 
-function InicioAreaItem({ active }: { active: boolean }) {
+function HomeAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem label="Inicio" icon={<Home />} active={active} {...linkProps(ALERTS_LIST_PATH)} />
   );
@@ -287,7 +287,7 @@ function HelpApp({
       sectionColumnLabel="Secciones de ayuda"
       railAreas={
         <>
-          {canSeeAlerts && <InicioAreaItem active={false} />}
+          {canSeeAlerts && <HomeAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
@@ -393,7 +393,7 @@ function SettingsApp({
       sectionColumnLabel="Configuración"
       railAreas={
         <>
-          {canSeeAlerts && <InicioAreaItem active={false} />}
+          {canSeeAlerts && <HomeAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active />
@@ -558,7 +558,7 @@ function CatalogApp({
       sectionColumnLabel="Catálogo"
       railAreas={
         <>
-          {canSeeAlerts && <InicioAreaItem active={false} />}
+          {canSeeAlerts && <HomeAreaItem active={false} />}
           <CatalogAreaItem active defaultPath={catalogDefaultPath} />
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
@@ -657,7 +657,7 @@ function CashApp({
       sectionColumnLabel="Caja y fiscal"
       railAreas={
         <>
-          {canSeeAlerts && <InicioAreaItem active={false} />}
+          {canSeeAlerts && <HomeAreaItem active={false} />}
           {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           <CashAreaItem active />
           <ConfigAreaItem active={false} />
@@ -701,7 +701,7 @@ function CashApp({
   );
 }
 
-type InicioAppProps = {
+type HomeAppProps = {
   access: BackofficeAccess;
   displayName: string;
   canSeeCatalog: boolean;
@@ -713,7 +713,7 @@ type InicioAppProps = {
   alertsListScreenServices: AlertsListScreenServices;
 };
 
-function InicioApp({
+function HomeApp({
   access,
   displayName,
   canSeeCatalog,
@@ -723,7 +723,7 @@ function InicioApp({
   onSessionEnded,
   accountFooterServices,
   alertsListScreenServices,
-}: InicioAppProps) {
+}: HomeAppProps) {
   useEffect(() => {
     document.title = "Alertas · Puro Sur";
   }, []);
@@ -733,7 +733,7 @@ function InicioApp({
       sectionColumnLabel="Inicio"
       railAreas={
         <>
-          <InicioAreaItem active />
+          <HomeAreaItem active />
           {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
           {canSeeCash && <CashAreaItem active={false} />}
           <ConfigAreaItem active={false} />
@@ -864,8 +864,8 @@ function AppContent({ help, services }: AppProps) {
   const isCatalogRoute = wantsProductsOrCategories || wantsPrices;
   const isCashRoute = route === FISCAL_CONFIGURATION_PATH;
   const wantsCash = isCashRoute;
-  const isInicioRoute = route === ALERTS_LIST_PATH;
-  const wantsInicio = isInicioRoute;
+  const isHomeRoute = route === ALERTS_LIST_PATH;
+  const wantsHome = isHomeRoute;
   const access: BackofficeAccess =
     session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
   const canSeeUsers = canSeeUsersArea(access);
@@ -886,7 +886,7 @@ function AppContent({ help, services }: AppProps) {
     (wantsProductsOrCategories && !canManageCatalogProducts) ||
     (wantsPrices && !canSeePrices) ||
     (wantsCash && !canSeeCash) ||
-    (wantsInicio && !canSeeAlerts);
+    (wantsHome && !canSeeAlerts);
 
   useEffect(() => {
     if (session.kind === "loading") {
@@ -1067,7 +1067,7 @@ function AppContent({ help, services }: AppProps) {
     );
   }
 
-  if (isInicioRoute) {
+  if (isHomeRoute) {
     if (session.kind !== "signed-in") {
       return null;
     }
@@ -1075,7 +1075,7 @@ function AppContent({ help, services }: AppProps) {
       return null;
     }
     return (
-      <InicioApp
+      <HomeApp
         access={access}
         displayName={session.displayName}
         canSeeCatalog={canSeeCatalog}
