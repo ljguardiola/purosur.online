@@ -1,7 +1,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
 
-const INLINE_EXPRESSION_MESSAGE = `run: step embeds a \${{ vars.* }} or \${{ secrets.* }} expression; GitHub substitutes its value before printing the script to the log`;
+const INLINE_EXPRESSION_MESSAGE = `run: step embeds a \${{ }} expression that reads vars.*, secrets.*, or an env value fed from them; GitHub substitutes its value before printing the script to the log`;
 const PRINTS_TAINTED_ENV_MESSAGE =
   "run: step prints an environment variable whose value comes from vars.* or secrets.*";
 const DUMPS_ENVIRONMENT_MESSAGE =
@@ -9,8 +9,9 @@ const DUMPS_ENVIRONMENT_MESSAGE =
 const TRACES_COMMANDS_MESSAGE =
   "run: step traces the commands it runs (set -x, a shell invoked with -x, or an xtrace shell), which prints each command's arguments, including any vars.*/secrets.* value already substituted into them";
 
-const EXPRESSION_RE = /\$\{\{([^}]*)\}\}/g;
-const VARS_OR_SECRETS_RE = /\b(vars|secrets)\.[A-Za-z0-9_]+/;
+const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
+const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/;
+const ENV_REFERENCE_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]+)['"]\s*\])/g;
 const ALLOWED_STDOUT_TARGETS = new Set(["/dev/stdout", "/dev/stderr", "&1", "&2"]);
 const PRINT_COMMANDS = new Set(["echo", "printf"]);
 const SHELL_COMMANDS = new Set(["bash", "sh"]);
@@ -28,12 +29,23 @@ function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function expressionsOf(text) {
+  if (typeof text !== "string") return [];
+  return [...text.matchAll(EXPRESSION_RE)].map((match) => match[1]);
+}
+
 function expressionReferencesVarsOrSecrets(text) {
-  if (typeof text !== "string") return false;
-  for (const match of text.matchAll(EXPRESSION_RE)) {
-    if (VARS_OR_SECRETS_RE.test(match[1])) return true;
-  }
-  return false;
+  return expressionsOf(text).some((expression) => VARS_OR_SECRETS_RE.test(expression));
+}
+
+function scriptEmbedsTaintedValue(script, taintedNames) {
+  return expressionsOf(script).some(
+    (expression) =>
+      VARS_OR_SECRETS_RE.test(expression) ||
+      [...expression.matchAll(ENV_REFERENCE_RE)].some((match) =>
+        taintedNames.includes(match[1] ?? match[2]),
+      ),
+  );
 }
 
 function envMapOf(doc, envNode) {
@@ -388,7 +400,7 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   const effectiveShell = typeof stepShell === "string" ? stepShell : inheritedShell;
 
   const messages = [];
-  if (expressionReferencesVarsOrSecrets(script)) messages.push(INLINE_EXPRESSION_MESSAGE);
+  if (scriptEmbedsTaintedValue(script, taintedNames)) messages.push(INLINE_EXPRESSION_MESSAGE);
 
   const findings = bashScriptFindings(script, taintedNames);
   if (findings.printsTainted) messages.push(PRINTS_TAINTED_ENV_MESSAGE);

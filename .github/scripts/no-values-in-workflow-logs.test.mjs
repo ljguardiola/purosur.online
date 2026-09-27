@@ -569,6 +569,43 @@ test("does not flag a shell: field whose script operand is followed by -x", () =
   assert.deepEqual(messagesUnderShell("bash {0} -x"), []);
 });
 
+for (const expression of [
+  "toJSON(vars)",
+  "vars['CLOUD_SENTRY_DSN']",
+  "secrets['RAILWAY_TOKEN']",
+  "format('{0}', vars.CLOUD_SENTRY_DSN)",
+  "env.TOKEN",
+  "env['TOKEN']",
+]) {
+  test(`flags a run: script embedding an expression that reads vars or secrets: \${{ ${expression} }}`, () => {
+    assertFlagsOnly(messagesOf(`echo \${{ ${expression} }}`), EMBEDS);
+  });
+}
+
+for (const expression of [
+  "github.event.vars_thing",
+  "steps.secrets.outputs.sha",
+  "contains(github.ref, 'secrets')",
+  "env.MODE",
+]) {
+  test(`does not flag a run: script embedding an expression that reads neither: \${{ ${expression} }}`, () => {
+    assert.deepEqual(
+      messagesOf(`echo \${{ ${expression} }}`, { ...SECRET_ENV, MODE: "production" }),
+      [],
+    );
+  });
+}
+
+for (const expression of ["toJSON(secrets)", "vars['X']", "format('{0}', secrets.X)"]) {
+  test(`treats an env value fed by \${{ ${expression} }} as coming from vars or secrets`, () => {
+    assertFlagsOnly(messagesOf("echo $FED", { FED: `\${{ ${expression} }}` }), PRINTS);
+  });
+}
+
+test("does not treat an env value fed by a step output named secrets as coming from secrets", () => {
+  assert.deepEqual(messagesOf("echo $FED", { FED: `\${{ steps.secrets.outputs.sha }}` }), []);
+});
+
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
     "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(
