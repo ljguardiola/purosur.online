@@ -458,8 +458,7 @@ function hasInternalBarcode(barcodes: string[]): boolean {
 
 function useBarcodeChips(initial: string[]) {
   const [barcodes, setBarcodes] = useState<string[]>(initial);
-  const barcodesRef = useRef(barcodes);
-  barcodesRef.current = barcodes;
+  const barcodesRef = useLatestRef(barcodes);
   const [scanInput, setScanInput] = useState("");
   const [scanError, setScanError] = useState<string | undefined>(undefined);
 
@@ -949,8 +948,7 @@ function EditProductModal({
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  const targetRef = useLatestRef(target);
   const generate = useGenerateInternalBarcode(
     chips,
     generateInternalBarcode,
@@ -1343,8 +1341,7 @@ function DeactivateProductModal({
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const targetRef = useRef(target);
-  targetRef.current = target;
+  const targetRef = useLatestRef(target);
 
   useEffect(() => {
     if (isOpen && target) {
@@ -1848,8 +1845,7 @@ export function ProductsListScreen({
     printLabels: printLabelsService,
   } = services ?? defaultProductsListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
-  const listRef = useRef(list);
-  listRef.current = list;
+  const listRef = useLatestRef(list);
   const [categories, setCategories] = useState<CategorySummary[]>([]);
   const [search, setSearch] = useState(filters.search);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(filters.category);
@@ -1863,8 +1859,7 @@ export function ProductsListScreen({
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   useEffect(() => {
@@ -1921,7 +1916,13 @@ export function ProductsListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchProductsService, fetchCategoriesService, statusFilter, sendToMyAccount]);
+  }, [
+    fetchProductsService,
+    fetchCategoriesService,
+    statusFilter,
+    sendToMyAccount,
+    onSessionEndedRef,
+  ]);
 
   useEffect(() => {
     void load();

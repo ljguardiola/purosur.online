@@ -294,17 +294,17 @@ function PriceChangeModal({
     }
     setAmountError(undefined);
     startRequest();
+    const expectedCurrentPriceId = product.currentPrice?.id ?? null;
     try {
       const outcome = await setPrice(product.id, {
         unitPrice: cents,
-        expectedCurrentPriceId: product.currentPrice?.id ?? null,
+        expectedCurrentPriceId,
       });
       handleSetPriceOutcome(product, outcome);
     } catch {
       showNotice({ kind: "attemptFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   function handleConfirmPriceOutcome(product: PriceProduct, outcome: ConfirmPriceOutcome) {
@@ -347,9 +347,8 @@ function PriceChangeModal({
       handleConfirmPriceOutcome(product, outcome);
     } catch {
       showNotice({ kind: "confirmFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   async function handleReload() {
@@ -364,9 +363,8 @@ function PriceChangeModal({
       handleReloadOutcome(product, outcome);
     } catch {
       showNotice({ kind: "reloadFailed" });
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   function handleReloadOutcome(product: PriceProduct, outcome: FetchPricesOutcome) {
@@ -577,8 +575,7 @@ export function PricesListScreen({
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
 
-  const onSessionEndedRef = useRef(onSessionEnded);
-  onSessionEndedRef.current = onSessionEnded;
+  const onSessionEndedRef = useLatestRef(onSessionEnded);
   const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   useEffect(() => {
@@ -654,16 +651,21 @@ export function PricesListScreen({
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch, sendToMyAccount]);
+  }, [
+    fetchPricesService,
+    reviewFilter,
+    categoryFilter,
+    debouncedSearch,
+    sendToMyAccount,
+    onSessionEndedRef,
+  ]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const loadRef = useRef(load);
-  loadRef.current = load;
-  const reviewFilterRef = useRef(reviewFilter);
-  reviewFilterRef.current = reviewFilter;
+  const loadRef = useLatestRef(load);
+  const reviewFilterRef = useLatestRef(reviewFilter);
   function reloadWithCurrentFilters() {
     void loadRef.current();
   }
@@ -712,9 +714,8 @@ export function PricesListScreen({
       handleReviewReadOutcome(await fetchPricesService({ review: "pending" }));
     } catch {
       showScreenNotice(reviewStartFailedNotice);
-    } finally {
-      setScreenRequestInFlight(false);
     }
+    setScreenRequestInFlight(false);
   }
 
   function handleReviewReadOutcome(outcome: FetchPricesOutcome) {
@@ -817,9 +818,8 @@ export function PricesListScreen({
       handleRowConfirmOutcome(item, outcome);
     } catch {
       showScreenNotice(rowConfirmFailedNotice(item));
-    } finally {
-      setScreenRequestInFlight(false);
     }
+    setScreenRequestInFlight(false);
   }
 
   function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {

@@ -467,6 +467,7 @@ export function FiscalConfigurationScreen({
 }: FiscalConfigurationScreenProps) {
   const sendToMyAccount = useSendToMyAccount();
   const svc = services ?? defaultFiscalConfigurationScreenServices;
+  const { fetchIssuerIdentification } = svc;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [editing, setEditing] = useState(false);
@@ -476,7 +477,7 @@ export function FiscalConfigurationScreen({
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
-    const outcome = await svc.fetchIssuerIdentification();
+    const outcome = await fetchIssuerIdentification();
     if (outcome.kind === "ok") {
       setState({ kind: "loaded", value: outcome.value });
     } else if (outcome.kind === "unauthenticated") {
@@ -486,7 +487,7 @@ export function FiscalConfigurationScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [svc.fetchIssuerIdentification, endSession, sendToMyAccount]);
+  }, [fetchIssuerIdentification, endSession, sendToMyAccount]);
 
   useEffect(() => {
     void load();

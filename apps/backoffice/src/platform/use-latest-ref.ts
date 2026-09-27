@@ -1,7 +1,9 @@
-import { useRef } from "react";
+import { useInsertionEffect, useRef } from "react";
 
 export function useLatestRef<T>(value: T) {
   const ref = useRef(value);
-  ref.current = value;
+  useInsertionEffect(() => {
+    ref.current = value;
+  });
   return ref;
 }
