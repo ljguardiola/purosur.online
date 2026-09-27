@@ -15,7 +15,6 @@ const componentsWithoutStoriesYet = [
   "PuroSurIsotype",
   "PuroSurLogo",
   "SectionNavItem",
-  "Select",
   "StatusIndicator",
   "SummaryRow",
   "SummaryRowGroup",
