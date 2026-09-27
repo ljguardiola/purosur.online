@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { mainMessages } from "./messages";
 import { reportStartFailure } from "./start-failure";
 
 const REASON = "/opt/register/resources/channel.json: the channel file is not valid JSON";
+const START_FAILURE_TITLE = "La caja no puede iniciar";
+const START_FAILURE_DETAIL =
+  "La instalación de la caja está dañada. Se soluciona instalándola de nuevo.";
 
 function output(isPackaged: boolean) {
   return { isPackaged, writeError: vi.fn(), showErrorBox: vi.fn() };
@@ -22,10 +24,7 @@ describe("reportStartFailure", () => {
 
     reportStartFailure(REASON, out);
 
-    expect(out.showErrorBox).toHaveBeenCalledWith(
-      mainMessages.startFailure.title,
-      mainMessages.startFailure.detail,
-    );
+    expect(out.showErrorBox).toHaveBeenCalledWith(START_FAILURE_TITLE, START_FAILURE_DETAIL);
   });
 
   it("never shows staff the technical reason", () => {

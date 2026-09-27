@@ -52,7 +52,8 @@ A feature too large for one pull request stays as a parent feature issue holding
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
 - Code, comments, tests, commit messages, issues, and pull requests are written in English.
-- User-facing text is written in Spanish and lives only in message catalogs, structured for internationalization even though there is a single language. Code references catalog keys and never contains user-facing text as a literal.
+- User-facing text is written in Spanish where it is shown; there are no message catalogs. Text built from quantities, amounts or dates goes through `packages/ui`'s formatting functions, fixed to Argentine Spanish (`es-AR`), so a value reads the same on every screen.
+- A `packages/ui` component writes the text that reads the same wherever it is used (a modal's close button, a pagination's previous and next); text that depends on the screen comes from the app as a prop, with no default.
 - Help and manuals live inside the application they serve: the register's help ships with the register and works offline; the backoffice's help lives in the backoffice.
 - Code and tests explain themselves. Names, structure and test cases carry the meaning; a reader should not need a companion document to follow them.
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says.
@@ -79,6 +80,10 @@ Each risk has one kind of test that owns it:
 | Backoffice screens | Screen tests of how each screen presents its states and outcomes, and its wiring to the cloud | `verify` |
 | Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
 | Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
+
+A migration already on `main` is never edited or deleted: it has already run on databases in the field, and the deploy compares each shipped migration file against what was applied by hash. A change to an existing migration adds a new migration instead. `pnpm verify` rejects a change that edits or deletes a migration already on `main`.
+
+A new migration must be dated after every migration already on `main`: the migrator applies only migrations dated after the last one it applied, so an earlier-dated one would never run and would block the deploy. This happens when a branch generates its migration before another branch's migration merges; regenerate it on top of the current `main`. `pnpm verify` rejects a new migration that is not dated after every one on `main`.
 
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 

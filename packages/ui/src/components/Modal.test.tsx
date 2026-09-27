@@ -452,7 +452,6 @@ test("caps the panel below the viewport and lets only the body scroll when conte
       <Modal
         {...baseProps({
           closable: true,
-          closeLabel: "Close",
           footer: <Button>Confirm</Button>,
           children: <div style={{ height: "1400px" }}>Tall body content</div>,
         })}
@@ -538,7 +537,6 @@ test("keeps a bottom body control reachable by Tab, scrolled into the body's vis
       <Modal
         {...baseProps({
           closable: true,
-          closeLabel: "Close",
           footer: <Button>Confirm</Button>,
           children: (
             <div>
@@ -577,8 +575,8 @@ test("keeps a bottom body control reachable by Tab, scrolled into the body's vis
 });
 
 test("shows a 40px circular close button in bone with a 20px glyph in secondary ink", async () => {
-  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
-  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
   const icon = closeButton.querySelector("svg") as SVGSVGElement;
 
   const rect = closeButton.getBoundingClientRect();
@@ -600,8 +598,8 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
 });
 
 test("shows the hand cursor on the close button", async () => {
-  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
-  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
 
   expect(getComputedStyle(closeButton).cursor).toBe("pointer");
 
@@ -609,8 +607,8 @@ test("shows the hand cursor on the close button", async () => {
 });
 
 test("turns the close button's background sand on hover", async () => {
-  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
-  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
 
   await userEvent.hover(closeButton);
   await expect
@@ -621,8 +619,8 @@ test("turns the close button's background sand on hover", async () => {
 });
 
 test("shows the package's standard focus ring on the close button", async () => {
-  const screen = await render(<Modal {...baseProps({ closable: true, closeLabel: "Close" })} />);
-  const closeButton = screen.getByRole("button", { name: "Close" }).element() as HTMLElement;
+  const screen = await render(<Modal {...baseProps({ closable: true })} />);
+  const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
 
   await userEvent.tab();
 
@@ -637,11 +635,9 @@ test("shows the package's standard focus ring on the close button", async () => 
 
 test("closes when the close button is pressed", async () => {
   const onOpenChange = vi.fn();
-  const screen = await render(
-    <Modal {...baseProps({ closable: true, closeLabel: "Close", onOpenChange })} />,
-  );
+  const screen = await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
 
-  await screen.getByRole("button", { name: "Close" }).click();
+  await screen.getByRole("button", { name: "Cerrar" }).click();
 
   expect(onOpenChange).toHaveBeenCalledWith(false);
   await expectNoAccessibilityViolations(document.body);
@@ -649,7 +645,7 @@ test("closes when the close button is pressed", async () => {
 
 test("closes on Escape when closable", async () => {
   const onOpenChange = vi.fn();
-  await render(<Modal {...baseProps({ closable: true, closeLabel: "Close", onOpenChange })} />);
+  await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
 
   await userEvent.keyboard("{Escape}");
 
@@ -659,7 +655,7 @@ test("closes on Escape when closable", async () => {
 
 test("stays open when the backdrop is clicked, even when closable", async () => {
   const onOpenChange = vi.fn();
-  await render(<Modal {...baseProps({ closable: true, closeLabel: "Close", onOpenChange })} />);
+  await render(<Modal {...baseProps({ closable: true, onOpenChange })} />);
   const backdrop = document.querySelector('[class*="bg-ink-backdrop"]') as HTMLElement;
 
   await userEvent.click(backdrop, { position: { x: 4, y: 4 } });
@@ -696,7 +692,6 @@ test("moves focus into the modal on open and contains it while tabbing", async (
     <Modal
       {...baseProps({
         closable: true,
-        closeLabel: "Close",
         footer: <Button>Confirm</Button>,
       })}
     />,
@@ -726,7 +721,6 @@ test("returns focus to the element that opened it, on close", async () => {
             isOpen: open,
             onOpenChange: setOpen,
             closable: true,
-            closeLabel: "Close",
           })}
         />
       </>
@@ -739,7 +733,7 @@ test("returns focus to the element that opened it, on close", async () => {
 
   await expect.element(screen.getByRole("dialog")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
-  await screen.getByRole("button", { name: "Close" }).click();
+  await screen.getByRole("button", { name: "Cerrar" }).click();
 
   await expect.poll(() => document.activeElement).toBe(trigger.element());
 });
@@ -757,7 +751,6 @@ test("opens a second modal over the first with its own backdrop and returns to t
           icon={<Info />}
           title="First modal"
           closable
-          closeLabel="Close first"
           footer={<Button onPress={() => setSecondOpen(true)}>Open second</Button>}
         >
           First body
@@ -769,7 +762,6 @@ test("opens a second modal over the first with its own backdrop and returns to t
           icon={<AlertTriangle />}
           title="Second modal"
           closable
-          closeLabel="Close second"
           footer={<Button onPress={() => setSecondOpen(false)}>Done</Button>}
         >
           Second body
@@ -816,23 +808,9 @@ type ModalCommonKeys =
   | "children"
   | "footer";
 
-type ModalCloseFields = ModalProps extends infer P
-  ? P extends unknown
-    ? Omit<P, ModalCommonKeys>
-    : never
-  : never;
-
-test("does not accept a closable modal without a close label", () => {
-  expectTypeOf<{ closable: true }>().not.toExtend<ModalCloseFields>();
-});
-
-test("does not accept a close label on a non-closable modal", () => {
-  expectTypeOf<{ closable: false; closeLabel: string }>().not.toExtend<ModalCloseFields>();
-});
-
 type ModalLayoutFields = ModalProps extends infer P
   ? P extends unknown
-    ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable" | "closeLabel">
+    ? Omit<P, Exclude<ModalCommonKeys, "context" | "contextTone"> | "closable">
     : never
   : never;
 
@@ -854,12 +832,4 @@ test("does not accept a context line, its tone or a flush body in the centered h
     headerLayout: "centered";
     bodyPadding: "none";
   }>().not.toExtend<ModalLayoutFields>();
-});
-
-test("does not accept a close label in the centered header layout, which draws no close button", () => {
-  expectTypeOf<{
-    headerLayout: "centered";
-    closable: true;
-    closeLabel: string;
-  }>().not.toExtend<ModalCloseFields>();
 });

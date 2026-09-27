@@ -1,5 +1,5 @@
 import type { AlertAudience, AlertLevel } from "@purosur/contracts";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
@@ -193,7 +193,8 @@ export async function listAlertDeliveries<TQueryResult extends PgQueryResultHKT>
     .innerJoin(users, eq(users.id, alertDeliveries.recipientUserId))
     .innerJoin(userRoles, eq(userRoles.userId, users.id))
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
-    .where(eq(alertDeliveries.alertId, alertId));
+    .where(eq(alertDeliveries.alertId, alertId))
+    .orderBy(asc(alertDeliveries.createdAt), asc(alertDeliveries.id));
 }
 
 export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(

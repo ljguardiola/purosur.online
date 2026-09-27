@@ -1,4 +1,3 @@
-import { recoveryEmailMessages } from "./recovery-email-messages.js";
 import type { RecoveryEmailSender } from "./recovery-email-sender.js";
 
 export interface ResendRecoveryEmailSenderOptions {
@@ -11,9 +10,12 @@ export interface ResendRecoveryEmailSenderOptions {
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 function buildEmailBody(link: string): { text: string; html: string } {
-  const m = recoveryEmailMessages;
-  const text = [m.intro, "", m.action, link, "", m.validity, m.ignore].join("\n");
-  const html = `<p>${m.intro}</p><p>${m.action}</p><p><a href="${link}">${link}</a></p><p>${m.validity}</p><p>${m.ignore}</p>`;
+  const intro = "Se pidió recuperar el acceso a tu cuenta de Puro Sur.";
+  const action = "Usá este enlace para registrar una passkey nueva:";
+  const validity = "Vale 15 minutos y se usa una sola vez.";
+  const ignore = "Si no lo pediste, podés ignorar este mensaje.";
+  const text = [intro, "", action, link, "", validity, ignore].join("\n");
+  const html = `<p>${intro}</p><p>${action}</p><p><a href="${link}">${link}</a></p><p>${validity}</p><p>${ignore}</p>`;
   return { text, html };
 }
 
@@ -37,7 +39,7 @@ export function createResendRecoveryEmailSender(
           from: options.from,
           to: [input.to],
           reply_to: options.replyTo,
-          subject: recoveryEmailMessages.subject,
+          subject: "Recuperar el acceso a Puro Sur",
           text,
           html,
         }),

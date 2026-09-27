@@ -1,11 +1,11 @@
-import { isPasskeyNameTooLong } from "@purosur/contracts";
+import { isPasskeyNameTooLong, PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
 
-export type PasskeyNameErrors = { required: string; tooLong: string };
+const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
 
-export function validatePasskeyName(value: string, errors: PasskeyNameErrors): string | undefined {
+export function validatePasskeyName(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
-    return errors.required;
+    return "Ingresá un nombre para la passkey.";
   }
-  return isPasskeyNameTooLong(trimmed) ? errors.tooLong : undefined;
+  return isPasskeyNameTooLong(trimmed) ? PASSKEY_NAME_TOO_LONG : undefined;
 }

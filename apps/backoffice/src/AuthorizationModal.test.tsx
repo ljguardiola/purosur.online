@@ -3,12 +3,7 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import {
-  type AuthorizationActionKey,
-  type AuthorizationServices,
-  useAuthorization,
-} from "./AuthorizationModal";
-import { messages } from "./messages";
+import { type AuthorizationServices, useAuthorization } from "./AuthorizationModal";
 
 type FakeOutcome =
   | { kind: "ok"; value: string }
@@ -36,7 +31,7 @@ function Harness({
 }) {
   const [result, setResult] = useState<string | null>(null);
   const { run, modal } = useAuthorization<FakeOutcome>({
-    action: "roleSave",
+    actionName: "Guardar un rol",
     onSessionEnded,
     services,
   });
@@ -280,54 +275,6 @@ test("ends the session, without retrying and settling run as cancelled, when aut
   expect(attempt).toHaveBeenCalledTimes(1);
   await expect.element(screen.getByText('{"kind":"cancelled"}')).toBeVisible();
   expect(onSessionEnded).toHaveBeenCalledTimes(1);
-});
-
-test("shows each catalog action key's own sentence", async () => {
-  const services = createServices();
-  const attempt = vi
-    .fn<() => Promise<FakeOutcome>>()
-    .mockResolvedValue({ kind: "authorization_required" });
-  const expectedSentences: Record<AuthorizationActionKey, string> = {
-    roleSave: "Guardar un rol necesita tu autorización. Confirmala con tu passkey.",
-    userCreate: "Crear un usuario necesita tu autorización. Confirmala con tu passkey.",
-    userEdit: "Editar un usuario necesita tu autorización. Confirmala con tu passkey.",
-    passkeyRemoval: "Dar de baja una passkey necesita tu autorización. Confirmala con tu passkey.",
-    passkeyRegistration: "Agregar una passkey necesita tu autorización. Confirmala con tu passkey.",
-    userDeactivation: "Desactivar un usuario necesita tu autorización. Confirmala con tu passkey.",
-    userReactivation: "Reactivar un usuario necesita tu autorización. Confirmala con tu passkey.",
-    issuerIdentificationSave:
-      "Guardar la identificación del emisor necesita tu autorización. Confirmala con tu passkey.",
-    registerCreate: "Crear una caja necesita tu autorización. Confirmala con tu passkey.",
-    registerEnrollmentCodeIssue:
-      "Emitir un código de alta necesita tu autorización. Confirmala con tu passkey.",
-  };
-
-  function ActionHarness({ action }: { action: AuthorizationActionKey }) {
-    const { run, modal } = useAuthorization<FakeOutcome>({
-      action,
-      onSessionEnded: () => {},
-      services,
-    });
-    return (
-      <div>
-        <button type="button" onClick={() => void run(attempt)}>
-          Run
-        </button>
-        {modal}
-      </div>
-    );
-  }
-
-  const actionKeys = Object.keys(messages.passkeyAuthorization.actions) as AuthorizationActionKey[];
-  expect([...actionKeys].sort()).toEqual(Object.keys(expectedSentences).sort());
-  for (const action of actionKeys) {
-    const screen = await render(<ActionHarness action={action} />);
-    await userEvent.click(screen.getByRole("button", { name: "Run" }));
-    await expect
-      .element(screen.getByRole("dialog").getByText(expectedSentences[action]))
-      .toBeVisible();
-    await screen.unmount();
-  }
 });
 
 test("has no accessibility violations with the authorization modal open", async () => {

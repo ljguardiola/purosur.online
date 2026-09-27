@@ -1,12 +1,9 @@
 import type { SelectOption } from "@purosur/ui";
-import { messages } from "./messages";
 import type { BranchUserRole } from "./usersApi";
-
-const usersMessages = messages.settings.users;
 
 /** The Administrator role's own `name` is stored empty; this shows its fixed display name instead. */
 export function roleDisplayName(role: BranchUserRole): string {
-  return role.isAdministrator ? usersMessages.administratorRoleName : (role.name ?? "");
+  return role.isAdministrator ? "Administrador" : (role.name ?? "");
 }
 
 export function roleOptions(

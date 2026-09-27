@@ -2,7 +2,7 @@ import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { linkProps } from "./linkProps";
-import { messages } from "./messages";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { signOut } from "./sessionApi";
 import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
@@ -69,9 +69,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />
         </span>
-        <span className="text-xs font-normal text-blue-soft">
-          {messages.shell.signOut.itemLabel}
-        </span>
+        <span className="text-xs font-normal text-blue-soft">Salir</span>
       </button>
       <Modal
         isOpen={confirming}
@@ -81,9 +79,8 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
         icon={<LogOut />}
         context={displayName}
         contextTone="brand-earth-ui"
-        title={messages.shell.signOut.title}
+        title="¿Salir del backoffice?"
         closable
-        closeLabel={messages.shell.signOut.closeLabel}
         footer={
           <>
             <Button
@@ -93,7 +90,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               isDisabled={signingOut}
               onPress={() => setConfirming(false)}
             >
-              {messages.shell.signOut.cancel}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -103,7 +100,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
               isDisabled={signingOut}
               onPress={() => void handleConfirm()}
             >
-              {messages.shell.signOut.confirm}
+              Salir
             </Button>
           </>
         }
@@ -112,18 +109,16 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={messages.shell.signOut.rateLimitedTitle}
-            detail={messages.shell.signOut.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         ) : null}
         {notice?.kind === "failed" ? (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={messages.shell.signOut.failedTitle}
-            detail={messages.shell.signOut.failedDetail}
+            title="No se pudo salir"
+            detail="Probá de nuevo."
           />
         ) : null}
       </Modal>

@@ -52,7 +52,7 @@ export type AlertListQuery = {
   open?: boolean;
   /** 1-based. */
   page?: number;
-  /** `kinds` lists the kinds whose own title matched `text`: those titles live only in this app's message catalog. */
+  /** `kinds` lists the kinds whose own title matched `text`: those titles exist only in this app, so the cloud cannot match them itself. */
   search?: { text: string; kinds: readonly string[] };
 };
 

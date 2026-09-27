@@ -1,15 +1,14 @@
-import { isCategoryNameTooLong } from "@purosur/contracts";
+import { CATEGORY_NAME_MAX_LENGTH, isCategoryNameTooLong } from "@purosur/contracts";
 
-export function categoryNameError(
-  name: string,
-  modalMessages: { nameRequired: string; nameTooLong: string },
-): string | undefined {
+const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+
+export function categoryNameError(name: string): string | undefined {
   const trimmed = name.trim();
   if (!trimmed) {
-    return modalMessages.nameRequired;
+    return "Ingresá el nombre de la categoría.";
   }
   if (isCategoryNameTooLong(trimmed)) {
-    return modalMessages.nameTooLong;
+    return CATEGORY_NAME_TOO_LONG;
   }
   return undefined;
 }

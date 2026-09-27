@@ -1,5 +1,6 @@
-// Cloud-only concepts: the register (apps/pos) never runs their use cases.
 export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
+
+const REAL_POSTGRES_TEST = "apps/cloud/src/[^/]+/[^/]+\\.integration\\.test\\.ts$";
 
 // Matches an npm package either by its raw specifier (left unresolved when the
 // package isn't installed) or by its resolved node_modules path, never by a repo
@@ -8,7 +9,6 @@ function npmPackage(name) {
   return `^${name}(/|$)|(^|/)node_modules/${name}/`;
 }
 
-/** @type {import('dependency-cruiser').IConfiguration} */
 export default {
   forbidden: [
     {
@@ -56,11 +56,10 @@ export default {
         "never the reverse.",
       severity: "error",
       from: { path: "^packages/domain/src/[^/]+/model/" },
-      // Not narrowed to the same concept on purpose: the final validation of a
-      // reachable rule matches `to.path` without the `from` capture groups, so a
-      // positive `$1` stays literal and never matches. (A negative lookahead like
-      // no-use-case-to-use-case's `(?!$1/)` survives that because it degrades to
-      // always-true after the derive step has already narrowed by concept.)
+      // Not narrowed to the same concept: dependency-cruiser's final check of a reachable
+      // rule matches `to.path` without the `from` capture groups, so a positive `$1`
+      // would stay literal and never match. A negative lookahead such as `(?!$1/)` still
+      // works, because the earlier derive step already narrowed by concept with the groups.
       to: { path: "^packages/domain/src/[^/]+/use-cases/", reachable: true },
     },
     {
@@ -209,13 +208,27 @@ export default {
       from: { path: "^apps/pos/src/shared/" },
       to: { pathNot: "^apps/pos/src/shared/" },
     },
+    {
+      name: "real-postgres-tests-no-pglite",
+      comment:
+        "Tests that run against a real Postgres, and their global setup, never load " +
+        "PGlite or drizzle's PGlite driver, directly or transitively.",
+      severity: "error",
+      from: {
+        path: [`^${REAL_POSTGRES_TEST}`, "^apps/cloud/vitest\\.global-setup\\.postgres\\.ts$"],
+      },
+      to: {
+        path: [npmPackage("@electric-sql/pglite"), npmPackage("drizzle-orm/pglite")],
+        reachable: true,
+      },
+    },
   ],
   options: {
     doNotFollow: {
       path: "node_modules",
     },
     exclude: {
-      path: ["\\.test\\.(ts|tsx)$", "(^|/)dist/"],
+      path: [`^(?!${REAL_POSTGRES_TEST}).*\\.test\\.(ts|tsx)$`, "^(apps|packages)/[^/]+/dist/"],
     },
     tsPreCompilationDeps: true,
     tsConfig: {

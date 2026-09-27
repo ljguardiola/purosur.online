@@ -1,7 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
-import { messages } from "./messages";
 import type { ProductsListScreenServices } from "./ProductsListScreen";
 import type { ProductSummary } from "./productsApi";
 import {
@@ -248,9 +247,7 @@ test("downloads only the products with a count above zero, then closes the modal
   ]);
   expect(createObjectURL).toHaveBeenCalledTimes(1);
   expect(anchorClick).toHaveBeenCalledTimes(1);
-  expect(downloadedFileNames).toEqual([
-    messages.catalog.products.printLabelsModal.downloadFileName,
-  ]);
+  expect(downloadedFileNames).toEqual(["etiquetas.pdf"]);
   expect(downloadedFileNames[0]).toMatch(/\.pdf$/);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 

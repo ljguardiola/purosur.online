@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
@@ -8,8 +8,8 @@ import { runMigrations } from "../migrate.js";
 import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
 import { waitForReady } from "../wait-for-ready.js";
 import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
-
-const REAL_MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+import { migrationsFolderBefore, readRealJournal } from "./migration-journal-test-helpers.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 function databaseUrlFor(adminUrl: string, databaseName: string): string {
   const url = new URL(adminUrl);
@@ -51,34 +51,17 @@ async function dropDatabase(adminUrl: string, databaseName: string): Promise<voi
   }
 }
 
-interface JournalEntry {
-  idx: number;
-  version: string;
-  when: number;
-  tag: string;
-  breakpoints: boolean;
-}
-
-function migrationsFolderWithOneExtraMigration(): { path: string; cleanup: () => void } {
-  const path = mkdtempSync(join(tmpdir(), "wait-for-ready-migrations-"));
-  cpSync(REAL_MIGRATIONS_FOLDER, path, { recursive: true });
-
-  const journalPath = join(path, "meta", "_journal.json");
-  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: JournalEntry[] };
-  const lastEntry = journal.entries.at(-1);
-  const extraTag = "9999_wait_for_ready_test_placeholder";
-  const extraEntry: JournalEntry = {
-    idx: (lastEntry?.idx ?? -1) + 1,
-    version: "7",
-    when: (lastEntry?.when ?? Date.now()) + 1,
-    tag: extraTag,
-    breakpoints: true,
-  };
-  journal.entries.push(extraEntry);
-  writeFileSync(journalPath, JSON.stringify(journal));
-  writeFileSync(join(path, `${extraTag}.sql`), "select 1;\n");
-
-  return { path, cleanup: () => rmSync(path, { recursive: true, force: true }) };
+async function migrationsFolderWithoutTheLatestMigration(): Promise<{
+  path: string;
+  cleanup: () => Promise<void>;
+}> {
+  const latestEntry = (await readRealJournal()).entries.at(-1);
+  if (!latestEntry) {
+    throw new Error("test setup: the migration journal has no entries");
+  }
+  const path = await mkdtemp(join(tmpdir(), "wait-for-ready-migrations-"));
+  await migrationsFolderBefore(path, latestEntry);
+  return { path, cleanup: () => rm(path, { recursive: true, force: true }) };
 }
 
 function fakeClock(startMs = 0) {
@@ -111,7 +94,7 @@ describe("waitForReady", () => {
 
     await expect(
       waitForReady(asCloudApp(created.databaseUrl), {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 1,
         waitForReadySeconds: 5,
         waitIntervalMs: 1000,
@@ -131,13 +114,13 @@ describe("waitForReady", () => {
 
     await withExclusiveMigration(() =>
       runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
       }),
     );
 
     await expect(
       waitForReady(asCloudApp(created.databaseUrl), {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 5,
         waitForReadySeconds: 5,
         waitIntervalMs: 200,
@@ -149,19 +132,19 @@ describe("waitForReady", () => {
     const created = await createUnmigratedDatabase("wait_for_ready_behind");
     adminUrl = created.adminUrl;
     databaseName = created.databaseName;
-    const extra = migrationsFolderWithOneExtraMigration();
+    const behind = await migrationsFolderWithoutTheLatestMigration();
 
     try {
       await withExclusiveMigration(() =>
         runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: behind.path,
         }),
       );
       const clock = fakeClock();
 
       await expect(
         waitForReady(asCloudApp(created.databaseUrl), {
-          migrationsFolder: extra.path,
+          migrationsFolder: MIGRATIONS_FOLDER,
           connectTimeoutSeconds: 5,
           waitForReadySeconds: 3,
           waitIntervalMs: 500,
@@ -170,7 +153,7 @@ describe("waitForReady", () => {
         }),
       ).rejects.toMatchObject({ code: "SCHEMA_NOT_READY" });
     } finally {
-      extra.cleanup();
+      await behind.cleanup();
     }
   }, 30_000);
 
@@ -184,7 +167,7 @@ describe("waitForReady", () => {
       databaseName = created.databaseName;
       await withExclusiveMigration(() =>
         runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: MIGRATIONS_FOLDER,
         }),
       );
       const admin = postgres(created.databaseUrl, { max: 1 });
@@ -200,7 +183,7 @@ describe("waitForReady", () => {
       const clock = fakeClock();
       await expect(
         waitForReady(asCloudApp(databaseUrl), {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: MIGRATIONS_FOLDER,
           connectTimeoutSeconds: 5,
           waitForReadySeconds: 3,
           waitIntervalMs: 500,

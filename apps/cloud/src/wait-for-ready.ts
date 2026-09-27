@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import postgres from "postgres";
 import { describeDatabaseFailure, errorCode } from "./db/describe-database-failure.js";
+import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
 import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
@@ -20,7 +21,6 @@ export interface WaitForReadyOptions {
   onWaiting?: (error: unknown, elapsedMs: number) => void;
 }
 
-const DEFAULT_MIGRATIONS_FOLDER = new URL("../migrations", import.meta.url).pathname;
 // Above the Schema Migrations service's own worst case (image pull, its 60s database wait, then
 // every migration), yet under the 600s the deploy workflow allows the whole deploy.
 const DEFAULT_WAIT_FOR_READY_SECONDS = 480;
@@ -171,7 +171,7 @@ export async function waitForReady(
   databaseUrl: string,
   options: WaitForReadyOptions = {},
 ): Promise<void> {
-  const migrationsFolder = options.migrationsFolder ?? DEFAULT_MIGRATIONS_FOLDER;
+  const migrationsFolder = options.migrationsFolder ?? MIGRATIONS_FOLDER;
   const connectTimeoutSeconds = options.connectTimeoutSeconds ?? 10;
 
   await waitForDatabase(

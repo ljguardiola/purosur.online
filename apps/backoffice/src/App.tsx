@@ -69,7 +69,6 @@ import {
   MyAccountScreen,
   type MyAccountScreenServices,
 } from "./MyAccountScreen";
-import { messages } from "./messages";
 import {
   defaultPricesListScreenServices,
   PricesListScreen,
@@ -192,13 +191,13 @@ function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: H
   const page =
     (articleId ? help.articles[articleId]?.title : undefined) ??
     (categoryId ? help.categories[categoryId]?.label : undefined);
-  return page ? messages.help.pageDocumentTitle({ page }) : messages.help.documentTitle;
+  return page ? `${page} · Ayuda · Puro Sur` : "Ayuda · Puro Sur";
 }
 
 function ConfigAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
-      label={messages.settings.areaLabel}
+      label="Config"
       icon={<Settings />}
       active={active}
       {...linkProps(MY_ACCOUNT_PATH)}
@@ -207,42 +206,25 @@ function ConfigAreaItem({ active }: { active: boolean }) {
 }
 
 function HelpAreaItem({ active }: { active: boolean }) {
-  return (
-    <AreaNavItem
-      label={messages.help.areaLabel}
-      icon={<LifeBuoy />}
-      active={active}
-      {...linkProps("/help")}
-    />
-  );
+  return <AreaNavItem label="Ayuda" icon={<LifeBuoy />} active={active} {...linkProps("/help")} />;
 }
 
 function InicioAreaItem({ active }: { active: boolean }) {
   return (
-    <AreaNavItem
-      label={messages.inicio.areaLabel}
-      icon={<Home />}
-      active={active}
-      {...linkProps(ALERTS_LIST_PATH)}
-    />
+    <AreaNavItem label="Inicio" icon={<Home />} active={active} {...linkProps(ALERTS_LIST_PATH)} />
   );
 }
 
 function CatalogAreaItem({ active, defaultPath }: { active: boolean; defaultPath: string }) {
   return (
-    <AreaNavItem
-      label={messages.catalog.areaLabel}
-      icon={<Package />}
-      active={active}
-      {...linkProps(defaultPath)}
-    />
+    <AreaNavItem label="Catálogo" icon={<Package />} active={active} {...linkProps(defaultPath)} />
   );
 }
 
 function CashAreaItem({ active }: { active: boolean }) {
   return (
     <AreaNavItem
-      label={messages.cash.areaLabel}
+      label="Caja"
       icon={<Wallet />}
       active={active}
       {...linkProps(FISCAL_CONFIGURATION_PATH)}
@@ -299,9 +281,7 @@ function HelpApp({
 
   return (
     <Shell
-      brandName={messages.shell.brandName}
-      areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.help.sectionsNavLabel}
+      sectionColumnLabel="Secciones de ayuda"
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
@@ -395,21 +375,19 @@ function SettingsApp({
   useEffect(() => {
     document.title =
       section === "usersList" || section === "userDetail"
-        ? messages.settings.users.documentTitle
+        ? "Usuarios · Puro Sur"
         : section === "rolesList"
-          ? messages.settings.roles.documentTitle
+          ? "Roles · Puro Sur"
           : section === "registersList"
-            ? messages.settings.registers.documentTitle
+            ? "Cajas registradoras · Puro Sur"
             : section === "branchSettings"
-              ? messages.settings.branch.documentTitle
-              : messages.settings.myAccount.documentTitle;
+              ? "Sucursal · Puro Sur"
+              : "Mi cuenta · Puro Sur";
   }, [section]);
 
   return (
     <Shell
-      brandName={messages.shell.brandName}
-      areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.settings.sectionsNavLabel}
+      sectionColumnLabel="Configuración"
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
@@ -430,15 +408,13 @@ function SettingsApp({
       }
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">
-            {messages.settings.sectionsHeading}
-          </h2>
+          <h2 className="font-bold text-brand-blue-strong text-xl">Configuración</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             {canSeeUsers ? (
               <li>
                 <SectionNavItem
-                  label={messages.settings.usersSectionLabel}
+                  label="Usuarios"
                   icon={<Users />}
                   active={
                     section === "usersList" || section === "userDetail" || section === "myAccount"
@@ -449,7 +425,7 @@ function SettingsApp({
             ) : (
               <li>
                 <SectionNavItem
-                  label={messages.settings.myAccountSectionLabel}
+                  label="Mi cuenta"
                   icon={<Users />}
                   active={section === "myAccount"}
                   {...linkProps(MY_ACCOUNT_PATH)}
@@ -459,7 +435,7 @@ function SettingsApp({
             {canSeeRoles && (
               <li>
                 <SectionNavItem
-                  label={messages.settings.rolesSectionLabel}
+                  label="Roles"
                   icon={<Shield />}
                   active={section === "rolesList"}
                   {...linkProps(ROLES_LIST_PATH)}
@@ -469,7 +445,7 @@ function SettingsApp({
             {canSeeRegisters && (
               <li>
                 <SectionNavItem
-                  label={messages.settings.registersSectionLabel}
+                  label="Cajas registradoras"
                   icon={<Laptop />}
                   active={section === "registersList"}
                   {...linkProps(REGISTERS_LIST_PATH)}
@@ -479,7 +455,7 @@ function SettingsApp({
             {canSeeBranch && (
               <li>
                 <SectionNavItem
-                  label={messages.settings.branchSectionLabel}
+                  label="Sucursal"
                   icon={<Store />}
                   active={section === "branchSettings"}
                   {...linkProps(BRANCH_SETTINGS_PATH)}
@@ -568,17 +544,15 @@ function CatalogApp({
 
   useEffect(() => {
     document.title = isCategoriesRoute
-      ? messages.catalog.categories.documentTitle
+      ? "Categorías · Puro Sur"
       : isPricesRoute
-        ? messages.catalog.prices.documentTitle
-        : messages.catalog.products.documentTitle;
+        ? "Precios · Puro Sur"
+        : "Productos · Puro Sur";
   }, [isCategoriesRoute, isPricesRoute]);
 
   return (
     <Shell
-      brandName={messages.shell.brandName}
-      areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.catalog.sectionsNavLabel}
+      sectionColumnLabel="Catálogo"
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
@@ -599,16 +573,14 @@ function CatalogApp({
       }
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">
-            {messages.catalog.sectionsHeading}
-          </h2>
+          <h2 className="font-bold text-brand-blue-strong text-xl">Catálogo</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             {canManageCatalogProducts && (
               <>
                 <li>
                   <SectionNavItem
-                    label={messages.catalog.productsSectionLabel}
+                    label="Productos"
                     icon={<Package />}
                     active={isProductsRoute}
                     {...linkProps(PRODUCTS_LIST_PATH)}
@@ -616,7 +588,7 @@ function CatalogApp({
                 </li>
                 <li>
                   <SectionNavItem
-                    label={messages.catalog.categoriesSectionLabel}
+                    label="Categorías"
                     icon={<Tags />}
                     active={isCategoriesRoute}
                     {...linkProps(CATEGORIES_LIST_PATH)}
@@ -627,7 +599,7 @@ function CatalogApp({
             {canSeePrices && (
               <li>
                 <SectionNavItem
-                  label={messages.catalog.pricesSectionLabel}
+                  label="Precios"
                   icon={<ListChecks />}
                   active={isPricesRoute}
                   {...linkProps(PRICES_LIST_PATH)}
@@ -674,14 +646,12 @@ function CashApp({
   fiscalConfigurationScreenServices,
 }: CashAppProps) {
   useEffect(() => {
-    document.title = messages.cash.fiscalConfiguration.documentTitle;
+    document.title = "Configuración fiscal · Puro Sur";
   }, []);
 
   return (
     <Shell
-      brandName={messages.shell.brandName}
-      areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.cash.sectionsNavLabel}
+      sectionColumnLabel="Caja y fiscal"
       railAreas={
         <>
           {canSeeAlerts && <InicioAreaItem active={false} />}
@@ -702,17 +672,15 @@ function CashApp({
       }
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">
-            {messages.cash.sectionsHeading}
-          </h2>
+          <h2 className="font-bold text-brand-blue-strong text-xl">Caja y fiscal</h2>
           <div className="h-2.5" />
           <p className="px-3 pt-3 pb-1 font-bold text-ink-secondary text-xs tracking-[1px]">
-            {messages.cash.fiscalGroupLabel}
+            FISCAL
           </p>
           <ul className="flex flex-col gap-1">
             <li>
               <SectionNavItem
-                label={messages.cash.fiscalConfigurationSectionLabel}
+                label="Configuración fiscal"
                 icon={<SlidersHorizontal />}
                 active
                 {...linkProps(FISCAL_CONFIGURATION_PATH)}
@@ -754,14 +722,12 @@ function InicioApp({
   alertsListScreenServices,
 }: InicioAppProps) {
   useEffect(() => {
-    document.title = messages.inicio.alerts.documentTitle;
+    document.title = "Alertas · Puro Sur";
   }, []);
 
   return (
     <Shell
-      brandName={messages.shell.brandName}
-      areaRailLabel={messages.shell.areaRailLabel}
-      sectionColumnLabel={messages.inicio.sectionsNavLabel}
+      sectionColumnLabel="Inicio"
       railAreas={
         <>
           <InicioAreaItem active />
@@ -782,14 +748,12 @@ function InicioApp({
       }
       sectionColumn={
         <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">
-            {messages.inicio.sectionsHeading}
-          </h2>
+          <h2 className="font-bold text-brand-blue-strong text-xl">Inicio</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
             <li>
               <SectionNavItem
-                label={messages.inicio.alertsSectionLabel}
+                label="Alertas"
                 icon={<Bell />}
                 active
                 {...linkProps(ALERTS_LIST_PATH)}
