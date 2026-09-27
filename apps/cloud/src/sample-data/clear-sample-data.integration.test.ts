@@ -12,7 +12,6 @@ import {
   passkeyChallenges,
   products,
   recoveryTokens,
-  registers,
   roles,
   sessions,
   userRoles,
@@ -86,24 +85,42 @@ async function tableCount(
   return row ? Number((row as unknown as { count: number }).count) : 0;
 }
 
+// `version` counts edits, so loading and then clearing advances it even when the settings end
+// exactly where they started.
+const SNAPSHOT_EXCLUDED_COLUMNS: Record<string, string> = { branch_settings: "version" };
+
 async function sampleDataSnapshot(
   db: PostgresJsDatabase<Record<string, never>>,
-): Promise<Record<string, number>> {
-  const snapshot: Record<string, number> = {};
+): Promise<Record<string, unknown>> {
+  const snapshot: Record<string, unknown> = {};
   for (const tableName of [
     "users",
+    "user_roles",
     "roles",
+    "role_permissions",
+    "sessions",
+    "passkeys",
+    "recovery_tokens",
     "categories",
     "products",
+    "product_barcodes",
     "prices",
     "price_reviews",
     "registers",
+    "register_enrollment_codes",
     "alerts",
     "alert_deliveries",
     "audit_log",
+    "branch_settings",
     "branch_hours",
   ]) {
-    snapshot[tableName] = await tableCount(db, tableName);
+    const excluded = SNAPSHOT_EXCLUDED_COLUMNS[tableName] ?? "";
+    const [row] = await db.execute<{ rows: unknown }>(
+      sql.raw(
+        `select coalesce(jsonb_agg(to_jsonb(t) - '${excluded}' order by (to_jsonb(t) - '${excluded}')::text), '[]'::jsonb) as rows from "${tableName}" t`,
+      ),
+    );
+    snapshot[tableName] = (row as unknown as { rows: unknown }).rows;
   }
   return snapshot;
 }
@@ -223,6 +240,7 @@ describe("clearSampleData", () => {
       ),
     );
     if (realAlertOutcome.kind !== "opened") throw new Error("test setup: real alert failed");
+    const beforeLoad = await sampleDataSnapshot(db);
 
     const loadOutcome = await loadSampleData(db, { now: () => NOW });
     expect(loadOutcome.kind).toBe("loaded");
@@ -230,47 +248,7 @@ describe("clearSampleData", () => {
     const clearOutcome = await clearSampleData(db);
     expect(clearOutcome.kind).toBe("cleared");
 
-    expect(await tableCount(db, "users")).toBe(2);
-    expect(await tableCount(db, "roles")).toBe(2);
-    expect(await tableCount(db, "categories")).toBe(1);
-    expect(await tableCount(db, "products")).toBe(1);
-    expect(await tableCount(db, "registers")).toBe(1);
-    expect(await tableCount(db, "alerts")).toBe(1);
-
-    const [survivingRole] = await db
-      .select()
-      .from(roles)
-      .where(eq(roles.id, realRoleOutcome.role.id));
-    expect(survivingRole).toMatchObject({ name: "Cajera Real" });
-    const [survivingUser] = await db.select().from(users).where(eq(users.id, realUserOutcome.id));
-    expect(survivingUser).toMatchObject({
-      firstName: "Usuaria Real",
-      email: "cajera.real@example.com",
-    });
-    const [survivingCategory] = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, realCategoryOutcome.category.id));
-    expect(survivingCategory).toMatchObject({ name: "Categoría Real" });
-    const [survivingProduct] = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, realProductOutcome.product.id));
-    expect(survivingProduct).toMatchObject({ name: "Producto Real", active: true });
-    const [survivingRegister] = await db
-      .select()
-      .from(registers)
-      .where(eq(registers.id, realRegisterOutcome.register.id));
-    expect(survivingRegister).toMatchObject({ name: "Caja Real" });
-    const [survivingAlert] = await db
-      .select()
-      .from(alerts)
-      .where(eq(alerts.id, realAlertOutcome.alertId));
-    expect(survivingAlert).toMatchObject({ scope: realUserOutcome.id });
-
-    const [settingsRow] = await db.select().from(branchSettings);
-    expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
-    expect(await tableCount(db, "branch_hours")).toBe(0);
+    expect(await sampleDataSnapshot(db)).toEqual(beforeLoad);
   }, 120_000);
   it("leaves a real category that shares a sample category's name under another parent untouched, with its products", async () => {
     const db = await freshOwnerDatabase();
