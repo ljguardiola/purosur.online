@@ -5,10 +5,6 @@ type PlayContext = { canvasElement: HTMLElement };
 
 export type StoryPlayFunction = (context: PlayContext) => Promise<void>;
 
-/**
- * Hovers the element `locate` finds and asserts react-aria's own `data-hovered` attribute landed
- * on it, for a component whose hover styling is driven by react-aria's `useHover`.
- */
 export function playHoverSetsDataHovered(
   locate: (canvasElement: HTMLElement) => HTMLElement,
 ): StoryPlayFunction {
@@ -19,15 +15,8 @@ export function playHoverSetsDataHovered(
   };
 }
 
-/**
- * Tabs to the element `locateFocused` finds and asserts it received focus, and that
- * `locateFocusRing` (the same element by default) shows react-aria's own `data-focus-visible`
- * attribute, the state its keyboard focus ring is driven by.
- *
- * The two differ for a "group" pattern (Checkbox, Toggle, RadioGroup's and OptionCardGroup's
- * options, SegmentedControl's options): real DOM focus lands on react-aria's own visually hidden
- * native input, while the focus-ring attribute lands on the label that wraps it and draws the ring.
- */
+// In react-aria's group patterns (Checkbox, Toggle, radio and segmented options) DOM focus lands on
+// a visually hidden native input, while data-focus-visible lands on the label that draws the ring.
 export function playTabReachesFocusVisible(
   locateFocused: (canvasElement: HTMLElement) => HTMLElement,
   locateFocusRing: (canvasElement: HTMLElement) => HTMLElement = locateFocused,
@@ -39,12 +28,8 @@ export function playTabReachesFocusVisible(
   };
 }
 
-/**
- * Opens a listbox-backed trigger (a Select or ListFilter's button, react-aria-components' combobox
- * pattern) by clicking `locate`'s element and asserts its own `aria-expanded` landed on it — the
- * attribute react-aria-components reflects that open state through, rather than a `data-open`
- * attribute on the trigger itself.
- */
+// react-aria-components reflects a listbox trigger's open state through aria-expanded, not a
+// data-open attribute on the trigger.
 export function playClickExpandsTrigger(
   locate: (canvasElement: HTMLElement) => HTMLElement,
 ): StoryPlayFunction {
@@ -55,13 +40,8 @@ export function playClickExpandsTrigger(
   };
 }
 
-/**
- * Asserts `locate`'s element paints the resting-to-hover fill every CSS-only `hover:` box in this
- * package turns bone on, once the `pseudo-states` addon's story-wide `hover` parameter has forced
- * the browser to match its real `:hover` rule. `storybook/test`'s `userEvent.hover` cannot drive
- * this itself (see `playTabMatchesCssFocusWithin`), and the addon rewrites its matching stylesheet
- * rules asynchronously after the story mounts, hence the wait.
- */
+// userEvent dispatches synthetic pointer events, which never make a CSS :hover rule match; the
+// pseudo-states addon forces it instead, rewriting its stylesheet rules only after the story mounts.
 export function playPseudoHoverPaintsBoneFill(
   locate: (canvasElement: HTMLElement) => HTMLElement,
 ): StoryPlayFunction {
@@ -73,15 +53,6 @@ export function playPseudoHoverPaintsBoneFill(
   };
 }
 
-/**
- * Tabs into `locate`'s element and asserts the browser's own `:focus-within` pseudo-class matched
- * its ancestor `within`, for a box styled with CSS `focus-within:` rather than a react-aria
- * focus-ring attribute.
- *
- * There is no equivalent hover helper: `storybook/test`'s `userEvent` dispatches synthetic pointer
- * events, which react-aria's `useHover` (and so its `data-hovered` attribute) reacts to, but which
- * never move the browser's own real cursor, so a native CSS `:hover` box never actually matches.
- */
 export function playTabMatchesCssFocusWithin(
   locate: (canvasElement: HTMLElement) => HTMLElement,
   within: (canvasElement: HTMLElement) => HTMLElement,
