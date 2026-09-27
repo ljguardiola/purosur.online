@@ -154,6 +154,27 @@ async function userIdByEmail(
   return row.id;
 }
 
+async function editBranchSettingsAs(
+  db: PostgresJsDatabase<Record<string, never>>,
+  locationId: string,
+  actorId: string,
+  address: string,
+): Promise<void> {
+  const [current] = await db
+    .select({ version: branchSettings.version })
+    .from(branchSettings)
+    .where(eq(branchSettings.locationId, locationId));
+  if (!current) throw new Error("test setup: no branch settings seeded");
+  const edit = await editBranchSettings(db, {
+    ...SAMPLE_BRANCH_SETTINGS,
+    address,
+    locationId,
+    actorId,
+    version: current.version,
+  });
+  if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+}
+
 async function branchPriceListIdOf(
   db: PostgresJsDatabase<Record<string, never>>,
   locationId: string,
@@ -531,24 +552,13 @@ describe("clearSampleData", () => {
     const bootstrapAdmin = await seedActiveAdministrator(db);
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     const sampleAdministratorId = await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email);
-    const editBranchSettingsAs = async (actorId: string, address: string) => {
-      const [current] = await db
-        .select({ version: branchSettings.version })
-        .from(branchSettings)
-        .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
-      if (!current) throw new Error("test setup: no branch settings seeded");
-      const edit = await editBranchSettings(db, {
-        ...SAMPLE_BRANCH_SETTINGS,
-        address,
-        locationId: bootstrapAdmin.locationId,
-        actorId,
-        version: current.version,
-      });
-      if (edit.kind !== "applied")
-        throw new Error("test setup: editing the branch settings failed");
-    };
-    await editBranchSettingsAs(bootstrapAdmin.id, "Calle Real 1");
-    await editBranchSettingsAs(sampleAdministratorId, SAMPLE_BRANCH_SETTINGS.address);
+    await editBranchSettingsAs(db, bootstrapAdmin.locationId, bootstrapAdmin.id, "Calle Real 1");
+    await editBranchSettingsAs(
+      db,
+      bootstrapAdmin.locationId,
+      sampleAdministratorId,
+      SAMPLE_BRANCH_SETTINGS.address,
+    );
     const beforeClear = await sampleDataSnapshot(db);
 
     const outcome = await clearSampleData(db);
@@ -560,25 +570,11 @@ describe("clearSampleData", () => {
   it("refuses and deletes nothing when the sample administrator set the sample values on branch settings the load had left alone", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
-    const editBranchSettingsAs = async (actorId: string, address: string) => {
-      const [current] = await db
-        .select({ version: branchSettings.version })
-        .from(branchSettings)
-        .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
-      if (!current) throw new Error("test setup: no branch settings seeded");
-      const edit = await editBranchSettings(db, {
-        ...SAMPLE_BRANCH_SETTINGS,
-        address,
-        locationId: bootstrapAdmin.locationId,
-        actorId,
-        version: current.version,
-      });
-      if (edit.kind !== "applied")
-        throw new Error("test setup: editing the branch settings failed");
-    };
-    await editBranchSettingsAs(bootstrapAdmin.id, "Calle Real 1");
+    await editBranchSettingsAs(db, bootstrapAdmin.locationId, bootstrapAdmin.id, "Calle Real 1");
     expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
     await editBranchSettingsAs(
+      db,
+      bootstrapAdmin.locationId,
       await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email),
       SAMPLE_BRANCH_SETTINGS.address,
     );
