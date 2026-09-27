@@ -9,8 +9,7 @@ import { withExclusiveMigration } from "../recovery/recovery-integration-databas
 import { waitForReady } from "../wait-for-ready.js";
 import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
 import { migrationsFolderBefore, readRealJournal } from "./migration-journal-test-helpers.js";
-
-const REAL_MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 function databaseUrlFor(adminUrl: string, databaseName: string): string {
   const url = new URL(adminUrl);
@@ -95,7 +94,7 @@ describe("waitForReady", () => {
 
     await expect(
       waitForReady(asCloudApp(created.databaseUrl), {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 1,
         waitForReadySeconds: 5,
         waitIntervalMs: 1000,
@@ -115,13 +114,13 @@ describe("waitForReady", () => {
 
     await withExclusiveMigration(() =>
       runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
       }),
     );
 
     await expect(
       waitForReady(asCloudApp(created.databaseUrl), {
-        migrationsFolder: REAL_MIGRATIONS_FOLDER,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 5,
         waitForReadySeconds: 5,
         waitIntervalMs: 200,
@@ -145,7 +144,7 @@ describe("waitForReady", () => {
 
       await expect(
         waitForReady(asCloudApp(created.databaseUrl), {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: MIGRATIONS_FOLDER,
           connectTimeoutSeconds: 5,
           waitForReadySeconds: 3,
           waitIntervalMs: 500,
@@ -168,7 +167,7 @@ describe("waitForReady", () => {
       databaseName = created.databaseName;
       await withExclusiveMigration(() =>
         runMigrations(created.databaseUrl, CLOUD_APP_PASSWORD, {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: MIGRATIONS_FOLDER,
         }),
       );
       const admin = postgres(created.databaseUrl, { max: 1 });
@@ -184,7 +183,7 @@ describe("waitForReady", () => {
       const clock = fakeClock();
       await expect(
         waitForReady(asCloudApp(databaseUrl), {
-          migrationsFolder: REAL_MIGRATIONS_FOLDER,
+          migrationsFolder: MIGRATIONS_FOLDER,
           connectTimeoutSeconds: 5,
           waitForReadySeconds: 3,
           waitIntervalMs: 500,

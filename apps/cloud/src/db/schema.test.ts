@@ -17,6 +17,7 @@ import {
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
 import { findMigrationEntry, migrationsFolderBefore } from "./migration-journal-test-helpers.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
   categories,
   locations,
@@ -30,7 +31,7 @@ import {
   userRoles,
   users,
 } from "./schema.js";
-import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];

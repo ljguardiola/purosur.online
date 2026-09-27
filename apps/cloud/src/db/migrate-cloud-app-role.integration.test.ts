@@ -5,10 +5,10 @@ import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { runMigrations } from "../migrate.js";
 import { withExclusiveMigration } from "../recovery/recovery-integration-database.js";
 import { CLOUD_APP_PASSWORD } from "./cloud-app-password.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 // `cloud_app` is one cluster-wide role, so this suite reuses CLOUD_APP_PASSWORD; withExclusiveMigration
 // keeps its runMigrations calls from racing another integration suite's own.
-const MIGRATIONS_FOLDER = new URL("../../migrations", import.meta.url).pathname;
 const PERMISSION_DENIED = "42501";
 
 function databaseUrlFor(adminUrl: string, databaseName: string): string {
