@@ -2,7 +2,7 @@ import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { closeAlert } from "../alerts/alert-close-route.js";
 import { escalateOverdueAlerts } from "../alerts/alert-escalation.js";
-import { openAlert, recipientsFor } from "../alerts/open-alert.js";
+import { openAlert, type PasskeyChangedDetail, recipientsFor } from "../alerts/open-alert.js";
 import { editBranchSettings } from "../branch-settings/branch-settings-edit-route.js";
 import { createCategory } from "../categories/category-creation-route.js";
 import {
@@ -22,6 +22,7 @@ import { createProduct } from "../products/product-creation-route.js";
 import { deactivateProduct } from "../products/product-deactivation-route.js";
 import { createRegister } from "../registers/register-creation-route.js";
 import { createRole } from "../roles/role-creation-route.js";
+import { SIGN_IN_BLOCK_DURATION_MS, SIGN_IN_FAILURE_LIMIT } from "../session/sign-in-lockout.js";
 import { createUser } from "../users/user-creation-route.js";
 import { deactivateUser } from "../users/user-deactivation-route.js";
 import { branchSettingsAreAtDefaults } from "./sample-branch-settings.js";
@@ -30,8 +31,8 @@ import {
   SAMPLE_BRANCH_SETTINGS,
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
-  SAMPLE_INFORMATIONAL_ALERT_KIND,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
+  SAMPLE_PASSKEY_NAMES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
   sampleEmail,
@@ -289,6 +290,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
           detail: {
             previousEmail: sampleEmail("anterior.muestra"),
             newEmail: sampleEmail("nueva.muestra"),
+            actorId,
           },
         },
         { now: deps.now },
@@ -315,12 +317,19 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       const escalationEligibleMoment = new Date(
         deps.now().getTime() - ESCALATION_ELIGIBLE_ALERT_AGE_MS,
       );
+      const lockoutDetail = (sourceAddress: string) => ({
+        sourceAddress,
+        failureCount: SIGN_IN_FAILURE_LIMIT,
+        blockedUntil: new Date(
+          escalationEligibleMoment.getTime() + SIGN_IN_BLOCK_DURATION_MS,
+        ).toISOString(),
+      });
       const keptOpenLockoutOutcome = await openAlert(
         tx,
         {
           kind: "backoffice_sign_in_lockout",
           scope: SAMPLE_LOCKOUT_SOURCE_ADDRESSES.keptOpen,
-          detail: { attempts: 5 },
+          detail: lockoutDetail(SAMPLE_LOCKOUT_SOURCE_ADDRESSES.keptOpen),
         },
         { now: () => escalationEligibleMoment },
       );
@@ -330,7 +339,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         {
           kind: "backoffice_sign_in_lockout",
           scope: SAMPLE_LOCKOUT_SOURCE_ADDRESSES.closed,
-          detail: { attempts: 5 },
+          detail: lockoutDetail(SAMPLE_LOCKOUT_SOURCE_ADDRESSES.closed),
         },
         { now: () => escalationEligibleMoment },
       );
@@ -353,16 +362,19 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
       expectOutcome(closedCriticalOutcome, "closed", "closing the critical alert");
 
       const informationalRecipients = await recipientsFor(tx, "all", undefined);
-      async function openInformationalAlert(scope: string, note: string): Promise<string> {
+      async function openInformationalAlert(
+        scope: string,
+        detail: PasskeyChangedDetail,
+      ): Promise<string> {
         const [row] = await tx
           .insert(alerts)
           .values({
-            kind: SAMPLE_INFORMATIONAL_ALERT_KIND,
+            kind: "backoffice_passkey_changed",
             scope,
             level: "informational",
             audience: "all",
             locationId: null,
-            detail: { note },
+            detail,
             openedAt: deps.now(),
           })
           .returning({ id: alerts.id });
@@ -382,14 +394,20 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
         return row.id;
       }
 
-      await openInformationalAlert(
-        "muestra-informativa-abierta",
-        "Aviso de muestra sin categoría de catálogo",
-      );
-      const informationalToCloseId = await openInformationalAlert(
-        "muestra-informativa-cerrada",
-        "Aviso de muestra ya resuelto",
-      );
+      const informationalOpenTargetId = sampleUserIdsInOrder[4] ?? emailChangedTargetId;
+      const informationalClosedTargetId = sampleUserIdsInOrder[6] ?? recoveryRequestedTargetId;
+      await openInformationalAlert(informationalOpenTargetId, {
+        action: "registered",
+        passkeyName: SAMPLE_PASSKEY_NAMES.registered,
+        actorId: informationalOpenTargetId,
+        via: "self",
+      });
+      const informationalToCloseId = await openInformationalAlert(informationalClosedTargetId, {
+        action: "removed",
+        passkeyName: SAMPLE_PASSKEY_NAMES.removed,
+        actorId,
+        via: "administrator",
+      });
       const closedInformationalOutcome = await closeAlert(
         tx,
         { id: informationalToCloseId, actorId },

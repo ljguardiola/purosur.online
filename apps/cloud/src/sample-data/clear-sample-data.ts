@@ -31,7 +31,6 @@ import {
 import {
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
-  SAMPLE_INFORMATIONAL_ALERT_KIND,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
@@ -236,13 +235,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     const sampleAlerts = await tx
       .select({ id: alerts.id })
       .from(alerts)
-      .where(
-        or(
-          inArray(alerts.scope, sampleUserIds),
-          inArray(alerts.scope, sampleLockoutScopes),
-          eq(alerts.kind, SAMPLE_INFORMATIONAL_ALERT_KIND),
-        ),
-      );
+      .where(or(inArray(alerts.scope, sampleUserIds), inArray(alerts.scope, sampleLockoutScopes)));
     const sampleAlertIds = sampleAlerts.map((row) => row.id);
 
     const sampleRoles = await tx

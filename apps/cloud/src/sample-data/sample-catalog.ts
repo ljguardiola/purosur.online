@@ -476,6 +476,7 @@ export const SAMPLE_LOCKOUT_SOURCE_ADDRESSES = {
   closed: "203.0.113.20",
 } as const;
 
-// No catalog kind (@purosur/contracts's ALERT_KINDS) produces an informational alert today; this
-// free-text kind is never looked up in that catalog, so it renders using its own scope as-is.
-export const SAMPLE_INFORMATIONAL_ALERT_KIND = "sample_catalog_advisory";
+export const SAMPLE_PASSKEY_NAMES = {
+  registered: "Teléfono de muestra",
+  removed: "Llave de seguridad de muestra",
+} as const;

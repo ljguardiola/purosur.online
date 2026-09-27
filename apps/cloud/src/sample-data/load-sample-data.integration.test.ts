@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { isInternalBarcode } from "@purosur/contracts";
+import { isAlertKind, isInternalBarcode } from "@purosur/contracts";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -23,7 +23,12 @@ import {
 } from "../recovery/recovery-integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { loadSampleData } from "./load-sample-data.js";
-import { SAMPLE_EMAIL_DOMAIN, SAMPLE_REGISTER_NAMES, SAMPLE_ROLES } from "./sample-catalog.js";
+import {
+  SAMPLE_ADMINISTRATOR,
+  SAMPLE_EMAIL_DOMAIN,
+  SAMPLE_REGISTER_NAMES,
+  SAMPLE_ROLES,
+} from "./sample-catalog.js";
 
 const NOW = new Date("2026-03-15T12:00:00.000Z");
 
@@ -243,5 +248,38 @@ describe("loadSampleData", () => {
       .select({ dayOfWeek: branchHours.dayOfWeek, opensAt: branchHours.opensAt })
       .from(branchHours);
     expect(hoursRows).toEqual([{ dayOfWeek: 3, opensAt: "10:00:00" }]);
+  }, 120_000);
+  it("writes every sample alert with a catalog kind and the detail shape its real producer writes", async () => {
+    const db = await freshDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [sampleAdministrator] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, SAMPLE_ADMINISTRATOR.email));
+
+    const alertRows = await db.select().from(alerts);
+
+    for (const alert of alertRows) {
+      expect(isAlertKind(alert.kind)).toBe(true);
+    }
+    const lockoutAlerts = alertRows.filter((alert) => alert.kind === "backoffice_sign_in_lockout");
+    expect(lockoutAlerts.length).toBeGreaterThan(0);
+    for (const alert of lockoutAlerts) {
+      expect(alert.detail).toEqual({
+        sourceAddress: expect.any(String),
+        failureCount: expect.any(Number),
+        blockedUntil: expect.any(String),
+      });
+    }
+    const emailChangedAlerts = alertRows.filter((alert) => alert.kind === "user_email_changed");
+    expect(emailChangedAlerts.length).toBeGreaterThan(0);
+    for (const alert of emailChangedAlerts) {
+      expect(alert.detail).toEqual({
+        previousEmail: expect.any(String),
+        newEmail: expect.any(String),
+        actorId: sampleAdministrator?.id,
+      });
+    }
   }, 120_000);
 });
