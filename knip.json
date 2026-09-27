@@ -4,6 +4,10 @@
     "@secretlint/secretlint-rule-pattern",
     "@secretlint/secretlint-rule-preset-recommend"
   ],
+  "ignoreFiles": [
+    ".github/scripts/slow-tests-reporter.d.mts",
+    "apps/pos/electron-builder.config.d.mts"
+  ],
   "workspaces": {
     ".": {
       "entry": [
@@ -12,20 +16,22 @@
         ".github/scripts/validate-pr.mjs",
         ".github/scripts/validate-issue.mjs",
         ".github/scripts/parent-issue.mjs",
-        ".github/scripts/sync-labels.mjs",
-        ".github/scripts/slow-tests-reporter.d.mts"
+        ".github/scripts/sync-labels.mjs"
       ]
     },
     "apps/cloud": {
-      "entry": ["src/load-sample-data.ts", "src/clear-sample-data.ts"]
+      "entry": ["src/load-sample-data.ts", "src/clear-sample-data.ts"],
+      "includeEntryExports": true
     },
     "apps/pos": {
-      "entry": ["electron-builder.config.d.mts"],
       "vitest": {
         "entry": ["src/**/*.test.{ts,tsx}"]
-      }
+      },
+      "includeEntryExports": true
     },
-    "apps/*": {},
+    "apps/*": {
+      "includeEntryExports": true
+    },
     "packages/*": {}
   }
 }

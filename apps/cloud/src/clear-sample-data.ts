@@ -5,7 +5,7 @@ import { describeDatabaseFailure } from "./platform/db/describe-database-failure
 import { type ClearSampleDataOutcome, clearSampleData } from "./sample-data/clear-sample-data.js";
 import { resolveSampleDataTarget } from "./sample-data/target-guard.js";
 
-export async function runClearSampleData(databaseUrl: string): Promise<ClearSampleDataOutcome> {
+async function runClearSampleData(databaseUrl: string): Promise<ClearSampleDataOutcome> {
   const sql = postgres(databaseUrl, { max: 1, connect_timeout: 10 });
   try {
     return await clearSampleData(drizzle(sql));
@@ -14,7 +14,7 @@ export async function runClearSampleData(databaseUrl: string): Promise<ClearSamp
   }
 }
 
-export function describeClearSampleDataOutcome(outcome: ClearSampleDataOutcome): string {
+function describeClearSampleDataOutcome(outcome: ClearSampleDataOutcome): string {
   switch (outcome.kind) {
     case "not_loaded":
       return "no sample data is loaded; nothing to do";

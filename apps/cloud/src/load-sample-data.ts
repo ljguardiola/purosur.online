@@ -5,7 +5,7 @@ import { describeDatabaseFailure } from "./platform/db/describe-database-failure
 import { type LoadSampleDataOutcome, loadSampleData } from "./sample-data/load-sample-data.js";
 import { resolveSampleDataTarget } from "./sample-data/target-guard.js";
 
-export async function runLoadSampleData(databaseUrl: string): Promise<LoadSampleDataOutcome> {
+async function runLoadSampleData(databaseUrl: string): Promise<LoadSampleDataOutcome> {
   const sql = postgres(databaseUrl, { max: 1, connect_timeout: 10 });
   try {
     return await loadSampleData(drizzle(sql), { now: () => new Date() });
@@ -14,7 +14,7 @@ export async function runLoadSampleData(databaseUrl: string): Promise<LoadSample
   }
 }
 
-export function describeLoadSampleDataOutcome(outcome: LoadSampleDataOutcome): string {
+function describeLoadSampleDataOutcome(outcome: LoadSampleDataOutcome): string {
   switch (outcome.kind) {
     case "already_loaded":
       return "sample data is already loaded; nothing to do";
