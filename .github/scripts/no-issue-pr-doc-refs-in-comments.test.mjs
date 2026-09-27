@@ -199,6 +199,142 @@ test("does not mistake an unterminated CSS string at the end of the file for a c
   assert.deepEqual(comments, []);
 });
 
+test("finds full-line and trailing YAML comments with their lines", () => {
+  const source = ["# see #5", "key: value # closes #123", "other: 1"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# see #5" },
+    { line: 2, text: "# closes #123" },
+  ]);
+});
+
+test("reads .yaml files as YAML", () => {
+  const comments = findComments("# see #5\n", "pnpm-workspace.yaml");
+
+  assert.deepEqual(comments, [{ line: 1, text: "# see #5" }]);
+});
+
+test("does not mistake a # inside a quoted YAML string for a comment", () => {
+  const source = ['a: "closes #123"', "b: 'see #5' # real"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 2, text: "# real" }]);
+});
+
+test("does not mistake a # inside a plain YAML value, such as a URL fragment or a color, for a comment", () => {
+  const source = ["url: https://example.com/page#42", "color: a#123", "- x#5"].join("\n");
+
+  assert.deepEqual(findComments(source, "a.yml"), []);
+});
+
+test("finds the comment on a YAML block scalar's header line but none inside its content, such as a run step's script", () => {
+  const source = [
+    "body: |",
+    "  ## Heading",
+    "run: | # header",
+    "  # closes #123",
+    "  echo done # see #5",
+    "# after",
+  ].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [
+    { line: 3, text: "# header" },
+    { line: 6, text: "# after" },
+  ]);
+});
+
+test("does not mistake a YAML anchor or alias for a comment", () => {
+  const source = ["base: &defaults", "  a: 1", "other: *defaults"].join("\n");
+
+  assert.deepEqual(findComments(source, "a.yml"), []);
+});
+
+test("finds a YAML comment inside a flow collection", () => {
+  const source = ["list: [", "  a, # see #5", "  b", "]"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 2, text: "# see #5" }]);
+});
+
+test("finds Dockerfile comment lines, including indented ones, but nothing after an instruction", () => {
+  const source = [
+    "# syntax=docker/dockerfile:1",
+    'RUN echo "#5" # see #6',
+    "  # see #5",
+    "ENV COLOR=#000",
+    "RUN a \\",
+    "  && b # see #7",
+  ].join("\n");
+
+  const comments = findComments(source, "apps/cloud/Dockerfile");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# syntax=docker/dockerfile:1" },
+    { line: 3, text: "# see #5" },
+  ]);
+});
+
+test("reads named Dockerfiles, such as Dockerfile.dev and app.Dockerfile, as Dockerfiles", () => {
+  for (const fileName of ["Dockerfile.dev", "apps/x/app.Dockerfile"]) {
+    assert.deepEqual(findComments("# see #5", fileName), [{ line: 1, text: "# see #5" }]);
+  }
+});
+
+test("finds .gitignore and .dockerignore comments only where # starts the line", () => {
+  const source = ["# see #5", "dist#1", " # not-a-comment", "\\#escaped"].join("\n");
+
+  for (const fileName of ["packages/x/.gitignore", "apps/cloud/.dockerignore"]) {
+    assert.deepEqual(findComments(source, fileName), [{ line: 1, text: "# see #5" }]);
+  }
+});
+
+test("finds .env comments on their own line and after an unquoted value", () => {
+  const source = ["# see #5", "A=value # closes #123", "  # indented", "B=1"].join("\n");
+
+  const comments = findComments(source, ".env.example");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# see #5" },
+    { line: 2, text: "# closes #123" },
+    { line: 3, text: "# indented" },
+  ]);
+});
+
+test("reads a # inside an unquoted .env value as the start of a comment, as Node's env file parser does", () => {
+  const comments = findComments("URL=https://example.com/page#42", ".env");
+
+  assert.deepEqual(comments, [{ line: 1, text: "#42" }]);
+});
+
+test("does not mistake a # inside a quoted .env value for a comment", () => {
+  const source = ['A="closes #123" # real', "B='see #5'", "C=`#fff`"].join("\n");
+
+  const comments = findComments(source, "apps/cloud/.env.local");
+
+  assert.deepEqual(comments, [{ line: 1, text: "# real" }]);
+});
+
+test("does not mistake a # line inside a multi-line quoted .env value for a comment", () => {
+  const source = ['A="first', "# closes #123", 'last" # see #5', "# after"].join("\n");
+
+  const comments = findComments(source, ".env.example");
+
+  assert.deepEqual(comments, [
+    { line: 3, text: "# see #5" },
+    { line: 4, text: "# after" },
+  ]);
+});
+
+test("refuses to read a file kind whose comment syntax it does not know", () => {
+  assert.throws(() => findComments("# see #5", "notes.txt"), /notes\.txt/);
+});
+
 test("reports an issue number in a comment that follows a URL string", () => {
   const violations = findDocumentReferences('fetch("https://x"); // closes #123');
 
@@ -406,7 +542,7 @@ test("scans every tracked TS, JS and CSS file in the repository, including tests
   ]);
 });
 
-test("scans every listed extension", () => {
+test("scans every file kind whose comments it can read", () => {
   const tracked = [
     "packages/a/x.ts",
     "packages/a/x.tsx",
@@ -417,12 +553,32 @@ test("scans every listed extension", () => {
     "packages/a/x.mjs",
     "packages/a/x.cjs",
     "packages/a/x.css",
+    "packages/a/x.yml",
+    "packages/a/x.yaml",
     "packages/a/x.json",
+    "apps/cloud/Dockerfile",
+    "Dockerfile.dev",
+    "apps/x/app.Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    "packages/x/.gitignore",
+    "packages/a/Dockerfiles.ts.snap",
+    "packages/a/gitignore",
+    ".env.example",
+    "apps/cloud/.env",
+    "packages/a/x.env",
   ];
 
   const files = findScannedFiles("/repo", () => tracked);
 
   assert.deepEqual(files, [
+    ".dockerignore",
+    ".env.example",
+    ".gitignore",
+    "Dockerfile.dev",
+    "apps/cloud/.env",
+    "apps/cloud/Dockerfile",
+    "apps/x/app.Dockerfile",
     "packages/a/x.cjs",
     "packages/a/x.css",
     "packages/a/x.cts",
@@ -432,16 +588,25 @@ test("scans every listed extension", () => {
     "packages/a/x.mts",
     "packages/a/x.ts",
     "packages/a/x.tsx",
+    "packages/a/x.yaml",
+    "packages/a/x.yml",
+    "packages/x/.gitignore",
   ]);
 });
 
 test("no scanned file in the repository has a comment citing an issue, a pull request or a document", () => {
   const files = findScannedFiles();
   for (const sentinel of [
-    "apps/backoffice/src/test-support/productsListScreen.tsx",
+    "apps/backoffice/src/catalog/test-support/products-list-screen.tsx",
     ".github/scripts/no-issue-pr-doc-refs-in-comments.test.mjs",
     ".railway/railway.ts",
     "packages/ui/src/styles/tokens.css",
+    ".github/workflows/verify.yml",
+    "pnpm-workspace.yaml",
+    "apps/cloud/Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    ".env.example",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }

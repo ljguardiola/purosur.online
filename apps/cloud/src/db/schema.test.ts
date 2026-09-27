@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq, sql } from "drizzle-orm";
@@ -16,6 +16,8 @@ import {
 } from "vitest";
 import { generateSessionId, hashSessionId } from "../session/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "./build-test-database.js";
+import { findMigrationEntry, migrationsFolderBefore } from "./migration-journal-test-helpers.js";
+import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {
   categories,
   locations,
@@ -29,7 +31,7 @@ import {
   userRoles,
   users,
 } from "./schema.js";
-import { MIGRATIONS_FOLDER, migrateFreshDatabase } from "./test-database-snapshot.js";
+import { migrateFreshDatabase } from "./test-database-snapshot.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -224,26 +226,19 @@ describe("passkey_challenges.kind", () => {
 });
 
 describe("migrating a database with a pending passkey challenge of a removed kind", () => {
-  async function migrationsFolderThrough0018(): Promise<string> {
-    const folder = await mkdtemp(join(tmpdir(), "migrations-through-0018-"));
+  async function migrationsFolderBeforeAuthorizationReuse(): Promise<string> {
+    const folder = await mkdtemp(join(tmpdir(), "migrations-before-authorization-reuse-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
-    const journalPath = join(folder, "meta", "_journal.json");
-    const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
-      entries: { idx: number; tag: string }[];
-    };
-    const laterEntries = journal.entries.filter((entry) => entry.idx > 18);
-    for (const entry of laterEntries) {
-      await rm(join(folder, `${entry.tag}.sql`));
-      await rm(join(folder, "meta", `${String(entry.idx).padStart(4, "0")}_snapshot.json`));
-    }
-    journal.entries = journal.entries.filter((entry) => entry.idx <= 18);
-    await writeFile(journalPath, JSON.stringify(journal, null, 2));
+    const authorizationReuseEntry = await findMigrationEntry(
+      "_reuse_passkey_authorization",
+      "test setup: no passkey authorization reuse migration in the journal",
+    );
+    await migrationsFolderBefore(folder, authorizationReuseEntry);
     return folder;
   }
 
-  async function sessionOnDatabaseThrough0018() {
-    const priorMigrationsFolder = await migrationsFolderThrough0018();
+  async function sessionOnDatabaseBeforeAuthorizationReuse() {
+    const priorMigrationsFolder = await migrationsFolderBeforeAuthorizationReuse();
     const client = await migrateFreshDatabase(
       priorMigrationsFolder,
       inject("testDatabaseClusterDumpPath"),
@@ -260,7 +255,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
   }
 
   it("deletes a pending registration issued before passkey registration required an authorization", async () => {
-    const { client, sessionId } = await sessionOnDatabaseThrough0018();
+    const { client, sessionId } = await sessionOnDatabaseBeforeAuthorizationReuse();
     await client.query(
       `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge", "registration_challenge") values ('${sessionId}', 'registration', 'a-stale-reauthentication', 'a-stale-registration')`,
     );
@@ -274,7 +269,7 @@ describe("migrating a database with a pending passkey challenge of a removed kin
   });
 
   it("deletes the pending row instead of leaving a kind the new enum no longer has", async () => {
-    const { client, sessionId } = await sessionOnDatabaseThrough0018();
+    const { client, sessionId } = await sessionOnDatabaseBeforeAuthorizationReuse();
     await client.query(
       `insert into "passkey_challenges" ("session_id", "kind", "reauthentication_challenge") values ('${sessionId}', 'role_creation', 'a-stale-challenge')`,
     );
@@ -296,30 +291,19 @@ describe("migrating a database with a pending passkey challenge of a removed kin
 });
 
 describe("migrating a database that already has users", () => {
-  async function migrationsFolderTruncatedAtLocations(): Promise<string> {
-    const folder = await mkdtemp(join(tmpdir(), "migrations-without-locations-"));
+  async function migrationsFolderBeforeLocations(): Promise<string> {
+    const folder = await mkdtemp(join(tmpdir(), "migrations-before-locations-"));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
-    await cp(MIGRATIONS_FOLDER, folder, { recursive: true });
-    const journalPath = join(folder, "meta", "_journal.json");
-    const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
-      entries: { idx: number; tag: string }[];
-    };
-    const locationsEntry = journal.entries.find((entry) => entry.tag === "0011_locations");
-    if (!locationsEntry) {
-      throw new Error("test setup: 0011_locations migration not found in the journal");
-    }
-    const droppedEntries = journal.entries.filter((entry) => entry.idx >= locationsEntry.idx);
-    for (const entry of droppedEntries) {
-      await rm(join(folder, `${entry.tag}.sql`));
-      await rm(join(folder, "meta", `${String(entry.idx).padStart(4, "0")}_snapshot.json`));
-    }
-    journal.entries = journal.entries.filter((entry) => entry.idx < locationsEntry.idx);
-    await writeFile(journalPath, JSON.stringify(journal, null, 2));
+    const locationsEntry = await findMigrationEntry(
+      "_locations",
+      "test setup: no locations migration in the journal",
+    );
+    await migrationsFolderBefore(folder, locationsEntry);
     return folder;
   }
 
   it("backfills every existing user onto the seeded location", async () => {
-    const priorMigrationsFolder = await migrationsFolderTruncatedAtLocations();
+    const priorMigrationsFolder = await migrationsFolderBeforeLocations();
     const client = await migrateFreshDatabase(
       priorMigrationsFolder,
       inject("testDatabaseClusterDumpPath"),

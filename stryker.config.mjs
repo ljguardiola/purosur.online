@@ -1,0 +1,26 @@
+export default {
+  testRunner: "vitest",
+  plugins: ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+  checkers: ["typescript"],
+  tsconfigFile: "tsconfig.json",
+  vitest: { configFile: "vitest.mutation.config.ts" },
+  mutate: [
+    "packages/domain/src/**/*.ts",
+    "packages/contracts/src/**/*.ts",
+    "!packages/*/src/**/*.test.ts",
+  ],
+  ignorePatterns: [
+    "/*",
+    "!/packages",
+    "/packages/*",
+    "!/packages/domain",
+    "!/packages/contracts",
+    "!/vitest.mutation.config.ts",
+    "!/tsconfig.json",
+  ],
+  coverageAnalysis: "perTest",
+  timeoutMS: 60_000,
+  reporters: ["clear-text", "progress"],
+  clearTextReporter: { logTests: false },
+  thresholds: { high: 100, low: 100, break: 100 },
+};

@@ -27,6 +27,7 @@
     "packages/*/src",
     "apps/*/src",
     "vitest.config.ts",
+    "vitest.mutation.config.ts",
     "apps/cloud/vitest.global-setup.ts",
     "apps/cloud/vitest.global-setup.postgres.ts",
     "apps/pos/electron.vite.config.ts",

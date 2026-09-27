@@ -51,11 +51,22 @@ A feature too large for one pull request stays as a parent feature issue holding
 - Fill in every section of the pull request template, including the Delivery impact checklist.
 - Merges are squash-only. The PR title becomes the commit message on `main`.
 
+## Structure
+
+This is the structure the repository is organized into. A part that does not follow it yet is moved to it when it is reorganized, and never serves as a precedent for new code.
+
+- In every layer that covers business concepts — `packages/domain`, the cloud, the backoffice, the register app — the top-level folders are the business concepts it covers, each named like `packages/domain`'s concept of the same name (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`), so a concept is found under the same name from its rule to its screen. A concept the domain has no rules for yet still gets its own folder under its business name, such as the backoffice's `access` and `branch`. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes, its helpers.
+- What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for shared infrastructure used across concepts (HTTP helpers, formatting), and a folder named after any other part of the application, such as the backoffice's `help/`.
+- A menu area that groups several concepts does so through its routes, not through a folder.
+- Every source file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
+- Each file's tests sit beside it. Helpers used only by tests live in a `test-support/` folder inside the folder they serve.
+
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
 - Code, comments, tests, commit messages, issues, and pull requests are written in English.
-- User-facing text is written in Spanish and lives only in message catalogs, structured for internationalization even though there is a single language. Code references catalog keys and never contains user-facing text as a literal.
+- User-facing text is written in Spanish where it is shown; there are no message catalogs. Text built from quantities, amounts or dates goes through `packages/ui`'s formatting functions, fixed to Argentine Spanish (`es-AR`), so a value reads the same on every screen.
+- A `packages/ui` component writes the text that reads the same wherever it is used (a modal's close button, a pagination's previous and next); text that depends on the screen comes from the app as a prop, with no default.
 - Help and manuals live inside the application they serve: the register's help ships with the register and works offline; the backoffice's help lives in the backoffice.
 - Code and tests explain themselves. Names, structure and test cases carry the meaning; a reader should not need a companion document to follow them.
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says.
@@ -83,6 +94,10 @@ Each risk has one kind of test that owns it:
 | Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
 | Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
 
+A migration already on `main` is never edited or deleted: it has already run on databases in the field, and the deploy compares each shipped migration file against what was applied by hash. A change to an existing migration adds a new migration instead. `pnpm verify` rejects a change that edits or deletes a migration already on `main`.
+
+A new migration must be dated after every migration already on `main`: the migrator applies only migrations dated after the last one it applied, so an earlier-dated one would never run and would block the deploy. This happens when a branch generates its migration before another branch's migration merges; regenerate it on top of the current `main`. `pnpm verify` rejects a new migration that is not dated after every one on `main`.
+
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 
 A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
@@ -98,6 +113,10 @@ Dependency and GitHub Actions update PRs are opened by Dependabot (`.github/depe
 CI is the only thing that allows a merge: the `pr-contract` and `verify` checks are both required. A workflow step that references a GitHub Action by a moving tag (e.g. `@v4`) instead of a pinned commit SHA does not pass review.
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
+
+A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
+
+`pnpm verify` scans every tracked file for secrets. When it finds one in CI, the secret has already reached GitHub: revoke and rotate it, don't only remove it.
 
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
