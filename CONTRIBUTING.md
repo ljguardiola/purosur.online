@@ -80,6 +80,8 @@ Each risk has one kind of test that owns it:
 | Register journeys: sell, sell offline and sync, contingency invoicing, void, sign in | A few end-to-end tests of the packaged register app, each showing that the journey is wired end to end, not every case its use cases own | "Package register", on every pull request that changes the register or a package |
 | Installing the packaged register and updating it in place | An install and update of the packaged build | Per release |
 
+A migration already on `main` is never edited or deleted: it has already run on databases in the field, and the deploy compares each shipped migration file against what was applied by hash. A change to an existing migration adds a new migration instead. `pnpm verify` rejects a change that edits or deletes a migration already on `main`.
+
 A test's result must not depend on how much real time passes while it runs: it neither waits a fixed real time nor measures real elapsed time to decide its outcome. It controls time with fake timers or an injected clock, or it waits for the condition it actually needs. `pnpm verify` rejects a test that depends on real elapsed time.
 
 A test is removed only when the rule it checks is already verified by its owning test and it verifies nothing beyond that rule.
