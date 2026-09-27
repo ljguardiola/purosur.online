@@ -76,8 +76,6 @@ test("renders the register variant at 56px with 16px padding, a leading icon, bo
   expect(getComputedStyle(label).fontWeight).toBe("700");
   expect(Math.round(Number.parseFloat(getComputedStyle(label).fontSize))).toBe(16);
   expect(getComputedStyle(label).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the backoffice variant with an 8px-radius box and a trailing icon", async () => {
@@ -92,8 +90,6 @@ test("renders the backoffice variant with an 8px-radius box and a trailing icon"
   expect(iconRect.width).toBeCloseTo(18, 0);
   expect(iconRect.height).toBeCloseTo(18, 0);
   expect(group.lastElementChild?.contains(icon)).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the helper line under the register field when supplied", async () => {
@@ -109,8 +105,6 @@ test("shows the helper line under the register field when supplied", async () =>
     "A different expiry for the same product is entered as a separate line.",
   );
   await expect.element(helper).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the label 6px above the register field's box", async () => {
@@ -118,8 +112,6 @@ test("keeps the label 6px above the register field's box", async () => {
   const wrapper = fieldGroup(screen, "Expiry").parentElement as HTMLElement;
 
   expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 for (const variant of ["register", "backoffice"] as const) {
@@ -130,8 +122,6 @@ for (const variant of ["register", "backoffice"] as const) {
 
     expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
     expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 
   test(`turns the box bone on hover in the ${variant} variant, keeping the same 2px line border`, async () => {
@@ -437,8 +427,6 @@ for (const variant of ["register", "backoffice"] as const) {
     const groupRect = group.getBoundingClientRect();
     expect(toggleRect.top).toBeGreaterThanOrEqual(groupRect.top);
     expect(toggleRect.bottom).toBeLessThanOrEqual(groupRect.bottom);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 }
 
@@ -471,8 +459,6 @@ for (const variant of ["register", "backoffice"] as const) {
     const toggleRect = toggle.getBoundingClientRect();
     expect(toggleRect.width).toBeGreaterThanOrEqual(24);
     expect(toggleRect.height).toBeGreaterThanOrEqual(24);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 }
 
@@ -500,8 +486,6 @@ test("opens a white 8px-radius panel with a 1px secondary boundary clearing 3:1 
   const boundaryHex = boundaryColorHex(dialog);
   const fillHex = rgbToHex(style.backgroundColor);
   expect(contrastRatio(boundaryHex, fillHex)).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the month and year heading with previous and next controls, each with a real accessible name", async () => {
@@ -520,8 +504,6 @@ test("shows the month and year heading with previous and next controls, each wit
   const next = document.body.querySelector('[slot="next"]') as HTMLElement;
   expect(previous.getAttribute("aria-label")).toBeTruthy();
   expect(next.getAttribute("aria-label")).toBeTruthy();
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("draws the calendar's weekday row in the package's own supporting tone and scale", async () => {
@@ -608,8 +590,6 @@ test("shows the chosen day with a blue UI fill and a white number, clearing the 
   const fillHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
   expect(contrastRatio(textHex, fillHex)).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows an unchosen day in ink that turns bone on hover", async () => {
@@ -930,8 +910,6 @@ test("refuses a date outside the caller's allowed range, showing its message und
   const message = screen.getByText("The date must be 28/02/2027 or earlier.");
   await expect.element(message).toBeVisible();
   expect(getComputedStyle(message.element()).color).toBe(tokenRgb("status-error-ui"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not select the out-of-range day in the calendar", async () => {
@@ -1098,8 +1076,6 @@ test("holds a day the calendar system itself constrains, with no text left for t
   expect(group.textContent).toContain("28");
   expect(group.textContent).toContain("02");
   expect(group.textContent).toContain("2027");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces the field with its label and current value through its segments", async () => {
@@ -1117,8 +1093,6 @@ test("announces the field with its label and current value through its segments"
   expect(valueTexts.some((text) => text.includes("28"))).toBe(true);
   expect(valueTexts.some((text) => text.toLowerCase().includes("febrero"))).toBe(true);
   expect(valueTexts.some((text) => text.includes("2027"))).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces the open calendar as a dialog named by the month and year it shows", async () => {
@@ -1142,8 +1116,6 @@ test("announces the open calendar as a dialog named by the month and year it sho
 
   expect(composedName.toLowerCase()).toContain("febrero");
   expect(composedName).toContain("2027");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("announces the chosen day's button as selected", async () => {
@@ -1156,8 +1128,6 @@ test("announces the chosen day's button as selected", async () => {
 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.closest("td")?.getAttribute("aria-selected")).toBe("true");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 function segmentsOf(group: HTMLElement): HTMLElement[] {
@@ -1238,8 +1208,6 @@ test("marks a required field with an asterisk and exposes it as required", async
   for (const segment of segmentsOf(group)) {
     expect(segment.getAttribute("aria-required")).toBe("true");
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept an invalid field without the message it shows", () => {

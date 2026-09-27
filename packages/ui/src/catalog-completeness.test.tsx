@@ -4,7 +4,6 @@ import * as UI from "./index";
 const componentsWithoutStoriesYet = [
   "AreaNavItem",
   "ColumnChart",
-  "DateField",
   "HighlightedNotice",
   "IconButton",
   "InlineNotice",
