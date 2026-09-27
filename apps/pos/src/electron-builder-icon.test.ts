@@ -5,13 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const APP_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-const originalPosChannel = process.env.POS_CHANNEL;
+const originalPosChannel = process.env["POS_CHANNEL"];
 
 afterEach(() => {
   if (originalPosChannel === undefined) {
-    delete process.env.POS_CHANNEL;
+    delete process.env["POS_CHANNEL"];
   } else {
-    process.env.POS_CHANNEL = originalPosChannel;
+    process.env["POS_CHANNEL"] = originalPosChannel;
   }
 });
 
@@ -19,7 +19,7 @@ afterEach(() => {
 // import instead of vitest handing back the other channel's already-cached config.
 async function loadConfig(channel: string) {
   vi.resetModules();
-  process.env.POS_CHANNEL = channel;
+  process.env["POS_CHANNEL"] = channel;
   const config = await import("../electron-builder.config.mjs");
   return config.default;
 }

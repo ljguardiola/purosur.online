@@ -206,7 +206,7 @@ function logWaiting(error: unknown, elapsedMs: number): void {
 const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl) {
     console.error("wait-for-ready: DATABASE_URL is not set");
     process.exit(1);

@@ -79,7 +79,7 @@ describe("the Cloud Server service's environment", () => {
 
   it("builds cloud_app's DATABASE_URL as a literal string, never a stringified reference object", async () => {
     const cloud = findService(await compile(), "Cloud Server");
-    const databaseUrl = cloud.variables?.DATABASE_URL;
+    const databaseUrl = cloud.variables?.["DATABASE_URL"];
     if (databaseUrl?.type !== "literal") {
       throw new Error("Cloud Server's DATABASE_URL is not a literal variable");
     }
@@ -94,7 +94,7 @@ describe("the Cloud Server service's environment", () => {
 
   it("carries the ARCA certificate from the deploying environment", async () => {
     const cloud = findService(await compile(), "Cloud Server");
-    expect(cloud.variables?.ARCA_CERTIFICATE).toEqual({
+    expect(cloud.variables?.["ARCA_CERTIFICATE"]).toEqual({
       type: "literal",
       value: "arca-certificate-pem",
     });
@@ -118,7 +118,7 @@ describe("the Schema Migrations service", () => {
 
   it("holds the database resource's admin credential", async () => {
     const migrate = findService(await compile(), "Schema Migrations");
-    expect(migrate.variables?.DATABASE_URL).toEqual({
+    expect(migrate.variables?.["DATABASE_URL"]).toEqual({
       type: "reference",
       resource: "database.Database",
       output: "DATABASE_URL",

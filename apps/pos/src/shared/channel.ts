@@ -87,7 +87,7 @@ function parseFields(text: string, knownFields: ReadonlySet<string>): ChannelFil
   if (!isChannel(channel)) {
     return fail(`channel must be one of ${CHANNELS.join(", ")}`);
   }
-  const dataFolder = fields.dataFolder ?? CHANNEL_DATA_FOLDERS[channel];
+  const dataFolder = fields["dataFolder"] ?? CHANNEL_DATA_FOLDERS[channel];
   if (typeof dataFolder !== "string") {
     return fail("dataFolder must be a single folder name");
   }

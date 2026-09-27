@@ -24,8 +24,8 @@ describe("the load-sample-data command", () => {
 
   it("fails with a clear message when DATABASE_URL is not set for staging", () => {
     const env = { ...process.env };
-    env.RAILWAY_ENVIRONMENT_NAME = "staging";
-    delete env.DATABASE_URL;
+    env["RAILWAY_ENVIRONMENT_NAME"] = "staging";
+    delete env["DATABASE_URL"];
 
     const result = spawnSync(process.execPath, [ENTRYPOINT], {
       env,

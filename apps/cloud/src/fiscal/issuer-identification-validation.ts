@@ -6,7 +6,7 @@ import {
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/contracts";
 
-const ACTIVITY_START_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ACTIVITY_START_DATE_PATTERN = /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})$/;
 
 export interface IssuerIdentificationFieldValidationFailure {
   field: "legal_name" | "gross_income_registration" | "activity_start_date" | "version";
@@ -42,15 +42,15 @@ function isRealCalendarDate(year: number, month: number, day: number): boolean {
 }
 
 function readActivityStartDate(body: unknown, today: Date): string | undefined {
-  const raw = (body as Record<string, unknown> | undefined)?.activity_start_date;
+  const raw = (body as Record<string, unknown> | undefined)?.["activity_start_date"];
   if (typeof raw !== "string") {
     return undefined;
   }
-  const match = ACTIVITY_START_DATE_PATTERN.exec(raw);
-  if (!match) {
+  const groups = ACTIVITY_START_DATE_PATTERN.exec(raw)?.groups;
+  if (!groups?.["year"] || !groups["month"] || !groups["day"]) {
     return undefined;
   }
-  const [, yearText, monthText, dayText] = match as unknown as [string, string, string, string];
+  const { year: yearText, month: monthText, day: dayText } = groups;
   const year = Number(yearText);
   const month = Number(monthText);
   const day = Number(dayText);

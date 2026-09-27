@@ -95,7 +95,7 @@ export function requireEdgeOriginSecret(env: ServerEnv): string {
   return value;
 }
 
-const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (\d{11})$/;
+const CUIT_SERIAL_NUMBER_PATTERN = /^CUIT (?<cuitDigits>\d{11})$/;
 const SERIAL_NUMBER_PREFIX = "serialNumber=";
 
 /** Node renders each RDN on its own line, joining a multi-valued RDN's attributes with ` + `. */
@@ -134,11 +134,10 @@ export function requireAuthorizedCuit(env: ServerEnv): string {
   if (!serialNumber) {
     throw new Error("ARCA_CERTIFICATE's subject has no serialNumber");
   }
-  const match = CUIT_SERIAL_NUMBER_PATTERN.exec(serialNumber);
-  if (!match) {
+  const cuitDigits = CUIT_SERIAL_NUMBER_PATTERN.exec(serialNumber)?.groups?.["cuitDigits"];
+  if (!cuitDigits) {
     throw new Error('ARCA_CERTIFICATE\'s serialNumber must be in the form "CUIT <11 digits>"');
   }
-  const [, cuitDigits] = match as unknown as [string, string];
   const normalized = parseCuit(cuitDigits);
   if (!normalized) {
     throw new Error("ARCA_CERTIFICATE's CUIT must have a correct check digit");
