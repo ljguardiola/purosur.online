@@ -1,19 +1,29 @@
 export type Locale = "es-AR";
 
+const LOCALE: Locale = "es-AR";
+
 export type PluralForms = { other: string } & Partial<Record<Intl.LDMLPluralRule, string>>;
 
+const pluralRules = new Intl.PluralRules(LOCALE);
+
+export function plural(count: number, forms: PluralForms): string {
+  return forms[pluralRules.select(count)] ?? forms.other;
+}
+
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return new Intl.NumberFormat(LOCALE, options).format(value);
+}
+
+export function formatDate(value: Date | number, options?: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(LOCALE, options).format(value);
+}
+
 export type MessageFormatters = {
-  plural: (count: number, forms: PluralForms) => string;
-  number: (value: number, options?: Intl.NumberFormatOptions) => string;
-  date: (value: Date | number, options?: Intl.DateTimeFormatOptions) => string;
+  plural: typeof plural;
+  number: typeof formatNumber;
+  date: typeof formatDate;
 };
 
-export function createFormatters(locale: Locale): MessageFormatters {
-  const pluralRules = new Intl.PluralRules(locale);
-
-  return {
-    plural: (count, forms) => forms[pluralRules.select(count)] ?? forms.other,
-    number: (value, options) => new Intl.NumberFormat(locale, options).format(value),
-    date: (value, options) => new Intl.DateTimeFormat(locale, options).format(value),
-  };
+export function createFormatters(_locale: Locale): MessageFormatters {
+  return { plural, number: formatNumber, date: formatDate };
 }

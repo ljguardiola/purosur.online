@@ -114,6 +114,7 @@ export { Tooltip } from "./components/Tooltip";
 export type { MessagesShape, MessageTree } from "./messages/define-messages";
 export { defineMessages } from "./messages/define-messages";
 export type { Locale, MessageFormatters, PluralForms } from "./messages/formatters";
+export { formatDate, formatNumber, plural } from "./messages/formatters";
 export type {
   Category,
   CategoryRecord,
