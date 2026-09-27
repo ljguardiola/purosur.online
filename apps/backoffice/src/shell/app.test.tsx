@@ -357,6 +357,54 @@ test("moves focus to the new area's screen title after switching area from the r
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toHaveFocus();
 });
 
+test("moves focus to the new screen's title after following a link between the screens reached without a session", async () => {
+  window.history.pushState(null, "", "/sign-in");
+  const screen = await render(
+    <App
+      help={emptyHelp}
+      services={createServices({
+        fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+      })}
+    />,
+  );
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+
+  await pressEnterOn(
+    screen.getByRole("link", { name: "Perdí mis passkeys" }).element() as HTMLElement,
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Recuperar el acceso", level: 1 }))
+    .toHaveFocus();
+});
+
+test("moves focus to the first screen's title after signing in", async () => {
+  window.history.pushState(null, "", "/sign-in");
+  const services = createServices({
+    fetchSession: vi.fn().mockResolvedValueOnce({ kind: "unauthenticated" }).mockResolvedValue({
+      kind: "ok",
+      userId: "user-1",
+      displayName: "Lucas Guardiola",
+      isAdministrator: true,
+    }),
+  });
+  vi.mocked(services.signInScreen.fetchAuthenticationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "challenge" },
+  });
+  vi.mocked(services.signInScreen.startAuthentication).mockResolvedValue(
+    {} as Awaited<ReturnType<AppServices["signInScreen"]["startAuthentication"]>>,
+  );
+  vi.mocked(services.signInScreen.authenticate).mockResolvedValue({ kind: "ok" });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
+    .toHaveFocus();
+});
+
 test("leaves focus where it is when only a list's filters change", async () => {
   const services = createServices();
   vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });

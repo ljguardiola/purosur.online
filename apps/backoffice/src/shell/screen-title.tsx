@@ -8,3 +8,7 @@ export function ScreenTitle({ children }: { children: ReactNode }) {
     </h1>
   );
 }
+
+export function focusScreenTitle() {
+  document.querySelector<HTMLElement>("h1")?.focus();
+}
