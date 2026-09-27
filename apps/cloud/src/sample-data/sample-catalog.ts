@@ -361,30 +361,6 @@ function buildSampleCategoryTree(): readonly SampleTopCategory[] {
 
 export const SAMPLE_CATEGORY_TREE: readonly SampleTopCategory[] = buildSampleCategoryTree();
 
-export interface SampleCategoryNames {
-  top: readonly string[];
-  mid: readonly string[];
-  leaf: readonly string[];
-}
-
-// Grouped by depth so a caller can delete children before their parents without ever having to
-// read the tree back out of the database first.
-export function sampleCategoryNames(): SampleCategoryNames {
-  const top: string[] = [];
-  const mid: string[] = [];
-  const leaf: string[] = [];
-  for (const topCategory of SAMPLE_CATEGORY_TREE) {
-    top.push(topCategory.name);
-    for (const midCategory of topCategory.mids) {
-      mid.push(midCategory.name);
-      for (const leafCategory of midCategory.leaves) {
-        leaf.push(leafCategory.name);
-      }
-    }
-  }
-  return { top, mid, leaf };
-}
-
 export interface SampleUserPlan {
   firstName: string;
   email: string;

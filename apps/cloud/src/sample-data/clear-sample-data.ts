@@ -1,4 +1,4 @@
-import { eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, eq, inArray, like, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   alertDeliveries,
@@ -23,12 +23,12 @@ import {
 } from "../db/schema.js";
 import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import {
+  SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_INFORMATIONAL_ALERT_KIND,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
-  sampleCategoryNames,
 } from "./sample-catalog.js";
 
 // The schema's own column defaults (branch-settings.ts), reapplied directly since there is no
@@ -53,9 +53,120 @@ export interface ClearSampleDataSummary {
 
 export type ClearSampleDataOutcome =
   | { kind: "not_loaded" }
+  | { kind: "refused"; detail: string }
   | { kind: "cleared"; summary: ClearSampleDataSummary };
 
+class SampleDataClearRefusal extends Error {}
+
+type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
+  Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
+>[0];
+
+interface SampleCatalogRows {
+  categoryIdsByDepth: { top: string[]; mid: string[]; leaf: string[] };
+  productIds: string[];
+}
+
+async function findSampleCatalogRows<TQueryResult extends PgQueryResultHKT>(
+  tx: Transaction<TQueryResult>,
+): Promise<SampleCatalogRows> {
+  const sampleNames = new Set<string>();
+  for (const top of SAMPLE_CATEGORY_TREE) {
+    sampleNames.add(top.name);
+    for (const mid of top.mids) {
+      sampleNames.add(mid.name);
+      for (const leaf of mid.leaves) {
+        sampleNames.add(leaf.name);
+      }
+    }
+  }
+  const candidates = await tx
+    .select({ id: categories.id, name: categories.name, parentId: categories.parentId })
+    .from(categories)
+    .where(inArray(categories.name, [...sampleNames]));
+  const findCategory = (name: string, parentId: string | null): string | undefined =>
+    candidates.find((row) => row.name === name && row.parentId === parentId)?.id;
+
+  const categoryIdsByDepth = { top: [] as string[], mid: [] as string[], leaf: [] as string[] };
+  const plannedProductNamesByLeafId = new Map<string, string[]>();
+  for (const top of SAMPLE_CATEGORY_TREE) {
+    const topId = findCategory(top.name, null);
+    if (!topId) continue;
+    categoryIdsByDepth.top.push(topId);
+    for (const mid of top.mids) {
+      const midId = findCategory(mid.name, topId);
+      if (!midId) continue;
+      categoryIdsByDepth.mid.push(midId);
+      for (const leaf of mid.leaves) {
+        const leafId = findCategory(leaf.name, midId);
+        if (!leafId) continue;
+        categoryIdsByDepth.leaf.push(leafId);
+        plannedProductNamesByLeafId.set(
+          leafId,
+          leaf.products.map((product) => product.name),
+        );
+      }
+    }
+  }
+  const sampleCategoryIds = [
+    ...categoryIdsByDepth.top,
+    ...categoryIdsByDepth.mid,
+    ...categoryIdsByDepth.leaf,
+  ];
+
+  const [foreignChild] = await tx
+    .select({ name: categories.name })
+    .from(categories)
+    .where(
+      and(
+        inArray(categories.parentId, sampleCategoryIds),
+        notInArray(categories.id, sampleCategoryIds),
+      ),
+    )
+    .limit(1);
+  if (foreignChild) {
+    throw new SampleDataClearRefusal(
+      `category "${foreignChild.name}" is not sample data but sits inside a sample category`,
+    );
+  }
+
+  const productsInSampleLeaves = await tx
+    .select({ id: products.id, name: products.name, categoryId: products.categoryId })
+    .from(products)
+    .where(inArray(products.categoryId, categoryIdsByDepth.leaf));
+  const remainingPlannedNames = new Map(
+    [...plannedProductNamesByLeafId].map(([leafId, names]) => [leafId, [...names]]),
+  );
+  const productIds: string[] = [];
+  for (const product of productsInSampleLeaves) {
+    const remaining = remainingPlannedNames.get(product.categoryId) ?? [];
+    const plannedIndex = remaining.indexOf(product.name);
+    if (plannedIndex === -1) {
+      throw new SampleDataClearRefusal(
+        `product "${product.name}" is not sample data but sits inside a sample category`,
+      );
+    }
+    remaining.splice(plannedIndex, 1);
+    productIds.push(product.id);
+  }
+
+  return { categoryIdsByDepth, productIds };
+}
+
 export async function clearSampleData<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+): Promise<ClearSampleDataOutcome> {
+  try {
+    return await clearSampleDataInTransaction(db);
+  } catch (error) {
+    if (error instanceof SampleDataClearRefusal) {
+      return { kind: "refused", detail: error.message };
+    }
+    throw error;
+  }
+}
+
+async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<ClearSampleDataOutcome> {
   return db.transaction<ClearSampleDataOutcome>(async (tx) => {
@@ -73,18 +184,7 @@ export async function clearSampleData<TQueryResult extends PgQueryResultHKT>(
       throw new Error("sample-data: no location is seeded in the database");
     }
 
-    const categoryNames = sampleCategoryNames();
-    const sampleLeafCategories = await tx
-      .select({ id: categories.id })
-      .from(categories)
-      .where(inArray(categories.name, [...categoryNames.leaf]));
-    const sampleLeafCategoryIds = sampleLeafCategories.map((row) => row.id);
-
-    const sampleProducts = await tx
-      .select({ id: products.id })
-      .from(products)
-      .where(inArray(products.categoryId, sampleLeafCategoryIds));
-    const sampleProductIds = sampleProducts.map((row) => row.id);
+    const { categoryIdsByDepth, productIds: sampleProductIds } = await findSampleCatalogRows(tx);
 
     // A closed source-address alert has its scope replaced by its hash (alert-close-route.ts), so
     // both forms are matched here to still find one after it's been closed.
@@ -142,9 +242,9 @@ export async function clearSampleData<TQueryResult extends PgQueryResultHKT>(
     await tx.delete(products).where(inArray(products.id, sampleProductIds));
     await tx.execute(sql`alter table products enable trigger products_reject_deletion`);
 
-    await tx.delete(categories).where(inArray(categories.name, [...categoryNames.leaf]));
-    await tx.delete(categories).where(inArray(categories.name, [...categoryNames.mid]));
-    await tx.delete(categories).where(inArray(categories.name, [...categoryNames.top]));
+    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.leaf));
+    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.mid));
+    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.top));
 
     const sampleEntityIds = [
       ...sampleUserIds,
@@ -182,7 +282,11 @@ export async function clearSampleData<TQueryResult extends PgQueryResultHKT>(
       summary: {
         users: sampleUserIds.length,
         roles: sampleRoleIds.length,
-        categories: categoryNames.top.length + categoryNames.mid.length + categoryNames.leaf.length,
+        categories: SAMPLE_CATEGORY_TREE.reduce(
+          (sum, top) =>
+            sum + 1 + top.mids.reduce((midSum, mid) => midSum + 1 + mid.leaves.length, 0),
+          0,
+        ),
         products: sampleProductIds.length,
         registers: sampleRegisterIds.length,
         alerts: sampleAlertIds.length,

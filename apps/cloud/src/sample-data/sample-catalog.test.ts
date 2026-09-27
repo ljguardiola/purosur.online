@@ -6,7 +6,6 @@ import {
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_REGISTER_NAMES,
   SAMPLE_ROLES,
-  sampleCategoryNames,
   sampleEmail,
 } from "./sample-catalog.js";
 
@@ -127,27 +126,6 @@ describe("SAMPLE_CATEGORY_TREE", () => {
       expect(Number.isInteger(product.unitPriceCents)).toBe(true);
       expect(product.unitPriceCents).toBeGreaterThan(0);
     }
-  });
-});
-
-describe("sampleCategoryNames", () => {
-  it("names every top, mid and leaf category once, matching the tree's shape", () => {
-    const names = sampleCategoryNames();
-    const totalTop = SAMPLE_CATEGORY_TREE.length;
-    const totalMid = SAMPLE_CATEGORY_TREE.reduce((sum, top) => sum + top.mids.length, 0);
-    const totalLeaf = SAMPLE_CATEGORY_TREE.reduce(
-      (sum, top) => sum + top.mids.reduce((midSum, mid) => midSum + mid.leaves.length, 0),
-      0,
-    );
-    expect(names.top).toHaveLength(totalTop);
-    expect(names.mid).toHaveLength(totalMid);
-    expect(names.leaf).toHaveLength(totalLeaf);
-  });
-
-  it("never repeats a name across depths", () => {
-    const names = sampleCategoryNames();
-    const all = [...names.top, ...names.mid, ...names.leaf];
-    expect(new Set(all).size).toBe(all.length);
   });
 });
 

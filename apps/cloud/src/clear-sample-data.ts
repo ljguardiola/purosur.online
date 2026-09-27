@@ -18,6 +18,8 @@ export function describeClearSampleDataOutcome(outcome: ClearSampleDataOutcome):
   switch (outcome.kind) {
     case "not_loaded":
       return "no sample data is loaded; nothing to do";
+    case "refused":
+      return `refused: ${outcome.detail}; nothing was cleared`;
     case "cleared":
       return (
         `cleared ${outcome.summary.categories} categories, ${outcome.summary.products} products, ` +
@@ -53,6 +55,9 @@ if (isMainModule()) {
     runClearSampleData(databaseUrl)
       .then((outcome) => {
         console.log(`clear-sample-data: ${describeClearSampleDataOutcome(outcome)}`);
+        if (outcome.kind === "refused") {
+          process.exit(1);
+        }
       })
       .catch((error: unknown) => {
         console.error(`clear-sample-data: ${describeDatabaseFailure(error)}`);

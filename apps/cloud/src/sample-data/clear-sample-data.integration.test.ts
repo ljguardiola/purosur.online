@@ -81,6 +81,46 @@ async function tableCount(
   return row ? Number((row as unknown as { count: number }).count) : 0;
 }
 
+async function sampleDataSnapshot(
+  db: PostgresJsDatabase<Record<string, never>>,
+): Promise<Record<string, number>> {
+  const snapshot: Record<string, number> = {};
+  for (const tableName of [
+    "users",
+    "roles",
+    "categories",
+    "products",
+    "prices",
+    "price_reviews",
+    "registers",
+    "alerts",
+    "alert_deliveries",
+    "audit_log",
+    "branch_hours",
+  ]) {
+    snapshot[tableName] = await tableCount(db, tableName);
+  }
+  return snapshot;
+}
+
+async function sampleCategoryIdByPath(
+  db: PostgresJsDatabase<Record<string, never>>,
+  topName: string,
+  midName: string,
+  leafName: string,
+): Promise<string> {
+  const rows = await db.execute<{ id: string }>(
+    sql`select leaf.id from categories leaf
+        join categories mid on mid.id = leaf.parent_id
+        join categories top on top.id = mid.parent_id
+        where top.parent_id is null and top.name = ${topName}
+          and mid.name = ${midName} and leaf.name = ${leafName}`,
+  );
+  const id = (rows as unknown as { id: string }[])[0]?.id;
+  if (!id) throw new Error(`test setup: no sample category ${topName} > ${midName} > ${leafName}`);
+  return id;
+}
+
 describe("clearSampleData", () => {
   it("is a no-op when nothing was loaded", async () => {
     const db = await freshOwnerDatabase();
@@ -205,5 +245,59 @@ describe("clearSampleData", () => {
     const [settingsRow] = await db.select().from(branchSettings);
     expect(settingsRow).toMatchObject({ address: "", whatsappNumber: "", instagramHandle: "" });
     expect(await tableCount(db, "branch_hours")).toBe(0);
+  }, 120_000);
+  it("leaves a real category that shares a sample category's name under another parent untouched, with its products", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    const realTop = await createCategory(db, { name: "Categoría Real", parentId: null });
+    if (realTop.kind !== "created") throw new Error("test setup: real category collided");
+    const realNamesake = await createCategory(db, {
+      name: "Aceites",
+      parentId: realTop.category.id,
+    });
+    if (realNamesake.kind !== "created") throw new Error("test setup: real namesake collided");
+    const realProduct = await createProduct(db, {
+      name: "Aceite Real",
+      categoryId: realNamesake.category.id,
+      saleUnit: "UNIT",
+      barcodes: ["7791234567890"],
+    });
+    if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
+
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const survivingCategories = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.parentId, realTop.category.id));
+    expect(survivingCategories).toEqual([{ id: realNamesake.category.id }]);
+    const survivingProducts = await db.select({ id: products.id }).from(products);
+    expect(survivingProducts).toEqual([{ id: realProduct.product.id }]);
+  }, 120_000);
+
+  it("refuses and deletes nothing when a real product sits in a sample category", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const sampleLeafId = await sampleCategoryIdByPath(
+      db,
+      "Almacén",
+      "Aceites y Aderezos",
+      "Aceites",
+    );
+    const realProduct = await createProduct(db, {
+      name: "Aceite Real",
+      categoryId: sampleLeafId,
+      saleUnit: "UNIT",
+      barcodes: ["7791234567890"],
+    });
+    if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
+    const beforeClear = await sampleDataSnapshot(db);
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome.kind).toBe("refused");
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
   }, 120_000);
 });
