@@ -101,7 +101,7 @@ function splitCommandGroups(line) {
       stage += ch;
       continue;
     }
-    if (ch === "#") break;
+    if (ch === "#" && (i === 0 || /[\s;|&(]/.test(line[i - 1]))) break;
     if (ch === "&" && line[i + 1] === "&") {
       pushGroup();
       i++;
@@ -127,74 +127,146 @@ function splitCommandGroups(line) {
   return groups.filter((stages) => stages.some((s) => s.trim() !== ""));
 }
 
-const REDIRECT_RE = /(&>{1,2}|[0-9]?>{1,2})\s*(\S+)/g;
+function parseStage(text) {
+  const words = [];
+  const redirects = [];
+  const hereStrings = [];
+  let i = 0;
 
-function stdoutRedirectedAway(stageText) {
-  let found = false;
-  let lastTarget = null;
-  for (const [, prefix, target] of stageText.matchAll(REDIRECT_RE)) {
-    if (prefix.startsWith("&")) {
-      found = true;
-      lastTarget = target;
-      continue;
+  const skipSpaces = () => {
+    while (i < text.length && /\s/.test(text[i])) i++;
+  };
+  const readWord = () => {
+    const start = i;
+    let unquoted = "";
+    let quote = null;
+    let substitutionDepth = 0;
+    while (i < text.length) {
+      const ch = text[i];
+      if (quote) {
+        if (ch === quote) quote = null;
+        else unquoted += ch;
+        i++;
+      } else if (ch === "'" || ch === '"') {
+        quote = ch;
+        i++;
+      } else if (ch === "\\" && i + 1 < text.length) {
+        unquoted += text[i + 1];
+        i += 2;
+      } else if (ch === "$" && text[i + 1] === "(") {
+        substitutionDepth++;
+        unquoted += "$(";
+        i += 2;
+      } else if (substitutionDepth > 0) {
+        if (ch === ")") substitutionDepth--;
+        unquoted += ch;
+        i++;
+      } else if (/[\s<>()]/.test(ch)) {
+        break;
+      } else {
+        unquoted += ch;
+        i++;
+      }
     }
-    const fd = prefix.slice(0, prefix.length - (prefix.endsWith(">>") ? 2 : 1)) || "1";
-    if (fd === "2") continue;
-    found = true;
-    lastTarget = target;
+    return { raw: text.slice(start, i), text: unquoted, end: i };
+  };
+
+  while (i < text.length) {
+    const ch = text[i];
+    if (/[\s()]/.test(ch)) {
+      i++;
+    } else if (ch === ">" || (ch === "&" && text[i + 1] === ">")) {
+      let fd = "1";
+      if (ch === "&") {
+        fd = "&";
+        i++;
+      } else {
+        const previous = words[words.length - 1];
+        if (previous && previous.end === i && /^[0-9]$/.test(previous.raw)) {
+          words.pop();
+          fd = previous.raw;
+        }
+      }
+      i++;
+      if (text[i] === ">") i++;
+      const duplicates = text[i] === "&";
+      if (duplicates) i++;
+      skipSpaces();
+      redirects.push({ fd, target: `${duplicates ? "&" : ""}${readWord().text}` });
+    } else if (text.startsWith("<<<", i)) {
+      i += 3;
+      skipSpaces();
+      hereStrings.push(readWord().raw);
+    } else if (ch === "<") {
+      while (text[i] === "<") i++;
+      skipSpaces();
+      readWord();
+    } else {
+      const word = readWord();
+      if (word.raw === "") i++;
+      else words.push(word);
+    }
   }
-  if (!found) return false;
-  return !ALLOWED_STDOUT_TARGETS.has(lastTarget);
+
+  return { command: commandOf(words), redirects, hereStrings };
 }
 
-function firstWord(stageText) {
-  const match = stageText.trim().match(/^\S+/);
-  return match ? match[0].replace(/^["']|["']$/g, "") : "";
+const COMMAND_PREFIXES = new Set(["command", "builtin"]);
+const ASSIGNMENT_RE = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
+function commandOf(words) {
+  let index = 0;
+  while (
+    index < words.length &&
+    (COMMAND_PREFIXES.has(words[index].raw) || ASSIGNMENT_RE.test(words[index].raw))
+  ) {
+    index++;
+  }
+  if (index >= words.length) return null;
+  const [first, ...args] = words.slice(index);
+  return { name: first.text.split("/").pop(), args };
 }
 
-function argsOf(stageText) {
-  return stageText
-    .trim()
-    .replace(/^\S+\s*/, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.replace(/^["']|["']$/g, ""));
+function stdoutRedirectedAway(stage) {
+  const stdoutRedirects = stage.redirects.filter(({ fd }) => fd !== "2");
+  if (stdoutRedirects.length === 0) return false;
+  return !ALLOWED_STDOUT_TARGETS.has(stdoutRedirects[stdoutRedirects.length - 1].target);
 }
 
-function stagePrintsName(stageText, name) {
-  const command = firstWord(stageText);
-  if (command === "printenv") return argsOf(stageText).includes(name);
-  if (!PRINT_COMMANDS.has(command)) return false;
+function referencesName(text, name) {
+  return new RegExp(`\\$\\{?${escapeRegExp(name)}\\b`).test(text);
+}
 
-  const rest = stageText.trim().replace(/^\S+\s*/, "");
+function stagePrintsName({ command, hereStrings }, name) {
+  if (!command) return false;
+  if (command.name === "printenv") return command.args.some((arg) => arg.text === name);
+  if (command.name === "cat")
+    return hereStrings.some((hereString) => referencesName(hereString, name));
+  if (!PRINT_COMMANDS.has(command.name)) return false;
+
+  const rest = command.args.map((arg) => arg.raw).join(" ");
   if (/::add-mask::/.test(rest)) return false;
-
-  return new RegExp(`\\$\\{?${escapeRegExp(name)}\\b`).test(rest);
+  return referencesName(rest, name);
 }
 
-function stageDumpsEnvironment(stageText) {
-  const command = firstWord(stageText);
-  const args = argsOf(stageText);
+const DUMPS_WITH_ONLY_OPTIONS = new Set(["env", "printenv", "export", "declare", "typeset"]);
 
-  if ((command === "env" || command === "printenv" || command === "set") && args.length === 0) {
-    return true;
-  }
-  if (command === "export" && args.length === 1 && args[0] === "-p") return true;
-  if (command === "declare" && args.length === 1 && (args[0] === "-p" || args[0] === "-x")) {
-    return true;
-  }
-  return false;
+function stageDumpsEnvironment({ command }) {
+  if (!command) return false;
+  if (command.name === "set") return command.args.length === 0;
+  if (!DUMPS_WITH_ONLY_OPTIONS.has(command.name)) return false;
+  return command.args.every((arg) => arg.text.startsWith("-"));
 }
 
-function stageTracesCommands(stageText) {
-  const command = firstWord(stageText);
-  const args = argsOf(stageText);
+function stageTracesCommands({ command }) {
+  if (!command) return false;
+  const args = command.args.map((arg) => arg.text);
 
-  if (command === "set") {
+  if (command.name === "set") {
     if (args[0] && XTRACE_FLAG_RE.test(args[0])) return true;
     return args[0] === "-o" && args[1] === "xtrace";
   }
-  if (SHELL_COMMAND_RE.test(command)) {
+  if (SHELL_COMMAND_RE.test(command.name)) {
     return args.some((arg) => XTRACE_FLAG_RE.test(arg));
   }
   return false;
@@ -231,17 +303,15 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
 
   for (const line of joinLineContinuations(script)) {
     for (const stages of splitCommandGroups(line)) {
-      const stage = stages[stages.length - 1];
-      const trimmed = stage.trim();
-      if (trimmed === "") continue;
+      const stage = parseStage(stages[stages.length - 1]);
 
-      if (!traces && stageTracesCommands(trimmed)) traces = true;
+      if (!traces && stageTracesCommands(stage)) traces = true;
       if (stdoutRedirectedAway(stage)) continue;
 
-      if (!printsTainted && taintedNames.some((name) => stagePrintsName(trimmed, name))) {
+      if (!printsTainted && taintedNames.some((name) => stagePrintsName(stage, name))) {
         printsTainted = true;
       }
-      if (!dumpsEnvironment && stageDumpsEnvironment(trimmed)) dumpsEnvironment = true;
+      if (!dumpsEnvironment && stageDumpsEnvironment(stage)) dumpsEnvironment = true;
     }
   }
 

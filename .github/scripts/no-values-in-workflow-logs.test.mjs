@@ -10,6 +10,16 @@ import {
   findWorkflowFiles,
 } from "./no-values-in-workflow-logs.mjs";
 
+const PRINTS = /prints an environment variable/;
+const DUMPS = /dumps the whole environment/;
+const TRACES = /traces the commands/;
+const EMBEDS = /embeds a \$\{\{ \}\} expression/;
+
+function assertFlagsOnly(messages, expected) {
+  assert.equal(messages.length, 1, `expected one violation, got: ${JSON.stringify(messages)}`);
+  assert.match(messages[0], expected);
+}
+
 test(`flags a run: step whose script embeds a \${{ secrets.* }} expression`, () => {
   const source = [
     "jobs:",
@@ -418,6 +428,54 @@ test("resolves an aliased run: step", () => {
 
   assert.equal(violations.length, 2);
 });
+
+const SECRET_ENV = { TOKEN: `\${{ secrets.TOKEN }}` };
+
+function workflowWithStep(run, env = SECRET_ENV) {
+  return [
+    "jobs:",
+    "  build:",
+    "    steps:",
+    "      - env:",
+    ...Object.entries(env).map(([name, value]) => `          ${name}: ${value}`),
+    `        run: ${JSON.stringify(run)}`,
+  ].join("\n");
+}
+
+function messagesOf(run, env) {
+  return findRunStepViolations(workflowWithStep(run, env)).map((violation) => violation.message);
+}
+
+for (const script of [
+  'echo "token -> $TOKEN"',
+  'echo "n>=1 $TOKEN"',
+  'echo "$TOKEN" > "/dev/stderr"',
+  "/bin/echo $TOKEN",
+  "command echo $TOKEN",
+  "builtin printf '%s' \"$TOKEN\"",
+  'cat <<< "$TOKEN"',
+  "echo a#b $TOKEN",
+]) {
+  test(`flags a step that prints a secrets-fed variable: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), PRINTS);
+  });
+}
+
+for (const script of ["export", "declare", "typeset", "env -0", "printenv -0", "command env"]) {
+  test(`flags a step that dumps the whole environment: ${script}`, () => {
+    assertFlagsOnly(messagesOf(script), DUMPS);
+  });
+}
+
+for (const script of [
+  'echo "$TOKEN" > "out.txt"',
+  "echo ok # $TOKEN",
+  'echo "::add-mask::$TOKEN"',
+]) {
+  test(`does not flag a step whose secrets-fed variable never reaches the log: ${script}`, () => {
+    assert.deepEqual(messagesOf(script), []);
+  });
+}
 
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
