@@ -13,7 +13,6 @@ test("renders its text content", async () => {
   const screen = await render(<Tag tone="neutral">Caja</Tag>);
 
   await expect.element(screen.getByText("Caja")).toBeInTheDocument();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors the neutral tone bone with secondary ink text, clearing AA text contrast", async () => {
@@ -50,7 +49,6 @@ test("renders the caller's icon hidden from assistive technology", async () => {
   const icon = screen.container.querySelector("[data-testid='pin-icon']") as SVGElement;
   expect(icon).not.toBeNull();
   expect(icon.closest("[aria-hidden='true']")).not.toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders no icon wrapper when none is given", async () => {

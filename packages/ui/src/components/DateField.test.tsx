@@ -131,8 +131,6 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(group);
     await expect.poll(() => getComputedStyle(group).backgroundColor).toBe(tokenRgb("surface-bone"));
     expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("line", "2px")]);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 
   test(`dims the whole field to 45% opacity and blocks focus when disabled in the ${variant} variant`, async () => {

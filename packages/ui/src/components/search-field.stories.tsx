@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Search } from "lucide-react";
-import { playTabMatchesCssFocusWithin } from "../test-support/story-interactions";
+import {
+  playPseudoHoverPaintsBoneFill,
+  playTabMatchesCssFocusWithin,
+} from "../test-support/story-interactions";
 import { SearchField } from "./SearchField";
 
 const meta: Meta<typeof SearchField> = {
@@ -54,6 +57,18 @@ export const WithLabel: Story = {
 export const FocusWithin: Story = {
   args: { variant: "register", value: "" },
   play: playTabMatchesCssFocusWithin(fieldInput, fieldBox),
+};
+
+export const Hovered: Story = {
+  args: { variant: "register", value: "" },
+  parameters: { pseudo: { hover: true } },
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
+};
+
+export const HoveredBackoffice: Story = {
+  args: { variant: "backoffice", value: "", placeholder: "Filtrar por nombre o SKU" },
+  parameters: { pseudo: { hover: true } },
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const Disabled: Story = {

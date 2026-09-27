@@ -267,8 +267,6 @@ test("turns the box bone on hover, keeping the same 2px line border", async () =
   await userEvent.hover(box);
   await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
   expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary("line", "2px")]);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows a 2px brand-blue-ui border with no outer shadow when focused, as one field in two states", async () => {

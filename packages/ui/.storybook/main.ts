@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.tsx"],
-  addons: ["@storybook/addon-a11y"],
+  addons: ["@storybook/addon-a11y", "storybook-addon-pseudo-states"],
   framework: {
     name: "@storybook/react-vite",
     options: {},

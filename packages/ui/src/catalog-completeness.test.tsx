@@ -3,23 +3,15 @@ import * as UI from "./index";
 
 const componentsWithoutStoriesYet = [
   "AreaNavItem",
-  "ColumnChart",
   "HighlightedNotice",
   "IconButton",
   "InlineNotice",
   "Modal",
   "NotificationCard",
   "Pagination",
-  "ProportionBar",
-  "PuroSurIsotype",
-  "PuroSurLogo",
   "SectionNavItem",
-  "StatusIndicator",
-  "SummaryRow",
-  "SummaryRowGroup",
   "Table",
   "TableCellText",
-  "Tag",
   "Tooltip",
 ];
 

@@ -134,8 +134,6 @@ for (const variant of ["register", "backoffice"] as const) {
     await userEvent.hover(box);
     await expect.poll(() => getComputedStyle(box).backgroundColor).toBe(tokenRgb("surface-bone"));
     expect(paintedBoxShadowLayers(box)).toEqual([insetBoundary(restBoundaryToken, "2px")]);
-
-    await expectNoAccessibilityViolations(screen.container);
   });
 
   test(`shows its own focused border when focused in the ${variant} variant`, async () => {

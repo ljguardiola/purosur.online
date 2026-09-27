@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
   playClickExpandsTrigger,
+  playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../test-support/story-interactions";
 import { QuantityUnitField, type QuantityUnitFieldOption } from "./QuantityUnitField";
@@ -55,6 +56,12 @@ export const Filled: Story = {
 export const FocusWithin: Story = {
   args: { quantity: "" },
   play: playTabMatchesCssFocusWithin(quantityInput, fieldBox),
+};
+
+export const Hovered: Story = {
+  args: { quantity: "" },
+  parameters: { pseudo: { hover: true } },
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const UnitOpen: Story = {

@@ -31,7 +31,6 @@ test("renders the caller's text", async () => {
   const screen = await render(<StatusIndicator tone="success">Connected</StatusIndicator>);
 
   await expect.element(screen.getByText("Connected")).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the pill's fixed shape regardless of tone", async () => {
@@ -50,8 +49,6 @@ test("renders the pill's fixed shape regardless of tone", async () => {
   expect(style.gap).toBe("8px");
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every tone's background, dot and text colors", async () => {
@@ -66,8 +63,6 @@ test("renders every tone's background, dot and text colors", async () => {
     expect(getComputedStyle(pill).color, `${tone} text`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(dot).backgroundColor, `${tone} dot`).toBe(tokenRgb(expected.dot));
     expect(dot.getAttribute("aria-hidden"), `${tone} dot is decorative`).toBe("true");
-
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -81,8 +76,6 @@ test("renders an 8px dot when not busy", async () => {
   expect(rect.width).toBeLessThan(9);
   expect(rect.height).toBeGreaterThan(7);
   expect(rect.height).toBeLessThan(9);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("replaces the dot with a 14px spinner in the tone's dot color while busy", async () => {

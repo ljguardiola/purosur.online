@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { playTabMatchesCssFocusWithin } from "../test-support/story-interactions";
+import {
+  playPseudoHoverPaintsBoneFill,
+  playTabMatchesCssFocusWithin,
+} from "../test-support/story-interactions";
 import { FieldSizeProvider } from "./FieldSize";
 import { TextField } from "./TextField";
 
@@ -83,6 +86,12 @@ export const PlainTextWithSuffix: Story = {
 export const FocusWithin: Story = {
   args: { kind: "plain-text", label: "Motivo", value: "", onChange: () => {} },
   play: playTabMatchesCssFocusWithin(fieldInput, fieldBox),
+};
+
+export const Hovered: Story = {
+  args: { kind: "plain-text", label: "Motivo", value: "", onChange: () => {} },
+  parameters: { pseudo: { hover: true } },
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const Invalid: Story = {

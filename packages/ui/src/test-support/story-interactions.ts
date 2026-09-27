@@ -1,4 +1,5 @@
-import { expect, userEvent } from "storybook/test";
+import { expect, userEvent, waitFor } from "storybook/test";
+import { tokenRgb } from "../test/token-colors";
 
 type PlayContext = { canvasElement: HTMLElement };
 
@@ -51,6 +52,24 @@ export function playClickExpandsTrigger(
     const target = locate(canvasElement);
     await userEvent.click(target);
     await expect(target).toHaveAttribute("aria-expanded", "true");
+  };
+}
+
+/**
+ * Asserts `locate`'s element paints the resting-to-hover fill every CSS-only `hover:` box in this
+ * package turns bone on, once the `pseudo-states` addon's story-wide `hover` parameter has forced
+ * the browser to match its real `:hover` rule. `storybook/test`'s `userEvent.hover` cannot drive
+ * this itself (see `playTabMatchesCssFocusWithin`), and the addon rewrites its matching stylesheet
+ * rules asynchronously after the story mounts, hence the wait.
+ */
+export function playPseudoHoverPaintsBoneFill(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+): StoryPlayFunction {
+  return async ({ canvasElement }) => {
+    const target = locate(canvasElement);
+    await waitFor(() => {
+      expect(getComputedStyle(target).backgroundColor).toBe(tokenRgb("surface-bone"));
+    });
   };
 }
 

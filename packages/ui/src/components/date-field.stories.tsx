@@ -1,7 +1,10 @@
 import { CalendarDate } from "@internationalized/date";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { playClickExpandsTrigger } from "../test-support/story-interactions";
+import {
+  playClickExpandsTrigger,
+  playPseudoHoverPaintsBoneFill,
+} from "../test-support/story-interactions";
 import { DateField } from "./DateField";
 import { FieldSizeProvider } from "./FieldSize";
 
@@ -20,6 +23,10 @@ type Story = StoryObj<typeof DateField>;
 
 function toggle(canvasElement: HTMLElement): HTMLElement {
   return within(canvasElement).getByRole("button");
+}
+
+function fieldBox(canvasElement: HTMLElement): HTMLElement {
+  return within(canvasElement).getByRole("group");
 }
 
 export const Register: Story = {
@@ -65,6 +72,25 @@ export const FocusedSegment: Story = {
 export const CalendarOpen: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
   play: playClickExpandsTrigger(toggle),
+};
+
+export const Hovered: Story = {
+  args: { value: null },
+  parameters: { pseudo: { hover: true } },
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
+};
+
+export const HoveredBackoffice: Story = {
+  args: { value: null },
+  parameters: { pseudo: { hover: true } },
+  decorators: [
+    (Story) => (
+      <FieldSizeProvider size="backoffice">
+        <Story />
+      </FieldSizeProvider>
+    ),
+  ],
+  play: playPseudoHoverPaintsBoneFill(fieldBox),
 };
 
 export const Disabled: Story = {

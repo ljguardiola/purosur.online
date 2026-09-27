@@ -1,12 +1,26 @@
 import { composeStories, setProjectAnnotations } from "@storybook/react-vite";
 import type { ReactElement } from "react";
+import { STORY_RENDERED } from "storybook/internal/core-events";
+import { addons, mockChannel } from "storybook/preview-api";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import * as preview from "../.storybook/preview";
 import type { AccessibilityRunOptions } from "./test/axe";
 import { expectNoAccessibilityViolations } from "./test/axe";
 
-setProjectAnnotations(preview);
+// storybook-addon-pseudo-states drives its stylesheet rewriting off Storybook's own preview
+// channel, captured once when its module first runs; installing a real (if inert) channel before
+// that first import, rather than after, is what lets the channel event this file emits below reach
+// it, instead of a throwaway channel of its own that nothing else ever sees.
+addons.setChannel(mockChannel());
+const pseudoStates = await import("storybook-addon-pseudo-states/preview");
+
+// The addon looks for Storybook's own "#storybook-root"/"#root" by default, which only exists
+// when a story runs inside Storybook itself; this runner mounts stories directly into
+// document.body instead, so every story's pseudo-state root is pointed there.
+const runnerAnnotations = { parameters: { pseudo: { rootSelector: "body" } } };
+
+setProjectAnnotations([preview, pseudoStates, runnerAnnotations]);
 
 interface StoryModule {
   default: { title?: string };
@@ -15,6 +29,7 @@ interface StoryModule {
 
 interface CatalogStory {
   (): ReactElement;
+  id: string;
   storyName: string;
   play?: (context: { canvasElement: HTMLElement }) => Promise<void> | void;
   parameters: { a11y?: { options?: AccessibilityRunOptions } };
@@ -45,6 +60,9 @@ test("discovers at least one catalog story to run", () => {
 for (const { title, story: Story } of catalogStories) {
   test(`${title} / ${Story.storyName}`, async () => {
     const screen = await render(<Story />);
+    // Storybook-driven decorator effects, like the pseudo-states addon's own stylesheet rewrite,
+    // only run once this event reaches them; nothing here emits it automatically outside Storybook.
+    addons.getChannel().emit(STORY_RENDERED, Story.id);
 
     await Story.play?.({ canvasElement: screen.container });
 
