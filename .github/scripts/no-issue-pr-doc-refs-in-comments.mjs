@@ -3,19 +3,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { Lexer } from "yaml";
 
-const SCAN_EXTENSIONS = [
-  ".ts",
-  ".tsx",
-  ".mts",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".cjs",
-  ".css",
-  ".yml",
-  ".yaml",
-];
+const SCRIPT_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
 function isJSDocNode(node) {
   return node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
@@ -84,14 +72,33 @@ function findYamlComments(source) {
   return comments;
 }
 
-function isYaml(fileName) {
-  return fileName.endsWith(".yml") || fileName.endsWith(".yaml");
+function findLineComments(source, commentLine) {
+  return source
+    .split("\n")
+    .flatMap((text, index) =>
+      commentLine.test(text) ? [{ line: index + 1, text: text.trim() }] : [],
+    );
+}
+
+const findDockerfileComments = (source) => findLineComments(source, /^\s*#/);
+const findIgnoreFileComments = (source) => findLineComments(source, /^#/);
+
+function isDockerfile(name) {
+  return name === "Dockerfile" || name.startsWith("Dockerfile.") || name.endsWith(".Dockerfile");
+}
+
+function commentFinderFor(path) {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  if (SCRIPT_EXTENSIONS.some((extension) => name.endsWith(extension))) return findScriptComments;
+  if (name.endsWith(".css")) return findCssComments;
+  if (name.endsWith(".yml") || name.endsWith(".yaml")) return findYamlComments;
+  if (isDockerfile(name)) return findDockerfileComments;
+  if (name === ".gitignore" || name === ".dockerignore") return findIgnoreFileComments;
+  return undefined;
 }
 
 export function findComments(source, fileName = "a.ts") {
-  if (fileName.endsWith(".css")) return findCssComments(source);
-  if (isYaml(fileName)) return findYamlComments(source);
-  return findScriptComments(source, fileName);
+  return commentFinderFor(fileName)(source, fileName);
 }
 
 const ISSUE_OR_PR_NUMBER = /(?<![\w&])#\d+(?!\w)/;
@@ -142,10 +149,8 @@ function defaultListTrackedFiles(cwd) {
     .filter((path) => path !== "");
 }
 
-function hasScanExtension(path) {
-  return SCAN_EXTENSIONS.some((extension) => path.endsWith(extension));
-}
-
 export function findScannedFiles(cwd = process.cwd(), listTrackedFiles = defaultListTrackedFiles) {
-  return listTrackedFiles(cwd).filter(hasScanExtension).sort();
+  return listTrackedFiles(cwd)
+    .filter((path) => commentFinderFor(path) !== undefined)
+    .sort();
 }

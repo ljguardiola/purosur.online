@@ -252,6 +252,36 @@ test("finds a YAML comment inside a flow collection", () => {
   assert.deepEqual(comments, [{ line: 2, text: "# see #5" }]);
 });
 
+test("finds Dockerfile comments, including indented ones, but not a # inside an instruction", () => {
+  const source = [
+    "# syntax=docker/dockerfile:1",
+    'RUN echo "#5" # not a comment',
+    "  # see #5",
+    "ENV COLOR=#000",
+  ].join("\n");
+
+  const comments = findComments(source, "apps/cloud/Dockerfile");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# syntax=docker/dockerfile:1" },
+    { line: 3, text: "# see #5" },
+  ]);
+});
+
+test("reads named Dockerfiles, such as Dockerfile.dev and app.Dockerfile, as Dockerfiles", () => {
+  for (const fileName of ["Dockerfile.dev", "apps/x/app.Dockerfile"]) {
+    assert.deepEqual(findComments("# see #5", fileName), [{ line: 1, text: "# see #5" }]);
+  }
+});
+
+test("finds .gitignore and .dockerignore comments only where # starts the line", () => {
+  const source = ["# see #5", "dist#1", " # not-a-comment", "\\#escaped"].join("\n");
+
+  for (const fileName of ["packages/x/.gitignore", "apps/cloud/.dockerignore"]) {
+    assert.deepEqual(findComments(source, fileName), [{ line: 1, text: "# see #5" }]);
+  }
+});
+
 test("reports an issue number in a comment that follows a URL string", () => {
   const violations = findDocumentReferences('fetch("https://x"); // closes #123');
 
@@ -459,7 +489,7 @@ test("scans every tracked TS, JS and CSS file in the repository, including tests
   ]);
 });
 
-test("scans every listed extension", () => {
+test("scans every file kind whose comments it can read", () => {
   const tracked = [
     "packages/a/x.ts",
     "packages/a/x.tsx",
@@ -473,11 +503,24 @@ test("scans every listed extension", () => {
     "packages/a/x.yml",
     "packages/a/x.yaml",
     "packages/a/x.json",
+    "apps/cloud/Dockerfile",
+    "Dockerfile.dev",
+    "apps/x/app.Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    "packages/x/.gitignore",
+    "packages/a/Dockerfiles.ts.snap",
+    "packages/a/gitignore",
   ];
 
   const files = findScannedFiles("/repo", () => tracked);
 
   assert.deepEqual(files, [
+    ".dockerignore",
+    ".gitignore",
+    "Dockerfile.dev",
+    "apps/cloud/Dockerfile",
+    "apps/x/app.Dockerfile",
     "packages/a/x.cjs",
     "packages/a/x.css",
     "packages/a/x.cts",
@@ -489,6 +532,7 @@ test("scans every listed extension", () => {
     "packages/a/x.tsx",
     "packages/a/x.yaml",
     "packages/a/x.yml",
+    "packages/x/.gitignore",
   ]);
 });
 
@@ -501,6 +545,9 @@ test("no scanned file in the repository has a comment citing an issue, a pull re
     "packages/ui/src/styles/tokens.css",
     ".github/workflows/verify.yml",
     "pnpm-workspace.yaml",
+    "apps/cloud/Dockerfile",
+    ".dockerignore",
+    ".gitignore",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }
