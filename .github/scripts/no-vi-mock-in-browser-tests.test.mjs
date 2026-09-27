@@ -319,7 +319,10 @@ test("resolves a workspace package import to its source in the repository", () =
 test("does not resolve an import of an installed dependency", () => {
   const resolveImport = createImportResolver();
 
-  assert.equal(resolveImport("vitest", "apps/backoffice/src/catalog/products-list-screen.tsx"), undefined);
+  assert.equal(
+    resolveImport("vitest", "apps/backoffice/src/catalog/products-list-screen.tsx"),
+    undefined,
+  );
 });
 
 test("does not resolve an import that names no file", () => {
