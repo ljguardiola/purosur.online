@@ -123,8 +123,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     options.setupFastifyErrorHandler ?? defaultSetupFastifyErrorHandler;
   setupFastifyErrorHandler(app);
 
-  app.addHook("onRequest", async (_request, reply) => {
-    reply.header("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
+  // Fastify answers some requests, such as one whose URL is not valid percent-encoding, straight on
+  // the raw response without running any hook.
+  app.server.prependListener("request", (_request, response) => {
+    response.setHeader("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
   });
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
