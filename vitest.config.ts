@@ -90,7 +90,7 @@ export default defineConfig({
           include: ["packages/ui/src/**/*.visual.tsx"],
           setupFiles: [
             r("./packages/ui/src/test/setup-browser.ts"),
-            r("./packages/ui/src/test/setup-catalog-visual.ts"),
+            r("./packages/ui/src/test-support/setup-catalog-visual.ts"),
           ],
           globalSetup: [r("./packages/ui/vitest.global-setup.catalog-visual.ts")],
           browser: {
