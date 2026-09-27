@@ -1,16 +1,17 @@
 import { globSync, readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
 
-const EMBEDS_MESSAGE =
-  "run: step embeds a ${{ }} expression that reads vars.*/secrets.*; pass it through the step's env: instead";
+const EMBEDS_MESSAGE = `run: step embeds a \${{ }} expression that reads vars.*/secrets.*; pass it through the step's env: instead`;
+const READS_BACK_MESSAGE = `run: step reads back through \${{ env.* }} an env: value fed from vars.*/secrets.*; use the shell variable instead`;
 const TRACES_MESSAGE =
   "run: step traces the commands it runs (set -x, a traced shell, or Set-PSDebug -Trace)";
 
 const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
 const STRING_LITERAL_RE = /'(?:[^']|'')*'/g;
-const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/;
-const ENV_MEMBER_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]+)['"]\s*\])/g;
+const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/i;
+const ENV_MEMBER_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]+)['"]\s*\])/gi;
 const XTRACE_FLAG_RE = /^-[a-z]*x[a-z]*$/;
+const TAKES_OPTION_NAME_RE = /^-[a-z]*o$/;
 const PSDEBUG_TRACE_RE = /-trace\s+[12]\b/i;
 const SHELL_WORDS = new Set(["bash", "sh"]);
 
@@ -31,12 +32,9 @@ function readsVarsOrSecrets(expression) {
   return VARS_OR_SECRETS_RE.test(expression.replace(STRING_LITERAL_RE, "''"));
 }
 
-function expressionReadsValue(expression, taintedEnvNames) {
-  return (
-    readsVarsOrSecrets(expression) ||
-    [...expression.matchAll(ENV_MEMBER_RE)].some((match) =>
-      taintedEnvNames.includes(match[1] ?? match[2]),
-    )
+function readsTaintedEnv(expression, taintedEnvNames) {
+  return [...expression.matchAll(ENV_MEMBER_RE)].some((match) =>
+    taintedEnvNames.includes(match[1] ?? match[2]),
   );
 }
 
@@ -59,14 +57,16 @@ function flagsAfter(words) {
   const flags = [];
   for (let index = 0; index < words.length && words[index].startsWith("-"); index++) {
     flags.push(words[index]);
-    if (words[index] === "-o") flags.push(words[++index]);
+    if (TAKES_OPTION_NAME_RE.test(words[index])) flags.push(words[++index]);
   }
   return flags;
 }
 
 function hasXtraceFlag(flags) {
   return flags.some(
-    (flag, index) => XTRACE_FLAG_RE.test(flag) || (flag === "-o" && flags[index + 1] === "xtrace"),
+    (flag, index) =>
+      XTRACE_FLAG_RE.test(flag) ||
+      (TAKES_OPTION_NAME_RE.test(flag) && flags[index + 1] === "xtrace"),
   );
 }
 
@@ -84,7 +84,7 @@ function lineTraces(line) {
   const [command, ...rest] = line.trim().split(/\s+/);
   if (command === "set") return hasXtraceFlag(rest);
   if (shellCommandTraces(command, rest)) return true;
-  return command?.toLowerCase() === "set-psdebug" && PSDEBUG_TRACE_RE.test(line);
+  return command.toLowerCase() === "set-psdebug" && PSDEBUG_TRACE_RE.test(line);
 }
 
 function shellOf(doc, defaultsNode) {
@@ -106,11 +106,11 @@ function messagesForStep(doc, stepNode, envScopesAbove, shellsAbove) {
   const effectiveShell =
     typeof stepShell === "string" ? stepShell : shellsAbove.find((shell) => shell !== undefined);
 
+  const expressions = expressionsOf(script);
   const messages = [];
-  if (
-    expressionsOf(script).some((expression) => expressionReadsValue(expression, taintedEnvNames))
-  ) {
-    messages.push(EMBEDS_MESSAGE);
+  if (expressions.some(readsVarsOrSecrets)) messages.push(EMBEDS_MESSAGE);
+  if (expressions.some((expression) => readsTaintedEnv(expression, taintedEnvNames))) {
+    messages.push(READS_BACK_MESSAGE);
   }
   if (script.split(/\r\n|\r|\n/).some(lineTraces) || shellTraces(effectiveShell)) {
     messages.push(TRACES_MESSAGE);
@@ -156,7 +156,7 @@ function runStepViolationsOf({ doc, lineCounter }) {
       );
       if (messages.length === 0) continue;
 
-      const { line } = lineCounter.linePos(stepNode.range[0]);
+      const { line } = lineCounter.linePos(stepItem.range[0]);
       for (const message of messages) violations.push({ line, message });
     }
   }

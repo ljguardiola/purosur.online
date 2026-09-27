@@ -10,7 +10,9 @@ import {
   findWorkflowFiles,
 } from "./no-values-in-workflow-logs.mjs";
 
-const EMBEDS = /embeds a \$\{\{ \}\} expression/;
+const EMBEDS = /embeds a \$\{\{ \}\} expression that reads vars\.\*\/secrets\.\*/;
+const READS_BACK =
+  /reads back through \$\{\{ env\.\* \}\} an env: value fed from vars\.\*\/secrets\.\*/;
 const TRACES = /traces the commands/;
 
 function assertFlagsOnly(messages, expected) {
@@ -37,8 +39,14 @@ for (const expression of ["vars.CLOUD_SENTRY_DSN", "secrets.RAILWAY_TOKEN"]) {
   });
 }
 
-for (const expression of ["toJSON(vars)", "vars['CLOUD_SENTRY_DSN']", "secrets['RAILWAY_TOKEN']"]) {
-  test(`flags every form of a vars/secrets expression: \${{ ${expression} }}`, () => {
+for (const expression of [
+  "toJSON(vars)",
+  "vars['CLOUD_SENTRY_DSN']",
+  "secrets['RAILWAY_TOKEN']",
+  "Secrets.RAILWAY_TOKEN",
+  "VARS.CLOUD_SENTRY_DSN",
+]) {
+  test(`flags a vars/secrets expression written another way: \${{ ${expression} }}`, () => {
     assertFlagsOnly(messagesOf(`echo \${{ ${expression} }}`), EMBEDS);
   });
 }
@@ -54,7 +62,10 @@ test("does not flag a single-quoted string literal that mentions secrets", () =>
 });
 
 test("flags a step-level env: value read back through env.NAME when it is fed from secrets", () => {
-  assertFlagsOnly(messagesOf(`echo \${{ env.TOKEN }}`, { TOKEN: "${{ secrets.TOKEN }}" }), EMBEDS);
+  assertFlagsOnly(
+    messagesOf(`echo \${{ env.TOKEN }}`, { TOKEN: `\${{ secrets.TOKEN }}` }),
+    READS_BACK,
+  );
 });
 
 test("flags a job-level env: value read back through env['NAME'] when it is fed from vars", () => {
@@ -62,30 +73,30 @@ test("flags a job-level env: value read back through env['NAME'] when it is fed 
     "jobs:",
     "  build:",
     "    env:",
-    "      FEED_URL: ${{ vars.POS_UPDATE_FEED_URL }}",
+    `      FEED_URL: \${{ vars.POS_UPDATE_FEED_URL }}`,
     "    steps:",
-    "      - run: echo ${{ env['FEED_URL'] }}",
+    `      - run: echo \${{ env['FEED_URL'] }}`,
   ].join("\n");
 
   assertFlagsOnly(
     findRunStepViolations(source).map((v) => v.message),
-    EMBEDS,
+    READS_BACK,
   );
 });
 
 test("flags a workflow-level env: value read back through env.NAME when it is fed from secrets", () => {
   const source = [
     "env:",
-    "  TOKEN: ${{ secrets.TOKEN }}",
+    `  TOKEN: \${{ secrets.TOKEN }}`,
     "jobs:",
     "  build:",
     "    steps:",
-    "      - run: echo ${{ env.TOKEN }}",
+    `      - run: echo \${{ env.TOKEN }}`,
   ].join("\n");
 
   assertFlagsOnly(
     findRunStepViolations(source).map((v) => v.message),
-    EMBEDS,
+    READS_BACK,
   );
 });
 
@@ -93,17 +104,32 @@ test("does not flag env.NAME when NAME is set to a plain literal", () => {
   assert.deepEqual(messagesOf(`echo \${{ env.MODE }}`, { MODE: "production" }), []);
 });
 
-for (const script of ["set -x", "set -eux", "set -euxo pipefail", "set -o xtrace"]) {
+for (const script of [
+  "set -x",
+  "set -eux",
+  "set -euxo pipefail",
+  "set -o xtrace",
+  "set -eo xtrace",
+  "set -euo xtrace",
+  "echo start\nset -x\n./deploy.sh",
+]) {
   test(`flags a run: step that traces its commands: ${script}`, () => {
     assertFlagsOnly(messagesOf(script), TRACES);
   });
 }
 
-test("does not flag set +x", () => {
-  assert.deepEqual(messagesOf("set +x"), []);
-});
+for (const script of ["set +x", "set -euo pipefail"]) {
+  test(`does not flag a set that does not turn tracing on: ${script}`, () => {
+    assert.deepEqual(messagesOf(script), []);
+  });
+}
 
-for (const script of ["bash -ex script.sh", "bash -o xtrace deploy.sh", "sh -x script.sh"]) {
+for (const script of [
+  "bash -ex script.sh",
+  "bash -o xtrace deploy.sh",
+  "bash -eo xtrace deploy.sh",
+  "sh -x script.sh",
+]) {
   test(`flags a run: step invoking a shell with a tracing option right after it: ${script}`, () => {
     assertFlagsOnly(messagesOf(script), TRACES);
   });
@@ -184,41 +210,45 @@ test("does not flag a shell: field whose script operand is followed by -x", () =
   assert.deepEqual(findRunStepViolations(source), []);
 });
 
-test("resolves an aliased env: value that references secrets", () => {
+test("flags reading back an env: value that references secrets through a YAML alias", () => {
   const source = [
     "x-env: &token-env",
-    "  TOKEN: ${{ secrets.TOKEN }}",
+    `  TOKEN: \${{ secrets.TOKEN }}`,
     "jobs:",
     "  build:",
     "    steps:",
     "      - env: *token-env",
-    "        run: echo ${{ env.TOKEN }}",
+    `        run: echo \${{ env.TOKEN }}`,
   ].join("\n");
 
   assertFlagsOnly(
     findRunStepViolations(source).map((v) => v.message),
-    EMBEDS,
+    READS_BACK,
   );
 });
 
-test("resolves an aliased run: step", () => {
+test("flags a run: step reused through a YAML alias at the alias's own line", () => {
   const source = [
     "jobs:",
     "  build:",
     "    steps:",
     "      - &leak",
-    "        run: echo ${{ secrets.TOKEN }}",
+    `        run: echo \${{ secrets.TOKEN }}`,
     "      - *leak",
   ].join("\n");
 
   const violations = findRunStepViolations(source);
 
-  assert.equal(violations.length, 2);
+  assert.deepEqual(
+    violations.map(({ line }) => line),
+    [5, 6],
+  );
+  for (const { message } of violations) assert.match(message, EMBEDS);
 });
 
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
-    "a.yml": ["jobs:", "  build:", "    steps:", "      - run: echo ${{ secrets.TOKEN }}"].join(
+    "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(
       "\n",
     ),
     "b.yml": ["jobs:", "  build:", "    steps:", "      - run: echo hi"].join("\n"),
@@ -280,7 +310,7 @@ test("every run: step in every workflow in this repository avoids embedding vars
   assert.deepEqual(
     violations.map(describeViolation),
     [],
-    "GitHub substitutes a ${{ }} expression before printing the step's run: script to its log; " +
+    `GitHub substitutes a \${{ }} expression before printing the step's run: script to its log; ` +
       "pass a vars.*/secrets.* value through the step's env: instead of embedding it, and never " +
       "trace the commands a step runs.",
   );
