@@ -39,7 +39,7 @@ export interface BranchSettingsRow {
   version: number;
 }
 
-export type BranchHoursRangeWire = { opens_at: string; closes_at: string };
+type BranchHoursRangeWire = { opens_at: string; closes_at: string };
 
 export type BranchSettingsWire = {
   address: string;

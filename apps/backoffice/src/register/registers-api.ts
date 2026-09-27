@@ -1,6 +1,6 @@
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
-export type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
+type PendingEnrollmentCode = { issuedAt: string; expiresAt: string };
 
 export type RegisterSummary = {
   id: string;
@@ -17,9 +17,9 @@ export type FetchRegistersOutcome =
 
 export type CreateRegisterInput = { name: string };
 
-export type CreateRegisterFieldError = "name";
+type CreateRegisterFieldError = "name";
 
-export type CreatedRegister = { id: string; name: string };
+type CreatedRegister = { id: string; name: string };
 
 export type CreateRegisterOutcome =
   | { kind: "ok"; value: CreatedRegister }
@@ -31,7 +31,7 @@ export type CreateRegisterOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type EmittedEnrollmentCode = { code: string; expiresAt: string };
+type EmittedEnrollmentCode = { code: string; expiresAt: string };
 
 export type EmitEnrollmentCodeOutcome =
   | { kind: "ok"; value: EmittedEnrollmentCode }

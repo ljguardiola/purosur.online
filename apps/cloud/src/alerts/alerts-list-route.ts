@@ -39,7 +39,7 @@ export interface AlertsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface AlertSummaryRow {
+interface AlertSummaryRow {
   id: string;
   kind: string;
   scope: string;
@@ -52,7 +52,7 @@ export interface AlertSummaryRow {
   resolvedAt: Date | null;
 }
 
-export interface AlertSummaryWire {
+interface AlertSummaryWire {
   id: string;
   kind: string;
   scope: string | null;
@@ -64,7 +64,7 @@ export interface AlertSummaryWire {
   resolved_at: string | null;
 }
 
-export interface AlertListWire {
+interface AlertListWire {
   alerts: AlertSummaryWire[];
   total: number;
   page_size: number;
@@ -72,7 +72,7 @@ export interface AlertListWire {
   open_critical_count: number;
 }
 
-export function toAlertSummaryWire(
+function toAlertSummaryWire(
   row: AlertSummaryRow,
   namesByUserId: ReadonlyMap<string, string>,
 ): AlertSummaryWire {
@@ -95,25 +95,25 @@ function isAlertLevel(value: unknown): value is AlertLevel {
   return typeof value === "string" && (ALERT_LEVELS as readonly string[]).includes(value);
 }
 
-export const ALERTS_PAGE_SIZE = 25;
+const ALERTS_PAGE_SIZE = 25;
 
-export interface AlertListSearch {
+interface AlertListSearch {
   text: string;
   kindsWithMatchingTitle: readonly AlertKind[];
 }
 
-export interface AlertListFilters {
+interface AlertListFilters {
   level?: AlertLevel | undefined;
   open?: boolean | undefined;
   search?: AlertListSearch | undefined;
 }
 
-export interface AlertListPage {
+interface AlertListPage {
   rows: AlertSummaryRow[];
   total: number;
 }
 
-export interface OpenAlertCounts {
+interface OpenAlertCounts {
   openCount: number;
   openCriticalCount: number;
 }
@@ -150,7 +150,7 @@ function searchCondition<TQueryResult extends PgQueryResultHKT>(
   );
 }
 
-export async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
+async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   session: OpenSession,
   filters: AlertListFilters,
@@ -192,7 +192,7 @@ export async function listVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   return { rows, total: matched?.total ?? 0 };
 }
 
-export async function countOpenVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
+async function countOpenVisibleAlerts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   session: OpenSession,
 ): Promise<OpenAlertCounts> {

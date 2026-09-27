@@ -12,7 +12,7 @@ export type AuthorizationServices = {
   startAuthentication: typeof startAuthentication;
 };
 
-export const defaultAuthorizationServices: AuthorizationServices = {
+const defaultAuthorizationServices: AuthorizationServices = {
   fetchSessionAuthorizationOptions,
   authorizeSession,
   startAuthentication,

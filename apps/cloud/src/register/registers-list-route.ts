@@ -17,24 +17,24 @@ export interface RegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface RegisterPendingCode {
+interface RegisterPendingCode {
   issuedAt: Date;
   expiresAt: Date;
 }
 
-export interface RegisterRow {
+interface RegisterRow {
   id: string;
   name: string;
   pendingCode: RegisterPendingCode | null;
 }
 
-export interface RegisterWire {
+interface RegisterWire {
   id: string;
   name: string;
   pending_code: { issued_at: string; expires_at: string } | null;
 }
 
-export function toRegisterWire(row: RegisterRow): RegisterWire {
+function toRegisterWire(row: RegisterRow): RegisterWire {
   return {
     id: row.id,
     name: row.name,
@@ -47,7 +47,7 @@ export function toRegisterWire(row: RegisterRow): RegisterWire {
   };
 }
 
-export async function listBranchRegisters<TQueryResult extends PgQueryResultHKT>(
+async function listBranchRegisters<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   locationId: string,
   now: Date,

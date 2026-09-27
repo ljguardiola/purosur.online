@@ -1,5 +1,5 @@
-export const LABEL_COLUMNS = 3;
-export const LABEL_ROWS = 8;
+const LABEL_COLUMNS = 3;
+const LABEL_ROWS = 8;
 export const LABELS_PER_PAGE = LABEL_COLUMNS * LABEL_ROWS;
 export const LABEL_WIDTH_MM = 70;
 const A4_HEIGHT_MM = 297;

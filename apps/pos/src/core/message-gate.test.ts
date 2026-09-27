@@ -1,11 +1,11 @@
-import { rendererPingMessageSchema } from "@purosur/contracts";
+import { rendererToCoreMessageSchema } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createMessageGate, summarizeRejection } from "./message-gate";
 
 describe("createMessageGate", () => {
   it("lets a message that matches its schema reach the handler", () => {
     const recorder = { recordRejection: vi.fn() };
-    const gate = createMessageGate(rendererPingMessageSchema, recorder);
+    const gate = createMessageGate(rendererToCoreMessageSchema, recorder);
     const handler = vi.fn();
 
     gate({ type: "ping" }, handler);
@@ -16,7 +16,7 @@ describe("createMessageGate", () => {
 
   it("discards a message that fails its schema and records the rejection with enough detail", () => {
     const recorder = { recordRejection: vi.fn() };
-    const gate = createMessageGate(rendererPingMessageSchema, recorder);
+    const gate = createMessageGate(rendererToCoreMessageSchema, recorder);
     const handler = vi.fn();
 
     gate({ type: 42 }, handler);
@@ -30,7 +30,7 @@ describe("createMessageGate", () => {
 
   it("rejects a message carrying an unknown message type", () => {
     const recorder = { recordRejection: vi.fn() };
-    const gate = createMessageGate(rendererPingMessageSchema, recorder);
+    const gate = createMessageGate(rendererToCoreMessageSchema, recorder);
     const handler = vi.fn();
 
     gate({ type: "not-a-real-message" }, handler);

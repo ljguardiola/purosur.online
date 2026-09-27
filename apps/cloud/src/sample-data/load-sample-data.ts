@@ -36,7 +36,7 @@ const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
 
-export class SampleDataCollisionError extends Error {}
+class SampleDataCollisionError extends Error {}
 
 function expectOutcome<TOutcome extends { kind: string }, TKind extends TOutcome["kind"]>(
   outcome: TOutcome,
@@ -51,7 +51,7 @@ function expectOutcome<TOutcome extends { kind: string }, TKind extends TOutcome
   return outcome as Extract<TOutcome, { kind: TKind }>;
 }
 
-export interface LoadSampleDataSummary {
+interface LoadSampleDataSummary {
   categories: number;
   products: number;
   roles: number;

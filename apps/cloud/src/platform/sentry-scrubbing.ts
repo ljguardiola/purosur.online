@@ -146,7 +146,7 @@ export function scrubSentryEvent<E extends EventLike>(event: E): E {
   } as E;
 }
 
-export function scrubSentryBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
+function scrubSentryBreadcrumb<B extends BreadcrumbLike>(breadcrumb: B): B {
   const rest = breadcrumb as BreadcrumbLike & Record<string, unknown>;
 
   return {

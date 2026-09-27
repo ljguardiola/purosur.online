@@ -18,13 +18,11 @@ export const SAMPLE_ADMINISTRATOR = {
   email: sampleEmail("administradora.muestra"),
 };
 
-export type SampleSaleUnit = "UNIT" | "KG";
+type SampleSaleUnit = "UNIT" | "KG";
 
-export type SampleProductBarcodePlan =
-  | { kind: "manufacturer"; code: string }
-  | { kind: "internal" };
+type SampleProductBarcodePlan = { kind: "manufacturer"; code: string } | { kind: "internal" };
 
-export interface SampleProductPlan {
+interface SampleProductPlan {
   name: string;
   saleUnit: SampleSaleUnit;
   netContent: { quantity: number; unit: NetContentUnit } | null;
@@ -34,12 +32,12 @@ export interface SampleProductPlan {
   pricePlan: "current" | "due_for_review";
 }
 
-export interface SampleLeafCategory {
+interface SampleLeafCategory {
   name: string;
   products: readonly SampleProductPlan[];
 }
 
-export interface SampleMidCategory {
+interface SampleMidCategory {
   name: string;
   leaves: readonly SampleLeafCategory[];
 }
@@ -364,7 +362,7 @@ function buildSampleCategoryTree(): readonly SampleTopCategory[] {
 
 export const SAMPLE_CATEGORY_TREE: readonly SampleTopCategory[] = buildSampleCategoryTree();
 
-export interface SampleUserPlan {
+interface SampleUserPlan {
   firstName: string;
   email: string;
   active: boolean;

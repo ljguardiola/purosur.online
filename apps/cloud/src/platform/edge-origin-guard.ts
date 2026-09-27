@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 /** Set by a Cloudflare header-transform rule on every forwarded request; kept off Cloudflare's own `cf-`/`x-cf-` namespace. */
 export const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 
-export const DIRECT_ACCESS_REJECTED_RESPONSE = {
+const DIRECT_ACCESS_REJECTED_RESPONSE = {
   code: "direct_access_rejected",
   message: "this request did not come through the edge",
 } as const;

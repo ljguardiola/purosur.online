@@ -20,6 +20,11 @@
       "preset": "recommended",
       "complexity": {
         "useLiteralKeys": "off"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "error",
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
       }
     }
   },
@@ -61,9 +66,6 @@
       "includes": ["apps/pos/src/renderer/**"],
       "linter": {
         "rules": {
-          "correctness": {
-            "noUnusedImports": "error"
-          },
           "style": {
             "useImportType": {
               "level": "error",

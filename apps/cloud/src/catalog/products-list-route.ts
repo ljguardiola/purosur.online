@@ -12,11 +12,11 @@ import {
 import { categories, productBarcodes, products } from "../platform/db/schema.js";
 import type { NetContentInput, SaleUnit } from "./product-validation.js";
 
-export type ProductStatusFilter = "active" | "inactive" | "all";
+type ProductStatusFilter = "active" | "inactive" | "all";
 
 const PRODUCT_STATUS_FILTERS: ProductStatusFilter[] = ["active", "inactive", "all"];
 
-export function readProductStatusFilter(
+function readProductStatusFilter(
   raw: unknown,
 ): ProductStatusFilter | { field: "status"; message: string } {
   if (raw === undefined) {
@@ -95,7 +95,7 @@ async function barcodesByProductId<TQueryResult extends PgQueryResultHKT>(
   return grouped;
 }
 
-export async function listProducts<TQueryResult extends PgQueryResultHKT>(
+async function listProducts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   status: ProductStatusFilter = "active",
 ): Promise<ProductRow[]> {

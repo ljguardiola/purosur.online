@@ -26,13 +26,13 @@ export interface PricesRouteOptions<TQueryResult extends PgQueryResultHKT> {
   now?: () => Date;
 }
 
-export interface CurrentPriceRow {
+interface CurrentPriceRow {
   id: string;
   unitPrice: number;
   validFrom: Date;
 }
 
-export interface PriceProductRow {
+interface PriceProductRow {
   id: string;
   name: string;
   categoryId: string;
@@ -43,7 +43,7 @@ export interface PriceProductRow {
   pending: boolean;
 }
 
-export type ReviewFilter = "pending" | "all";
+type ReviewFilter = "pending" | "all";
 
 export interface ListPricesInput {
   priceListId: string;
@@ -54,7 +54,7 @@ export interface ListPricesInput {
   search?: string;
 }
 
-export interface PriceCategoryOption {
+interface PriceCategoryOption {
   id: string;
   name: string;
 }

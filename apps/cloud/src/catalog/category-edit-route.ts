@@ -31,7 +31,7 @@ import {
 // and deadlock trying to lock each other's row as the new parent.
 export const CATEGORY_MOVE_LOCK_KEY = "category-move";
 
-export const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
+const CATEGORY_MOVE_NOT_ALLOWED_RESPONSE = {
   code: "category_move_not_allowed",
   message: "a category can't be moved under itself or one of its own descendants",
 } as const;
@@ -88,7 +88,7 @@ function isValidationFailure(
   return "field" in value;
 }
 
-export async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
+async function findCategoryById<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   id: string,
 ): Promise<CategoryRow | undefined> {
