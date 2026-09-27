@@ -1,8 +1,8 @@
-import type { ValidateNavigateOptions } from "@tanstack/react-router";
+import type { RegisteredRouter, ValidateNavigateOptions } from "@tanstack/react-router";
 import { describe, expectTypeOf, it } from "vitest";
-import type { router } from "./router";
+import "./router";
 
-type AppRouter = typeof router;
+type AppRouter = RegisteredRouter;
 
 describe("the register's router types", () => {
   it("accepts navigating to a route that is actually declared", () => {

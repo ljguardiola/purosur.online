@@ -23,8 +23,6 @@ export const ROUTE_FOR_STATUS: Record<CoreStatus, "/" | "/starting" | "/core-dow
   down: "/core-down",
 };
 
-// A route only renders once its own status has been confirmed; any other status redirects to the
-// route that owns it, so a status change never leaves two screens matching at once.
 function requireCoreStatus(expected: CoreStatus, context: RouterContext): void {
   if (context.coreStatus !== expected) {
     throw redirect({ to: ROUTE_FOR_STATUS[context.coreStatus] });
@@ -66,10 +64,8 @@ export function createAppRouter() {
   });
 }
 
-export const router = createAppRouter();
-
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof createAppRouter>;
   }
 }
