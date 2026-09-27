@@ -1,19 +1,7 @@
 import { expect, test } from "vitest";
 import * as UI from "./index";
 
-const componentsWithoutStoriesYet = [
-  "AreaNavItem",
-  "HighlightedNotice",
-  "IconButton",
-  "InlineNotice",
-  "Modal",
-  "NotificationCard",
-  "Pagination",
-  "SectionNavItem",
-  "Table",
-  "TableCellText",
-  "Tooltip",
-];
+const componentsWithoutStoriesYet = ["Modal", "Pagination", "Table", "TableCellText", "Tooltip"];
 
 interface StoryMeta {
   component?: unknown;

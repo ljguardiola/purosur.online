@@ -2,7 +2,6 @@ import { Info } from "lucide-react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../styles/contrast";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
 import type { ButtonIcon } from "./Button";
 import { InlineNotice, type InlineNoticeProps, type NoticeTone } from "./InlineNotice";
@@ -23,7 +22,6 @@ test("renders the caller's title, detail and icon", async () => {
   await expect.element(screen.getByText("Draft saved", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Nothing to sync yet", { exact: true })).toBeVisible();
   expect(screen.container.querySelector("svg")).not.toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders with only a title", async () => {
@@ -32,7 +30,6 @@ test("renders with only a title", async () => {
   // The paragraph is aria-hidden, so a role query wouldn't find it; read it directly instead.
   const paragraph = screen.container.querySelector("p") as HTMLElement;
   expect(paragraph.textContent).toBe("Draft saved");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders with only a detail", async () => {
@@ -42,7 +39,6 @@ test("renders with only a detail", async () => {
 
   const paragraph = screen.container.querySelector("p") as HTMLElement;
   expect(paragraph.textContent).toBe("Nothing to sync yet");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept an inline notice without a title or a detail", () => {
@@ -60,7 +56,6 @@ test("exposes the notice's text to assistive technology exactly once", async () 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;
   await expect.poll(() => region.textContent).toBe("Draft saved Nothing to sync yet");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every tone's background, text and icon colors", async () => {
@@ -85,7 +80,6 @@ test("renders every tone's background, text and icon colors", async () => {
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
 
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -105,7 +99,6 @@ test("keeps every tone's text readable against its own background", async () => 
     const ratio = contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor));
     expect(ratio, `${tone} contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -135,7 +128,6 @@ test("renders the design's fixed layout regardless of tone", async () => {
   expect(textRect.left - iconRect.right).toBeGreaterThan(11);
   expect(textRect.left - iconRect.right).toBeLessThan(13);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("stacks the title and detail 4px apart, in a 16px bold title and a 14px detail with 1.35 line height", async () => {
@@ -158,7 +150,6 @@ test("stacks the title and detail 4px apart, in a 16px bold title and a 14px det
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("takes the width of its container", async () => {
@@ -170,7 +161,6 @@ test("takes the width of its container", async () => {
   const container = screen.container.firstElementChild?.firstElementChild as HTMLElement;
 
   expect(container.getBoundingClientRect().width).toBeCloseTo(500, 0);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces an error notice right away, interrupting current speech", async () => {
@@ -183,7 +173,6 @@ test("announces an error notice right away, interrupting current speech", async 
 
   await expect.poll(() => region.textContent).toContain("Can't save");
   await expect.poll(() => region.textContent).toContain("Try again");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces every other tone politely, after the current speech ends", async () => {
@@ -198,6 +187,5 @@ test("announces every other tone politely, after the current speech ends", async
 
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
-    await expectNoAccessibilityViolations(screen.container);
   }
 });

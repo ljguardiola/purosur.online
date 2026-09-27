@@ -2,7 +2,6 @@ import { Info } from "lucide-react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../styles/contrast";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { rgbToHex, tokenRgb } from "../test/token-colors";
 import type { ButtonIcon } from "./Button";
 import {
@@ -40,7 +39,6 @@ test("renders the caller's title, detail and icon", async () => {
   await expect.element(screen.getByText("Sale completed", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("Receipt printed", { exact: true }).first()).toBeVisible();
   expect(screen.container.querySelector("svg")).not.toBeNull();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept a notification without a title", () => {
@@ -75,7 +73,6 @@ test("exposes the notice's text to assistive technology exactly once", async () 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;
   await expect.poll(() => region.textContent).toBe("Sale completed Receipt printed");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every tone's border, circle and icon colors, in white with 8px radius and 16px padding", async () => {
@@ -104,7 +101,6 @@ test("renders every tone's border, circle and icon colors, in white with 8px rad
     );
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.icon));
 
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -128,7 +124,6 @@ test("keeps every tone's icon readable against its own circle", async () => {
     );
     expect(ratio, `${tone} contrast`).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
 
-    await expectNoAccessibilityViolations(screen.container);
   }
 });
 
@@ -145,7 +140,6 @@ test("keeps the title and detail readable against the white background", async (
   expect(titleRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
   expect(detailRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold ink title and a 14px secondary detail 4px apart", async () => {
@@ -190,7 +184,6 @@ test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold 
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders an optional what-to-do line in 14px semibold ink", async () => {
@@ -212,7 +205,6 @@ test("renders an optional what-to-do line in 14px semibold ink", async () => {
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("600");
   expect(style.color).toBe(tokenRgb("ink"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders an optional time in 12px secondary text", async () => {
@@ -224,7 +216,6 @@ test("renders an optional time in 12px secondary text", async () => {
 
   expect(style.fontSize).toBe("12px");
   expect(style.color).toBe(tokenRgb("ink-secondary"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("omits the what-to-do and time lines when the caller does not supply them", async () => {
@@ -233,7 +224,6 @@ test("omits the what-to-do and time lines when the caller does not supply them",
   );
 
   await expect.poll(() => screen.container.textContent).toBe("TitleDetailTitle Detail");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("takes its container's width by default", async () => {
@@ -245,7 +235,6 @@ test("takes its container's width by default", async () => {
   const container = screen.container.firstElementChild?.firstElementChild as HTMLElement;
 
   expect(container.getBoundingClientRect().width).toBeCloseTo(500, 0);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", async () => {
@@ -278,7 +267,6 @@ test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", a
   expect(Number(y)).toBe(6);
   expect(Number(blur)).toBe(20);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces an error tone right away, interrupting current speech", async () => {
@@ -291,7 +279,6 @@ test("announces an error tone right away, interrupting current speech", async ()
 
   await expect.poll(() => region.textContent).toContain("Payment failed");
   await expect.poll(() => region.textContent).toContain("Try again");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("announces success and warning tones politely, after the current speech ends", async () => {
@@ -306,6 +293,5 @@ test("announces success and warning tones politely, after the current speech end
 
     await expect.poll(() => region.textContent).toContain("Heads up");
     await expect.poll(() => region.textContent).toContain("Check the totals");
-    await expectNoAccessibilityViolations(screen.container);
   }
 });

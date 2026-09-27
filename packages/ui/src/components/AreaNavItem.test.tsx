@@ -2,7 +2,6 @@ import { LifeBuoy } from "lucide-react";
 import type { ReactNode } from "react";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { expectNoAccessibilityViolations } from "../test/axe";
 import { tokenBackgroundColor, tokenRgb } from "../test/token-colors";
 import { AreaNavItem, type AreaNavItemProps } from "./AreaNavItem";
 
@@ -26,7 +25,6 @@ test("renders as a link naming its own label, with the icon hidden from assistiv
   expect(link.getAttribute("href")).toBe("/help");
   expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks the active item with aria-current and paints it blanco over a translucent white fill", async () => {
@@ -40,7 +38,6 @@ test("marks the active item with aria-current and paints it blanco over a transl
   expect(getComputedStyle(label).color).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(label).fontWeight).toBe("700");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("leaves an inactive item with no aria-current, painted azul-tenue with no background", async () => {
@@ -54,7 +51,6 @@ test("leaves an inactive item with no aria-current, painted azul-tenue with no b
   expect(getComputedStyle(label).color).toBe(tokenRgb("blue-soft"));
   expect(getComputedStyle(label).fontWeight).toBe("400");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("forwards a click handler, so the app can drive its own router", async () => {
