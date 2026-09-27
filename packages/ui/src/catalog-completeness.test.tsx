@@ -1,10 +1,7 @@
 import { expect, test } from "vitest";
 import * as UI from "./index";
 
-// T2 fills a story for each of these; the list shrinks as each one gets one and disappears once
-// none are left, so adding a story without removing its name here fails just as loudly as adding
-// a new component with no story at all.
-const componentsPendingStoriesForT2 = [
+const componentsWithoutStoriesYet = [
   "AreaNavItem",
   "Checkbox",
   "ColumnChart",
@@ -62,5 +59,5 @@ test("tracks every design-system component still missing a Storybook story", () 
     (name) => !storiedComponents.has((UI as Record<string, unknown>)[name]),
   );
 
-  expect(stillMissing.sort()).toEqual([...componentsPendingStoriesForT2].sort());
+  expect(stillMissing.sort()).toEqual([...componentsWithoutStoriesYet].sort());
 });

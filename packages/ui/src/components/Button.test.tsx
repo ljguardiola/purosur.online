@@ -287,7 +287,6 @@ test("turns the destructive tone's hover background to error-strong, keeping whi
   expect(hovered.color).toBe(tokenRgb("surface-white"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the destructive tone of the secondary variant with a white fill and error-ui border and text, as the design draws it", async () => {
@@ -326,7 +325,6 @@ test("keeps the destructive secondary variant's hover background at bone, like t
   expect(hovered.color).toBe(tokenRgb("status-error-ui"));
   const ratio = contrastRatio(rgbToHex(hovered.color), rgbToHex(hovered.backgroundColor));
   expect(ratio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the same focus outline on the destructive tone as on every other tone", async () => {

@@ -13,9 +13,6 @@ interface StoryModule {
   [exportName: string]: unknown;
 }
 
-// A minimal, locally-owned view of what composeStories actually returns per story: callable as a
-// component, plus what this runner needs to drive and check it. Bridging into it with one cast
-// keeps the loop below free of the library's own deep generics.
 interface CatalogStory {
   (): ReactElement;
   storyName: string;
@@ -41,6 +38,8 @@ for (const { title, story: Story } of catalogStories) {
 
     await Story.play?.({ canvasElement: screen.container });
 
-    await expectNoAccessibilityViolations(screen.container, Story.parameters.a11y?.options);
+    // react-aria-components portals overlay content (Modal, Tooltip, Select's popover, ...)
+    // outside this render's own container, so the whole document is checked instead.
+    await expectNoAccessibilityViolations(document.body, Story.parameters.a11y?.options);
   });
 }
