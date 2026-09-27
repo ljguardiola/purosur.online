@@ -5,9 +5,9 @@ const INLINE_EXPRESSION_MESSAGE = `run: step embeds a \${{ }} expression that re
 const PRINTS_TAINTED_ENV_MESSAGE =
   "run: step prints an environment variable whose value comes from vars.* or secrets.*";
 const DUMPS_ENVIRONMENT_MESSAGE =
-  "run: step dumps the whole environment (env, printenv, set, export -p, or declare -p/-x), which would print any vars.*/secrets.* value held in an environment variable";
+  "run: step dumps the whole environment (env, printenv, set, export, declare, or Get-ChildItem env:), which would print any vars.*/secrets.* value held in an environment variable";
 const TRACES_COMMANDS_MESSAGE =
-  "run: step traces the commands it runs (set -x, a shell invoked with -x, or an xtrace shell), which prints each command's arguments, including any vars.*/secrets.* value already substituted into them";
+  "run: step traces the commands it runs (set -x, a shell invoked with -x, an xtrace shell, or Set-PSDebug -Trace), which prints each command's arguments, including any vars.*/secrets.* value already substituted into them";
 
 const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
 const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/;
@@ -15,6 +15,7 @@ const ENV_REFERENCE_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]
 const ALLOWED_STDOUT_TARGETS = new Set(["/dev/stdout", "/dev/stderr", "&1", "&2"]);
 const PRINT_COMMANDS = new Set(["echo", "printf"]);
 const SHELL_COMMANDS = new Set(["bash", "sh"]);
+const STDOUT_REDIRECT_FDS = new Set(["1", "&", "*"]);
 
 function resolveNode(doc, node) {
   return isAlias(node) ? node.resolve(doc) : node;
@@ -70,12 +71,36 @@ function shellOf(doc, defaultsNode) {
   return typeof shell === "string" ? shell : undefined;
 }
 
-function joinLineContinuations(script) {
+function runnerDefaultShell(doc, jobNode) {
+  return runnerLabelsOf(doc, jobNode.get("runs-on", true)).some((label) => /windows/i.test(label))
+    ? "pwsh"
+    : "bash";
+}
+
+function runnerLabelsOf(doc, node) {
+  const resolved = resolveNode(doc, node);
+  if (isScalar(resolved)) return [String(resolved.value)];
+  if (isSeq(resolved)) return resolved.items.map((item) => String(resolveScalar(doc, item)));
+  if (isMap(resolved)) return runnerLabelsOf(doc, resolved.get("labels", true));
+  return [];
+}
+
+function isPowerShell(shellValue) {
+  const [command = ""] = shellValue.trim().split(/\s+/);
+  const name = command
+    .split(/[\\/]/)
+    .pop()
+    .toLowerCase()
+    .replace(/\.exe$/, "");
+  return name === "pwsh" || name === "powershell";
+}
+
+function joinLineContinuations(script, continuation) {
   const rawLines = script.split(/\r\n|\r|\n/);
   const lines = [];
   for (const rawLine of rawLines) {
     const previous = lines[lines.length - 1];
-    if (previous !== undefined && /\\$/.test(previous)) {
+    if (previous?.endsWith(continuation)) {
       lines[lines.length - 1] = `${previous.slice(0, -1)} ${rawLine}`;
     } else {
       lines.push(rawLine);
@@ -138,7 +163,7 @@ function splitCommandGroups(line) {
   return groups.filter((stages) => stages.some((s) => s.trim() !== ""));
 }
 
-function parseStage(text) {
+function parseStage(text, escapeCharacter) {
   const words = [];
   const redirects = [];
   const hereStrings = [];
@@ -161,7 +186,7 @@ function parseStage(text) {
       } else if (ch === "'" || ch === '"') {
         quote = ch;
         i++;
-      } else if (ch === "\\" && i + 1 < text.length) {
+      } else if (ch === escapeCharacter && i + 1 < text.length) {
         unquoted += text[i + 1];
         i += 2;
       } else if (ch === "$" && text[i + 1] === "(") {
@@ -193,7 +218,7 @@ function parseStage(text) {
         i++;
       } else {
         const previous = words[words.length - 1];
-        if (previous && previous.end === i && /^[0-9]$/.test(previous.raw)) {
+        if (previous && previous.end === i && /^[0-9*]$/.test(previous.raw)) {
           words.pop();
           fd = previous.raw;
         }
@@ -248,7 +273,7 @@ function commandOf(words) {
   }
   if (index >= words.length) return null;
   const [first, ...args] = words.slice(index);
-  return { name: first.text.split("/").pop(), args };
+  return { name: first.text.split("/").pop(), raw: first.raw, args };
 }
 
 const PASS_THROUGH_FILTERS = new Set([
@@ -281,7 +306,7 @@ function reachesLog(stages, index) {
 }
 
 function stdoutRedirectedAway(stage) {
-  const stdoutRedirects = stage.redirects.filter(({ fd }) => fd !== "2");
+  const stdoutRedirects = stage.redirects.filter(({ fd }) => STDOUT_REDIRECT_FDS.has(fd));
   if (stdoutRedirects.length === 0) return false;
   return !ALLOWED_STDOUT_TARGETS.has(stdoutRedirects[stdoutRedirects.length - 1].target);
 }
@@ -363,23 +388,108 @@ function commandStringFindings({ command }, taintedNames) {
   const args = command.args.map((arg) => arg.text);
   const { readsCommandString, operands } = readShellOptions(args, { stopAtOperand: true });
   if (!readsCommandString || operands.length === 0) return NO_FINDINGS;
-  return bashScriptFindings(operands[0], taintedNames);
+  return scriptFindings(operands[0], taintedNames, BASH);
 }
 
-function bashScriptFindings(script, taintedNames) {
+const BASH = {
+  continuation: "\\",
+  escape: "\\",
+  reachesLog,
+  printsName: stagePrintsName,
+  dumpsEnvironment: stageDumpsEnvironment,
+  tracesCommands: stageTracesCommands,
+  commandStringFindings,
+};
+
+const PWSH_PRINT_COMMANDS = new Set([
+  "echo",
+  "write",
+  "write-host",
+  "write-output",
+  "write-information",
+]);
+const PWSH_HOST_STREAM_COMMANDS = new Set(["write-host", "write-information"]);
+const PWSH_PASS_THROUGH_COMMANDS = new Set([
+  "sort-object",
+  "sort",
+  "select-object",
+  "select",
+  "where-object",
+  "where",
+  "format-table",
+  "ft",
+  "format-list",
+  "fl",
+  "out-string",
+  "out-host",
+  "tee-object",
+  "tee",
+]);
+const PWSH_ENV_LISTING_COMMANDS = new Set(["get-childitem", "gci", "dir", "ls"]);
+const PWSH_ASSIGNMENT_RE = /^\$[^\s"'=]*\s*[-+*/%?]?=(?!=)/;
+
+function pwshNameOf(command) {
+  return command.name.toLowerCase();
+}
+
+function pwshReachesLog(stages, index) {
+  const { command, redirects } = stages[index];
+  // Write-Host and Write-Information write to PowerShell's information stream (6), which neither
+  // a pipe nor a > redirect of the output stream captures.
+  if (command && PWSH_HOST_STREAM_COMMANDS.has(pwshNameOf(command))) {
+    return !redirects.some(({ fd }) => fd === "*" || fd === "6");
+  }
+  return (
+    stages.slice(index).every((stage) => !stdoutRedirectedAway(stage)) &&
+    stages
+      .slice(index + 1)
+      .every(({ command }) => command && PWSH_PASS_THROUGH_COMMANDS.has(pwshNameOf(command)))
+  );
+}
+
+function pwshStagePrintsName({ command }, name) {
+  if (!command) return false;
+  const text = [command.raw, ...command.args.map((arg) => arg.raw)].join(" ");
+  if (!new RegExp(`\\$\\{?env:${escapeRegExp(name)}\\b`, "i").test(text)) return false;
+  if (PWSH_PRINT_COMMANDS.has(pwshNameOf(command))) return !/::add-mask::/.test(text);
+  return /^["$]/.test(command.raw) && !PWSH_ASSIGNMENT_RE.test(text);
+}
+
+function pwshStageDumpsEnvironment({ command }) {
+  if (!command || !PWSH_ENV_LISTING_COMMANDS.has(pwshNameOf(command))) return false;
+  return command.args.some((arg) => /^env:[\\/]?\*?$/i.test(arg.text));
+}
+
+function pwshStageTracesCommands({ command }) {
+  if (!command || pwshNameOf(command) !== "set-psdebug") return false;
+  return /-trace(:|\s+)[12]\b/i.test(command.args.map((arg) => arg.text).join(" "));
+}
+
+const POWERSHELL = {
+  continuation: "`",
+  escape: "`",
+  reachesLog: pwshReachesLog,
+  printsName: pwshStagePrintsName,
+  dumpsEnvironment: pwshStageDumpsEnvironment,
+  tracesCommands: pwshStageTracesCommands,
+  commandStringFindings: () => NO_FINDINGS,
+};
+
+function scriptFindings(script, taintedNames, dialect) {
   const findings = { ...NO_FINDINGS };
-  for (const line of joinLineContinuations(script)) {
+  for (const line of joinLineContinuations(script, dialect.continuation)) {
     for (const stageTexts of splitCommandGroups(line)) {
-      const stages = stageTexts.map(parseStage);
+      const stages = stageTexts.map((text) => parseStage(text, dialect.escape));
       stages.forEach((stage, index) => {
-        const inner = commandStringFindings(stage, taintedNames);
-        if (inner.traces || stageTracesCommands(stage)) findings.traces = true;
-        if (!reachesLog(stages, index)) return;
-        if (inner.printsTainted || taintedNames.some((name) => stagePrintsName(stage, name))) {
+        const inner = dialect.commandStringFindings(stage, taintedNames);
+        if (inner.traces || dialect.tracesCommands(stage)) findings.traces = true;
+        if (!dialect.reachesLog(stages, index)) return;
+        if (inner.printsTainted || taintedNames.some((name) => dialect.printsName(stage, name))) {
           findings.printsTainted = true;
         }
-        if (inner.dumpsEnvironment || stageDumpsEnvironment(stage))
+        if (inner.dumpsEnvironment || dialect.dumpsEnvironment(stage)) {
           findings.dumpsEnvironment = true;
+        }
       });
     }
   }
@@ -402,7 +512,11 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   const messages = [];
   if (scriptEmbedsTaintedValue(script, taintedNames)) messages.push(INLINE_EXPRESSION_MESSAGE);
 
-  const findings = bashScriptFindings(script, taintedNames);
+  const findings = scriptFindings(
+    script,
+    taintedNames,
+    isPowerShell(effectiveShell) ? POWERSHELL : BASH,
+  );
   if (findings.printsTainted) messages.push(PRINTS_TAINTED_ENV_MESSAGE);
   if (findings.dumpsEnvironment) messages.push(DUMPS_ENVIRONMENT_MESSAGE);
   if (findings.traces || shellTraces(effectiveShell)) messages.push(TRACES_COMMANDS_MESSAGE);
@@ -433,7 +547,10 @@ function runStepViolationsOf({ doc, lineCounter }) {
     if (!isMap(jobNode)) continue;
 
     const jobEnv = envMapOf(doc, jobNode.get("env", true));
-    const jobShell = shellOf(doc, jobNode.get("defaults", true)) ?? workflowShell;
+    const jobShell =
+      shellOf(doc, jobNode.get("defaults", true)) ??
+      workflowShell ??
+      runnerDefaultShell(doc, jobNode);
 
     const stepsNode = resolveNode(doc, jobNode.get("steps", true));
     if (!isSeq(stepsNode)) continue;

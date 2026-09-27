@@ -606,6 +606,90 @@ test("does not treat an env value fed by a step output named secrets as coming f
   assert.deepEqual(messagesOf("echo $FED", { FED: `\${{ steps.secrets.outputs.sha }}` }), []);
 });
 
+function messagesOfJobStep(
+  run,
+  { runsOn = "windows-latest", stepShell, jobShell, workflowShell } = {},
+) {
+  const source = [
+    ...(workflowShell ? ["defaults:", "  run:", `    shell: ${workflowShell}`] : []),
+    "jobs:",
+    "  build:",
+    `    runs-on: ${runsOn}`,
+    ...(jobShell ? ["    defaults:", "      run:", `        shell: ${jobShell}`] : []),
+    "    steps:",
+    "      - env:",
+    `          TOKEN: \${{ secrets.TOKEN }}`,
+    ...(stepShell ? [`        shell: ${stepShell}`] : []),
+    `        run: ${JSON.stringify(run)}`,
+  ];
+  return findRunStepViolations(source.join("\n")).map((violation) => violation.message);
+}
+
+for (const [script, expected] of [
+  ["echo $env:TOKEN", PRINTS],
+  [`Write-Host "token: \${env:TOKEN}"`, PRINTS],
+  ["write-output $ENV:token", PRINTS],
+  ["Write-Information $env:TOKEN", PRINTS],
+  ["$env:TOKEN", PRINTS],
+  ['"value: $env:TOKEN"', PRINTS],
+  ["Write-Output $env:TOKEN | Sort-Object", PRINTS],
+  ["Write-Host $env:TOKEN > out.txt", PRINTS],
+  ["Write-Host $env:TOKEN | Out-File out.txt", PRINTS],
+  ["Get-ChildItem env:", DUMPS],
+  ["gci env:", DUMPS],
+  ["dir Env:\\", DUMPS],
+  ["ls env: | Sort-Object Name", DUMPS],
+  ["Set-PSDebug -Trace 1", TRACES],
+  ["set-psdebug -trace 2", TRACES],
+]) {
+  test(`flags a PowerShell step on a Windows runner: ${script}`, () => {
+    assertFlagsOnly(messagesOfJobStep(script), expected);
+  });
+}
+
+for (const script of [
+  "echo $env:TOKEN > out.txt",
+  "Write-Output $env:TOKEN >> $env:GITHUB_OUTPUT",
+  "Write-Output $env:TOKEN | Out-File out.txt",
+  "echo $env:TOKEN | Set-Content out.txt",
+  "echo $env:TOKEN | Add-Content out.txt",
+  "Write-Output $env:TOKEN | Out-Null",
+  "$env:TOKEN | docker login ghcr.io -u me --password-stdin",
+  'echo "::add-mask::$env:TOKEN"',
+  'Write-Host "$env:TOKEN" *> $null',
+  "Get-ChildItem env: | Out-File env.txt",
+  "Set-PSDebug -Trace 0",
+  "$env:TOKEN = 'rotated'",
+  "echo $TOKEN",
+  "set -x",
+]) {
+  test(`does not flag a PowerShell step on a Windows runner: ${script}`, () => {
+    assert.deepEqual(messagesOfJobStep(script), []);
+  });
+}
+
+test("a step's shell: bash on a Windows runner reads its script as bash", () => {
+  assertFlagsOnly(messagesOfJobStep("echo $TOKEN", { stepShell: "bash" }), PRINTS);
+  assert.deepEqual(messagesOfJobStep("echo $env:TOKEN", { stepShell: "bash" }), []);
+});
+
+for (const options of [
+  { runsOn: "ubuntu-24.04", stepShell: "pwsh" },
+  { runsOn: "ubuntu-24.04", stepShell: "powershell" },
+  { runsOn: "ubuntu-24.04", jobShell: "pwsh" },
+  { runsOn: "ubuntu-24.04", workflowShell: "pwsh" },
+  { runsOn: "[self-hosted, windows]" },
+]) {
+  test(`reads the script as PowerShell when the effective shell is: ${JSON.stringify(options)}`, () => {
+    assertFlagsOnly(messagesOfJobStep("echo $env:TOKEN", options), PRINTS);
+    assert.deepEqual(messagesOfJobStep("echo $TOKEN", options), []);
+  });
+}
+
+test("reads the script as bash on a runner that is not Windows", () => {
+  assertFlagsOnly(messagesOfJobStep("echo $TOKEN", { runsOn: "ubuntu-24.04" }), PRINTS);
+});
+
 test("reports the file and line of a step that embeds a secrets expression", () => {
   const files = {
     "a.yml": ["jobs:", "  build:", "    steps:", `      - run: echo \${{ secrets.TOKEN }}`].join(
