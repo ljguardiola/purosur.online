@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { Lexer } from "yaml";
+import { isScalar, Lexer, parseAllDocuments, visit } from "yaml";
 
 const SCRIPT_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 
@@ -61,6 +61,36 @@ function findMatchedComments(source, tokenPattern, commentStart) {
 
 const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
 
+const SHELL_COMMENT_OR_SKIPPED_TOKEN = /'[^']*'?|"(?:[^"\\]|\\[\s\S])*"?|(?<![^\s;&|()])#[^\n]*/g;
+
+const findShellComments = (source) =>
+  findMatchedComments(source, SHELL_COMMENT_OR_SKIPPED_TOKEN, "#");
+
+function lineOf(source, offset) {
+  return source.slice(0, offset).split("\n").length;
+}
+
+function findRunStepComments(source) {
+  const comments = [];
+  for (const document of parseAllDocuments(source)) {
+    visit(document, {
+      Pair(_, pair) {
+        const isRunStep = isScalar(pair.key) && pair.key.value === "run";
+        const isBlockScalar =
+          isScalar(pair.value) && ["BLOCK_LITERAL", "BLOCK_FOLDED"].includes(pair.value.type);
+        if (!isRunStep || !isBlockScalar) return;
+        const [start, end] = pair.value.range;
+        const bodyStart = source.indexOf("\n", start) + 1;
+        const bodyLine = lineOf(source, bodyStart);
+        for (const { line, text } of findShellComments(source.slice(bodyStart, end))) {
+          comments.push({ line: bodyLine + line - 1, text });
+        }
+      },
+    });
+  }
+  return comments;
+}
+
 function findYamlComments(source) {
   const comments = [];
   let line = 1;
@@ -68,7 +98,7 @@ function findYamlComments(source) {
     if (token.startsWith("#")) comments.push({ line, text: token });
     line += token.split("\n").length - 1;
   }
-  return comments;
+  return [...comments, ...findRunStepComments(source)].sort((a, b) => a.line - b.line);
 }
 
 function findLineComments(source, commentLine) {
@@ -79,7 +109,24 @@ function findLineComments(source, commentLine) {
     );
 }
 
-const findDockerfileComments = (source) => findLineComments(source, /^\s*#/);
+function findDockerfileComments(source) {
+  const comments = [];
+  let inRunInstruction = false;
+  let continuesInstruction = false;
+  for (const [index, text] of source.split("\n").entries()) {
+    const line = index + 1;
+    if (/^\s*#/.test(text)) {
+      comments.push({ line, text: text.trim() });
+      continue;
+    }
+    if (!continuesInstruction) inRunInstruction = /^\s*RUN\s/i.test(text);
+    if (inRunInstruction) {
+      for (const comment of findShellComments(text)) comments.push({ ...comment, line });
+    }
+    continuesInstruction = /\\\s*$/.test(text);
+  }
+  return comments;
+}
 const findIgnoreFileComments = (source) => findLineComments(source, /^#/);
 
 const ENV_QUOTED_VALUE_OR_COMMENT =
@@ -103,7 +150,11 @@ function commentFinderFor(path) {
 }
 
 export function findComments(source, fileName = "a.ts") {
-  return commentFinderFor(fileName)(source, fileName);
+  const findFileComments = commentFinderFor(fileName);
+  if (findFileComments === undefined) {
+    throw new Error(`${fileName} has no comment syntax this check can read`);
+  }
+  return findFileComments(source, fileName);
 }
 
 const ISSUE_OR_PR_NUMBER = /(?<![\w&])#\d+(?!\w)/;
