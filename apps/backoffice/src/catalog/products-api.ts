@@ -27,7 +27,7 @@ export type FetchProductsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type ProductFieldError =
+type ProductFieldError =
   | "name"
   | "categoryId"
   | "saleUnit"

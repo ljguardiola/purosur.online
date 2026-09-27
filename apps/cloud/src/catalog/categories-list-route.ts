@@ -23,7 +23,7 @@ export interface CategoryRow {
   parentId: string | null;
 }
 
-export async function listCategories<TQueryResult extends PgQueryResultHKT>(
+async function listCategories<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
 ): Promise<CategoryRow[]> {
   return db

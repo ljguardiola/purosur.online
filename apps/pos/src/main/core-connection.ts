@@ -1,4 +1,4 @@
-export interface PortChannel<Port> {
+interface PortChannel<Port> {
   port1: Port;
   port2: Port;
 }

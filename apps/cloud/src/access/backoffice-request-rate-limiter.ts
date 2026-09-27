@@ -2,7 +2,7 @@ import { and, desc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { backofficeRateLimitAttempts } from "../platform/db/schema.js";
 
-export const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const BACKOFFICE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 export const BACKOFFICE_SESSION_LIMIT_PER_HOUR = 600;
 export const BACKOFFICE_SOURCE_ADDRESS_LIMIT_PER_HOUR = 1800;
 const PRUNE_BATCH_SIZE = 100;

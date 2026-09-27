@@ -39,7 +39,7 @@ import {
   SAMPLE_ROLES,
 } from "./sample-catalog.js";
 
-export interface ClearSampleDataSummary {
+interface ClearSampleDataSummary {
   users: number;
   roles: number;
   categories: number;

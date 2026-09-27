@@ -2,7 +2,7 @@ import type { AlertAudience, AlertKind, AlertLevel } from "@purosur/contracts";
 
 const ROLLING_HOUR_RATE_LIMIT_FALLBACK_SECONDS = 60 * 60;
 
-export type { AlertAudience, AlertKind, AlertLevel };
+export type { AlertKind, AlertLevel };
 
 export type AlertSummary = {
   id: string;
@@ -18,13 +18,13 @@ export type AlertSummary = {
   resolvedAt: string | null;
 };
 
-export type AlertDeliveryRecipientRole = {
+type AlertDeliveryRecipientRole = {
   id: string;
   name: string | null;
   isAdministrator: boolean;
 };
 
-export type AlertDelivery = {
+type AlertDelivery = {
   channel: string;
   status: string;
   error: string | null;

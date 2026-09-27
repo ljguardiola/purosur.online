@@ -10,16 +10,12 @@ export {
 } from "./category-name.js";
 export type {
   CoreStatusMessage,
-  MainHealthCheckMessage,
   MainToCoreMessage,
-  RendererPingMessage,
   RendererToCoreMessage,
 } from "./core-messages.js";
 export {
   coreStatusMessageSchema,
-  mainHealthCheckMessageSchema,
   mainToCoreMessageSchema,
-  rendererPingMessageSchema,
   rendererToCoreMessageSchema,
 } from "./core-messages.js";
 export {

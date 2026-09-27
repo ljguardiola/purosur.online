@@ -9,7 +9,7 @@ export function allSubIssuesClosed(subIssues) {
   return (subIssues ?? []).every((subIssue) => subIssue.state === "closed");
 }
 
-export const OUT_OF_SYNC_COMMENT =
+const OUT_OF_SYNC_COMMENT =
   "A parent issue closes automatically once its last sub-issue closes. " +
   "This issue still has an open sub-issue, so it has been reopened to keep it in sync.";
 

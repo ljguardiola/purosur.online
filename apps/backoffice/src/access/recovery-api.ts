@@ -10,7 +10,7 @@ export type RecoveryRequestOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type RecoveryTokenErrorKind =
+type RecoveryTokenErrorKind =
   | "invalid"
   | "burned"
   | "expired"

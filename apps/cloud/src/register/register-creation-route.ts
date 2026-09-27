@@ -17,7 +17,7 @@ import {
 } from "./register-validation.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
 
-export const REGISTER_NAME_TAKEN_RESPONSE = {
+const REGISTER_NAME_TAKEN_RESPONSE = {
   code: "register_name_taken",
   message: "a register with that name already exists in this branch",
 } as const;
@@ -25,9 +25,9 @@ export const REGISTER_NAME_TAKEN_RESPONSE = {
 const UNIQUE_VIOLATION = "23505";
 const REGISTER_NAME_UNIQUE_INDEX = "registers_location_id_name_lower_key";
 
-export class RegisterNameTaken extends Error {}
+class RegisterNameTaken extends Error {}
 
-export function isRegisterNameUniqueViolation(error: unknown): boolean {
+function isRegisterNameUniqueViolation(error: unknown): boolean {
   let current: unknown = error;
   while (current instanceof Error) {
     const { code, constraint, constraint_name } = current as {
@@ -72,7 +72,7 @@ export interface CreateRegisterInput {
   actorId: string;
 }
 
-export interface CreatedRegister {
+interface CreatedRegister {
   id: string;
   name: string;
 }
