@@ -366,7 +366,7 @@ function BarcodeChips({
           <span className="truncate">Generar código interno</span>
         </button>
       </div>
-      {generateError && (
+      {generateError ? (
         <span
           id={generateErrorId}
           role="alert"
@@ -374,17 +374,17 @@ function BarcodeChips({
         >
           {generateError}
         </span>
-      )}
-      {scanError && (
+      ) : null}
+      {scanError ? (
         <span id={scanErrorId} className="text-sm font-normal text-status-error-ui">
           {scanError}
         </span>
-      )}
-      {error && (
+      ) : null}
+      {error ? (
         <span id={errorId} className="text-sm font-normal text-status-error-ui">
           {error}
         </span>
-      )}
+      ) : null}
     </FieldGroup>
   );
 }
@@ -839,9 +839,9 @@ function NewProductModal({
           />
         ) : (
           <FieldGroup label="Categoría" required>
-            {errors.category && (
+            {errors.category ? (
               <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
-            )}
+            ) : null}
           </FieldGroup>
         )}
         <QuantityUnitField
@@ -1182,7 +1182,7 @@ function EditProductModal({
         </>
       }
     >
-      {target && (
+      {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice
@@ -1250,9 +1250,9 @@ function EditProductModal({
             />
           ) : (
             <FieldGroup label="Categoría" required>
-              {errors.category && (
+              {errors.category ? (
                 <span className="text-sm font-normal text-status-error-ui">{errors.category}</span>
-              )}
+              ) : null}
             </FieldGroup>
           )}
           <QuantityUnitField
@@ -1311,7 +1311,7 @@ function EditProductModal({
             generateError={generate.generateError}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }
@@ -1745,11 +1745,11 @@ function PrintLabelsModal({
             detail="Probá de nuevo."
           />
         )}
-        {offersReload && (
+        {offersReload ? (
           <Button variant="secondary" isDisabled={reloading} onPress={() => void handleReload()}>
             Recargar la lista
           </Button>
-        )}
+        ) : null}
         <p className="text-base text-ink">
           Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.
         </p>
@@ -1798,7 +1798,7 @@ function PrintLabelsModal({
                 );
               })}
             </div>
-            {previewRow && (
+            {previewRow ? (
               // <fieldset> carries the implicit "group" role a div would need role="group" for;
               // Tailwind's preflight strips its native border/padding/margin.
               <fieldset
@@ -1823,7 +1823,7 @@ function PrintLabelsModal({
                   </p>
                 </div>
               </fieldset>
-            )}
+            ) : null}
           </>
         )}
       </div>

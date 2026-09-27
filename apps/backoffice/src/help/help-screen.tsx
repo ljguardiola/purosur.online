@@ -44,7 +44,7 @@ function ArticleLinkRow({
 function EmptyState({ title, body }: { title?: string; body: string }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface-white px-6 py-12 text-center">
-      {title && <p className="font-bold text-brand-blue-strong text-lg">{title}</p>}
+      {title ? <p className="font-bold text-brand-blue-strong text-lg">{title}</p> : null}
       <p className="text-ink-secondary text-sm">{body}</p>
     </div>
   );
@@ -235,9 +235,9 @@ export function HelpContent({
     <ScreenLayout
       topBar={
         <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-          {activeArticle && activeCategory && (
+          {activeArticle && activeCategory ? (
             <p className="text-ink-secondary text-sm">{`Ayuda · ${activeCategory.label}`}</p>
-          )}
+          ) : null}
           <h1
             ref={headingRef}
             tabIndex={-1}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -561,19 +561,24 @@ test("marks a required field with an asterisk and exposes it as required", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("names the field by an external heading through labelledBy, while the visible label stays its own text", async () => {
-  const screen = await render(
+function FieldWithExternalHeading() {
+  const headingId = useId();
+  return (
     <>
-      <p id="group-heading">Lunes a viernes</p>
+      <p id={headingId}>Lunes a viernes</p>
       <TextField
         kind="plain-text"
         label="Abre"
         value=""
         onChange={() => {}}
-        labelledBy="group-heading"
+        labelledBy={headingId}
       />
-    </>,
+    </>
   );
+}
+
+test("names the field by an external heading through labelledBy, while the visible label stays its own text", async () => {
+  const screen = await render(<FieldWithExternalHeading />);
 
   await expect.element(screen.getByText("Abre")).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: "Lunes a viernes Abre" })).toBeVisible();
@@ -616,8 +621,9 @@ test("shows the label as an ordinary visible caption when labelVisuallyHidden is
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("exposes the field as invalid, described by a shared message rendered outside it through errorMessageId", async () => {
-  const screen = await render(
+function FieldWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
     <>
       <TextField
         kind="plain-text"
@@ -626,11 +632,15 @@ test("exposes the field as invalid, described by a shared message rendered outsi
         onChange={() => {}}
         helperText="Should not be visible."
         invalid
-        errorMessageId="day-error"
+        errorMessageId={errorId}
       />
-      <p id="day-error">Enter the time as 9:00.</p>
-    </>,
+      <p id={errorId}>Enter the time as 9:00.</p>
+    </>
   );
+}
+
+test("exposes the field as invalid, described by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<FieldWithSharedErrorMessage />);
   const box = fieldBox(screen, "Opens");
   const input = fieldInput(screen, "Opens");
 
@@ -643,8 +653,9 @@ test("exposes the field as invalid, described by a shared message rendered outsi
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("describes an invalid field by both its suffix and the shared message errorMessageId names", async () => {
-  const screen = await render(
+function FieldWithSuffixAndSharedErrorMessage() {
+  const errorId = useId();
+  return (
     <>
       <TextField
         kind="plain-text"
@@ -653,11 +664,15 @@ test("describes an invalid field by both its suffix and the shared message error
         onChange={() => {}}
         suffix="días"
         invalid
-        errorMessageId="group-error"
+        errorMessageId={errorId}
       />
-      <p id="group-error">Enter a number.</p>
-    </>,
+      <p id={errorId}>Enter a number.</p>
+    </>
   );
+}
+
+test("describes an invalid field by both its suffix and the shared message errorMessageId names", async () => {
+  const screen = await render(<FieldWithSuffixAndSharedErrorMessage />);
   const described = describedText(fieldInput(screen, "Days"));
 
   expect(described).toContain("días");

@@ -1,4 +1,4 @@
-import { type ComponentPropsWithoutRef, forwardRef, type ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
 
 export type TagTone = "neutral" | "info";
 
@@ -6,6 +6,7 @@ export type TagProps = {
   tone: TagTone;
   icon?: ReactNode;
   children: Exclude<ReactNode, null | undefined | boolean>;
+  ref?: Ref<HTMLSpanElement>;
 };
 
 const tagClassName =
@@ -26,18 +27,15 @@ const iconWrapperClassName = "inline-flex size-3 shrink-0 [&>svg]:h-full [&>svg]
 // it as a tooltip's trigger (tabIndex, onFocus/onBlur, onMouseEnter/Leave, aria-describedby...).
 type TagDomProps = Omit<ComponentPropsWithoutRef<"span">, keyof TagProps>;
 
-export const Tag = forwardRef<HTMLSpanElement, TagProps & TagDomProps>(function Tag(
-  { tone, icon, children, ...rest },
-  ref,
-) {
+export function Tag({ tone, icon, children, ref, ...rest }: TagProps & TagDomProps) {
   return (
     <span ref={ref} className={[tagClassName, toneClassName[tone]].join(" ")} {...rest}>
-      {icon && (
+      {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName}>
           {icon}
         </span>
-      )}
+      ) : null}
       {children}
     </span>
   );
-});
+}

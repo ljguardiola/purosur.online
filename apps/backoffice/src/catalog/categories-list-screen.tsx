@@ -500,7 +500,7 @@ function EditCategoryModal({
         </>
       }
     >
-      {target && (
+      {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <InlineNotice
@@ -541,7 +541,7 @@ function EditCategoryModal({
               detail="Probá de nuevo."
             />
           )}
-          {offersReload && (
+          {offersReload ? (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
@@ -550,7 +550,7 @@ function EditCategoryModal({
             >
               Recargar
             </Button>
-          )}
+          ) : null}
           <TextField
             kind="plain-text"
             label="Nombre de la categoría"
@@ -577,7 +577,7 @@ function EditCategoryModal({
               : { helperText: CATEGORY_PARENT_HELPER_TEXT })}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }

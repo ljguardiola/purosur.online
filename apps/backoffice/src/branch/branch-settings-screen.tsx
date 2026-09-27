@@ -668,7 +668,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           detail="Probá de nuevo."
         />
       )}
-      {offersReload && (
+      {offersReload ? (
         <Button
           variant="secondary"
           icon={<RotateCcw />}
@@ -677,7 +677,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         >
           Recargar
         </Button>
-      )}
+      ) : null}
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">

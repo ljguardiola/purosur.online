@@ -218,14 +218,14 @@ function RegisterPasskeyModal({
         }
       >
         <div className="flex flex-col gap-4">
-          {attemptFailed && (
+          {attemptFailed ? (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo registrar la passkey"
               detail="Probá de nuevo."
             />
-          )}
+          ) : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
@@ -365,7 +365,7 @@ function RemovePasskeyModal({
           </>
         }
       >
-        {target && (
+        {target ? (
           <div className="flex flex-col gap-4">
             <p className="text-base text-ink">
               {`«${target.name}» deja de servir para entrar.`}
@@ -373,14 +373,14 @@ function RemovePasskeyModal({
                 ? " Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo."
                 : ""}
             </p>
-            {attemptFailed && (
+            {attemptFailed ? (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
                 title="No se pudo dar de baja la passkey"
                 detail="Probá de nuevo."
               />
-            )}
+            ) : null}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
@@ -390,7 +390,7 @@ function RemovePasskeyModal({
               />
             )}
           </div>
-        )}
+        ) : null}
       </Modal>
       {modal}
     </>
@@ -506,13 +506,13 @@ export function MyAccountScreen({
           )}
           {list.kind === "loaded" && (
             <>
-              {hasNoPasskeys && (
+              {hasNoPasskeys ? (
                 <InlineNotice
                   tone="warning"
                   icon={<TriangleAlert />}
                   detail="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
                 />
-              )}
+              ) : null}
               <ul className="flex flex-col gap-2">
                 {passkeys.map((passkey) => (
                   <li key={passkey.id} className="flex items-center gap-3">

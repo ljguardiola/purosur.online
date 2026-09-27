@@ -16,6 +16,23 @@ test("renders its text content", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("forwards a ref to the underlying span element", async () => {
+  let element: HTMLSpanElement | null = null;
+
+  await render(
+    <Tag
+      tone="neutral"
+      ref={(node) => {
+        element = node;
+      }}
+    >
+      Caja
+    </Tag>,
+  );
+
+  expect(element).toBeInstanceOf(HTMLSpanElement);
+});
+
 test("colors the neutral tone bone with secondary ink text, clearing AA text contrast", async () => {
   const screen = await render(<Tag tone="neutral">Caja</Tag>);
   const tag = screen.getByText("Caja").element() as HTMLElement;

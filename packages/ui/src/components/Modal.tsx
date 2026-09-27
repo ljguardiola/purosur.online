@@ -172,7 +172,7 @@ export function Modal(props: ModalProps) {
                   <span className={headerIconWrapperClassName}>{icon}</span>
                 </span>
                 <div className="flex flex-1 flex-col gap-1">
-                  {context && (
+                  {context ? (
                     <p
                       className={[
                         "text-xs font-bold uppercase",
@@ -181,7 +181,7 @@ export function Modal(props: ModalProps) {
                     >
                       {context}
                     </p>
-                  )}
+                  ) : null}
                   <AriaHeading
                     slot="title"
                     className={["text-2xl font-bold", toneStrongTextClassName[tone]].join(" ")}
@@ -189,7 +189,7 @@ export function Modal(props: ModalProps) {
                     {title}
                   </AriaHeading>
                 </div>
-                {props.closable && (
+                {props.closable ? (
                   <AriaButton
                     aria-label="Cerrar"
                     onPress={() => onOpenChange(false)}
@@ -199,7 +199,7 @@ export function Modal(props: ModalProps) {
                       <X aria-hidden="true" />
                     </span>
                   </AriaButton>
-                )}
+                ) : null}
               </div>
               {hasContent(children) && (
                 <div

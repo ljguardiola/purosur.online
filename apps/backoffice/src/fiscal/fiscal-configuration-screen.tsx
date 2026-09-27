@@ -375,7 +375,7 @@ function EditIssuerIdentificationModal({
           </>
         }
       >
-        {target && (
+        {target ? (
           <div className="flex flex-col gap-4">
             {notice?.kind === "attemptFailed" && (
               <InlineNotice
@@ -453,7 +453,7 @@ function EditIssuerIdentificationModal({
               detail="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
             />
           </div>
-        )}
+        ) : null}
       </Modal>
       {modal}
     </>
@@ -539,14 +539,14 @@ export function FiscalConfigurationScreen({
               Editar
             </Button>
           </div>
-          {incomplete && (
+          {incomplete ? (
             <InlineNotice
               tone="error"
               icon={<CircleAlert />}
               title="Las cajas no están emitiendo facturas ni notas de crédito"
               detail="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
             />
-          )}
+          ) : null}
           <div className="flex gap-8">
             {dataPair("Razón social", state.value.legalName)}
             {fixedPair("CUIT", state.value.authorizedCuit)}

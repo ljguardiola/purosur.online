@@ -1,5 +1,6 @@
 import axe from "axe-core";
 import { Trash2 } from "lucide-react";
+import { useId } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -158,13 +159,18 @@ test("does not accept an icon button without an accessible name", () => {
   expectTypeOf<{ icon: ButtonIcon }>().not.toExtend<IconButtonProps>();
 });
 
-test("takes its accessible name from a visible label referenced with aria-labelledby", async () => {
-  const screen = await render(
+function IconButtonWithExternalLabel({ icon }: { icon: ButtonIcon }) {
+  const labelId = useId();
+  return (
     <>
-      <span id="delete-row-label">Delete row</span>
-      <IconButton aria-labelledby="delete-row-label" icon={<Trash2 />} />
-    </>,
+      <span id={labelId}>Delete row</span>
+      <IconButton aria-labelledby={labelId} icon={icon} />
+    </>
   );
+}
+
+test("takes its accessible name from a visible label referenced with aria-labelledby", async () => {
+  const screen = await render(<IconButtonWithExternalLabel icon={<Trash2 />} />);
 
   await expect.element(screen.getByRole("button", { name: "Delete row" })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);

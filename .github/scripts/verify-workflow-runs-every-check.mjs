@@ -10,7 +10,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit -p apps/backoffice",
   "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
-  "biome ci .",
+  "biome ci . --error-on-warnings",
   "pnpm depcruise",
   "node --test .github/scripts/*.test.mjs",
 ];

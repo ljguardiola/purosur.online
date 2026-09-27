@@ -316,7 +316,7 @@ function NewUserModal({
               ? { invalid: true, errorMessage: fieldErrors.firstName }
               : {})}
           />
-          {options && (
+          {options ? (
             <Select
               label="Rol"
               options={options}
@@ -328,7 +328,7 @@ function NewUserModal({
               required
               {...(fieldErrors.roleId ? { invalid: true, errorMessage: fieldErrors.roleId } : {})}
             />
-          )}
+          ) : null}
           <TextField
             kind="plain-text"
             label="Correo"
@@ -354,7 +354,7 @@ function NewUserModal({
                   }
                 : {})}
           />
-          {deactivatedConflict && (
+          {deactivatedConflict ? (
             <Button
               variant="secondary"
               size="small"
@@ -363,7 +363,7 @@ function NewUserModal({
             >
               {`Reactivar a ${deactivatedConflict.name}`}
             </Button>
-          )}
+          ) : null}
         </div>
       </Modal>
       {modal}
@@ -511,7 +511,7 @@ export function UsersListScreen({
               <p className="text-ink-secondary text-sm">Configuración</p>
               <h1 className="font-bold text-2xl text-brand-blue-strong">Usuarios</h1>
             </div>
-            {access.isAdministrator && (
+            {access.isAdministrator ? (
               <Button
                 variant="primary"
                 icon={<Plus />}
@@ -520,7 +520,7 @@ export function UsersListScreen({
               >
                 Nuevo usuario
               </Button>
-            )}
+            ) : null}
           </div>
         }
         bodyClassName="gap-4 p-6"

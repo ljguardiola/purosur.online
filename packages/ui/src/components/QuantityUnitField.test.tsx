@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -268,13 +268,18 @@ test("wires the helper text as both controls' description when the field is not 
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("describes the field by a shared message rendered outside it through errorMessageId", async () => {
-  const screen = await render(
+function FieldWithSharedErrorMessage() {
+  const errorId = useId();
+  return (
     <>
-      <QuantityUnitField {...baseProps()} invalid errorMessageId="net-content-error" />
-      <p id="net-content-error">Compartido por otro campo.</p>
-    </>,
+      <QuantityUnitField {...baseProps()} invalid errorMessageId={errorId} />
+      <p id={errorId}>Compartido por otro campo.</p>
+    </>
   );
+}
+
+test("describes the field by a shared message rendered outside it through errorMessageId", async () => {
+  const screen = await render(<FieldWithSharedErrorMessage />);
   const input = quantityInput(screen);
   const trigger = unitTrigger(screen).element() as HTMLElement;
 

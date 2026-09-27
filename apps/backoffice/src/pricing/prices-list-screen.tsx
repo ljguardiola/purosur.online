@@ -419,7 +419,7 @@ function PriceChangeModal({
       footer={
         current && (
           <>
-            {current.currentPrice && (
+            {current.currentPrice ? (
               <Button
                 variant="secondary"
                 size="large"
@@ -429,7 +429,7 @@ function PriceChangeModal({
               >
                 Confirmar sin cambios
               </Button>
-            )}
+            ) : null}
             <Button
               variant="primary"
               size="large"
@@ -444,7 +444,7 @@ function PriceChangeModal({
         )
       }
     >
-      {current && (
+      {current ? (
         <div className="flex flex-col gap-4">
           {previousNotice?.tone === "success" && (
             <NotificationCard
@@ -512,7 +512,7 @@ function PriceChangeModal({
               detail="Probá de nuevo."
             />
           )}
-          {offersReload && (
+          {offersReload ? (
             <Button
               variant="secondary"
               icon={<RotateCcw />}
@@ -521,7 +521,7 @@ function PriceChangeModal({
             >
               Recargar el precio
             </Button>
-          )}
+          ) : null}
           <TextField
             kind="price"
             label={PRICE_LABEL[current.saleUnit]}
@@ -542,7 +542,7 @@ function PriceChangeModal({
             {...(amountError ? { invalid: true, errorMessage: amountError } : {})}
           />
         </div>
-      )}
+      ) : null}
     </Modal>
   );
 }
@@ -908,7 +908,7 @@ export function PricesListScreen({
       align: "end" as const,
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
-          {item.currentPrice && (
+          {item.currentPrice ? (
             <Tooltip description="Confirmar sin cambios: cuenta como revisar el precio.">
               <IconButton
                 icon={<Check />}
@@ -917,7 +917,7 @@ export function PricesListScreen({
                 onPress={() => void handleRowConfirm(item)}
               />
             </Tooltip>
-          )}
+          ) : null}
           <IconButton
             icon={<Pencil />}
             aria-label={`Cambiar el precio de ${item.name}`}
@@ -1064,7 +1064,7 @@ export function PricesListScreen({
         setPrice={setPriceService}
         confirmPrice={confirmPriceService}
       />
-      {notice && (
+      {notice ? (
         <div className="fixed right-6 bottom-6 z-50">
           <NotificationCard
             key={notice.id}
@@ -1075,7 +1075,7 @@ export function PricesListScreen({
             floating
           />
         </div>
-      )}
+      ) : null}
     </>
   );
 }

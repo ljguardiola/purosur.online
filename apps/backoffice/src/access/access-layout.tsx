@@ -33,13 +33,13 @@ export type AccessHeaderProps = {
 export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      {eyebrow && (
+      {eyebrow ? (
         <p className="text-xs font-bold text-brand-earth-ui uppercase tracking-[1.2px]">
           {eyebrow}
         </p>
-      )}
+      ) : null}
       <h1 className="text-3xl font-bold text-brand-blue-strong">{heading}</h1>
-      {description && <p className="text-base text-ink-secondary">{description}</p>}
+      {description ? <p className="text-base text-ink-secondary">{description}</p> : null}
     </div>
   );
 }

@@ -343,7 +343,7 @@ export function AlertDetailModal({
           >
             Volver
           </Button>
-          {canClose && (
+          {canClose ? (
             <Button
               variant="primary"
               size="large"
@@ -354,7 +354,7 @@ export function AlertDetailModal({
             >
               Cerrar la alerta
             </Button>
-          )}
+          ) : null}
         </>
       }
     >
@@ -411,7 +411,7 @@ export function AlertDetailModal({
               </Button>
             </div>
           )}
-        {alert && (
+        {alert ? (
           <>
             <div className="flex items-center gap-2">
               <StatusIndicator tone={LEVEL_TONE[alert.level]}>
@@ -464,7 +464,7 @@ export function AlertDetailModal({
               </p>
             )}
           </>
-        )}
+        ) : null}
       </div>
     </Modal>
   );
