@@ -684,10 +684,7 @@ function DeactivateUserModal({
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">
-            Deja de poder entrar a la caja y al backoffice. Un Administrador puede reactivar su
-            cuenta más adelante.
-          </p>
+          <p className="text-base text-ink">Se puede reactivar más adelante.</p>
           {attemptFailed && (
             <InlineNotice
               tone="error"

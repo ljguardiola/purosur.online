@@ -1254,13 +1254,7 @@ test("opens the deactivate modal, and Cancelar closes it without calling the API
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
 
   const dialog = await openDeactivateModal(screen);
-  await expect
-    .element(
-      dialog.getByText(
-        "Deja de poder entrar a la caja y al backoffice. Un Administrador puede reactivar su cuenta más adelante.",
-      ),
-    )
-    .toBeVisible();
+  await expect.element(dialog.getByText("Se puede reactivar más adelante.")).toBeVisible();
   expect(dialog.getByText("No se puede deshacer.").query()).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
