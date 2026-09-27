@@ -12,7 +12,7 @@ import {
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { hashDestinationAddress } from "./recovery-rate-limiter.js";
 import { flushClosedRecoveryRejectedAttemptWindows } from "./recovery-rejected-attempt-flush.js";

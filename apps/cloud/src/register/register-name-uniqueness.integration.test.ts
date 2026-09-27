@@ -7,7 +7,7 @@ import { registers, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { createRegister } from "./register-creation-route.js";
 

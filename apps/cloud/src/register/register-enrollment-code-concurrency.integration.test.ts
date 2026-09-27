@@ -7,7 +7,7 @@ import { auditLog, registerEnrollmentCodes, registers, users } from "../platform
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { emitRegisterEnrollmentCode } from "./register-enrollment-code-route.js";
 

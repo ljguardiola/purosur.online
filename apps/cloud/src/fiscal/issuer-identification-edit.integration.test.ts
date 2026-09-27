@@ -12,7 +12,7 @@ import {
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { editIssuerIdentification } from "./issuer-identification-edit-route.js";
 

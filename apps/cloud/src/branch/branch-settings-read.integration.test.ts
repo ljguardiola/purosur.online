@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { findBranchSettings } from "./branch-settings-read-route.js";
 

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { allocateInternalBarcode } from "./internal-barcode-route.js";
 
 // A Postgres sequence's `nextval` is concurrency-safe: each caller gets its own value with no

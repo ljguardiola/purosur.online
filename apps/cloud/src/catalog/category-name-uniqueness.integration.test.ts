@@ -7,7 +7,7 @@ import { categories } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { createCategory } from "./category-creation-route.js";
 
 // PGlite can't race two creations for the same name, so this runs on a real postgres-js pool,

@@ -7,7 +7,7 @@ import { categories, products } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { createCategory } from "./category-creation-route.js";
 import { CATEGORY_MOVE_LOCK_KEY, editCategory } from "./category-edit-route.js";
 import { createProduct } from "./product-creation-route.js";

@@ -6,7 +6,7 @@ import postgres from "postgres";
 import { afterEach, describe, expect, inject, it, vi } from "vitest";
 import { runMigrations } from "../../migrate.js";
 import { CLOUD_APP_PASSWORD } from "../../test-support/cloud-app-password.js";
-import { withExclusiveMigration } from "../../test-support/recovery-integration-database.js";
+import { withExclusiveMigration } from "../../test-support/integration-database.js";
 import { waitForReady } from "../../wait-for-ready.js";
 import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 import {

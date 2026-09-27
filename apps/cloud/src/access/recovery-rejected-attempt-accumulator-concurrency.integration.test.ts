@@ -6,7 +6,7 @@ import { recoveryRejectedAttemptAccumulator } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { recordRejectedAttempt } from "./recovery-rejected-attempt-accumulator.js";
 
 // PGlite serializes every query over a single connection, so only a real Postgres with a pool of

@@ -6,7 +6,7 @@ import { signInFailures, signInLockouts } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { registerSessionAuthenticateRoute } from "./session-authenticate-route.js";
 import { SIGN_IN_FAILURE_LIMIT } from "./sign-in-lockout.js";
 

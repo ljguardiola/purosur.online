@@ -4,7 +4,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { runMigrations } from "../../migrate.js";
 import { CLOUD_APP_PASSWORD } from "../../test-support/cloud-app-password.js";
-import { withExclusiveMigration } from "../../test-support/recovery-integration-database.js";
+import { withExclusiveMigration } from "../../test-support/integration-database.js";
 import { MIGRATIONS_FOLDER } from "./migrations-folder.js";
 
 // `cloud_app` is one cluster-wide role, so this suite reuses CLOUD_APP_PASSWORD; withExclusiveMigration

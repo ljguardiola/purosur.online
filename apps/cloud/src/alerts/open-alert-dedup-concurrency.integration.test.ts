@@ -9,7 +9,7 @@ import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { type OpenAlertInput, type OpenAlertOutcome, openAlert } from "./open-alert.js";
 

@@ -8,7 +8,7 @@ import { auditLog, roles, sessions, userRoles, users } from "../platform/db/sche
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../test-support/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { SESSION_COOKIE_NAME } from "./session-cookie.js";
 import { generateSessionId, hashSessionId } from "./session-id.js";
