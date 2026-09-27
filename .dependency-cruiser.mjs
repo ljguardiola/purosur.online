@@ -1,4 +1,3 @@
-// Cloud-only concepts: the register (apps/pos) never runs their use cases.
 export const CLOUD_ONLY_CONCEPTS = ["purchasing", "alerts", "catalog", "pricing"];
 
 // Matches an npm package either by its raw specifier (left unresolved when the
@@ -8,7 +7,6 @@ function npmPackage(name) {
   return `^${name}(/|$)|(^|/)node_modules/${name}/`;
 }
 
-/** @type {import('dependency-cruiser').IConfiguration} */
 export default {
   forbidden: [
     {
@@ -56,11 +54,9 @@ export default {
         "never the reverse.",
       severity: "error",
       from: { path: "^packages/domain/src/[^/]+/model/" },
-      // Not narrowed to the same concept on purpose: the final validation of a
-      // reachable rule matches `to.path` without the `from` capture groups, so a
-      // positive `$1` stays literal and never matches. (A negative lookahead like
-      // no-use-case-to-use-case's `(?!$1/)` survives that because it degrades to
-      // always-true after the derive step has already narrowed by concept.)
+      // Not narrowed to the same concept: dependency-cruiser's final check of a reachable
+      // rule matches `to.path` without the `from` capture groups, so a positive `$1`
+      // would stay literal and never match.
       to: { path: "^packages/domain/src/[^/]+/use-cases/", reachable: true },
     },
     {
