@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { checkFiles, isSecretCarrier } from "./no-secrets-in-tracked-files.mjs";
 
 const HUNK_ADDED_RANGE_RE = /^@@ -\S+ \+(\d+)(?:,(\d+))? @@/gm;
+const BINARY_PATCH_RE = /^Binary files .* differ$/m;
 
 function runGit(args, cwd) {
   return execFileSync("git", ["--literal-pathspecs", ...args], {
@@ -36,11 +37,22 @@ function addedLinesOf(commit, path, cwd) {
     [...COMMIT_DIFF_ARGS, "--unified=0", "--no-color", "--no-ext-diff", commit, "--", path],
     cwd,
   ).toString("utf8");
+  // git prints no hunks for a file it takes as binary, such as text holding a NUL byte, so every
+  // line of it counts as added.
+  if (BINARY_PATCH_RE.test(patch)) return null;
   const lines = new Set();
   for (const [, start, count = "1"] of patch.matchAll(HUNK_ADDED_RANGE_RE)) {
     for (let offset = 0; offset < Number(count); offset++) lines.add(Number(start) + offset);
   }
   return lines;
+}
+
+function addsAnyLineOf(addedLines, line, endLine) {
+  if (addedLines === null) return true;
+  for (let current = line; current <= endLine; current++) {
+    if (addedLines.has(current)) return true;
+  }
+  return false;
 }
 
 async function checkCommit(commit, { cwd, configFilePath }) {
@@ -52,9 +64,16 @@ async function checkCommit(commit, { cwd, configFilePath }) {
       writeFileSync(join(snapshot, path), runGit(["show", `${commit}:${path}`], cwd));
     }
     const violations = await checkFiles(paths, { cwd: snapshot, configFilePath });
-    const addedLines = new Map(paths.map((path) => [path, addedLinesOf(commit, path, cwd)]));
+    const addedLinesByPath = new Map();
+    const addedLinesIn = (path) => {
+      if (!addedLinesByPath.has(path)) addedLinesByPath.set(path, addedLinesOf(commit, path, cwd));
+      return addedLinesByPath.get(path);
+    };
     return violations
-      .filter(({ path, line }) => isSecretCarrier(path) || addedLines.get(path).has(line))
+      .filter(
+        ({ path, line, endLine }) =>
+          isSecretCarrier(path) || addsAnyLineOf(addedLinesIn(path), line, endLine),
+      )
       .map((violation) => ({ commit, ...violation }));
   } finally {
     rmSync(snapshot, { recursive: true, force: true });

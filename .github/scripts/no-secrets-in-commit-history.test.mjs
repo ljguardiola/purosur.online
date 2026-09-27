@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -27,8 +27,16 @@ const KNOWN_FAKE_DATABASE_URL_LINE =
 
 const UUID_SHAPED_VALUE = ["5f0c7a2e", "8b1d", "4c3e", "9a6f", "2d7b1e0c4a93"].join("-");
 
+// Settings such as commit signing, hooks or fast-forward-only merges in the contributor's own git
+// config would otherwise change what the fixture commands do.
+const FIXTURE_GIT_ENV = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_NOSYSTEM: "1",
+};
+
 function git(args, cwd) {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", env: FIXTURE_GIT_ENV });
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
   }
@@ -149,6 +157,30 @@ test("does not blame a later commit that only changes other lines of a file hold
   });
 });
 
+test("flags a commit that replaces only the body of a key another commit added", async () => {
+  await withFixtureRepo(async (dir, base) => {
+    writeTracked(dir, "notes.txt", `${PRIVATE_KEY}\n`);
+    const added = commit(dir, "add a key");
+    const [begin, , , end] = PRIVATE_KEY.split("\n");
+    const otherBody = [
+      "MIIBOwIBAAJBALtpc0Qh5xGbV0bNRMeHfUq3tW9aN3oA1yJhF2G7pQx4Qe9Lk2Wd",
+      "Zm3jYbq8GdQy9kVtXo1Rr4yN0cH6sE2fLpA7uIwCAwEAAQJBAJx1Pq9Hc4rT2Nwe",
+    ];
+    writeTracked(dir, "notes.txt", `${[begin, ...otherBody, end].join("\n")}\n`);
+    const replaced = commit(dir, "replace the key's body");
+
+    const violations = await violationsSince(base, dir);
+
+    assert.deepEqual(
+      violations.map(({ commit, path, line }) => ({ commit, path, line })),
+      [
+        { commit: added, path: "notes.txt", line: 1 },
+        { commit: replaced, path: "notes.txt", line: 1 },
+      ],
+    );
+  });
+});
+
 test("ignores commits already in the base", async () => {
   await withFixtureRepo(async (dir) => {
     writeTracked(dir, "config/key.txt", PRIVATE_KEY);
@@ -204,6 +236,22 @@ test("flags a binary key file a commit added even though a later commit deleted 
   });
 });
 
+test("flags a secret in a text file that git treats as binary for holding a NUL byte", async () => {
+  await withFixtureRepo(async (dir, base) => {
+    writeTracked(dir, "dump.txt", `header\0\nRAILWAY_TOKEN=${UUID_SHAPED_VALUE}\n`);
+    const added = commit(dir, "add a dump");
+    removeTracked(dir, "dump.txt");
+    commit(dir, "remove the dump");
+
+    const violations = await violationsSince(base, dir);
+
+    assert.deepEqual(
+      violations.map(({ commit, path, line }) => ({ commit, path, line })),
+      [{ commit: added, path: "dump.txt", line: 2 }],
+    );
+  });
+});
+
 test("flags a scanner suppression comment a commit added", async () => {
   await withFixtureRepo(async (dir, base) => {
     const suppression = ["secretlint", "disable"].join("-");
@@ -228,7 +276,9 @@ test("flags a secret a merge commit added while resolving a conflict", async () 
     git(["checkout", "-q", "main"], dir);
     writeTracked(dir, "notes.txt", "main\n");
     commit(dir, "main edit");
-    spawnSync("git", ["merge", "-q", "side"], { cwd: dir });
+    const merging = spawnSync("git", ["merge", "-q", "side"], { cwd: dir, env: FIXTURE_GIT_ENV });
+    assert.equal(merging.status, 1, merging.stderr.toString());
+    git(["rev-parse", "--verify", "-q", "MERGE_HEAD"], dir);
     writeTracked(dir, "notes.txt", `${PRIVATE_KEY}\n`);
     const merge = commit(dir, "merge side");
 
@@ -256,7 +306,10 @@ test("describes a violation with its commit, file and line, and asks to rotate t
 
 test("no commit since the change's base adds a secret", async () => {
   const ref = resolveBaseRef(process.env);
-  const base = resolveBaseSha({ ref, runGit: (args) => git(args, repoRoot) });
+  const base = resolveBaseSha({
+    ref,
+    runGit: (args) => execFileSync("git", args, { cwd: repoRoot }),
+  });
   assert.ok(
     base,
     `could not resolve base ref "${ref}" for the commit history secret scan — fetch it first, e.g. \`git fetch origin main\``,

@@ -27,10 +27,12 @@ function suppressionCommentViolationsOf(paths, cwd) {
     const content = readFileSync(join(cwd, path), "latin1");
     const match = SUPPRESSION_COMMENT_RE.exec(content);
     if (!match) return [];
+    const line = content.slice(0, match.index).split("\n").length;
     return [
       {
         path,
-        line: content.slice(0, match.index).split("\n").length,
+        line,
+        endLine: line,
         message: "a secret scanner suppression comment would hide a secret from this scan",
       },
     ];
@@ -42,7 +44,14 @@ function secretCarrierViolationsOf(paths) {
     const name = basename(path);
     const kind = carrierKindMessageOf(name);
     if (!kind) return [];
-    return [{ path, line: 1, message: `a ${name} file ${kind} and never lives in the repository` }];
+    return [
+      {
+        path,
+        line: 1,
+        endLine: 1,
+        message: `a ${name} file ${kind} and never lives in the repository`,
+      },
+    ];
   });
 }
 
@@ -75,6 +84,7 @@ export async function checkFiles(
     result.messages.map((message) => ({
       path: relative(cwd, result.filePath),
       line: message.loc.start.line,
+      endLine: message.loc.end.line,
       message: `${message.ruleId}: ${message.message}`,
     })),
   );
