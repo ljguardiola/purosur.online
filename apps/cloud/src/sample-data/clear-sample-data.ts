@@ -289,7 +289,10 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           inArray(alertDeliveries.recipientUserId, sampleUserIds),
         ),
       );
-    await tx.delete(alerts).where(inArray(alerts.id, sampleAlertIds));
+    const deletedAlerts = await tx
+      .delete(alerts)
+      .where(inArray(alerts.id, sampleAlertIds))
+      .returning({ id: alerts.id });
 
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
     await tx.delete(prices).where(inArray(prices.productId, sampleProductIds));
@@ -297,12 +300,24 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     // The delete-rejection trigger (migration 0026) only ever expects a live product to be
     // deactivated, never removed; disabling it is transactional and reverts automatically on commit.
     await tx.execute(sql`alter table products disable trigger products_reject_deletion`);
-    await tx.delete(products).where(inArray(products.id, sampleProductIds));
+    const deletedProducts = await tx
+      .delete(products)
+      .where(inArray(products.id, sampleProductIds))
+      .returning({ id: products.id });
     await tx.execute(sql`alter table products enable trigger products_reject_deletion`);
 
-    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.leaf));
-    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.mid));
-    await tx.delete(categories).where(inArray(categories.id, categoryIdsByDepth.top));
+    let deletedCategoryCount = 0;
+    for (const depthIds of [
+      categoryIdsByDepth.leaf,
+      categoryIdsByDepth.mid,
+      categoryIdsByDepth.top,
+    ]) {
+      const deleted = await tx
+        .delete(categories)
+        .where(inArray(categories.id, depthIds))
+        .returning({ id: categories.id });
+      deletedCategoryCount += deleted.length;
+    }
 
     const sampleEntityIds = [
       ...sampleUserIds,
@@ -329,15 +344,24 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     await tx.delete(passkeys).where(inArray(passkeys.id, samplePasskeyIds));
     await tx.delete(recoveryTokens).where(inArray(recoveryTokens.id, sampleRecoveryTokenIds));
     await tx.delete(userRoles).where(inArray(userRoles.userId, sampleUserIds));
-    await tx.delete(users).where(inArray(users.id, sampleUserIds));
+    const deletedUsers = await tx
+      .delete(users)
+      .where(inArray(users.id, sampleUserIds))
+      .returning({ id: users.id });
 
     await tx.delete(rolePermissions).where(inArray(rolePermissions.roleId, sampleRoleIds));
-    await tx.delete(roles).where(inArray(roles.id, sampleRoleIds));
+    const deletedRoles = await tx
+      .delete(roles)
+      .where(inArray(roles.id, sampleRoleIds))
+      .returning({ id: roles.id });
 
     await tx
       .delete(registerEnrollmentCodes)
       .where(inArray(registerEnrollmentCodes.registerId, sampleRegisterIds));
-    await tx.delete(registers).where(inArray(registers.id, sampleRegisterIds));
+    const deletedRegisters = await tx
+      .delete(registers)
+      .where(inArray(registers.id, sampleRegisterIds))
+      .returning({ id: registers.id });
 
     if (await branchSettingsEqualSampleValues(tx, location.id)) {
       await tx
@@ -350,16 +374,12 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     return {
       kind: "cleared",
       summary: {
-        users: sampleUserIds.length,
-        roles: sampleRoleIds.length,
-        categories: SAMPLE_CATEGORY_TREE.reduce(
-          (sum, top) =>
-            sum + 1 + top.mids.reduce((midSum, mid) => midSum + 1 + mid.leaves.length, 0),
-          0,
-        ),
-        products: sampleProductIds.length,
-        registers: sampleRegisterIds.length,
-        alerts: sampleAlertIds.length,
+        users: deletedUsers.length,
+        roles: deletedRoles.length,
+        categories: deletedCategoryCount,
+        products: deletedProducts.length,
+        registers: deletedRegisters.length,
+        alerts: deletedAlerts.length,
       },
     };
   });

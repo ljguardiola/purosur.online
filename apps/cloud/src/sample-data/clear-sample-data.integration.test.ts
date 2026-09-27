@@ -429,4 +429,35 @@ describe("clearSampleData", () => {
     expect(settingsRow).toEqual(loadedSettings);
     expect(await tableCount(db, "branch_hours")).toBe(loadedHoursCount);
   }, 120_000);
+  it("reports the number of sample categories it actually deleted", async () => {
+    const db = await freshOwnerDatabase();
+    await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const removedLeafId = await sampleCategoryIdByPath(
+      db,
+      "Almacén",
+      "Aceites y Aderezos",
+      "Aceites",
+    );
+    const productsOfRemovedLeaf = sql`(select id from products where category_id = ${removedLeafId})`;
+    await db.execute(sql`delete from audit_log where entity_id in ${productsOfRemovedLeaf}`);
+    await db.execute(sql`delete from price_reviews where product_id in ${productsOfRemovedLeaf}`);
+    await db.execute(sql`delete from prices where product_id in ${productsOfRemovedLeaf}`);
+    await db.execute(
+      sql`delete from product_barcodes where product_id in ${productsOfRemovedLeaf}`,
+    );
+    await db.execute(sql`alter table products disable trigger products_reject_deletion`);
+    await db.execute(sql`delete from products where category_id = ${removedLeafId}`);
+    await db.execute(sql`alter table products enable trigger products_reject_deletion`);
+    await db.execute(sql`delete from categories where id = ${removedLeafId}`);
+    const remainingCategories = await tableCount(db, "categories");
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome).toMatchObject({
+      kind: "cleared",
+      summary: { categories: remainingCategories },
+    });
+    expect(await tableCount(db, "categories")).toBe(0);
+  }, 120_000);
 });
