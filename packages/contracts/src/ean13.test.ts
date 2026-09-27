@@ -7,14 +7,6 @@ import {
   isInternalBarcode,
 } from "./ean13.js";
 
-describe("ean13CheckDigit", () => {
-  it("computes the standard GS1 EAN-13 check digit for a 12-digit body", () => {
-    expect(ean13CheckDigit("200000000001")).toBe(5);
-    expect(ean13CheckDigit("200000000002")).toBe(2);
-    expect(ean13CheckDigit("200000000003")).toBe(9);
-  });
-});
-
 const twelveDigitBody = fc
   .array(fc.integer({ min: 0, max: 9 }), { minLength: 12, maxLength: 12 })
   .map((digits) => digits.join(""));
@@ -27,8 +19,11 @@ function withDigitsAt(code: string, digits: Record<number, number>): string {
   return [...code].map((digit, index) => String(digits[index] ?? digit)).join("");
 }
 
-describe("the EAN-13 check digit", () => {
-  it("computes GS1's check digit for a retail EAN-13", () => {
+describe("ean13CheckDigit", () => {
+  it("computes the standard GS1 EAN-13 check digit for a 12-digit body", () => {
+    expect(ean13CheckDigit("200000000001")).toBe(5);
+    expect(ean13CheckDigit("200000000002")).toBe(2);
+    expect(ean13CheckDigit("200000000003")).toBe(9);
     expect(ean13CheckDigit("400638133393")).toBe(1);
   });
 
