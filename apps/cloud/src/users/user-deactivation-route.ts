@@ -1,5 +1,5 @@
 import { and, eq, isNull } from "drizzle-orm";
-import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { auditLog, roles, sessions, userRoles, users } from "../db/schema.js";
 import { requirePasskeyAuthorization } from "../session/passkey-authorization-guard.js";
@@ -20,7 +20,63 @@ const USER_NOT_FOUND_RESPONSE = {
   message: "no user with that id belongs to this branch",
 } as const;
 
-type DeactivationOutcome = { kind: "not_found" } | { kind: "deactivated" };
+export interface DeactivateUserInput {
+  id: string;
+  actorId: string;
+  at: Date;
+}
+
+export type DeactivateUserOutcome = { kind: "not_found" } | { kind: "deactivated" };
+
+export async function deactivateUser<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  input: DeactivateUserInput,
+): Promise<DeactivateUserOutcome> {
+  return db.transaction<DeactivateUserOutcome>(async (tx) => {
+    // Locks the Administrator role row, then the user row, in the edit route's order so the
+    // two never deadlock, and re-reads `active` and the role under those locks.
+    const [administratorRole] = await tx
+      .select({ id: roles.id })
+      .from(roles)
+      .where(eq(roles.isAdministrator, true))
+      .for("update");
+    const [current] = await tx
+      .select({ active: users.active, version: users.version })
+      .from(users)
+      .where(eq(users.id, input.id))
+      .for("update");
+    if (!current?.active) {
+      return { kind: "not_found" };
+    }
+    const [currentRole] = await tx
+      .select({ roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(eq(userRoles.userId, input.id));
+    if (currentRole?.roleId === administratorRole?.id) {
+      return { kind: "not_found" };
+    }
+
+    await tx
+      .update(users)
+      .set({ active: false, version: current.version + 1 })
+      .where(eq(users.id, input.id));
+
+    await tx
+      .update(sessions)
+      .set({ revokedAt: input.at })
+      .where(and(eq(sessions.userId, input.id), isNull(sessions.revokedAt)));
+
+    await tx.insert(auditLog).values({
+      entity: "user",
+      entityId: input.id,
+      actorId: input.actorId,
+      previousValue: { active: true },
+      newValue: { active: false },
+    });
+
+    return { kind: "deactivated" };
+  });
+}
 
 export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
@@ -76,49 +132,10 @@ export function registerUserDeactivationRoutes<TQueryResult extends PgQueryResul
         return;
       }
 
-      const outcome = await options.db.transaction<DeactivationOutcome>(async (tx) => {
-        // Locks the Administrator role row, then the user row, in the edit route's order so the
-        // two never deadlock, and re-reads `active` and the role under those locks.
-        const [administratorRole] = await tx
-          .select({ id: roles.id })
-          .from(roles)
-          .where(eq(roles.isAdministrator, true))
-          .for("update");
-        const [current] = await tx
-          .select({ active: users.active, version: users.version })
-          .from(users)
-          .where(eq(users.id, target.id))
-          .for("update");
-        if (!current?.active) {
-          return { kind: "not_found" };
-        }
-        const [currentRole] = await tx
-          .select({ roleId: userRoles.roleId })
-          .from(userRoles)
-          .where(eq(userRoles.userId, target.id));
-        if (currentRole?.roleId === administratorRole?.id) {
-          return { kind: "not_found" };
-        }
-
-        await tx
-          .update(users)
-          .set({ active: false, version: current.version + 1 })
-          .where(eq(users.id, target.id));
-
-        await tx
-          .update(sessions)
-          .set({ revokedAt: attemptedAt })
-          .where(and(eq(sessions.userId, target.id), isNull(sessions.revokedAt)));
-
-        await tx.insert(auditLog).values({
-          entity: "user",
-          entityId: target.id,
-          actorId: openSession.userId,
-          previousValue: { active: true },
-          newValue: { active: false },
-        });
-
-        return { kind: "deactivated" };
+      const outcome = await deactivateUser(options.db, {
+        id: target.id,
+        actorId: openSession.userId,
+        at: attemptedAt,
       });
 
       if (outcome.kind === "not_found") {
