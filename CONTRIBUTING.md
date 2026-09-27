@@ -48,6 +48,14 @@ A feature too large for one pull request stays as a parent feature issue holding
 - Fill in every section of the pull request template, including the Delivery impact checklist.
 - Merges are squash-only. The PR title becomes the commit message on `main`.
 
+## Structure
+
+- Every layer — `packages/domain`, the cloud, the backoffice, the register app — uses `packages/domain`'s business concepts (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`) as its top-level folders, with the same names, so a concept is found under the same name from its rule to its screen. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes.
+- What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for its infrastructure (HTTP and query clients, formatting), and a folder named after any other part of the application, such as the backoffice's `help/`.
+- A menu area that groups several concepts does so through its routes, not through a folder.
+- Every file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
+- Each file's tests sit beside it. Helpers used only by tests live in a `test-support/` folder inside the folder they serve.
+
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
