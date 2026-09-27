@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -15,7 +15,7 @@ describe("the built migrations folder", () => {
   });
 
   it("resolves to the cloud's migrations from a checkout path with a space, a % and non-ASCII characters", () => {
-    checkoutParent = mkdtempSync(join(tmpdir(), "purosur-checkout-"));
+    checkoutParent = realpathSync(mkdtempSync(join(tmpdir(), "purosur-checkout-")));
     const cloudDir = join(checkoutParent, "my checkout 100% ñandú", "apps", "cloud");
     mkdirSync(join(cloudDir, "dist", "db"), { recursive: true });
     cpSync(
