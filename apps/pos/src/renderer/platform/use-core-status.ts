@@ -1,6 +1,6 @@
 import type { CoreStatusMessage } from "@purosur/contracts";
 import { useEffect, useState } from "react";
-import { CORE_STATUS_REQUEST } from "../shared/core-status-request";
+import { CORE_STATUS_REQUEST } from "../../shared/core-status-request";
 import type { CoreStatusEventSource } from "./core-status";
 import { attachCoreStatus } from "./core-status";
 

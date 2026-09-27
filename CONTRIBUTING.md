@@ -73,6 +73,12 @@ This is the structure the repository is organized into. A part that does not fol
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
 
+## Register screens
+
+- The register has no URL: it moves between screens through declared, typed routes kept in memory. Navigating to a route that does not exist, or with a parameter that is missing or mistyped, fails to type-check.
+- Every screen is reached through its own route, declared in the renderer's router under the root route and added to its route tree, with the screen as the route's component.
+- A screen that must refuse entry before it renders declares that on its own route, as a guard (`beforeLoad`) that redirects instead of letting the screen render.
+
 ## Testing
 
 Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.
@@ -116,7 +122,7 @@ No tool checks that `packages/ui` carries no screens — composed screens live i
 
 A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
 
-`pnpm verify` scans every tracked file for secrets. When it finds one in CI, the secret has already reached GitHub: revoke and rotate it, don't only remove it.
+`pnpm verify` scans every tracked file for secrets, and every line each commit of the change adds since `main`, even one a later commit removes. When it finds one in CI, the secret has already reached GitHub and stays readable in that commit: revoke and rotate it first, then rewrite the pull request's history without it or close the pull request and open a new one from a clean branch.
 
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
