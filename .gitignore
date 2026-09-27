@@ -5,6 +5,7 @@ release/
 coverage/
 *.log
 .vitest/
+.stryker-tmp/
 
 *.env
 .env
