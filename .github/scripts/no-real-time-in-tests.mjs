@@ -1073,13 +1073,12 @@ export function findTestOnlyHelperFiles(cwd = process.cwd()) {
       exclude: ["**/node_modules/**", "**/dist/**"],
     },
   );
-  // A generated directory can end in the same extension the glob looks for, such as a screenshot
-  // folder named after the test file it belongs to; only a real file's own content is relevant.
-  return files
-    .filter((path) => statSync(join(cwd, path)).isFile())
-    .filter(isTestOnlyHelperPath)
-    .sort();
+  return files.filter(isTestOnlyHelperPath).sort();
 }
+
+// Storybook stories are not listed by any Vitest project, yet the catalog runner executes their
+// play functions as tests.
+const STORY_GLOBS = ["apps/*/src/**/*.stories.tsx", "packages/*/src/**/*.stories.tsx"];
 
 export function findScannedFiles(cwd = process.cwd()) {
   const projects = readVitestProjects(readFileSync(join(cwd, "vitest.config.ts"), "utf8"));
@@ -1094,8 +1093,14 @@ export function findScannedFiles(cwd = process.cwd()) {
   );
   const verifyStaticFiles = globSync(verifyStaticGlobs, { cwd });
 
-  const scanned = new Set([...projectFiles, ...verifyStaticFiles, ...findTestOnlyHelperFiles(cwd)]);
-  // A generated directory, such as a screenshot folder named after the test file it belongs to,
-  // can match the same glob as the file it sits next to; only a real file has content to check.
+  const storyFiles = globSync(STORY_GLOBS, { cwd, exclude: ["**/node_modules/**"] });
+
+  const scanned = new Set([
+    ...projectFiles,
+    ...verifyStaticFiles,
+    ...findTestOnlyHelperFiles(cwd),
+    ...storyFiles,
+  ]);
+  // Vitest's screenshot folders are directories named after the test file they belong to.
   return [...scanned].filter((path) => statSync(join(cwd, path)).isFile()).sort();
 }
