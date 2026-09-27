@@ -3,7 +3,6 @@ import {
   IconButton,
   InlineNotice,
   Modal,
-  plural,
   Select,
   Tag,
   TextField,
@@ -29,6 +28,7 @@ import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
 import { passkeyRowDetail } from "./passkeyRowDetail";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
@@ -107,10 +107,6 @@ const EMAIL_INVALID = "Ingresá un correo válido.";
 const CANCEL_LABEL = "Cancelar";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const RETRY_LABEL = "Reintentar";
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
 
@@ -335,7 +331,7 @@ function EditUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -565,7 +561,7 @@ function RemoveUserPasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title="Demasiadas solicitudes"
-                detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
+                detail={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -707,7 +703,7 @@ function DeactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
+              detail={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -845,7 +841,7 @@ function ReactivateUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
+              detail={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
         </div>
@@ -993,7 +989,7 @@ export function UserDetailScreen({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(state.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(state.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               {RETRY_LABEL}
@@ -1054,7 +1050,7 @@ export function UserDetailScreen({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryInMinutesDetail(Math.ceil(passkeysState.retryAfterSeconds / 60))}
+                  detail={retryAfterDetail(passkeysState.retryAfterSeconds)}
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
                   {RETRY_LABEL}

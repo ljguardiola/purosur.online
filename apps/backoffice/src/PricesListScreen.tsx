@@ -38,6 +38,7 @@ import {
   setPrice,
 } from "./pricesApi";
 import type { ProductSaleUnit } from "./productsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 
@@ -90,10 +91,6 @@ const PRICE_LABEL = {
 } satisfies Record<ProductSaleUnit, string>;
 
 const UNIT_SUFFIX = { UNIT: "", KG: "/ kg" } satisfies Record<ProductSaleUnit, string>;
-
-function rateLimitedDetail(params: { minutes: number }): string {
-  return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
-}
 
 function formatCentsWithUnit(cents: number, saleUnit: ProductSaleUnit): string {
   const suffix = UNIT_SUFFIX[saleUnit];
@@ -486,9 +483,7 @@ function PriceChangeModal({
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "stale" && (
@@ -684,7 +679,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     return {
       tone: "error",
       title: RATE_LIMITED_TITLE,
-      detail: rateLimitedDetail({ minutes: Math.ceil(retryAfterSeconds / 60) }),
+      detail: retryAfterDetail(retryAfterSeconds),
       retryAfterSeconds,
     };
   }
@@ -958,7 +953,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({ minutes: Math.ceil(list.retryAfterSeconds / 60) })}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={handleRetry}>
               {RETRY_LABEL}

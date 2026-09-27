@@ -30,6 +30,7 @@ import {
 } from "./categoriesApi";
 import { categoryNameError } from "./categoryName";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
@@ -67,10 +68,6 @@ const CATEGORY_PARENT_LABEL = "Categoría superior";
 const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
 const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
 const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
-
-function rateLimitedDetail(params: { minutes: number }): string {
-  return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
-}
 
 function nameTakenUnderParentError(params: { name: string; parent: string }): string {
   return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
@@ -249,9 +246,7 @@ function NewCategoryModal({
             tone="error"
             icon={<ShieldX />}
             title={RATE_LIMITED_TITLE}
-            detail={rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -518,9 +513,7 @@ function EditCategoryModal({
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -699,7 +692,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({ minutes: Math.ceil(list.retryAfterSeconds / 60) })}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               {RETRY_LABEL}

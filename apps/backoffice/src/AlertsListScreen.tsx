@@ -27,6 +27,7 @@ import {
   type AlertSummary,
   fetchAlerts as fetchAlertsDefault,
 } from "./alertsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
@@ -264,7 +265,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={`Se puede volver a intentar en ${plural(Math.ceil(list.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(list.retryAfterSeconds / 60)} minutos` })}.`}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               Reintentar

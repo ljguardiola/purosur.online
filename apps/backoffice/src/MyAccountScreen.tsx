@@ -1,4 +1,4 @@
-import { Button, IconButton, InlineNotice, Modal, plural, TextField } from "@purosur/ui";
+import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
 import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
@@ -15,6 +15,7 @@ import {
 } from "./passkeyApi";
 import { validatePasskeyName } from "./passkeyName";
 import { passkeyRowDetail } from "./passkeyRowDetail";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
@@ -74,10 +75,6 @@ const CANCEL_LABEL = "Cancelar";
 const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const RETRY_LABEL = "Reintentar";
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 type RegisterPasskeyModalProps = {
   isOpen: boolean;
@@ -239,7 +236,7 @@ function RegisterPasskeyModal({
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
+              detail={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
           <TextField
@@ -394,7 +391,7 @@ function RemovePasskeyModal({
                 tone="error"
                 icon={<ShieldX />}
                 title={RATE_LIMITED_TITLE}
-                detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
+                detail={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -505,7 +502,7 @@ export function MyAccountScreen({
                 tone="error"
                 icon={<ShieldX />}
                 title={RATE_LIMITED_TITLE}
-                detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
+                detail={retryAfterDetail(list.retryAfterSeconds)}
               />
               <Button variant="secondary" onPress={() => void load()}>
                 {RETRY_LABEL}

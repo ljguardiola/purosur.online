@@ -1,16 +1,13 @@
-import { Button, InlineNotice, plural } from "@purosur/ui";
+import { Button, InlineNotice } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH } from "./accessRoutes";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 export type SignInOpeningNotice =
   | { kind: "expired" }
@@ -99,7 +96,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<ShieldX />}
           title="Demasiados intentos desde esta conexión"
-          detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+          detail={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "expired" && (
@@ -123,7 +120,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<ShieldX />}
           title="Demasiadas solicitudes"
-          detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+          detail={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "failed" && (

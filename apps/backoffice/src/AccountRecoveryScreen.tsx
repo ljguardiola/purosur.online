@@ -1,10 +1,11 @@
-import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
+import { Button, InlineNotice, TextField } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { SIGN_IN_PATH } from "./accessRoutes";
 import { validateEmail } from "./emailValidation";
 import { requestRecoveryLink } from "./recoveryApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
@@ -80,7 +81,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
           tone="error"
           icon={<ShieldX />}
           title="Demasiados pedidos de recuperación"
-          detail={`Se puede volver a intentar en ${plural(Math.ceil(notice.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(notice.retryAfterSeconds / 60)} minutos` })}.`}
+          detail={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
       {notice?.kind === "error" && (

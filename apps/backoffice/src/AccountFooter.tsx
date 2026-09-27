@@ -1,7 +1,8 @@
-import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
+import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { linkProps } from "./linkProps";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { signOut } from "./sessionApi";
 import { MY_ACCOUNT_PATH } from "./settingsRoutes";
 
@@ -109,7 +110,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={`Se puede volver a intentar en ${plural(Math.ceil(notice.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(notice.retryAfterSeconds / 60)} minutos` })}.`}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         ) : null}
         {notice?.kind === "failed" ? (

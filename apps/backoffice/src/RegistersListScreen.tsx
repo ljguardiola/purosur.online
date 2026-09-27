@@ -21,6 +21,7 @@ import {
   fetchRegisters,
   type RegisterSummary,
 } from "./registersApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -63,10 +64,6 @@ const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
 const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
 const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 const PENDING_CODE_REFRESH_MS = 30_000;
 
@@ -235,7 +232,7 @@ function NewRegisterModal({
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -334,7 +331,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={retryInMinutesDetail(Math.ceil(emission.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(emission.retryAfterSeconds)}
             />
             <Button
               variant="secondary"
@@ -576,7 +573,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               {RETRY_LABEL}

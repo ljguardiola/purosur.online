@@ -27,6 +27,7 @@ import {
   closeAlert as closeAlertDefault,
   fetchAlert as fetchAlertDefault,
 } from "./alertsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { sendToMyAccount } from "./settingsRoutes";
 
 type Icon = ReactElement<{ className?: string }>;
@@ -378,7 +379,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={`Se puede volver a intentar en ${plural(Math.ceil(notice.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(notice.retryAfterSeconds / 60)} minutos` })}.`}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {loadState.kind === "loading" && <p role="status">Cargando la alerta…</p>}
@@ -398,7 +399,7 @@ export function AlertDetailModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={`Se puede volver a intentar en ${plural(Math.ceil(loadState.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(loadState.retryAfterSeconds / 60)} minutos` })}.`}
+            detail={retryAfterDetail(loadState.retryAfterSeconds)}
           />
         )}
         {alertId !== null &&

@@ -7,6 +7,7 @@ import {
   type RoleEditorModalServices,
   type RoleEditorRequest,
 } from "./RoleEditorModal";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { fetchRoles, type RoleSummary } from "./rolesApi";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -98,10 +99,6 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   ] as const;
 }
 
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
-
 const ROLES_HEADING = "Roles";
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
@@ -172,7 +169,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
+            detail={retryAfterDetail(list.retryAfterSeconds)}
           />
           <Button variant="secondary" onPress={() => void load()}>
             Reintentar

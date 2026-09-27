@@ -1,8 +1,9 @@
-import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
+import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 
 export type AuthorizationServices = {
@@ -95,7 +96,7 @@ function AuthorizationModal({
             tone="error"
             icon={<ShieldX />}
             title="Demasiadas solicitudes"
-            detail={`Se puede volver a intentar en ${plural(Math.ceil(notice.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(notice.retryAfterSeconds / 60)} minutos` })}.`}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>

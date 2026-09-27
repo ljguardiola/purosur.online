@@ -80,6 +80,7 @@ import {
   type ProductSummary,
   printLabels,
 } from "./productsApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 
@@ -150,10 +151,6 @@ const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
 const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
 const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
 const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
-
-function rateLimitedDetail(params: { minutes: number }): string {
-  return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
-}
 
 function barcodeTakenText(params: { codes: string[] }): string {
   const list = params.codes.join(", ");
@@ -816,9 +813,7 @@ function NewProductModal({
             tone="error"
             icon={<ShieldX />}
             title={RATE_LIMITED_TITLE}
-            detail={rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         <TextField
@@ -1206,9 +1201,7 @@ function EditProductModal({
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           {notice?.kind === "staleVersion" && (
@@ -1472,9 +1465,7 @@ function DeactivateProductModal({
             tone="error"
             icon={<ShieldX />}
             title={RATE_LIMITED_TITLE}
-            detail={rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
       </div>
@@ -1737,9 +1728,7 @@ function PrintLabelsModal({
             tone="error"
             icon={<ShieldX />}
             title={RATE_LIMITED_TITLE}
-            detail={rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
         {notice?.kind === "productsChanged" && (
@@ -2054,7 +2043,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
               tone="error"
               icon={<ShieldX />}
               title={RATE_LIMITED_TITLE}
-              detail={rateLimitedDetail({ minutes: Math.ceil(list.retryAfterSeconds / 60) })}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               {RETRY_LABEL}

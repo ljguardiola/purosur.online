@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
@@ -78,10 +79,6 @@ const NAME_REQUIRED = "Ingresá el nombre.";
 const EMAIL_REQUIRED = "Ingresá el correo.";
 const EMAIL_INVALID = "Ingresá un correo válido.";
 const RETRY_LABEL = "Reintentar";
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 function validateName(value: string): string | undefined {
   return value.trim() ? undefined : NAME_REQUIRED;
@@ -298,7 +295,7 @@ function NewUserModal({
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
@@ -530,7 +527,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
               tone="error"
               icon={<ShieldX />}
               title="Demasiadas solicitudes"
-              detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
               {RETRY_LABEL}

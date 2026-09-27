@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { RoleEditorForm, roleFieldErrorMessage, validateRoleName } from "./RoleEditorForm";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { withOneAlertView } from "./rolePermissions";
 import {
   type AssignedUser,
@@ -34,10 +35,6 @@ import { useLatestRef } from "./useLatestRef";
 const ADMINISTRATOR_ROLE_NAME = "Administrador";
 const RETRY_LABEL = "Reintentar";
 const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
-
-function retryInMinutesDetail(minutes: number) {
-  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
-}
 
 export type RoleEditorRequest =
   | { kind: "new" }
@@ -473,7 +470,7 @@ export function RoleEditorModal({
                   tone="error"
                   icon={<ShieldX />}
                   title="Demasiadas solicitudes"
-                  detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
+                  detail={retryAfterDetail(notice.retryAfterSeconds)}
                 />
               )}
               {notice?.kind === "staleVersion" && (
@@ -528,7 +525,7 @@ export function RoleEditorModal({
                     tone="error"
                     icon={<ShieldX />}
                     title="Demasiadas solicitudes"
-                    detail={retryInMinutesDetail(Math.ceil(loadState.retryAfterSeconds / 60))}
+                    detail={retryAfterDetail(loadState.retryAfterSeconds)}
                   />
                   <Button
                     variant="secondary"

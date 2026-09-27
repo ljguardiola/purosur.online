@@ -1,4 +1,4 @@
-import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
+import { Button, InlineNotice, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
@@ -8,6 +8,7 @@ import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
 import { validatePasskeyName } from "./passkeyName";
 import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { signalUnknownCredential } from "./signalUnknownCredential";
 
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
@@ -269,7 +270,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
           tone="error"
           icon={<ShieldX />}
           title="Demasiados intentos desde esta conexión"
-          detail={`Se puede volver a intentar en ${plural(Math.ceil(phase.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(phase.retryAfterSeconds / 60)} minutos` })}.`}
+          detail={retryAfterDetail(phase.retryAfterSeconds)}
         />
       </AccessLayout>
     );
