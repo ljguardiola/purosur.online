@@ -6,7 +6,7 @@ describe("the load-sample-data command", () => {
   const ENTRYPOINT = join(inject("cloudBuildDir"), "load-sample-data.js");
   // RFC 5737's TEST-NET-3: reserved for documentation, so it is never routable and a stray
   // connection attempt would hang rather than fail fast, making one easy to notice in this test.
-  const NON_LOOPBACK_DATABASE_URL = "postgres://user:s3cret-password@203.0.113.5:5432/db";
+  const NON_LOOPBACK_DATABASE_URL = "postgres://203.0.113.5:5432/db";
 
   it("refuses to run against production, without ever contacting the database", () => {
     const result = spawnSync(process.execPath, [ENTRYPOINT], {
