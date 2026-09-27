@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
-import { CoreDownNotice } from "./CoreDownNotice";
+import { CoreDownNotice } from "./core-down-notice";
 
 describe("CoreDownNotice", () => {
   it("shows the title and body", async () => {
