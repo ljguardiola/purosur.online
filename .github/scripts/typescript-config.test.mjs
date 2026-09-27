@@ -65,6 +65,18 @@ const rejectedCode = [
     ].join("\n"),
     code: 7029,
   },
+  {
+    description: "a function that does not return on every path",
+    source: [
+      "export function sign(value: number) {",
+      "  if (value > 0) {",
+      "    return 1;",
+      "  }",
+      "}",
+      "",
+    ].join("\n"),
+    code: 7030,
+  },
 ];
 
 for (const configPath of configPaths) {
