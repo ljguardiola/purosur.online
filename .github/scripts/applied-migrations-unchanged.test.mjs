@@ -95,6 +95,110 @@ test("accepts a journal that only appended a new entry", () => {
   assert.equal(compareJournalContents(base, current).ok, true);
 });
 
+test("rejects a new journal entry dated before the last entry already on main", () => {
+  const base = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 200 },
+  ]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 200 },
+    { idx: 2, tag: "0002_z", when: 150 },
+  ]);
+
+  const result = compareJournalContents(base, current);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /0002_z/);
+  assert.match(result.reason, /regenerate the migration on top of the current main/);
+});
+
+test("rejects a new journal entry dated at the same time as the last entry already on main", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 100 }]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 100 },
+  ]);
+
+  assert.equal(compareJournalContents(base, current).ok, false);
+});
+
+test("rejects a new journal entry dated before an entry on main that is not the last one", () => {
+  const base = journal([
+    { idx: 0, tag: "0000_x", when: 300 },
+    { idx: 1, tag: "0001_y", when: 200 },
+  ]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 300 },
+    { idx: 1, tag: "0001_y", when: 200 },
+    { idx: 2, tag: "0002_z", when: 250 },
+  ]);
+
+  assert.equal(compareJournalContents(base, current).ok, false);
+});
+
+test("rejects every new journal entry dated before main, not only the first", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 100 }]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 150 },
+    { idx: 2, tag: "0002_z", when: 50 },
+  ]);
+
+  const result = compareJournalContents(base, current);
+
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /0002_z/);
+  assert.doesNotMatch(result.reason, /0001_y/);
+});
+
+test("rejects a new journal entry without a numeric date", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 100 }]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: "200" },
+  ]);
+
+  assert.equal(compareJournalContents(base, current).ok, false);
+});
+
+test("accepts new journal entries dated after every entry already on main", () => {
+  const base = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 200 },
+  ]);
+  const current = journal([
+    { idx: 0, tag: "0000_x", when: 100 },
+    { idx: 1, tag: "0001_y", when: 200 },
+    { idx: 2, tag: "0002_z", when: 201 },
+    { idx: 3, tag: "0003_w", when: 300 },
+  ]);
+
+  assert.equal(compareJournalContents(base, current).ok, true);
+});
+
+test("reports a misdated new migration in the register's journal", () => {
+  const path = "apps/pos/src/core/migrations/meta/_journal.json";
+  const base = journal([{ idx: 0, tag: "0000_x", when: 200 }], { dialect: "sqlite" });
+  const current = journal(
+    [
+      { idx: 0, tag: "0000_x", when: 200 },
+      { idx: 1, tag: "0001_y", when: 100 },
+    ],
+    { dialect: "sqlite" },
+  );
+
+  const violations = findMigrationViolations({
+    basePaths: [path],
+    readBase: () => base,
+    readCurrent: () => current,
+  });
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].path, path);
+  assert.match(violations[0].reason, /0001_y/);
+});
+
 test("rejects a journal whose existing entry was changed", () => {
   const base = journal([{ idx: 0, tag: "0000_x", when: 1 }]);
   const current = journal([{ idx: 0, tag: "0000_x", when: 999 }]);
@@ -332,7 +436,7 @@ test("reports a missing working tree file as undefined instead of throwing", asy
   }
 });
 
-test("no migration already on main is modified or deleted in the working tree", () => {
+test("no migration already on main is modified or deleted, and every new one is dated after them", () => {
   const ref = resolveBaseRef(process.env);
   const base = resolveBaseSha({ ref, runGit: runGitSync });
   assert.ok(
@@ -356,6 +460,6 @@ test("no migration already on main is modified or deleted in the working tree", 
   assert.deepEqual(
     violations.map(describeViolation),
     [],
-    "a migration already on main is never edited or deleted — write a new migration instead",
+    "a migration already on main is never edited or deleted, and a new one is dated after every one on main",
   );
 });

@@ -37,6 +37,16 @@ function isPrefixExtension(baseEntries, currentEntries) {
   );
 }
 
+// drizzle's migrator applies only the migrations dated after the last one it already applied, so a
+// new entry dated at or before an entry on main would never run.
+function misdatedNewEntryTags(baseEntries, currentEntries) {
+  const latestBaseWhen = Math.max(...baseEntries.map((entry) => entry.when));
+  return currentEntries
+    .slice(baseEntries.length)
+    .filter((entry) => !(typeof entry.when === "number" && entry.when > latestBaseWhen))
+    .map((entry) => entry.tag);
+}
+
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -62,6 +72,13 @@ export function compareJournalContents(baseBuffer, currentBuffer) {
     return {
       ok: false,
       reason: "modified: an existing entry changed, was removed, or was reordered",
+    };
+  }
+  const misdatedTags = misdatedNewEntryTags(baseEntries, currentEntries);
+  if (misdatedTags.length > 0) {
+    return {
+      ok: false,
+      reason: `new entry ${misdatedTags.join(", ")} is not dated after every entry already on main: regenerate the migration on top of the current main`,
     };
   }
   return { ok: true };
