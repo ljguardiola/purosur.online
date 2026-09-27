@@ -21,6 +21,8 @@
     "dev:create-first-administrator": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/create-first-administrator.js",
     "dev:cloud": "pnpm --filter @purosur/cloud build && node --env-file=.env apps/cloud/dist/server.js",
     "dev:backoffice": "pnpm --filter @purosur/backoffice dev",
+    "catalog": "pnpm --filter @purosur/ui catalog",
+    "catalog:build": "pnpm --filter @purosur/ui catalog:build",
     "ci:verify-durations": "node .github/scripts/verify-durations.mjs"
   },
   "devDependencies": {
