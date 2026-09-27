@@ -16,7 +16,10 @@
       "entry": ["src/load-sample-data.ts", "src/clear-sample-data.ts"]
     },
     "apps/pos": {
-      "entry": ["electron-builder.config.d.mts", "src/renderer/shell/*.test.tsx"]
+      "entry": ["electron-builder.config.d.mts"],
+      "vitest": {
+        "entry": ["src/**/*.test.{ts,tsx}"]
+      }
     },
     "apps/*": {},
     "packages/*": {}
