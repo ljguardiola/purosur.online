@@ -12,6 +12,7 @@ const TRACES_COMMANDS_MESSAGE =
 const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
 const VARS_OR_SECRETS_RE = /(?<![\w.'"-])(vars|secrets)(?![\w-])/;
 const ENV_REFERENCE_RE = /(?<![\w.'"-])env(?:\.([A-Za-z_][\w-]*)|\[\s*['"]([^'"]+)['"]\s*\])/g;
+const WHOLE_ENV_RE = /(?<![\w.'"-])env(?![\w-])(?!\s*(?:\.\s*[A-Za-z_]|\[\s*['"]))/;
 const ALLOWED_STDOUT_TARGETS = new Set(["/dev/stdout", "/dev/stderr", "&1", "&2"]);
 const PRINT_COMMANDS = new Set(["echo", "printf"]);
 const SHELL_COMMANDS = new Set(["bash", "sh"]);
@@ -35,17 +36,29 @@ function expressionsOf(text) {
   return [...text.matchAll(EXPRESSION_RE)].map((match) => match[1]);
 }
 
-function expressionReferencesVarsOrSecrets(text) {
-  return expressionsOf(text).some((expression) => VARS_OR_SECRETS_RE.test(expression));
+function expressionReadsTaintedValue(expression, taintedNames) {
+  return (
+    VARS_OR_SECRETS_RE.test(expression) ||
+    [...expression.matchAll(ENV_REFERENCE_RE)].some((match) =>
+      taintedNames.includes(match[1] ?? match[2]),
+    ) ||
+    (taintedNames.length > 0 && WHOLE_ENV_RE.test(expression))
+  );
 }
 
-function scriptEmbedsTaintedValue(script, taintedNames) {
-  return expressionsOf(script).some(
-    (expression) =>
-      VARS_OR_SECRETS_RE.test(expression) ||
-      [...expression.matchAll(ENV_REFERENCE_RE)].some((match) =>
-        taintedNames.includes(match[1] ?? match[2]),
-      ),
+function readsTaintedValue(text, taintedNames) {
+  return expressionsOf(text).some((expression) =>
+    expressionReadsTaintedValue(expression, taintedNames),
+  );
+}
+
+function taintedNamesOf(envScopes) {
+  return envScopes.reduce(
+    (inherited, env) => [
+      ...inherited.filter((name) => !Object.hasOwn(env, name)),
+      ...Object.keys(env).filter((name) => readsTaintedValue(env[name], inherited)),
+    ],
+    [],
   );
 }
 
@@ -510,16 +523,13 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   if (typeof script !== "string") return [];
 
   const stepEnv = envMapOf(doc, stepNode.get("env", true));
-  const effectiveEnv = { ...workflowEnv, ...jobEnv, ...stepEnv };
-  const taintedNames = Object.keys(effectiveEnv).filter((name) =>
-    expressionReferencesVarsOrSecrets(effectiveEnv[name]),
-  );
+  const taintedNames = taintedNamesOf([workflowEnv, jobEnv, stepEnv]);
 
   const stepShell = resolveScalar(doc, stepNode.get("shell", true));
   const effectiveShell = typeof stepShell === "string" ? stepShell : inheritedShell;
 
   const messages = [];
-  if (scriptEmbedsTaintedValue(script, taintedNames)) messages.push(INLINE_EXPRESSION_MESSAGE);
+  if (readsTaintedValue(script, taintedNames)) messages.push(INLINE_EXPRESSION_MESSAGE);
 
   const findings = scriptFindings(
     script,

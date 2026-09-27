@@ -611,6 +611,80 @@ for (const expression of ["toJSON(secrets)", "vars['X']", "format('{0}', secrets
   });
 }
 
+function messagesWithScopedEnv(run, { workflowEnv = {}, jobEnv = {}, stepEnv = {} }) {
+  const envLines = (env, indent) =>
+    Object.entries(env).map(([name, value]) => `${indent}${name}: ${value}`);
+  const source = [
+    ...(Object.keys(workflowEnv).length > 0 ? ["env:", ...envLines(workflowEnv, "  ")] : []),
+    "jobs:",
+    "  build:",
+    ...(Object.keys(jobEnv).length > 0 ? ["    env:", ...envLines(jobEnv, "      ")] : []),
+    "    steps:",
+    ...(Object.keys(stepEnv).length > 0
+      ? ["      - env:", ...envLines(stepEnv, "          "), `        run: ${JSON.stringify(run)}`]
+      : [`      - run: ${JSON.stringify(run)}`]),
+  ];
+  return findRunStepViolations(source.join("\n")).map((violation) => violation.message);
+}
+
+for (const [description, scopes] of [
+  [
+    "a step env value reading a job env value fed from secrets",
+    { jobEnv: SECRET_ENV, stepEnv: { FED: `\${{ env.TOKEN }}` } },
+  ],
+  [
+    "a job env value reading a workflow env value fed from secrets",
+    { workflowEnv: SECRET_ENV, jobEnv: { FED: `\${{ env['TOKEN'] }}` } },
+  ],
+  [
+    "a step env value reading a job env value through a job env value",
+    {
+      workflowEnv: SECRET_ENV,
+      jobEnv: { MIDDLE: `\${{ env.TOKEN }}` },
+      stepEnv: { FED: `\${{ format('x{0}', env.MIDDLE) }}` },
+    },
+  ],
+  [
+    "a step env value reading the job value of a name the step overrides",
+    { jobEnv: SECRET_ENV, stepEnv: { TOKEN: "literal", FED: `\${{ env.TOKEN }}` } },
+  ],
+]) {
+  test(`treats an env value fed from a tainted env value as tainted: ${description}`, () => {
+    assertFlagsOnly(messagesWithScopedEnv("echo $FED", scopes), PRINTS);
+  });
+}
+
+for (const [description, scopes] of [
+  [
+    "a step env value reading a job env literal",
+    { jobEnv: { MODE: "production" }, stepEnv: { FED: `\${{ env.MODE }}` } },
+  ],
+  [
+    "a step env value reading a sibling in the same step env, which the step cannot see",
+    { stepEnv: { ...SECRET_ENV, FED: `\${{ env.TOKEN }}` } },
+  ],
+]) {
+  test(`does not treat an env value as tainted: ${description}`, () => {
+    assert.deepEqual(messagesWithScopedEnv("echo $FED", scopes), []);
+  });
+}
+
+for (const expression of ["toJSON(env)", "join(env.*, ',')", "env"]) {
+  test(`flags a run: script reading the whole env context while a tainted name is in scope: \${{ ${expression} }}`, () => {
+    assertFlagsOnly(
+      messagesWithScopedEnv(`echo \${{ ${expression} }}`, { jobEnv: SECRET_ENV }),
+      EMBEDS,
+    );
+  });
+
+  test(`does not flag a run: script reading the whole env context with no tainted name in scope: \${{ ${expression} }}`, () => {
+    assert.deepEqual(
+      messagesWithScopedEnv(`echo \${{ ${expression} }}`, { jobEnv: { MODE: "production" } }),
+      [],
+    );
+  });
+}
+
 test("does not treat an env value fed by a step output named secrets as coming from secrets", () => {
   assert.deepEqual(messagesOf("echo $FED", { FED: `\${{ steps.secrets.outputs.sha }}` }), []);
 });
