@@ -15,13 +15,13 @@ importers:
         specifier: ^2.5.14
         version: 2.5.14
       '@secretlint/node':
-        specifier: 13.0.6
+        specifier: ^13.0.6
         version: 13.0.6(supports-color@10.2.2)
       '@secretlint/secretlint-rule-pattern':
-        specifier: 13.0.6
+        specifier: ^13.0.6
         version: 13.0.6(supports-color@10.2.2)
       '@secretlint/secretlint-rule-preset-recommend':
-        specifier: 13.0.6
+        specifier: ^13.0.6
         version: 13.0.6
       '@tailwindcss/vite':
         specifier: ^4.3.3

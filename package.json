@@ -24,9 +24,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "@secretlint/node": "13.0.6",
-    "@secretlint/secretlint-rule-pattern": "13.0.6",
-    "@secretlint/secretlint-rule-preset-recommend": "13.0.6",
+    "@secretlint/node": "^13.0.6",
+    "@secretlint/secretlint-rule-pattern": "^13.0.6",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.6",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.6",
     "@vitejs/plugin-react": "^6.1.1",
