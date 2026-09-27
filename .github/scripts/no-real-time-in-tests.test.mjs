@@ -1259,7 +1259,7 @@ test("finds test-only helpers under src, leaving out node_modules and dist", () 
 test("no scanned test file in the repository depends on real elapsed time", () => {
   const files = findScannedFiles();
   for (const sentinel of [
-    "apps/backoffice/src/test-support/productsListScreen.tsx",
+    "apps/backoffice/src/catalog/test-support/products-list-screen.tsx",
     ".github/scripts/no-real-time-in-tests.test.mjs",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
