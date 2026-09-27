@@ -13,7 +13,9 @@
     "start": "node dist/server.js",
     "migrate": "node dist/migrate.js",
     "wait-for-ready": "node dist/wait-for-ready.js",
-    "create-first-administrator": "node dist/create-first-administrator.js"
+    "create-first-administrator": "node dist/create-first-administrator.js",
+    "load-sample-data": "node dist/load-sample-data.js",
+    "clear-sample-data": "node dist/clear-sample-data.js"
   },
   "dependencies": {
     "@fastify/static": "^10.1.4",
