@@ -109,3 +109,14 @@ These settings live in GitHub's UI and are not expressed by `.github/rulesets/ma
 - Default squash commit message: use the pull request title.
 - Automatically delete head branches after merge.
 - First run: apply the repository's labels once with `gh workflow run sync-labels.yml`, so the labels declared in `.github/labels.json` (the four `type:` labels and `invalid-format`) exist before the first issue is filed.
+
+## Repository visibility
+
+The repository may be public or private, and every check above holds either way. The owner's account is on GitHub Pro. Switching visibility changes this:
+
+- **Secret detection.** GitHub's secret scanning and push protection run only while the repository is public. `pnpm verify` scans every file git tracks for secrets in both cases, but it runs after the push: while private, a secret it finds has already reached GitHub and must be revoked, not only removed.
+- **Actions logs.** Anyone can read them while public; only collaborators while private. GitHub masks secrets in them but prints configuration variables in clear, including in the `env:` and `with:` values it lists for every step. A configuration variable therefore holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that prints a configuration variable or a secret, or traces the commands it runs.
+- **Actions minutes.** Unlimited while public. While private, runs draw on the plan's monthly minutes, Windows runners (the register's packaging) count double, and runs are blocked once the minutes run out unless a payment method is set.
+- **Branch protection and environments.** The `main` ruleset and the `staging`/`production` environments with their secrets and branch policies keep working while private only because of GitHub Pro. Required reviewers and wait timers on an environment would not: they are public-only on this plan.
+- **Container image.** The cloud's image in GitHub Container Registry has its own visibility, which does not follow the repository's; change it separately. Railway pulls it with its own token, so deploys work either way.
+- **Outside contributions.** Interaction limits and the collaborators-only pull request setting only matter while public; the interaction limit expires and has to be renewed.
