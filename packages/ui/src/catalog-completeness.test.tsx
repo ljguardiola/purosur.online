@@ -20,7 +20,6 @@ const componentsWithoutStoriesYet = [
   "ProportionBar",
   "PuroSurIsotype",
   "PuroSurLogo",
-  "QuantityUnitField",
   "RadioGroup",
   "SectionNavItem",
   "SegmentedControl",

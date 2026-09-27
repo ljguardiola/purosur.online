@@ -34,16 +34,18 @@ export function playTabReachesFocusVisible(
 }
 
 /**
- * Opens a react-aria trigger (a Select, ListFilter or DateField's calendar toggle) by clicking
- * `locate`'s element and asserts its own `data-open` attribute landed on it.
+ * Opens a listbox-backed trigger (a Select or ListFilter's button, react-aria-components' combobox
+ * pattern) by clicking `locate`'s element and asserts its own `aria-expanded` landed on it — the
+ * attribute react-aria-components reflects that open state through, rather than a `data-open`
+ * attribute on the trigger itself.
  */
-export function playClickOpensDataOpen(
+export function playClickExpandsTrigger(
   locate: (canvasElement: HTMLElement) => HTMLElement,
 ): StoryPlayFunction {
   return async ({ canvasElement }) => {
     const target = locate(canvasElement);
     await userEvent.click(target);
-    await expect(target).toHaveAttribute("data-open");
+    await expect(target).toHaveAttribute("aria-expanded", "true");
   };
 }
 
