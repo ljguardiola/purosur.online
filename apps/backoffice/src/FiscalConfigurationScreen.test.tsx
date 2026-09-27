@@ -434,6 +434,13 @@ test("opens the authorization modal on authorization_required, then authorizes a
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
   await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        "Guardar la identificación del emisor necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
 
   await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);

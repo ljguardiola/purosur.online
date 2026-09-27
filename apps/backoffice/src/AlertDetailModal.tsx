@@ -1,4 +1,13 @@
-import { Button, InlineNotice, Modal, type ModalTone, StatusIndicator } from "@purosur/ui";
+import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
+import {
+  Button,
+  formatDate,
+  InlineNotice,
+  Modal,
+  type ModalTone,
+  plural,
+  StatusIndicator,
+} from "@purosur/ui";
 import {
   ArrowLeft,
   Bell,
@@ -18,10 +27,33 @@ import {
   closeAlert as closeAlertDefault,
   fetchAlert as fetchAlertDefault,
 } from "./alertsApi";
-import { messages } from "./messages";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { sendToMyAccount } from "./settingsRoutes";
 
 type Icon = ReactElement<{ className?: string }>;
+
+const ALERT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+const ALERT_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+
+export function alertDateTime(date: Date): string {
+  return `${formatDate(date, ALERT_DATE_OPTIONS)} ${formatDate(date, ALERT_TIME_OPTIONS)}`;
+}
+
+export const ALERT_LEVEL_LABELS: Record<AlertLevel, string> = {
+  critical: "Crítica",
+  warning: "Advertencia",
+  informational: "Informativa",
+};
 
 export type AlertDetailModalServices = {
   fetchAlert: typeof fetchAlertDefault;
@@ -55,9 +87,6 @@ type FormNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
-const alertsMessages = messages.inicio.alerts;
-const detailMessages = alertsMessages.detail;
-
 const LEVEL_TONE: Record<AlertLevel, "error" | "warning" | "info"> = {
   critical: "error",
   warning: "warning",
@@ -71,7 +100,7 @@ const MODAL_TONE: Record<AlertLevel, ModalTone> = {
 };
 
 function levelLabel(level: AlertLevel): string {
-  return alertsMessages.levelOptions[level];
+  return ALERT_LEVEL_LABELS[level];
 }
 
 function alertIcon(kind: string): Icon {
@@ -116,15 +145,15 @@ function alertTitle(alert: AlertDetail): string {
     case "backoffice_passkey_changed": {
       const detail = passkeyChangeDetail(alert.detail);
       return detail?.action === "removed"
-        ? alertsMessages.kindTitles.passkeyRemoved
-        : alertsMessages.kindTitles.passkeyRegistered;
+        ? "Se dio de baja una passkey"
+        : "Se registró una passkey";
     }
     case "backoffice_recovery_requested":
-      return alertsMessages.kindTitles.recoveryRequested;
+      return "Se pidió el enlace de acceso";
     case "user_email_changed":
-      return alertsMessages.kindTitles.emailChanged;
+      return "Se cambió un correo";
     case "backoffice_sign_in_lockout":
-      return alertsMessages.kindTitles.signInLockout;
+      return "Se bloqueó un origen de ingreso";
     default:
       return alert.kind;
   }
@@ -134,12 +163,13 @@ function alertDescription(alert: AlertDetail): string {
   if (alert.kind === "backoffice_sign_in_lockout") {
     const failureCount =
       typeof alert.detail.failureCount === "number" ? alert.detail.failureCount : 0;
+    const failuresText = plural(failureCount, {
+      one: "1 intento fallido",
+      other: `${failureCount} intentos fallidos`,
+    });
     return alert.scopeDisplay === null
-      ? detailMessages.descriptions.signInLockoutWithoutAddress({ failureCount })
-      : detailMessages.descriptions.signInLockout({
-          sourceAddress: alert.scopeDisplay,
-          failureCount,
-        });
+      ? `Una dirección quedó bloqueada para ingresar al backoffice después de ${failuresText}.`
+      : `La dirección ${alert.scopeDisplay} quedó bloqueada para ingresar al backoffice después de ${failuresText}.`;
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
@@ -153,29 +183,16 @@ function alertDescription(alert: AlertDetail): string {
       }
       if (detail.via === "self") {
         return detail.action === "registered"
-          ? detailMessages.descriptions.passkeyRegisteredSelf({
-              targetName,
-              passkeyName: detail.passkeyName,
-            })
-          : detailMessages.descriptions.passkeyRemovedSelf({
-              targetName,
-              passkeyName: detail.passkeyName,
-            });
+          ? `${targetName} registró la passkey «${detail.passkeyName}». Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`
+          : `${targetName} dio de baja la passkey «${detail.passkeyName}». Si no se reconoce este cambio, conviene revisar sus passkeys desde Usuarios.`;
       }
       if (detail.via === "recovery") {
-        return detailMessages.descriptions.passkeyRegisteredByRecovery({
-          targetName,
-          passkeyName: detail.passkeyName,
-        });
+        return `${targetName} registró la passkey «${detail.passkeyName}» al usar el enlace de recuperación de acceso. Si no se reconoce este cambio, conviene dar de baja esa passkey desde Usuarios.`;
       }
-      return detailMessages.descriptions.passkeyRemovedByAdministrator({
-        actorName: detail.actorName,
-        targetName,
-        passkeyName: detail.passkeyName,
-      });
+      return `El Administrador ${detail.actorName} dio de baja la passkey «${detail.passkeyName}» de ${targetName}. Si no fue así, conviene revisarlo.`;
     }
     case "backoffice_recovery_requested":
-      return detailMessages.descriptions.recoveryRequested({ targetName });
+      return `Alguien pidió el enlace de acceso para ${targetName}. Si no se reconoce este pedido, conviene revisar sus passkeys desde Usuarios.`;
     case "user_email_changed": {
       const { previousEmail, newEmail, actorName } = alert.detail;
       if (
@@ -185,12 +202,7 @@ function alertDescription(alert: AlertDetail): string {
       ) {
         return "";
       }
-      return detailMessages.descriptions.emailChanged({
-        actorName,
-        targetName,
-        previousEmail,
-        newEmail,
-      });
+      return `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
     }
     default:
       return "";
@@ -316,11 +328,9 @@ export function AlertDetailModal({
       width="standard"
       tone={alert ? MODAL_TONE[alert.level] : "info"}
       icon={alertIcon(alert?.kind ?? "")}
-      context={detailMessages.eyebrow}
-      title={alert ? alertTitle(alert) : alertsMessages.heading}
-      {...(submitting
-        ? { closable: false }
-        : { closable: true, closeLabel: detailMessages.closeLabel })}
+      context="ALERTA DE SEGURIDAD"
+      title={alert ? alertTitle(alert) : "Alertas"}
+      closable={!submitting}
       footer={
         <>
           <Button
@@ -330,7 +340,7 @@ export function AlertDetailModal({
             isDisabled={submitting}
             onPress={onClose}
           >
-            {detailMessages.back}
+            Volver
           </Button>
           {canClose && (
             <Button
@@ -341,7 +351,7 @@ export function AlertDetailModal({
               isDisabled={submitting}
               onPress={() => void handleCloseAlert()}
             >
-              {detailMessages.closeAlert}
+              Cerrar la alerta
             </Button>
           )}
         </>
@@ -352,55 +362,51 @@ export function AlertDetailModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={detailMessages.closeFailedTitle}
-            detail={detailMessages.closeFailedDetail}
+            title="No se pudo cerrar la alerta"
+            detail="Probá de nuevo."
           />
         )}
         {notice?.kind === "alreadyClosed" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={detailMessages.alreadyClosedTitle}
-            detail={detailMessages.alreadyClosedDetail}
+            title="Esta alerta ya estaba cerrada"
+            detail="Alguien más la cerró primero."
           />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={alertsMessages.rateLimitedTitle}
-            detail={alertsMessages.rateLimitedDetail({
-              minutes: Math.ceil(notice.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(notice.retryAfterSeconds)}
           />
         )}
-        {loadState.kind === "loading" && <p role="status">{detailMessages.loading}</p>}
+        {loadState.kind === "loading" && <p role="status">Cargando la alerta…</p>}
         {loadState.kind === "notFound" && (
-          <InlineNotice tone="error" icon={<ShieldX />} title={detailMessages.notFoundTitle} />
+          <InlineNotice tone="error" icon={<ShieldX />} title="No encontramos esa alerta" />
         )}
         {loadState.kind === "loadError" && (
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={detailMessages.loadErrorTitle}
-            detail={detailMessages.loadErrorDetail}
+            title="No pudimos abrir la alerta"
+            detail="Probá de nuevo en unos minutos."
           />
         )}
         {loadState.kind === "rate_limited" && (
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={alertsMessages.rateLimitedTitle}
-            detail={alertsMessages.rateLimitedDetail({
-              minutes: Math.ceil(loadState.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryAfterDetail(loadState.retryAfterSeconds)}
           />
         )}
         {alertId !== null &&
           (loadState.kind === "loadError" || loadState.kind === "rate_limited") && (
             <div>
               <Button variant="secondary" onPress={() => void load(alertId)}>
-                {alertsMessages.retry}
+                Reintentar
               </Button>
             </div>
           )}
@@ -414,26 +420,24 @@ export function AlertDetailModal({
             <p className="text-ink text-base">{alertDescription(alert)}</p>
             <div className="flex flex-col gap-1 rounded-lg border border-line p-3 text-sm">
               <div className="flex justify-between gap-2">
-                <span className="text-ink-secondary">{detailMessages.openedLabel}</span>
-                <span>{alertsMessages.dateTime({ date: new Date(alert.openedAt) })}</span>
+                <span className="text-ink-secondary">Abierta</span>
+                <span>{alertDateTime(new Date(alert.openedAt))}</span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-ink-secondary">{detailMessages.escalatedLabel}</span>
+                <span className="text-ink-secondary">Escaló</span>
                 <span>
-                  {alert.escalatedAt
-                    ? alertsMessages.dateTime({ date: new Date(alert.escalatedAt) })
-                    : detailMessages.notEscalatedYet}
+                  {alert.escalatedAt ? alertDateTime(new Date(alert.escalatedAt)) : "Todavía no"}
                 </span>
               </div>
               {alert.scopeDisplay !== null && (
                 <div className="flex justify-between gap-2">
-                  <span className="text-ink-secondary">{detailMessages.scopeLabel}</span>
+                  <span className="text-ink-secondary">Alcance</span>
                   <span>{alert.scopeDisplay}</span>
                 </div>
               )}
             </div>
             <div className="flex flex-col gap-2">
-              <p className="font-bold text-ink text-sm">{detailMessages.deliveriesTitle}</p>
+              <p className="font-bold text-ink text-sm">Aviso por el backoffice</p>
               <div className="flex flex-col gap-1 rounded-lg border border-line text-left text-sm">
                 {alert.deliveries.map((delivery) => (
                   <div
@@ -446,15 +450,17 @@ export function AlertDetailModal({
                     </span>
                     <StatusIndicator tone={delivery.status === "sent" ? "success" : "error"}>
                       {delivery.status === "sent"
-                        ? detailMessages.deliverySent
-                        : `${detailMessages.deliveryFailed}${delivery.error ? `: ${delivery.error}` : ""}`}
+                        ? "Enviado"
+                        : `No se pudo enviar${delivery.error ? `: ${delivery.error}` : ""}`}
                     </StatusIndicator>
                   </div>
                 ))}
               </div>
             </div>
             {alert.resolvedAt === null && (
-              <p className="text-ink-secondary text-sm">{detailMessages.closingNote}</p>
+              <p className="text-ink-secondary text-sm">
+                No se cierra sola: se cierra a mano después de revisarla.
+              </p>
             )}
           </>
         )}

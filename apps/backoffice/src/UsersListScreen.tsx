@@ -3,6 +3,7 @@ import {
   InlineNotice,
   ListFilter,
   Modal,
+  plural,
   Select,
   Table,
   TableCellText,
@@ -25,7 +26,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
-import { messages } from "./messages";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
@@ -72,23 +73,24 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; users: BranchUser[] };
 
-const usersMessages = messages.settings.users;
-const modalMessages = usersMessages.newUserModal;
+const NAME_REQUIRED = "Ingresá el nombre.";
+const EMAIL_REQUIRED = "Ingresá el correo.";
+const EMAIL_INVALID = "Ingresá un correo válido.";
 
 function validateName(value: string): string | undefined {
-  return value.trim() ? undefined : modalMessages.nameRequired;
+  return value.trim() ? undefined : NAME_REQUIRED;
 }
 
-const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
+const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
 
 function fieldErrorMessage(field: CreateUserFieldError): string {
   if (field === "firstName") {
-    return modalMessages.nameRequired;
+    return NAME_REQUIRED;
   }
   if (field === "email") {
-    return modalMessages.emailInvalid;
+    return EMAIL_INVALID;
   }
-  return modalMessages.roleRequired;
+  return "Elegí un rol.";
 }
 
 type FormNotice =
@@ -147,7 +149,7 @@ function NewUserModal({
     name: string;
   } | null>(null);
   const { run, modal } = useAuthorization<CreateUserOutcome>({
-    action: "userCreate",
+    actionName: "Crear un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -167,7 +169,7 @@ function NewUserModal({
   async function handleSubmit() {
     const nameError = validateName(firstName);
     const emailError = validateEmail(email, EMAIL_ERRORS);
-    const roleError = roleId ? undefined : modalMessages.roleRequired;
+    const roleError = roleId ? undefined : "Elegí un rol.";
     setFieldErrors({
       ...(nameError ? { firstName: nameError } : {}),
       ...(emailError ? { email: emailError } : {}),
@@ -206,7 +208,7 @@ function NewUserModal({
       return;
     }
     if (outcome.kind === "email_taken") {
-      setFieldErrors((current) => ({ ...current, email: modalMessages.emailTaken }));
+      setFieldErrors((current) => ({ ...current, email: "Ya existe un usuario con este correo." }));
       setSubmitting(false);
       return;
     }
@@ -241,10 +243,9 @@ function NewUserModal({
         width="standard"
         tone="info"
         icon={<UserPlus />}
-        context={modalMessages.eyebrow}
-        title={modalMessages.heading}
+        context="Configuración · Usuarios"
+        title="Nuevo usuario"
         closable
-        closeLabel={modalMessages.closeLabel}
         footer={
           <>
             <Button
@@ -254,7 +255,7 @@ function NewUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {modalMessages.cancel}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -264,7 +265,7 @@ function NewUserModal({
               isDisabled={submitting || deactivatedConflict !== null}
               onPress={() => void handleSubmit()}
             >
-              {modalMessages.submit}
+              Crear el usuario
             </Button>
           </>
         }
@@ -274,31 +275,29 @@ function NewUserModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo crear el usuario"
+              detail="Probá de nuevo."
             />
           )}
           {notice?.kind === "unknownRole" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.unknownRoleTitle}
-              detail={modalMessages.unknownRoleDetail}
+              title="Ese rol ya no está disponible"
+              detail="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(notice.retryAfterSeconds)}
             />
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.nameLabel}
+            label="Nombre"
             value={firstName}
             onChange={(value) => {
               setFirstName(value);
@@ -315,7 +314,7 @@ function NewUserModal({
           />
           {options && (
             <Select
-              label={modalMessages.roleLabel}
+              label="Rol"
               options={options}
               value={roleId}
               onChange={(value) => {
@@ -328,7 +327,7 @@ function NewUserModal({
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.emailLabel}
+            label="Correo"
             value={email}
             onChange={(value) => {
               setEmail(value);
@@ -347,9 +346,7 @@ function NewUserModal({
               : deactivatedConflict
                 ? {
                     invalid: true,
-                    errorMessage: modalMessages.emailBelongsToDeactivatedUser({
-                      name: deactivatedConflict.name,
-                    }),
+                    errorMessage: `Ese correo pertenece a la cuenta desactivada de ${deactivatedConflict.name}.`,
                   }
                 : {})}
           />
@@ -360,7 +357,7 @@ function NewUserModal({
               icon={<UserCheck />}
               onPress={() => onReactivate({ id: deactivatedConflict.id })}
             >
-              {modalMessages.reactivateButton({ name: deactivatedConflict.name })}
+              {`Reactivar a ${deactivatedConflict.name}`}
             </Button>
           )}
         </div>
@@ -421,9 +418,9 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   // The cloud only ever returns a deactivated user to a caller who can reactivate one.
   const showsState = canReactivateUser(access);
   const stateFilterOptions = [
-    { value: "all" as const, label: usersMessages.stateFilterAllOption },
-    { value: "active" as const, label: usersMessages.stateFilterActiveOption },
-    { value: "inactive" as const, label: usersMessages.stateFilterInactiveOption },
+    { value: "all" as const, label: "Activos e inactivos" },
+    { value: "active" as const, label: "Activos" },
+    { value: "inactive" as const, label: "Inactivos" },
   ] as const;
   type StateFilter = (typeof stateFilterOptions)[number]["value"];
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
@@ -439,38 +436,44 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const baseColumns = [
     {
       key: "user",
-      title: usersMessages.columns.user,
+      title: "Usuario",
       render: (item: BranchUser) => (
         <TableCellText detail={item.email}>{item.firstName}</TableCellText>
       ),
     },
     {
       key: "role",
-      title: usersMessages.columns.role,
+      title: "Rol",
       render: (item: BranchUser) => roleDisplayName(item.role),
     },
     {
       key: "passkeys",
-      title: usersMessages.columns.passkeys,
-      render: (item: BranchUser) => usersMessages.passkeysCount({ count: item.passkeyCount }),
+      title: "Passkeys",
+      render: (item: BranchUser) =>
+        item.passkeyCount === 0
+          ? "—"
+          : plural(item.passkeyCount, {
+              one: "1 registrada",
+              other: `${item.passkeyCount} registradas`,
+            }),
     },
   ] as const;
   const stateColumn = {
     key: "state",
-    title: usersMessages.columns.state,
+    title: "Estado",
     render: (item: BranchUser) =>
-      item.active === false ? <Tag tone="neutral">{usersMessages.inactiveTag}</Tag> : null,
+      item.active === false ? <Tag tone="neutral">Inactivo</Tag> : null,
   } as const;
   const actionsColumn = {
     key: "actions",
     kind: "actions",
-    srLabel: usersMessages.rowActionsLabel,
+    srLabel: "Acciones",
     actions: [
       (item: BranchUser) => ({
         icon: access.isAdministrator ? <Pencil /> : <Eye />,
         "aria-label": access.isAdministrator
-          ? usersMessages.editAria({ name: item.firstName })
-          : usersMessages.viewAria({ name: item.firstName }),
+          ? `Editar a ${item.firstName}`
+          : `Ver a ${item.firstName}`,
         onPress: () => navigate(userDetailPath(item.id)),
       }),
     ],
@@ -485,8 +488,8 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{usersMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">{usersMessages.heading}</h1>
+              <p className="text-ink-secondary text-sm">Configuración</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Usuarios</h1>
             </div>
             {access.isAdministrator && (
               <Button
@@ -495,7 +498,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
                 isDisabled={list.kind !== "loaded" || roles.length === 0}
                 onPress={() => setModalOpen(true)}
               >
-                {usersMessages.newUserButton}
+                Nuevo usuario
               </Button>
             )}
           </div>
@@ -507,11 +510,11 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={usersMessages.loadErrorTitle}
-              detail={usersMessages.loadErrorDetail}
+              title="No pudimos abrir los usuarios"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {usersMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -520,13 +523,11 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={usersMessages.rateLimitedTitle}
-              detail={usersMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(list.retryAfterSeconds)}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {usersMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -535,7 +536,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
             {showsState && (
               <div className="flex items-center gap-3">
                 <ListFilter
-                  label={usersMessages.stateFilterLabel}
+                  label="Estado:"
                   options={stateFilterOptions}
                   value={stateFilter}
                   onChange={setStateFilter}
@@ -543,13 +544,16 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
               </div>
             )}
             <Table
-              aria-label={usersMessages.heading}
+              aria-label="Usuarios"
               columns={columns}
               loading={list.kind === "loading" ? "initial" : false}
               rows={filteredUsers.map((user) => ({ id: user.id, item: user }))}
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {usersMessages.count({ count: filteredUsers.length })}
+                  {plural(filteredUsers.length, {
+                    one: "1 usuario",
+                    other: `${filteredUsers.length} usuarios`,
+                  })}
                 </p>
               }
             />

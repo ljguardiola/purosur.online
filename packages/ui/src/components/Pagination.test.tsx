@@ -40,10 +40,7 @@ function baseProps(overrides: Partial<PaginationProps> = {}): PaginationProps {
     page: 1,
     pageCount: 3,
     onPageChange: () => {},
-    previousLabel: "Anterior",
-    nextLabel: "Siguiente",
     label: "Paginación",
-    pageLabel: (page) => String(page),
     ...overrides,
   };
 }
@@ -57,11 +54,17 @@ test("renders nothing with a single page", async () => {
 test("renders every page number up to 5 pages, 36px high with 8px between buttons", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 2, pageCount: 5 })} />);
 
-  for (const page of ["1", "2", "3", "4", "5"]) {
-    await expect.element(screen.getByRole("button", { name: page, exact: true })).toBeVisible();
+  for (const page of [1, 2, 3, 4, 5]) {
+    await expect
+      .element(screen.getByRole("button", { name: `Página ${page}`, exact: true }))
+      .toBeVisible();
   }
-  const first = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
-  const second = screen.getByRole("button", { name: "2", exact: true }).element() as HTMLElement;
+  const first = screen
+    .getByRole("button", { name: "Página 1", exact: true })
+    .element() as HTMLElement;
+  const second = screen
+    .getByRole("button", { name: "Página 2", exact: true })
+    .element() as HTMLElement;
   const rect = first.getBoundingClientRect();
 
   expect(rect.height).toBeGreaterThan(35);
@@ -78,7 +81,9 @@ test("renders every page number up to 5 pages, 36px high with 8px between button
 
 test("renders a page button white with a 1px line border and 14px ink text", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
-  const page = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const page = screen
+    .getByRole("button", { name: "Página 3", exact: true })
+    .element() as HTMLElement;
   const style = getComputedStyle(page);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
@@ -93,7 +98,9 @@ test("renders a page button white with a 1px line border and 14px ink text", asy
 
 test("hovers a non-current page button to a bone background", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
-  const page = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const page = screen
+    .getByRole("button", { name: "Página 3", exact: true })
+    .element() as HTMLElement;
   const restBackground = getComputedStyle(page).backgroundColor;
   expect(restBackground).toBe(tokenRgb("surface-white"));
 
@@ -108,7 +115,9 @@ test("hovers a non-current page button to a bone background", async () => {
 
 test("marks the current page blue UI with bold white text and no border", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
-  const current = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 3", exact: true })
+    .element() as HTMLElement;
   const style = getComputedStyle(current);
 
   expect(style.backgroundColor).toBe(tokenRgb("brand-blue-ui"));
@@ -122,8 +131,12 @@ test("marks the current page blue UI with bold white text and no border", async 
 
 test("keeps every page button the same width, current or not", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 3, pageCount: 5 })} />);
-  const current = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
-  const other = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 3", exact: true })
+    .element() as HTMLElement;
+  const other = screen
+    .getByRole("button", { name: "Página 1", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getBoundingClientRect().width).toBeCloseTo(other.getBoundingClientRect().width, 0);
 
@@ -217,7 +230,9 @@ test("treats a page below 1 as page 1", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: 0, pageCount: 5, onPageChange })} />,
   );
-  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 1", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
   expect(
@@ -238,7 +253,9 @@ test("treats a page above the count as the last page", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: 6, pageCount: 5, onPageChange })} />,
   );
-  const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 5", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
   expect(
@@ -256,7 +273,9 @@ test("treats a page above the count as the last page", async () => {
 
 test("treats a NaN page as page 1", async () => {
   const screen = await render(<Pagination {...baseProps({ page: Number.NaN, pageCount: 5 })} />);
-  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 1", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
   expect(
@@ -270,7 +289,9 @@ test("treats a positive infinite page as the last page", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: Number.POSITIVE_INFINITY, pageCount: 5 })} />,
   );
-  const current = screen.getByRole("button", { name: "5", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 5", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
   expect(
@@ -284,7 +305,9 @@ test("treats a negative infinite page as page 1", async () => {
   const screen = await render(
     <Pagination {...baseProps({ page: Number.NEGATIVE_INFINITY, pageCount: 5 })} />,
   );
-  const current = screen.getByRole("button", { name: "1", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 1", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
   expect(
@@ -296,7 +319,9 @@ test("treats a negative infinite page as page 1", async () => {
 
 test("truncates a fractional page instead of rounding it", async () => {
   const screen = await render(<Pagination {...baseProps({ page: 2.5, pageCount: 5 })} />);
-  const current = screen.getByRole("button", { name: "2", exact: true }).element() as HTMLElement;
+  const current = screen
+    .getByRole("button", { name: "Página 2", exact: true })
+    .element() as HTMLElement;
 
   expect(current.getAttribute("aria-current")).toBe("page");
 
@@ -350,9 +375,11 @@ test("shows the hand cursor on another page and an available nav button, the arr
   const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
   const previous = screen.getByRole("button", { name: "Anterior" }).element() as HTMLElement;
   const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
-  const otherPage = screen.getByRole("button", { name: "3", exact: true }).element() as HTMLElement;
+  const otherPage = screen
+    .getByRole("button", { name: "Página 3", exact: true })
+    .element() as HTMLElement;
   const currentPage = screen
-    .getByRole("button", { name: "1", exact: true })
+    .getByRole("button", { name: "Página 1", exact: true })
     .element() as HTMLElement;
 
   expect(getComputedStyle(previous).cursor).toBe("default");
@@ -456,7 +483,7 @@ test("gives the caller the chosen page when a page button is pressed", async () 
     <Pagination {...baseProps({ page: 1, pageCount: 5, onPageChange })} />,
   );
 
-  await screen.getByRole("button", { name: "4", exact: true }).click();
+  await screen.getByRole("button", { name: "Página 4", exact: true }).click();
 
   expect(onPageChange).toHaveBeenCalledWith(4);
   await expectNoAccessibilityViolations(screen.container);
@@ -467,7 +494,7 @@ test("does nothing when the current page's own button is pressed, but stays focu
   const screen = await render(
     <Pagination {...baseProps({ page: 3, pageCount: 5, onPageChange })} />,
   );
-  const current = screen.getByRole("button", { name: "3", exact: true });
+  const current = screen.getByRole("button", { name: "Página 3", exact: true });
 
   await current.click();
 
@@ -497,7 +524,7 @@ test("tabs through Previous, every page button and Next in DOM order", async () 
   const previousButton = screen.getByRole("button", { name: "Anterior" }).element();
   const nextButton = screen.getByRole("button", { name: "Siguiente" }).element();
   const pageButtons = [1, 2, 3, 4, 5].map((n) =>
-    screen.getByRole("button", { name: String(n), exact: true }).element(),
+    screen.getByRole("button", { name: `Página ${n}`, exact: true }).element(),
   );
 
   await userEvent.tab();
@@ -519,7 +546,7 @@ test("activates a page button with Enter, calling onPageChange and leaving focus
   const screen = await render(
     <Pagination {...baseProps({ page: 1, pageCount: 5, onPageChange })} />,
   );
-  const target = screen.getByRole("button", { name: "3", exact: true }).element();
+  const target = screen.getByRole("button", { name: "Página 3", exact: true }).element();
 
   await userEvent.tab();
   await userEvent.tab();
@@ -540,7 +567,7 @@ test("activates a page button with Space, calling onPageChange and leaving focus
   const screen = await render(
     <Pagination {...baseProps({ page: 1, pageCount: 5, onPageChange })} />,
   );
-  const target = screen.getByRole("button", { name: "4", exact: true }).element();
+  const target = screen.getByRole("button", { name: "Página 4", exact: true }).element();
 
   await userEvent.tab();
   await userEvent.tab();
@@ -567,21 +594,14 @@ function ControlledPagination({
 
 test("leaves focus on Next, never reaching document.body, when pressing it lands on the last page", async () => {
   const screen = await render(
-    <ControlledPagination
-      initialPage={4}
-      pageCount={5}
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
+    <ControlledPagination initialPage={4} pageCount={5} label="Paginación" />,
   );
   const next = screen.getByRole("button", { name: "Siguiente" });
   const nextEl = next.element() as HTMLElement;
 
   await next.click();
 
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  const lastPageButton = screen.getByRole("button", { name: "Página 5", exact: true }).element();
   await expect.poll(() => lastPageButton.getAttribute("aria-current")).toBe("page");
   expect(nextEl.getAttribute("aria-disabled")).toBe("true");
   expect(document.activeElement).toBe(nextEl);
@@ -592,21 +612,14 @@ test("leaves focus on Next, never reaching document.body, when pressing it lands
 
 test("leaves focus on Previous, never reaching document.body, when pressing it lands on page 1", async () => {
   const screen = await render(
-    <ControlledPagination
-      initialPage={2}
-      pageCount={5}
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
+    <ControlledPagination initialPage={2} pageCount={5} label="Paginación" />,
   );
   const previous = screen.getByRole("button", { name: "Anterior" });
   const previousEl = previous.element() as HTMLElement;
 
   await previous.click();
 
-  const firstPageButton = screen.getByRole("button", { name: "1", exact: true }).element();
+  const firstPageButton = screen.getByRole("button", { name: "Página 1", exact: true }).element();
   await expect.poll(() => firstPageButton.getAttribute("aria-current")).toBe("page");
   expect(previousEl.getAttribute("aria-disabled")).toBe("true");
   expect(document.activeElement).toBe(previousEl);
@@ -639,20 +652,13 @@ function AsyncPagination(props: Omit<PaginationProps, "page" | "pageCount" | "on
 }
 
 test("leaves focus on Next, never reaching document.body, even when the page lands in a later, separate commit", async () => {
-  const screen = await render(
-    <AsyncPagination
-      previousLabel="Anterior"
-      nextLabel="Siguiente"
-      label="Paginación"
-      pageLabel={(page) => String(page)}
-    />,
-  );
+  const screen = await render(<AsyncPagination label="Paginación" />);
   const next = screen.getByRole("button", { name: "Siguiente" }).element() as HTMLElement;
 
   await screen.getByRole("button", { name: "Siguiente" }).click();
   expect(document.activeElement).toBe(next);
 
-  const lastPageButton = screen.getByRole("button", { name: "5", exact: true }).element();
+  const lastPageButton = screen.getByRole("button", { name: "Página 5", exact: true }).element();
   await expect.poll(() => lastPageButton.getAttribute("aria-current")).toBe("page");
 
   expect(next.getAttribute("aria-disabled")).toBe("true");
@@ -674,10 +680,8 @@ test("names its own navigation landmark from the caller's label", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("names each page button from the caller's own pageLabel, not a bare digit", async () => {
-  const screen = await render(
-    <Pagination {...baseProps({ page: 1, pageCount: 5, pageLabel: (page) => `Página ${page}` })} />,
-  );
+test("names each page button 'Página N', not a bare digit", async () => {
+  const screen = await render(<Pagination {...baseProps({ page: 1, pageCount: 5 })} />);
 
   await expect.element(screen.getByRole("button", { name: "Página 3" })).toBeVisible();
 
@@ -696,52 +700,25 @@ test("hides every ellipsis from assistive technology", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("does not accept a pagination missing its page, page count, change handler, button labels, nav label or page label", () => {
+test("does not accept a pagination missing its page, page count, change handler or nav label", () => {
   expectTypeOf<{
     pageCount: number;
     onPageChange: (page: number) => void;
-    previousLabel: string;
-    nextLabel: string;
     label: string;
-    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     onPageChange: (page: number) => void;
-    previousLabel: string;
-    nextLabel: string;
     label: string;
-    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     pageCount: number;
-    previousLabel: string;
-    nextLabel: string;
     label: string;
-    pageLabel: (page: number) => string;
   }>().not.toExtend<PaginationProps>();
   expectTypeOf<{
     page: number;
     pageCount: number;
     onPageChange: (page: number) => void;
-    label: string;
-    pageLabel: (page: number) => string;
-  }>().not.toExtend<PaginationProps>();
-  expectTypeOf<{
-    page: number;
-    pageCount: number;
-    onPageChange: (page: number) => void;
-    previousLabel: string;
-    nextLabel: string;
-    pageLabel: (page: number) => string;
-  }>().not.toExtend<PaginationProps>();
-  expectTypeOf<{
-    page: number;
-    pageCount: number;
-    onPageChange: (page: number) => void;
-    previousLabel: string;
-    nextLabel: string;
-    label: string;
   }>().not.toExtend<PaginationProps>();
 });

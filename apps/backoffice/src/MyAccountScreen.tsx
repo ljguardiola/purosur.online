@@ -4,7 +4,6 @@ import { startAuthentication, startRegistration } from "@simplewebauthn/browser"
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import { messages } from "./messages";
 import {
   fetchPasskeyRegistrationChallenge,
   fetchPasskeys,
@@ -15,6 +14,8 @@ import {
   removePasskey,
 } from "./passkeyApi";
 import { validatePasskeyName } from "./passkeyName";
+import { passkeyRowDetail } from "./passkeyRowDetail";
+import { retryAfterDetail } from "./retryAfterDetail";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
@@ -70,18 +71,6 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: Passkey[] };
 
-const passkeysMessages = messages.settings.myAccount.passkeys;
-const registerMessages = passkeysMessages.register;
-const removeMessages = passkeysMessages.removeModal;
-
-function passkeyRowDetail(passkey: Passkey, now: Date): string {
-  return passkeysMessages.rowDetail({
-    registeredOn: new Date(passkey.createdAt),
-    ...(passkey.lastUsedAt ? { lastUsedAt: new Date(passkey.lastUsedAt) } : {}),
-    now,
-  });
-}
-
 type RegisterPasskeyModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -116,7 +105,7 @@ function RegisterPasskeyModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RegisterPasskeyOutcome>({
-    action: "passkeyRegistration",
+    actionName: "Agregar una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -157,10 +146,7 @@ function RegisterPasskeyModal({
   }
 
   async function handleSubmit() {
-    const validationError = validatePasskeyName(name, {
-      required: registerMessages.nameRequired,
-      tooLong: registerMessages.nameTooLong,
-    });
+    const validationError = validatePasskeyName(name);
     setNameError(validationError);
     if (validationError) {
       return;
@@ -204,10 +190,9 @@ function RegisterPasskeyModal({
         width="standard"
         tone="info"
         icon={<KeyRound />}
-        context={registerMessages.eyebrow}
-        title={registerMessages.heading}
+        context="Mi cuenta · Passkeys"
+        title="Registrar una passkey"
         closable
-        closeLabel={registerMessages.closeLabel}
         footer={
           <>
             <Button
@@ -217,7 +202,7 @@ function RegisterPasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {registerMessages.cancel}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -227,7 +212,7 @@ function RegisterPasskeyModal({
               isDisabled={submitting}
               onPress={() => void handleSubmit()}
             >
-              {registerMessages.submit}
+              Registrar la passkey
             </Button>
           </>
         }
@@ -237,36 +222,29 @@ function RegisterPasskeyModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={registerMessages.attemptFailedTitle}
-              detail={registerMessages.attemptFailedDetail}
+              title="No se pudo registrar la passkey"
+              detail="Probá de nuevo."
             />
           )}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={registerMessages.rateLimitedTitle}
-              detail={registerMessages.rateLimitedDetail({
-                minutes: Math.ceil(rateLimitedSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryAfterDetail(rateLimitedSeconds)}
             />
           )}
           <TextField
             kind="plain-text"
-            label={registerMessages.nameLabel}
+            label="Nombre de la passkey"
             value={name}
             onChange={(value) => {
               setName(value);
               if (nameError) {
-                setNameError(
-                  validatePasskeyName(value, {
-                    required: registerMessages.nameRequired,
-                    tooLong: registerMessages.nameTooLong,
-                  }),
-                );
+                setNameError(validatePasskeyName(value));
               }
             }}
-            helperText={registerMessages.nameHelper}
+            helperText="Por ejemplo, Teléfono de Lucía."
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
@@ -305,7 +283,7 @@ function RemovePasskeyModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RemovePasskeyOutcome>({
-    action: "passkeyRemoval",
+    actionName: "Dar de baja una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -360,9 +338,8 @@ function RemovePasskeyModal({
         width="confirmation"
         tone="error"
         icon={<Trash2 />}
-        title={removeMessages.title}
+        title="¿Dar de baja la passkey?"
         closable
-        closeLabel={removeMessages.closeLabel}
         footer={
           <>
             <Button
@@ -372,7 +349,7 @@ function RemovePasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {removeMessages.cancel}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -383,7 +360,7 @@ function RemovePasskeyModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {removeMessages.confirm}
+              Dar de baja
             </Button>
           </>
         }
@@ -391,25 +368,25 @@ function RemovePasskeyModal({
         {target && (
           <div className="flex flex-col gap-4">
             <p className="text-base text-ink">
-              {removeMessages.body({ name: target.name })}
-              {isOnlyPasskey ? ` ${removeMessages.onlyPasskeyWarning}` : ""}
+              {`«${target.name}» deja de servir para entrar.`}
+              {isOnlyPasskey
+                ? " Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo."
+                : ""}
             </p>
             {attemptFailed && (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={removeMessages.attemptFailedTitle}
-                detail={removeMessages.attemptFailedDetail}
+                title="No se pudo dar de baja la passkey"
+                detail="Probá de nuevo."
               />
             )}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={removeMessages.rateLimitedTitle}
-                detail={removeMessages.rateLimitedDetail({
-                  minutes: Math.ceil(rateLimitedSeconds / 60),
-                })}
+                title="Demasiadas solicitudes"
+                detail={retryAfterDetail(rateLimitedSeconds)}
               />
             )}
           </div>
@@ -482,41 +459,35 @@ export function MyAccountScreen({
       <ScreenLayout
         topBar={
           <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-            <p className="text-ink-secondary text-sm">
-              {messages.settings.myAccount.breadcrumb({ name: displayName })}
-            </p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">
-              {messages.settings.myAccount.heading}
-            </h1>
+            <p className="text-ink-secondary text-sm">{`Configuración · ${displayName}`}</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">Mi cuenta</h1>
           </div>
         }
         bodyClassName="gap-4 p-6"
       >
         <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
-              {passkeysMessages.title}
-            </h2>
+            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Passkeys</h2>
             <Button
               variant="secondary"
               icon={<Plus />}
               isDisabled={list.kind === "loading" || hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
-              {passkeysMessages.registerAnother}
+              Registrar otra passkey
             </Button>
           </div>
-          {list.kind === "loading" && <p role="status">{passkeysMessages.loading}</p>}
+          {list.kind === "loading" && <p role="status">Cargando tus passkeys…</p>}
           {list.kind === "loadError" && (
             <>
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={passkeysMessages.loadErrorTitle}
-                detail={passkeysMessages.loadErrorDetail}
+                title="No pudimos abrir tus passkeys"
+                detail="Probá de nuevo en unos minutos."
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {passkeysMessages.retry}
+                Reintentar
               </Button>
             </>
           )}
@@ -525,13 +496,11 @@ export function MyAccountScreen({
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={passkeysMessages.rateLimitedTitle}
-                detail={passkeysMessages.rateLimitedDetail({
-                  minutes: Math.ceil(list.retryAfterSeconds / 60),
-                })}
+                title="Demasiadas solicitudes"
+                detail={retryAfterDetail(list.retryAfterSeconds)}
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {passkeysMessages.retry}
+                Reintentar
               </Button>
             </>
           )}
@@ -541,7 +510,7 @@ export function MyAccountScreen({
                 <InlineNotice
                   tone="warning"
                   icon={<TriangleAlert />}
-                  detail={passkeysMessages.noPasskeysWarning}
+                  detail="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
                 />
               )}
               <ul className="flex flex-col gap-2">
@@ -561,7 +530,7 @@ export function MyAccountScreen({
                     </div>
                     <IconButton
                       icon={<Trash2 />}
-                      aria-label={passkeysMessages.remove({ name: passkey.name })}
+                      aria-label={`Dar de baja la passkey «${passkey.name}»`}
                       onPress={() => setRemoveTarget(passkey)}
                     />
                   </li>
