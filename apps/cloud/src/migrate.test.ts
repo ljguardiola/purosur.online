@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, inject, it, vi } from "vitest";
+import { MIGRATIONS_FOLDER } from "./db/migrations-folder.js";
 import {
   isRetryableConnectionError,
   probeConnectTimeoutSeconds,
@@ -13,7 +14,7 @@ describe("runMigrations", () => {
   it("rejects immediately when the database is unreachable and the wait budget is zero", async () => {
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
-        migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 0,
       }),
@@ -25,7 +26,7 @@ describe("runMigrations", () => {
 
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
-        migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 1,
         waitIntervalMs: 100,
@@ -42,7 +43,7 @@ describe("runMigrations", () => {
 
     await expect(
       runMigrations("postgres://user:pass@127.0.0.1:1/nonexistent", "unused-unreachable-database", {
-        migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+        migrationsFolder: MIGRATIONS_FOLDER,
         connectTimeoutSeconds: 1,
         waitForDatabaseSeconds: 30,
         waitIntervalMs: 1000,
@@ -66,7 +67,7 @@ describe("runMigrations", () => {
           "postgres://user:pass@127.0.0.1:1/nonexistent",
           "unused-unreachable-database",
           {
-            migrationsFolder: new URL("../migrations", import.meta.url).pathname,
+            migrationsFolder: MIGRATIONS_FOLDER,
             connectTimeoutSeconds: 1,
             sleep: clock.sleep,
             now: clock.now,

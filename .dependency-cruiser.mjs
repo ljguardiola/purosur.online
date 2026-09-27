@@ -206,13 +206,27 @@ export default {
       from: { path: "^apps/pos/src/shared/" },
       to: { pathNot: "^apps/pos/src/shared/" },
     },
+    {
+      name: "real-postgres-tests-no-pglite",
+      comment:
+        "Tests that run against a real Postgres, and their global setup, never load " +
+        "PGlite or drizzle's PGlite driver, directly or transitively.",
+      severity: "error",
+      from: {
+        path: ["\\.integration\\.test\\.ts$", "^apps/cloud/vitest\\.global-setup\\.postgres\\.ts$"],
+      },
+      to: {
+        path: [npmPackage("@electric-sql/pglite"), npmPackage("drizzle-orm/pglite")],
+        reachable: true,
+      },
+    },
   ],
   options: {
     doNotFollow: {
       path: "node_modules",
     },
     exclude: {
-      path: ["\\.test\\.(ts|tsx)$", "(^|/)dist/"],
+      path: ["(?<!\\.integration)\\.test\\.(ts|tsx)$", "^(apps|packages)/[^/]+/dist/"],
     },
     tsPreCompilationDeps: true,
     tsConfig: {
