@@ -126,7 +126,7 @@ function workflow({
 }
 
 const VERIFY_STATIC_SCRIPT =
-  "tsc --noEmit && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && node --test .github/scripts/*.test.mjs";
+  "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && pnpm --filter @purosur/cloud build && biome ci . && pnpm depcruise && node --test .github/scripts/*.test.mjs";
 
 function packageJson({
   verify = "pnpm verify:static && pnpm verify:tests",
@@ -595,6 +595,8 @@ for (const [separator, label] of [
 
 for (const dropped of [
   "tsc --noEmit",
+  "tsc --noEmit -p apps/backoffice",
+  "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
   "biome ci .",
   "pnpm depcruise",
