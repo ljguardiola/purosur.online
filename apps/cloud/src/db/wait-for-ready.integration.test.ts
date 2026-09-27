@@ -56,11 +56,11 @@ async function migrationsFolderWithoutTheLatestMigration(): Promise<{
   path: string;
   cleanup: () => Promise<void>;
 }> {
-  const path = await mkdtemp(join(tmpdir(), "wait-for-ready-migrations-"));
   const latestEntry = (await readRealJournal()).entries.at(-1);
   if (!latestEntry) {
     throw new Error("test setup: the migration journal has no entries");
   }
+  const path = await mkdtemp(join(tmpdir(), "wait-for-ready-migrations-"));
   await migrationsFolderBefore(path, latestEntry);
   return { path, cleanup: () => rm(path, { recursive: true, force: true }) };
 }
