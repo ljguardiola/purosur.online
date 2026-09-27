@@ -29,6 +29,13 @@ const meta: Meta<typeof QuantityUnitField<Unit>> = {
     options: unitOptions,
     unitLabel: "Unidad",
   },
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

@@ -16,6 +16,13 @@ const meta: Meta<typeof DateField> = {
     label: "Vencimiento",
     onChange: () => {},
   },
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

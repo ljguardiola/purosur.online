@@ -14,6 +14,13 @@ const meta: Meta<typeof SearchField> = {
     icon: <Search />,
     onChange: () => {},
   },
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

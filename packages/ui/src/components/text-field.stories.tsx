@@ -9,6 +9,13 @@ import { TextField } from "./TextField";
 const meta: Meta<typeof TextField> = {
   title: "Components/TextField",
   component: TextField,
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

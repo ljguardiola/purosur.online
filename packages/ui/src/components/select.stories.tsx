@@ -24,6 +24,13 @@ const meta: Meta<typeof Select<Role>> = {
     options,
     onChange: () => {},
   },
+  decorators: [
+    (Story) => (
+      <div className="w-80">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
