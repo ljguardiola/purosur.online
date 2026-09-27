@@ -1,21 +1,15 @@
+import { RouterProvider } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
 import { useCoreStatus } from "../platform/use-core-status";
-import { BrandPanelScreen } from "./brand-panel-screen";
-import { CoreDownNotice } from "./core-down-notice";
+import { createAppRouter, ROUTE_FOR_STATUS } from "./router";
 
 export function App() {
   const coreStatus = useCoreStatus();
+  const router = useMemo(() => createAppRouter(), []);
 
-  if (coreStatus === "down") {
-    return <CoreDownNotice />;
-  }
+  useEffect(() => {
+    router.navigate({ to: ROUTE_FOR_STATUS[coreStatus], replace: true });
+  }, [router, coreStatus]);
 
-  if (coreStatus === "starting") {
-    return <BrandPanelScreen />;
-  }
-
-  return (
-    <main>
-      <p>Puro Sur está listo</p>
-    </main>
-  );
+  return <RouterProvider router={router} context={{ coreStatus }} />;
 }
