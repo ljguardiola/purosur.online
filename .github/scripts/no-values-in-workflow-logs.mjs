@@ -59,8 +59,6 @@ function shellOf(doc, defaultsNode) {
   return typeof shell === "string" ? shell : undefined;
 }
 
-// A step's run: script is a plain multi-line string here; GitHub Actions itself runs a trailing
-// "\" as a shell continuation, so two script lines can be one logical command.
 function joinLineContinuations(script) {
   const rawLines = script.split(/\r\n|\r|\n/);
   const lines = [];
@@ -75,9 +73,6 @@ function joinLineContinuations(script) {
   return lines;
 }
 
-// Splits one logical shell line into "&&"/";"/"||" command groups, each itself a list of "|"
-// pipeline stages. Only the last stage of a group can still print to the step's own log: every
-// earlier stage feeds a pipe instead. This is a pragmatic heuristic, not a full shell parser.
 function splitCommandGroups(line) {
   const groups = [];
   let currentGroup = [];
