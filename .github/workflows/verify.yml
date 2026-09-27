@@ -16,14 +16,16 @@ permissions:
 
 jobs:
   # Decides whether a `pull_request` change is docs-only, the one case that may skip static/tests
-  # below. A push never runs this job, so static/tests always run in full on it: a push's success
-  # is what lets the deploy ship it, and the commit before it may not have passed.
+  # below, and whether either event's change can affect the Storybook catalog, which gates the
+  # visual job further down. A push's docs_only output is unused: static/tests always run in full
+  # on it, since a push's success is what lets the deploy ship it and the commit before it may not
+  # have passed.
   scope:
     name: scope
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.scope.outputs.docs_only }}
+      catalog_changed: ${{ steps.scope.outputs.catalog_changed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,7 +40,7 @@ jobs:
         id: scope
         run: node .github/scripts/change-scope.mjs
         env:
-          SCOPE_FROM: ${{ github.event.pull_request.base.sha }}
+          SCOPE_FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           SCOPE_TO: ${{ github.sha }}
 
   # tsc, the cloud's own build, biome, dependency-cruiser and the repository's own automation tests:
@@ -133,13 +135,48 @@ jobs:
 
       - run: pnpm verify:tests --shard=${{ matrix.shard }}/4
 
+  # Renders every Storybook story in a remote Chromium (Testcontainers, not a browser installed on
+  # this runner) and compares it with its approved screenshot. Gated on catalog_changed rather than
+  # docs_only, and the same way on `pull_request` and `push`, since an unreviewed catalog change on
+  # main would otherwise go unnoticed until packages/ui is next touched.
+  visual:
+    name: visual
+    needs: [scope]
+    if: ${{ !cancelled() && needs.scope.outputs.catalog_changed != 'false' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify:visual
+
+      - name: Upload the actual and diff images for a failed comparison
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catalog-visual-diff
+          retention-days: 7
+          path: .vitest/attachments
+          if-no-files-found: ignore
+
   # The required status check named in .github/rulesets/main.json. It runs no check itself; it
-  # only translates scope/static/tests' outcomes into the single pass/fail that check reports.
+  # only translates scope/static/tests/visual's outcomes into the single pass/fail that check
+  # reports.
   verify:
     name: verify
-    needs: [scope, static, tests]
-    # always(), unlike static/tests: a skipped job reports "Success" to a required check, so a
-    # cancelled run must still reach this job and fail it on the cancelled static/tests results.
+    needs: [scope, static, tests, visual]
+    # always(), unlike static/tests/visual: a skipped job reports "Success" to a required check, so
+    # a cancelled run must still reach this job and fail it on the cancelled results.
     if: always()
     runs-on: ubuntu-24.04
     steps:
@@ -157,5 +194,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SCOPE_RESULT: ${{ needs.scope.result }}
           SCOPE_DOCS_ONLY: ${{ needs.scope.outputs.docs_only }}
+          SCOPE_CATALOG_CHANGED: ${{ needs.scope.outputs.catalog_changed }}
           STATIC_RESULT: ${{ needs.static.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          VISUAL_RESULT: ${{ needs.visual.result }}

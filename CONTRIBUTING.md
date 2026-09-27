@@ -102,6 +102,8 @@ A test is removed only when the rule it checks is already verified by its owning
 
 An approved screenshot of each Storybook story, committed under `packages/ui/src/__screenshots__`, owns that story's visual appearance; `pnpm verify` renders every story again and fails on any difference. A change that alters how a story looks on purpose is approved with `pnpm catalog:approve`, which overwrites the affected screenshots; review the new images before committing them alongside the change in the same pull request.
 
+A new `packages/ui` component or a new state of an existing one is not complete until it has a story rendering it in the catalog. Browse the catalog with `pnpm catalog`.
+
 A CI run that fails because of a flaky test unrelated to the change is rerun only after an issue naming the test and its error has been filed. A rerun hides the instability, and it would equally hide a real failure.
 
 ## Dependabot
