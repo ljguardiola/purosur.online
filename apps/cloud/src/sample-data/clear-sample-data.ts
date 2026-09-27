@@ -320,6 +320,11 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           eq(auditLog.entityId, location.id),
           eq(auditLog.actorId, sampleAdministrator.id),
           sql`${auditLog.newValue} - 'version' = ${JSON.stringify(sampleBranchSettingsAuditValue())}::jsonb`,
+          // `at` defaults to now(), the transaction's start time, so every audit row the load wrote
+          // shares the one recording the sample administrator's creation. Compared in SQL because
+          // a JavaScript Date would drop the microseconds.
+          sql`${auditLog.at} = (select min(creation.at) from audit_log creation
+            where creation.entity = 'user' and creation.entity_id = ${sampleAdministrator.id})`,
         )
       : undefined;
     const [loadBranchSettingsAuditRow] = loadBranchSettingsAudit
