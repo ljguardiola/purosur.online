@@ -80,7 +80,7 @@ describe("readBranchSettingsEditBody, per-day hours", () => {
 
   it("rejects a day missing from the body", () => {
     const body = validBody();
-    delete body.sunday_hours;
+    delete body["sunday_hours"];
 
     const result = readBranchSettingsEditBody(body);
 

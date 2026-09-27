@@ -1,10 +1,12 @@
 import type { HelpArticle, HelpBlock } from "@purosur/ui";
-import { SearchField, SectionNavItem } from "@purosur/ui";
+import { SearchField } from "@purosur/ui";
+import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
-import type { Ref } from "react";
-import { linkProps } from "../shell/link-props";
+import { type Ref, useEffect, useRef, useState } from "react";
+import { SectionLink } from "../shell/area-layout";
+import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
-import { articleHref, type BackofficeHelpCatalog, sectionHref } from "./routes";
+import type { BackofficeHelpCatalog } from "./help-page";
 import { searchArticles } from "./search-help";
 import { sectionIcon } from "./section-icons";
 
@@ -20,12 +22,22 @@ const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +
   `text-sm text-ink transition-colors hover:bg-surface-bone ${focusRingClassName}`;
 
-function LinkRow({ to, label }: { to: string; label: string }) {
+function ArticleLinkRow({
+  articleId,
+  article,
+}: {
+  articleId: string;
+  article: HelpArticle<string, string>;
+}) {
   return (
-    <a {...linkProps(to)} className={linkRowClassName}>
-      <span>{label}</span>
+    <Link
+      to="/help/$categoryId/$articleId"
+      params={{ categoryId: article.category, articleId }}
+      className={linkRowClassName}
+    >
+      <span>{article.title}</span>
       <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-secondary" />
-    </a>
+    </Link>
   );
 }
 
@@ -68,7 +80,7 @@ function ArticleList({ articles }: { articles: readonly ArticleEntry[] }) {
     <ul className="flex flex-col gap-2">
       {articles.map(([id, article]) => (
         <li key={id}>
-          <LinkRow to={articleHref(article.category, id)} label={article.title} />
+          <ArticleLinkRow articleId={id} article={article} />
         </li>
       ))}
     </ul>
@@ -112,9 +124,7 @@ function Block({ block, help }: { block: HelpBlock<string>; help: BackofficeHelp
       );
     case "articleLink": {
       const linked = ownEntry(help.articles, block.article);
-      return linked ? (
-        <LinkRow to={articleHref(linked.category, block.article)} label={linked.title} />
-      ) : null;
+      return linked ? <ArticleLinkRow articleId={block.article} article={linked} /> : null;
     }
   }
 }
@@ -141,7 +151,7 @@ function RelatedPanel({
       <ul className="flex flex-col gap-2">
         {keyed(related, ([id]) => id).map(([key, [id, article]]) => (
           <li key={key}>
-            <LinkRow to={articleHref(article.category, id)} label={article.title} />
+            <ArticleLinkRow articleId={id} article={article} />
           </li>
         ))}
       </ul>
@@ -183,11 +193,12 @@ export function HelpSectionColumn({ help, activeCategoryId }: HelpSectionColumnP
       <ul className="flex flex-col gap-1">
         {Object.entries(help.categories).map(([id, category]) => (
           <li key={id}>
-            <SectionNavItem
+            <SectionLink
+              to="/help/$categoryId"
+              params={{ categoryId: id }}
               label={category.label}
               icon={sectionIcon(category.icon)}
               active={id === activeCategoryId}
-              {...linkProps(sectionHref(id))}
             />
           </li>
         ))}
@@ -271,5 +282,52 @@ export function HelpContent({
         />
       )}
     </ScreenLayout>
+  );
+}
+
+function documentTitle(
+  help: BackofficeHelpCatalog,
+  categoryId: string | null,
+  articleId: string | null,
+): string {
+  const page =
+    ownEntry(help.articles, articleId)?.title ?? ownEntry(help.categories, categoryId)?.label;
+  return page ? `${page} · Ayuda · Puro Sur` : "Ayuda · Puro Sur";
+}
+
+export type HelpScreenProps = {
+  help: BackofficeHelpCatalog;
+  categoryId: string | null;
+  articleId: string | null;
+};
+
+export function HelpScreen({ help, categoryId, articleId }: HelpScreenProps) {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const page = `${categoryId}/${articleId}`;
+  const shownPage = useRef(page);
+
+  useDocumentTitle(documentTitle(help, categoryId, articleId));
+
+  useEffect(() => router.subscribe("onBeforeNavigate", () => setSearch("")), [router]);
+
+  useEffect(() => {
+    if (shownPage.current !== page) {
+      shownPage.current = page;
+      headingRef.current?.focus();
+    }
+  }, [page]);
+
+  return (
+    <HelpContent
+      key={page}
+      help={help}
+      categoryId={categoryId}
+      articleId={articleId}
+      search={search}
+      onSearchChange={setSearch}
+      headingRef={headingRef}
+    />
   );
 }

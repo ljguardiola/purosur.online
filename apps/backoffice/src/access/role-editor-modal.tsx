@@ -30,7 +30,7 @@ import {
   type RoleDetail,
   type RoleSummary,
 } from "./roles-api";
-import { sendToMyAccount } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 
 export type RoleEditorRequest =
@@ -162,6 +162,7 @@ export function RoleEditorModal({
   onSessionEnded,
   services,
 }: RoleEditorModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRole,
     createRole,
@@ -225,7 +226,7 @@ export function RoleEditorModal({
       }
       setLoadState({ kind: "loadError" });
     },
-    [fetchRole, endSession],
+    [fetchRole, endSession, sendToMyAccount],
   );
 
   useEffect(() => {

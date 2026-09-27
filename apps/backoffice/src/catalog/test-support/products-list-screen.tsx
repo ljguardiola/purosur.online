@@ -1,9 +1,10 @@
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render } from "../../shell/test-support/render-with-router";
 import type { CategorySummary } from "../categories-api";
 import type { ProductSummary } from "../products-api";
 import { ProductsListScreen, type ProductsListScreenServices } from "../products-list-screen";
+import { type ProductsListFilters, productsListFilters } from "../routes";
 
 export function createServices(
   overrides: Partial<ProductsListScreenServices> = {},
@@ -85,11 +86,23 @@ export function mockLoaded(
 export async function renderScreen(
   services: ProductsListScreenServices,
   onSessionEnded: () => void = () => {},
+  {
+    filters = productsListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    filters?: ProductsListFilters;
+    onFiltersChange?: (filters: ProductsListFilters) => void;
+  } = {},
 ) {
   await page.viewport(1280, 900);
   return render(
     <main>
-      <ProductsListScreen services={services} onSessionEnded={onSessionEnded} />
+      <ProductsListScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>,
   );
 }
@@ -131,7 +144,12 @@ export async function settleLateResponse(
 ): Promise<void> {
   await screen.rerender(
     <main>
-      <ProductsListScreen services={services} onSessionEnded={() => {}} />
+      <ProductsListScreen
+        services={services}
+        onSessionEnded={() => {}}
+        filters={productsListFilters.parse({})}
+        onFiltersChange={() => {}}
+      />
     </main>,
   );
 }

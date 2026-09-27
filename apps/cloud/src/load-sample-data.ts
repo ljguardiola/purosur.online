@@ -37,10 +37,10 @@ function isMainModule(): boolean {
 }
 
 if (isMainModule()) {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env["DATABASE_URL"];
   const target = resolveSampleDataTarget({
     databaseUrl,
-    railwayEnvironmentName: process.env.RAILWAY_ENVIRONMENT_NAME,
+    railwayEnvironmentName: process.env["RAILWAY_ENVIRONMENT_NAME"],
   });
 
   if (target === "refused") {

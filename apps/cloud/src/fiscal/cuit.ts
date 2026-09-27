@@ -1,6 +1,6 @@
 // CUIT shape NN-NNNNNNNN-N: taxpayer-type prefix, per-taxpayer digits, then AFIP's own
 // weighted check digit derived from the first ten.
-const CUIT_SHAPE_PATTERN = /^(\d{2})-?(\d{8})-?(\d)$/;
+const CUIT_SHAPE_PATTERN = /^(?<prefix>\d{2})-?(?<body>\d{8})-?(?<checkDigit>\d)$/;
 const CUIT_CHECK_DIGIT_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2] as const;
 
 function checkDigitFor(firstTenDigits: number[]): number | undefined {
@@ -22,11 +22,11 @@ function checkDigitFor(firstTenDigits: number[]): number | undefined {
 }
 
 export function parseCuit(value: string): string | undefined {
-  const match = CUIT_SHAPE_PATTERN.exec(value.trim());
-  if (!match) {
+  const groups = CUIT_SHAPE_PATTERN.exec(value.trim())?.groups;
+  if (!groups?.["prefix"] || !groups["body"] || !groups["checkDigit"]) {
     return undefined;
   }
-  const [, prefix, body, checkDigitText] = match as unknown as [string, string, string, string];
+  const { prefix, body, checkDigit: checkDigitText } = groups;
   const firstTenDigits = `${prefix}${body}`.split("").map(Number);
   const checkDigit = checkDigitFor(firstTenDigits);
   if (checkDigit === undefined || checkDigit !== Number(checkDigitText)) {

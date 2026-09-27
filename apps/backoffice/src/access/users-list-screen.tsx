@@ -11,6 +11,7 @@ import {
   TextField,
 } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { deepEqual, useNavigate } from "@tanstack/react-router";
 import {
   Eye,
   KeyRound,
@@ -25,14 +26,14 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
-import { navigate } from "../shell/router";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
 import { roleDisplayName, roleOptions } from "./role-display";
 import { fetchRoles } from "./roles-api";
-import { sendToMyAccount, userDetailPath } from "./routes";
+import type { UsersListFilters } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-api";
 import {
   type BranchUser,
@@ -62,6 +63,8 @@ export const defaultUsersListScreenServices: UsersListScreenServices = {
 };
 
 export type UsersListScreenProps = {
+  filters: UsersListFilters;
+  onFiltersChange: (filters: UsersListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services?: UsersListScreenServices;
@@ -136,6 +139,7 @@ function NewUserModal({
   authorizeSession,
   startAuthentication,
 }: NewUserModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
   const optionsRef = useLatestRef(options);
   const [firstName, setFirstName] = useState("");
@@ -367,7 +371,15 @@ function NewUserModal({
   );
 }
 
-export function UsersListScreen({ access, onSessionEnded, services }: UsersListScreenProps) {
+export function UsersListScreen({
+  filters,
+  onFiltersChange,
+  access,
+  onSessionEnded,
+  services,
+}: UsersListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
+  const navigate = useNavigate();
   const {
     fetchUsers,
     fetchRoles,
@@ -380,6 +392,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
   const [roles, setRoles] = useState<BranchUserRole[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
 
   const canReadRoles = access.isAdministrator;
   const load = useCallback(async () => {
@@ -407,7 +420,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef]);
+  }, [fetchUsers, fetchRoles, canReadRoles, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();
@@ -422,8 +435,15 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
     { value: "active" as const, label: "Activos" },
     { value: "inactive" as const, label: "Inactivos" },
   ] as const;
-  type StateFilter = (typeof stateFilterOptions)[number]["value"];
-  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [stateFilter, setStateFilter] = useState(filters.state);
+
+  useEffect(() => {
+    const shown: UsersListFilters = { state: stateFilter };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [stateFilter, filters, onFiltersChangeRef]);
+
   const filteredUsers = useMemo(() => {
     if (!showsState || stateFilter === "all") {
       return users;
@@ -474,7 +494,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         "aria-label": access.isAdministrator
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
-        onPress: () => navigate(userDetailPath(item.id)),
+        onPress: () => navigate({ to: "/settings/users/$userId", params: { userId: item.id } }),
       }),
     ],
   } as const;
@@ -570,7 +590,7 @@ export function UsersListScreen({ access, onSessionEnded, services }: UsersListS
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);
-          navigate(userDetailPath(id));
+          void navigate({ to: "/settings/users/$userId", params: { userId: id } });
         }}
         onSessionEnded={onSessionEnded}
         createUser={createUser}

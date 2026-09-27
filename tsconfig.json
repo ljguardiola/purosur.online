@@ -12,6 +12,13 @@
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedSideEffectImports": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noPropertyAccessFromIndexSignature": true,
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
@@ -25,15 +32,11 @@
   },
   "include": [
     "packages/*/src",
-    "apps/*/src",
+    "apps/cloud/src",
     "vitest.config.ts",
     "vitest.mutation.config.ts",
     "apps/cloud/vitest.global-setup.ts",
     "apps/cloud/vitest.global-setup.postgres.ts",
-    "apps/pos/electron.vite.config.ts",
-    "apps/backoffice/vite.config.ts",
-    "apps/pos/e2e",
-    "apps/pos/vitest.e2e.config.ts",
     ".railway/railway.ts",
     ".railway/railway.test.ts"
   ]

@@ -66,7 +66,7 @@ describe("the create-first-administrator command", () => {
 
   it("fails with a clear message when DATABASE_URL is not set", () => {
     const env = { ...process.env };
-    delete env.DATABASE_URL;
+    delete env["DATABASE_URL"];
 
     const result = spawnSync(
       process.execPath,

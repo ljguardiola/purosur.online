@@ -90,7 +90,7 @@ function detailWithActorName(
   detail: Record<string, unknown>,
   namesByUserId: ReadonlyMap<string, string>,
 ): Record<string, unknown> {
-  const actorId = detail.actorId;
+  const actorId = detail["actorId"];
   if (typeof actorId !== "string") {
     return detail;
   }
@@ -234,6 +234,6 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
 }
 
 export function userIdsToResolve(alert: Pick<AlertDetailRow, "scope" | "detail">): string[] {
-  const actorId = alert.detail.actorId;
+  const actorId = alert.detail["actorId"];
   return typeof actorId === "string" ? [alert.scope, actorId] : [alert.scope];
 }

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import { type BackofficeAccess, canCloseAlertsManually } from "../access/backoffice-access";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import {
   type AlertDetail,
@@ -162,7 +162,7 @@ function alertTitle(alert: AlertDetail): string {
 function alertDescription(alert: AlertDetail): string {
   if (alert.kind === "backoffice_sign_in_lockout") {
     const failureCount =
-      typeof alert.detail.failureCount === "number" ? alert.detail.failureCount : 0;
+      typeof alert.detail["failureCount"] === "number" ? alert.detail["failureCount"] : 0;
     const failuresText = plural(failureCount, {
       one: "1 intento fallido",
       other: `${failureCount} intentos fallidos`,
@@ -217,6 +217,7 @@ export function AlertDetailModal({
   onSessionEnded,
   services,
 }: AlertDetailModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchAlert, closeAlert } = services ?? defaultAlertDetailModalServices;
   const [loadState, setLoadState] = useState<LoadState>({ kind: "idle" });
   const [notice, setNotice] = useState<FormNotice | null>(null);
@@ -256,7 +257,7 @@ export function AlertDetailModal({
       }
       setLoadState({ kind: "loadError" });
     },
-    [fetchAlert],
+    [fetchAlert, sendToMyAccount],
   );
 
   useEffect(() => {

@@ -7,6 +7,8 @@ const EXPECTED_VERIFY_SCRIPT = "pnpm verify:static && pnpm verify:tests";
 const EXPECTED_VERIFY_TESTS_SCRIPT = "vitest run";
 const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "tsc --noEmit",
+  "tsc --noEmit -p apps/backoffice",
+  "tsc --noEmit -p apps/pos",
   "pnpm --filter @purosur/cloud build",
   "biome ci .",
   "pnpm depcruise",

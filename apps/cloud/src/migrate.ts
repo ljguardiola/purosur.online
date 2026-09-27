@@ -249,8 +249,8 @@ export async function runMigrations(
 const isMainModule =
   process.argv[1] !== undefined && process.argv[1] === fileURLToPath(import.meta.url);
 if (isMainModule) {
-  const databaseUrl = process.env.DATABASE_URL;
-  const cloudAppPassword = process.env.CLOUD_APP_DATABASE_PASSWORD;
+  const databaseUrl = process.env["DATABASE_URL"];
+  const cloudAppPassword = process.env["CLOUD_APP_DATABASE_PASSWORD"];
   if (!databaseUrl) {
     console.error("migrate: DATABASE_URL is not set");
     process.exit(1);
