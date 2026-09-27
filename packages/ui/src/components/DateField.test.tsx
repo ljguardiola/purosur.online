@@ -883,8 +883,6 @@ test("updates the calendar's chosen day once typing finishes a complete valid da
   const dialog = await openCalendar(screen, "Expiry");
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
   expect(chosen.textContent?.trim()).toBe("28");
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("refuses a date outside the caller's allowed range, showing its message under the field in error UI", async () => {

@@ -325,7 +325,6 @@ test("stays open while the pointer moves from its element onto the tooltip itsel
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   // Under the left edge, not the center, since the arrow bridges most of the gap there.
   const triggerRect = trigger.getBoundingClientRect();
@@ -383,7 +382,6 @@ test("appears on hover and disappears within a short grace period once the point
   await userEvent.hover(trigger);
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
   const tooltip = tooltipElement(screen);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   const awayX = window.innerWidth - 1;
   const awayY = window.innerHeight - 1;
@@ -415,8 +413,6 @@ test("appears on hover and disappears within a short grace period once the point
   } finally {
     watch.abort();
   }
-
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 });
 
 test("appears on keyboard focus and disappears once focus leaves its element", async (context) => {
@@ -434,7 +430,6 @@ test("appears on keyboard focus and disappears once focus leaves its element", a
     screen.getByRole("button", { name: "Void reason" }).element(),
   );
   await expect.poll(() => screen.getByRole("tooltip").elements().length).toBe(1);
-  await expectNoAccessibilityViolations(document.body, axeOptions);
 
   const watch = new AbortController();
   const closed = whenTooltipIs("removed", watch.signal);

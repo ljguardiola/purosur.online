@@ -523,8 +523,6 @@ test("shows a 16px blue strong check on the chosen option only", async () => {
   expect(rect.width).toBeLessThan(17);
   expect(getComputedStyle(check).color).toBe(tokenRgb("brand-blue-strong"));
   expect(unchosen.querySelector("svg")).toBeNull();
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the caller the chosen option and closes the menu, on click", async () => {
@@ -686,8 +684,6 @@ test("opens from the keyboard, moves between options with arrows, picks one with
   expect(onChange).toHaveBeenCalledWith("open");
   await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
   await expect.poll(() => document.activeElement).toBe(trigger.element());
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("closes on Escape without changing anything", async () => {

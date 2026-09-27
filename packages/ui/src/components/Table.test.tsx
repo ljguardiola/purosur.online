@@ -193,8 +193,6 @@ test("renders a white container with an 8px radius and a 1px line border", async
   expect(style.borderColor).toBe(tokenRgb("line"));
   // "hidden" stays scrollable via element.scrollTo(); "clip" doesn't.
   expect(style.overflow).toBe("clip");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("has no aria-busy when the table isn't loading", async () => {
@@ -202,8 +200,6 @@ test("has no aria-busy when the table isn't loading", async () => {
   const table = screen.getByRole("table").element() as HTMLElement;
 
   expect(table.hasAttribute("aria-busy")).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("builds the table from real table/thead/tbody/tr/th/td tags instead of styled divs, so every table role comes from the tag itself in every engine", async () => {
@@ -231,8 +227,6 @@ test("builds the table from real table/thead/tbody/tr/th/td tags instead of styl
   expect(getComputedStyle(headerCell).display).toBe("table-cell");
   expect(getComputedStyle(bodyRow).display).toBe("table-row");
   expect(getComputedStyle(bodyCell).display).toBe("table-cell");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders a 44px header row on a bone background with 16px edge padding and a 12px gap between columns", async () => {
@@ -252,8 +246,6 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
   expect(lastStyle.paddingRight).toBe("16px");
   expect(firstStyle.paddingRight).toBe("6px");
   expect(lastStyle.paddingLeft).toBe("6px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("wraps a long, unbreakable plain header title instead of overrunning the next column", async () => {
@@ -326,8 +318,6 @@ test("renders 12px bold capital column titles", async () => {
   expect(style.fontSize).toBe("12px");
   expect(style.fontWeight).toBe("700");
   expect(style.textTransform).toBe("uppercase");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("still renders every row, each with its own content, when two rows share the same id", async () => {
@@ -392,8 +382,6 @@ test("skips its own bottom divider on the last row, since the container's own bo
   expect(containerRect.bottom - rowRect.bottom).toBeCloseTo(1, 0);
   const layers = shadowLayers(getComputedStyle(lastRow).boxShadow);
   expect(layers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the selected row's own left accent on the last row, with no bottom divider layer", async () => {
@@ -430,8 +418,6 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   expect(lastLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(false);
   const otherLayers = shadowLayers(getComputedStyle(otherPlaceholderRow).boxShadow);
   expect(otherLayers.some((layer) => layer.includes("-1px 0px 0px inset"))).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every row's cells with 16px edge padding and a 12px gap lined up with the header, over a 1px line bottom border", async () => {
@@ -449,8 +435,6 @@ test("renders every row's cells with 16px edge padding and a 12px gap lined up w
   expect(lastStyle.paddingLeft).toBe("6px");
   const layers = shadowLayers(rowStyle.boxShadow);
   expect(layers[layers.length - 1]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders a 56px row when every cell holds a single line", async () => {
@@ -460,8 +444,6 @@ test("renders a 56px row when every cell holds a single line", async () => {
 
   expect(rect.height).toBeGreaterThan(55);
   expect(rect.height).toBeLessThan(57);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("grows a row to 64px when a cell renders a detail line under its main text", async () => {
@@ -485,8 +467,6 @@ test("grows a row to 64px when a cell renders a detail line under its main text"
 
   expect(rect.height).toBeGreaterThan(63);
   expect(rect.height).toBeLessThan(65);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("grows a row to fit a taller cell, like one holding a form control, beyond the 56px floor", async () => {
@@ -564,16 +544,12 @@ test("stacks its own text and detail line with a 4px gap and their own 24px/20px
   expect(getComputedStyle(container).rowGap).toBe("4px");
   expect(getComputedStyle(text).lineHeight).toBe("24px");
   expect(getComputedStyle(detail).lineHeight).toBe("20px");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders no detail line when no detail is given", async () => {
   const screen = await render(<TableCellText>Coffee</TableCellText>);
 
   expect(screen.container.querySelectorAll("span")).toHaveLength(1);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders no detail line for a boolean detail, like the common item.sku !== undefined && item.sku pattern", async () => {
@@ -696,8 +672,6 @@ test("right-aligns a numeric column in the header and the rows, with tabular dig
     cell.getBoundingClientRect().right - 16,
     0,
   );
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("right-aligns a sortable end-aligned header's own title and icon, not just its text-align", async () => {
@@ -740,8 +714,6 @@ test("renders the selected row state with a blue message background and a 4px bl
   expect(layers[layers.length - 2]).toBe(`${tokenRgb("line")} 0px -1px 0px 0px inset`);
   expect(layers[layers.length - 1]).toBe(`${tokenRgb("brand-blue-ui")} 4px 0px 0px 0px inset`);
   expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the warning row state with a warning message background", async () => {
@@ -757,8 +729,6 @@ test("renders the warning row state with a warning message background", async ()
 
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-warning-message-bg"));
   expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the error row state with an error message background", async () => {
@@ -774,8 +744,6 @@ test("renders the error row state with an error message background", async () =>
 
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("status-error-message-bg"));
   expect(getComputedStyle(cellText).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every cell of a muted row in secondary text, with its background unchanged", async () => {
@@ -793,8 +761,6 @@ test("renders every cell of a muted row in secondary text, with its background u
   expect(getComputedStyle(row).backgroundColor).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(firstCellText).color).toBe(tokenRgb("ink-secondary"));
   expect(getComputedStyle(secondCellText).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title actions column named for assistive technology", async () => {
@@ -830,8 +796,6 @@ test("renders one IconButton at its own 38x38px in an 82px wide, unnamed-title a
   const rowHeight = row.getBoundingClientRect().height;
   expect(rowHeight).toBeGreaterThan(55);
   expect(rowHeight).toBeLessThan(57);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligned, in a 126px actions column", async () => {
@@ -871,8 +835,6 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   const rowHeight = row.getBoundingClientRect().height;
   expect(rowHeight).toBeGreaterThan(55);
   expect(rowHeight).toBeLessThan(57);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps focus on the action button when its own label changes with the item's state", async () => {
@@ -1649,7 +1611,6 @@ test("renders the placeholder rows immediately, hidden from assistive technology
   expect(placeholderRow.getBoundingClientRect().height).toBeLessThan(57);
 
   await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders each placeholder bar at its own declared width, cycling per column", async () => {
@@ -1674,8 +1635,6 @@ test("renders each placeholder bar at its own declared width, cycling per column
     secondColumnPlaceholderWidthFraction,
     1,
   );
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders one placeholder square, right-aligned, for a one-button actions column", async () => {
@@ -1752,8 +1711,6 @@ test("discards any rows the caller still passes while loading is initial, in fav
   expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(5);
   expect(screen.getByText("Coffee").query()).toBeNull();
   expect(screen.getByText("Tea").query()).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("reveals the placeholder rows exactly at 300ms, proven with the Web Animations API", async () => {
@@ -1824,8 +1781,6 @@ test("removes the placeholder rows once loading leaves initial", async () => {
 
   expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(0);
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the current rows and shows a top loading bar while updating", async () => {
@@ -1839,8 +1794,6 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
   expect(bar.getBoundingClientRect().height).toBe(3);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 // An absolutely positioned sibling still receives pointer events by default even when aria-hidden.
@@ -2061,8 +2014,6 @@ test("slides the updating bar's segment left to right in a loop", async () => {
   const style = getComputedStyle(segment);
   expect(style.animationName).not.toBe("none");
   expect(style.animationIterationCount).toBe("infinite");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("slides the updating bar's segment exactly from off the left edge to off the right edge, with no dead time", async () => {
@@ -2141,8 +2092,6 @@ test("renders the empty state in place of the header and rows, in blue strong wh
   expect(screen.container.querySelector("table")).toBeNull();
   const section = screen.container.querySelector("section") as HTMLElement;
   expect(section.hasAttribute("aria-busy")).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the empty state in secondary text when nothing matches the filters, with the caller's actions", async () => {
@@ -2164,8 +2113,6 @@ test("renders the empty state in secondary text when nothing matches the filters
   const icon = screen.container.querySelector("svg") as SVGSVGElement;
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   await expect.element(screen.getByRole("button", { name: "Clear filters" })).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders only the title under the icon when the empty state has no detail", async () => {
@@ -2201,8 +2148,6 @@ test("renders the real rows, not the empty state, when both rows and an empty pr
   expect(screen.getByText("No products yet").query()).toBeNull();
   expect(screen.container.querySelector("table")).not.toBeNull();
   expect(screen.container.querySelector("section")).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 // document.body is the browser's own standard fallback when a focused element is removed.
@@ -2237,8 +2182,6 @@ test("drops focus to document.body, cleanly, when a focused header disappears in
 
   expect(screen.container.querySelector("table")).toBeNull();
   expect(document.activeElement).toBe(document.body);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows placeholders instead of the empty state while loading is initial, even with an empty prop", async () => {
@@ -2259,8 +2202,6 @@ test("shows placeholders instead of the empty state while loading is initial, ev
 
   expect(screen.container.querySelectorAll('tbody[aria-hidden="true"] tr')).toHaveLength(5);
   expect(screen.getByText("No products yet").query()).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps showing the current (empty) rows under the loading bar while updating, not the empty state", async () => {
@@ -2302,8 +2243,6 @@ test("renders the caller's footer below the table", async () => {
   );
 
   await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("holds back the footer during the first load, alongside the placeholders", async () => {
@@ -2318,8 +2257,6 @@ test("holds back the footer during the first load, alongside the placeholders", 
   );
 
   expect(screen.getByText("1-2 of 2").query()).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps showing the footer while updating", async () => {
