@@ -24,7 +24,7 @@ export const Warning: Story = {
   args: { tone: "warning", title: "Sincronización pendiente", detail: "Se reintentará en breve." },
 };
 
-export const Error: Story = {
+export const ErrorTone: Story = {
   args: { tone: "error", title: "El pago falló", detail: "Probá de nuevo." },
 };
 

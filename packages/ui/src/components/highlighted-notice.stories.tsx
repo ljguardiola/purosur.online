@@ -22,6 +22,6 @@ export const Warning: Story = {
   args: { tone: "warning", title: "Stock bajo", detail: "Quedan menos de 5 unidades." },
 };
 
-export const Error: Story = {
+export const ErrorTone: Story = {
   args: { tone: "error", title: "Venta bloqueada", detail: "Tarjeta rechazada." },
 };

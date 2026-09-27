@@ -18,7 +18,7 @@ export const Warning: Story = {
   args: { tone: "warning", children: "Sincronización pendiente" },
 };
 
-export const Error: Story = {
+export const ErrorTone: Story = {
   args: { tone: "error", children: "Sin conexión" },
 };
 

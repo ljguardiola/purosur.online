@@ -107,9 +107,7 @@ test("shows the same 3px strong-blue focus outline as every other button", async
 
 test("activates on Enter when focused via keyboard", async () => {
   const onPress = vi.fn();
-  const screen = await render(
-    <IconButton aria-label="Delete row" icon={<Trash2 />} onPress={onPress} />,
-  );
+  await render(<IconButton aria-label="Delete row" icon={<Trash2 />} onPress={onPress} />);
 
   await userEvent.tab();
   await userEvent.keyboard("{Enter}");

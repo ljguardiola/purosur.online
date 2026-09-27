@@ -26,7 +26,7 @@ export const Warning: Story = {
   args: { tone: "warning", title: "Atención", detail: "Revisá los totales antes de cerrar." },
 };
 
-export const Error: Story = {
+export const ErrorTone: Story = {
   args: { tone: "error", title: "No se pudo guardar", detail: "Probá de nuevo." },
 };
 
