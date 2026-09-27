@@ -91,10 +91,12 @@ function shellOf(doc, defaultsNode) {
   return typeof shell === "string" ? shell : undefined;
 }
 
+const UNKNOWN_SHELL = undefined;
+
 function runnerDefaultShell(doc, jobNode) {
-  return runnerLabelsOf(doc, jobNode.get("runs-on", true)).some((label) => /windows/i.test(label))
-    ? "pwsh"
-    : "bash";
+  const labels = runnerLabelsOf(doc, jobNode.get("runs-on", true));
+  if (labels.some((label) => label.includes("${{"))) return UNKNOWN_SHELL;
+  return labels.some((label) => /windows/i.test(label)) ? "pwsh" : "bash";
 }
 
 function runnerLabelsOf(doc, node) {
@@ -601,6 +603,11 @@ function scriptFindings(script, taintedNames, dialect) {
   return findings;
 }
 
+function dialectsOf(shellValue) {
+  if (shellValue === UNKNOWN_SHELL) return [BASH, POWERSHELL];
+  return [isPowerShell(shellValue) ? POWERSHELL : BASH];
+}
+
 function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   const script = resolveScalar(doc, stepNode.get("run", true));
   if (typeof script !== "string") return [];
@@ -614,11 +621,13 @@ function messagesForStep(doc, stepNode, workflowEnv, jobEnv, inheritedShell) {
   const messages = [];
   if (readsTaintedValue(script, taintedNames)) messages.push(INLINE_EXPRESSION_MESSAGE);
 
-  const findings = scriptFindings(
-    script,
-    taintedNames,
-    isPowerShell(effectiveShell) ? POWERSHELL : BASH,
-  );
+  const findings = dialectsOf(effectiveShell)
+    .map((dialect) => scriptFindings(script, taintedNames, dialect))
+    .reduce((all, one) => ({
+      printsTainted: all.printsTainted || one.printsTainted,
+      dumpsEnvironment: all.dumpsEnvironment || one.dumpsEnvironment,
+      traces: all.traces || one.traces,
+    }));
   if (findings.printsTainted) messages.push(PRINTS_TAINTED_ENV_MESSAGE);
   if (findings.dumpsEnvironment) messages.push(DUMPS_ENVIRONMENT_MESSAGE);
   if (findings.traces || shellTraces(effectiveShell)) messages.push(TRACES_COMMANDS_MESSAGE);

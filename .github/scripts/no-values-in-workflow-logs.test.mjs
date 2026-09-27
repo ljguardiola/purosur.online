@@ -852,6 +852,25 @@ for (const options of [
   });
 }
 
+for (const [script, expected] of [
+  ["echo $TOKEN", PRINTS],
+  ["echo $env:TOKEN", PRINTS],
+  ["set -x", TRACES],
+  ["Set-PSDebug -Trace 1", TRACES],
+  ["printenv", DUMPS],
+  ["Get-ChildItem env:", DUMPS],
+]) {
+  test(`reads the script as both bash and PowerShell when runs-on is an expression: ${script}`, () => {
+    assertFlagsOnly(messagesOfJobStep(script, { runsOn: `\${{ matrix.os }}` }), expected);
+  });
+}
+
+test("a shell set on the step or job decides the dialect even when runs-on is an expression", () => {
+  const runsOn = `\${{ matrix.os }}`;
+  assert.deepEqual(messagesOfJobStep("echo $env:TOKEN", { runsOn, stepShell: "bash" }), []);
+  assert.deepEqual(messagesOfJobStep("echo $TOKEN", { runsOn, jobShell: "pwsh" }), []);
+});
+
 test("reads the script as bash on a runner that is not Windows", () => {
   assertFlagsOnly(messagesOfJobStep("echo $TOKEN", { runsOn: "ubuntu-24.04" }), PRINTS);
 });
