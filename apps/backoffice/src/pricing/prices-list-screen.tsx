@@ -26,9 +26,9 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sendToMyAccount } from "../access/routes";
 import type { ProductSaleUnit } from "../catalog/products-api";
-import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { ScreenLayout } from "../shell/screen-layout";
+import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import {
   type ConfirmPriceOutcome,
   confirmPrice,
