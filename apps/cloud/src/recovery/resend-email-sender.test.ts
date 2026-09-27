@@ -38,9 +38,25 @@ describe("createResendRecoveryEmailSender", () => {
       to: ["ada@example.com"],
       reply_to: "purosur.comarca@gmail.com",
     });
-    expect(body.subject).toEqual(expect.any(String));
-    expect(body.text).toContain("https://staging.purosur.online/account-recovery/passkey#abc123");
-    expect(body.html).toContain("https://staging.purosur.online/account-recovery/passkey#abc123");
+    expect(body.subject).toBe("Recuperar el acceso a Puro Sur");
+    expect(body.text).toBe(
+      [
+        "Se pidió recuperar el acceso a tu cuenta de Puro Sur.",
+        "",
+        "Usá este enlace para registrar una passkey nueva:",
+        "https://staging.purosur.online/account-recovery/passkey#abc123",
+        "",
+        "Vale 15 minutos y se usa una sola vez.",
+        "Si no lo pediste, podés ignorar este mensaje.",
+      ].join("\n"),
+    );
+    expect(body.html).toBe(
+      "<p>Se pidió recuperar el acceso a tu cuenta de Puro Sur.</p>" +
+        "<p>Usá este enlace para registrar una passkey nueva:</p>" +
+        '<p><a href="https://staging.purosur.online/account-recovery/passkey#abc123">https://staging.purosur.online/account-recovery/passkey#abc123</a></p>' +
+        "<p>Vale 15 minutos y se usa una sola vez.</p>" +
+        "<p>Si no lo pediste, podés ignorar este mensaje.</p>",
+    );
   });
 
   it("never mentions auditing in the email copy", async () => {

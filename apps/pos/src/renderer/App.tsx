@@ -1,4 +1,3 @@
-import { messages } from "../messages";
 import { BrandPanelScreen } from "./BrandPanelScreen";
 import { CoreDownNotice } from "./CoreDownNotice";
 import { useCoreStatus } from "./useCoreStatus";
@@ -16,7 +15,7 @@ export function App() {
 
   return (
     <main>
-      <p>{messages.shell.ready}</p>
+      <p>Puro Sur está listo</p>
     </main>
   );
 }
