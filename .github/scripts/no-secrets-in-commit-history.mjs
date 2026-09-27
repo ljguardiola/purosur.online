@@ -34,7 +34,16 @@ function changedPathsOf(commit, cwd) {
 
 function addedLinesOf(commit, path, cwd) {
   const patch = runGit(
-    [...COMMIT_DIFF_ARGS, "--unified=0", "--no-color", "--no-ext-diff", commit, "--", path],
+    [
+      ...COMMIT_DIFF_ARGS,
+      "--unified=0",
+      "--inter-hunk-context=0",
+      "--no-color",
+      "--no-ext-diff",
+      commit,
+      "--",
+      path,
+    ],
     cwd,
   ).toString("utf8");
   // git prints no hunks for a file it takes as binary, such as text holding a NUL byte, so every

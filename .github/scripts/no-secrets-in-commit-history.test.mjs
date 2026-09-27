@@ -157,6 +157,23 @@ test("does not blame a later commit that only changes other lines of a file hold
   });
 });
 
+test("counts only added lines even when the repository's git config widens diff hunks", async () => {
+  await withFixtureRepo(async (dir, base) => {
+    git(["config", "diff.interHunkContext", "10"], dir);
+    writeTracked(dir, "notes.txt", `first\n${PRIVATE_KEY}\nlast\n`);
+    const added = commit(dir, "add a key");
+    writeTracked(dir, "notes.txt", `the first\n${PRIVATE_KEY}\nthe last\n`);
+    commit(dir, "edit the lines around it");
+
+    const violations = await violationsSince(base, dir);
+
+    assert.deepEqual(
+      violations.map((violation) => violation.commit),
+      [added],
+    );
+  });
+});
+
 test("flags a commit that replaces only the body of a key another commit added", async () => {
   await withFixtureRepo(async (dir, base) => {
     writeTracked(dir, "notes.txt", `${PRIVATE_KEY}\n`);
