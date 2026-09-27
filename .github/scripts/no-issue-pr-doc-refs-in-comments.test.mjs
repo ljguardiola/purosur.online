@@ -348,6 +348,22 @@ test("skips the bodies of two here-documents opened on the same run step line", 
   ]);
 });
 
+test("does not read an arithmetic shift in a run step as a here-document that hides later comments", () => {
+  const source = ["run: |", "  x=$((1<<4))", "  # see #5"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 3, text: "# see #5" }]);
+});
+
+test("finds a run step's comment once after a here-document whose body holds no shell token", () => {
+  const source = ["run: |", "  cat <<EOF", "  plain", "  EOF", "  echo # see #5"].join("\n");
+
+  const comments = findComments(source, "a.yml");
+
+  assert.deepEqual(comments, [{ line: 5, text: "# see #5" }]);
+});
+
 test("finds each YAML comment once when an empty run step ends the file", () => {
   const source = "# see #5\nsteps:\n  - run: |";
 

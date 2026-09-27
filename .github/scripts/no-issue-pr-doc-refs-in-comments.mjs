@@ -66,7 +66,7 @@ const SHELL_TOKEN =
 
 function hereDocumentEnd(source, from, word) {
   const terminator = new RegExp(`^[ \\t]*${word}[ \\t]*$`, "m").exec(source.slice(from));
-  return terminator === null ? source.length : from + terminator.index + terminator[0].length;
+  return terminator === null ? undefined : from + terminator.index + terminator[0].length;
 }
 
 function findShellComments(source) {
@@ -84,10 +84,8 @@ function findShellComments(source) {
     if (word === undefined) continue;
     const lineEnd = source.indexOf("\n", token.index);
     const start = hereDocumentBodies?.start ?? (lineEnd === -1 ? source.length : lineEnd + 1);
-    hereDocumentBodies = {
-      start,
-      end: hereDocumentEnd(source, hereDocumentBodies?.end ?? start, word),
-    };
+    const end = hereDocumentEnd(source, hereDocumentBodies?.end ?? start, word);
+    if (end !== undefined) hereDocumentBodies = { start, end };
   }
   return comments;
 }
