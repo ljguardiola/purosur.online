@@ -231,6 +231,20 @@ test("flags a deployment secret assigned a random-looking value, in any assignme
   });
 });
 
+test("names the rule that found each secret, since the masked message may be only asterisks", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(dir, "railway.sh", `RAILWAY_TOKEN=${UUID_SHAPED_VALUE}\n`);
+    trackFile(dir, "config/key.txt", PRIVATE_KEY);
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    const messageOf = (path) => violations.find((violation) => violation.path === path).message;
+    assert.match(messageOf("railway.sh"), /^@secretlint\/secretlint-rule-pattern: /);
+    assert.match(messageOf("config/key.txt"), /^@secretlint\/secretlint-rule-privatekey: /);
+  });
+});
+
 test("accepts deployment secret names holding a readable fake or a workflow secret reference", async () => {
   await withTempRepo(async (dir) => {
     trackFile(

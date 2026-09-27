@@ -71,7 +71,7 @@ export async function checkFiles(
     result.messages.map((message) => ({
       path: relative(cwd, result.filePath),
       line: message.loc.start.line,
-      message: message.message,
+      message: `${message.ruleId}: ${message.message}`,
     })),
   );
 
