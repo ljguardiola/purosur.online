@@ -183,7 +183,6 @@ type SessionState =
       expiresAt?: string;
     };
 
-const BRAND_NAME = "Puro Sur";
 const AREA_RAIL_LABEL = "Áreas";
 
 function accessOf(session: Extract<SessionState, { kind: "signed-in" }>): BackofficeAccess {
@@ -284,7 +283,6 @@ function HelpApp({
 
   return (
     <Shell
-      brandName={BRAND_NAME}
       areaRailLabel={AREA_RAIL_LABEL}
       sectionColumnLabel="Secciones de ayuda"
       railAreas={
@@ -392,7 +390,6 @@ function SettingsApp({
 
   return (
     <Shell
-      brandName={BRAND_NAME}
       areaRailLabel={AREA_RAIL_LABEL}
       sectionColumnLabel="Configuración"
       railAreas={
@@ -559,7 +556,6 @@ function CatalogApp({
 
   return (
     <Shell
-      brandName={BRAND_NAME}
       areaRailLabel={AREA_RAIL_LABEL}
       sectionColumnLabel="Catálogo"
       railAreas={
@@ -660,7 +656,6 @@ function CashApp({
 
   return (
     <Shell
-      brandName={BRAND_NAME}
       areaRailLabel={AREA_RAIL_LABEL}
       sectionColumnLabel="Caja y fiscal"
       railAreas={
@@ -738,7 +733,6 @@ function InicioApp({
 
   return (
     <Shell
-      brandName={BRAND_NAME}
       areaRailLabel={AREA_RAIL_LABEL}
       sectionColumnLabel="Inicio"
       railAreas={

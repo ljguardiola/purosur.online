@@ -2,7 +2,6 @@ import { PuroSurIsotype } from "@purosur/ui";
 import type { ReactNode } from "react";
 
 export type ShellProps = {
-  brandName: string;
   areaRailLabel: string;
   sectionColumnLabel: string;
   railAreas: ReactNode;
@@ -12,7 +11,6 @@ export type ShellProps = {
 };
 
 export function Shell({
-  brandName,
   areaRailLabel,
   sectionColumnLabel,
   railAreas,
@@ -26,7 +24,7 @@ export function Shell({
         aria-label={areaRailLabel}
         className="flex w-20 shrink-0 flex-col items-center gap-1.5 bg-brand-blue-strong px-3 py-4"
       >
-        <PuroSurIsotype alt={brandName} className="size-10 object-contain" />
+        <PuroSurIsotype className="size-10 object-contain" />
         <div aria-hidden="true" className="h-px w-full bg-surface-white-veil" />
         <div className="flex flex-col items-center gap-1.5">{railAreas}</div>
         <div className="mt-auto flex flex-col items-center gap-1.5">{railFooter}</div>

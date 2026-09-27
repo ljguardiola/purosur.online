@@ -331,7 +331,6 @@ test("renders the related panel from the article's related list", async () => {
 test("stretches the article card to the foot of the content area, sizing the related panel to its own rows", async () => {
   const screen = await render(
     <Shell
-      brandName="Puro Sur"
       areaRailLabel="Áreas"
       sectionColumnLabel="Secciones"
       railAreas={null}

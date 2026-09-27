@@ -13,10 +13,7 @@ export function AccessLayout({ children }: AccessLayoutProps) {
           scroll. min-w-80 keeps a usable floor at narrower widths. */}
       <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
         <div className="flex-1" />
-        <PuroSurLogo
-          alt="Puro Sur"
-          className="h-auto max-h-[180px] w-full max-w-[460px] self-center object-contain"
-        />
+        <PuroSurLogo className="h-auto max-h-[180px] w-full max-w-[460px] self-center object-contain" />
         <div className="flex-1" />
         <p className="text-sm font-bold text-ink-secondary">Backoffice</p>
       </div>
