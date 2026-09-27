@@ -2,6 +2,7 @@ import { composeStories, setProjectAnnotations } from "@storybook/react-vite";
 import type { ReactElement } from "react";
 import { STORY_RENDERED } from "storybook/internal/core-events";
 import { addons, mockChannel } from "storybook/preview-api";
+import { expect, onTestFinished } from "vitest";
 import { render } from "vitest-browser-react";
 import * as preview from "../../.storybook/preview";
 import type { AccessibilityRunOptions } from "../test/axe";
@@ -30,7 +31,10 @@ export interface CatalogStory {
   id: string;
   storyName: string;
   play?: (context: { canvasElement: HTMLElement }) => Promise<void> | void;
-  parameters: { a11y?: { options?: AccessibilityRunOptions } };
+  parameters: {
+    a11y?: { options?: AccessibilityRunOptions };
+    pseudo?: Record<string, unknown>;
+  };
 }
 
 export interface CatalogStoryEntry {
@@ -46,11 +50,33 @@ export const catalogStories: CatalogStoryEntry[] = Object.values(storyModules).f
   return Object.values(composed).map((story) => ({ title, story }));
 });
 
+function pseudoStateClasses(element: Element): string[] {
+  return [...element.classList].filter((name) => name.startsWith("pseudo-"));
+}
+
+function forcedBodyPseudoStateClasses(Story: CatalogStory): string[] {
+  return Object.entries(Story.parameters.pseudo ?? {})
+    .filter(([, forced]) => forced === true)
+    .map(
+      ([state]) => `pseudo-${state.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-all`,
+    )
+    .sort();
+}
+
 export async function renderCatalogStory(Story: CatalogStory): Promise<HTMLElement> {
+  // The pseudo-states addon adds its classes to the root in a deferred callback after mount and
+  // never removes them when the story unmounts.
+  onTestFinished(() => {
+    document.body.classList.remove(...pseudoStateClasses(document.body));
+  });
+
   const screen = await render(<Story />);
   // Storybook-driven decorator effects, like the pseudo-states addon's own stylesheet rewrite,
   // only run once this event reaches them; nothing here emits it automatically outside Storybook.
   addons.getChannel().emit(STORY_RENDERED, Story.id);
+  await expect
+    .poll(() => pseudoStateClasses(document.body).sort())
+    .toEqual(forcedBodyPseudoStateClasses(Story));
 
   await Story.play?.({ canvasElement: screen.container });
 
