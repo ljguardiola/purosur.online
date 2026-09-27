@@ -13,14 +13,14 @@ const EDGE_ORIGIN_SECRET_HEADER = "x-edge-origin-secret";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, REPO_ROOT, "");
 
-  const LOCAL_CLOUD_ORIGIN = `http://localhost:${env.CLOUD_PORT ?? "3000"}`;
+  const LOCAL_CLOUD_ORIGIN = `http://localhost:${env["CLOUD_PORT"] ?? "3000"}`;
 
   const cloudApiProxy: ProxyOptions = {
     target: LOCAL_CLOUD_ORIGIN,
     configure(proxy) {
       proxy.on("proxyReq", (proxyReq) => {
-        if (env.EDGE_ORIGIN_SECRET) {
-          proxyReq.setHeader(EDGE_ORIGIN_SECRET_HEADER, env.EDGE_ORIGIN_SECRET);
+        if (env["EDGE_ORIGIN_SECRET"]) {
+          proxyReq.setHeader(EDGE_ORIGIN_SECRET_HEADER, env["EDGE_ORIGIN_SECRET"]);
         }
       });
     },

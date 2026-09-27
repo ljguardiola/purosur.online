@@ -107,6 +107,16 @@ const rejectedCode = [
     ].join("\n"),
     code: 7028,
   },
+  {
+    description: "a dictionary key read as if it were a declared property",
+    source: [
+      "export function price(prices: Record<string, number>): number | undefined {",
+      "  return prices.bread;",
+      "}",
+      "",
+    ].join("\n"),
+    code: 4111,
+  },
 ];
 
 for (const configPath of configPaths) {

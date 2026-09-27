@@ -14,7 +14,7 @@ export const E2E_CHANNEL_FILE = { channel: "staging", dataFolder: "purosur-pos-e
 // Windows CI needs no extra flags; a local Wayland session needs `--ozone-platform=wayland`
 // (Electron's headless Ozone backend segfaults there), read from POS_E2E_ELECTRON_ARGS.
 export function platformArgs(): string[] {
-  const extra = process.env.POS_E2E_ELECTRON_ARGS;
+  const extra = process.env["POS_E2E_ELECTRON_ARGS"];
   return extra ? extra.split(" ").filter((arg) => arg.length > 0) : [];
 }
 
@@ -38,7 +38,7 @@ export function appEnv(channelFile: string): Record<string, string> {
       env[key] = value;
     }
   }
-  env.POS_CHANNEL_FILE = channelFile;
+  env["POS_CHANNEL_FILE"] = channelFile;
   return env;
 }
 

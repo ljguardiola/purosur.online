@@ -56,7 +56,7 @@ describe("readIssuerIdentificationEditBody", () => {
 
   it("rejects a missing legal_name", () => {
     const body = validBody();
-    delete body.legal_name;
+    delete body["legal_name"];
 
     const result = readIssuerIdentificationEditBody(body, TODAY);
 
@@ -169,7 +169,7 @@ describe("readIssuerIdentificationEditBody", () => {
 
   it("rejects a missing version", () => {
     const body = validBody();
-    delete body.version;
+    delete body["version"];
 
     const result = readIssuerIdentificationEditBody(body, TODAY);
 

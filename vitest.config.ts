@@ -10,7 +10,7 @@ import {
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-process.env.TZ = "UTC";
+process.env["TZ"] = "UTC";
 
 export default defineConfig({
   resolve: {

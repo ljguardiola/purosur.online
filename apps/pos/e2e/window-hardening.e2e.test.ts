@@ -94,10 +94,10 @@ describe("the register's hardened window", () => {
 
   it("exposes nothing Node- or Sentry-shaped on the page's window", async () => {
     const exposed = await page.evaluate(() => ({
-      require: typeof (window as unknown as Record<string, unknown>).require,
-      process: typeof (window as unknown as Record<string, unknown>).process,
-      sentryIpc: typeof (window as unknown as Record<string, unknown>).__SENTRY_IPC__,
-      electron: typeof (window as unknown as Record<string, unknown>).electron,
+      require: typeof (window as unknown as Record<string, unknown>)["require"],
+      process: typeof (window as unknown as Record<string, unknown>)["process"],
+      sentryIpc: typeof (window as unknown as Record<string, unknown>)["__SENTRY_IPC__"],
+      electron: typeof (window as unknown as Record<string, unknown>)["electron"],
     }));
 
     expect(exposed).toEqual({
@@ -157,7 +157,7 @@ describe("the register's hardened window", () => {
       return {
         blockedUris,
         allSeen: allSeen(),
-        inlineRan: (window as unknown as Record<string, unknown>).__inlineRan === true,
+        inlineRan: (window as unknown as Record<string, unknown>)["__inlineRan"] === true,
       };
     });
 

@@ -162,7 +162,7 @@ function alertTitle(alert: AlertDetail): string {
 function alertDescription(alert: AlertDetail): string {
   if (alert.kind === "backoffice_sign_in_lockout") {
     const failureCount =
-      typeof alert.detail.failureCount === "number" ? alert.detail.failureCount : 0;
+      typeof alert.detail["failureCount"] === "number" ? alert.detail["failureCount"] : 0;
     const failuresText = plural(failureCount, {
       one: "1 intento fallido",
       other: `${failureCount} intentos fallidos`,

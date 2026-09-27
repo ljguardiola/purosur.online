@@ -69,11 +69,11 @@ const CORE_READINESS_TIMEOUT_MS = 30_000;
 const DEFAULT_CORE_RETRY_INTERVAL_MS = 90_000;
 
 function coreRetryIntervalMs(): number {
-  const override = !app.isPackaged ? Number(process.env.POS_CORE_RETRY_INTERVAL_MS) : Number.NaN;
+  const override = !app.isPackaged ? Number(process.env["POS_CORE_RETRY_INTERVAL_MS"]) : Number.NaN;
   return Number.isFinite(override) && override > 0 ? override : DEFAULT_CORE_RETRY_INTERVAL_MS;
 }
 
-const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined;
+const devServerUrl = !app.isPackaged ? process.env["ELECTRON_RENDERER_URL"] : undefined;
 
 // A file:// page gets no response headers, so the packaged interface carries its policy in its own
 // HTML; this header still covers what a meta element can't, such as frame-ancestors.
@@ -241,7 +241,7 @@ function startRegister(settings: ChannelSettings): void {
 const channelSettings = loadChannelSettings({
   isPackaged: app.isPackaged,
   resourcesPath: process.resourcesPath,
-  overridePath: process.env.POS_CHANNEL_FILE,
+  overridePath: process.env["POS_CHANNEL_FILE"],
   readFile: (path) => readFileSync(path, "utf8"),
 });
 if (channelSettings.ok) {
