@@ -11,7 +11,6 @@ const componentsWithoutStoriesYet = [
   "ListFilter",
   "Modal",
   "NotificationCard",
-  "OptionCardGroup",
   "Pagination",
   "ProportionBar",
   "PuroSurIsotype",

@@ -76,8 +76,6 @@ test("renders the group as a single row of equally wide cards, 12px apart", asyn
   expect(firstGap).toBeLessThan(13);
   expect(secondGap).toBeGreaterThan(11);
   expect(secondGap).toBeLessThan(13);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the hand cursor on each card", async () => {
@@ -86,8 +84,6 @@ test("shows the hand cursor on each card", async () => {
   for (const option of options) {
     expect(getComputedStyle(radioCard(screen, option.title)).cursor).toBe("pointer");
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders each card's icon, title and help text", async () => {
@@ -98,8 +94,6 @@ test("renders each card's icon, title and help text", async () => {
     expect(card.querySelector("svg")).not.toBeNull();
     await expect.element(screen.getByText(option.helpText)).toBeVisible();
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("gives every card the 12/16px padding, 8px radius and 12px icon-to-text gap", async () => {
@@ -113,8 +107,6 @@ test("gives every card the 12/16px padding, 8px radius and 12px icon-to-text gap
   expect(style.borderRadius).toBe("8px");
   expect(style.columnGap).toBe("12px");
   expect(style.alignItems).toBe("center");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders the icon at 20px, the title at 16px bold and the help text at 12px regular", async () => {
@@ -135,8 +127,6 @@ test("renders the icon at 20px, the title at 16px bold and the help text at 12px
   expect(getComputedStyle(title).fontWeight).toBe("700");
   expect(getComputedStyle(helpText).fontSize).toBe("12px");
   expect(getComputedStyle(helpText).fontWeight).toBe("400");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("sits the help text directly under the title, with no gap between them", async () => {
@@ -148,8 +138,6 @@ test("sits the help text directly under the title, with no gap between them", as
 
   const gap = helpText.getBoundingClientRect().top - title.getBoundingClientRect().bottom;
   expect(gap).toBeCloseTo(0, 0);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors a not-chosen card white with a 1px line border, secondary icon, ink title and secondary help text", async () => {
@@ -167,8 +155,6 @@ test("colors a not-chosen card white with a 1px line border, secondary icon, ink
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
   expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("turns a hovered not-chosen card's background bone without changing its other colors", async () => {
@@ -183,8 +169,6 @@ test("turns a hovered not-chosen card's background bone without changing its oth
   expect(getComputedStyle(card).boxShadow).toContain(insetBoundary("line", "1px"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("colors the chosen card with the blue message background, a 2px blue border, and blue strong icon and title", async () => {
@@ -202,8 +186,6 @@ test("colors the chosen card with the blue message background, a 2px blue border
   expect(getComputedStyle(icon).color).toBe(tokenRgb("brand-blue-strong"));
   expect(getComputedStyle(title).color).toBe(tokenRgb("brand-blue-strong"));
   expect(getComputedStyle(helpText).color).toBe(tokenRgb("ink-secondary"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not change the chosen card's background on hover", async () => {
@@ -214,7 +196,6 @@ test("does not change the chosen card's background on hover", async () => {
   await expect.poll(() => card.hasAttribute("data-hovered")).toBe(true);
 
   expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("brand-blue-message-bg"));
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps the card's size stable when its border grows from 1px to 2px on choosing it", async () => {
@@ -227,8 +208,6 @@ test("keeps the card's size stable when its border grows from 1px to 2px on choo
 
   expect(chosenRect.width).toBeCloseTo(notChosenRect.width, 0);
   expect(chosenRect.height).toBeCloseTo(notChosenRect.height, 0);
-
-  await expectNoAccessibilityViolations(chosenScreen.container);
 });
 
 test("wraps a long title and a long help text inside the card", async () => {
@@ -273,8 +252,6 @@ test("chooses a card with a click, unchoosing the previous one", async () => {
 
   expect(radioInput(screen, "Expense").checked).toBe(true);
   expect(radioInput(screen, "Income").checked).toBe(false);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("clicking the already-chosen card changes nothing", async () => {
@@ -285,8 +262,6 @@ test("clicking the already-chosen card changes nothing", async () => {
 
   expect(onChange).not.toHaveBeenCalled();
   expect(radioInput(screen, "Income").checked).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("is a single tab stop landing on the chosen card", async () => {
@@ -338,15 +313,12 @@ test("shows the package's focus ring on the focused card", async () => {
   await expect.poll(() => getComputedStyle(card).outlineWidth).toBe("3px");
   await expect.poll(() => getComputedStyle(card).outlineOffset).toBe("3px");
   await expect.poll(() => getComputedStyle(card).outlineColor).toBe(tokenRgb("brand-blue-strong"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes the group as a radiogroup named by the caller's label", async () => {
   const screen = await render(<OptionCardGroup {...baseProps({ label: "Movement type" })} />);
 
   await expect.element(screen.getByRole("radiogroup", { name: "Movement type" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes each card as a radio button named by its title and described by its help text", async () => {
@@ -360,8 +332,6 @@ test("exposes each card as a radio button named by its title and described by it
 
   expect(input.checked).toBe(false);
   expect(radioInput(screen, "Expense").checked).toBe(true);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not accept an option without an icon, title or help text", () => {
@@ -459,8 +429,6 @@ test("renders with no card chosen when value is null", async () => {
   for (const option of options) {
     expect(radioInput(screen, option.title).checked).toBe(false);
   }
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("choosing a card when nothing is chosen yet calls onChange with that card's value", async () => {
@@ -470,8 +438,6 @@ test("choosing a card when nothing is chosen yet calls onChange with that card's
   await userEvent.click(radioCard(screen, "Expense"));
 
   expect(onChange).toHaveBeenCalledWith("expense");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the error message and marks the group invalid when nothing is chosen", async () => {
@@ -482,16 +448,12 @@ test("shows the error message and marks the group invalid when nothing is chosen
   await expect.element(screen.getByText("Elegí una opción.")).toBeVisible();
   const group = screen.getByRole("radiogroup", { name: "Movement type" }).element() as HTMLElement;
   expect(group.getAttribute("aria-invalid")).toBe("true");
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("does not show an error message when not invalid", async () => {
   const screen = await render(<OptionCardGroup {...baseProps({ value: null })} />);
 
   expect(screen.getByText("Elegí una opción.").query()).toBeNull();
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("exposes a required group as required, and an optional one as not required", async () => {
