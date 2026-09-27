@@ -597,7 +597,7 @@ test("scans every file kind whose comments it can read", () => {
 test("no scanned file in the repository has a comment citing an issue, a pull request or a document", () => {
   const files = findScannedFiles();
   for (const sentinel of [
-    "apps/backoffice/src/test-support/productsListScreen.tsx",
+    "apps/backoffice/src/catalog/test-support/products-list-screen.tsx",
     ".github/scripts/no-issue-pr-doc-refs-in-comments.test.mjs",
     ".railway/railway.ts",
     "packages/ui/src/styles/tokens.css",

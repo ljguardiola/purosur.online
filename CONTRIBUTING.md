@@ -48,6 +48,16 @@ A feature too large for one pull request stays as a parent feature issue holding
 - Fill in every section of the pull request template, including the Delivery impact checklist.
 - Merges are squash-only. The PR title becomes the commit message on `main`.
 
+## Structure
+
+This is the structure the repository is organized into. A part that does not follow it yet is moved to it when it is reorganized, and never serves as a precedent for new code.
+
+- In every layer that covers business concepts — `packages/domain`, the cloud, the backoffice, the register app — the top-level folders are the business concepts it covers, each named like `packages/domain`'s concept of the same name (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`), so a concept is found under the same name from its rule to its screen. A concept the domain has no rules for yet still gets its own folder under its business name, such as the backoffice's `access` and `branch`. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes, its helpers.
+- What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for shared infrastructure used across concepts (HTTP helpers, formatting), and a folder named after any other part of the application, such as the backoffice's `help/`.
+- A menu area that groups several concepts does so through its routes, not through a folder.
+- Every source file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
+- Each file's tests sit beside it. Helpers used only by tests live in a `test-support/` folder inside the folder they serve.
+
 ## Code style
 
 - This repository is strict TDD: write a failing test first, then the code that makes it pass. Never write implementation code ahead of its test.
@@ -107,6 +117,10 @@ Dependency and GitHub Actions update PRs are opened by Dependabot (`.github/depe
 CI is the only thing that allows a merge: the `pr-contract` and `verify` checks are both required. A workflow step that references a GitHub Action by a moving tag (e.g. `@v4`) instead of a pinned commit SHA does not pass review.
 
 No tool checks that `packages/ui` carries no screens — composed screens live in each app — so every pull request is reviewed for it by hand.
+
+A configuration variable (`vars`) holds only a value that may be public; anything else is a secret. `pnpm verify` rejects a workflow step that writes a configuration variable or a secret directly into its script instead of passing it through the step's `env:`, or that traces the commands it runs.
+
+`pnpm verify` scans every tracked file for secrets. When it finds one in CI, the secret has already reached GitHub: revoke and rotate it, don't only remove it.
 
 Follow Verify's duration across runs on main with `pnpm ci:verify-durations` (needs the `gh` CLI signed in). A test is marked slow only against the duration that is slow for its own kind of test, listed at the end of the run; it never fails a run.
 
