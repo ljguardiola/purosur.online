@@ -1895,3 +1895,26 @@ test.each([
 
   await expect.element(screen.getByRole("link", { name: link })).toHaveAttribute("href", url);
 });
+
+test.each([
+  { url: "/home/alerts?status=closed", link: "Inicio" },
+  { url: "/catalog/products?search=miel", link: "Catálogo" },
+])("the $link rail link keeps the filters its list is showing", async ({ url, link }) => {
+  const services = createServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/help");
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const railLink = screen.getByRole("link", { name: link });
+  await expect.element(railLink).toHaveAttribute("href", url);
+
+  await userEvent.click(railLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+  window.history.back();
+  await expect.poll(() => window.location.pathname).toBe("/help");
+});

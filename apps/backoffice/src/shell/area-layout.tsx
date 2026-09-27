@@ -1,5 +1,5 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { createLink } from "@tanstack/react-router";
+import { createLink, useMatchRoute } from "@tanstack/react-router";
 import { Home, LifeBuoy, Package, Settings, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -27,17 +27,30 @@ export type AreaLayoutProps = {
 
 export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
+  const matchRoute = useMatchRoute();
+  const alertsShown = Boolean(matchRoute({ to: "/home/alerts" }));
+  const catalogTarget = canManageProductsAndCategories(session)
+    ? "/catalog/products"
+    : "/catalog/prices";
+  const catalogTargetShown = Boolean(matchRoute({ to: catalogTarget }));
   return (
     <Shell
       sectionColumnLabel={sectionColumnLabel}
       railAreas={
         <>
           {canSeeAlertsArea(session) && (
-            <AreaLink to="/home/alerts" label="Inicio" icon={<Home />} active={area === "home"} />
+            <AreaLink
+              to="/home/alerts"
+              search={alertsShown ? true : {}}
+              label="Inicio"
+              icon={<Home />}
+              active={area === "home"}
+            />
           )}
           {canSeeCatalogArea(session) && (
             <AreaLink
-              to={canManageProductsAndCategories(session) ? "/catalog/products" : "/catalog/prices"}
+              to={catalogTarget}
+              search={catalogTargetShown ? true : {}}
               label="Catálogo"
               icon={<Package />}
               active={area === "catalog"}
