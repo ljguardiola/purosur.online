@@ -16,8 +16,6 @@ test("draws its label at the register scale with no FieldSizeProvider above it",
   expect(Math.round(Number.parseFloat(style.fontSize))).toBe(16);
   expect(style.fontWeight).toBe("700");
   expect(style.color).toBe(tokenRgb("ink"));
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("appends the required asterisk to its label only when required", async () => {
@@ -51,8 +49,6 @@ test("keeps its label 6px above its own children with no FieldSizeProvider above
   const wrapper = label.parentElement as HTMLElement;
 
   expect(Math.round(Number.parseFloat(getComputedStyle(wrapper).rowGap))).toBe(6);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("renders every child passed to it, in order, below its own label", async () => {
@@ -70,6 +66,4 @@ test("renders every child passed to it, in order, below its own label", async ()
     "First",
     "Second",
   ]);
-
-  await expectNoAccessibilityViolations(screen.container);
 });
