@@ -28,8 +28,10 @@ import { hashSourceAddress } from "../session/sign-in-lockout.js";
 import {
   BRANCH_SETTINGS_DEFAULTS,
   branchSettingsEqualSampleValues,
+  sampleBranchSettingsAuditValue,
 } from "./sample-branch-settings.js";
 import {
+  SAMPLE_ADMINISTRATOR,
   SAMPLE_CATEGORY_TREE,
   SAMPLE_EMAIL_DOMAIN,
   SAMPLE_LOCKOUT_SOURCE_ADDRESSES,
@@ -308,17 +310,21 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       ...samplePasskeyIds,
       ...sampleRecoveryTokenIds,
     ];
-    const resetsBranchSettings = await branchSettingsEqualSampleValues(tx, location.id);
+    const [sampleAdministrator] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, SAMPLE_ADMINISTRATOR.email));
+    const loadBranchSettingsAudit = sampleAdministrator
+      ? and(
+          eq(auditLog.entity, "branch_settings"),
+          eq(auditLog.entityId, location.id),
+          eq(auditLog.actorId, sampleAdministrator.id),
+          sql`${auditLog.newValue} - 'version' = ${JSON.stringify(sampleBranchSettingsAuditValue())}::jsonb`,
+        )
+      : undefined;
     await tx
       .delete(auditLog)
-      .where(
-        resetsBranchSettings
-          ? or(
-              inArray(auditLog.entityId, sampleEntityIds),
-              and(eq(auditLog.entity, "branch_settings"), inArray(auditLog.actorId, sampleUserIds)),
-            )
-          : inArray(auditLog.entityId, sampleEntityIds),
-      );
+      .where(or(inArray(auditLog.entityId, sampleEntityIds), loadBranchSettingsAudit));
 
     await tx
       .delete(passkeyChallenges)
@@ -346,7 +352,7 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
       .where(inArray(registers.id, sampleRegisterIds))
       .returning({ id: registers.id });
 
-    if (resetsBranchSettings) {
+    if (await branchSettingsEqualSampleValues(tx, location.id)) {
       await tx
         .update(branchSettings)
         .set({ ...BRANCH_SETTINGS_DEFAULTS, version: sql`${branchSettings.version} + 1` })

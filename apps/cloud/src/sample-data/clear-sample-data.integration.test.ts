@@ -8,6 +8,7 @@ import { editBranchSettings } from "../branch-settings/branch-settings-edit-rout
 import { createCategory } from "../categories/category-creation-route.js";
 import {
   alerts,
+  auditLog,
   branchSettings,
   categories,
   passkeyChallenges,
@@ -420,6 +421,44 @@ describe("clearSampleData", () => {
 
     expect(outcome.kind).toBe("refused");
     expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
+  }, 120_000);
+  it("clears after a real administrator changed the branch settings, keeping those settings and their audit row", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const [loadedSettings] = await db
+      .select({ version: branchSettings.version })
+      .from(branchSettings)
+      .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+    if (!loadedSettings) throw new Error("test setup: no branch settings seeded");
+    const edit = await editBranchSettings(db, {
+      ...SAMPLE_BRANCH_SETTINGS,
+      address: "Calle Real 1",
+      locationId: bootstrapAdmin.locationId,
+      actorId: bootstrapAdmin.id,
+      version: loadedSettings.version,
+    });
+    if (edit.kind !== "applied") throw new Error("test setup: editing the branch settings failed");
+    const [editedSettings] = await db.select().from(branchSettings);
+    const editedHoursCount = await tableCount(db, "branch_hours");
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const survivingUsers = await db.select({ id: users.id }).from(users);
+    expect(survivingUsers).toEqual([{ id: bootstrapAdmin.id }]);
+    const survivingSettingsAudit = await db
+      .select({ actorId: auditLog.actorId, newValue: auditLog.newValue })
+      .from(auditLog)
+      .where(eq(auditLog.entity, "branch_settings"));
+    expect(survivingSettingsAudit).toEqual([
+      {
+        actorId: bootstrapAdmin.id,
+        newValue: expect.objectContaining({ address: "Calle Real 1" }),
+      },
+    ]);
+    const [settingsRow] = await db.select().from(branchSettings);
+    expect(settingsRow).toEqual(editedSettings);
+    expect(await tableCount(db, "branch_hours")).toBe(editedHoursCount);
   }, 120_000);
   it("refuses and deletes nothing when a sample user changed the branch settings after loading", async () => {
     const db = await freshOwnerDatabase();

@@ -1,5 +1,9 @@
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import {
+  type BranchSettingsWire,
+  toBranchSettingsWire,
+} from "../branch-settings/branch-settings-read-route.js";
 import type { BranchHoursRange } from "../branch-settings/branch-settings-validation.js";
 import { branchHours, branchSettings } from "../db/schema.js";
 import { SAMPLE_BRANCH_SETTINGS } from "./sample-catalog.js";
@@ -111,4 +115,15 @@ export async function branchSettingsEqualSampleValues<TQueryResult extends PgQue
     fieldsEqual(state.fields, SAMPLE_BRANCH_SETTINGS) &&
     hoursEqual(state.hoursByDay, SAMPLE_HOURS_BY_DAY)
   );
+}
+
+export function sampleBranchSettingsAuditValue(): Omit<BranchSettingsWire, "version"> {
+  const { version: _version, ...value } = toBranchSettingsWire({
+    ...SAMPLE_BRANCH_SETTINGS,
+    version: 0,
+    hours: SAMPLE_HOURS_BY_DAY.flatMap((ranges, dayIndex) =>
+      ranges.map((range, position) => ({ dayOfWeek: dayIndex + 1, position, ...range })),
+    ),
+  });
+  return value;
 }
