@@ -98,7 +98,7 @@ describe("loadSampleData", () => {
     expect(await tableCount(db, "products")).toBe(0);
   });
 
-  it("refuses and writes nothing on a role-name collision", async () => {
+  it("refuses on a role-name collision and rolls the whole load back, leaving only the pre-existing administrator and the colliding role", async () => {
     const db = await freshDatabase();
     await seedActiveAdministrator(db);
     const collidingRoleName = SAMPLE_ROLES[0]?.name;
@@ -110,7 +110,6 @@ describe("loadSampleData", () => {
     const outcome = await loadSampleData(db, { now: () => NOW });
 
     expect(outcome.kind).toBe("collision");
-    // Only the pre-existing administrator and the colliding role survive: the whole load rolled back.
     expect(await tableCount(db, "users")).toBe(1);
     expect(await tableCount(db, "roles")).toBe(2);
     expect(await tableCount(db, "categories")).toBe(0);

@@ -452,19 +452,20 @@ function hours(opensAt: string, closesAt: string): BranchHoursRange {
   return { opensAt, closesAt };
 }
 
+const MORNING_AND_EVENING_SHIFTS = [hours("09:00", "13:00"), hours("16:00", "20:00")];
+const CLOSED_ALL_DAY: BranchHoursRange[] = [];
+
 export const SAMPLE_BRANCH_SETTINGS = {
   address: "Avenida Ficticia 1234, Ciudad Muestra",
   whatsappNumber: "+54 9 10 5555-0100",
   instagramHandle: "@almacen..muestra",
-  // Monday is split into a morning and an evening shift; Sunday has no rows at all, so the branch
-  // reads as closed that day.
-  mondayHours: [hours("09:00", "13:00"), hours("16:00", "20:00")],
+  mondayHours: MORNING_AND_EVENING_SHIFTS,
   tuesdayHours: [hours("09:00", "20:00")],
   wednesdayHours: [hours("09:00", "20:00")],
   thursdayHours: [hours("09:00", "20:00")],
   fridayHours: [hours("09:00", "20:00")],
   saturdayHours: [hours("09:00", "14:00")],
-  sundayHours: [] as BranchHoursRange[],
+  sundayHours: CLOSED_ALL_DAY,
   expiringLotAlertDays: 30,
   unreviewedPriceAlertDays: 30,
   goodConditionReturnDays: 15,
