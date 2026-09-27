@@ -3,6 +3,7 @@ import { SearchField } from "@purosur/ui";
 import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Info, Search } from "lucide-react";
 import { type Ref, useEffect, useRef, useState } from "react";
+import { focusRingClassName } from "../platform/focus-ring";
 import { SectionLink } from "../shell/area-layout";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -13,10 +14,6 @@ import { sectionIcon } from "./section-icons";
 function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
   return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
 }
-
-const focusRingClassName =
-  "outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 " +
-  "focus-visible:outline-brand-blue-strong";
 
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-white px-3 py-3 " +

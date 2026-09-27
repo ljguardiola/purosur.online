@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
@@ -509,7 +510,7 @@ export function UsersListScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">Usuarios</h1>
+              <ScreenTitle>Usuarios</ScreenTitle>
             </div>
             {access.isAdministrator && (
               <Button

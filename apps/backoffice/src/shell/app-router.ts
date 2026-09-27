@@ -69,6 +69,11 @@ const routeTree = rootRoute.addChildren([
 
 export function createAppRouter(context: RouterContext) {
   const router = createRouter({ routeTree, context, parseSearch, stringifySearch });
+  router.subscribe("onRendered", ({ fromLocation, pathChanged }) => {
+    if (fromLocation && pathChanged) {
+      document.querySelector<HTMLElement>("h1")?.focus();
+    }
+  });
   // The router only ever compares its own re-serialized query, so without this the address bar
   // would keep a query typed in another key order or encoding.
   const { history, latestLocation } = router;
