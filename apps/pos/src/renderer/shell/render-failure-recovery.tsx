@@ -11,8 +11,8 @@ interface RenderFailureRecoveryProps {
 }
 
 interface RenderFailureRecoveryState {
+  phase: "showing" | "failed" | "exhausted";
   automaticRestartsLeft: number;
-  exhausted: boolean;
   attempt: number;
 }
 
@@ -21,34 +21,38 @@ export class RenderFailureRecovery extends Component<
   RenderFailureRecoveryState
 > {
   override state: RenderFailureRecoveryState = {
+    phase: "showing",
     automaticRestartsLeft: AUTOMATIC_RESTART_BUDGET,
-    exhausted: false,
     attempt: 0,
   };
+
+  static getDerivedStateFromError(): Partial<RenderFailureRecoveryState> {
+    return { phase: "failed" };
+  }
 
   override componentDidCatch(error: unknown): void {
     this.props.reportFailure(error);
     this.setState((previous) =>
       previous.automaticRestartsLeft > 0
         ? {
+            phase: "showing",
             automaticRestartsLeft: previous.automaticRestartsLeft - 1,
-            exhausted: false,
             attempt: previous.attempt + 1,
           }
-        : { ...previous, exhausted: true },
+        : { ...previous, phase: "exhausted" },
     );
   }
 
   private readonly retry = (): void => {
     this.setState((previous) => ({
+      phase: "showing",
       automaticRestartsLeft: AUTOMATIC_RESTART_BUDGET,
-      exhausted: false,
       attempt: previous.attempt + 1,
     }));
   };
 
   override render(): ReactNode {
-    if (this.state.exhausted) {
+    if (this.state.phase === "exhausted") {
       return (
         <BrandPanelScreen>
           <div role="alert" className="flex w-full max-w-md flex-col gap-4">
@@ -61,6 +65,10 @@ export class RenderFailureRecovery extends Component<
           </div>
         </BrandPanelScreen>
       );
+    }
+
+    if (this.state.phase === "failed") {
+      return null;
     }
 
     return <Fragment key={this.state.attempt}>{this.props.children}</Fragment>;

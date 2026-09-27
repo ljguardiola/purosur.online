@@ -1,4 +1,5 @@
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -29,6 +30,10 @@ function buildFailingRouter(shouldThrow: () => boolean) {
 function FailingRegisterHost({ shouldThrow }: { shouldThrow: () => boolean }) {
   const [router] = useState(() => buildFailingRouter(shouldThrow));
   return <RouterProvider router={router} />;
+}
+
+function ScreenThatAlwaysThrows(): ReactNode {
+  throw new Error("screen failed to render");
 }
 
 describe("RenderFailureRecovery", () => {
@@ -104,6 +109,19 @@ describe("RenderFailureRecovery", () => {
 
     await expect.poll(() => reportFailure.mock.calls.length).toBe(6);
     await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+  });
+
+  it("shows the notice when the restarted screen throws again in the same render", async () => {
+    const reportFailure = vi.fn();
+
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={reportFailure}>
+        <ScreenThatAlwaysThrows />
+      </RenderFailureRecovery>,
+    );
+
+    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    expect(reportFailure).toHaveBeenCalledTimes(3);
   });
 
   it("does not let a caught render failure reach the window as an uncaught error", async () => {
