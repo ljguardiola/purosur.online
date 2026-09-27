@@ -37,6 +37,10 @@ function isPrefixExtension(baseEntries, currentEntries) {
   );
 }
 
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function compareJournalContents(baseBuffer, currentBuffer) {
   let base;
   let current;
@@ -45,6 +49,9 @@ export function compareJournalContents(baseBuffer, currentBuffer) {
     current = JSON.parse(currentBuffer.toString("utf8"));
   } catch {
     return { ok: false, reason: "modified: could not be parsed as JSON" };
+  }
+  if (!isPlainObject(base) || !isPlainObject(current)) {
+    return { ok: false, reason: "modified: is not a journal object" };
   }
   const { entries: baseEntries, ...baseRest } = base;
   const { entries: currentEntries, ...currentRest } = current;
@@ -98,10 +105,10 @@ export function resolveBaseSha({ ref, runGit }) {
 }
 
 export function listBasePaths({ base, runGit }) {
-  return runGit(["ls-tree", "-r", "--name-only", base])
+  return runGit(["ls-tree", "-r", "-z", "--name-only", base])
     .toString("utf8")
-    .split("\n")
-    .filter((line) => line !== "");
+    .split("\0")
+    .filter((path) => path !== "");
 }
 
 export function readBaseBlob({ base, path, runGit }) {

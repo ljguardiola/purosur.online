@@ -142,6 +142,15 @@ test("rejects a journal that fails to parse as JSON", () => {
   assert.equal(compareJournalContents(base, current).ok, false);
 });
 
+test("rejects a journal that parses to null instead of throwing", () => {
+  const base = journal([{ idx: 0, tag: "0000_x", when: 1 }]);
+
+  assert.deepEqual(compareJournalContents(base, buffer("null")), {
+    ok: false,
+    reason: "modified: is not a journal object",
+  });
+});
+
 test("reports a missing protected file as deleted", () => {
   const violations = findMigrationViolations({
     basePaths: ["apps/cloud/migrations/0000_x.sql"],
@@ -172,12 +181,26 @@ test("reports no violation for an untouched protected file", () => {
   assert.deepEqual(violations, []);
 });
 
-test("never flags a new migration that does not exist at the base", () => {
+test("does not flag adding a new migration with its snapshot and journal entry", () => {
+  const firstEntry = { idx: 0, tag: "0000_x", when: 1 };
+  const base = new Map([
+    ["apps/cloud/migrations/0000_x.sql", buffer("create table x();")],
+    ["apps/cloud/migrations/meta/_journal.json", journal([firstEntry])],
+  ]);
+  const workingTree = new Map([
+    ["apps/cloud/migrations/0000_x.sql", buffer("create table x();")],
+    ["apps/cloud/migrations/0001_y.sql", buffer("create table y();")],
+    ["apps/cloud/migrations/meta/0001_snapshot.json", buffer("{}")],
+    [
+      "apps/cloud/migrations/meta/_journal.json",
+      journal([firstEntry, { idx: 1, tag: "0001_y", when: 2 }]),
+    ],
+  ]);
+
   const violations = findMigrationViolations({
-    basePaths: ["apps/cloud/migrations/0000_x.sql"],
-    readBase: () => buffer("create table x();"),
-    readCurrent: (path) =>
-      path === "apps/cloud/migrations/0000_x.sql" ? buffer("create table x();") : undefined,
+    basePaths: [...base.keys()],
+    readBase: (path) => base.get(path),
+    readCurrent: (path) => workingTree.get(path),
   });
 
   assert.deepEqual(violations, []);
@@ -268,13 +291,23 @@ test("lists the paths tracked at the base by asking git for its tree", () => {
   const calls = [];
   const runGit = (args) => {
     calls.push(args);
-    return buffer("a.txt\napps/cloud/migrations/0000_x.sql\n");
+    return buffer("a.txt\0apps/cloud/migrations/0000_x.sql\0");
   };
 
   const paths = listBasePaths({ base: "deadbeef", runGit });
 
   assert.deepEqual(paths, ["a.txt", "apps/cloud/migrations/0000_x.sql"]);
-  assert.deepEqual(calls, [["ls-tree", "-r", "--name-only", "deadbeef"]]);
+  assert.deepEqual(calls, [["ls-tree", "-r", "-z", "--name-only", "deadbeef"]]);
+});
+
+test("lists base paths with non-ASCII characters and spaces exactly as tracked", () => {
+  const runGit = () =>
+    buffer("apps/cloud/migrations/0032_año.sql\0apps/cloud/migrations/0033_two words.sql\0");
+
+  assert.deepEqual(listBasePaths({ base: "deadbeef", runGit }), [
+    "apps/cloud/migrations/0032_año.sql",
+    "apps/cloud/migrations/0033_two words.sql",
+  ]);
 });
 
 test("reads a base file's content by asking git to show its blob", () => {
