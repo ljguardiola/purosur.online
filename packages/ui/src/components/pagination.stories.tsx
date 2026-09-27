@@ -20,7 +20,7 @@ export default meta;
 type Story = StoryObj<typeof Pagination>;
 
 function otherPageButton(canvasElement: HTMLElement): HTMLElement {
-  return within(canvasElement).getByRole("button", { name: "Página 3", exact: true });
+  return within(canvasElement).getByRole("button", { name: "Página 3" });
 }
 
 export const FewPages: Story = {

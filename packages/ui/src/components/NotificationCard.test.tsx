@@ -72,7 +72,6 @@ test("exposes the notice's text to assistive technology exactly once", async () 
 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;
   await expect.poll(() => region.textContent).toBe("Sale completed Receipt printed");
-
 });
 
 test("renders every tone's border, circle and icon colors, in white with 8px radius and 16px padding", async () => {
@@ -100,7 +99,6 @@ test("renders every tone's border, circle and icon colors, in white with 8px rad
       tokenRgb(expected.circle),
     );
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.icon));
-
   }
 });
 
@@ -123,7 +121,6 @@ test("keeps every tone's icon readable against its own circle", async () => {
       rgbToHex(getComputedStyle(circle).backgroundColor),
     );
     expect(ratio, `${tone} contrast`).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST);
-
   }
 });
 
@@ -139,7 +136,6 @@ test("keeps the title and detail readable against the white background", async (
   const detailRatio = contrastRatio(rgbToHex(getComputedStyle(detail).color), rgbToHex(background));
   expect(titleRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
   expect(detailRatio).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-
 });
 
 test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold ink title and a 14px secondary detail 4px apart", async () => {
@@ -183,7 +179,6 @@ test("centers an 18px icon in a 32px circle, 12px from the text, in a 16px bold 
   const gap = detailRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
-
 });
 
 test("renders an optional what-to-do line in 14px semibold ink", async () => {
@@ -266,7 +261,6 @@ test("in floating mode renders 388px wide with the ink-at-12%-opacity shadow", a
   expect(Number(x)).toBe(0);
   expect(Number(y)).toBe(6);
   expect(Number(blur)).toBe(20);
-
 });
 
 test("announces an error tone right away, interrupting current speech", async () => {

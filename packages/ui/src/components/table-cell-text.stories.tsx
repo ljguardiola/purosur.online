@@ -21,7 +21,8 @@ export const WithDetail: Story = {
 export const LongContent: Story = {
   args: {
     children: "Un nombre de producto muy largo que no entra en una sola línea de esta columna",
-    detail: "Un detalle igualmente largo que también debería ajustarse a varias líneas si hace falta",
+    detail:
+      "Un detalle igualmente largo que también debería ajustarse a varias líneas si hace falta",
   },
   decorators: [
     (Story) => (

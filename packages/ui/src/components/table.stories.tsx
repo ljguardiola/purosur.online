@@ -20,23 +20,24 @@ const baseColumns = [
   {
     key: "name",
     title: "Producto",
-    sortable: true as const,
-    defaultDirection: "ascending" as const,
+    sortable: true,
+    defaultDirection: "ascending",
     render: (item: Product) => item.name,
   },
-  { key: "stock", title: "Stock", align: "end" as const, render: (item: Product) => item.stock },
+  { key: "stock", title: "Stock", align: "end", render: (item: Product) => item.stock },
 ] as const;
 
 function sortableHeader(canvasElement: HTMLElement): HTMLElement {
   return within(canvasElement).getByRole("button", { name: "Producto" });
 }
 
+const sort = { column: "name", direction: "ascending" } as const;
+const onSortChange = () => {};
+const emptyRows: TableRow<Product>[] = [];
+
 const meta: Meta<typeof Table> = {
   title: "Components/Table",
   component: Table,
-  args: {
-    "aria-label": "Productos",
-  },
 };
 
 export default meta;
@@ -44,104 +45,165 @@ export default meta;
 type Story = StoryObj<typeof Table>;
 
 export const Default: Story = {
-  args: { columns: baseColumns, rows: products },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const Sorted: Story = {
-  args: {
-    columns: baseColumns,
-    rows: products,
-    sort: { column: "name", direction: "ascending" },
-    onSortChange: () => {},
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const SortableHeaderHovered: Story = {
-  args: {
-    columns: baseColumns,
-    rows: products,
-    sort: { column: "name", direction: "ascending" },
-    onSortChange: () => {},
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
   play: playHoverSetsDataHovered(sortableHeader),
 };
 
 export const SortableHeaderFocusVisible: Story = {
-  args: {
-    columns: baseColumns,
-    rows: products,
-    sort: { column: "name", direction: "ascending" },
-    onSortChange: () => {},
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
   play: playTabReachesFocusVisible(sortableHeader),
 };
 
 export const RowSelected: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [
-      { id: "1", item: products[0]?.item as Product, state: "selected" },
-      products[1] as TableRow<Product>,
-    ],
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={[
+        { id: "1", item: products[0]?.item as Product, state: "selected" },
+        products[1] as TableRow<Product>,
+      ]}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const RowWarning: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [{ id: "1", item: products[0]?.item as Product, state: "warning" }],
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={[{ id: "1", item: products[0]?.item as Product, state: "warning" }]}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const RowError: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [{ id: "1", item: products[0]?.item as Product, state: "error" }],
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={[{ id: "1", item: products[0]?.item as Product, state: "error" }]}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const RowMuted: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [{ id: "3", item: products[2]?.item as Product, state: "muted" }],
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={[{ id: "3", item: products[2]?.item as Product, state: "muted" }]}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 const oneActionColumns = [
   ...baseColumns,
   {
     key: "actions",
-    kind: "actions" as const,
+    kind: "actions",
     srLabel: "Acciones",
     actions: [
-      (item: Product) => ({ icon: <Pencil />, "aria-label": `Editar ${item.name}`, onPress: () => {} }),
-    ] as const,
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        onPress: () => {},
+      }),
+    ],
   },
 ] as const;
 
 export const WithOneAction: Story = {
-  args: { columns: oneActionColumns, rows: products },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={oneActionColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 const twoActionColumns = [
   ...baseColumns,
   {
     key: "actions",
-    kind: "actions" as const,
+    kind: "actions",
     srLabel: "Acciones",
     actions: [
-      (item: Product) => ({ icon: <Pencil />, "aria-label": `Editar ${item.name}`, onPress: () => {} }),
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        onPress: () => {},
+      }),
       (item: Product) => ({
         icon: <Trash2 />,
         "aria-label": `Eliminar ${item.name}`,
         onPress: () => {},
       }),
-    ] as const,
+    ],
   },
 ] as const;
 
 export const WithTwoActions: Story = {
-  args: { columns: twoActionColumns, rows: products },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={twoActionColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 const detailColumns = [
@@ -155,52 +217,85 @@ const detailColumns = [
       </span>
     ),
   },
-  { key: "stock", title: "Stock", align: "end" as const, render: (item: Product) => item.stock },
+  { key: "stock", title: "Stock", align: "end", render: (item: Product) => item.stock },
 ] as const;
 
 export const WithCellDetail: Story = {
-  args: { columns: detailColumns, rows: products },
+  render: () => <Table aria-label="Productos" columns={detailColumns} rows={products} />,
 };
 
 export const LoadingInitial: Story = {
-  args: { columns: baseColumns, rows: [], loading: "initial" },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={emptyRows}
+      loading="initial"
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const LoadingUpdating: Story = {
-  args: { columns: baseColumns, rows: products, loading: "updating" },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      loading="updating"
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
 };
 
 export const EmptyBlank: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [],
-    empty: {
-      icon: <Package />,
-      title: "Todavía no hay productos",
-      detail: "Los productos que cargues van a aparecer acá.",
-      tone: "blank",
-      actions: <Button>Cargar producto</Button>,
-    },
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={emptyRows}
+      sort={sort}
+      onSortChange={onSortChange}
+      empty={{
+        icon: <Package />,
+        title: "Todavía no hay productos",
+        detail: "Los productos que cargues van a aparecer acá.",
+        tone: "blank",
+        actions: <Button>Cargar producto</Button>,
+      }}
+    />
+  ),
 };
 
 export const EmptyFiltered: Story = {
-  args: {
-    columns: baseColumns,
-    rows: [],
-    empty: {
-      icon: <SearchX />,
-      title: "Sin resultados",
-      detail: "Probá con otro término de búsqueda.",
-      tone: "filtered",
-    },
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={emptyRows}
+      sort={sort}
+      onSortChange={onSortChange}
+      empty={{
+        icon: <SearchX />,
+        title: "Sin resultados",
+        detail: "Probá con otro término de búsqueda.",
+        tone: "filtered",
+      }}
+    />
+  ),
 };
 
 export const WithFooter: Story = {
-  args: {
-    columns: baseColumns,
-    rows: products,
-    footer: <p className="p-4 text-sm text-ink-secondary">3 productos</p>,
-  },
+  render: () => (
+    <Table
+      aria-label="Productos"
+      columns={baseColumns}
+      rows={products}
+      sort={sort}
+      onSortChange={onSortChange}
+      footer={<p className="p-4 text-sm text-ink-secondary">3 productos</p>}
+    />
+  ),
 };

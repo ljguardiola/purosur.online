@@ -15,7 +15,11 @@ export default meta;
 type Story = StoryObj<typeof InlineNotice>;
 
 export const Info: Story = {
-  args: { tone: "info", title: "Borrador guardado", detail: "Todavía no hay nada para sincronizar." },
+  args: {
+    tone: "info",
+    title: "Borrador guardado",
+    detail: "Todavía no hay nada para sincronizar.",
+  },
 };
 
 export const Warning: Story = {

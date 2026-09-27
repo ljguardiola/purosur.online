@@ -23,7 +23,6 @@ test("renders at 38x38px with a white background, an 8px radius and a line borde
   expect(style.backgroundColor).toBe(tokenRgb("surface-white"));
   expect(style.borderWidth).toBe("1px");
   expect(style.borderColor).toBe(tokenRgb("line"));
-
 });
 
 test("stays 38x38px even in a flex container too narrow to fit it, overflowing instead of shrinking", async () => {
@@ -53,7 +52,6 @@ test("renders the caller's glyph at 18px in strong blue", async () => {
   expect(iconRect.height).toBeGreaterThan(17);
   expect(iconRect.height).toBeLessThan(19);
   expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("brand-blue-strong"));
-
 });
 
 test("keeps the glyph distinguishable from the button's resting background", async () => {
@@ -93,7 +91,6 @@ test("turns the background bone and the border soft blue on hover, keeping the g
 
   const icon = button.querySelector("svg");
   expect(getComputedStyle(icon as SVGSVGElement).color).toBe(tokenRgb("brand-blue-strong"));
-
 });
 
 test("shows the same 3px strong-blue focus outline as every other button", async () => {

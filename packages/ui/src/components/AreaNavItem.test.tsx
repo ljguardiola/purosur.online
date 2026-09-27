@@ -24,7 +24,6 @@ test("renders as a link naming its own label, with the icon hidden from assistiv
   const link = screen.getByRole("link", { name: "Ayuda" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/help");
   expect(link.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-
 });
 
 test("marks the active item with aria-current and paints it blanco over a translucent white fill", async () => {
@@ -37,7 +36,6 @@ test("marks the active item with aria-current and paints it blanco over a transl
   const label = screen.getByText("Ayuda").element();
   expect(getComputedStyle(label).color).toBe(tokenRgb("surface-white"));
   expect(getComputedStyle(label).fontWeight).toBe("700");
-
 });
 
 test("leaves an inactive item with no aria-current, painted azul-tenue with no background", async () => {
@@ -50,7 +48,6 @@ test("leaves an inactive item with no aria-current, painted azul-tenue with no b
   const label = screen.getByText("Ayuda").element();
   expect(getComputedStyle(label).color).toBe(tokenRgb("blue-soft"));
   expect(getComputedStyle(label).fontWeight).toBe("400");
-
 });
 
 test("forwards a click handler, so the app can drive its own router", async () => {

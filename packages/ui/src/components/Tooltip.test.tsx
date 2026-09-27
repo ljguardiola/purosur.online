@@ -149,7 +149,6 @@ test("shows a 6px-radius ink box, 12px padding, white 14px/1.35 text at AAA cont
   const backgroundHex = rgbToHex(style.backgroundColor);
   const textHex = rgbToHex(style.color);
   expect(contrastRatio(textHex, backgroundHex)).toBeGreaterThanOrEqual(AAA_TEXT_CONTRAST);
-
 });
 
 test("centers a 10px ink diamond on the box's edge, the box 10px clear of the element and the arrow centered on it", async () => {
@@ -194,7 +193,6 @@ test("centers a 10px ink diamond on the box's edge, the box 10px clear of the el
   const diamondCenterX = diamondRect.left + diamondRect.width / 2;
   const triggerCenterX = triggerRect.left + triggerRect.width / 2;
   expect(Math.abs(diamondCenterX - triggerCenterX)).toBeLessThanOrEqual(1);
-
 });
 
 test("keeps the arrow centered on the box's edge, pointing down at the element, once flipped above it", async () => {
@@ -524,7 +522,6 @@ test("exposes the tooltip as its element's description instead of separate conte
 
   const tooltip = tooltipElement(screen);
   expect(trigger.getAttribute("aria-describedby")).toBe(tooltip.id);
-
 });
 
 test("waits 300ms of hover before appearing, neither instantly nor on react-aria's 1500ms default", async (context) => {

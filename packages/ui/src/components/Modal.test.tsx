@@ -59,7 +59,6 @@ test("defaults to the standard 640px width when none is given", async () => {
   const rect = panel.getBoundingClientRect();
   expect(rect.width).toBeGreaterThan(639);
   expect(rect.width).toBeLessThan(641);
-
 });
 
 test("gives the panel a white background, 12px radius and the design's shadow", async () => {
@@ -71,7 +70,6 @@ test("gives the panel a white background, 12px radius and the design's shadow", 
   expect(style.borderRadius).toBe("12px");
   expect(style.boxShadow).toContain("24px 64px");
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-panel-shadow"));
-
 });
 
 test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
@@ -84,7 +82,6 @@ test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
   const rect = backdrop.getBoundingClientRect();
   expect(rect.width).toBeGreaterThan(0);
   expect(rect.height).toBeGreaterThan(0);
-
 });
 
 test("stays above page content that has its own stacking order", async () => {
@@ -190,7 +187,6 @@ test("renders no context line when the caller does not supply one", async () => 
   const contextSibling = title.previousElementSibling;
 
   expect(contextSibling).toBeNull();
-
 });
 
 test("lays out the header with its padding, border and 16px gap", async () => {
@@ -207,7 +203,6 @@ test("lays out the header with its padding, border and 16px gap", async () => {
   expect(style.borderBottomColor).toBe(tokenRgb("line"));
   expect(style.columnGap).toBe("16px");
   expect(style.alignItems).toBe("center");
-
 });
 
 test("gives the body 24px padding", async () => {
@@ -587,7 +582,6 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   expect(iconRect.width).toBeGreaterThan(19);
   expect(iconRect.width).toBeLessThan(21);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
-
 });
 
 test("shows the hand cursor on the close button", async () => {
@@ -595,7 +589,6 @@ test("shows the hand cursor on the close button", async () => {
   const closeButton = screen.getByRole("button", { name: "Cerrar" }).element() as HTMLElement;
 
   expect(getComputedStyle(closeButton).cursor).toBe("pointer");
-
 });
 
 test("turns the close button's background sand on hover", async () => {
@@ -621,7 +614,6 @@ test("shows the package's standard focus ring on the close button", async () => 
   await expect
     .poll(() => getComputedStyle(closeButton).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
-
 });
 
 test("closes when the close button is pressed", async () => {
@@ -693,7 +685,6 @@ test("moves focus into the modal on open and contains it while tabbing", async (
     await userEvent.tab();
     expect(dialog.contains(document.activeElement)).toBe(true);
   }
-
 });
 
 test("returns focus to the element that opened it, on close", async () => {

@@ -55,7 +55,6 @@ test("exposes the notice's text to assistive technology exactly once", async () 
 
   const region = screen.container.querySelector('[role="status"]') as HTMLElement;
   await expect.poll(() => region.textContent).toBe("Draft saved Nothing to sync yet");
-
 });
 
 test("renders every tone's background, text and icon colors", async () => {
@@ -79,7 +78,6 @@ test("renders every tone's background, text and icon colors", async () => {
     expect(getComputedStyle(icon).color, `${tone} icon`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(title).color, `${tone} title`).toBe(tokenRgb(expected.text));
     expect(getComputedStyle(detail).color, `${tone} detail`).toBe(tokenRgb(expected.text));
-
   }
 });
 
@@ -98,7 +96,6 @@ test("keeps every tone's text readable against its own background", async () => 
 
     const ratio = contrastRatio(rgbToHex(style.color), rgbToHex(style.backgroundColor));
     expect(ratio, `${tone} contrast`).toBeGreaterThanOrEqual(AA_TEXT_CONTRAST);
-
   }
 });
 
@@ -127,7 +124,6 @@ test("renders the design's fixed layout regardless of tone", async () => {
   expect(iconRect.height).toBeLessThan(19);
   expect(textRect.left - iconRect.right).toBeGreaterThan(11);
   expect(textRect.left - iconRect.right).toBeLessThan(13);
-
 });
 
 test("stacks the title and detail 4px apart, in a 16px bold title and a 14px detail with 1.35 line height", async () => {
@@ -149,7 +145,6 @@ test("stacks the title and detail 4px apart, in a 16px bold title and a 14px det
   const gap = detailRect.top - titleRect.bottom;
   expect(gap).toBeGreaterThan(3);
   expect(gap).toBeLessThan(5);
-
 });
 
 test("takes the width of its container", async () => {
