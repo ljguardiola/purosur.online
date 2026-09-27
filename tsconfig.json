@@ -31,6 +31,7 @@
     "vitest.mutation.config.ts",
     "apps/cloud/vitest.global-setup.ts",
     "apps/cloud/vitest.global-setup.postgres.ts",
+    "packages/ui/vitest.global-setup.catalog-visual.ts",
     "apps/pos/electron.vite.config.ts",
     "apps/backoffice/vite.config.ts",
     "apps/pos/e2e",
