@@ -12,6 +12,7 @@ import {
   TextField,
   Tooltip,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import {
   BadgeCheck,
   Ban,
@@ -24,9 +25,10 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import type { ProductSaleUnit } from "../catalog/products-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import { formatCents, MAX_UNIT_PRICE_CENTS, parseAmountInput } from "./money";
 import {
@@ -41,6 +43,7 @@ import {
   type SetPriceOutcome,
   setPrice,
 } from "./prices-api";
+import type { PricesListFilters } from "./routes";
 
 export type PricesListScreenServices = {
   fetchPrices: typeof fetchPrices;
@@ -55,6 +58,8 @@ export const defaultPricesListScreenServices: PricesListScreenServices = {
 };
 
 export type PricesListScreenProps = {
+  filters: PricesListFilters;
+  onFiltersChange: (filters: PricesListFilters) => void;
   onSessionEnded: () => void;
   services?: PricesListScreenServices;
   now?: () => Date;
@@ -179,6 +184,7 @@ function PriceChangeModal({
   setPrice,
   confirmPrice,
 }: PriceChangeModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const [title, setTitle] = useState("");
@@ -541,7 +547,14 @@ function PriceChangeModal({
   );
 }
 
-export function PricesListScreen({ onSessionEnded, services, now }: PricesListScreenProps) {
+export function PricesListScreen({
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+  now,
+}: PricesListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchPrices: fetchPricesService,
     setPrice: setPriceService,
@@ -551,10 +564,10 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
 
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [categories, setCategories] = useState<PriceCategory[]>([]);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>("ALL");
-  const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>("pending");
+  const [search, setSearch] = useState(filters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>(filters.category);
+  const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>(filters.review);
   const [modal, setModal] = useState<{
     target: PriceProduct;
     previousProductNotice: ScreenNotice | null;
@@ -566,6 +579,14 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
 
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [search, categoryFilter, reviewFilter, filters, onFiltersChangeRef]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -621,7 +642,9 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
         reviewWindowDays: outcome.value.reviewWindowDays,
         refreshing: false,
       });
+      const offeredIds = new Set(outcome.value.categories.map(({ id }) => id));
       setCategories(outcome.value.categories);
+      setCategoryFilter((shown) => (shown === "ALL" || offeredIds.has(shown) ? shown : "ALL"));
     } else if (outcome.kind === "unauthenticated") {
       onSessionEndedRef.current();
     } else if (outcome.kind === "rate_limited") {
@@ -631,7 +654,7 @@ export function PricesListScreen({ onSessionEnded, services, now }: PricesListSc
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch]);
+  }, [fetchPricesService, reviewFilter, categoryFilter, debouncedSearch, sendToMyAccount]);
 
   useEffect(() => {
     void load();

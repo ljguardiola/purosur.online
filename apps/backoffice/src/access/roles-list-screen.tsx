@@ -12,7 +12,7 @@ import {
   type RoleEditorRequest,
 } from "./role-editor-modal";
 import { fetchRoles, type RoleSummary } from "./roles-api";
-import { sendToMyAccount } from "./routes";
+import { useSendToMyAccount } from "./send-to-my-account";
 
 export type RolesListScreenServices = {
   fetchRoles: typeof fetchRoles;
@@ -95,6 +95,7 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
 }
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
@@ -115,7 +116,7 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchRoles, onSessionEndedRef]);
+  }, [fetchRoles, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();

@@ -1,7 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { render } from "../shell/test-support/render-with-router";
 import {
   AccountRecoveryScreen,
   type AccountRecoveryScreenServices,

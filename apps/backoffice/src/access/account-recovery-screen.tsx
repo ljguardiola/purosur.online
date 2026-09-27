@@ -5,7 +5,6 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 import { validateEmail } from "./email-validation";
 import { requestRecoveryLink } from "./recovery-api";
-import { SIGN_IN_PATH } from "./routes";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
 
@@ -64,7 +63,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
           title="Si el correo es de una cuenta, te enviamos el enlace"
           detail="Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado."
         />
-        <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Volver a ingresar" />
+        <AccessFooterLink to="/sign-in" icon={<ArrowLeft />} label="Volver a ingresar" />
       </AccessLayout>
     );
   }
@@ -117,7 +116,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
           Enviar el enlace
         </Button>
       </form>
-      <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Volver a ingresar" />
+      <AccessFooterLink to="/sign-in" icon={<ArrowLeft />} label="Volver a ingresar" />
     </AccessLayout>
   );
 }

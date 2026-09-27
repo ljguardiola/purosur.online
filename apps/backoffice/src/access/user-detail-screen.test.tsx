@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { render } from "../shell/test-support/render-with-router";
 import type { BackofficeAccess } from "./backoffice-access";
 import type { RoleSummary } from "./roles-api";
 import { UserDetailScreen, type UserDetailScreenServices } from "./user-detail-screen";

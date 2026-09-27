@@ -10,6 +10,7 @@ import {
   type TableSort,
   TextField,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import {
   Check,
   Pencil,
@@ -22,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -34,6 +35,7 @@ import {
 } from "./categories-api";
 import { categoryNameError } from "./category-name";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./category-path";
+import type { CategoriesListFilters } from "./routes";
 
 export type CategoriesListScreenServices = {
   fetchCategories: typeof fetchCategories;
@@ -48,6 +50,8 @@ export const defaultCategoriesListScreenServices: CategoriesListScreenServices =
 };
 
 export type CategoriesListScreenProps = {
+  filters: CategoriesListFilters;
+  onFiltersChange: (filters: CategoriesListFilters) => void;
   onSessionEnded: () => void;
   services?: CategoriesListScreenServices;
 };
@@ -107,6 +111,7 @@ function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -303,6 +308,7 @@ function EditCategoryModal({
   editCategory,
   categories,
 }: EditCategoryModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
@@ -576,19 +582,33 @@ function EditCategoryModal({
   );
 }
 
-export function CategoriesListScreen({ onSessionEnded, services }: CategoriesListScreenProps) {
+export function CategoriesListScreen({
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+}: CategoriesListScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchCategories, createCategory, editCategory } =
     services ?? defaultCategoriesListScreenServices;
   const [list, setList] = useState<ListState>({ kind: "loading" });
   const listRef = useLatestRef(list);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"category">>({
     column: "category",
-    direction: "ascending",
+    direction: filters.sort,
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CategorySummary | null>(null);
   const onSessionEndedRef = useLatestRef(onSessionEnded);
+  const onFiltersChangeRef = useLatestRef(onFiltersChange);
+
+  useEffect(() => {
+    const shown: CategoriesListFilters = { search, sort: sort.direction };
+    if (!deepEqual(shown, filters)) {
+      onFiltersChangeRef.current(shown);
+    }
+  }, [search, sort.direction, filters, onFiltersChangeRef]);
 
   const latestLoad = useRef(0);
 
@@ -611,7 +631,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
     } else {
       setList({ kind: "loadError" });
     }
-  }, [fetchCategories, onSessionEndedRef]);
+  }, [fetchCategories, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();

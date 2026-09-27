@@ -1,8 +1,8 @@
 import { LifeBuoy } from "lucide-react";
 import { beforeEach, expect, test } from "vitest";
 import { page } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { render } from "../shell/test-support/render-with-router";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./access-layout";
 
 // The panel's 680px basis only holds when the row is wide enough for it, so tests pin a desktop

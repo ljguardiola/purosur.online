@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import type { SessionOutcome } from "../access/session-api";
-import { navigate } from "./router";
 import {
   type SessionActivityReporterOptions,
   useSessionActivityReporter,
@@ -35,9 +34,32 @@ function okOutcome(expiresAt: string): SessionOutcome {
   };
 }
 
-function renderReporter(initialProps: SessionActivityReporterOptions) {
+type ReporterProps = Omit<SessionActivityReporterOptions, "subscribeToNavigation">;
+
+function createNavigationEvents() {
+  const listeners = new Set<() => void>();
+  return {
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    navigate(): void {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
+}
+
+let navigation = createNavigationEvents();
+
+function renderReporter(initialProps: ReporterProps) {
   return renderHook(
-    (props?: SessionActivityReporterOptions) => useSessionActivityReporter(props ?? initialProps),
+    (props?: ReporterProps) =>
+      useSessionActivityReporter({
+        ...(props ?? initialProps),
+        subscribeToNavigation: navigation.subscribe,
+      }),
     { initialProps },
   );
 }
@@ -71,11 +93,10 @@ function withVisibilityState(value: DocumentVisibilityState, run: () => Promise<
 let hooks: Array<{ unmount: () => Promise<void> }> = [];
 
 beforeEach(() => {
-  window.history.pushState(null, "", "/");
+  navigation = createNavigationEvents();
 });
 
 afterEach(async () => {
-  window.history.pushState(null, "", "/");
   for (const hook of hooks) {
     await hook.unmount();
   }
@@ -255,7 +276,7 @@ test("counts an in-app navigation as activity", async () => {
   hooks.push(hook);
 
   clock.advance(20);
-  navigate("/help", { replace: true });
+  navigation.navigate();
 
   expect(touchSession).toHaveBeenCalledTimes(1);
 });

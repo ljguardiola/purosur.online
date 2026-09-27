@@ -3,6 +3,7 @@ import { userEvent } from "vitest/browser";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
 import type { CategorySummary } from "./categories-api";
 import type { ProductSummary } from "./products-api";
+import { productsListFilters } from "./routes";
 import {
   almonds,
   createServices,
@@ -317,4 +318,81 @@ test("has no accessibility violations once loaded, and with the create modal ope
 
   await openDeactivateProductModal(screen, honey);
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("opens with the filters and ordering it is given", async () => {
+  const services = createServices();
+  const inactiveAlmonds: ProductSummary = { ...almonds, active: false };
+  const inactiveWalnuts: ProductSummary = {
+    ...almonds,
+    id: "product-3",
+    name: "Nueces peladas",
+    barcodes: ["7790000000002"],
+    active: false,
+  };
+  const inactiveHoney: ProductSummary = { ...honey, name: "Miel peladas", active: false };
+  mockLoaded(services, [inactiveAlmonds, inactiveHoney, inactiveWalnuts]);
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: {
+      search: "peladas",
+      category: driedFruits.id,
+      unit: "KG",
+      status: "inactive",
+      sort: "descending",
+    },
+  });
+
+  await expect.element(screen.getByText("Nueces peladas")).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenLastCalledWith("inactive");
+  await expect
+    .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
+    .toHaveValue("peladas");
+  await expect
+    .element(screen.getByRole("button", { name: "Categoría: Frutos secos" }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Unidad: Por peso" })).toBeVisible();
+  expect(screen.getByText("Miel peladas").query()).toBeNull();
+  const names = screen
+    .getByRole("row")
+    .elements()
+    .map((row) => row.textContent ?? "")
+    .filter((text) => text.includes("peladas"));
+  expect(names[0]).toContain("Nueces peladas");
+  expect(names[1]).toContain("Almendras peladas");
+});
+
+test("falls back to every category when the category it is given is not one the list offers", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey, almonds]);
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, () => {}, {
+    filters: { ...productsListFilters.parse({}), category: "deleted-category" },
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Categoría: Todas" })).toBeVisible();
+  expect(onFiltersChange).toHaveBeenLastCalledWith(productsListFilters.parse({}));
+});
+
+test("reports every change to its filters, so they can be kept for a reload", async () => {
+  const services = createServices();
+  mockLoaded(services, [honey, almonds]);
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, { onFiltersChange });
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Unidad: Todas" }));
+  await userEvent.click(screen.getByRole("option", { name: "Por peso" }));
+  await userEvent.fill(screen.getByPlaceholder("Buscar por nombre o código de barras"), "alm");
+
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    ...productsListFilters.parse({}),
+    unit: "KG",
+    search: "alm",
+  });
 });

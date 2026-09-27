@@ -8,7 +8,9 @@ const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const configPaths = [
   "tsconfig.json",
+  "apps/backoffice/tsconfig.json",
   "apps/cloud/tsconfig.json",
+  "apps/pos/tsconfig.json",
   "packages/contracts/tsconfig.json",
 ];
 

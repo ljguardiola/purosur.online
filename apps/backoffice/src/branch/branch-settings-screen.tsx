@@ -10,7 +10,7 @@ import {
 } from "@purosur/ui";
 import { Check, Plus, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
 import type {
@@ -280,6 +280,7 @@ const EMPTY_VALUES: FormValues = {
 };
 
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const { fetchBranchSettings, saveBranchSettings } =
     services ?? defaultBranchSettingsScreenServices;
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -308,7 +309,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     } else {
       setState({ kind: "loadError" });
     }
-  }, [fetchBranchSettings, onSessionEndedRef]);
+  }, [fetchBranchSettings, onSessionEndedRef, sendToMyAccount]);
 
   useEffect(() => {
     void load();

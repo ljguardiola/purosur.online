@@ -1,10 +1,9 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Link } from "@tanstack/react-router";
 import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { MY_ACCOUNT_PATH } from "../access/routes";
 import { signOut } from "../access/session-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { linkProps } from "./link-props";
 
 export type AccountFooterServices = {
   signOut: typeof signOut;
@@ -62,9 +61,9 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
 
   return (
     <>
-      <a {...linkProps(MY_ACCOUNT_PATH)} className={nameLinkClassName}>
+      <Link to="/settings/users/me" className={nameLinkClassName}>
         {displayName}
-      </a>
+      </Link>
       <button type="button" className={railItemClassName} onClick={openConfirm}>
         <span aria-hidden="true" className={railIconWrapperClassName}>
           <LogOut />

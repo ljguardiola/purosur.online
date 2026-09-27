@@ -1,0 +1,6 @@
+{
+  // The backoffice and the register each register their own router through a module augmentation,
+  // which is global to one TypeScript program, so each is checked in a program of its own.
+  "extends": "../../tsconfig.json",
+  "include": ["src", "vite.config.ts"]
+}

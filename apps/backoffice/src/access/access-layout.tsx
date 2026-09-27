@@ -1,6 +1,6 @@
 import { PuroSurLogo } from "@purosur/ui";
+import { Link } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
-import { linkProps } from "../shell/link-props";
 
 export type AccessLayoutProps = {
   children: ReactNode;
@@ -45,15 +45,15 @@ export function AccessHeader({ eyebrow, heading, description }: AccessHeaderProp
 }
 
 export type AccessFooterLinkProps = {
-  to: string;
+  to: "/sign-in" | "/account-recovery";
   icon: ReactElement;
   label: string;
 };
 
 export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
   return (
-    <a
-      {...linkProps(to)}
+    <Link
+      to={to}
       className="inline-flex items-center gap-2 self-start py-1 font-bold text-base text-brand-blue-strong outline-none focus-visible:outline-[3px] focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-brand-blue-strong"
     >
       <span
@@ -63,6 +63,6 @@ export function AccessFooterLink({ to, icon, label }: AccessFooterLinkProps) {
         {icon}
       </span>
       {label}
-    </a>
+    </Link>
   );
 }

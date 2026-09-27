@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "../access/authorization-modal";
-import { sendToMyAccount } from "../access/routes";
+import { useSendToMyAccount } from "../access/send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -202,6 +202,7 @@ function EditIssuerIdentificationModal({
   services,
   now,
 }: EditIssuerIdentificationModalProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const {
     fetchIssuerIdentification,
     saveIssuerIdentification,
@@ -464,6 +465,7 @@ export function FiscalConfigurationScreen({
   services,
   now,
 }: FiscalConfigurationScreenProps) {
+  const sendToMyAccount = useSendToMyAccount();
   const svc = services ?? defaultFiscalConfigurationScreenServices;
   const clock = now ?? (() => new Date());
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -484,7 +486,7 @@ export function FiscalConfigurationScreen({
     } else {
       setState({ kind: "loadError" });
     }
-  }, [svc.fetchIssuerIdentification, endSession]);
+  }, [svc.fetchIssuerIdentification, endSession, sendToMyAccount]);
 
   useEffect(() => {
     void load();

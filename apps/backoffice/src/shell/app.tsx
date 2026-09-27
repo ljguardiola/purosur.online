@@ -1,133 +1,73 @@
-import { AreaNavItem, FieldSizeProvider, SectionNavItem } from "@purosur/ui";
+import { FieldSizeProvider } from "@purosur/ui";
+import { RouterProvider } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
-  Bell,
-  Home,
-  Laptop,
-  LifeBuoy,
-  ListChecks,
-  Package,
-  Settings,
-  Shield,
-  SlidersHorizontal,
-  Store,
-  Tags,
-  Users,
-  Wallet,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import {
-  AccountRecoveryScreen,
   type AccountRecoveryScreenServices,
   defaultAccountRecoveryScreenServices,
 } from "../access/account-recovery-screen";
 import {
-  type BackofficeAccess,
-  canManageProductsAndCategories,
-  canSeeAlertsArea,
-  canSeeBranchArea,
-  canSeeCashArea,
-  canSeeCatalogArea,
-  canSeePricesArea,
-  canSeeRegistersArea,
-  canSeeRolesArea,
-  canSeeUsersArea,
-} from "../access/backoffice-access";
-import {
   defaultMyAccountScreenServices,
-  MyAccountScreen,
   type MyAccountScreenServices,
 } from "../access/my-account-screen";
 import {
   defaultRegisterPasskeyScreenServices,
-  RegisterPasskeyScreen,
   type RegisterPasskeyScreenServices,
 } from "../access/register-passkey-screen";
 import {
   defaultRolesListScreenServices,
-  RolesListScreen,
   type RolesListScreenServices,
 } from "../access/roles-list-screen";
-import {
-  ACCOUNT_RECOVERY_PATH,
-  MY_ACCOUNT_PATH,
-  matchUserDetailPath,
-  REGISTER_PASSKEY_PATH,
-  ROLES_LIST_PATH,
-  SIGN_IN_PATH,
-  sendToMyAccount,
-  USERS_LIST_PATH,
-} from "../access/routes";
-import { checkSessionStatus, fetchSession } from "../access/session-api";
-import {
-  defaultSignInScreenServices,
-  type SignInOpeningNotice,
-  SignInScreen,
-  type SignInScreenServices,
-} from "../access/sign-in-screen";
+import { checkSessionStatus, fetchSession, type SessionOutcome } from "../access/session-api";
+import { defaultSignInScreenServices, type SignInScreenServices } from "../access/sign-in-screen";
 import {
   defaultUserDetailScreenServices,
-  UserDetailScreen,
   type UserDetailScreenServices,
 } from "../access/user-detail-screen";
 import {
   defaultUsersListScreenServices,
-  UsersListScreen,
   type UsersListScreenServices,
 } from "../access/users-list-screen";
 import {
-  AlertsListScreen,
   type AlertsListScreenServices,
   defaultAlertsListScreenServices,
 } from "../alerts/alerts-list-screen";
-import { ALERTS_LIST_PATH } from "../alerts/routes";
 import {
-  BranchSettingsScreen,
   type BranchSettingsScreenServices,
   defaultBranchSettingsScreenServices,
 } from "../branch/branch-settings-screen";
-import { BRANCH_SETTINGS_PATH } from "../branch/routes";
 import {
-  CategoriesListScreen,
   type CategoriesListScreenServices,
   defaultCategoriesListScreenServices,
 } from "../catalog/categories-list-screen";
 import {
   defaultProductsListScreenServices,
-  ProductsListScreen,
   type ProductsListScreenServices,
 } from "../catalog/products-list-screen";
-import { CATEGORIES_LIST_PATH, PRODUCTS_LIST_PATH } from "../catalog/routes";
 import {
   defaultFiscalConfigurationScreenServices,
-  FiscalConfigurationScreen,
   type FiscalConfigurationScreenServices,
 } from "../fiscal/fiscal-configuration-screen";
-import { FISCAL_CONFIGURATION_PATH } from "../fiscal/routes";
-import { HelpContent, HelpSectionColumn } from "../help/help-screen";
-import { type BackofficeHelpCatalog, type HelpRoute, resolveHelpPath } from "../help/routes";
+import type { BackofficeHelpCatalog } from "../help/help-page";
+import { useLatestRef } from "../platform/use-latest-ref";
 import {
   defaultPricesListScreenServices,
-  PricesListScreen,
   type PricesListScreenServices,
 } from "../pricing/prices-list-screen";
-import { PRICES_LIST_PATH } from "../pricing/routes";
 import {
   defaultRegistersListScreenServices,
-  RegistersListScreen,
   type RegistersListScreenServices,
 } from "../register/registers-list-screen";
-import { REGISTERS_LIST_PATH } from "../register/routes";
+import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
+import { createAppRouter } from "./app-router";
 import {
-  AccountFooter,
-  type AccountFooterServices,
-  defaultAccountFooterServices,
-} from "./account-footer";
-import { linkProps } from "./link-props";
-import { navigate, onNavigate, useRoute } from "./router";
+  type SessionActions,
+  SessionCheckPendingContext,
+  type SettledSession,
+  type SignedInSession,
+} from "./root-route";
 import { useSessionActivityReporter } from "./session-activity-reporter";
 import { clearSignedInMarker, markSignedIn, wasSignedIn } from "./session-marker";
 import { useSessionWatcher } from "./session-watcher";
-import { Shell } from "./shell";
 
 export type AppServices = {
   fetchSession: typeof fetchSession;
@@ -174,606 +114,31 @@ export type AppProps = {
   services?: AppServices;
 };
 
-type SessionState =
-  | { kind: "loading" }
-  | { kind: "signed-out"; notice: SignInOpeningNotice | undefined }
-  | {
-      kind: "signed-in";
-      userId: string;
-      displayName: string;
-      isAdministrator: boolean;
-      permissions: string[];
-      expiresAt?: string;
-    };
+type SessionState = { kind: "loading" } | SettledSession;
 
-function accessOf(session: Extract<SessionState, { kind: "signed-in" }>): BackofficeAccess {
-  return { isAdministrator: session.isAdministrator, permissions: session.permissions };
+function signedInSessionOf(outcome: Extract<SessionOutcome, { kind: "ok" }>): SignedInSession {
+  return {
+    kind: "signed-in",
+    userId: outcome.userId,
+    displayName: outcome.displayName,
+    isAdministrator: outcome.isAdministrator,
+    permissions: outcome.permissions ?? [],
+    ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
+  };
 }
 
-function documentTitle(help: BackofficeHelpCatalog, { categoryId, articleId }: HelpRoute): string {
-  const page =
-    (articleId ? help.articles[articleId]?.title : undefined) ??
-    (categoryId ? help.categories[categoryId]?.label : undefined);
-  return page ? `${page} · Ayuda · Puro Sur` : "Ayuda · Puro Sur";
-}
-
-function ConfigAreaItem({ active }: { active: boolean }) {
+function differsOnlyInExpiry(current: SettledSession, next: SettledSession): boolean {
   return (
-    <AreaNavItem
-      label="Config"
-      icon={<Settings />}
-      active={active}
-      {...linkProps(MY_ACCOUNT_PATH)}
-    />
+    current.kind === "signed-in" &&
+    next.kind === "signed-in" &&
+    current.userId === next.userId &&
+    current.displayName === next.displayName &&
+    current.isAdministrator === next.isAdministrator &&
+    current.permissions.join() === next.permissions.join()
   );
 }
 
-function HelpAreaItem({ active }: { active: boolean }) {
-  return <AreaNavItem label="Ayuda" icon={<LifeBuoy />} active={active} {...linkProps("/help")} />;
-}
-
-function HomeAreaItem({ active }: { active: boolean }) {
-  return (
-    <AreaNavItem label="Inicio" icon={<Home />} active={active} {...linkProps(ALERTS_LIST_PATH)} />
-  );
-}
-
-function CatalogAreaItem({ active, defaultPath }: { active: boolean; defaultPath: string }) {
-  return (
-    <AreaNavItem label="Catálogo" icon={<Package />} active={active} {...linkProps(defaultPath)} />
-  );
-}
-
-function CashAreaItem({ active }: { active: boolean }) {
-  return (
-    <AreaNavItem
-      label="Caja"
-      icon={<Wallet />}
-      active={active}
-      {...linkProps(FISCAL_CONFIGURATION_PATH)}
-    />
-  );
-}
-
-type HelpAppProps = {
-  help: BackofficeHelpCatalog;
-  displayName: string;
-  canSeeAlerts: boolean;
-  canSeeCatalog: boolean;
-  catalogDefaultPath: string;
-  canSeeCash: boolean;
-  onSignedOut: () => void;
-  accountFooterServices: AccountFooterServices;
-};
-
-function HelpApp({
-  help,
-  displayName,
-  canSeeAlerts,
-  canSeeCatalog,
-  catalogDefaultPath,
-  canSeeCash,
-  onSignedOut,
-  accountFooterServices,
-}: HelpAppProps) {
-  const route = useRoute();
-  const helpRoute = resolveHelpPath(help, route);
-  const [search, setSearch] = useState("");
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const shownPath = useRef(helpRoute.path);
-  const title = documentTitle(help, helpRoute);
-
-  useEffect(() => onNavigate(() => setSearch("")), []);
-
-  useEffect(() => {
-    if (helpRoute.path !== route) {
-      navigate(helpRoute.path, { replace: true });
-    }
-  }, [helpRoute.path, route]);
-
-  useEffect(() => {
-    document.title = title;
-  }, [title]);
-
-  useEffect(() => {
-    if (shownPath.current !== helpRoute.path) {
-      shownPath.current = helpRoute.path;
-      headingRef.current?.focus();
-    }
-  }, [helpRoute.path]);
-
-  return (
-    <Shell
-      sectionColumnLabel="Secciones de ayuda"
-      railAreas={
-        <>
-          {canSeeAlerts && <HomeAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
-          {canSeeCash && <CashAreaItem active={false} />}
-          <ConfigAreaItem active={false} />
-        </>
-      }
-      railFooter={
-        <>
-          <HelpAreaItem active />
-          <AccountFooter
-            displayName={displayName}
-            onSignedOut={onSignedOut}
-            services={accountFooterServices}
-          />
-        </>
-      }
-      sectionColumn={<HelpSectionColumn help={help} activeCategoryId={helpRoute.categoryId} />}
-    >
-      <HelpContent
-        key={helpRoute.path}
-        help={help}
-        categoryId={helpRoute.categoryId}
-        articleId={helpRoute.articleId}
-        search={search}
-        onSearchChange={setSearch}
-        headingRef={headingRef}
-      />
-    </Shell>
-  );
-}
-
-type SettingsAppSection =
-  | "myAccount"
-  | "usersList"
-  | "userDetail"
-  | "rolesList"
-  | "registersList"
-  | "branchSettings";
-
-type SettingsAppProps = {
-  section: SettingsAppSection;
-  userDetailId?: string;
-  signedInUserId: string;
-  displayName: string;
-  access: BackofficeAccess;
-  canSeeUsers: boolean;
-  canSeeRoles: boolean;
-  canSeeRegisters: boolean;
-  canSeeBranch: boolean;
-  canSeeAlerts: boolean;
-  canSeeCatalog: boolean;
-  catalogDefaultPath: string;
-  canSeeCash: boolean;
-  onSignedOut: () => void;
-  onSessionEnded: () => void;
-  accountFooterServices: AccountFooterServices;
-  myAccountScreenServices: MyAccountScreenServices;
-  usersListScreenServices: UsersListScreenServices;
-  userDetailScreenServices: UserDetailScreenServices;
-  rolesListScreenServices: RolesListScreenServices;
-  registersListScreenServices: RegistersListScreenServices;
-  branchSettingsScreenServices: BranchSettingsScreenServices;
-};
-
-function SettingsApp({
-  section,
-  userDetailId,
-  signedInUserId,
-  displayName,
-  access,
-  canSeeUsers,
-  canSeeRoles,
-  canSeeRegisters,
-  canSeeBranch,
-  canSeeAlerts,
-  canSeeCatalog,
-  catalogDefaultPath,
-  canSeeCash,
-  onSignedOut,
-  onSessionEnded,
-  accountFooterServices,
-  myAccountScreenServices,
-  usersListScreenServices,
-  userDetailScreenServices,
-  rolesListScreenServices,
-  registersListScreenServices,
-  branchSettingsScreenServices,
-}: SettingsAppProps) {
-  useEffect(() => {
-    document.title =
-      section === "usersList" || section === "userDetail"
-        ? "Usuarios · Puro Sur"
-        : section === "rolesList"
-          ? "Roles · Puro Sur"
-          : section === "registersList"
-            ? "Cajas registradoras · Puro Sur"
-            : section === "branchSettings"
-              ? "Sucursal · Puro Sur"
-              : "Mi cuenta · Puro Sur";
-  }, [section]);
-
-  return (
-    <Shell
-      sectionColumnLabel="Configuración"
-      railAreas={
-        <>
-          {canSeeAlerts && <HomeAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
-          {canSeeCash && <CashAreaItem active={false} />}
-          <ConfigAreaItem active />
-        </>
-      }
-      railFooter={
-        <>
-          <HelpAreaItem active={false} />
-          <AccountFooter
-            displayName={displayName}
-            onSignedOut={onSignedOut}
-            services={accountFooterServices}
-          />
-        </>
-      }
-      sectionColumn={
-        <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Configuración</h2>
-          <div className="h-2.5" />
-          <ul className="flex flex-col gap-1">
-            {canSeeUsers ? (
-              <li>
-                <SectionNavItem
-                  label="Usuarios"
-                  icon={<Users />}
-                  active={
-                    section === "usersList" || section === "userDetail" || section === "myAccount"
-                  }
-                  {...linkProps(USERS_LIST_PATH)}
-                />
-              </li>
-            ) : (
-              <li>
-                <SectionNavItem
-                  label="Mi cuenta"
-                  icon={<Users />}
-                  active={section === "myAccount"}
-                  {...linkProps(MY_ACCOUNT_PATH)}
-                />
-              </li>
-            )}
-            {canSeeRoles && (
-              <li>
-                <SectionNavItem
-                  label="Roles"
-                  icon={<Shield />}
-                  active={section === "rolesList"}
-                  {...linkProps(ROLES_LIST_PATH)}
-                />
-              </li>
-            )}
-            {canSeeRegisters && (
-              <li>
-                <SectionNavItem
-                  label="Cajas registradoras"
-                  icon={<Laptop />}
-                  active={section === "registersList"}
-                  {...linkProps(REGISTERS_LIST_PATH)}
-                />
-              </li>
-            )}
-            {canSeeBranch && (
-              <li>
-                <SectionNavItem
-                  label="Sucursal"
-                  icon={<Store />}
-                  active={section === "branchSettings"}
-                  {...linkProps(BRANCH_SETTINGS_PATH)}
-                />
-              </li>
-            )}
-          </ul>
-        </>
-      }
-    >
-      {section === "usersList" && (
-        <UsersListScreen
-          access={access}
-          onSessionEnded={onSessionEnded}
-          services={usersListScreenServices}
-        />
-      )}
-      {section === "userDetail" && userDetailId !== undefined && (
-        <UserDetailScreen
-          userId={userDetailId}
-          signedInUserId={signedInUserId}
-          access={access}
-          onSessionEnded={onSessionEnded}
-          services={userDetailScreenServices}
-        />
-      )}
-      {section === "myAccount" && (
-        <MyAccountScreen
-          displayName={displayName}
-          onSessionEnded={onSessionEnded}
-          services={myAccountScreenServices}
-        />
-      )}
-      {section === "rolesList" && (
-        <RolesListScreen onSessionEnded={onSessionEnded} services={rolesListScreenServices} />
-      )}
-      {section === "registersList" && (
-        <RegistersListScreen
-          onSessionEnded={onSessionEnded}
-          services={registersListScreenServices}
-        />
-      )}
-      {section === "branchSettings" && (
-        <BranchSettingsScreen
-          onSessionEnded={onSessionEnded}
-          services={branchSettingsScreenServices}
-        />
-      )}
-    </Shell>
-  );
-}
-
-type CatalogAppProps = {
-  displayName: string;
-  canSeeAlerts: boolean;
-  canManageCatalogProducts: boolean;
-  canSeePrices: boolean;
-  catalogDefaultPath: string;
-  canSeeCash: boolean;
-  onSignedOut: () => void;
-  onSessionEnded: () => void;
-  accountFooterServices: AccountFooterServices;
-  categoriesListScreenServices: CategoriesListScreenServices;
-  productsListScreenServices: ProductsListScreenServices;
-  pricesListScreenServices: PricesListScreenServices;
-};
-
-function CatalogApp({
-  displayName,
-  canSeeAlerts,
-  canManageCatalogProducts,
-  canSeePrices,
-  catalogDefaultPath,
-  canSeeCash,
-  onSignedOut,
-  onSessionEnded,
-  accountFooterServices,
-  categoriesListScreenServices,
-  productsListScreenServices,
-  pricesListScreenServices,
-}: CatalogAppProps) {
-  const route = useRoute();
-  const isCategoriesRoute = route === CATEGORIES_LIST_PATH;
-  const isPricesRoute = route === PRICES_LIST_PATH;
-  const isProductsRoute = !isCategoriesRoute && !isPricesRoute;
-
-  useEffect(() => {
-    document.title = isCategoriesRoute
-      ? "Categorías · Puro Sur"
-      : isPricesRoute
-        ? "Precios · Puro Sur"
-        : "Productos · Puro Sur";
-  }, [isCategoriesRoute, isPricesRoute]);
-
-  return (
-    <Shell
-      sectionColumnLabel="Catálogo"
-      railAreas={
-        <>
-          {canSeeAlerts && <HomeAreaItem active={false} />}
-          <CatalogAreaItem active defaultPath={catalogDefaultPath} />
-          {canSeeCash && <CashAreaItem active={false} />}
-          <ConfigAreaItem active={false} />
-        </>
-      }
-      railFooter={
-        <>
-          <HelpAreaItem active={false} />
-          <AccountFooter
-            displayName={displayName}
-            onSignedOut={onSignedOut}
-            services={accountFooterServices}
-          />
-        </>
-      }
-      sectionColumn={
-        <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Catálogo</h2>
-          <div className="h-2.5" />
-          <ul className="flex flex-col gap-1">
-            {canManageCatalogProducts && (
-              <>
-                <li>
-                  <SectionNavItem
-                    label="Productos"
-                    icon={<Package />}
-                    active={isProductsRoute}
-                    {...linkProps(PRODUCTS_LIST_PATH)}
-                  />
-                </li>
-                <li>
-                  <SectionNavItem
-                    label="Categorías"
-                    icon={<Tags />}
-                    active={isCategoriesRoute}
-                    {...linkProps(CATEGORIES_LIST_PATH)}
-                  />
-                </li>
-              </>
-            )}
-            {canSeePrices && (
-              <li>
-                <SectionNavItem
-                  label="Precios"
-                  icon={<ListChecks />}
-                  active={isPricesRoute}
-                  {...linkProps(PRICES_LIST_PATH)}
-                />
-              </li>
-            )}
-          </ul>
-        </>
-      }
-    >
-      {isCategoriesRoute ? (
-        <CategoriesListScreen
-          onSessionEnded={onSessionEnded}
-          services={categoriesListScreenServices}
-        />
-      ) : isPricesRoute ? (
-        <PricesListScreen onSessionEnded={onSessionEnded} services={pricesListScreenServices} />
-      ) : (
-        <ProductsListScreen onSessionEnded={onSessionEnded} services={productsListScreenServices} />
-      )}
-    </Shell>
-  );
-}
-
-type CashAppProps = {
-  displayName: string;
-  canSeeAlerts: boolean;
-  canSeeCatalog: boolean;
-  catalogDefaultPath: string;
-  onSignedOut: () => void;
-  onSessionEnded: () => void;
-  accountFooterServices: AccountFooterServices;
-  fiscalConfigurationScreenServices: FiscalConfigurationScreenServices;
-};
-
-function CashApp({
-  displayName,
-  canSeeAlerts,
-  canSeeCatalog,
-  catalogDefaultPath,
-  onSignedOut,
-  onSessionEnded,
-  accountFooterServices,
-  fiscalConfigurationScreenServices,
-}: CashAppProps) {
-  useEffect(() => {
-    document.title = "Configuración fiscal · Puro Sur";
-  }, []);
-
-  return (
-    <Shell
-      sectionColumnLabel="Caja y fiscal"
-      railAreas={
-        <>
-          {canSeeAlerts && <HomeAreaItem active={false} />}
-          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
-          <CashAreaItem active />
-          <ConfigAreaItem active={false} />
-        </>
-      }
-      railFooter={
-        <>
-          <HelpAreaItem active={false} />
-          <AccountFooter
-            displayName={displayName}
-            onSignedOut={onSignedOut}
-            services={accountFooterServices}
-          />
-        </>
-      }
-      sectionColumn={
-        <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Caja y fiscal</h2>
-          <div className="h-2.5" />
-          <p className="px-3 pt-3 pb-1 font-bold text-ink-secondary text-xs tracking-[1px]">
-            FISCAL
-          </p>
-          <ul className="flex flex-col gap-1">
-            <li>
-              <SectionNavItem
-                label="Configuración fiscal"
-                icon={<SlidersHorizontal />}
-                active
-                {...linkProps(FISCAL_CONFIGURATION_PATH)}
-              />
-            </li>
-          </ul>
-        </>
-      }
-    >
-      <FiscalConfigurationScreen
-        onSessionEnded={onSessionEnded}
-        services={fiscalConfigurationScreenServices}
-      />
-    </Shell>
-  );
-}
-
-type HomeAppProps = {
-  access: BackofficeAccess;
-  displayName: string;
-  canSeeCatalog: boolean;
-  catalogDefaultPath: string;
-  canSeeCash: boolean;
-  onSignedOut: () => void;
-  onSessionEnded: () => void;
-  accountFooterServices: AccountFooterServices;
-  alertsListScreenServices: AlertsListScreenServices;
-};
-
-function HomeApp({
-  access,
-  displayName,
-  canSeeCatalog,
-  catalogDefaultPath,
-  canSeeCash,
-  onSignedOut,
-  onSessionEnded,
-  accountFooterServices,
-  alertsListScreenServices,
-}: HomeAppProps) {
-  useEffect(() => {
-    document.title = "Alertas · Puro Sur";
-  }, []);
-
-  return (
-    <Shell
-      sectionColumnLabel="Inicio"
-      railAreas={
-        <>
-          <HomeAreaItem active />
-          {canSeeCatalog && <CatalogAreaItem active={false} defaultPath={catalogDefaultPath} />}
-          {canSeeCash && <CashAreaItem active={false} />}
-          <ConfigAreaItem active={false} />
-        </>
-      }
-      railFooter={
-        <>
-          <HelpAreaItem active={false} />
-          <AccountFooter
-            displayName={displayName}
-            onSignedOut={onSignedOut}
-            services={accountFooterServices}
-          />
-        </>
-      }
-      sectionColumn={
-        <>
-          <h2 className="font-bold text-brand-blue-strong text-xl">Inicio</h2>
-          <div className="h-2.5" />
-          <ul className="flex flex-col gap-1">
-            <li>
-              <SectionNavItem
-                label="Alertas"
-                icon={<Bell />}
-                active
-                {...linkProps(ALERTS_LIST_PATH)}
-              />
-            </li>
-          </ul>
-        </>
-      }
-    >
-      <AlertsListScreen
-        access={access}
-        onSessionEnded={onSessionEnded}
-        services={alertsListScreenServices}
-      />
-    </Shell>
-  );
-}
+const BEFORE_SESSION_CHECK: SettledSession = { kind: "signed-out", notice: undefined };
 
 export function App(props: AppProps) {
   return (
@@ -783,147 +148,88 @@ export function App(props: AppProps) {
   );
 }
 
-function AppContent({ help, services }: AppProps) {
-  const {
-    fetchSession,
-    checkSessionStatus,
-    signInScreen,
-    accountRecoveryScreen,
-    registerPasskeyScreen,
-    myAccountScreen,
-    usersListScreen,
-    userDetailScreen,
-    rolesListScreen,
-    registersListScreen,
-    branchSettingsScreen,
-    categoriesListScreen,
-    productsListScreen,
-    pricesListScreen,
-    fiscalConfigurationScreen,
-    accountFooter,
-    alertsListScreen,
-  } = services ?? defaultAppServices;
-  const route = useRoute();
+function AppContent({ help, services = defaultAppServices }: AppProps) {
   const [session, setSession] = useState<SessionState>({ kind: "loading" });
+  const [routerStarted, setRouterStarted] = useState(false);
+  const actions = useLatestRef<SessionActions>({
+    signedIn: handleSignedIn,
+    signedOut: handleSignedOut,
+    sessionEnded: handleSessionEnded,
+  });
+  const [router] = useState(() =>
+    createAppRouter({
+      session: BEFORE_SESSION_CHECK,
+      help,
+      services,
+      sessionActions: {
+        signedIn: () => actions.current.signedIn(),
+        signedOut: () => actions.current.signedOut(),
+        sessionEnded: () => actions.current.sessionEnded(),
+      },
+    }),
+  );
+
+  async function settle(next: SettledSession) {
+    const current = router.options.context.session;
+    router.update({ ...router.options, context: { ...router.options.context, session: next } });
+    if (!differsOnlyInExpiry(current, next)) {
+      await router.invalidate();
+    }
+    if (router.options.context.session === next) {
+      setSession(next);
+      setRouterStarted(true);
+    }
+  }
+
+  function settleCheckedSession(outcome: SessionOutcome) {
+    if (outcome.kind === "ok") {
+      markSignedIn();
+      return settle(signedInSessionOf(outcome));
+    }
+    if (outcome.kind === "rate_limited") {
+      return settle({
+        kind: "signed-out",
+        notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
+      });
+    }
+    if (outcome.kind === "failed") {
+      return settle({ kind: "signed-out", notice: { kind: "check_failed" } });
+    }
+    const expired = wasSignedIn();
+    clearSignedInMarker();
+    return settle({ kind: "signed-out", notice: expired ? { kind: "expired" } : undefined });
+  }
+
+  const settleCheckedSessionRef = useLatestRef(settleCheckedSession);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchSession().then((outcome) => {
-      if (cancelled) {
-        return;
+    void services.fetchSession().then((outcome) => {
+      if (!cancelled) {
+        void settleCheckedSessionRef.current(outcome);
       }
-      if (outcome.kind === "ok") {
-        markSignedIn();
-        setSession({
-          kind: "signed-in",
-          userId: outcome.userId,
-          displayName: outcome.displayName,
-          isAdministrator: outcome.isAdministrator,
-          permissions: outcome.permissions ?? [],
-          ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
-        });
-        return;
-      }
-      if (outcome.kind === "rate_limited") {
-        setSession({
-          kind: "signed-out",
-          notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
-        });
-        return;
-      }
-      if (outcome.kind === "failed") {
-        setSession({ kind: "signed-out", notice: { kind: "check_failed" } });
-        return;
-      }
-      const expired = wasSignedIn();
-      clearSignedInMarker();
-      setSession({ kind: "signed-out", notice: expired ? { kind: "expired" } : undefined });
     });
     return () => {
       cancelled = true;
     };
-  }, [fetchSession]);
-
-  const isAccessRoute =
-    route === SIGN_IN_PATH || route === ACCOUNT_RECOVERY_PATH || route === REGISTER_PASSKEY_PATH;
-
-  const userDetailId = matchUserDetailPath(route);
-  const isSettingsRoute =
-    route === MY_ACCOUNT_PATH ||
-    route === USERS_LIST_PATH ||
-    userDetailId !== undefined ||
-    route === ROLES_LIST_PATH ||
-    route === REGISTERS_LIST_PATH ||
-    route === BRANCH_SETTINGS_PATH;
-  const wantsUsers = route === USERS_LIST_PATH || userDetailId !== undefined;
-  const wantsRoles = route === ROLES_LIST_PATH;
-  const wantsRegisters = route === REGISTERS_LIST_PATH;
-  const wantsBranch = route === BRANCH_SETTINGS_PATH;
-  const wantsProductsOrCategories = route === CATEGORIES_LIST_PATH || route === PRODUCTS_LIST_PATH;
-  const wantsPrices = route === PRICES_LIST_PATH;
-  const isCatalogRoute = wantsProductsOrCategories || wantsPrices;
-  const isCashRoute = route === FISCAL_CONFIGURATION_PATH;
-  const wantsCash = isCashRoute;
-  const isHomeRoute = route === ALERTS_LIST_PATH;
-  const wantsHome = isHomeRoute;
-  const access: BackofficeAccess =
-    session.kind === "signed-in" ? accessOf(session) : { isAdministrator: false, permissions: [] };
-  const canSeeUsers = canSeeUsersArea(access);
-  const canSeeRoles = canSeeRolesArea(access);
-  const canSeeRegisters = canSeeRegistersArea(access);
-  const canSeeBranch = canSeeBranchArea(access);
-  const canManageCatalogProducts = canManageProductsAndCategories(access);
-  const canSeePrices = canSeePricesArea(access);
-  const canSeeCatalog = canSeeCatalogArea(access);
-  const catalogDefaultPath = canManageCatalogProducts ? PRODUCTS_LIST_PATH : PRICES_LIST_PATH;
-  const canSeeCash = canSeeCashArea(access);
-  const canSeeAlerts = canSeeAlertsArea(access);
-  const wantsUnlockedSection =
-    (wantsUsers && !canSeeUsers) ||
-    (wantsRoles && !canSeeRoles) ||
-    (wantsRegisters && !canSeeRegisters) ||
-    (wantsBranch && !canSeeBranch) ||
-    (wantsProductsOrCategories && !canManageCatalogProducts) ||
-    (wantsPrices && !canSeePrices) ||
-    (wantsCash && !canSeeCash) ||
-    (wantsHome && !canSeeAlerts);
-
-  useEffect(() => {
-    if (session.kind === "loading") {
-      return;
-    }
-    if (session.kind === "signed-in" && route === SIGN_IN_PATH) {
-      navigate("/", { replace: true });
-    } else if (session.kind !== "signed-in" && !isAccessRoute) {
-      navigate(SIGN_IN_PATH, { replace: true });
-    } else if (session.kind === "signed-in" && wantsUnlockedSection) {
-      sendToMyAccount();
-    }
-  }, [session.kind, route, isAccessRoute, wantsUnlockedSection]);
+  }, [services, settleCheckedSessionRef]);
 
   function handleSignedIn() {
     setSession({ kind: "loading" });
-    void fetchSession().then((outcome) => {
+    void services.fetchSession().then((outcome) => {
       if (outcome.kind === "ok") {
         markSignedIn();
-        setSession({
-          kind: "signed-in",
-          userId: outcome.userId,
-          displayName: outcome.displayName,
-          isAdministrator: outcome.isAdministrator,
-          permissions: outcome.permissions ?? [],
-          ...(outcome.expiresAt !== undefined ? { expiresAt: outcome.expiresAt } : {}),
-        });
+        void settle(signedInSessionOf(outcome));
         return;
       }
       if (outcome.kind === "rate_limited") {
-        setSession({
+        void settle({
           kind: "signed-out",
           notice: { kind: "rate_limited", retryAfterSeconds: outcome.retryAfterSeconds },
         });
         return;
       }
-      setSession({
+      void settle({
         kind: "signed-out",
         notice: outcome.kind === "failed" ? { kind: "check_failed" } : undefined,
       });
@@ -932,19 +238,17 @@ function AppContent({ help, services }: AppProps) {
 
   function handleSignedOut() {
     clearSignedInMarker();
-    setSession({ kind: "signed-out", notice: undefined });
-    navigate(SIGN_IN_PATH, { replace: true });
+    void settle({ kind: "signed-out", notice: undefined });
   }
 
   function handleSessionEnded() {
     clearSignedInMarker();
-    setSession({ kind: "signed-out", notice: { kind: "expired" } });
-    navigate(SIGN_IN_PATH, { replace: true });
+    void settle({ kind: "signed-out", notice: { kind: "expired" } });
   }
 
   useSessionWatcher({
     active: session.kind === "signed-in",
-    checkStatus: checkSessionStatus,
+    checkStatus: services.checkSessionStatus,
     onEnded: handleSessionEnded,
     ...(session.kind === "signed-in" && session.expiresAt !== undefined
       ? { initialExpiresAt: session.expiresAt }
@@ -953,167 +257,29 @@ function AppContent({ help, services }: AppProps) {
 
   useSessionActivityReporter({
     active: session.kind === "signed-in",
-    touchSession: fetchSession,
+    touchSession: services.fetchSession,
+    subscribeToNavigation: (listener) => router.subscribe("onBeforeNavigate", listener),
     onTouched: (touched) => {
-      setSession((current) =>
-        current.kind === "signed-in"
-          ? {
-              ...current,
-              isAdministrator: touched.isAdministrator,
-              permissions: touched.permissions ?? [],
-              ...(touched.expiresAt !== undefined ? { expiresAt: touched.expiresAt } : {}),
-            }
-          : current,
-      );
+      const current = router.options.context.session;
+      if (current.kind === "signed-in") {
+        void settle({
+          ...current,
+          isAdministrator: touched.isAdministrator,
+          permissions: touched.permissions ?? [],
+          ...(touched.expiresAt !== undefined ? { expiresAt: touched.expiresAt } : {}),
+        });
+      }
     },
     onEnded: handleSessionEnded,
   });
 
-  if (session.kind === "loading") {
+  if (!routerStarted) {
     return null;
   }
 
-  if (isSettingsRoute) {
-    if (session.kind !== "signed-in") {
-      return null;
-    }
-    if (wantsUnlockedSection) {
-      // The effect above already redirects to Mi cuenta: skip rendering the section, even briefly.
-      return null;
-    }
-    return (
-      <SettingsApp
-        section={
-          route === USERS_LIST_PATH
-            ? "usersList"
-            : userDetailId !== undefined
-              ? "userDetail"
-              : route === ROLES_LIST_PATH
-                ? "rolesList"
-                : route === REGISTERS_LIST_PATH
-                  ? "registersList"
-                  : route === BRANCH_SETTINGS_PATH
-                    ? "branchSettings"
-                    : "myAccount"
-        }
-        {...(userDetailId !== undefined ? { userDetailId } : {})}
-        signedInUserId={session.userId}
-        displayName={session.displayName}
-        access={access}
-        canSeeUsers={canSeeUsers}
-        canSeeRoles={canSeeRoles}
-        canSeeRegisters={canSeeRegisters}
-        canSeeBranch={canSeeBranch}
-        canSeeAlerts={canSeeAlerts}
-        canSeeCatalog={canSeeCatalog}
-        catalogDefaultPath={catalogDefaultPath}
-        canSeeCash={canSeeCash}
-        onSignedOut={handleSignedOut}
-        onSessionEnded={handleSessionEnded}
-        accountFooterServices={accountFooter}
-        myAccountScreenServices={myAccountScreen}
-        usersListScreenServices={usersListScreen}
-        userDetailScreenServices={userDetailScreen}
-        rolesListScreenServices={rolesListScreen}
-        registersListScreenServices={registersListScreen}
-        branchSettingsScreenServices={branchSettingsScreen}
-      />
-    );
-  }
-
-  if (isCatalogRoute) {
-    if (session.kind !== "signed-in") {
-      return null;
-    }
-    if (wantsUnlockedSection) {
-      return null;
-    }
-    return (
-      <CatalogApp
-        displayName={session.displayName}
-        canSeeAlerts={canSeeAlerts}
-        canManageCatalogProducts={canManageCatalogProducts}
-        canSeePrices={canSeePrices}
-        catalogDefaultPath={catalogDefaultPath}
-        canSeeCash={canSeeCash}
-        onSignedOut={handleSignedOut}
-        onSessionEnded={handleSessionEnded}
-        accountFooterServices={accountFooter}
-        categoriesListScreenServices={categoriesListScreen}
-        productsListScreenServices={productsListScreen}
-        pricesListScreenServices={pricesListScreen}
-      />
-    );
-  }
-
-  if (isCashRoute) {
-    if (session.kind !== "signed-in") {
-      return null;
-    }
-    if (wantsUnlockedSection) {
-      return null;
-    }
-    return (
-      <CashApp
-        displayName={session.displayName}
-        canSeeAlerts={canSeeAlerts}
-        canSeeCatalog={canSeeCatalog}
-        catalogDefaultPath={catalogDefaultPath}
-        onSignedOut={handleSignedOut}
-        onSessionEnded={handleSessionEnded}
-        accountFooterServices={accountFooter}
-        fiscalConfigurationScreenServices={fiscalConfigurationScreen}
-      />
-    );
-  }
-
-  if (isHomeRoute) {
-    if (session.kind !== "signed-in") {
-      return null;
-    }
-    if (wantsUnlockedSection) {
-      return null;
-    }
-    return (
-      <HomeApp
-        access={access}
-        displayName={session.displayName}
-        canSeeCatalog={canSeeCatalog}
-        catalogDefaultPath={catalogDefaultPath}
-        canSeeCash={canSeeCash}
-        onSignedOut={handleSignedOut}
-        onSessionEnded={handleSessionEnded}
-        accountFooterServices={accountFooter}
-        alertsListScreenServices={alertsListScreen}
-      />
-    );
-  }
-
-  switch (route) {
-    case SIGN_IN_PATH:
-      return session.kind === "signed-in" ? null : (
-        <SignInScreen
-          openingNotice={session.notice}
-          onSignedIn={handleSignedIn}
-          services={signInScreen}
-        />
-      );
-    case ACCOUNT_RECOVERY_PATH:
-      return <AccountRecoveryScreen services={accountRecoveryScreen} />;
-    case REGISTER_PASSKEY_PATH:
-      return <RegisterPasskeyScreen services={registerPasskeyScreen} />;
-    default:
-      return session.kind === "signed-in" ? (
-        <HelpApp
-          help={help}
-          displayName={session.displayName}
-          canSeeAlerts={canSeeAlerts}
-          canSeeCatalog={canSeeCatalog}
-          catalogDefaultPath={catalogDefaultPath}
-          canSeeCash={canSeeCash}
-          onSignedOut={handleSignedOut}
-          accountFooterServices={accountFooter}
-        />
-      ) : null;
-  }
+  return (
+    <SessionCheckPendingContext value={session.kind === "loading"}>
+      <RouterProvider router={router} />
+    </SessionCheckPendingContext>
+  );
 }
