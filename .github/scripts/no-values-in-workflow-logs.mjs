@@ -318,12 +318,32 @@ const PASS_THROUGH_FILTERS = new Set([
   "fold",
 ]);
 
+const GREP_OPTIONS_PRINTING_NO_INPUT_LINES = new Set([
+  "--quiet",
+  "--silent",
+  "--count",
+  "--files-with-matches",
+  "--files-without-match",
+]);
+
+function printsNoInputLines(command) {
+  return (
+    command.name === "grep" &&
+    command.args.some(
+      ({ text }) =>
+        GREP_OPTIONS_PRINTING_NO_INPUT_LINES.has(text) || /^-[^-]*[qclL]/.test(text),
+    )
+  );
+}
+
+function passesInputThrough(command) {
+  return PASS_THROUGH_FILTERS.has(command.name) && !printsNoInputLines(command);
+}
+
 function reachesLog(stages, index) {
   return (
     stages.slice(index).every((stage) => !stdoutRedirectedAway(stage)) &&
-    stages
-      .slice(index + 1)
-      .every(({ command }) => command && PASS_THROUGH_FILTERS.has(command.name))
+    stages.slice(index + 1).every(({ command }) => command && passesInputThrough(command))
   );
 }
 
@@ -341,7 +361,10 @@ function stagePrintsName({ command, hereStrings }, name) {
   if (!command) return false;
   if (command.name === "printenv") return command.args.some((arg) => arg.text === name);
   if (PASS_THROUGH_FILTERS.has(command.name)) {
-    return hereStrings.some((hereString) => referencesName(hereString, name));
+    return (
+      passesInputThrough(command) &&
+      hereStrings.some((hereString) => referencesName(hereString, name))
+    );
   }
   if (!PRINT_COMMANDS.has(command.name)) return false;
 

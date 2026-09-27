@@ -510,6 +510,9 @@ for (const [script, expected] of [
   ['echo "$TOKEN" | base64', PRINTS],
   ['echo "$TOKEN" | tr a-z A-Z | rev', PRINTS],
   ['cat <<< "$TOKEN" | xxd', PRINTS],
+  ["env | grep -E '^CI='", DUMPS],
+  ['echo "$TOKEN" | grep -o x', PRINTS],
+  ['grep -i x <<< "$TOKEN"', PRINTS],
 ]) {
   test(`flags a pipeline whose later stages pass the value through to the log: ${script}`, () => {
     assertFlagsOnly(messagesOf(script), expected);
@@ -521,6 +524,17 @@ for (const script of [
   'echo "$CERT" | base64 -d > cert.pem',
   'echo "$TOKEN" | base64 | tee out.txt > /dev/null',
   "env | sort > env.txt",
+  "if echo \"$TOKEN\" | grep -q '^ghp_'; then echo ok; fi",
+  "env | grep -q '^CI='",
+  "printenv | grep -c PATH",
+  'echo "$TOKEN" | grep -l x',
+  'echo "$TOKEN" | grep -L x',
+  'echo "$TOKEN" | grep -Eiq x',
+  'echo "$TOKEN" | grep --quiet x',
+  'echo "$TOKEN" | grep --silent x',
+  'echo "$TOKEN" | grep --count x',
+  "env | grep --files-with-matches x",
+  "grep -q x <<< \"$TOKEN\"",
 ]) {
   test(`does not flag a pipeline that consumes the value or sends it away from the log: ${script}`, () => {
     assert.deepEqual(messagesOf(script, { ...SECRET_ENV, CERT: `\${{ secrets.CERT }}` }), []);
