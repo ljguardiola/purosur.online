@@ -9,9 +9,8 @@ import {
 } from "@purosur/contracts";
 import { Checkbox, Focusable, RadioGroup, Tag, TextField, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
+import { ADMINISTRATOR_ROLE_NAME } from "./role-display";
 import type { CreateRoleFieldError, EditRoleFieldError } from "./roles-api";
-
-const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 const AREA_LABELS = {
   cashRegister: "Caja",

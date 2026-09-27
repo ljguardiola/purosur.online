@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { roleDisplayName } from "./role-display";
 import {
   RoleEditorModal,
   type RoleEditorModalServices,
@@ -32,10 +33,6 @@ type ListState =
   | { kind: "loadError" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; roles: RoleSummary[] };
-
-function roleDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? "Administrador" : (role.name ?? "");
-}
 
 function permissionsCellContent(role: RoleSummary) {
   return role.isAdministrator

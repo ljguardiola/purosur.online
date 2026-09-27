@@ -147,6 +147,22 @@ test("opening to duplicate pre-fills the name and every permission from the row 
   expect(services.fetchRole).not.toHaveBeenCalled();
 });
 
+test("opening to duplicate the Administrator role pre-fills the name from the Administrator's display name", async () => {
+  const services = createServices();
+  const administratorSummary: RoleSummary = {
+    id: "role-administrator",
+    name: null,
+    isAdministrator: true,
+    permissionKeys: [],
+    userCount: 1,
+  };
+  const screen = await renderModal({ kind: "duplicate", source: administratorSummary }, services);
+
+  await expect
+    .element(screen.getByRole("textbox", { name: /^Nombre del rol/ }))
+    .toHaveValue("Copia de Administrador");
+});
+
 test("opening to edit fetches the role fresh and pre-fills it, with the edit save label", async () => {
   const services = createServices();
   vi.mocked(services.fetchRole).mockResolvedValue({ kind: "ok", value: stockDetail });

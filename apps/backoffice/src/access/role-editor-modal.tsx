@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { useAuthorization } from "./authorization-modal";
+import { roleDisplayName } from "./role-display";
 import { RoleEditorForm, roleFieldErrorMessage, validateRoleName } from "./role-editor-form";
 import { withOneAlertView } from "./role-permissions";
 import {
@@ -76,10 +77,6 @@ type FormNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number; offersReload: boolean }
   | { kind: "staleVersion" }
   | { kind: "reloadFailed" };
-
-function sourceDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? "Administrador" : (role.name ?? "");
-}
 
 type RoleSaveConfirmationModalProps = {
   isOpen: boolean;
@@ -246,7 +243,7 @@ export function RoleEditorModal({
       setSelected(new Set());
       setLoadState({ kind: "ready" });
     } else if (request.kind === "duplicate") {
-      setName(`Copia de ${sourceDisplayName(request.source)}`);
+      setName(`Copia de ${roleDisplayName(request.source)}`);
       setSelected(withOneAlertView(request.source.permissionKeys as PermissionKey[]));
       setLoadState({ kind: "ready" });
     } else {
@@ -555,7 +552,7 @@ export function RoleEditorModal({
       </Modal>
       <RoleSaveConfirmationModal
         isOpen={confirmingSave}
-        roleName={loadState.kind === "loaded" ? sourceDisplayName(loadState.role) : ""}
+        roleName={loadState.kind === "loaded" ? roleDisplayName(loadState.role) : ""}
         assignedUsers={loadState.kind === "loaded" ? loadState.role.assignedUsers : []}
         submitting={submitting}
         onBack={backFromConfirmation}
