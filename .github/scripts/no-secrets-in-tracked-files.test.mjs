@@ -17,8 +17,8 @@ const PRIVATE_KEY = [
   "-----END RSA PRIVATE KEY-----",
 ].join("\n");
 
-const KNOWN_FAKE_DATABASE_URL_LINE =
-  'env: { ...process.env, DATABASE_URL: "postgres://user:s3cret-password@[bad/db" },';
+const KNOWN_FAKE_DATABASE_URL = "postgres://user:s3cret-password@[bad/db";
+const KNOWN_FAKE_DATABASE_URL_LINE = `env: { ...process.env, DATABASE_URL: "${KNOWN_FAKE_DATABASE_URL}" },`;
 
 function git(args, cwd) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
@@ -157,6 +157,27 @@ test("accepts the known fake test credential but still flags a different passwor
       violations.map((violation) => violation.path),
       ["different.test.ts"],
     );
+  });
+});
+
+test("flags a file whose scanner suppression comment would hide a secret from the scan", async () => {
+  await withTempRepo(async (dir) => {
+    const suppression = ["secretlint", "disable"].join("-");
+    trackFile(
+      dir,
+      "same-line.test.ts",
+      `const url = "${KNOWN_FAKE_DATABASE_URL.replace("s3cret-password", "different-password")}"; // ${suppression}-line\n`,
+    );
+    trackFile(dir, "block.txt", `# ${suppression}\n${PRIVATE_KEY}\n`);
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(
+      violations.map(({ path, line }) => `${path}:${line}`).sort(),
+      ["block.txt:1", "same-line.test.ts:1"],
+    );
+    for (const violation of violations) assert.match(violation.message, /suppression comment/);
   });
 });
 
