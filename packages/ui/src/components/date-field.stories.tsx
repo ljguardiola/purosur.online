@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playClickExpandsTrigger,
+  playHoverSetsDataHovered,
   playPseudoHoverPaintsBoneFill,
 } from "../test-support/story-interactions";
 import { DateField } from "./DateField";
@@ -72,6 +73,16 @@ export const FocusedSegment: Story = {
 export const CalendarOpen: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
   play: playClickExpandsTrigger(toggle),
+};
+
+export const CalendarMonthControlHovered: Story = {
+  args: { value: new CalendarDate(2027, 2, 28) },
+  play: async (context) => {
+    await userEvent.click(toggle(context.canvasElement));
+    await playHoverSetsDataHovered(
+      () => document.body.querySelector('[slot="next"]') as HTMLElement,
+    )(context);
+  },
 };
 
 export const Hovered: Story = {

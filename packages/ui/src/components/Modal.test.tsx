@@ -599,8 +599,6 @@ test("turns the close button's background sand on hover", async () => {
   await expect
     .poll(() => getComputedStyle(closeButton).backgroundColor)
     .toBe(tokenRgb("surface-sand"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the package's standard focus ring on the close button", async () => {

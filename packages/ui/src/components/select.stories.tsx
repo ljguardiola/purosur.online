@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import {
+  playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
+  playHoverListboxOption,
   playHoverSetsDataHovered,
 } from "../test-support/story-interactions";
 import { Select, type SelectOption } from "./Select";
@@ -58,6 +60,16 @@ export const Focused: Story = {
 export const Open: Story = {
   args: { value: "shift-lead" },
   play: playClickExpandsTrigger(trigger),
+};
+
+export const OptionHovered: Story = {
+  args: { value: "shift-lead" },
+  play: playHoverListboxOption(trigger, "Atención de caja"),
+};
+
+export const OptionFocusVisible: Story = {
+  args: { value: "shift-lead" },
+  play: playArrowKeyFocusesListboxOption(trigger, "Atención de caja"),
 };
 
 export const Required: Story = {

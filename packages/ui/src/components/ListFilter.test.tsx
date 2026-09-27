@@ -494,8 +494,6 @@ test("highlights a hovered option with a bone background", async () => {
   await expect
     .poll(() => getComputedStyle(option.element()).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("highlights a keyboard-focused option with a bone background", async () => {
@@ -509,8 +507,6 @@ test("highlights a keyboard-focused option with a bone background", async () => 
   await expect
     .poll(() => getComputedStyle(focused.element()).backgroundColor)
     .toBe(tokenRgb("surface-bone"));
-
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows a 16px blue strong check on the chosen option only", async () => {

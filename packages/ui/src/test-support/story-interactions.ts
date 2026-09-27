@@ -1,4 +1,4 @@
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { tokenRgb } from "../test/token-colors";
 
 type PlayContext = { canvasElement: HTMLElement };
@@ -37,6 +37,35 @@ export function playClickExpandsTrigger(
     const target = locate(canvasElement);
     await userEvent.click(target);
     await expect(target).toHaveAttribute("aria-expanded", "true");
+  };
+}
+
+function listboxOption(name: string): HTMLElement {
+  return within(document.body).getByRole("option", { name });
+}
+
+export function playHoverListboxOption(
+  locateTrigger: (canvasElement: HTMLElement) => HTMLElement,
+  optionName: string,
+): StoryPlayFunction {
+  return async ({ canvasElement }) => {
+    await userEvent.click(locateTrigger(canvasElement));
+    const option = listboxOption(optionName);
+    await userEvent.hover(option);
+    await expect(option).toHaveAttribute("data-hovered");
+  };
+}
+
+export function playArrowKeyFocusesListboxOption(
+  locateTrigger: (canvasElement: HTMLElement) => HTMLElement,
+  optionName: string,
+): StoryPlayFunction {
+  return async ({ canvasElement }) => {
+    await userEvent.click(locateTrigger(canvasElement));
+    await userEvent.keyboard("{ArrowDown}");
+    const option = listboxOption(optionName);
+    await expect(option).toHaveFocus();
+    await expect(option).toHaveAttribute("data-focus-visible");
   };
 }
 

@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
+  playHoverListboxOption,
   playPseudoHoverPaintsBoneFill,
   playTabMatchesCssFocusWithin,
 } from "../test-support/story-interactions";
@@ -67,6 +69,16 @@ export const Hovered: Story = {
 export const UnitOpen: Story = {
   args: { quantity: "380" },
   play: playClickExpandsTrigger(unitTrigger),
+};
+
+export const UnitOptionHovered: Story = {
+  args: { quantity: "380" },
+  play: playHoverListboxOption(unitTrigger, "kg"),
+};
+
+export const UnitOptionFocusVisible: Story = {
+  args: { quantity: "380" },
+  play: playArrowKeyFocusesListboxOption(unitTrigger, "kg"),
 };
 
 export const Invalid: Story = {

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { within } from "storybook/test";
 import {
+  playArrowKeyFocusesListboxOption,
   playClickExpandsTrigger,
+  playHoverListboxOption,
   playTabReachesFocusVisible,
 } from "../test-support/story-interactions";
 import { ListFilter, type ListFilterOption } from "./ListFilter";
@@ -41,4 +43,12 @@ export const Open: Story = {
 
 export const FocusVisible: Story = {
   play: playTabReachesFocusVisible(trigger),
+};
+
+export const OptionHovered: Story = {
+  play: playHoverListboxOption(trigger, "Abiertas"),
+};
+
+export const OptionFocusVisible: Story = {
+  play: playArrowKeyFocusesListboxOption(trigger, "Abiertas"),
 };

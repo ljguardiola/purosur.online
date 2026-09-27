@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 import { within } from "storybook/test";
-import { playTabReachesFocusVisible } from "../test-support/story-interactions";
+import {
+  playHoverSetsDataHovered,
+  playTabReachesFocusVisible,
+} from "../test-support/story-interactions";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 
@@ -97,6 +100,20 @@ export const Closable: Story = {
     footer: <Button>Entendido</Button>,
   },
   play: playTabReachesFocusVisible(() =>
+    within(document.body).getByRole("button", { name: "Cerrar" }),
+  ),
+};
+
+export const CloseButtonHovered: Story = {
+  args: {
+    tone: "info",
+    icon: <Info />,
+    title: "Detalle del producto",
+    closable: true,
+    children: "Podés cerrar este modal con el botón o con Escape.",
+    footer: <Button>Entendido</Button>,
+  },
+  play: playHoverSetsDataHovered(() =>
     within(document.body).getByRole("button", { name: "Cerrar" }),
   ),
 };
