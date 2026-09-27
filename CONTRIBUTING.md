@@ -70,6 +70,12 @@ This is the structure the repository is organized into. A part that does not fol
 - Tests describe behavior in their own words. They do not reference requirement identifiers or any external document.
 - Technical decisions belong in the pull request that introduces them, under "Technical decisions", not in code comments.
 
+## Backoffice screens
+
+- Every backoffice screen is a typed route, declared in its concept's `routes.tsx` under the layout route of the menu area it belongs to (`shell/`'s home, catalog, cash-and-fiscal, settings or help area, or the public route for screens reached without a session). The route tree in `shell/app-router.ts` lists it; links and navigation name it by its typed path, never by a string built by hand.
+- A route that needs a permission refuses it in its `beforeLoad`, before the screen renders, with `refuseWithout(session, canSee…)`, which sends the person to Mi cuenta. The session and the services reach a route through the router context, never through module state.
+- A list's filters and ordering are a zod schema declared in its route's `validateSearch`, where every field has a default and falls back to it for a value the list does not offer, and the defaults are stripped from the URL. The screen opens on the filters the URL carries and reports every change back, which the route writes into the URL replacing the current history entry. What is open on a screen, such as a modal or a selection, stays in the screen's own state.
+
 ## Testing
 
 Every rule is verified once, at the lowest level that can really prove it. Higher levels only verify that the pieces are wired together: a route test shows that the route reaches its validator and its guard, not every case the validator rejects; a screen test shows how the screen presents an outcome, not the rule that produced it. A rule is also defined once, in the package that owns it, and every other level imports it instead of keeping its own copy.
