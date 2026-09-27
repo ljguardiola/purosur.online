@@ -6,7 +6,7 @@ import {
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/contracts";
-import { Button, DateField, InlineNotice, Modal, TextField } from "@purosur/ui";
+import { Button, DateField, formatDate, InlineNotice, Modal, TextField } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   Check,
@@ -71,9 +71,13 @@ function todayCalendarDate(now: Date): CalendarDate {
   return parseDate(argentinaCalendarDay(now));
 }
 
-function formatDisplayDate(iso: string): string {
-  const [year, month, day] = iso.split("-");
-  return `${day}/${month}/${year}`;
+function formatDisplayDate(isoDate: string): string {
+  return formatDate(Date.parse(isoDate), {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 function dataPair(label: string, value: string | null) {
