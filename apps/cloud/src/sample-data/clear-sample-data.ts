@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, like, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, like, ne, notInArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../db/postgres-error-chain.js";
 import {
@@ -327,6 +327,8 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
           .select({ id: auditLog.id, at: auditLog.at })
           .from(auditLog)
           .where(loadBranchSettingsAudit)
+          .orderBy(asc(auditLog.at), asc(auditLog.id))
+          .limit(1)
       : [];
     const [laterBranchSettingsAudit] = loadBranchSettingsAuditRow
       ? await tx
@@ -349,7 +351,12 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
 
     await tx
       .delete(auditLog)
-      .where(or(inArray(auditLog.entityId, sampleEntityIds), loadBranchSettingsAudit));
+      .where(
+        or(
+          inArray(auditLog.entityId, sampleEntityIds),
+          loadBranchSettingsAuditRow ? eq(auditLog.id, loadBranchSettingsAuditRow.id) : undefined,
+        ),
+      );
 
     await tx
       .delete(passkeyChallenges)

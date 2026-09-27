@@ -526,6 +526,37 @@ describe("clearSampleData", () => {
     ]);
   }, 120_000);
 
+  it("refuses and deletes nothing when the sample administrator set the branch settings back to the sample values after a real edit", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect((await loadSampleData(db, { now: () => NOW })).kind).toBe("loaded");
+    const sampleAdministratorId = await userIdByEmail(db, SAMPLE_ADMINISTRATOR.email);
+    const editBranchSettingsAs = async (actorId: string, address: string) => {
+      const [current] = await db
+        .select({ version: branchSettings.version })
+        .from(branchSettings)
+        .where(eq(branchSettings.locationId, bootstrapAdmin.locationId));
+      if (!current) throw new Error("test setup: no branch settings seeded");
+      const edit = await editBranchSettings(db, {
+        ...SAMPLE_BRANCH_SETTINGS,
+        address,
+        locationId: bootstrapAdmin.locationId,
+        actorId,
+        version: current.version,
+      });
+      if (edit.kind !== "applied")
+        throw new Error("test setup: editing the branch settings failed");
+    };
+    await editBranchSettingsAs(bootstrapAdmin.id, "Calle Real 1");
+    await editBranchSettingsAs(sampleAdministratorId, SAMPLE_BRANCH_SETTINGS.address);
+    const beforeClear = await sampleDataSnapshot(db);
+
+    const outcome = await clearSampleData(db);
+
+    expect(outcome.kind).toBe("refused");
+    expect(await sampleDataSnapshot(db)).toEqual(beforeClear);
+  }, 120_000);
+
   it("refuses and deletes nothing when a sample user changed the branch settings after loading", async () => {
     const db = await freshOwnerDatabase();
     const bootstrapAdmin = await seedActiveAdministrator(db);
