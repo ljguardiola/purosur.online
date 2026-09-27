@@ -1,7 +1,6 @@
 import { PuroSurLogo } from "@purosur/ui";
 import type { ReactElement, ReactNode } from "react";
 import { linkProps } from "./linkProps";
-import { messages } from "./messages";
 
 export type AccessLayoutProps = {
   children: ReactNode;
@@ -15,11 +14,11 @@ export function AccessLayout({ children }: AccessLayoutProps) {
       <div className="flex w-[680px] min-w-80 flex-col bg-surface-sand p-8">
         <div className="flex-1" />
         <PuroSurLogo
-          alt={messages.shell.brandName}
+          alt="Puro Sur"
           className="h-auto max-h-[180px] w-full max-w-[460px] self-center object-contain"
         />
         <div className="flex-1" />
-        <p className="text-sm font-bold text-ink-secondary">{messages.access.brandCaption}</p>
+        <p className="text-sm font-bold text-ink-secondary">Backoffice</p>
       </div>
       <main className="flex flex-1 flex-col items-center justify-center p-8">
         <div className="flex w-full max-w-[440px] flex-col gap-4">{children}</div>

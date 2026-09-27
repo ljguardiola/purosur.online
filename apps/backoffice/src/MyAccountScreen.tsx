@@ -1,10 +1,18 @@
-import { Button, IconButton, InlineNotice, Modal, TextField } from "@purosur/ui";
+import { ARGENTINA_TIME_ZONE, PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import {
+  Button,
+  formatDate,
+  IconButton,
+  InlineNotice,
+  Modal,
+  plural,
+  TextField,
+} from "@purosur/ui";
 import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { KeyRound, Laptop, Plus, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import { messages } from "./messages";
 import {
   fetchPasskeyRegistrationChallenge,
   fetchPasskeys,
@@ -70,16 +78,41 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: Passkey[] };
 
-const passkeysMessages = messages.settings.myAccount.passkeys;
-const registerMessages = passkeysMessages.register;
-const removeMessages = passkeysMessages.removeModal;
+const CANCEL_LABEL = "Cancelar";
+const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
+const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
+const RETRY_LABEL = "Reintentar";
+const PASSKEY_NAME_REQUIRED = "Ingresá un nombre para la passkey.";
+const PASSKEY_NAME_TOO_LONG = `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`;
+
+const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
+}
 
 function passkeyRowDetail(passkey: Passkey, now: Date): string {
-  return passkeysMessages.rowDetail({
-    registeredOn: new Date(passkey.createdAt),
-    ...(passkey.lastUsedAt ? { lastUsedAt: new Date(passkey.lastUsedAt) } : {}),
-    now,
-  });
+  const registered = `Registrada el ${formatDate(new Date(passkey.createdAt), PASSKEY_DATE_OPTIONS)}`;
+  if (!passkey.lastUsedAt) {
+    return registered;
+  }
+  const lastUsedAt = new Date(passkey.lastUsedAt);
+  const time = formatDate(lastUsedAt, PASSKEY_TIME_OPTIONS);
+  const lastUsedDate = formatDate(lastUsedAt, PASSKEY_DATE_OPTIONS);
+  const sameDay = lastUsedDate === formatDate(now, PASSKEY_DATE_OPTIONS);
+  const lastUsed = sameDay ? `último uso hoy ${time}` : `último uso el ${lastUsedDate} ${time}`;
+  return `${registered} · ${lastUsed}`;
 }
 
 type RegisterPasskeyModalProps = {
@@ -158,8 +191,8 @@ function RegisterPasskeyModal({
 
   async function handleSubmit() {
     const validationError = validatePasskeyName(name, {
-      required: registerMessages.nameRequired,
-      tooLong: registerMessages.nameTooLong,
+      required: PASSKEY_NAME_REQUIRED,
+      tooLong: PASSKEY_NAME_TOO_LONG,
     });
     setNameError(validationError);
     if (validationError) {
@@ -204,8 +237,8 @@ function RegisterPasskeyModal({
         width="standard"
         tone="info"
         icon={<KeyRound />}
-        context={registerMessages.eyebrow}
-        title={registerMessages.heading}
+        context="Mi cuenta · Passkeys"
+        title="Registrar una passkey"
         closable
         footer={
           <>
@@ -216,7 +249,7 @@ function RegisterPasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {registerMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -226,7 +259,7 @@ function RegisterPasskeyModal({
               isDisabled={submitting}
               onPress={() => void handleSubmit()}
             >
-              {registerMessages.submit}
+              Registrar la passkey
             </Button>
           </>
         }
@@ -236,36 +269,34 @@ function RegisterPasskeyModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={registerMessages.attemptFailedTitle}
-              detail={registerMessages.attemptFailedDetail}
+              title="No se pudo registrar la passkey"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={registerMessages.rateLimitedTitle}
-              detail={registerMessages.rateLimitedDetail({
-                minutes: Math.ceil(rateLimitedSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
             />
           )}
           <TextField
             kind="plain-text"
-            label={registerMessages.nameLabel}
+            label="Nombre de la passkey"
             value={name}
             onChange={(value) => {
               setName(value);
               if (nameError) {
                 setNameError(
                   validatePasskeyName(value, {
-                    required: registerMessages.nameRequired,
-                    tooLong: registerMessages.nameTooLong,
+                    required: PASSKEY_NAME_REQUIRED,
+                    tooLong: PASSKEY_NAME_TOO_LONG,
                   }),
                 );
               }
             }}
-            helperText={registerMessages.nameHelper}
+            helperText="Por ejemplo, Teléfono de Lucía."
             required
             {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
           />
@@ -359,7 +390,7 @@ function RemovePasskeyModal({
         width="confirmation"
         tone="error"
         icon={<Trash2 />}
-        title={removeMessages.title}
+        title="¿Dar de baja la passkey?"
         closable
         footer={
           <>
@@ -370,7 +401,7 @@ function RemovePasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {removeMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -381,7 +412,7 @@ function RemovePasskeyModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {removeMessages.confirm}
+              Dar de baja
             </Button>
           </>
         }
@@ -389,25 +420,25 @@ function RemovePasskeyModal({
         {target && (
           <div className="flex flex-col gap-4">
             <p className="text-base text-ink">
-              {removeMessages.body({ name: target.name })}
-              {isOnlyPasskey ? ` ${removeMessages.onlyPasskeyWarning}` : ""}
+              {`«${target.name}» deja de servir para entrar.`}
+              {isOnlyPasskey
+                ? " Es tu única passkey: para volver a entrar vas a tener que pedir el enlace de recuperación por correo."
+                : ""}
             </p>
             {attemptFailed && (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={removeMessages.attemptFailedTitle}
-                detail={removeMessages.attemptFailedDetail}
+                title="No se pudo dar de baja la passkey"
+                detail={ATTEMPT_FAILED_DETAIL}
               />
             )}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={removeMessages.rateLimitedTitle}
-                detail={removeMessages.rateLimitedDetail({
-                  minutes: Math.ceil(rateLimitedSeconds / 60),
-                })}
+                title={RATE_LIMITED_TITLE}
+                detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
               />
             )}
           </div>
@@ -480,41 +511,35 @@ export function MyAccountScreen({
       <ScreenLayout
         topBar={
           <div className="flex h-18 shrink-0 flex-col justify-center border-line border-b bg-surface-white px-8">
-            <p className="text-ink-secondary text-sm">
-              {messages.settings.myAccount.breadcrumb({ name: displayName })}
-            </p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">
-              {messages.settings.myAccount.heading}
-            </h1>
+            <p className="text-ink-secondary text-sm">{`Configuración · ${displayName}`}</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">Mi cuenta</h1>
           </div>
         }
         bodyClassName="gap-4 p-6"
       >
         <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
           <div className="flex items-center gap-3">
-            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
-              {passkeysMessages.title}
-            </h2>
+            <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Passkeys</h2>
             <Button
               variant="secondary"
               icon={<Plus />}
               isDisabled={list.kind === "loading" || hasNoPasskeys}
               onPress={() => setRegisterModalOpen(true)}
             >
-              {passkeysMessages.registerAnother}
+              Registrar otra passkey
             </Button>
           </div>
-          {list.kind === "loading" && <p role="status">{passkeysMessages.loading}</p>}
+          {list.kind === "loading" && <p role="status">Cargando tus passkeys…</p>}
           {list.kind === "loadError" && (
             <>
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={passkeysMessages.loadErrorTitle}
-                detail={passkeysMessages.loadErrorDetail}
+                title="No pudimos abrir tus passkeys"
+                detail="Probá de nuevo en unos minutos."
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {passkeysMessages.retry}
+                {RETRY_LABEL}
               </Button>
             </>
           )}
@@ -523,13 +548,11 @@ export function MyAccountScreen({
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={passkeysMessages.rateLimitedTitle}
-                detail={passkeysMessages.rateLimitedDetail({
-                  minutes: Math.ceil(list.retryAfterSeconds / 60),
-                })}
+                title={RATE_LIMITED_TITLE}
+                detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
               />
               <Button variant="secondary" onPress={() => void load()}>
-                {passkeysMessages.retry}
+                {RETRY_LABEL}
               </Button>
             </>
           )}
@@ -539,7 +562,7 @@ export function MyAccountScreen({
                 <InlineNotice
                   tone="warning"
                   icon={<TriangleAlert />}
-                  detail={passkeysMessages.noPasskeysWarning}
+                  detail="No tenés ninguna passkey. Para volver a entrar al backoffice vas a tener que pedir el enlace de recuperación por correo."
                 />
               )}
               <ul className="flex flex-col gap-2">
@@ -559,7 +582,7 @@ export function MyAccountScreen({
                     </div>
                     <IconButton
                       icon={<Trash2 />}
-                      aria-label={passkeysMessages.remove({ name: passkey.name })}
+                      aria-label={`Dar de baja la passkey «${passkey.name}»`}
                       onPress={() => setRemoveTarget(passkey)}
                     />
                   </li>

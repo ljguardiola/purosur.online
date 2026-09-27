@@ -5,15 +5,86 @@ import {
   type PermissionArea,
   type PermissionDefinition,
   type PermissionKey,
+  ROLE_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import { Checkbox, Focusable, RadioGroup, Tag, TextField, Tooltip } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
-import { messages } from "./messages";
 import type { CreateRoleFieldError, EditRoleFieldError } from "./rolesApi";
 
-const rolesMessages = messages.settings.roles;
-const formMessages = rolesMessages.roleEditor.form;
-const editorMessages = rolesMessages.roleEditor;
+const ADMINISTRATOR_ROLE_NAME = "Administrador";
+const VIEW_BRANCH_ALERTS_LABEL = "Ver alertas del local";
+const VIEW_ALL_ALERTS_LABEL = "Ver todas las alertas";
+const DISMISS_ALERTS_LABEL = "Cerrar alertas a mano";
+
+const AREA_LABELS = {
+  cashRegister: "Caja",
+  sale: "Venta",
+  returns: "Devoluciones",
+  checkout: "Cobro",
+  stock: "Stock",
+  purchasing: "Compras",
+  catalog: "Catálogo",
+  assembledProducts: "Productos armados",
+  users: "Usuarios",
+  fiscal: "Fiscal",
+  reports: "Reportes",
+  alerts: "Alertas",
+  devices: "Dispositivos",
+  backups: "Backups",
+  branch: "Sucursal",
+} satisfies Record<PermissionArea, string>;
+
+const PERMISSION_LABELS = {
+  sell_and_charge: "Vender y cobrar, incluido pesar a mano y abrir y cerrar su propia sesión",
+  view_sales_history: "Consultar el historial de ventas",
+  close_anothers_register_session: "Cerrar la sesión de caja de otra persona",
+  reprint_receipt: "Reimprimir un ticket",
+  record_cash_in: "Registrar un ingreso de efectivo",
+  record_cash_expense: "Registrar un gasto pagado en efectivo",
+  withdraw_cash: "Retirar efectivo de la caja",
+  override_line_price_or_discount: "Cambiar el precio o aplicar un descuento a una línea",
+  apply_total_discount: "Aplicar un descuento sobre el total",
+  void_sale: "Anular una venta",
+  process_return: "Hacer devoluciones",
+  authorize_late_defect_refund: "Autorizar el reembolso de un defecto fuera de plazo",
+  confirm_refunds: "Confirmar reembolsos",
+  record_initial_inventory: "Inventario inicial",
+  view_stock_balances: "Ver saldos",
+  perform_stock_counts: "Recuentos",
+  adjust_stock: "Ajustes",
+  record_stock_losses: "Pérdidas",
+  manage_suppliers: "Proveedores",
+  manage_purchase_presentations: "Presentaciones de compra",
+  record_purchases: "Registrar compras",
+  manage_freight: "Flete",
+  manage_expiration_dates: "Vencimientos",
+  manage_supplier_price_lists: "Cargar y revisar listas de proveedores",
+  compare_prices_and_suggest_orders: "Comparación de precios y sugerencia de pedido",
+  manage_purchase_orders: "Pedidos",
+  receive_purchase_orders: "Recibir pedidos",
+  manage_products_and_categories: "Productos y categorías",
+  manage_prices_and_review: "Precios y su revisión",
+  manage_promotions: "Promociones",
+  manage_recipes: "Recetas",
+  manage_batches: "Tandas",
+  reset_user_pin: "Reiniciar el PIN",
+  deactivate_users: "Desactivar usuarios",
+  reactivate_users: "Reactivar usuarios",
+  correct_register_clock: "Corregir el reloj de la caja",
+  view_fiscal_documents: "Ver comprobantes, contingencias y puntos de venta",
+  close_fiscal_tasks: "Cerrar tareas fiscales",
+  change_fiscal_configuration: "Cambiar la configuración fiscal",
+  view_reports: "Ver reportes",
+  view_branch_alerts: VIEW_BRANCH_ALERTS_LABEL,
+  view_all_alerts: VIEW_ALL_ALERTS_LABEL,
+  dismiss_alerts_manually: DISMISS_ALERTS_LABEL,
+  enroll_register_devices: "Dar de alta cajas",
+  revoke_register_devices: "Revocar cajas",
+  view_bitlocker_key: "Consultar la clave de BitLocker",
+  view_backups_and_rotate_key: "Ver backups y rotar la clave",
+  recover_contingency_receipts: "Rescatar tickets de contingencia",
+  configure_branch: "Configurar la sucursal",
+} satisfies Record<PermissionKey, string>;
 
 type AlertsViewOption = "none" | "view_branch_alerts" | "view_all_alerts";
 const ALERTS_RADIO_OPTIONS: readonly [
@@ -21,9 +92,9 @@ const ALERTS_RADIO_OPTIONS: readonly [
   { value: AlertsViewOption; label: string },
   { value: AlertsViewOption; label: string },
 ] = [
-  { value: "none", label: formMessages.alertsNoneOption },
-  { value: "view_branch_alerts", label: formMessages.alertsBranchOption },
-  { value: "view_all_alerts", label: formMessages.alertsAllOption },
+  { value: "none", label: "No ve alertas" },
+  { value: "view_branch_alerts", label: VIEW_BRANCH_ALERTS_LABEL },
+  { value: "view_all_alerts", label: VIEW_ALL_ALERTS_LABEL },
 ];
 
 function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
@@ -33,13 +104,13 @@ function definitionsByArea(area: PermissionArea): PermissionDefinition[] {
 export function validateRoleName(value: string): string | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
-    return formMessages.nameRequired;
+    return "Ingresá el nombre del rol.";
   }
   if (isRoleNameTooLong(trimmed)) {
-    return formMessages.nameTooLong;
+    return `El nombre puede tener hasta ${ROLE_NAME_MAX_LENGTH} caracteres.`;
   }
-  if (trimmed.toLowerCase() === rolesMessages.administratorRoleName.toLowerCase()) {
-    return formMessages.nameReserved;
+  if (trimmed.toLowerCase() === ADMINISTRATOR_ROLE_NAME.toLowerCase()) {
+    return "Ese nombre es del Administrador; elegí otro.";
   }
   return undefined;
 }
@@ -47,7 +118,7 @@ export function validateRoleName(value: string): string | undefined {
 export function roleFieldErrorMessage(
   field: CreateRoleFieldError | EditRoleFieldError,
 ): string | undefined {
-  return field === "name" ? formMessages.nameFieldError : undefined;
+  return field === "name" ? "Revisá el nombre del rol." : undefined;
 }
 
 export function areaSelectedCount(
@@ -67,24 +138,19 @@ function PermissionTags({ definition }: { definition: PermissionDefinition }) {
   }
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <Tooltip description={editorMessages.cashRegisterTagTooltip}>
+      <Tooltip description="Se usa en la caja.">
         <Focusable>
           {/* `img` is one of the few non-widget roles react-aria's Focusable accepts, and still announces aria-describedby on it. */}
-          <Tag tone="neutral" role="img" aria-label={editorMessages.cashRegisterTag}>
-            {editorMessages.cashRegisterTag}
+          <Tag tone="neutral" role="img" aria-label="Caja">
+            Caja
           </Tag>
         </Focusable>
       </Tooltip>
       {definition.registerMarker === "register_with_another_persons_pin" && (
-        <Tooltip description={editorMessages.pinTagTooltip}>
+        <Tooltip description="En la caja, si quien atiende no tiene el permiso, lo autoriza con su PIN alguien que sí lo tenga.">
           <Focusable>
-            <Tag
-              tone="info"
-              icon={<KeyRound aria-hidden="true" />}
-              role="img"
-              aria-label={editorMessages.pinTag}
-            >
-              {editorMessages.pinTag}
+            <Tag tone="info" icon={<KeyRound aria-hidden="true" />} role="img" aria-label="PIN">
+              PIN
             </Tag>
           </Focusable>
         </Tooltip>
@@ -106,7 +172,7 @@ function PermissionRow({
     <div className="flex items-center gap-3 border-line border-b px-4 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <Checkbox isSelected={checked} onChange={onToggle}>
-          {rolesMessages.permissionLabels[definition.key]}
+          {PERMISSION_LABELS[definition.key]}
         </Checkbox>
       </div>
       <PermissionTags definition={definition} />
@@ -151,13 +217,13 @@ function AlertsAreaList({
   return (
     <div className="flex flex-col gap-4 px-4 py-3">
       <RadioGroup
-        label={rolesMessages.areaLabels.alerts}
+        label={AREA_LABELS.alerts}
         options={ALERTS_RADIO_OPTIONS}
         value={alertsView}
         onChange={changeAlertsView}
       />
       <Checkbox isSelected={dismissChecked} onChange={toggleDismiss}>
-        {formMessages.dismissAlertsOption}
+        {DISMISS_ALERTS_LABEL}
       </Checkbox>
     </div>
   );
@@ -187,10 +253,10 @@ function AreaRow({
       ].join(" ")}
     >
       <span className={active ? "font-bold text-brand-blue-strong" : "text-ink"}>
-        {rolesMessages.areaLabels[area]}
+        {AREA_LABELS[area]}
       </span>
       <span className={count > 0 ? "font-bold text-brand-blue-strong" : "text-ink-secondary"}>
-        {formMessages.areaCount({ count, total })}
+        {`${count} de ${total}`}
       </span>
     </button>
   );
@@ -232,7 +298,7 @@ export function RoleEditorForm({
       <div className="shrink-0 border-line border-b bg-surface-white px-6 py-4">
         <TextField
           kind="plain-text"
-          label={formMessages.nameLabel}
+          label="Nombre del rol"
           value={name}
           onChange={onNameChange}
           required
@@ -241,7 +307,7 @@ export function RoleEditorForm({
       </div>
       <div className="flex min-h-0 flex-1">
         <fieldset
-          aria-label={formMessages.areasGroupLabel}
+          aria-label="Áreas de permisos"
           className="flex w-70 shrink-0 flex-col gap-1 overflow-y-auto border-line border-r bg-surface-bone p-3"
         >
           {PERMISSION_AREAS.map((area) => (
@@ -256,7 +322,7 @@ export function RoleEditorForm({
         </fieldset>
         <div className="flex min-h-0 flex-1 flex-col gap-3 bg-surface-white px-6 py-5">
           <h2 className="shrink-0 font-bold text-brand-blue-strong text-xl">
-            {rolesMessages.areaLabels[selectedArea]}
+            {AREA_LABELS[selectedArea]}
           </h2>
           <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-line">
             {selectedArea === "alerts" ? (

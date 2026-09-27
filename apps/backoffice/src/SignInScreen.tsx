@@ -1,13 +1,16 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, plural } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH } from "./accessRoutes";
-import { messages } from "./messages";
 import { authenticate, fetchAuthenticationOptions } from "./sessionApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
+}
 
 export type SignInOpeningNotice =
   | { kind: "expired" }
@@ -87,52 +90,48 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
   return (
     <AccessLayout>
       <AccessHeader
-        eyebrow={messages.access.signIn.eyebrow}
-        heading={messages.access.signIn.heading}
-        description={messages.access.signIn.description}
+        eyebrow="Puro Sur"
+        heading="Ingresar"
+        description="Con la passkey de este dispositivo: la huella, la cara o el PIN de la computadora o del teléfono."
       />
       {notice?.kind === "blocked" && (
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.signIn.blockedTitle}
-          detail={messages.access.signIn.blockedDetail({
-            minutes: Math.ceil(notice.retryAfterSeconds / 60),
-          })}
+          title="Demasiados intentos desde esta conexión"
+          detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
         />
       )}
       {notice?.kind === "expired" && (
         <InlineNotice
           tone="info"
           icon={<Clock />}
-          title={messages.access.signIn.expiredTitle}
-          detail={messages.access.signIn.expiredDetail}
+          title="Tu sesión venció"
+          detail="Se cierra sola a los 30 minutos sin uso o a las 12 horas de haber ingresado."
         />
       )}
       {notice?.kind === "check_failed" && (
         <InlineNotice
           tone="warning"
           icon={<TriangleAlert />}
-          title={messages.access.signIn.checkFailedTitle}
-          detail={messages.access.signIn.checkFailedDetail}
+          title="No pudimos verificar tu sesión"
+          detail="Probá de nuevo en unos minutos."
         />
       )}
       {notice?.kind === "rate_limited" && (
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.signIn.checkRateLimitedTitle}
-          detail={messages.access.signIn.checkRateLimitedDetail({
-            minutes: Math.ceil(notice.retryAfterSeconds / 60),
-          })}
+          title="Demasiadas solicitudes"
+          detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
         />
       )}
       {notice?.kind === "failed" && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.signIn.attemptFailedTitle}
-          detail={messages.access.signIn.attemptFailedDetail}
+          title="No se pudo ingresar"
+          detail="Probá de nuevo."
         />
       )}
       <Button
@@ -143,13 +142,9 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
         isDisabled={submitting}
         onPress={() => void handleSignIn()}
       >
-        {messages.access.signIn.submit}
+        Ingresar con passkey
       </Button>
-      <AccessFooterLink
-        to={ACCOUNT_RECOVERY_PATH}
-        icon={<LifeBuoy />}
-        label={messages.access.signIn.recoverLink}
-      />
+      <AccessFooterLink to={ACCOUNT_RECOVERY_PATH} icon={<LifeBuoy />} label="Perdí mis passkeys" />
     </AccessLayout>
   );
 }

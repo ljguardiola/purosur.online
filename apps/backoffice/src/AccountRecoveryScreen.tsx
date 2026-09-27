@@ -1,10 +1,9 @@
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX, TriangleAlert } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { SIGN_IN_PATH } from "./accessRoutes";
 import { validateEmail } from "./emailValidation";
-import { messages } from "./messages";
 import { requestRecoveryLink } from "./recoveryApi";
 
 type Notice = { kind: "rate_limited"; retryAfterSeconds: number } | { kind: "error" };
@@ -22,8 +21,8 @@ export type AccountRecoveryScreenProps = {
 };
 
 const EMAIL_ERRORS = {
-  required: messages.access.accountRecovery.emailRequired,
-  invalid: messages.access.accountRecovery.emailInvalid,
+  required: "Ingresá tu correo.",
+  invalid: "Ingresá un correo válido.",
 };
 
 export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps = {}) {
@@ -57,21 +56,14 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
   if (sent) {
     return (
       <AccessLayout>
-        <AccessHeader
-          eyebrow={messages.access.accountRecovery.sentEyebrow}
-          heading={messages.access.accountRecovery.sentHeading}
-        />
+        <AccessHeader eyebrow="Recuperar el acceso" heading="Revisá tu correo" />
         <InlineNotice
           tone="info"
           icon={<MailCheck />}
-          title={messages.access.accountRecovery.sentNoticeTitle}
-          detail={messages.access.accountRecovery.sentNoticeDetail}
+          title="Si el correo es de una cuenta, te enviamos el enlace"
+          detail="Vale 15 minutos y se usa una sola vez. Si no aparece, mirá en correo no deseado."
         />
-        <AccessFooterLink
-          to={SIGN_IN_PATH}
-          icon={<ArrowLeft />}
-          label={messages.access.accountRecovery.backLink}
-        />
+        <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Volver a ingresar" />
       </AccessLayout>
     );
   }
@@ -79,32 +71,30 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
   return (
     <AccessLayout>
       <AccessHeader
-        eyebrow={messages.access.accountRecovery.eyebrow}
-        heading={messages.access.accountRecovery.heading}
-        description={messages.access.accountRecovery.description}
+        eyebrow="Perdí mis passkeys"
+        heading="Recuperar el acceso"
+        description="Te mandamos un enlace al correo de tu cuenta para registrar una passkey nueva."
       />
       {notice?.kind === "rate_limited" && (
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.accountRecovery.rateLimitedTitle}
-          detail={messages.access.accountRecovery.rateLimitedDetail({
-            minutes: Math.ceil(notice.retryAfterSeconds / 60),
-          })}
+          title="Demasiados pedidos de recuperación"
+          detail={`Se puede volver a intentar en ${plural(Math.ceil(notice.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(notice.retryAfterSeconds / 60)} minutos` })}.`}
         />
       )}
       {notice?.kind === "error" && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.accountRecovery.errorTitle}
-          detail={messages.access.accountRecovery.errorDetail}
+          title="No pudimos enviar el enlace"
+          detail="Probá de nuevo en unos minutos."
         />
       )}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
         <TextField
           kind="plain-text"
-          label={messages.access.accountRecovery.emailLabel}
+          label="Correo de tu cuenta"
           value={email}
           onChange={(value) => {
             setEmail(value);
@@ -123,14 +113,10 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps =
           icon={<Send />}
           isDisabled={submitting}
         >
-          {messages.access.accountRecovery.submit}
+          Enviar el enlace
         </Button>
       </form>
-      <AccessFooterLink
-        to={SIGN_IN_PATH}
-        icon={<ArrowLeft />}
-        label={messages.access.accountRecovery.backLink}
-      />
+      <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Volver a ingresar" />
     </AccessLayout>
   );
 }

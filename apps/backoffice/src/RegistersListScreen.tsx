@@ -1,10 +1,18 @@
-import { isRegisterNameTooLong } from "@purosur/contracts";
-import { Button, InlineNotice, Modal, Table, TableCellText, Tag, TextField } from "@purosur/ui";
+import { isRegisterNameTooLong, REGISTER_NAME_MAX_LENGTH } from "@purosur/contracts";
+import {
+  Button,
+  InlineNotice,
+  Modal,
+  plural,
+  Table,
+  TableCellText,
+  Tag,
+  TextField,
+} from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, KeySquare, Laptop, Plus, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import { messages } from "./messages";
 import {
   type CreateRegisterOutcome,
   createRegister,
@@ -49,7 +57,16 @@ type ListState =
   | { kind: "loaded"; registers: RegisterSummary[] }
   | { kind: "refreshing"; registers: RegisterSummary[] };
 
-const registersMessages = messages.settings.registers;
+const REGISTERS_HEADING = "Cajas registradoras";
+const RETRY_LABEL = "Reintentar";
+const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
+const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
+const NEW_REGISTER_NAME_REQUIRED = "Ingresá el nombre de la caja.";
+const NEW_REGISTER_NAME_TOO_LONG = `El nombre puede tener hasta ${REGISTER_NAME_MAX_LENGTH} caracteres.`;
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
+}
 
 const PENDING_CODE_REFRESH_MS = 30_000;
 
@@ -100,7 +117,10 @@ function NewRegisterModal({
   authorizeSession,
   startAuthentication,
 }: NewRegisterModalProps) {
-  const modalMessages = registersMessages.newRegisterModal;
+  const modalMessages = {
+    nameRequired: NEW_REGISTER_NAME_REQUIRED,
+    nameTooLong: NEW_REGISTER_NAME_TOO_LONG,
+  };
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [notice, setNotice] = useState<
@@ -151,12 +171,12 @@ function NewRegisterModal({
       return;
     }
     if (outcome.kind === "name_taken") {
-      setNameError(modalMessages.nameTaken);
+      setNameError("Ya existe una caja con este nombre.");
       setSubmitting(false);
       return;
     }
     if (outcome.kind === "validation_failed") {
-      setNameError(modalMessages.nameRequired);
+      setNameError(NEW_REGISTER_NAME_REQUIRED);
       setSubmitting(false);
       return;
     }
@@ -181,8 +201,8 @@ function NewRegisterModal({
         width="standard"
         tone="info"
         icon={<Laptop />}
-        context={modalMessages.eyebrow}
-        title={modalMessages.heading}
+        context="Configuración"
+        title="Nueva caja"
         closable
         footer={
           <>
@@ -193,7 +213,7 @@ function NewRegisterModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {modalMessages.cancel}
+              Cancelar
             </Button>
             <Button
               variant="primary"
@@ -203,7 +223,7 @@ function NewRegisterModal({
               isDisabled={submitting}
               onPress={() => void handleSubmit()}
             >
-              {modalMessages.submit}
+              Crear la caja
             </Button>
           </>
         }
@@ -213,23 +233,21 @@ function NewRegisterModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo crear la caja"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
             />
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.nameLabel}
+            label="Nombre de la caja"
             value={name}
             onChange={(value) => {
               setName(value);
@@ -266,7 +284,6 @@ type EnrollmentCodeModalProps = {
  * effect here, so React Strict Mode's extra render (or a remount) can't refire the request.
  */
 function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentCodeModalProps) {
-  const modalMessages = registersMessages.enrollmentCodeModal;
   const isOpen = emission.kind !== "closed";
   const isIssued = emission.kind === "issued";
 
@@ -282,7 +299,7 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
       tone="info"
       icon={<KeySquare />}
       {...(emission.kind !== "closed" ? { context: emission.register.name } : {})}
-      title={modalMessages.heading}
+      title="Código de alta"
       // An emission in flight can't be dismissed: the cloud may already have replaced the
       // register's pending code, and only this response carries the new one.
       closable={emission.kind !== "issuing"}
@@ -295,26 +312,26 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
           isDisabled={!isIssued}
           onPress={onDone}
         >
-          {modalMessages.doneButton}
+          Listo
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
-        {emission.kind === "issuing" && <p role="status">{modalMessages.issuing}</p>}
+        {emission.kind === "issuing" && <p role="status">Emitiendo el código…</p>}
         {emission.kind === "attemptFailed" && (
           <>
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo emitir el código"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
             <Button
               variant="secondary"
               icon={<RotateCcw />}
               onPress={() => onRetry(emission.register)}
             >
-              {modalMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -323,17 +340,15 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={modalMessages.rateLimitedTitle}
-              detail={modalMessages.rateLimitedDetail({
-                minutes: Math.ceil(emission.retryAfterSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={retryInMinutesDetail(Math.ceil(emission.retryAfterSeconds / 60))}
             />
             <Button
               variant="secondary"
               icon={<RotateCcw />}
               onPress={() => onRetry(emission.register)}
             >
-              {modalMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -343,9 +358,14 @@ function EnrollmentCodeModal({ emission, onClose, onDone, onRetry }: EnrollmentC
               <p className="font-bold text-2xl text-brand-blue-strong tracking-[0.1em]">
                 {groupedCode(emission.code)}
               </p>
-              <p className="text-ink-secondary text-sm">{modalMessages.codeExpiresNote}</p>
+              <p className="text-ink-secondary text-sm">
+                Vence en 15 minutos · se usa una sola vez
+              </p>
             </div>
-            <p className="text-base text-ink">{modalMessages.description}</p>
+            <p className="text-base text-ink">
+              En la notebook nueva, al abrir la caja por primera vez, se escribe este código.
+              Después de 5 intentos equivocados deja de servir y hay que emitir otro.
+            </p>
           </>
         )}
       </div>
@@ -473,34 +493,32 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const columns = [
     {
       key: "register",
-      title: registersMessages.columns.register,
+      title: "CAJA",
       render: (item: RegisterSummary) => (
-        <TableCellText detail={registersMessages.noInstallation}>{item.name}</TableCellText>
+        <TableCellText detail="Sin instalación">{item.name}</TableCellText>
       ),
     },
     {
       key: "installation",
-      title: registersMessages.columns.installation,
+      title: "INSTALACIÓN",
       render: (item: RegisterSummary) => {
         const now = clock();
         const pendingCode =
           item.pendingCode && new Date(item.pendingCode.expiresAt) > now ? item.pendingCode : null;
         if (!pendingCode) {
-          return (
-            <span className="text-ink-secondary text-sm">{registersMessages.codeNotIssued}</span>
-          );
+          return <span className="text-ink-secondary text-sm">—</span>;
         }
+        const elapsedMinutes = minutesElapsed(pendingCode.issuedAt, now);
+        const remainingMinutes = minutesRemaining(pendingCode.expiresAt, now);
         return (
           <div className="flex flex-col gap-1">
             <span className="text-ink text-sm">
-              {registersMessages.codeIssued({
-                minutes: minutesElapsed(pendingCode.issuedAt, now),
-              })}
+              {elapsedMinutes < 1
+                ? "Código emitido recién"
+                : `Código emitido hace ${plural(elapsedMinutes, { one: "1 minuto", other: `${elapsedMinutes} minutos` })}`}
             </span>
             <span className="text-sm text-status-warning-strong">
-              {registersMessages.codeExpiresIn({
-                minutes: minutesRemaining(pendingCode.expiresAt, now),
-              })}
+              {`Vence en ${plural(remainingMinutes, { one: "1 minuto", other: `${remainingMinutes} minutos` })}`}
             </span>
           </div>
         );
@@ -508,26 +526,22 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
     },
     {
       key: "pointsOfSale",
-      title: registersMessages.columns.pointsOfSale,
-      render: () => (
-        <span className="text-ink-secondary text-sm">
-          {registersMessages.pointsOfSaleNotConfigured}
-        </span>
-      ),
+      title: "PUNTOS DE VENTA",
+      render: () => <span className="text-ink-secondary text-sm">Sin configurar</span>,
     },
     {
       key: "status",
-      title: registersMessages.columns.status,
-      render: () => <Tag tone="info">{registersMessages.statusPendingEnrollment}</Tag>,
+      title: "ESTADO",
+      render: () => <Tag tone="info">Esperando alta</Tag>,
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: registersMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         (item: RegisterSummary) => ({
           icon: <KeySquare />,
-          "aria-label": registersMessages.issueCodeAria({ name: item.name }),
+          "aria-label": `Emitir código de alta para ${item.name}`,
           onPress: () => void handleEmitClick(item),
         }),
       ],
@@ -540,13 +554,11 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{registersMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {registersMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Configuración</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{REGISTERS_HEADING}</h1>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              {registersMessages.newRegisterButton}
+              Nueva caja
             </Button>
           </div>
         }
@@ -557,11 +569,11 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={registersMessages.loadErrorTitle}
-              detail={registersMessages.loadErrorDetail}
+              title="No pudimos abrir las cajas registradoras"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {registersMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -570,19 +582,17 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={registersMessages.rateLimitedTitle}
-              detail={registersMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {registersMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
         {(list.kind === "loading" || list.kind === "loaded" || list.kind === "refreshing") && (
           <Table
-            aria-label={registersMessages.heading}
+            aria-label={REGISTERS_HEADING}
             columns={columns}
             loading={
               list.kind === "loading" ? "initial" : list.kind === "refreshing" ? "updating" : false
@@ -590,13 +600,13 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
             rows={registers.map((register) => ({ id: register.id, item: register }))}
             empty={{
               icon: <Laptop />,
-              title: registersMessages.emptyTitle,
-              detail: registersMessages.emptyDetail,
+              title: "Todavía no hay cajas registradoras",
+              detail: "Creá la primera para verla en la lista.",
               tone: "blank",
             }}
             footer={
               <p className="text-ink-secondary text-sm">
-                {registersMessages.count({ count: registers.length })}
+                {plural(registers.length, { one: "1 caja", other: `${registers.length} cajas` })}
               </p>
             }
           />

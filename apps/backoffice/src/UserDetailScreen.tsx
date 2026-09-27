@@ -1,8 +1,11 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/contracts";
 import {
   Button,
+  formatDate,
   IconButton,
   InlineNotice,
   Modal,
+  plural,
   Select,
   Tag,
   TextField,
@@ -27,7 +30,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./access";
 import { validateEmail } from "./emailValidation";
-import { messages } from "./messages";
 import { roleDisplayName, roleOptions } from "./roleDisplay";
 import { fetchRoles } from "./rolesApi";
 import { navigate } from "./router";
@@ -99,24 +101,45 @@ type PasskeysState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; passkeys: UserPasskey[] };
 
-const usersMessages = messages.settings.users;
-const detailMessages = usersMessages.detail;
-const modalMessages = usersMessages.editUserModal;
-const passkeysMessages = messages.settings.myAccount.passkeys;
-const selfRemoveMessages = passkeysMessages.removeModal;
-const removePasskeyModalMessages = usersMessages.removePasskeyModal;
-const deactivateModalMessages = usersMessages.deactivateModal;
-const reactivateModalMessages = usersMessages.reactivateModal;
+const USERS_EYEBROW = "Configuración · Usuarios";
+const EMAIL_LABEL = "Correo";
+const EMAIL_REQUIRED = "Ingresá el correo.";
+const EMAIL_INVALID = "Ingresá un correo válido.";
+const CANCEL_LABEL = "Cancelar";
+const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
+const RETRY_LABEL = "Reintentar";
 
-function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
-  return passkeysMessages.rowDetail({
-    registeredOn: new Date(passkey.createdAt),
-    ...(passkey.lastUsedAt ? { lastUsedAt: new Date(passkey.lastUsedAt) } : {}),
-    now,
-  });
+const PASSKEY_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+const PASSKEY_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: ARGENTINA_TIME_ZONE,
+};
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
 }
 
-const EMAIL_ERRORS = { required: modalMessages.emailRequired, invalid: modalMessages.emailInvalid };
+function passkeyRowDetail(passkey: UserPasskey, now: Date): string {
+  const registered = `Registrada el ${formatDate(new Date(passkey.createdAt), PASSKEY_DATE_OPTIONS)}`;
+  if (!passkey.lastUsedAt) {
+    return registered;
+  }
+  const lastUsedAt = new Date(passkey.lastUsedAt);
+  const time = formatDate(lastUsedAt, PASSKEY_TIME_OPTIONS);
+  const lastUsedDate = formatDate(lastUsedAt, PASSKEY_DATE_OPTIONS);
+  const sameDay = lastUsedDate === formatDate(now, PASSKEY_DATE_OPTIONS);
+  const lastUsed = sameDay ? `último uso hoy ${time}` : `último uso el ${lastUsedDate} ${time}`;
+  return `${registered} · ${lastUsed}`;
+}
+
+const EMAIL_ERRORS = { required: EMAIL_REQUIRED, invalid: EMAIL_INVALID };
 
 type EditUserModalNotice =
   | { kind: "attemptFailed" }
@@ -211,7 +234,7 @@ function EditUserModal({
     }
     if (outcome.kind === "validation_failed") {
       if (outcome.field === "email") {
-        setEmailError(modalMessages.emailInvalid);
+        setEmailError(EMAIL_INVALID);
       } else if (outcome.field === "roleId") {
         setNotice({ kind: "unknownRole" });
       } else {
@@ -221,7 +244,7 @@ function EditUserModal({
       return;
     }
     if (outcome.kind === "email_taken") {
-      setEmailError(modalMessages.emailTaken);
+      setEmailError("Ya existe un usuario con este correo.");
       setSubmitting(false);
       return;
     }
@@ -298,7 +321,7 @@ function EditUserModal({
         width="standard"
         tone="info"
         icon={<UserPen />}
-        context={modalMessages.eyebrow}
+        context={USERS_EYEBROW}
         title={user.firstName}
         closable
         footer={
@@ -310,7 +333,7 @@ function EditUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {modalMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -320,7 +343,7 @@ function EditUserModal({
               isDisabled={submitting}
               onPress={() => void handleSubmit()}
             >
-              {modalMessages.submit}
+              Guardar los cambios
             </Button>
           </>
         }
@@ -330,50 +353,48 @@ function EditUserModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.attemptFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudo guardar el cambio"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={usersMessages.rateLimitedTitle}
-              detail={usersMessages.rateLimitedDetail({
-                minutes: Math.ceil(notice.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
             />
           )}
           {notice?.kind === "staleVersion" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.staleVersionTitle}
-              detail={modalMessages.staleVersionDetail}
+              title="Este usuario cambió mientras lo editabas"
+              detail="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
           {notice?.kind === "lastAdministrator" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.lastAdministratorTitle}
-              detail={modalMessages.lastAdministratorDetail}
+              title="Ahora es el único Administrador activo"
+              detail="Recargá sus datos: para cambiarle el rol, primero hacé Administrador a otra persona."
             />
           )}
           {notice?.kind === "unknownRole" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.unknownRoleTitle}
-              detail={modalMessages.unknownRoleDetail}
+              title="Ese rol ya no está disponible"
+              detail="Cerrá esta ventana y volvé a intentarlo."
             />
           )}
           {notice?.kind === "reloadFailed" && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={modalMessages.reloadFailedTitle}
-              detail={modalMessages.attemptFailedDetail}
+              title="No se pudieron recargar los datos"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {(notice?.kind === "staleVersion" ||
@@ -386,25 +407,25 @@ function EditUserModal({
               isDisabled={submitting}
               onPress={() => void handleReload()}
             >
-              {modalMessages.reload}
+              Recargar
             </Button>
           )}
           {user.isLastActiveAdministrator ? (
             <div className="flex flex-col gap-1">
-              <p className="font-bold text-ink text-sm">{modalMessages.roleLabel}</p>
+              <p className="font-bold text-ink text-sm">Rol</p>
               <div className="flex h-12 min-w-0 max-w-full items-center justify-between gap-2 rounded-lg border-2 border-line bg-surface-bone px-3">
                 <span className="min-w-0 flex-1 truncate text-left font-semibold text-base text-ink">
                   {roleDisplayName(user.role)}
                 </span>
-                <Tooltip description={modalMessages.lastAdministratorTooltip}>
-                  <IconButton icon={<Lock />} aria-label={modalMessages.lockedRoleAria} />
+                <Tooltip description="Es el único Administrador activo. Para cambiarle el rol, primero hacé Administrador a otra persona.">
+                  <IconButton icon={<Lock />} aria-label="Por qué el rol está fijo" />
                 </Tooltip>
               </div>
             </div>
           ) : (
             roleSelectOptions && (
               <Select
-                label={modalMessages.roleLabel}
+                label="Rol"
                 options={roleSelectOptions}
                 value={roleId}
                 onChange={setRoleId}
@@ -414,7 +435,7 @@ function EditUserModal({
           )}
           <TextField
             kind="plain-text"
-            label={modalMessages.emailLabel}
+            label={EMAIL_LABEL}
             value={email}
             onChange={(value) => {
               setEmail(value);
@@ -523,7 +544,7 @@ function RemoveUserPasskeyModal({
         width="confirmation"
         tone="error"
         icon={<Trash2 />}
-        title={removePasskeyModalMessages.title({ name: userName })}
+        title={`¿Dar de baja la passkey de ${userName}?`}
         closable
         footer={
           <>
@@ -534,7 +555,7 @@ function RemoveUserPasskeyModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {selfRemoveMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -545,7 +566,7 @@ function RemoveUserPasskeyModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {selfRemoveMessages.confirm}
+              Dar de baja
             </Button>
           </>
         }
@@ -553,27 +574,25 @@ function RemoveUserPasskeyModal({
         {target && (
           <div className="flex flex-col gap-4">
             <p className="text-base text-ink">
-              {removePasskeyModalMessages.body({ passkeyName: target.name })}
+              {`«${target.name}» deja de servir para entrar.`}
               {isOnlyPasskey
-                ? ` ${removePasskeyModalMessages.onlyPasskeyWarning({ name: userName })}`
+                ? ` Es su única passkey: para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`
                 : ""}
             </p>
             {attemptFailed && (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={selfRemoveMessages.attemptFailedTitle}
-                detail={selfRemoveMessages.attemptFailedDetail}
+                title="No se pudo dar de baja la passkey"
+                detail={ATTEMPT_FAILED_DETAIL}
               />
             )}
             {rateLimitedSeconds !== null && (
               <InlineNotice
                 tone="error"
                 icon={<ShieldX />}
-                title={selfRemoveMessages.rateLimitedTitle}
-                detail={selfRemoveMessages.rateLimitedDetail({
-                  minutes: Math.ceil(rateLimitedSeconds / 60),
-                })}
+                title="Demasiadas solicitudes"
+                detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
               />
             )}
           </div>
@@ -673,7 +692,7 @@ function DeactivateUserModal({
         width="confirmation"
         tone="error"
         icon={<UserX />}
-        title={deactivateModalMessages.title({ name: user.firstName })}
+        title={`¿Desactivar a ${user.firstName}?`}
         closable
         footer={
           <>
@@ -684,7 +703,7 @@ function DeactivateUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {deactivateModalMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -695,29 +714,27 @@ function DeactivateUserModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {deactivateModalMessages.confirm}
+              Desactivar
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">{deactivateModalMessages.body}</p>
+          <p className="text-base text-ink">No se puede deshacer.</p>
           {attemptFailed && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={deactivateModalMessages.attemptFailedTitle}
-              detail={deactivateModalMessages.attemptFailedDetail}
+              title="No se pudo desactivar el usuario"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={usersMessages.rateLimitedTitle}
-              detail={usersMessages.rateLimitedDetail({
-                minutes: Math.ceil(rateLimitedSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
             />
           )}
         </div>
@@ -811,7 +828,7 @@ function ReactivateUserModal({
         tone="info"
         icon={<RotateCcw />}
         headerLayout="centered"
-        title={reactivateModalMessages.title({ name: user.firstName })}
+        title={`¿Reactivar a ${user.firstName}?`}
         closable
         footer={
           <>
@@ -823,7 +840,7 @@ function ReactivateUserModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {reactivateModalMessages.cancel}
+              {CANCEL_LABEL}
             </Button>
             <Button
               variant="primary"
@@ -833,29 +850,29 @@ function ReactivateUserModal({
               isDisabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              {reactivateModalMessages.confirm}
+              Reactivar
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-center text-base text-ink-secondary">{reactivateModalMessages.body}</p>
+          <p className="text-center text-base text-ink-secondary">
+            Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
+          </p>
           {attemptFailed && (
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={reactivateModalMessages.attemptFailedTitle}
-              detail={reactivateModalMessages.attemptFailedDetail}
+              title="No se pudo reactivar el usuario"
+              detail={ATTEMPT_FAILED_DETAIL}
             />
           )}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={usersMessages.rateLimitedTitle}
-              detail={usersMessages.rateLimitedDetail({
-                minutes: Math.ceil(rateLimitedSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryInMinutesDetail(Math.ceil(rateLimitedSeconds / 60))}
             />
           )}
         </div>
@@ -953,7 +970,7 @@ export function UserDetailScreen({
     void load();
   }, [load]);
 
-  const heading = state.kind === "loaded" ? state.user.firstName : detailMessages.heading;
+  const heading = state.kind === "loaded" ? state.user.firstName : "Usuario";
   // The cloud accepts a user id in any letter case, so the URL's id may differ in case from the
   // session's own.
   const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
@@ -965,22 +982,22 @@ export function UserDetailScreen({
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{detailMessages.breadcrumb}</p>
+              <p className="text-ink-secondary text-sm">{USERS_EYEBROW}</p>
               <div className="flex items-center gap-3">
                 <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
-                {isInactive && <Tag tone="neutral">{usersMessages.inactiveTag}</Tag>}
+                {isInactive && <Tag tone="neutral">Inactivo</Tag>}
               </div>
             </div>
           </div>
         }
         bodyClassName="gap-4 p-6"
       >
-        {state.kind === "loading" && <p role="status">{detailMessages.loading}</p>}
+        {state.kind === "loading" && <p role="status">Cargando…</p>}
         {state.kind === "notFound" && (
           <>
-            <InlineNotice tone="error" icon={<UserX />} title={detailMessages.notFoundTitle} />
+            <InlineNotice tone="error" icon={<UserX />} title="No encontramos este usuario" />
             <Button variant="secondary" onPress={() => navigate(USERS_LIST_PATH)}>
-              {detailMessages.backToList}
+              Volver a Usuarios
             </Button>
           </>
         )}
@@ -989,11 +1006,11 @@ export function UserDetailScreen({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={detailMessages.loadErrorTitle}
-              detail={detailMessages.loadErrorDetail}
+              title="No pudimos abrir este usuario"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {usersMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -1002,22 +1019,18 @@ export function UserDetailScreen({
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={usersMessages.rateLimitedTitle}
-              detail={usersMessages.rateLimitedDetail({
-                minutes: Math.ceil(state.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={retryInMinutesDetail(Math.ceil(state.retryAfterSeconds / 60))}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {usersMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
         {state.kind === "loaded" && (
           <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface-white p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
-                {detailMessages.datosHeading}
-              </h2>
+              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Datos</h2>
               {access.isAdministrator && !isInactive && (
                 <Button
                   variant="secondary"
@@ -1025,19 +1038,19 @@ export function UserDetailScreen({
                   icon={<Pencil />}
                   onPress={() => setModalOpen(true)}
                 >
-                  {detailMessages.editButton}
+                  Editar
                 </Button>
               )}
             </div>
             <div className="flex gap-8">
               <div className="flex flex-col gap-1">
-                <p className="font-bold text-ink-secondary text-sm">{detailMessages.roleLabel}</p>
+                <p className="font-bold text-ink-secondary text-sm">Rol</p>
                 <p className="font-semibold text-base text-ink">
                   {roleDisplayName(state.user.role)}
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-                <p className="font-bold text-ink-secondary text-sm">{detailMessages.emailLabel}</p>
+                <p className="font-bold text-ink-secondary text-sm">{EMAIL_LABEL}</p>
                 <p className="font-semibold text-base text-ink">{state.user.email}</p>
               </div>
             </div>
@@ -1046,23 +1059,19 @@ export function UserDetailScreen({
         {state.kind === "loaded" && showsPasskeys && (
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">
-                {passkeysMessages.title}
-              </h2>
+              <h2 className="flex-1 font-bold text-lg text-brand-blue-strong">Passkeys</h2>
             </div>
-            {passkeysState.kind === "loading" && (
-              <p role="status">{detailMessages.passkeysLoading}</p>
-            )}
+            {passkeysState.kind === "loading" && <p role="status">Cargando las passkeys…</p>}
             {passkeysState.kind === "loadError" && (
               <>
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={detailMessages.passkeysLoadErrorTitle}
-                  detail={detailMessages.passkeysLoadErrorDetail}
+                  title="No pudimos abrir las passkeys"
+                  detail="Probá de nuevo en unos minutos."
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  {usersMessages.retry}
+                  {RETRY_LABEL}
                 </Button>
               </>
             )}
@@ -1071,19 +1080,17 @@ export function UserDetailScreen({
                 <InlineNotice
                   tone="error"
                   icon={<ShieldX />}
-                  title={usersMessages.rateLimitedTitle}
-                  detail={usersMessages.rateLimitedDetail({
-                    minutes: Math.ceil(passkeysState.retryAfterSeconds / 60),
-                  })}
+                  title="Demasiadas solicitudes"
+                  detail={retryInMinutesDetail(Math.ceil(passkeysState.retryAfterSeconds / 60))}
                 />
                 <Button variant="secondary" onPress={() => void loadPasskeys()}>
-                  {usersMessages.retry}
+                  {RETRY_LABEL}
                 </Button>
               </>
             )}
             {passkeysState.kind === "loaded" &&
               (passkeysState.passkeys.length === 0 ? (
-                <p className="text-ink-secondary text-sm">{detailMessages.passkeysEmpty}</p>
+                <p className="text-ink-secondary text-sm">No tiene ninguna passkey registrada.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {passkeysState.passkeys.map((passkey) => (
@@ -1103,7 +1110,7 @@ export function UserDetailScreen({
                       {access.isAdministrator && !isOwnAccount && !isInactive && (
                         <IconButton
                           icon={<Trash2 />}
-                          aria-label={passkeysMessages.remove({ name: passkey.name })}
+                          aria-label={`Dar de baja la passkey «${passkey.name}»`}
                           onPress={() => setRemoveTarget(passkey)}
                         />
                       )}
@@ -1119,7 +1126,7 @@ export function UserDetailScreen({
           !isOwnAccount && (
             <div className="flex items-center gap-3">
               <p className="flex-1 text-ink-secondary text-sm">
-                {detailMessages.deactivateHelp({ name: state.user.firstName })}
+                {`Al desactivar a ${state.user.firstName}, deja de poder entrar a la caja y al backoffice; su historial queda igual.`}
               </p>
               <Button
                 variant="secondary"
@@ -1128,14 +1135,14 @@ export function UserDetailScreen({
                 icon={<UserX />}
                 onPress={() => setDeactivateModalOpen(true)}
               >
-                {detailMessages.deactivateButton({ name: state.user.firstName })}
+                {`Desactivar a ${state.user.firstName}`}
               </Button>
             </div>
           )}
         {state.kind === "loaded" && isInactive && canReactivateUser(access) && (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-ink-secondary text-sm">
-              {detailMessages.reactivateHelp({ name: state.user.firstName })}
+              {`Al reactivar a ${state.user.firstName}, vuelve a entrar a la caja y al backoffice con su misma cuenta: mismo correo, rol y passkeys.`}
             </p>
             <Button
               variant="secondary"
@@ -1143,7 +1150,7 @@ export function UserDetailScreen({
               icon={<UserCheck />}
               onPress={() => setReactivateModalOpen(true)}
             >
-              {detailMessages.reactivateButton({ name: state.user.firstName })}
+              {`Reactivar a ${state.user.firstName}`}
             </Button>
           </div>
         )}

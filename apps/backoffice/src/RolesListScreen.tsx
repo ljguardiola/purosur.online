@@ -1,7 +1,7 @@
-import { Button, InlineNotice, Table } from "@purosur/ui";
+import { PERMISSION_KEYS } from "@purosur/contracts";
+import { Button, InlineNotice, plural, Table } from "@purosur/ui";
 import { Copy, Lock, Pencil, Plus, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { messages } from "./messages";
 import {
   RoleEditorModal,
   type RoleEditorModalServices,
@@ -32,23 +32,23 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; roles: RoleSummary[] };
 
-const rolesMessages = messages.settings.roles;
+const ADMINISTRATOR_ROLE_NAME = "Administrador";
 
 function roleDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? rolesMessages.administratorRoleName : (role.name ?? "");
+  return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
 }
 
 function permissionsCellContent(role: RoleSummary) {
   return role.isAdministrator
-    ? rolesMessages.allPermissionsLabel
-    : rolesMessages.permissionsCount({ count: role.permissionKeys.length });
+    ? "Todos los permisos"
+    : `${role.permissionKeys.length} de ${PERMISSION_KEYS.length} permisos`;
 }
 
 function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
   return [
     {
       key: "role",
-      title: rolesMessages.columns.rol,
+      title: "Rol",
       render: (item: RoleSummary) =>
         item.isAdministrator ? (
           <span className="flex items-center gap-1.5">
@@ -61,24 +61,27 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
     },
     {
       key: "permissions",
-      title: rolesMessages.columns.permisos,
+      title: "Permisos",
       render: (item: RoleSummary) => permissionsCellContent(item),
     },
     {
       key: "users",
-      title: rolesMessages.columns.usuarios,
-      render: (item: RoleSummary) => rolesMessages.usersCount({ count: item.userCount }),
+      title: "Usuarios",
+      render: (item: RoleSummary) =>
+        item.userCount === 0
+          ? "Sin usuarios"
+          : plural(item.userCount, { one: "1 usuario", other: `${item.userCount} usuarios` }),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: rolesMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         // Administrator included: duplicating it is how an ordinary role starts from every
         // permission in the catalog.
         (item: RoleSummary) => ({
           icon: <Copy />,
-          "aria-label": rolesMessages.duplicateAria({ name: roleDisplayName(item) }),
+          "aria-label": `Duplicar el rol ${roleDisplayName(item)}`,
           onPress: () => openEditor({ kind: "duplicate", source: item }),
         }),
         // The server refuses to edit the Administrator role regardless, so no edit action is offered.
@@ -87,13 +90,19 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void) {
             ? undefined
             : {
                 icon: <Pencil />,
-                "aria-label": rolesMessages.editAria({ name: roleDisplayName(item) }),
+                "aria-label": `Editar el rol ${roleDisplayName(item)}`,
                 onPress: () => openEditor({ kind: "edit", roleId: item.id }),
               },
       ],
     },
   ] as const;
 }
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
+}
+
+const ROLES_HEADING = "Roles";
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles, roleEditorModal } = services ?? defaultRolesListScreenServices;
@@ -130,15 +139,15 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
       topBar={
         <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">{rolesMessages.breadcrumb}</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">{rolesMessages.heading}</h1>
+            <p className="text-ink-secondary text-sm">Configuración</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">{ROLES_HEADING}</h1>
           </div>
           <Button
             variant="primary"
             icon={<Plus />}
             onPress={() => setEditorRequest({ kind: "new" })}
           >
-            {rolesMessages.newRoleButton}
+            Nuevo rol
           </Button>
         </div>
       }
@@ -149,11 +158,11 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={rolesMessages.loadErrorTitle}
-            detail={rolesMessages.loadErrorDetail}
+            title="No pudimos abrir los roles"
+            detail="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
-            {rolesMessages.retry}
+            Reintentar
           </Button>
         </>
       )}
@@ -162,25 +171,23 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
           <InlineNotice
             tone="error"
             icon={<ShieldX />}
-            title={rolesMessages.rateLimitedTitle}
-            detail={rolesMessages.rateLimitedDetail({
-              minutes: Math.ceil(list.retryAfterSeconds / 60),
-            })}
+            title="Demasiadas solicitudes"
+            detail={retryInMinutesDetail(Math.ceil(list.retryAfterSeconds / 60))}
           />
           <Button variant="secondary" onPress={() => void load()}>
-            {rolesMessages.retry}
+            Reintentar
           </Button>
         </>
       )}
       {(list.kind === "loading" || list.kind === "loaded") && (
         <Table
-          aria-label={rolesMessages.heading}
+          aria-label={ROLES_HEADING}
           columns={columns}
           loading={list.kind === "loading" ? "initial" : false}
           rows={roles.map((role) => ({ id: role.id, item: role }))}
           footer={
             <p className="text-ink-secondary text-sm">
-              {rolesMessages.count({ count: roles.length })}
+              {plural(roles.length, { one: "1 rol", other: `${roles.length} roles` })}
             </p>
           }
         />

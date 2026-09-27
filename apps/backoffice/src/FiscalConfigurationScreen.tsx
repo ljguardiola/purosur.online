@@ -1,6 +1,8 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import {
   argentinaCalendarDay,
+  ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH,
+  ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,
   isIssuerIdentificationLegalNameTooLong,
 } from "@purosur/contracts";
@@ -25,7 +27,6 @@ import {
   type SaveIssuerIdentificationOutcome,
   saveIssuerIdentification,
 } from "./issuerIdentificationApi";
-import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 import { sendToMyAccount } from "./settingsRoutes";
@@ -58,14 +59,13 @@ type LoadState =
   | { kind: "loadError" }
   | { kind: "loaded"; value: IssuerIdentification };
 
-const cashMessages = messages.cash;
-const pageMessages = cashMessages.fiscalConfiguration;
-const issuerMessages = pageMessages.issuerIdentification;
-const modalMessages = pageMessages.editIssuerIdentificationModal;
-
 function dateOf(value: string | null): CalendarDate | null {
   return value === null ? null : parseDate(value);
 }
+
+const LEGAL_NAME_TOO_LONG_ERROR = `Ingresá como mucho ${ISSUER_IDENTIFICATION_LEGAL_NAME_MAX_LENGTH} caracteres.`;
+const GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR = `Ingresá como mucho ${ISSUER_IDENTIFICATION_GROSS_INCOME_REGISTRATION_MAX_LENGTH} caracteres.`;
+const ACTIVITY_START_DATE_FUTURE_ERROR = "La fecha no puede ser futura.";
 
 function todayCalendarDate(now: Date): CalendarDate {
   return parseDate(argentinaCalendarDay(now));
@@ -87,7 +87,7 @@ function dataPair(label: string, value: string | null) {
             : "font-semibold text-base text-ink"
         }
       >
-        {value ?? issuerMessages.notLoaded}
+        {value ?? "Sin cargar"}
       </p>
     </div>
   );
@@ -141,21 +141,21 @@ function validateModal(values: ModalValues, today: CalendarDate): ModalValidatio
   const errors: FieldErrors = {};
   const legalName = values.legalName.trim();
   if (!legalName) {
-    errors.legalName = modalMessages.legalNameRequired;
+    errors.legalName = "Ingresá la razón social.";
   } else if (isIssuerIdentificationLegalNameTooLong(legalName)) {
-    errors.legalName = modalMessages.legalNameTooLong;
+    errors.legalName = LEGAL_NAME_TOO_LONG_ERROR;
   }
   const grossIncomeRegistration = values.grossIncomeRegistration.trim();
   if (!grossIncomeRegistration) {
-    errors.grossIncomeRegistration = modalMessages.grossIncomeRegistrationRequired;
+    errors.grossIncomeRegistration = "Ingresá el número de Ingresos Brutos.";
   } else if (isIssuerIdentificationGrossIncomeRegistrationTooLong(grossIncomeRegistration)) {
-    errors.grossIncomeRegistration = modalMessages.grossIncomeRegistrationTooLong;
+    errors.grossIncomeRegistration = GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR;
   }
   const activityStartDate = values.activityStartDate;
   if (activityStartDate === null) {
-    errors.activityStartDate = modalMessages.activityStartDateRequired;
+    errors.activityStartDate = "Elegí la fecha de inicio de actividades.";
   } else if (activityStartDate.compare(today) > 0) {
-    errors.activityStartDate = modalMessages.activityStartDateFuture;
+    errors.activityStartDate = ACTIVITY_START_DATE_FUTURE_ERROR;
   }
   if (activityStartDate === null || Object.keys(errors).length > 0) {
     return { kind: "invalid", errors };
@@ -166,13 +166,13 @@ function validateModal(values: ModalValues, today: CalendarDate): ModalValidatio
 /** `version` never maps to a field error here: a stale version already has its own notice. */
 function serverFieldErrors(field: IssuerIdentificationField): FieldErrors | undefined {
   if (field === "legal_name") {
-    return { legalName: modalMessages.legalNameTooLong };
+    return { legalName: LEGAL_NAME_TOO_LONG_ERROR };
   }
   if (field === "gross_income_registration") {
-    return { grossIncomeRegistration: modalMessages.grossIncomeRegistrationTooLong };
+    return { grossIncomeRegistration: GROSS_INCOME_REGISTRATION_TOO_LONG_ERROR };
   }
   if (field === "activity_start_date") {
-    return { activityStartDate: modalMessages.activityStartDateFuture };
+    return { activityStartDate: ACTIVITY_START_DATE_FUTURE_ERROR };
   }
   return undefined;
 }
@@ -330,8 +330,8 @@ function EditIssuerIdentificationModal({
         width="standard"
         tone="info"
         icon={<Landmark />}
-        context={modalMessages.eyebrow}
-        title={modalMessages.title}
+        context="CONFIGURACIÓN FISCAL"
+        title="Identificación del emisor"
         closable
         footer={
           <>
@@ -342,7 +342,7 @@ function EditIssuerIdentificationModal({
               isDisabled={submitting}
               onPress={onClose}
             >
-              {modalMessages.cancel}
+              Cancelar
             </Button>
             {offersReload ? (
               <Button
@@ -353,7 +353,7 @@ function EditIssuerIdentificationModal({
                 isDisabled={submitting}
                 onPress={() => void handleReload()}
               >
-                {modalMessages.reload}
+                Recargar
               </Button>
             ) : (
               <Button
@@ -364,7 +364,7 @@ function EditIssuerIdentificationModal({
                 isDisabled={submitting}
                 onPress={() => void handleSubmit()}
               >
-                {modalMessages.submit}
+                Guardar los cambios
               </Button>
             )}
           </>
@@ -376,33 +376,33 @@ function EditIssuerIdentificationModal({
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={modalMessages.attemptFailedTitle}
-                detail={modalMessages.attemptFailedDetail}
+                title="No se pudo guardar el cambio"
+                detail="Probá de nuevo."
               />
             )}
             {notice?.kind === "staleVersion" && (
               <InlineNotice
                 tone="error"
                 icon={<RotateCcw />}
-                title={modalMessages.staleVersionTitle}
-                detail={modalMessages.staleVersionDetail}
+                title="La identificación del emisor cambió mientras la editabas"
+                detail="Recargá los datos y volvé a hacer el cambio."
               />
             )}
             {notice?.kind === "reloadFailed" && (
               <InlineNotice
                 tone="error"
                 icon={<TriangleAlert />}
-                title={modalMessages.reloadFailedTitle}
-                detail={modalMessages.attemptFailedDetail}
+                title="No se pudieron recargar los datos"
+                detail="Probá de nuevo."
               />
             )}
             <div className="flex gap-8">
-              {fixedPair(modalMessages.cuitLabel, target.authorizedCuit)}
-              {fixedPair(modalMessages.taxStatusLabel, target.taxStatus)}
+              {fixedPair("CUIT", target.authorizedCuit)}
+              {fixedPair("Condición frente al IVA", target.taxStatus)}
             </div>
             <TextField
               kind="plain-text"
-              label={modalMessages.legalNameLabel}
+              label="Razón social"
               value={values.legalName}
               onChange={(value) => {
                 setValues((current) => ({ ...current, legalName: value }));
@@ -415,7 +415,7 @@ function EditIssuerIdentificationModal({
               <div className="flex-1">
                 <TextField
                   kind="plain-text"
-                  label={modalMessages.grossIncomeRegistrationLabel}
+                  label="Ingresos Brutos"
                   value={values.grossIncomeRegistration}
                   onChange={(value) => {
                     setValues((current) => ({ ...current, grossIncomeRegistration: value }));
@@ -429,7 +429,7 @@ function EditIssuerIdentificationModal({
               </div>
               <div className="flex-1">
                 <DateField
-                  label={modalMessages.activityStartDateLabel}
+                  label="Inicio de actividades"
                   value={values.activityStartDate}
                   onChange={(value) => {
                     setValues((current) => ({ ...current, activityStartDate: value }));
@@ -437,12 +437,16 @@ function EditIssuerIdentificationModal({
                   }}
                   required
                   maxValue={todayCalendarDate(now())}
-                  rangeMessage={modalMessages.activityStartDateFuture}
+                  rangeMessage={ACTIVITY_START_DATE_FUTURE_ERROR}
                   {...activityStartDateValidity}
                 />
               </div>
             </div>
-            <InlineNotice tone="info" icon={<Info />} detail={modalMessages.printedNotice} />
+            <InlineNotice
+              tone="info"
+              icon={<Info />}
+              detail="Los comprobantes ya emitidos conservan los datos con los que se imprimieron."
+            />
           </div>
         )}
       </Modal>
@@ -493,24 +497,24 @@ export function FiscalConfigurationScreen({
       topBar={
         <div className="flex h-18 shrink-0 items-center border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">{pageMessages.breadcrumb}</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">{pageMessages.heading}</h1>
+            <p className="text-ink-secondary text-sm">Caja y fiscal · Fiscal</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">Configuración fiscal</h1>
           </div>
         </div>
       }
       bodyClassName="gap-4 p-6"
     >
-      {state.kind === "loading" && <p role="status">{pageMessages.loading}</p>}
+      {state.kind === "loading" && <p role="status">Cargando…</p>}
       {state.kind === "loadError" && (
         <>
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={pageMessages.loadErrorTitle}
-            detail={pageMessages.loadErrorDetail}
+            title="No pudimos abrir la configuración fiscal"
+            detail="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
-            {pageMessages.retry}
+            Reintentar
           </Button>
         </>
       )}
@@ -518,7 +522,7 @@ export function FiscalConfigurationScreen({
         <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
           <div className="flex items-center gap-3">
             <h2 className="flex-1 font-bold text-brand-blue-strong text-lg">
-              {issuerMessages.heading}
+              Identificación del emisor
             </h2>
             <Button
               variant="secondary"
@@ -526,33 +530,32 @@ export function FiscalConfigurationScreen({
               icon={<Pencil />}
               onPress={() => setEditing(true)}
             >
-              {issuerMessages.edit}
+              Editar
             </Button>
           </div>
           {incomplete && (
             <InlineNotice
               tone="error"
               icon={<CircleAlert />}
-              title={issuerMessages.incompleteTitle}
-              detail={issuerMessages.incompleteDetail}
+              title="Las cajas no están emitiendo facturas ni notas de crédito"
+              detail="Hasta que se carguen los datos que faltan. Las ventas se siguen cobrando."
             />
           )}
           <div className="flex gap-8">
-            {dataPair(issuerMessages.legalNameLabel, state.value.legalName)}
-            {fixedPair(issuerMessages.cuitLabel, state.value.authorizedCuit)}
-            {fixedPair(issuerMessages.taxStatusLabel, state.value.taxStatus)}
+            {dataPair("Razón social", state.value.legalName)}
+            {fixedPair("CUIT", state.value.authorizedCuit)}
+            {fixedPair("Condición frente al IVA", state.value.taxStatus)}
+            {dataPair("Ingresos Brutos", state.value.grossIncomeRegistration)}
             {dataPair(
-              issuerMessages.grossIncomeRegistrationLabel,
-              state.value.grossIncomeRegistration,
-            )}
-            {dataPair(
-              issuerMessages.activityStartDateLabel,
+              "Inicio de actividades",
               state.value.activityStartDate
                 ? formatDisplayDate(state.value.activityStartDate)
                 : null,
             )}
           </div>
-          <p className="font-normal text-ink-secondary text-sm">{issuerMessages.printedNotice}</p>
+          <p className="font-normal text-ink-secondary text-sm">
+            Lo imprime cada factura y nota de crédito.
+          </p>
         </div>
       )}
       <EditIssuerIdentificationModal

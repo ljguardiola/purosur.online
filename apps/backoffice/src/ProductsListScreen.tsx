@@ -1,4 +1,5 @@
 import {
+  BARCODE_MAX_LENGTH,
   ean13Modules,
   isBarcodeTooLong,
   isInternalBarcode,
@@ -6,17 +7,22 @@ import {
   isValidNetContentQuantity,
   LABELS_MAX_COUNT_PER_PRODUCT,
   LABELS_MAX_TOTAL_COUNT,
+  NET_CONTENT_QUANTITY_MAX,
+  NET_CONTENT_QUANTITY_MAX_DECIMALS,
   type NetContentUnit,
   PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_NAME_MAX_LENGTH,
 } from "@purosur/contracts";
 import {
   Button,
   FieldGroup,
+  formatNumber,
   IconButton,
   InlineNotice,
   ListFilter,
   Modal,
   OptionCardGroup,
+  plural,
   QuantityUnitField,
   type QuantityUnitFieldOption,
   SearchField,
@@ -58,7 +64,6 @@ import {
 } from "react";
 import { type CategorySummary, fetchCategories } from "./categoriesApi";
 import { categoriesInTreeOrder, categoryPathLabels, leafCategories } from "./categoryPath";
-import { messages } from "./messages";
 import {
   formatNetContentQuantity,
   netContentQuantityError,
@@ -114,22 +119,101 @@ type ListState =
 type CategoryFilter = "ALL" | string;
 type UnitFilter = "ALL" | ProductSaleUnit;
 
-const catalogMessages = messages.catalog;
-const productsMessages = catalogMessages.products;
+const HEADING = "Productos";
+const RETRY_LABEL = "Reintentar";
+const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
+const TRY_AGAIN_DETAIL = "Probá de nuevo.";
+const CANCEL_LABEL = "Cancelar";
+const PRODUCT_MODAL_EYEBROW = "Catálogo · Productos";
+const PRODUCT_NAME_TOO_LONG = `El nombre puede tener hasta ${PRODUCT_NAME_MAX_LENGTH} caracteres.`;
+const PRODUCT_CATEGORY_LABEL = "Categoría";
+const PRODUCT_CATEGORY_REQUIRED = "Elegí una categoría.";
+// Only reachable by a race: the category gains a subcategory of its own between loading this
+// form and submitting it.
+const PRODUCT_CATEGORY_NOT_LEAF_ERROR = (params: { category: string }) =>
+  `"${params.category}" tiene subcategorías. Elegí una de ellas.`;
+const PRODUCT_UNIT_LABEL = "Unidad de venta";
+const PRODUCT_BARCODES_LABEL = "Códigos de barras";
+const PRODUCT_SCAN_INPUT_LABEL = "Escanear otro código";
+const PRODUCT_BARCODE_REQUIRED = "Escaneá al menos un código de barras.";
+const PRODUCT_BARCODE_ALREADY_LISTED = "Ese código ya está en la lista.";
+const PRODUCT_BARCODE_HAS_SPACES = "El código de barras no puede tener espacios.";
+const PRODUCT_BARCODE_TOO_LONG = `El código de barras puede tener hasta ${BARCODE_MAX_LENGTH} caracteres.`;
+const PRODUCT_BARCODE_LIMIT_REACHED = `El producto puede tener hasta ${PRODUCT_BARCODES_MAX_COUNT} códigos de barras.`;
+const PRODUCT_BARCODE_INVALID = "Alguno de los códigos de barras no es válido.";
+const PRODUCT_BARCODE_TAKEN_UNNAMED = "Alguno de los códigos ya es de otro producto.";
+const PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL = "Generar código interno";
+const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
+  "No se pudo generar el código interno. Probá de nuevo.";
+const PRODUCT_NET_CONTENT_LABEL = "Contenido neto";
+const PRODUCT_NET_CONTENT_UNIT_LABEL = "Unidad";
+const PRODUCT_NET_CONTENT_INVALID = "Revisá el contenido neto.";
+const PRODUCT_NET_CONTENT_QUANTITY_INVALID = `Ingresá una cantidad mayor que cero, con hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX_DECIMALS)} decimales.`;
+const PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE = `Ingresá una cantidad de hasta ${formatNumber(NET_CONTENT_QUANTITY_MAX)}.`;
+
+function rateLimitedDetail(params: { minutes: number }): string {
+  return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
+}
+
+function barcodeTakenText(params: { codes: string[] }): string {
+  const list = params.codes.join(", ");
+  return plural(params.codes.length, {
+    one: `El código ${list} ya es de otro producto.`,
+    other: `Los códigos ${list} ya son de otro producto.`,
+  });
+}
+
+const UNIT_OPTION_LABELS = {
+  UNIT: "Por unidad",
+  KG: "Por peso",
+} satisfies Record<ProductSaleUnit, string>;
+
+const NET_CONTENT_UNIT_OPTION_LABELS = {
+  G: "g",
+  KG: "kg",
+  ML: "ml",
+  L: "l",
+  UNIT: "u",
+} satisfies Record<NetContentUnit, string>;
+
+const PRODUCTS_EMPTY_STATE = {
+  active: { title: "No hay productos activos", detail: "Creá uno para verlo en la lista." },
+  inactive: { title: "No hay productos inactivos" },
+  all: {
+    title: "Todavía no hay productos",
+    detail: "Creá el primero para verlo en la lista.",
+  },
+} satisfies Record<ProductStatusFilter, { title: string; detail?: string }>;
+
+function productsCountText(params: { count: number; status: ProductStatusFilter }): string {
+  if (params.status === "active") {
+    return plural(params.count, {
+      one: "1 producto activo",
+      other: `${params.count} productos activos`,
+    });
+  }
+  if (params.status === "inactive") {
+    return plural(params.count, {
+      one: "1 producto inactivo",
+      other: `${params.count} productos inactivos`,
+    });
+  }
+  return plural(params.count, { one: "1 producto", other: `${params.count} productos` });
+}
 
 function unitLabel(saleUnit: ProductSaleUnit): string {
-  return productsMessages.unitOptionLabels[saleUnit];
+  return UNIT_OPTION_LABELS[saleUnit];
 }
 
 const NET_CONTENT_UNIT_OPTIONS: [
   QuantityUnitFieldOption<NetContentUnit>,
   ...QuantityUnitFieldOption<NetContentUnit>[],
 ] = [
-  { id: "G", label: productsMessages.netContentUnitOptionLabels.G },
-  { id: "KG", label: productsMessages.netContentUnitOptionLabels.KG },
-  { id: "ML", label: productsMessages.netContentUnitOptionLabels.ML },
-  { id: "L", label: productsMessages.netContentUnitOptionLabels.L },
-  { id: "UNIT", label: productsMessages.netContentUnitOptionLabels.UNIT },
+  { id: "G", label: NET_CONTENT_UNIT_OPTION_LABELS.G },
+  { id: "KG", label: NET_CONTENT_UNIT_OPTION_LABELS.KG },
+  { id: "ML", label: NET_CONTENT_UNIT_OPTION_LABELS.ML },
+  { id: "L", label: NET_CONTENT_UNIT_OPTION_LABELS.L },
+  { id: "UNIT", label: NET_CONTENT_UNIT_OPTION_LABELS.UNIT },
 ];
 
 const NET_CONTENT_DEFAULT_UNIT: NetContentUnit = "G";
@@ -580,7 +664,47 @@ function NewProductModal({
   generateInternalBarcode,
   categories,
 }: NewProductModalProps) {
-  const modalMessages = productsMessages.newProductModal;
+  const modalMessages = {
+    eyebrow: PRODUCT_MODAL_EYEBROW,
+    heading: "Nuevo producto",
+    nameLabel: "Nombre",
+    nameRequired: "Ingresá el nombre del producto.",
+    nameTooLong: PRODUCT_NAME_TOO_LONG,
+    categoryLabel: PRODUCT_CATEGORY_LABEL,
+    categoryPlaceholder: "Elegí una categoría",
+    categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+    netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+    netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+    netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
+    netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+    netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
+    categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
+    unitLabel: PRODUCT_UNIT_LABEL,
+    unitRequired: "Elegí la unidad de venta.",
+    unitOptionUnitTitle: "Por unidad",
+    unitOptionUnitHelp: "Se vende de a uno",
+    unitOptionWeightTitle: "Por peso",
+    unitOptionWeightHelp: "Se pesa en la balanza",
+    barcodesLabel: PRODUCT_BARCODES_LABEL,
+    scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+    generateButtonLabel: PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL,
+    generateFailed: PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
+    barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
+    barcodeRequired: PRODUCT_BARCODE_REQUIRED,
+    barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+    barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+    barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+    barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+    barcodeInvalid: PRODUCT_BARCODE_INVALID,
+    barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
+    barcodeTaken: barcodeTakenText,
+    cancel: CANCEL_LABEL,
+    submit: "Crear el producto",
+    attemptFailedTitle: "No se pudo crear el producto",
+    attemptFailedDetail: TRY_AGAIN_DETAIL,
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saleUnit, setSaleUnit] = useState<ProductSaleUnit | null>(null);
@@ -906,7 +1030,50 @@ function EditProductModal({
   generateInternalBarcode,
   categories,
 }: EditProductModalProps) {
-  const modalMessages = productsMessages.editProductModal;
+  const modalMessages = {
+    eyebrow: PRODUCT_MODAL_EYEBROW,
+    nameLabel: "Nombre",
+    nameRequired: "Ingresá el nombre del producto.",
+    nameTooLong: PRODUCT_NAME_TOO_LONG,
+    categoryLabel: PRODUCT_CATEGORY_LABEL,
+    categoryRequired: PRODUCT_CATEGORY_REQUIRED,
+    netContentLabel: PRODUCT_NET_CONTENT_LABEL,
+    netContentUnitLabel: PRODUCT_NET_CONTENT_UNIT_LABEL,
+    netContentQuantityInvalid: PRODUCT_NET_CONTENT_QUANTITY_INVALID,
+    netContentQuantityTooLarge: PRODUCT_NET_CONTENT_QUANTITY_TOO_LARGE,
+    netContentInvalid: PRODUCT_NET_CONTENT_INVALID,
+    categoryNotLeafError: PRODUCT_CATEGORY_NOT_LEAF_ERROR,
+    unitLabel: PRODUCT_UNIT_LABEL,
+    unitOptionUnitTitle: "Por unidad",
+    unitOptionUnitHelp: "Se vende de a uno",
+    unitOptionWeightTitle: "Por peso",
+    unitOptionWeightHelp: "Se pesa en la balanza",
+    barcodesLabel: PRODUCT_BARCODES_LABEL,
+    scanInputLabel: PRODUCT_SCAN_INPUT_LABEL,
+    generateButtonLabel: PRODUCT_GENERATE_INTERNAL_BARCODE_LABEL,
+    generateFailed: PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
+    barcodeRemoveAria: (params: { code: string }) => `Quitar el código ${params.code}`,
+    barcodeRequired: PRODUCT_BARCODE_REQUIRED,
+    barcodeAlreadyListed: PRODUCT_BARCODE_ALREADY_LISTED,
+    barcodeHasSpaces: PRODUCT_BARCODE_HAS_SPACES,
+    barcodeTooLong: PRODUCT_BARCODE_TOO_LONG,
+    barcodeLimitReached: PRODUCT_BARCODE_LIMIT_REACHED,
+    barcodeInvalid: PRODUCT_BARCODE_INVALID,
+    barcodeTakenUnnamed: PRODUCT_BARCODE_TAKEN_UNNAMED,
+    barcodeTaken: barcodeTakenText,
+    cancel: CANCEL_LABEL,
+    submit: "Guardar los cambios",
+    attemptFailedTitle: "No se pudo guardar el cambio",
+    attemptFailedDetail: TRY_AGAIN_DETAIL,
+    staleVersionTitle: "Otra persona cambió este producto",
+    staleVersionDetail:
+      "Mientras lo editabas se guardó otra versión. Tus cambios no se guardaron: recargá el producto para verla y volvé a hacerlos.",
+    notFoundTitle: "Este producto ya no existe",
+    reload: "Recargar el producto",
+    reloadFailedTitle: "No se pudieron recargar los datos",
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -1321,7 +1488,17 @@ function DeactivateProductModal({
   onSessionEnded,
   deactivateProduct,
 }: DeactivateProductModalProps) {
-  const modalMessages = productsMessages.deactivateModal;
+  const modalMessages = {
+    body: "Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.",
+    cancel: CANCEL_LABEL,
+    confirm: "Desactivar",
+    attemptFailedTitle: "No se pudo desactivar el producto",
+    attemptFailedDetail: TRY_AGAIN_DETAIL,
+    alreadyInactiveTitle: "Ya estaba desactivado",
+    reload: "Actualizar la lista",
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const isOpen = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<DeactivateNotice | null>(null);
@@ -1331,7 +1508,7 @@ function DeactivateProductModal({
 
   useEffect(() => {
     if (isOpen && target) {
-      setTitle(modalMessages.title({ name: target.name }));
+      setTitle(`¿Desactivar ${target.name}?`);
       setNotice(null);
       setSubmitting(false);
     }
@@ -1546,7 +1723,31 @@ function PrintLabelsModal({
   fetchProducts,
   printLabels,
 }: PrintLabelsModalProps) {
-  const modalMessages = productsMessages.printLabelsModal;
+  const modalMessages = {
+    eyebrow: PRODUCT_MODAL_EYEBROW,
+    heading: "Imprimir etiquetas",
+    intro: "Productos con código interno. Elegí cuántas etiquetas va a llevar cada uno.",
+    decreaseAria: (params: { name: string }) => `Restar una etiqueta de ${params.name}`,
+    increaseAria: (params: { name: string }) => `Sumar una etiqueta a ${params.name}`,
+    previewAria: "Vista previa de la etiqueta",
+    emptyTitle: "No hay productos activos con código interno",
+    emptyDetail: "Generá uno desde el formulario de un producto activo.",
+    summary: (params: { count: number }) =>
+      plural(params.count, { one: "1 etiqueta", other: `${params.count} etiquetas` }),
+    summaryDetail: "Hoja autoadhesiva para cualquier impresora común.",
+    cancel: CANCEL_LABEL,
+    download: "Descargar la hoja para imprimir",
+    downloadFileName: "etiquetas.pdf",
+    attemptFailedTitle: "No se pudo generar la hoja",
+    attemptFailedDetail: TRY_AGAIN_DETAIL,
+    productsChangedTitle: "La lista de productos cambió",
+    productsChangedDetail: "Recargá para ver los productos actualizados antes de imprimir.",
+    reload: "Recargar la lista",
+    reloadFailedTitle: "No se pudo recargar la lista",
+    reloadFailedDetail: TRY_AGAIN_DETAIL,
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -1888,7 +2089,7 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
       leafIds.has(category.id),
     );
     return [
-      { value: "ALL" as const, label: productsMessages.categoryFilterAllOption },
+      { value: "ALL" as const, label: "Todas" },
       ...leaves.map((category) => ({
         value: category.id,
         label: categoryLabels.get(category.id) ?? category.name,
@@ -1897,15 +2098,15 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   }, [categories, categoryLabels]);
 
   const unitFilterOptions = [
-    { value: "ALL" as const, label: productsMessages.unitFilterAllOption },
-    { value: "UNIT" as const, label: productsMessages.unitOptionLabels.UNIT },
-    { value: "KG" as const, label: productsMessages.unitOptionLabels.KG },
+    { value: "ALL" as const, label: "Todas" },
+    { value: "UNIT" as const, label: UNIT_OPTION_LABELS.UNIT },
+    { value: "KG" as const, label: UNIT_OPTION_LABELS.KG },
   ] as const;
 
   const statusFilterOptions = [
-    { value: "active" as const, label: productsMessages.statusFilterActiveOption },
-    { value: "inactive" as const, label: productsMessages.statusFilterInactiveOption },
-    { value: "all" as const, label: productsMessages.statusFilterAllOption },
+    { value: "active" as const, label: "Activos" },
+    { value: "inactive" as const, label: "Inactivos" },
+    { value: "all" as const, label: "Todos" },
   ] as const;
 
   const filtered = useMemo(() => {
@@ -1930,46 +2131,46 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
   const columns = [
     {
       key: "product",
-      title: productsMessages.columns.product,
+      title: "PRODUCTO",
       sortable: true,
       defaultDirection: "ascending",
       render: (item: ProductSummary) => item.name,
     },
     {
       key: "category",
-      title: productsMessages.columns.category,
+      title: "CATEGORÍA",
       render: (item: ProductSummary) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     },
     {
       key: "unit",
-      title: productsMessages.columns.unit,
+      title: "UNIDAD",
       render: (item: ProductSummary) => unitLabel(item.saleUnit),
     },
     {
       key: "status",
-      title: productsMessages.columns.status,
+      title: "ESTADO",
       render: (item: ProductSummary) =>
         item.active ? (
-          <StatusIndicator tone="success">{productsMessages.statusActive}</StatusIndicator>
+          <StatusIndicator tone="success">Activo</StatusIndicator>
         ) : (
-          <StatusIndicator tone="neutral">{productsMessages.statusInactive}</StatusIndicator>
+          <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
         ),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: productsMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         (item: ProductSummary) => ({
           icon: <Pencil />,
-          "aria-label": productsMessages.editAria({ name: item.name }),
+          "aria-label": `Editar el producto ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
         (item: ProductSummary) =>
           item.active
             ? {
                 icon: <Ban />,
-                "aria-label": productsMessages.deactivateAria({ name: item.name }),
+                "aria-label": `Desactivar el producto ${item.name}`,
                 onPress: () => setDeactivateTarget(item),
               }
             : undefined,
@@ -1983,10 +2184,8 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{productsMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {productsMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{HEADING}</h1>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -1995,10 +2194,10 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 isDisabled={list.kind !== "loaded"}
                 onPress={() => setPrintModalOpen(true)}
               >
-                {productsMessages.printLabelsButton}
+                Imprimir etiquetas
               </Button>
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-                {productsMessages.newProductButton}
+                Nuevo producto
               </Button>
             </div>
           </div>
@@ -2010,11 +2209,11 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={productsMessages.loadErrorTitle}
-              detail={productsMessages.loadErrorDetail}
+              title="No pudimos abrir los productos"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {productsMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -2023,13 +2222,11 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={productsMessages.rateLimitedTitle}
-              detail={productsMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={rateLimitedDetail({ minutes: Math.ceil(list.retryAfterSeconds / 60) })}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {productsMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -2041,31 +2238,31 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                   variant="backoffice"
                   value={search}
                   onChange={setSearch}
-                  placeholder={productsMessages.searchPlaceholder}
+                  placeholder="Buscar por nombre o código de barras"
                   icon={<Search />}
                 />
               </div>
               <ListFilter
-                label={productsMessages.categoryFilterLabel}
+                label="Categoría:"
                 options={categoryFilterOptions}
                 value={categoryFilter}
                 onChange={setCategoryFilter}
               />
               <ListFilter
-                label={productsMessages.unitFilterLabel}
+                label="Unidad:"
                 options={unitFilterOptions}
                 value={unitFilter}
                 onChange={setUnitFilter}
               />
               <ListFilter
-                label={productsMessages.statusFilterLabel}
+                label="Estado:"
                 options={statusFilterOptions}
                 value={statusFilter}
                 onChange={setStatusFilter}
               />
             </div>
             <Table
-              aria-label={productsMessages.heading}
+              aria-label={HEADING}
               columns={columns}
               sort={sort}
               onSortChange={setSort}
@@ -2075,19 +2272,19 @@ export function ProductsListScreen({ onSessionEnded, services }: ProductsListScr
                 products.length === 0
                   ? {
                       icon: <Package />,
-                      ...productsMessages.empty[statusFilter],
+                      ...PRODUCTS_EMPTY_STATE[statusFilter],
                       tone: "blank",
                     }
                   : {
                       icon: <SearchX />,
-                      title: productsMessages.noResultsTitle,
-                      detail: productsMessages.noResultsDetail,
+                      title: "Sin resultados",
+                      detail: "Probá con otro nombre o código de barras.",
                       tone: "filtered",
                     }
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {productsMessages.count({ count: filtered.length, status: statusFilter })}
+                  {productsCountText({ count: filtered.length, status: statusFilter })}
                 </p>
               }
             />

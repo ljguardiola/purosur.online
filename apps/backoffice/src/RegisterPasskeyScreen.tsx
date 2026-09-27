@@ -1,15 +1,20 @@
-import { Button, InlineNotice, TextField } from "@purosur/ui";
+import { PASSKEY_NAME_MAX_LENGTH } from "@purosur/contracts";
+import { Button, InlineNotice, plural, TextField } from "@purosur/ui";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { startRegistration } from "@simplewebauthn/browser";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AccessFooterLink, AccessHeader, AccessLayout } from "./AccessLayout";
 import { ACCOUNT_RECOVERY_PATH, SIGN_IN_PATH } from "./accessRoutes";
-import { messages } from "./messages";
 import { validatePasskeyName } from "./passkeyName";
 import type { RecoveryTokenOutcome } from "./recoveryApi";
 import { fetchRegistrationOptions, redeemRecovery } from "./recoveryApi";
 import { signalUnknownCredential } from "./signalUnknownCredential";
+
+const PASSKEY_NAME_ERRORS = {
+  required: "Ingresá un nombre para la passkey.",
+  tooLong: `El nombre no puede superar los ${PASSKEY_NAME_MAX_LENGTH} caracteres.`,
+};
 
 function isDefinitiveRejection(outcome: RecoveryTokenOutcome<unknown>): boolean {
   switch (outcome.kind) {
@@ -88,7 +93,7 @@ function TokenErrorNotice({
         <AccessFooterLink
           to={ACCOUNT_RECOVERY_PATH}
           icon={<ArrowLeft />}
-          label={messages.access.registerPasskey.requestNewLink}
+          label="Pedir un enlace nuevo"
         />
       )}
     </>
@@ -173,10 +178,7 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
       setPhase({ kind: "invalid" });
       return;
     }
-    const validationError = validatePasskeyName(name, {
-      required: messages.access.registerPasskey.nameRequired,
-      tooLong: messages.access.registerPasskey.nameTooLong,
-    });
+    const validationError = validatePasskeyName(name, PASSKEY_NAME_ERRORS);
     setNameError(validationError);
     if (validationError) {
       return;
@@ -220,8 +222,8 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   if (phase.kind === "loading") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registerPasskey.heading} />
-        <p role="status">{messages.access.registerPasskey.loading}</p>
+        <AccessHeader heading="Registrá una passkey nueva" />
+        <p role="status">Abriendo el registro…</p>
       </AccessLayout>
     );
   }
@@ -229,21 +231,21 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   if (phase.kind === "invalid" || phase.kind === "burned" || phase.kind === "expired") {
     const copy = {
       invalid: {
-        title: messages.access.registerPasskey.invalidTitle,
-        detail: messages.access.registerPasskey.invalidDetail,
+        title: "Este enlace no es válido",
+        detail: "Revisá que el enlace esté completo.",
       },
       burned: {
-        title: messages.access.registerPasskey.burnedTitle,
-        detail: messages.access.registerPasskey.burnedDetail,
+        title: "Este enlace ya no se puede usar",
+        detail: "Ya se usó o se pidió uno más nuevo.",
       },
       expired: {
-        title: messages.access.registerPasskey.expiredTitle,
-        detail: messages.access.registerPasskey.expiredDetail,
+        title: "Este enlace venció",
+        detail: "Los enlaces valen 15 minutos.",
       },
     }[phase.kind];
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registerPasskey.heading} />
+        <AccessHeader heading="Registrá una passkey nueva" />
         <TokenErrorNotice title={copy.title} detail={copy.detail} offerNewLink />
       </AccessLayout>
     );
@@ -252,14 +254,12 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   if (phase.kind === "rate_limited") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registerPasskey.heading} />
+        <AccessHeader heading="Registrá una passkey nueva" />
         <InlineNotice
           tone="error"
           icon={<ShieldX />}
-          title={messages.access.registerPasskey.rateLimitedTitle}
-          detail={messages.access.registerPasskey.rateLimitedDetail({
-            minutes: Math.ceil(phase.retryAfterSeconds / 60),
-          })}
+          title="Demasiados intentos desde esta conexión"
+          detail={`Se puede volver a intentar en ${plural(Math.ceil(phase.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(phase.retryAfterSeconds / 60)} minutos` })}.`}
         />
       </AccessLayout>
     );
@@ -268,15 +268,15 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   if (phase.kind === "loadError") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registerPasskey.heading} />
+        <AccessHeader heading="Registrá una passkey nueva" />
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.registerPasskey.loadErrorTitle}
-          detail={messages.access.registerPasskey.loadErrorDetail}
+          title="No pudimos abrir el registro"
+          detail="Probá de nuevo en unos minutos."
         />
         <Button variant="secondary" onPress={() => void load()}>
-          {messages.access.registerPasskey.retry}
+          Reintentar
         </Button>
       </AccessLayout>
     );
@@ -285,18 +285,14 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
   if (phase.kind === "registered") {
     return (
       <AccessLayout>
-        <AccessHeader heading={messages.access.registerPasskey.successTitle} />
+        <AccessHeader heading="Registraste la passkey" />
         <InlineNotice
           tone="info"
           icon={<ShieldCheck />}
-          title={messages.access.registerPasskey.sessionsClosedTitle}
-          detail={messages.access.registerPasskey.sessionsClosedDetail}
+          title="Se cerraron las sesiones abiertas de tu cuenta"
+          detail="Si alguien más estaba adentro con tu cuenta, ya no lo está."
         />
-        <AccessFooterLink
-          to={SIGN_IN_PATH}
-          icon={<ArrowLeft />}
-          label={messages.access.registerPasskey.goToSignIn}
-        />
+        <AccessFooterLink to={SIGN_IN_PATH} icon={<ArrowLeft />} label="Ir a ingresar" />
       </AccessLayout>
     );
   }
@@ -305,33 +301,28 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
     <AccessLayout>
       <AccessHeader
         eyebrow={phase.displayName}
-        heading={messages.access.registerPasskey.heading}
-        description={messages.access.registerPasskey.description}
+        heading="Registrá una passkey nueva"
+        description="Con ella vas a ingresar de ahora en adelante."
       />
       {phase.attemptFailed && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={messages.access.registerPasskey.attemptFailedTitle}
-          detail={messages.access.registerPasskey.attemptFailedDetail}
+          title="No se pudo registrar la passkey"
+          detail="Podés volver a intentarlo con este mismo enlace."
         />
       )}
       <TextField
         kind="plain-text"
-        label={messages.access.registerPasskey.nameLabel}
+        label="Nombre de la passkey"
         value={name}
         onChange={(value) => {
           setName(value);
           if (nameError) {
-            setNameError(
-              validatePasskeyName(value, {
-                required: messages.access.registerPasskey.nameRequired,
-                tooLong: messages.access.registerPasskey.nameTooLong,
-              }),
-            );
+            setNameError(validatePasskeyName(value, PASSKEY_NAME_ERRORS));
           }
         }}
-        helperText={messages.access.registerPasskey.nameHelper}
+        helperText="Por ejemplo, Notebook del local."
         required
         {...(nameError ? { invalid: true, errorMessage: nameError } : {})}
       />
@@ -343,9 +334,11 @@ export function RegisterPasskeyScreen({ services }: RegisterPasskeyScreenProps =
         isDisabled={phase.submitting}
         onPress={() => void handleRegister(phase)}
       >
-        {messages.access.registerPasskey.submit}
+        Registrar la passkey
       </Button>
-      <p className="text-sm text-ink-secondary">{messages.access.registerPasskey.footerHint}</p>
+      <p className="text-sm text-ink-secondary">
+        Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.
+      </p>
     </AccessLayout>
   );
 }

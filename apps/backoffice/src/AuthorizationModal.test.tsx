@@ -4,11 +4,11 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../packages/ui/src/test/axe";
 import {
+  AUTHORIZATION_ACTION_LABELS,
   type AuthorizationActionKey,
   type AuthorizationServices,
   useAuthorization,
 } from "./AuthorizationModal";
-import { messages } from "./messages";
 
 type FakeOutcome =
   | { kind: "ok"; value: string }
@@ -318,7 +318,7 @@ test("shows each catalog action key's own sentence", async () => {
     );
   }
 
-  const actionKeys = Object.keys(messages.passkeyAuthorization.actions) as AuthorizationActionKey[];
+  const actionKeys = Object.keys(AUTHORIZATION_ACTION_LABELS) as AuthorizationActionKey[];
   expect([...actionKeys].sort()).toEqual(Object.keys(expectedSentences).sort());
   for (const action of actionKeys) {
     const screen = await render(<ActionHarness action={action} />);

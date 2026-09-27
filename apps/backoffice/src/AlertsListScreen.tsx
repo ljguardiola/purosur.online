@@ -4,6 +4,7 @@ import {
   InlineNotice,
   ListFilter,
   Pagination,
+  plural,
   SearchField,
   StatusIndicator,
   type StatusIndicatorTone,
@@ -12,18 +13,37 @@ import {
 } from "@purosur/ui";
 import { Bell, Eye, Search, ShieldX, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertDetailModal, type AlertDetailModalServices } from "./AlertDetailModal";
+import {
+  ALERT_LEVEL_LABELS,
+  AlertDetailModal,
+  type AlertDetailModalServices,
+  alertDateTime,
+} from "./AlertDetailModal";
 import type { BackofficeAccess } from "./access";
 import {
+  type AlertKind,
   type AlertLevel,
   type AlertListPage,
   type AlertSummary,
   fetchAlerts as fetchAlertsDefault,
 } from "./alertsApi";
-import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
+
+const LIST_KIND_LABELS = {
+  backoffice_passkey_changed: "Passkey",
+  backoffice_recovery_requested: "Recuperación de acceso",
+  user_email_changed: "Correo",
+  backoffice_sign_in_lockout: "Bloqueo de ingreso",
+} satisfies Record<AlertKind, string>;
+
+const LIST_KIND_DESCRIPTIONS = {
+  backoffice_passkey_changed: "Se registró o dio de baja una passkey",
+  backoffice_recovery_requested: "Se pidió el enlace de acceso",
+  user_email_changed: "Se cambió una dirección de correo",
+  backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
+} satisfies Record<AlertKind, string>;
 
 export type AlertsListScreenServices = {
   fetchAlerts: typeof fetchAlertsDefault;
@@ -53,8 +73,6 @@ const SEARCH_DELAY_MS = 300;
 type LevelFilter = "all" | AlertLevel;
 type StatusFilter = "open" | "closed";
 
-const alertsMessages = messages.inicio.alerts;
-
 const LEVEL_TONE: Record<AlertLevel, StatusIndicatorTone> = {
   critical: "error",
   warning: "warning",
@@ -62,18 +80,16 @@ const LEVEL_TONE: Record<AlertLevel, StatusIndicatorTone> = {
 };
 
 function levelLabel(level: AlertLevel): string {
-  return alertsMessages.levelOptions[level];
+  return ALERT_LEVEL_LABELS[level];
 }
 
 function listKindLabel(kind: string): string {
-  return kind in alertsMessages.listKindLabels
-    ? alertsMessages.listKindLabels[kind as keyof typeof alertsMessages.listKindLabels]
-    : kind;
+  return kind in LIST_KIND_LABELS ? LIST_KIND_LABELS[kind as keyof typeof LIST_KIND_LABELS] : kind;
 }
 
 function listKindDescription(kind: string): string {
-  return kind in alertsMessages.listKindDescriptions
-    ? alertsMessages.listKindDescriptions[kind as keyof typeof alertsMessages.listKindDescriptions]
+  return kind in LIST_KIND_DESCRIPTIONS
+    ? LIST_KIND_DESCRIPTIONS[kind as keyof typeof LIST_KIND_DESCRIPTIONS]
     : "";
 }
 
@@ -87,15 +103,15 @@ function kindsMatching(text: string): string[] {
 }
 
 const LEVEL_FILTER_OPTIONS = [
-  { value: "all", label: alertsMessages.levelAllOption },
-  { value: "critical", label: alertsMessages.levelOptions.critical },
-  { value: "warning", label: alertsMessages.levelOptions.warning },
-  { value: "informational", label: alertsMessages.levelOptions.informational },
+  { value: "all", label: "Todos" },
+  { value: "critical", label: ALERT_LEVEL_LABELS.critical },
+  { value: "warning", label: ALERT_LEVEL_LABELS.warning },
+  { value: "informational", label: ALERT_LEVEL_LABELS.informational },
 ] as const;
 
 const STATUS_FILTER_OPTIONS = [
-  { value: "open", label: alertsMessages.statusOpenOption },
-  { value: "closed", label: alertsMessages.statusClosedOption },
+  { value: "open", label: "Abiertas" },
+  { value: "closed", label: "Cerradas" },
 ] as const;
 
 export function AlertsListScreen({ access, onSessionEnded, services }: AlertsListScreenProps) {
@@ -169,14 +185,14 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
   const columns = [
     {
       key: "level",
-      title: alertsMessages.columns.level,
+      title: "Nivel",
       render: (item: AlertSummary) => (
         <StatusIndicator tone={LEVEL_TONE[item.level]}>{levelLabel(item.level)}</StatusIndicator>
       ),
     },
     {
       key: "alert",
-      title: alertsMessages.columns.alert,
+      title: "Alerta",
       render: (item: AlertSummary) => (
         <TableCellText detail={listKindDescription(item.kind)}>
           {listKindLabel(item.kind)}
@@ -185,22 +201,22 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
     },
     {
       key: "scope",
-      title: alertsMessages.columns.scope,
-      render: (item: AlertSummary) => item.scopeDisplay ?? alertsMessages.scopeNone,
+      title: "Alcance",
+      render: (item: AlertSummary) => item.scopeDisplay ?? "—",
     },
     {
       key: "openedAt",
-      title: alertsMessages.columns.openedAt,
-      render: (item: AlertSummary) => alertsMessages.dateTime({ date: new Date(item.openedAt) }),
+      title: "Abierta",
+      render: (item: AlertSummary) => alertDateTime(new Date(item.openedAt)),
     },
     {
       key: "actions",
       kind: "actions",
-      srLabel: alertsMessages.rowActionsLabel,
+      srLabel: "Acciones de la alerta",
       actions: [
         (item: AlertSummary) => ({
           icon: <Eye />,
-          "aria-label": alertsMessages.viewAria({ title: listKindLabel(item.kind) }),
+          "aria-label": `Ver la alerta «${listKindLabel(item.kind)}»`,
           onPress: () => setSelectedAlertId(item.id),
         }),
       ],
@@ -213,15 +229,16 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{alertsMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {alertsMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Inicio</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">Alertas</h1>
             </div>
             {openCount > 0 && (
               <div className="inline-flex h-[1.75rem] items-center gap-2 rounded-[0.875rem] bg-status-warning-message-bg px-3 font-sans text-sm font-semibold text-status-warning-strong">
                 <Bell aria-hidden="true" className="size-3.5 shrink-0" />
-                {alertsMessages.openPill({ count: openCount })}
+                {plural(openCount, {
+                  one: "1 alerta abierta",
+                  other: `${openCount} alertas abiertas`,
+                })}
               </div>
             )}
           </div>
@@ -233,11 +250,11 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={alertsMessages.loadErrorTitle}
-              detail={alertsMessages.loadErrorDetail}
+              title="No pudimos abrir las alertas"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {alertsMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -246,13 +263,11 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={alertsMessages.rateLimitedTitle}
-              detail={alertsMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title="Demasiadas solicitudes"
+              detail={`Se puede volver a intentar en ${plural(Math.ceil(list.retryAfterSeconds / 60), { one: "1 minuto", other: `${Math.ceil(list.retryAfterSeconds / 60)} minutos` })}.`}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {alertsMessages.retry}
+              Reintentar
             </Button>
           </>
         )}
@@ -264,12 +279,12 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                   variant="backoffice"
                   value={search}
                   onChange={setSearch}
-                  placeholder={alertsMessages.searchPlaceholder}
+                  placeholder="Buscar una alerta"
                   icon={<Search />}
                 />
               </div>
               <ListFilter
-                label={alertsMessages.levelFilterLabel}
+                label="Nivel"
                 options={LEVEL_FILTER_OPTIONS}
                 value={levelFilter}
                 onChange={(value) => {
@@ -278,7 +293,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                 }}
               />
               <ListFilter
-                label={alertsMessages.statusFilterLabel}
+                label="Estado"
                 options={STATUS_FILTER_OPTIONS}
                 value={statusFilter}
                 onChange={(value) => {
@@ -288,7 +303,7 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
               />
             </div>
             <Table
-              aria-label={alertsMessages.heading}
+              aria-label="Alertas"
               columns={columns}
               loading={list.kind === "loading" ? "initial" : false}
               rows={alerts.map((alert) => ({ id: alert.id, item: alert }))}
@@ -296,27 +311,27 @@ export function AlertsListScreen({ access, onSessionEnded, services }: AlertsLis
                 isFiltered
                   ? {
                       icon: <Search />,
-                      title: alertsMessages.noResultsTitle,
-                      detail: alertsMessages.noResultsDetail,
+                      title: "No encontramos alertas",
+                      detail: "Probá cambiar la búsqueda o los filtros.",
                       tone: "filtered",
                     }
                   : {
                       icon: <Bell />,
-                      title: alertsMessages.emptyTitle,
-                      detail: alertsMessages.emptyDetail,
+                      title: "Sin alertas abiertas",
+                      detail: "Cuando algo necesite atención, aparece acá.",
                       tone: "blank",
                     }
               }
               footer={
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-ink-secondary text-sm">
-                    {alertsMessages.footer({ count: openCount, criticalCount })}
+                    {`${plural(openCount, { one: "1 alerta abierta", other: `${openCount} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${criticalCount} críticas` })}`}
                   </p>
                   <Pagination
                     page={page}
                     pageCount={pageCount}
                     onPageChange={setPage}
-                    label={alertsMessages.pagination.label}
+                    label="Páginas de alertas"
                   />
                 </div>
               }

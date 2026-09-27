@@ -1,7 +1,9 @@
+import { CATEGORY_NAME_MAX_LENGTH } from "@purosur/contracts";
 import {
   Button,
   InlineNotice,
   Modal,
+  plural,
   SearchField,
   Select,
   type SelectOption,
@@ -29,7 +31,6 @@ import {
 } from "./categoriesApi";
 import { categoryNameError } from "./categoryName";
 import { categoriesInTreeOrder, categoryPathLabels, selfAndDescendantIds } from "./categoryPath";
-import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
@@ -57,8 +58,23 @@ type ListState =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "loaded"; categories: CategorySummary[] };
 
-const catalogMessages = messages.catalog;
-const categoriesMessages = catalogMessages.categories;
+const HEADING = "Categorías";
+const RETRY_LABEL = "Reintentar";
+const RATE_LIMITED_TITLE = "Demasiadas solicitudes";
+const CANCEL_LABEL = "Cancelar";
+const CATEGORY_NAME_TOO_LONG = `El nombre puede tener hasta ${CATEGORY_NAME_MAX_LENGTH} caracteres.`;
+const CATEGORY_PARENT_LABEL = "Categoría superior";
+const CATEGORY_PARENT_NONE_OPTION = "Ninguna (categoría de primer nivel)";
+const CATEGORY_PARENT_HINT = "Opcional. Vacío para una categoría de primer nivel.";
+const CATEGORY_PARENT_NOT_FOUND_ERROR = "La categoría superior elegida ya no existe.";
+
+function rateLimitedDetail(params: { minutes: number }): string {
+  return `Se puede volver a intentar en ${plural(params.minutes, { one: "1 minuto", other: `${params.minutes} minutos` })}.`;
+}
+
+function nameTakenUnderParentError(params: { name: string; parent: string }): string {
+  return `Ya existe una categoría "${params.name}" en ${params.parent}.`;
+}
 
 function parentSelectOptions(
   categories: CategorySummary[],
@@ -98,7 +114,27 @@ function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
-  const modalMessages = categoriesMessages.newCategoryModal;
+  const modalMessages = {
+    eyebrow: "Catálogo",
+    heading: "Nueva categoría",
+    nameLabel: "Nombre de la categoría",
+    nameRequired: "Ingresá el nombre de la categoría.",
+    nameTooLong: CATEGORY_NAME_TOO_LONG,
+    nameTaken: "Ya existe una categoría con este nombre.",
+    nameTakenUnderParent: nameTakenUnderParentError,
+    parentLabel: CATEGORY_PARENT_LABEL,
+    parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+    parentHint: CATEGORY_PARENT_HINT,
+    parentHasProductsError: (params: { parent: string }) =>
+      `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de crear una subcategoría.`,
+    parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
+    cancel: CANCEL_LABEL,
+    submit: "Crear la categoría",
+    attemptFailedTitle: "No se pudo crear la categoría",
+    attemptFailedDetail: "Probá de nuevo.",
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [nameError, setNameError] = useState<string | undefined>(undefined);
@@ -295,13 +331,37 @@ function EditCategoryModal({
   editCategory,
   categories,
 }: EditCategoryModalProps) {
-  const modalMessages = categoriesMessages.editCategoryModal;
+  const modalMessages = {
+    eyebrow: "Catálogo · Categorías",
+    nameLabel: "Nombre de la categoría",
+    nameRequired: "Ingresá el nombre de la categoría.",
+    nameTooLong: CATEGORY_NAME_TOO_LONG,
+    nameTaken: "Ya existe una categoría con este nombre.",
+    nameTakenUnderParent: nameTakenUnderParentError,
+    parentLabel: CATEGORY_PARENT_LABEL,
+    parentNoneOption: CATEGORY_PARENT_NONE_OPTION,
+    parentHint: CATEGORY_PARENT_HINT,
+    parentHasProductsError: (params: { parent: string }) =>
+      `"${params.parent}" tiene productos asignados. Movelos a otra categoría antes de convertirla en categoría superior.`,
+    moveNotAllowedError: (params: { category: string; destination: string }) =>
+      `No se puede mover "${params.category}" bajo "${params.destination}": es una de sus subcategorías.`,
+    parentNotFoundError: CATEGORY_PARENT_NOT_FOUND_ERROR,
+    cancel: CANCEL_LABEL,
+    submit: "Guardar los cambios",
+    attemptFailedTitle: "No se pudo guardar el cambio",
+    attemptFailedDetail: "Probá de nuevo.",
+    staleVersionTitle: "Esta categoría cambió mientras la editabas",
+    staleVersionDetail: "Recargá sus datos y volvé a hacer el cambio.",
+    notFoundTitle: "Esta categoría ya no existe",
+    reload: "Recargar",
+    reloadFailedTitle: "No se pudieron recargar los datos",
+    rateLimitedTitle: RATE_LIMITED_TITLE,
+    rateLimitedDetail,
+  };
   const isOpen = target !== null;
   const [name, setName] = useState("");
   const [parentValue, setParentValue] = useState(NO_PARENT_VALUE);
   const [version, setVersion] = useState(1);
-  // Held in state (not read from `target`) so the title stays a non-nullable string; the
-  // message-catalog lint bans a literal fallback in a title attribute.
   const [title, setTitle] = useState("");
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [parentError, setParentError] = useState<string | undefined>(undefined);
@@ -629,7 +689,7 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
   const columns = [
     {
       key: "category",
-      title: categoriesMessages.columns.category,
+      title: "Categoría",
       sortable: true,
       defaultDirection: "ascending",
       render: pathLabel,
@@ -637,11 +697,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
     {
       key: "actions",
       kind: "actions",
-      srLabel: categoriesMessages.rowActionsLabel,
+      srLabel: "Acciones",
       actions: [
         (item: CategorySummary) => ({
           icon: <Pencil />,
-          "aria-label": categoriesMessages.editAria({ name: item.name }),
+          "aria-label": `Editar la categoría ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
       ],
@@ -654,13 +714,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
         topBar={
           <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
             <div className="flex flex-col justify-center">
-              <p className="text-ink-secondary text-sm">{categoriesMessages.breadcrumb}</p>
-              <h1 className="font-bold text-2xl text-brand-blue-strong">
-                {categoriesMessages.heading}
-              </h1>
+              <p className="text-ink-secondary text-sm">Catálogo</p>
+              <h1 className="font-bold text-2xl text-brand-blue-strong">{HEADING}</h1>
             </div>
             <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              {categoriesMessages.newCategoryButton}
+              Nueva categoría
             </Button>
           </div>
         }
@@ -671,11 +729,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title={categoriesMessages.loadErrorTitle}
-              detail={categoriesMessages.loadErrorDetail}
+              title="No pudimos abrir las categorías"
+              detail="Probá de nuevo en unos minutos."
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {categoriesMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -684,13 +742,11 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
             <InlineNotice
               tone="error"
               icon={<ShieldX />}
-              title={categoriesMessages.rateLimitedTitle}
-              detail={categoriesMessages.rateLimitedDetail({
-                minutes: Math.ceil(list.retryAfterSeconds / 60),
-              })}
+              title={RATE_LIMITED_TITLE}
+              detail={rateLimitedDetail({ minutes: Math.ceil(list.retryAfterSeconds / 60) })}
             />
             <Button variant="secondary" onPress={() => void load()}>
-              {categoriesMessages.retry}
+              {RETRY_LABEL}
             </Button>
           </>
         )}
@@ -701,12 +757,12 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
                 variant="backoffice"
                 value={search}
                 onChange={setSearch}
-                placeholder={categoriesMessages.searchPlaceholder}
+                placeholder="Buscar una categoría"
                 icon={<Search />}
               />
             </div>
             <Table
-              aria-label={categoriesMessages.heading}
+              aria-label={HEADING}
               columns={columns}
               sort={sort}
               onSortChange={setSort}
@@ -716,20 +772,23 @@ export function CategoriesListScreen({ onSessionEnded, services }: CategoriesLis
                 categories.length === 0
                   ? {
                       icon: <Tags />,
-                      title: categoriesMessages.emptyTitle,
-                      detail: categoriesMessages.emptyDetail,
+                      title: "Todavía no hay categorías",
+                      detail: "Creá la primera para poder darle una a un producto.",
                       tone: "blank",
                     }
                   : {
                       icon: <Search />,
-                      title: categoriesMessages.noResultsTitle,
-                      detail: categoriesMessages.noResultsDetail,
+                      title: "Sin resultados",
+                      detail: "Probá con otro nombre.",
                       tone: "filtered",
                     }
               }
               footer={
                 <p className="text-ink-secondary text-sm">
-                  {categoriesMessages.count({ count: filtered.length })}
+                  {plural(filtered.length, {
+                    one: "1 categoría",
+                    other: `${filtered.length} categorías`,
+                  })}
                 </p>
               }
             />

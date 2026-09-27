@@ -22,7 +22,6 @@ import {
   fetchBranchSettings,
   saveBranchSettings,
 } from "./branchSettingsApi";
-import { messages } from "./messages";
 import { ScreenLayout } from "./ScreenLayout";
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
@@ -73,7 +72,18 @@ type FormValues = Record<TextFieldName, string> &
   Record<DaysFieldName, string> &
   Record<BranchDay, DayValues>;
 
-const branchMessages = messages.settings.branch;
+const DAYS_FIELD_ERROR = "Ingresá un número entero de 0 días o más.";
+const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
+
+const DAY_LABELS = {
+  monday: "Lunes",
+  tuesday: "Martes",
+  wednesday: "Miércoles",
+  thursday: "Jueves",
+  friday: "Viernes",
+  saturday: "Sábado",
+  sunday: "Domingo",
+} satisfies Record<BranchDay, string>;
 
 const WIRE_FIELD_OF: Record<FieldErrorKey, BranchSettingsField> = {
   address: "address",
@@ -151,9 +161,9 @@ function validateDaysFields(values: FormValues): Partial<Record<DaysFieldName, s
   for (const field of daysFields) {
     const parsed = parseDays(values[field]);
     if (parsed === undefined) {
-      errors[field] = branchMessages.daysFieldError;
+      errors[field] = DAYS_FIELD_ERROR;
     } else if (parsed > BRANCH_SETTINGS_DAYS_MAX) {
-      errors[field] = branchMessages.daysTooLargeError;
+      errors[field] = "Ingresá un número de días más chico.";
     }
   }
   return errors;
@@ -194,15 +204,15 @@ function validateHoursFields(values: FormValues): Partial<Record<BranchDay, stri
     }
     const normalized = normalizedDayRanges(dayValues.ranges);
     if (normalized === undefined) {
-      errors[day] = branchMessages.hoursFormatError;
+      errors[day] = "Ingresá la hora como 9:00 o 21:30.";
       continue;
     }
     if (normalized.some((range) => range.closesAt <= range.opensAt)) {
-      errors[day] = branchMessages.hoursOrderError;
+      errors[day] = "La hora de cierre tiene que ser posterior a la de apertura.";
       continue;
     }
     if (rangesOverlap(normalized)) {
-      errors[day] = branchMessages.hoursOverlapError;
+      errors[day] = "Los horarios de un mismo día no se pueden superponer.";
     }
   }
   return errors;
@@ -241,16 +251,16 @@ function settingsFrom(values: FormValues, version: number): BranchSettings {
  * so the day gets a neutral message rather than guessing one of them. */
 function serverFieldErrors(field: FieldErrorKey): FieldErrors {
   if (isBranchDay(field)) {
-    return { [field]: branchMessages.hoursInvalidError };
+    return { [field]: "Revisá los horarios de este día." };
   }
   if (
     field === "expiringLotAlertDays" ||
     field === "unreviewedPriceAlertDays" ||
     field === "goodConditionReturnDays"
   ) {
-    return { [field]: branchMessages.daysFieldError };
+    return { [field]: DAYS_FIELD_ERROR };
   }
-  return { [field]: branchMessages.textFieldError };
+  return { [field]: "Ingresá como mucho 200 caracteres." };
 }
 
 const CLOSED_DAY: DayValues = { closed: true, ranges: [] };
@@ -496,7 +506,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           label={label}
           value={values[field]}
           onChange={(value) => setDaysValue(field, value)}
-          suffix={branchMessages.daysUnit}
+          suffix="días"
           {...(error ? { invalid: true, errorMessage: error } : {})}
         />
       </div>
@@ -509,11 +519,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
     part: "opensAt" | "closesAt",
     errorId: string | undefined,
   ) {
-    const label = branchMessages.rangeFieldLabel({
-      day: branchMessages.dayLabels[day],
-      index: index + 1,
-      part,
-    });
+    const label = `${DAY_LABELS[day]}, horario ${index + 1}, ${part === "opensAt" ? "abre" : "cierra"}`;
     return (
       <div className="w-[5.5rem]">
         <TextField
@@ -529,7 +535,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   }
 
   function dayRow(day: BranchDay) {
-    const dayLabel = branchMessages.dayLabels[day];
+    const dayLabel = DAY_LABELS[day];
     const dayLower = dayLabel.toLocaleLowerCase("es-AR");
     const dayValues = values[day];
     const error = fieldErrors[day];
@@ -551,8 +557,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               isSelected={dayValues.closed}
               onChange={(closed) => setDayClosed(day, closed)}
             >
-              <span aria-hidden="true">{branchMessages.closedLabel}</span>
-              <span className="sr-only">{branchMessages.closedAria({ day: dayLabel })}</span>
+              <span aria-hidden="true">Cerrado</span>
+              <span className="sr-only">{`${dayLabel} — Cerrado`}</span>
             </Checkbox>
           </div>
           {!dayValues.closed && (
@@ -571,16 +577,13 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 >
                   {rangeTimeField(day, index, "opensAt", fieldErrorId)}
                   <span aria-hidden="true" className="text-ink">
-                    {branchMessages.rangeSeparator}
+                    a
                   </span>
                   {rangeTimeField(day, index, "closesAt", fieldErrorId)}
                   {dayValues.ranges.length > 1 && (
                     <IconButton
                       icon={<Trash2 />}
-                      aria-label={branchMessages.removeRangeAria({
-                        day: dayLower,
-                        index: index + 1,
-                      })}
+                      aria-label={`Quitar el horario ${index + 1} del ${dayLower}`}
                       onPress={(event) => removeRange(day, index, event.pointerType)}
                     />
                   )}
@@ -590,7 +593,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                 <div className={`flex ${backofficeFieldHeightClassName} items-center`}>
                   <IconButton
                     icon={<Plus />}
-                    aria-label={branchMessages.addRangeAria({ day: dayLower })}
+                    aria-label={`Agregar un horario al ${dayLower}`}
                     onPress={() => addRange(day)}
                   />
                 </div>
@@ -612,8 +615,8 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       topBar={
         <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-ink-secondary text-sm">{branchMessages.breadcrumb}</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">{branchMessages.heading}</h1>
+            <p className="text-ink-secondary text-sm">Configuración</p>
+            <h1 className="font-bold text-2xl text-brand-blue-strong">Sucursal</h1>
           </div>
           <Button
             variant="primary"
@@ -621,23 +624,23 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
             isDisabled={submitting || state.kind !== "loaded"}
             onPress={() => void handleSubmit()}
           >
-            {branchMessages.save}
+            Guardar los cambios
           </Button>
         </div>
       }
       bodyClassName="gap-4 p-6"
     >
-      {state.kind === "loading" && <p role="status">{branchMessages.loading}</p>}
+      {state.kind === "loading" && <p role="status">Cargando…</p>}
       {state.kind === "loadError" && (
         <>
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title={branchMessages.loadErrorTitle}
-            detail={branchMessages.loadErrorDetail}
+            title="No pudimos abrir la sucursal"
+            detail="Probá de nuevo en unos minutos."
           />
           <Button variant="secondary" onPress={() => void load()}>
-            {branchMessages.retry}
+            Reintentar
           </Button>
         </>
       )}
@@ -645,24 +648,24 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={branchMessages.attemptFailedTitle}
-          detail={branchMessages.attemptFailedDetail}
+          title="No se pudo guardar la sucursal"
+          detail={ATTEMPT_FAILED_DETAIL}
         />
       )}
       {notice?.kind === "staleVersion" && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={branchMessages.staleVersionTitle}
-          detail={branchMessages.staleVersionDetail}
+          title="La sucursal cambió mientras la editabas"
+          detail="Recargá sus datos y volvé a hacer el cambio."
         />
       )}
       {notice?.kind === "reloadFailed" && (
         <InlineNotice
           tone="error"
           icon={<TriangleAlert />}
-          title={branchMessages.reloadFailedTitle}
-          detail={branchMessages.attemptFailedDetail}
+          title="No se pudieron recargar los datos"
+          detail={ATTEMPT_FAILED_DETAIL}
         />
       )}
       {offersReload && (
@@ -672,37 +675,29 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           isDisabled={submitting}
           onPress={() => void handleReload()}
         >
-          {branchMessages.reload}
+          Recargar
         </Button>
       )}
       {state.kind === "loaded" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="font-bold text-brand-blue-strong text-lg">
-              {branchMessages.ticketHeaderHeading}
-            </h2>
+            <h2 className="font-bold text-brand-blue-strong text-lg">Encabezado del ticket</h2>
             <div className="flex gap-4">
-              {textField("address", branchMessages.addressLabel)}
-              {textField("whatsappNumber", branchMessages.whatsappLabel)}
+              {textField("address", "Dirección")}
+              {textField("whatsappNumber", "WhatsApp")}
             </div>
-            <div className="flex gap-4">
-              {textField("instagramHandle", branchMessages.instagramLabel)}
-            </div>
+            <div className="flex gap-4">{textField("instagramHandle", "Instagram")}</div>
           </div>
           <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="mb-2 font-bold text-brand-blue-strong text-lg">
-              {branchMessages.hoursHeading}
-            </h2>
+            <h2 className="mb-2 font-bold text-brand-blue-strong text-lg">Horario de atención</h2>
             {BRANCH_DAYS.map((day) => dayRow(day))}
           </div>
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-white p-4">
-            <h2 className="font-bold text-brand-blue-strong text-lg">
-              {branchMessages.deadlinesHeading}
-            </h2>
+            <h2 className="font-bold text-brand-blue-strong text-lg">Plazos</h2>
             <div className="flex gap-4">
-              {daysField("expiringLotAlertDays", branchMessages.expiringLotAlertDaysLabel)}
-              {daysField("unreviewedPriceAlertDays", branchMessages.unreviewedPriceAlertDaysLabel)}
-              {daysField("goodConditionReturnDays", branchMessages.goodConditionReturnDaysLabel)}
+              {daysField("expiringLotAlertDays", "Aviso de vencimiento")}
+              {daysField("unreviewedPriceAlertDays", "Precio sin revisar")}
+              {daysField("goodConditionReturnDays", "Cambio en buen estado")}
             </div>
           </div>
         </div>

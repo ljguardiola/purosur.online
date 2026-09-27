@@ -1,5 +1,5 @@
 import type { PermissionArea, PermissionKey } from "@purosur/contracts";
-import { Button, InlineNotice, Modal } from "@purosur/ui";
+import { Button, InlineNotice, Modal, plural } from "@purosur/ui";
 import { startAuthentication } from "@simplewebauthn/browser";
 import {
   ArrowLeft,
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./AuthorizationModal";
-import { messages } from "./messages";
 import { RoleEditorForm, roleFieldErrorMessage, validateRoleName } from "./RoleEditorForm";
 import { withOneAlertView } from "./rolePermissions";
 import {
@@ -32,8 +31,13 @@ import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi
 import { sendToMyAccount } from "./settingsRoutes";
 import { useLatestRef } from "./useLatestRef";
 
-const rolesMessages = messages.settings.roles;
-const editorMessages = rolesMessages.roleEditor;
+const ADMINISTRATOR_ROLE_NAME = "Administrador";
+const RETRY_LABEL = "Reintentar";
+const ATTEMPT_FAILED_DETAIL = "Probá de nuevo.";
+
+function retryInMinutesDetail(minutes: number) {
+  return `Se puede volver a intentar en ${plural(minutes, { one: "1 minuto", other: `${minutes} minutos` })}.`;
+}
 
 export type RoleEditorRequest =
   | { kind: "new" }
@@ -81,7 +85,7 @@ type FormNotice =
   | { kind: "reloadFailed" };
 
 function sourceDisplayName(role: RoleSummary): string {
-  return role.isAdministrator ? rolesMessages.administratorRoleName : (role.name ?? "");
+  return role.isAdministrator ? ADMINISTRATOR_ROLE_NAME : (role.name ?? "");
 }
 
 type RoleSaveConfirmationModalProps = {
@@ -113,7 +117,7 @@ function RoleSaveConfirmationModal({
       tone="info"
       icon={<Users />}
       headerLayout="centered"
-      title={editorMessages.confirmTitle}
+      title="¿Guardar los cambios?"
       closable
       footer={
         <>
@@ -125,7 +129,7 @@ function RoleSaveConfirmationModal({
             isDisabled={submitting}
             onPress={onBack}
           >
-            {editorMessages.back}
+            Volver
           </Button>
           <Button
             variant="primary"
@@ -135,13 +139,16 @@ function RoleSaveConfirmationModal({
             isDisabled={submitting}
             onPress={onConfirm}
           >
-            {editorMessages.editSave}
+            Guardar los cambios
           </Button>
         </>
       }
     >
       <p className="text-center text-base text-ink-secondary">
-        {editorMessages.confirmText({ count: assignedUsers.length, roleName })}
+        {`${plural(assignedUsers.length, {
+          one: "Se aplica a la 1 persona",
+          other: `Se aplican a las ${assignedUsers.length} personas`,
+        })} con el rol ${roleName}:`}
       </p>
       <div className="max-h-60 w-full shrink-0 overflow-y-auto rounded-lg border border-line text-left">
         {assignedUsers.map((user) => (
@@ -246,7 +253,7 @@ export function RoleEditorModal({
       setSelected(new Set());
       setLoadState({ kind: "ready" });
     } else if (request.kind === "duplicate") {
-      setName(editorMessages.nameFromOriginal({ name: sourceDisplayName(request.source) }));
+      setName(`Copia de ${sourceDisplayName(request.source)}`);
       setSelected(withOneAlertView(request.source.permissionKeys as PermissionKey[]));
       setLoadState({ kind: "ready" });
     } else {
@@ -339,7 +346,7 @@ export function RoleEditorModal({
       return;
     }
     if (outcome.kind === "name_taken") {
-      setNameError(editorMessages.form.nameTaken);
+      setNameError("Ya existe un rol con este nombre.");
       setSubmitting(false);
       return;
     }
@@ -399,12 +406,8 @@ export function RoleEditorModal({
   }
 
   const heading =
-    mode === "edit"
-      ? editorMessages.editTitle
-      : mode === "duplicate"
-        ? editorMessages.duplicateTitle
-        : editorMessages.newTitle;
-  const saveLabel = mode === "edit" ? editorMessages.editSave : editorMessages.createSave;
+    mode === "edit" ? "Editar rol" : mode === "duplicate" ? "Duplicar rol" : "Nuevo rol";
+  const saveLabel = mode === "edit" ? "Guardar los cambios" : "Guardar el rol";
   const offersReload =
     notice?.kind === "staleVersion" ||
     notice?.kind === "reloadFailed" ||
@@ -425,7 +428,7 @@ export function RoleEditorModal({
         width="editor"
         tone="info"
         icon={<Shield />}
-        context={editorMessages.eyebrow}
+        context="Configuración · Roles"
         title={heading}
         // closable: false also disables Escape, not just the close button.
         closable={!submitting}
@@ -433,11 +436,14 @@ export function RoleEditorModal({
         footer={
           <div className="flex w-full items-center justify-between gap-3">
             <p className="text-ink-secondary text-sm">
-              {editorMessages.selectedCount({ count: selected.size })}
+              {plural(selected.size, {
+                one: "1 permiso elegido",
+                other: `${selected.size} permisos elegidos`,
+              })}
             </p>
             <div className="flex items-center gap-3">
               <Button variant="secondary" icon={<X />} isDisabled={submitting} onPress={onClose}>
-                {editorMessages.cancel}
+                Cancelar
               </Button>
               <Button
                 variant="primary"
@@ -458,34 +464,32 @@ export function RoleEditorModal({
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={editorMessages.attemptFailedTitle}
-                  detail={editorMessages.attemptFailedDetail}
+                  title="No se pudo guardar el rol"
+                  detail={ATTEMPT_FAILED_DETAIL}
                 />
               )}
               {notice?.kind === "rateLimited" && (
                 <InlineNotice
                   tone="error"
                   icon={<ShieldX />}
-                  title={rolesMessages.rateLimitedTitle}
-                  detail={rolesMessages.rateLimitedDetail({
-                    minutes: Math.ceil(notice.retryAfterSeconds / 60),
-                  })}
+                  title="Demasiadas solicitudes"
+                  detail={retryInMinutesDetail(Math.ceil(notice.retryAfterSeconds / 60))}
                 />
               )}
               {notice?.kind === "staleVersion" && (
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={editorMessages.staleVersionTitle}
-                  detail={editorMessages.staleVersionDetail}
+                  title="Este rol cambió mientras lo editabas"
+                  detail="Recargá sus datos y volvé a hacer el cambio."
                 />
               )}
               {notice?.kind === "reloadFailed" && (
                 <InlineNotice
                   tone="error"
                   icon={<TriangleAlert />}
-                  title={editorMessages.reloadFailedTitle}
-                  detail={editorMessages.attemptFailedDetail}
+                  title="No se pudieron recargar los datos"
+                  detail={ATTEMPT_FAILED_DETAIL}
                 />
               )}
               {offersReload && (
@@ -495,30 +499,26 @@ export function RoleEditorModal({
                   isDisabled={submitting}
                   onPress={() => void handleReload()}
                 >
-                  {editorMessages.reload}
+                  Recargar
                 </Button>
               )}
-              {loadState.kind === "loading" && <p role="status">{editorMessages.loading}</p>}
+              {loadState.kind === "loading" && <p role="status">Cargando…</p>}
               {loadState.kind === "notFound" && (
-                <InlineNotice
-                  tone="error"
-                  icon={<ShieldOff />}
-                  title={editorMessages.notFoundTitle}
-                />
+                <InlineNotice tone="error" icon={<ShieldOff />} title="No encontramos este rol" />
               )}
               {loadState.kind === "loadError" && (
                 <>
                   <InlineNotice
                     tone="error"
                     icon={<TriangleAlert />}
-                    title={editorMessages.loadErrorTitle}
-                    detail={editorMessages.loadErrorDetail}
+                    title="No pudimos abrir este rol"
+                    detail="Probá de nuevo en unos minutos."
                   />
                   <Button
                     variant="secondary"
                     onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
                   >
-                    {rolesMessages.retry}
+                    {RETRY_LABEL}
                   </Button>
                 </>
               )}
@@ -527,16 +527,14 @@ export function RoleEditorModal({
                   <InlineNotice
                     tone="error"
                     icon={<ShieldX />}
-                    title={rolesMessages.rateLimitedTitle}
-                    detail={rolesMessages.rateLimitedDetail({
-                      minutes: Math.ceil(loadState.retryAfterSeconds / 60),
-                    })}
+                    title="Demasiadas solicitudes"
+                    detail={retryInMinutesDetail(Math.ceil(loadState.retryAfterSeconds / 60))}
                   />
                   <Button
                     variant="secondary"
                     onPress={() => request?.kind === "edit" && void loadEditRole(request.roleId)}
                   >
-                    {rolesMessages.retry}
+                    {RETRY_LABEL}
                   </Button>
                 </>
               )}
