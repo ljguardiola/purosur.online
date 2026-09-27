@@ -230,11 +230,11 @@ test("does not mistake a # inside a plain YAML value, such as a URL fragment or 
   assert.deepEqual(findComments(source, "a.yml"), []);
 });
 
-test("does not mistake a # line inside a YAML block scalar, such as a run step's script, for a comment", () => {
+test("finds the comment on a YAML block scalar's header line but none inside its content, such as a run step's script", () => {
   const source = [
     "body: |",
     "  ## Heading",
-    "run: |",
+    "run: | # header",
     "  # closes #123",
     "  echo done # see #5",
     "# after",
@@ -242,7 +242,10 @@ test("does not mistake a # line inside a YAML block scalar, such as a run step's
 
   const comments = findComments(source, "a.yml");
 
-  assert.deepEqual(comments, [{ line: 6, text: "# after" }]);
+  assert.deepEqual(comments, [
+    { line: 3, text: "# header" },
+    { line: 6, text: "# after" },
+  ]);
 });
 
 test("does not mistake a YAML anchor or alias for a comment", () => {
@@ -265,6 +268,8 @@ test("finds Dockerfile comment lines, including indented ones, but nothing after
     'RUN echo "#5" # see #6',
     "  # see #5",
     "ENV COLOR=#000",
+    "RUN a \\",
+    "  && b # see #7",
   ].join("\n");
 
   const comments = findComments(source, "apps/cloud/Dockerfile");
