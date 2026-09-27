@@ -37,7 +37,8 @@ describe("the clear-sample-data command", () => {
   });
 
   it("refuses a non-loopback DATABASE_URL host, without ever contacting the database", () => {
-    const env = { ...process.env, DATABASE_URL: NON_LOOPBACK_DATABASE_URL };
+    const env = { ...process.env };
+    env.DATABASE_URL = NON_LOOPBACK_DATABASE_URL;
     delete env.RAILWAY_ENVIRONMENT_NAME;
 
     const result = spawnSync(process.execPath, [ENTRYPOINT], {

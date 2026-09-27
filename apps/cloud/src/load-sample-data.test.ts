@@ -24,7 +24,8 @@ describe("the load-sample-data command", () => {
   });
 
   it("refuses a non-loopback DATABASE_URL host, without ever contacting the database", () => {
-    const env = { ...process.env, DATABASE_URL: NON_LOOPBACK_DATABASE_URL };
+    const env = { ...process.env };
+    env.DATABASE_URL = NON_LOOPBACK_DATABASE_URL;
     delete env.RAILWAY_ENVIRONMENT_NAME;
 
     const result = spawnSync(process.execPath, [ENTRYPOINT], {
@@ -52,7 +53,8 @@ describe("the load-sample-data command", () => {
   });
 
   it("fails with a clear message when DATABASE_URL is not set for staging", () => {
-    const env = { ...process.env, RAILWAY_ENVIRONMENT_NAME: "staging" };
+    const env = { ...process.env };
+    env.RAILWAY_ENVIRONMENT_NAME = "staging";
     delete env.DATABASE_URL;
 
     const result = spawnSync(process.execPath, [ENTRYPOINT], {
