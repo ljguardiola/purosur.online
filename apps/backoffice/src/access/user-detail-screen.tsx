@@ -28,6 +28,7 @@ import { useCallback, useEffect, useState } from "react";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import { useAuthorization } from "./authorization-modal";
 import { type BackofficeAccess, canDeactivateUser, canReactivateUser } from "./backoffice-access";
 import { validateEmail } from "./email-validation";
@@ -963,7 +964,7 @@ export function UserDetailScreen({
             <div className="flex flex-col justify-center">
               <p className="text-ink-secondary text-sm">Configuración · Usuarios</p>
               <div className="flex items-center gap-3">
-                <h1 className="font-bold text-2xl text-brand-blue-strong">{heading}</h1>
+                <ScreenTitle>{heading}</ScreenTitle>
                 {isInactive && <Tag tone="neutral">Inactivo</Tag>}
               </div>
             </div>

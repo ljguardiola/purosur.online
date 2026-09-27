@@ -24,6 +24,7 @@ import { useSendToMyAccount } from "../access/send-to-my-account";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "../access/session-api";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import {
   fetchIssuerIdentification,
   type IssuerIdentification,
@@ -504,7 +505,7 @@ export function FiscalConfigurationScreen({
         <div className="flex h-18 shrink-0 items-center border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
             <p className="text-ink-secondary text-sm">Caja y fiscal · Fiscal</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">Configuración fiscal</h1>
+            <ScreenTitle>Configuración fiscal</ScreenTitle>
           </div>
         </div>
       }

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useSendToMyAccount } from "../access/send-to-my-account";
 import { useLatestRef } from "../platform/use-latest-ref";
 import { ScreenLayout } from "../shell/screen-layout";
+import { ScreenTitle } from "../shell/screen-title";
 import type {
   BranchDay,
   BranchHoursRange,
@@ -616,7 +617,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         <div className="flex h-18 shrink-0 items-center justify-between border-line border-b bg-surface-white px-8">
           <div className="flex flex-col justify-center">
             <p className="text-ink-secondary text-sm">Configuración</p>
-            <h1 className="font-bold text-2xl text-brand-blue-strong">Sucursal</h1>
+            <ScreenTitle>Sucursal</ScreenTitle>
           </div>
           <Button
             variant="primary"
