@@ -55,7 +55,8 @@ A feature too large for one pull request stays as a parent feature issue holding
 
 This is the structure the repository is organized into. A part that does not follow it yet is moved to it when it is reorganized, and never serves as a precedent for new code.
 
-- In every layer that covers business concepts — `packages/domain`, the cloud, the backoffice, the register app — the top-level folders are the business concepts it covers, each named like `packages/domain`'s concept of the same name (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`), so a concept is found under the same name from its rule to its screen. A concept the domain has no rules for yet still gets its own folder under its business name, such as the backoffice's `access` and `branch`. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes, its helpers.
+- In every layer that covers business concepts — `packages/domain`, the cloud, the backoffice, the register app — the top-level folders are the business concepts it covers, each named like `packages/domain`'s concept of the same name (such as `catalog`, `pricing`, `alerts`, `register`, `fiscal`, `access`, `branch`), so a concept is found under the same name from its rule to its screen. A concept the domain has no rules for yet still gets its own folder under its business name. A concept folder holds everything of that concept in that layer: its screens and their parts, its API client, its routes, its helpers.
+- A business rule (money, taxes, rounding, field validation, catalogs, calendar rules) lives in its concept's `model/` in `packages/domain`; a rule more than one concept needs lives in `packages/domain/src/shared/` instead, reached only through its own `index.ts`. The shape of a message or payload exchanged between processes lives in `packages/contracts` instead, in a folder named like the domain concept it belongs to; `packages/contracts` imports a rule from `packages/domain` where a shape needs one, and never defines one itself.
 - What belongs to no concept lives beside them under its own name: `shell/` for the application's frame (layout, navigation, session guard), `platform/` for shared infrastructure used across concepts (HTTP helpers, formatting, the database connection and schema, error reporting), and a folder named after any other part of the application, such as the backoffice's `help/`.
 - A menu area that groups several concepts does so through its routes, not through a folder.
 - Every source file and folder is named in English kebab-case (`products-list-screen.tsx`). Identifiers and URL paths are English too; only user-facing text is Spanish.
@@ -93,7 +94,7 @@ Each risk has one kind of test that owns it:
 
 | Risk | Owning test | Runs |
 |---|---|---|
-| Domain rules: money, taxes, rounding, pricing, field validation | Unit tests of the domain or `packages/contracts`, with generated cases where a rule must hold for every input | `verify` |
+| Domain rules: money, taxes, rounding, pricing, field validation | Unit tests of `packages/domain`, with generated cases where a rule must hold for every input | `verify` |
 | API behavior: authorization, input validation wiring, response shape, audit rows | Route tests in process against the lightweight database | `verify` |
 | Database constraints, row locks and concurrency, background jobs | Integration tests against a real Postgres, used only for these | `verify` |
 | Migrations, in the cloud and on the register | Applying each migration to a database that already holds data in the previous schema | `verify` |

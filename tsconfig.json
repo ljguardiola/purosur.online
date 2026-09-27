@@ -23,9 +23,7 @@
     "noEmit": true,
     "paths": {
       "@purosur/domain": ["./packages/domain/src/index.ts"],
-      "@purosur/domain/*": ["./packages/domain/src/*"],
       "@purosur/contracts": ["./packages/contracts/src/index.ts"],
-      "@purosur/contracts/*": ["./packages/contracts/src/*"],
       "@purosur/ui": ["./packages/ui/src/index.ts"],
       "@purosur/ui/*": ["./packages/ui/src/*"]
     }
