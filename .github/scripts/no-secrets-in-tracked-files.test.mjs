@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  globSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -75,7 +83,9 @@ test("flags a secret in a tracked file that .gitignore ignores, once force-added
 test("flags a force-added binary key file that the content scan cannot read", async () => {
   await withTempRepo(async (dir) => {
     trackFile(dir, ".gitignore", "*.p12\n");
-    trackFile(dir, "cert.p12", Buffer.from([0x30, 0x82, 0x00, 0x00, 0xff, 0x00, 0x01, 0x02]), ["-f"]);
+    trackFile(dir, "cert.p12", Buffer.from([0x30, 0x82, 0x00, 0x00, 0xff, 0x00, 0x01, 0x02]), [
+      "-f",
+    ]);
 
     const files = findTrackedFiles(dir);
     const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
@@ -173,11 +183,80 @@ test("flags a file whose scanner suppression comment would hide a secret from th
     const files = findTrackedFiles(dir);
     const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
 
-    assert.deepEqual(
-      violations.map(({ path, line }) => `${path}:${line}`).sort(),
-      ["block.txt:1", "same-line.test.ts:1"],
-    );
+    assert.deepEqual(violations.map(({ path, line }) => `${path}:${line}`).sort(), [
+      "block.txt:1",
+      "same-line.test.ts:1",
+    ]);
     for (const violation of violations) assert.match(violation.message, /suppression comment/);
+  });
+});
+
+const UUID_SHAPED_VALUE = ["5f0c7a2e", "8b1d", "4c3e", "9a6f", "2d7b1e0c4a93"].join("-");
+const MIXED_32_CHAR_VALUE = ["re_Q7wX2kLp", "9Vt4ZbN8", "sR3mYc6H", "dJ1fGa"].join("");
+
+function workflowSecretNames() {
+  const names = globSync(".github/workflows/*.{yml,yaml}", { cwd: repoRoot }).flatMap((path) =>
+    [...readFileSync(join(repoRoot, path), "utf8").matchAll(/\bsecrets\.([A-Za-z0-9_]+)/g)].map(
+      (match) => match[1],
+    ),
+  );
+  return [...new Set(names)].filter((name) => name !== "GITHUB_TOKEN").sort();
+}
+
+test("flags a deployment secret assigned a random-looking value, in any assignment form", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(dir, "railway.sh", `RAILWAY_TOKEN=${UUID_SHAPED_VALUE}\n`);
+    trackFile(dir, "mail.yml", `env:\n  RESEND_API_KEY: "${MIXED_32_CHAR_VALUE}"\n`);
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(violations.map(({ path, line }) => `${path}:${line}`).sort(), [
+      "mail.yml:2",
+      "railway.sh:1",
+    ]);
+  });
+});
+
+test("accepts deployment secret names holding a readable fake or a workflow secret reference", async () => {
+  await withTempRepo(async (dir) => {
+    trackFile(
+      dir,
+      "fakes.yml",
+      [
+        "EDGE_ORIGIN_SECRET=local-edge-secret",
+        'RESEND_API_KEY: "re_test_key"',
+        'CLOUD_APP_DATABASE_PASSWORD: "unused-a-fake-sender-is-injected-below"',
+        `RAILWAY_TOKEN: \${{ secrets.RAILWAY_TOKEN }}`,
+      ].join("\n"),
+    );
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(violations, []);
+  });
+});
+
+test("every secret a workflow reads is covered by the deployment secret check", async () => {
+  const names = workflowSecretNames();
+  assert.ok(names.length > 0, "expected the workflows to read at least one secret");
+
+  await withTempRepo(async (dir) => {
+    trackFile(
+      dir,
+      "secrets.env.sh",
+      names.map((name) => `${name}=${UUID_SHAPED_VALUE}`).join("\n"),
+    );
+
+    const files = findTrackedFiles(dir);
+    const violations = await checkFiles(files, { cwd: dir, configFilePath: repoConfigFilePath });
+
+    assert.deepEqual(
+      violations.map((violation) => violation.line).sort((a, b) => a - b),
+      names.map((_, index) => index + 1),
+      `every secret a workflow reads must be listed in the deployment secret pattern: ${names.join(", ")}`,
+    );
   });
 });
 
