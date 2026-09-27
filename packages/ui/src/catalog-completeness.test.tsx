@@ -1,8 +1,6 @@
 import { expect, test } from "vitest";
 import * as UI from "./index";
 
-const componentsWithoutStoriesYet = ["Modal", "Pagination", "Table", "TableCellText", "Tooltip"];
-
 interface StoryMeta {
   component?: unknown;
 }
@@ -19,11 +17,11 @@ function componentsWithAStory(): Set<unknown> {
   return new Set(Object.values(storyModules).map((module) => module.default.component));
 }
 
-test("tracks every design-system component still missing a Storybook story", () => {
+test("gives every design-system component its own Storybook story", () => {
   const storiedComponents = componentsWithAStory();
-  const stillMissing = exportedComponentNames().filter(
+  const missing = exportedComponentNames().filter(
     (name) => !storiedComponents.has((UI as Record<string, unknown>)[name]),
   );
 
-  expect(stillMissing.sort()).toEqual([...componentsWithoutStoriesYet].sort());
+  expect(missing).toEqual([]);
 });

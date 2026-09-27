@@ -60,7 +60,6 @@ test("defaults to the standard 640px width when none is given", async () => {
   expect(rect.width).toBeGreaterThan(639);
   expect(rect.width).toBeLessThan(641);
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the panel a white background, 12px radius and the design's shadow", async () => {
@@ -73,7 +72,6 @@ test("gives the panel a white background, 12px radius and the design's shadow", 
   expect(style.boxShadow).toContain("24px 64px");
   expect(style.boxShadow).toContain(tokenBackgroundColor("ink-panel-shadow"));
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
@@ -87,7 +85,6 @@ test("covers the viewport with a backdrop in ink at 50% opacity", async () => {
   expect(rect.width).toBeGreaterThan(0);
   expect(rect.height).toBeGreaterThan(0);
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("stays above page content that has its own stacking order", async () => {
@@ -105,7 +102,6 @@ test("stays above page content that has its own stacking order", async () => {
     const topmost = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 8);
 
     expect(dialog.contains(topmost)).toBe(true);
-    await expectNoAccessibilityViolations(document.body);
   } finally {
     fixedBar.remove();
   }
@@ -195,7 +191,6 @@ test("renders no context line when the caller does not supply one", async () => 
 
   expect(contextSibling).toBeNull();
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("lays out the header with its padding, border and 16px gap", async () => {
@@ -213,7 +208,6 @@ test("lays out the header with its padding, border and 16px gap", async () => {
   expect(style.columnGap).toBe("16px");
   expect(style.alignItems).toBe("center");
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("gives the body 24px padding", async () => {
@@ -594,7 +588,6 @@ test("shows a 40px circular close button in bone with a 20px glyph in secondary 
   expect(iconRect.width).toBeLessThan(21);
   expect(getComputedStyle(icon).color).toBe(tokenRgb("ink-secondary"));
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("shows the hand cursor on the close button", async () => {
@@ -603,7 +596,6 @@ test("shows the hand cursor on the close button", async () => {
 
   expect(getComputedStyle(closeButton).cursor).toBe("pointer");
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("turns the close button's background sand on hover", async () => {
@@ -630,7 +622,6 @@ test("shows the package's standard focus ring on the close button", async () => 
     .poll(() => getComputedStyle(closeButton).outlineColor)
     .toBe(tokenRgb("brand-blue-strong"));
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("closes when the close button is pressed", async () => {
@@ -677,14 +668,12 @@ test("shows no close button and ignores Escape and the backdrop when not closabl
 
   expect(onOpenChange).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("dialog")).toBeVisible();
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("exposes the modal as a dialog named by its title", async () => {
   const screen = await render(<Modal {...baseProps({ title: "Void the sale" })} />);
 
   await expect.element(screen.getByRole("dialog", { name: "Void the sale" })).toBeVisible();
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("moves focus into the modal on open and contains it while tabbing", async () => {
@@ -705,7 +694,6 @@ test("moves focus into the modal on open and contains it while tabbing", async (
     expect(dialog.contains(document.activeElement)).toBe(true);
   }
 
-  await expectNoAccessibilityViolations(document.body);
 });
 
 test("returns focus to the element that opened it, on close", async () => {

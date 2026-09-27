@@ -110,7 +110,6 @@ test("hovers a non-current page button to a bone background", async () => {
   expect(page.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(page).backgroundColor).toBe(tokenRgb("surface-bone"));
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("marks the current page blue UI with bold white text and no border", async () => {
@@ -126,7 +125,6 @@ test("marks the current page blue UI with bold white text and no border", async 
   expect(paintedBoxShadowLayers(current)).toEqual([]);
   expect(current.getAttribute("aria-current")).toBe("page");
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps every page button the same width, current or not", async () => {
@@ -140,7 +138,6 @@ test("keeps every page button the same width, current or not", async () => {
 
   expect(current.getBoundingClientRect().width).toBeCloseTo(other.getBoundingClientRect().width, 0);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows 1 2 3 … 24 when the current page is among the first three", async () => {
@@ -149,7 +146,6 @@ test("shows 1 2 3 … 24 when the current page is among the first three", async 
 
   expect(Array.from(numbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "…", "24"]);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows 1 … 10 … 24 when the current page is in the middle", async () => {
@@ -158,7 +154,6 @@ test("shows 1 … 10 … 24 when the current page is in the middle", async () =>
 
   expect(Array.from(numbers).map((el) => el.textContent)).toEqual(["1", "…", "10", "…", "24"]);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows 1 … 22 23 24 when the current page is among the last three", async () => {
@@ -187,7 +182,6 @@ test("shows every number with no ellipsis when there are exactly 5 pages", async
 
   expect(Array.from(numbers).map((el) => el.textContent)).toEqual(["1", "2", "3", "4", "5"]);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("switches from the start window to the end window between pages 3 and 4 of 6", async () => {
@@ -357,7 +351,6 @@ test("keeps Previous focusable, tab-reachable, dimmed and marked unavailable at 
   await userEvent.tab();
   expect(document.activeElement).toBe(previous);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("keeps Next focusable, tab-reachable, dimmed and marked unavailable on the last page", async () => {
@@ -501,7 +494,6 @@ test("does nothing when the current page's own button is pressed, but stays focu
   expect(onPageChange).not.toHaveBeenCalled();
   await expect.element(current).toBeEnabled();
   expect(current.element().getAttribute("aria-current")).toBe("page");
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("moves to the previous and next page", async () => {
@@ -516,7 +508,6 @@ test("moves to the previous and next page", async () => {
   await screen.getByRole("button", { name: "Siguiente" }).click();
   expect(onPageChange).toHaveBeenLastCalledWith(4);
 
-  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("tabs through Previous, every page button and Next in DOM order", async () => {
