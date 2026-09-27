@@ -171,6 +171,48 @@ describe("the edge origin guard", () => {
   });
 });
 
+describe("Strict-Transport-Security", () => {
+  const TWO_YEARS_INCLUDING_SUBDOMAINS = "max-age=63072000; includeSubDomains";
+
+  it("is sent with a route's response", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/health" });
+
+    expect(response.headers["strict-transport-security"]).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+
+  it("is sent with the refusal of a request that did not come through the edge", async () => {
+    const app = buildRealApp({ version: "abc1234", edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET });
+
+    const response = await app.inject({ method: "GET", url: "/some-route" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.headers["strict-transport-security"]).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+
+  it("is sent with a 404 for a path no route matches", async () => {
+    const app = buildApp({ version: "abc1234" });
+
+    const response = await app.inject({ method: "GET", url: "/some-route" });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers["strict-transport-security"]).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+
+  it("is sent with the response to a route that throws", async () => {
+    const app = buildApp({ version: "abc1234" });
+    app.get("/boom", { config: { access: PUBLIC_ACCESS } }, async () => {
+      throw new Error("boom");
+    });
+
+    const response = await app.inject({ method: "GET", url: "/boom" });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.headers["strict-transport-security"]).toBe(TWO_YEARS_INCLUDING_SUBDOMAINS);
+  });
+});
+
 describe("Sentry error handler wiring", () => {
   it("wires the provided setupFastifyErrorHandler function onto the built app", () => {
     const setupFastifyErrorHandler = vi.fn();
@@ -286,6 +328,9 @@ describe("serving the backoffice's static build", () => {
       expect(response.headers["x-content-type-options"]).toBe("nosniff");
       expect(response.headers["x-frame-options"]).toBe("DENY");
       expect(response.headers["referrer-policy"]).toBe("no-referrer");
+      expect(response.headers["strict-transport-security"]).toBe(
+        "max-age=63072000; includeSubDomains",
+      );
     },
   );
 

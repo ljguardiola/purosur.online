@@ -87,6 +87,8 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   registers?: RegistersRouteOptions<TQueryResult>;
 }
 
+const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains";
+
 const backofficeSecurityHeaders: Record<string, string> = {
   "Content-Security-Policy": [
     "default-src 'self'",
@@ -120,6 +122,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
   const setupFastifyErrorHandler =
     options.setupFastifyErrorHandler ?? defaultSetupFastifyErrorHandler;
   setupFastifyErrorHandler(app);
+
+  app.addHook("onRequest", async (_request, reply) => {
+    reply.header("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
+  });
 
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
