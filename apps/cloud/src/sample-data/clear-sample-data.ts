@@ -297,8 +297,6 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
     await tx.delete(priceReviews).where(inArray(priceReviews.productId, sampleProductIds));
     await tx.delete(prices).where(inArray(prices.productId, sampleProductIds));
     await tx.delete(productBarcodes).where(inArray(productBarcodes.productId, sampleProductIds));
-    // The delete-rejection trigger (migration 0026) only ever expects a live product to be
-    // deactivated, never removed; disabling it is transactional and reverts automatically on commit.
     await tx.execute(sql`alter table products disable trigger products_reject_deletion`);
     const deletedProducts = await tx
       .delete(products)

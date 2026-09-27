@@ -41,8 +41,6 @@ import {
 // concurrent `load-sample-data` run waits for this one instead of racing its sentinel check.
 const SAMPLE_DATA_ADVISORY_LOCK_KEY = 875_320;
 
-// A prior day's real elapsed time never matters here; this is simply further in the past than
-// `branch_settings.unreviewed_price_alert_days` (30) can ever excuse.
 const OVERDUE_PRICE_REVIEW_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const ESCALATION_ELIGIBLE_ALERT_AGE_MS = 25 * 60 * 60 * 1000;
 
