@@ -8,7 +8,6 @@ const componentsWithoutStoriesYet = [
   "HighlightedNotice",
   "IconButton",
   "InlineNotice",
-  "ListFilter",
   "Modal",
   "NotificationCard",
   "Pagination",
