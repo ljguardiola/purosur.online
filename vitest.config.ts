@@ -10,6 +10,8 @@ import {
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
+process.env.TZ = "UTC";
+
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],

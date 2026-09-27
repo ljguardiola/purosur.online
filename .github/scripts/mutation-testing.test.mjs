@@ -31,10 +31,16 @@ export function formatNumber(value: number): string {
 export function isEven(value: number): boolean {
   return value % 2 === 0;
 }
+
+const LIMIT_NAMES = new Set(["low", "high"]);
+
+export function isLimitName(value: unknown): boolean {
+  return typeof value === "string" && LIMIT_NAMES.has(value);
+}
 `;
 
 const FIXTURE_TEST = `import { describe, expect, it } from "vitest";
-import { formatNumber, isNegative, isOverLimit } from "./limits.js";
+import { formatNumber, isLimitName, isNegative, isOverLimit } from "./limits.js";
 
 describe("isOverLimit", () => {
   it("accepts the limit itself", () => {
@@ -55,6 +61,15 @@ describe("isNegative", () => {
 describe("formatNumber", () => {
   it("groups thousands the Argentine way", () => {
     expect(formatNumber(1234.5)).toBe("1.234,5");
+  });
+});
+
+describe("isLimitName", () => {
+  it("accepts every limit name and rejects any other value", () => {
+    expect(isLimitName("low")).toBe(true);
+    expect(isLimitName("high")).toBe(true);
+    expect(isLimitName("none")).toBe(false);
+    expect(isLimitName(42)).toBe(false);
   });
 });
 `;
@@ -124,11 +139,10 @@ function reportedLines(output) {
 
 const fixtureRun = await runMutationOnFixture();
 
-test("reports every change no test catches with its file and line, and nothing a test catches", () => {
+test("reports every change no test catches with its file and line, and nothing a test or the type check catches", () => {
   assert.deepEqual(
     reportedLines(fixtureRun.stdout),
     [
-      "packages/contracts/src/limits.ts:15",
       "packages/contracts/src/limits.ts:16",
       "packages/contracts/src/limits.ts:8",
       "packages/domain/src/sign.ts:2",

@@ -684,7 +684,7 @@ function DeactivateUserModal({
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-base text-ink">No se puede deshacer.</p>
+          <p className="text-base text-ink">Se puede reactivar más adelante.</p>
           {attemptFailed && (
             <InlineNotice
               tone="error"
