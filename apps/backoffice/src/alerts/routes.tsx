@@ -10,7 +10,7 @@ export const alertsListFilters = z.object({
   level: z.enum(["all", "critical", "warning", "informational"]).default("all").catch("all"),
   status: z.enum(["open", "closed"]).default("open").catch("open"),
   search: z.string().default("").catch(""),
-  page: z.number().int().min(1).default(1).catch(1),
+  page: z.coerce.number().int().min(1).default(1).catch(1),
 });
 
 export type AlertsListFilters = z.output<typeof alertsListFilters>;

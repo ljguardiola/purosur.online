@@ -21,6 +21,7 @@ import { helpAreaRoute } from "./help-area";
 import { homeAreaIndexRoute, homeAreaRoute } from "./home-area";
 import { publicRoute } from "./public-route";
 import { type RouterContext, rootRoute } from "./root-route";
+import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaIndexRoute, settingsAreaRoute } from "./settings-area";
 import { signedInRoute } from "./signed-in-route";
 
@@ -67,7 +68,7 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(context: RouterContext) {
-  return createRouter({ routeTree, context });
+  return createRouter({ routeTree, context, parseSearch, stringifySearch });
 }
 
 declare module "@tanstack/react-router" {

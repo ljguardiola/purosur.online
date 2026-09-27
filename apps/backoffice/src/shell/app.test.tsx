@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../../packages/ui/src/test/axe";
+import { almonds, honey } from "../catalog/test-support/products-list-screen";
 import { App, type AppServices } from "./app";
 
 function createServices(overrides: Partial<AppServices> = {}): AppServices {
@@ -1738,6 +1739,27 @@ test("reopens the products list with the filters and ordering its URL carries", 
     .toHaveValue("miel");
   await expect.element(screen.getByRole("button", { name: "Unidad: Por peso" })).toBeVisible();
   expect(services.productsListScreen.fetchProducts).toHaveBeenCalledWith("inactive");
+});
+
+test("reopens the products list searching the barcode its URL carries", async () => {
+  const services = createServices();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({
+    kind: "ok",
+    value: [honey, almonds],
+  });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", `/catalog/products?search=${honey.barcodes[0]}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
+    .toHaveValue(honey.barcodes[0]);
+  await expect.element(screen.getByText(honey.name)).toBeVisible();
+  expect(screen.getByText(almonds.name).query()).toBeNull();
 });
 
 test("keeps a products list filter change in the URL, replacing the history entry instead of adding one", async () => {
