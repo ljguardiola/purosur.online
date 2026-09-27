@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { buildTestDatabase, type TestDatabase } from "../db/build-test-database.js";
+import { SESSION_COOKIE_NAME } from "../access/session-cookie.js";
+import { generateSessionId, hashSessionId } from "../access/session-id.js";
+import { hashSourceAddress } from "../access/sign-in-lockout.js";
 import {
   alertDeliveries,
   alerts,
@@ -10,10 +12,8 @@ import {
   sessions,
   userRoles,
   users,
-} from "../db/schema.js";
-import { SESSION_COOKIE_NAME } from "../session/session-cookie.js";
-import { generateSessionId, hashSessionId } from "../session/session-id.js";
-import { hashSourceAddress } from "../session/sign-in-lockout.js";
+} from "../platform/db/schema.js";
+import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { registerAlertReadRoute } from "./alert-read-route.js";
 

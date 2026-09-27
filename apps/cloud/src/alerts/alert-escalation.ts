@@ -1,6 +1,6 @@
 import { and, eq, isNull, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alerts } from "../db/schema.js";
+import { alerts } from "../platform/db/schema.js";
 
 export interface EscalateOverdueAlertsDeps {
   now: () => Date;

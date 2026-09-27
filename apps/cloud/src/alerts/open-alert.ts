@@ -1,8 +1,8 @@
 import type { AlertKind } from "@purosur/contracts";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { postgresErrorChain } from "../db/postgres-error-chain.js";
-import { alertDeliveries, alerts, roles, userRoles, users } from "../db/schema.js";
+import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
+import { alertDeliveries, alerts, roles, userRoles, users } from "../platform/db/schema.js";
 import { alertKindDefinition } from "./alert-kind-catalog.js";
 import { visibleToUsersJoinedWithRolesCondition } from "./alert-visibility.js";
 

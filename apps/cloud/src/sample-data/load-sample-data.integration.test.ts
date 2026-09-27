@@ -17,11 +17,11 @@ import {
   roles,
   userRoles,
   users,
-} from "../db/schema.js";
+} from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
-} from "../recovery/recovery-integration-database.js";
+} from "../test-support/integration-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { loadSampleData } from "./load-sample-data.js";
 import {

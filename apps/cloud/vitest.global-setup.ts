@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
-import { MIGRATIONS_FOLDER } from "./src/db/migrations-folder.js";
-import { provideTestDatabaseSnapshot } from "./src/db/test-database-snapshot.js";
+import { MIGRATIONS_FOLDER } from "./src/platform/db/migrations-folder.js";
+import { provideTestDatabaseSnapshot } from "./src/test-support/test-database-snapshot.js";
 
 declare module "vitest" {
   export interface ProvidedContext {

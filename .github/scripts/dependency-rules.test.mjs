@@ -783,11 +783,15 @@ test("main-process-scope allows an installed electron, electron-updater, and @se
   assert.equal(violationsFor(report, "main-process-scope").length, 0);
 });
 
-test("real-postgres-tests-no-pglite flags a cloud integration test or the Postgres global setup reaching PGlite, even through a helper", async (t) => {
+test("real-postgres-tests-no-pglite flags a cloud integration test at any depth or the Postgres global setup reaching PGlite, even through a helper", async (t) => {
   const root = await makeFixture(t, {
     "apps/cloud/src/db/journal.integration.test.ts": [
       'import { readJournal } from "./journal-helpers";',
       "export const deps = [readJournal];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/snapshot.integration.test.ts": [
+      'import { PGlite } from "@electric-sql/pglite";',
+      "export const deps = [PGlite];",
     ].join("\n"),
     "apps/cloud/src/db/journal-helpers.ts": [
       'import { PGlite } from "@electric-sql/pglite";',
@@ -810,11 +814,19 @@ test("real-postgres-tests-no-pglite flags a cloud integration test or the Postgr
   const violations = violationsFor(report, "real-postgres-tests-no-pglite");
   const violationPairs = violations.map((violation) => `${violation.from} -> ${violation.to}`);
 
-  assert.equal(violations.length, 3);
+  assert.equal(violations.length, 4);
   assert.equal(
     violationPairs.some(
       (pair) =>
         pair.startsWith("apps/cloud/src/db/journal.integration.test.ts -> ") &&
+        pair.endsWith("node_modules/@electric-sql/pglite/dist/index.js"),
+    ),
+    true,
+  );
+  assert.equal(
+    violationPairs.some(
+      (pair) =>
+        pair.startsWith("apps/cloud/src/platform/db/snapshot.integration.test.ts -> ") &&
         pair.endsWith("node_modules/@electric-sql/pglite/dist/index.js"),
     ),
     true,
@@ -846,6 +858,11 @@ test("real-postgres-tests-no-pglite flags a cloud integration test or the Postgr
     "apps/cloud/vitest.global-setup.postgres.ts",
     "export default function setup() {}\n",
   );
+  await writeFixtureFile(
+    root,
+    "apps/cloud/src/platform/db/snapshot.integration.test.ts",
+    'import { readFile } from "node:fs/promises";\nexport const deps = [readFile];\n',
+  );
   const controlReport = await cruiseFixture(root, ["apps"]);
   assert.equal(violationsFor(controlReport, "real-postgres-tests-no-pglite").length, 0);
 });
@@ -855,10 +872,6 @@ test("a test the cloud's real-Postgres project doesn't run breaks no rule, even 
     "packages/domain/src/sales/model/order.integration.test.ts": [
       'import { readFileSync } from "node:fs";',
       "export const deps = [readFileSync];",
-    ].join("\n"),
-    "apps/cloud/src/db/nested/journal.integration.test.ts": [
-      'import { PGlite } from "@electric-sql/pglite";',
-      "export const deps = [PGlite];",
     ].join("\n"),
     "apps/cloud/src/db/journal.integration.test.tsx": [
       'import { PGlite } from "@electric-sql/pglite";',

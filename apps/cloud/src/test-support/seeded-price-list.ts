@@ -1,5 +1,5 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { priceLists } from "../db/schema.js";
+import { priceLists } from "../platform/db/schema.js";
 
 export async function seededPriceListId<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
