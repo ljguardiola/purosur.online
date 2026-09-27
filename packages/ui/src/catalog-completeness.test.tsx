@@ -3,7 +3,6 @@ import * as UI from "./index";
 
 const componentsWithoutStoriesYet = [
   "AreaNavItem",
-  "Checkbox",
   "ColumnChart",
   "DateField",
   "HighlightedNotice",

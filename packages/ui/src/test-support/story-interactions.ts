@@ -19,17 +19,22 @@ export function playHoverSetsDataHovered(
 }
 
 /**
- * Tabs to the element `locate` finds and asserts it both received focus and shows react-aria's
- * own `data-focus-visible` attribute, the state its keyboard focus ring is driven by.
+ * Tabs to the element `locateFocused` finds and asserts it received focus, and that
+ * `locateFocusRing` (the same element by default) shows react-aria's own `data-focus-visible`
+ * attribute, the state its keyboard focus ring is driven by.
+ *
+ * The two differ for a "group" pattern (Checkbox, Toggle, RadioGroup's and OptionCardGroup's
+ * options, SegmentedControl's options): real DOM focus lands on react-aria's own visually hidden
+ * native input, while the focus-ring attribute lands on the label that wraps it and draws the ring.
  */
 export function playTabReachesFocusVisible(
-  locate: (canvasElement: HTMLElement) => HTMLElement,
+  locateFocused: (canvasElement: HTMLElement) => HTMLElement,
+  locateFocusRing: (canvasElement: HTMLElement) => HTMLElement = locateFocused,
 ): StoryPlayFunction {
   return async ({ canvasElement }) => {
-    const target = locate(canvasElement);
     await userEvent.tab();
-    await expect(target).toHaveFocus();
-    await expect(target).toHaveAttribute("data-focus-visible");
+    await expect(locateFocused(canvasElement)).toHaveFocus();
+    await expect(locateFocusRing(canvasElement)).toHaveAttribute("data-focus-visible");
   };
 }
 
