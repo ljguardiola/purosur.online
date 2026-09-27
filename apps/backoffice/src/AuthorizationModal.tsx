@@ -5,21 +5,6 @@ import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./sessionApi";
 
-export const AUTHORIZATION_ACTION_LABELS = {
-  roleSave: "Guardar un rol",
-  userCreate: "Crear un usuario",
-  userEdit: "Editar un usuario",
-  passkeyRemoval: "Dar de baja una passkey",
-  passkeyRegistration: "Agregar una passkey",
-  userDeactivation: "Desactivar un usuario",
-  userReactivation: "Reactivar un usuario",
-  issuerIdentificationSave: "Guardar la identificación del emisor",
-  registerCreate: "Crear una caja",
-  registerEnrollmentCodeIssue: "Emitir un código de alta",
-} satisfies Record<string, string>;
-
-export type AuthorizationActionKey = keyof typeof AUTHORIZATION_ACTION_LABELS;
-
 export type AuthorizationServices = {
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
   authorizeSession: typeof authorizeSession;
@@ -40,7 +25,7 @@ type Authorizable = { kind: string };
 
 type AuthorizationModalProps = {
   isOpen: boolean;
-  action: AuthorizationActionKey;
+  actionName: string;
   notice: ModalNotice | null;
   submitting: boolean;
   onCancel: () => void;
@@ -49,7 +34,7 @@ type AuthorizationModalProps = {
 
 function AuthorizationModal({
   isOpen,
-  action,
+  actionName,
   notice,
   submitting,
   onCancel,
@@ -95,7 +80,7 @@ function AuthorizationModal({
     >
       <div className="flex flex-col items-center gap-4 text-center">
         <p className="text-base text-ink-secondary">
-          {`${AUTHORIZATION_ACTION_LABELS[action]} necesita tu autorización. Confirmala con tu passkey.`}
+          {`${actionName} necesita tu autorización. Confirmala con tu passkey.`}
         </p>
         {notice?.kind === "attemptFailed" && (
           <InlineNotice
@@ -119,11 +104,11 @@ function AuthorizationModal({
 }
 
 export function useAuthorization<T extends Authorizable>({
-  action,
+  actionName,
   onSessionEnded,
   services,
 }: {
-  action: AuthorizationActionKey;
+  actionName: string;
   onSessionEnded: () => void;
   services?: AuthorizationServices;
 }): { run: (attempt: () => Promise<T>) => Promise<T | { kind: "cancelled" }>; modal: ReactNode } {
@@ -224,7 +209,7 @@ export function useAuthorization<T extends Authorizable>({
     modal: (
       <AuthorizationModal
         isOpen={isOpen}
-        action={action}
+        actionName={actionName}
         notice={notice}
         submitting={submitting}
         onCancel={cancel}

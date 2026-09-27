@@ -155,7 +155,7 @@ function NewUserModal({
     name: string;
   } | null>(null);
   const { run, modal } = useAuthorization<CreateUserOutcome>({
-    action: "userCreate",
+    actionName: "Crear un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });

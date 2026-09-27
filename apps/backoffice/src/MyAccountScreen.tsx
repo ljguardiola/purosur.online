@@ -147,7 +147,7 @@ function RegisterPasskeyModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RegisterPasskeyOutcome>({
-    action: "passkeyRegistration",
+    actionName: "Agregar una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -325,7 +325,7 @@ function RemovePasskeyModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RemovePasskeyOutcome>({
-    action: "passkeyRemoval",
+    actionName: "Dar de baja una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });

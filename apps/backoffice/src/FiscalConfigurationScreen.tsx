@@ -212,7 +212,7 @@ function EditIssuerIdentificationModal({
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<SaveIssuerIdentificationOutcome>({
-    action: "issuerIdentificationSave",
+    actionName: "Guardar la identificación del emisor",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });

@@ -187,7 +187,7 @@ function EditUserModal({
   const [notice, setNotice] = useState<EditUserModalNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<EditUserOutcome>({
-    action: "userEdit",
+    actionName: "Editar un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -485,7 +485,7 @@ function RemoveUserPasskeyModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<RemoveUserPasskeyOutcome>({
-    action: "passkeyRemoval",
+    actionName: "Dar de baja una passkey",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -632,7 +632,7 @@ function DeactivateUserModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<DeactivateUserOutcome>({
-    action: "userDeactivation",
+    actionName: "Desactivar un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -771,7 +771,7 @@ function ReactivateUserModal({
   const [rateLimitedSeconds, setRateLimitedSeconds] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<ReactivateUserOutcome>({
-    action: "userReactivation",
+    actionName: "Reactivar un usuario",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });

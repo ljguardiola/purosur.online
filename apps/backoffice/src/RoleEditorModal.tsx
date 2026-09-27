@@ -198,7 +198,7 @@ export function RoleEditorModal({
   const endSession = useCallback(() => onSessionEndedRef.current(), [onSessionEndedRef]);
 
   const { run, modal: authorizationModal } = useAuthorization<CreateRoleOutcome | EditRoleOutcome>({
-    action: "roleSave",
+    actionName: "Guardar un rol",
     onSessionEnded: endSession,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });

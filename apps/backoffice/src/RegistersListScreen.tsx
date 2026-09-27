@@ -121,7 +121,7 @@ function NewRegisterModal({
   >(null);
   const [submitting, setSubmitting] = useState(false);
   const { run, modal } = useAuthorization<CreateRegisterOutcome>({
-    action: "registerCreate",
+    actionName: "Crear una caja",
     onSessionEnded,
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
@@ -381,7 +381,7 @@ export function RegistersListScreen({ onSessionEnded, now, services }: Registers
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const { run: runEmission, modal: emissionAuthModal } =
     useAuthorization<EmitEnrollmentCodeOutcome>({
-      action: "registerEnrollmentCodeIssue",
+      actionName: "Emitir un código de alta",
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
