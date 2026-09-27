@@ -1,3 +1,4 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { ALERT_KINDS, isAlertKind } from "./alert-catalog.js";
 
@@ -18,5 +19,14 @@ describe("isAlertKind", () => {
       expect(isAlertKind(kind)).toBe(true);
     }
     expect(isAlertKind("not_a_real_kind")).toBe(false);
+  });
+
+  it("rejects any string outside the catalog and any non-string value", () => {
+    fc.assert(
+      fc.property(fc.anything(), (value) => {
+        fc.pre(!(typeof value === "string" && (ALERT_KINDS as readonly string[]).includes(value)));
+        expect(isAlertKind(value)).toBe(false);
+      }),
+    );
   });
 });
