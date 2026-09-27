@@ -282,6 +282,43 @@ test("finds .gitignore and .dockerignore comments only where # starts the line",
   }
 });
 
+test("finds .env comments on their own line and after an unquoted value", () => {
+  const source = ["# see #5", "A=value # closes #123", "  # indented", "B=1"].join("\n");
+
+  const comments = findComments(source, ".env.example");
+
+  assert.deepEqual(comments, [
+    { line: 1, text: "# see #5" },
+    { line: 2, text: "# closes #123" },
+    { line: 3, text: "# indented" },
+  ]);
+});
+
+test("reads a # inside an unquoted .env value as the start of a comment, as Node's env file parser does", () => {
+  const comments = findComments("URL=https://example.com/page#42", ".env");
+
+  assert.deepEqual(comments, [{ line: 1, text: "#42" }]);
+});
+
+test("does not mistake a # inside a quoted .env value for a comment", () => {
+  const source = ['A="closes #123" # real', "B='see #5'", "C=`#fff`"].join("\n");
+
+  const comments = findComments(source, "apps/cloud/.env.local");
+
+  assert.deepEqual(comments, [{ line: 1, text: "# real" }]);
+});
+
+test("does not mistake a # line inside a multi-line quoted .env value for a comment", () => {
+  const source = ['A="first', "# closes #123", 'last" # see #5', "# after"].join("\n");
+
+  const comments = findComments(source, ".env.example");
+
+  assert.deepEqual(comments, [
+    { line: 3, text: "# see #5" },
+    { line: 4, text: "# after" },
+  ]);
+});
+
 test("reports an issue number in a comment that follows a URL string", () => {
   const violations = findDocumentReferences('fetch("https://x"); // closes #123');
 
@@ -511,14 +548,19 @@ test("scans every file kind whose comments it can read", () => {
     "packages/x/.gitignore",
     "packages/a/Dockerfiles.ts.snap",
     "packages/a/gitignore",
+    ".env.example",
+    "apps/cloud/.env",
+    "packages/a/x.env",
   ];
 
   const files = findScannedFiles("/repo", () => tracked);
 
   assert.deepEqual(files, [
     ".dockerignore",
+    ".env.example",
     ".gitignore",
     "Dockerfile.dev",
+    "apps/cloud/.env",
     "apps/cloud/Dockerfile",
     "apps/x/app.Dockerfile",
     "packages/a/x.cjs",
@@ -548,6 +590,7 @@ test("no scanned file in the repository has a comment citing an issue, a pull re
     "apps/cloud/Dockerfile",
     ".dockerignore",
     ".gitignore",
+    ".env.example",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);
   }

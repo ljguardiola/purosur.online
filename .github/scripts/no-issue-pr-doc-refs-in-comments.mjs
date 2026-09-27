@@ -53,14 +53,13 @@ function findScriptComments(source, fileName) {
 const CSS_COMMENT_OR_SKIPPED_TOKEN =
   /\/\*[\s\S]*?(?:\*\/|$)|"(?:[^"\\\n]|\\[\s\S])*"?|'(?:[^'\\\n]|\\[\s\S])*'?|url\([^)"']*\)?/gi;
 
-function findCssComments(source) {
-  const comments = [];
-  for (const match of source.matchAll(CSS_COMMENT_OR_SKIPPED_TOKEN)) {
-    if (!match[0].startsWith("/*")) continue;
-    comments.push({ line: source.slice(0, match.index).split("\n").length, text: match[0] });
-  }
-  return comments;
+function findMatchedComments(source, tokenPattern, commentStart) {
+  return [...source.matchAll(tokenPattern)]
+    .filter((match) => match[0].startsWith(commentStart))
+    .map((match) => ({ line: source.slice(0, match.index).split("\n").length, text: match[0] }));
 }
+
+const findCssComments = (source) => findMatchedComments(source, CSS_COMMENT_OR_SKIPPED_TOKEN, "/*");
 
 function findYamlComments(source) {
   const comments = [];
@@ -83,6 +82,11 @@ function findLineComments(source, commentLine) {
 const findDockerfileComments = (source) => findLineComments(source, /^\s*#/);
 const findIgnoreFileComments = (source) => findLineComments(source, /^#/);
 
+const ENV_QUOTED_VALUE_OR_COMMENT =
+  /^[ \t]*(?:export[ \t]+)?[\w.-]+[ \t]*=[ \t]*(["'`])[\s\S]*?\1|#[^\n]*/gm;
+
+const findEnvComments = (source) => findMatchedComments(source, ENV_QUOTED_VALUE_OR_COMMENT, "#");
+
 function isDockerfile(name) {
   return name === "Dockerfile" || name.startsWith("Dockerfile.") || name.endsWith(".Dockerfile");
 }
@@ -94,6 +98,7 @@ function commentFinderFor(path) {
   if (name.endsWith(".yml") || name.endsWith(".yaml")) return findYamlComments;
   if (isDockerfile(name)) return findDockerfileComments;
   if (name === ".gitignore" || name === ".dockerignore") return findIgnoreFileComments;
+  if (name === ".env" || name.startsWith(".env.")) return findEnvComments;
   return undefined;
 }
 
