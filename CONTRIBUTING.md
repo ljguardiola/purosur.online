@@ -15,7 +15,7 @@ Runs the cloud, its database, and the backoffice on one origin, with no real mai
 2. `pnpm dev:db` — starts Postgres (`docker-compose.yml`) in the background.
 3. `pnpm dev:migrate` — builds the cloud and applies its migrations against `DATABASE_URL`.
 4. `pnpm dev:create-first-administrator --name "Your Name" --email you@example.com` — creates the first Administrator.
-5. `pnpm dev:load-sample-data` — fills the database with realistic, fictional sample data (products, prices, users, alerts, and more). Running it again is a no-op; `pnpm dev:clear-sample-data` removes exactly what it added, leaving the Administrator from step 4 untouched. Both refuse to run against anything but a local database.
+5. `pnpm dev:load-sample-data` — fills the database with realistic, fictional sample data (products, prices, users, alerts, and more). Running it again is a no-op; `pnpm dev:clear-sample-data` removes only what it added, leaving the Administrator from step 4 untouched, and changes nothing while other data still depends on sample data. Neither runs against anything but a local database or, for loading only, staging.
 6. `pnpm dev:cloud` — builds and starts the cloud on port 3000.
 7. In a second terminal, `pnpm dev:backoffice` — starts the backoffice's Vite dev server. Its dev-server proxy (`apps/backoffice/vite.config.ts`) forwards every cloud API path to the cloud process above, so the browser only ever talks to the Vite origin (`http://localhost:5173`, `.env`'s `BACKOFFICE_ORIGIN`) and the cloud's Origin check applies exactly as it does when deployed.
 
