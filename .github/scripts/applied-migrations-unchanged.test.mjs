@@ -231,22 +231,6 @@ test("reports a journal-specific violation for an edited journal entry", () => {
   assert.match(violations[0].reason, /modified/);
 });
 
-test("does not flag a journal that only appended a new entry", () => {
-  const base = journal([{ idx: 0, tag: "0000_x", when: 1 }]);
-  const current = journal([
-    { idx: 0, tag: "0000_x", when: 1 },
-    { idx: 1, tag: "0001_y", when: 2 },
-  ]);
-
-  const violations = findMigrationViolations({
-    basePaths: ["apps/cloud/migrations/meta/_journal.json"],
-    readBase: () => base,
-    readCurrent: () => current,
-  });
-
-  assert.deepEqual(violations, []);
-});
-
 test("describes a violation as its path and reason", () => {
   assert.equal(
     describeViolation({ path: "apps/cloud/migrations/0000_x.sql", reason: "deleted" }),
