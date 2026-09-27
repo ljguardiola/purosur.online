@@ -69,8 +69,8 @@ const routeTree = rootRoute.addChildren([
 
 export function createAppRouter(context: RouterContext) {
   const router = createRouter({ routeTree, context, parseSearch, stringifySearch });
-  router.subscribe("onRendered", ({ fromLocation, pathChanged }) => {
-    if (fromLocation && pathChanged) {
+  router.subscribe("onRendered", ({ pathChanged }) => {
+    if (pathChanged) {
       document.querySelector<HTMLElement>("h1")?.focus();
     }
   });
