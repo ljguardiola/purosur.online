@@ -17,6 +17,29 @@ const AGGREGATE_ENV = {
   TESTS_RESULT: `\${{ needs.tests.result }}`,
 };
 
+const HISTORY_SCAN_RUN = "node --test .github/scripts/no-secrets-in-commit-history.test.mjs";
+
+const HISTORY_SCAN_BASE_REF = `\${{ github.event.pull_request.base.sha }}`;
+
+function scopeJobLines({
+  jobExtra = [],
+  run = HISTORY_SCAN_RUN,
+  stepExtra = [],
+  baseRef = HISTORY_SCAN_BASE_REF,
+} = {}) {
+  return [
+    "  scope:",
+    "    if: github.event_name == 'pull_request'",
+    ...jobExtra.map((line) => `    ${line}`),
+    "    runs-on: ubuntu-24.04",
+    "    steps:",
+    "      - run: node .github/scripts/change-scope.mjs",
+    `      - run: ${run}`,
+    ...stepExtra.map((line) => `        ${line}`),
+    ...(baseRef === null ? [] : ["        env:", `          CHANGE_BASE_REF: ${baseRef}`]),
+  ];
+}
+
 function verifyJobLines({
   needs = "[scope, static, tests]",
   condition = "always()",
@@ -42,6 +65,7 @@ function verifyJobLines({
 
 function workflow({
   topExtra = [],
+  scope = {},
   staticRun = "pnpm verify:static",
   shardValues = [1, 2, 3, 4],
   testsRun,
@@ -76,6 +100,7 @@ function workflow({
   return [
     ...topExtra,
     "jobs:",
+    ...(scope === null ? [] : scopeJobLines(scope)),
     "  static:",
     `    if: ${staticIf}`,
     ...staticJobExtra.map((line) => `    ${line}`),
@@ -124,9 +149,70 @@ test("passes when the static job runs verify:static, the shards cover 1..n, and 
   assert.deepEqual(violations, []);
 });
 
+test("flags a missing scope job, which would leave a docs-only change's commits unscanned", () => {
+  const violations = findVerifyWorkflowViolations(workflow({ scope: null }), packageJson());
+
+  assertSingleViolation(violations, /no scope job/);
+});
+
+for (const [label, scope, pattern] of [
+  [
+    "does not scan the change's commit history",
+    { run: "echo ok" },
+    /scope job has no step whose run is exactly/,
+  ],
+  [
+    "swallows the commit history scan's failure",
+    { run: `${HISTORY_SCAN_RUN} || true` },
+    /scope job has no step whose run is exactly/,
+  ],
+  [
+    "scans the commit history without the change's base",
+    { baseRef: null },
+    /scope job's commit history scan step's CHANGE_BASE_REF is/,
+  ],
+  [
+    "scans the commit history from the wrong base",
+    { baseRef: `\${{ github.sha }}` },
+    /scope job's commit history scan step's CHANGE_BASE_REF is/,
+  ],
+  [
+    "lets the commit history scan fail without failing the job",
+    { stepExtra: ["continue-on-error: true"] },
+    /scope job's commit history scan step sets continue-on-error/,
+  ],
+  [
+    "runs the commit history scan only under its own condition",
+    { stepExtra: ["if: false"] },
+    /scope job's commit history scan step has its own if/,
+  ],
+  [
+    "overrides the commit history scan's shell",
+    { stepExtra: ["shell: bash -c 'exit 0' {0}"] },
+    /scope job's commit history scan step sets its own shell/,
+  ],
+  [
+    "is allowed to fail without failing the workflow",
+    { jobExtra: ["continue-on-error: true"] },
+    /scope job sets continue-on-error/,
+  ],
+  [
+    "overrides its steps' shell",
+    { jobExtra: ["defaults:", "  run:", "    shell: bash -c 'exit 0' {0}"] },
+    /scope job sets defaults/,
+  ],
+]) {
+  test(`flags a scope job that ${label}`, () => {
+    const violations = findVerifyWorkflowViolations(workflow({ scope }), packageJson());
+
+    assertSingleViolation(violations, pattern);
+  });
+}
+
 test("flags a missing static job", () => {
   const source = [
     "jobs:",
+    ...scopeJobLines(),
     "  tests:",
     `    if: ${RUN_CONDITION}`,
     "    strategy:",
@@ -159,6 +245,7 @@ test("flags a static job that no longer runs verify:static", () => {
 test("flags a missing tests job", () => {
   const source = [
     "jobs:",
+    ...scopeJobLines(),
     "  static:",
     `    if: ${RUN_CONDITION}`,
     "    steps:",
